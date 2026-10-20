@@ -4,6 +4,9 @@ import { useEffect, useEffectEvent, useSyncExternalStore } from 'react';
 import { createNoticeCountdown } from '@/lib/notice-countdown';
 
 let unreachable = false;
+let failureGeneration = 0;
+export const getConnectionFailureGeneration = () => failureGeneration;
+let authProbeUrl: string | undefined;
 let probeTimer: ReturnType<typeof setTimeout> | undefined;
 let probeController: AbortController | undefined;
 let probeDelay = 1000;
@@ -19,18 +22,33 @@ function scheduleProbe(delay = probeDelay) {
     const controller = new AbortController();
     probeController = controller;
     const timeout = setTimeout(() => controller.abort(), 5000);
+    probeDelay = Math.min(probeDelay * 2, 30000);
     try {
-      const response = await fetch('/localeSettings', {
+      const authUrl = authProbeUrl;
+      const response = await fetch(authUrl ?? '/localeSettings', {
         cache: 'no-store',
+        credentials: 'omit',
         signal: controller.signal,
       });
-      probeDelay = Math.min(probeDelay * 2, 30000);
-      if (response.ok && !controller.signal.aborted && navigator.onLine) {
+      const data: unknown = await response.json();
+      const expected =
+        typeof data === 'object' &&
+        data !== null &&
+        !Array.isArray(data) &&
+        (authUrl
+          ? [400, 401, 405].includes(response.status) &&
+            'error' in data &&
+            typeof data.error === 'string'
+          : response.ok &&
+            'timeZoneId' in data &&
+            typeof data.timeZoneId === 'string' &&
+            !!data.timeZoneId.trim());
+      if (expected && authUrl === authProbeUrl && !controller.signal.aborted && navigator.onLine) {
         onlineManager.setOnline(true);
         return;
       }
     } catch {
-      probeDelay = Math.min(probeDelay * 2, 30000);
+      // A probe never replaces the current offline state on failure.
     } finally {
       clearTimeout(timeout);
       if (probeController === controller) probeController = undefined;
@@ -39,8 +57,17 @@ function scheduleProbe(delay = probeDelay) {
   }, delay);
 }
 
-export function reportConnectionSuccess() {
+export function reportConnectionSuccess(url?: string, sentGeneration = failureGeneration) {
+  if (sentGeneration !== failureGeneration) return;
+  if (authProbeUrl && url !== undefined && !url.includes('/oauth/')) return;
   probeDelay = 1000;
+  authProbeUrl = undefined;
+  unreachable = false;
+  clearTimeout(probeTimer);
+  probeTimer = undefined;
+  probeController?.abort();
+  probeController = undefined;
+  if (navigator.onLine) onlineManager.setOnline(true);
 }
 
 export function reportConnectionFailure(error: unknown) {
@@ -48,9 +75,13 @@ export function reportConnectionFailure(error: unknown) {
     !isAxiosError(error) ||
     error.response ||
     error.code === AxiosError.ERR_CANCELED ||
-    error.code === AxiosError.ECONNABORTED
+    (error.code === AxiosError.ECONNABORTED && !error.config?.url?.includes('/oauth/'))
   )
     return;
+  failureGeneration += 1;
+  if (error.config?.url?.includes('/oauth/')) {
+    authProbeUrl = `${(error.config.baseURL ?? '/api').replace(/\/$/, '')}/oauth/token`;
+  }
   unreachable = true;
   onlineManager.setOnline(false);
   scheduleProbe();
@@ -86,6 +117,7 @@ onlineManager.subscribe((online) => {
   if (online) {
     connectionGeneration += 1;
     unreachable = false;
+    authProbeUrl = undefined;
     clearTimeout(probeTimer);
     probeTimer = undefined;
     probeController?.abort();

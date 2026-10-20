@@ -819,6 +819,34 @@ it('marks cards excluded for zero stock without claiming they are expired', () =
   expect(refreshStockEventLines(lines, [empty], today, 'issue')[0].stockProblem).toBe('zero-stock');
 });
 
+it('preserves restored quantity text but requires reconciliation after a pack-size change', () => {
+  const original = line({ netContent: 10, quantity: quantityValue('20', 10) });
+  const changed = { ...card, orderable: { ...card.orderable, netContent: 20 } };
+  const restored = refreshStockEventLines([original], [changed], today, 'adjustment');
+  expect(restored[0].quantity).toEqual({ doses: '20', packs: '2', remainder: '0' });
+  expect(restored[0].netContent).toBe(20);
+  expect(issues(restored)).toContainEqual([
+    'lines.0.quantity.doses',
+    'stock-events.draft-pack-size-changed',
+  ]);
+  const reopened = refreshStockEventLines(restored, [changed], today, 'adjustment');
+  expect(issues(reopened)).toContainEqual([
+    'lines.0.quantity.doses',
+    'stock-events.draft-pack-size-changed',
+  ]);
+  for (const part of ['packs', 'doses'] as const) {
+    const reconciled = {
+      ...reopened[0],
+      quantity: updateQuantityValue(reopened[0].quantity, part, part === 'packs' ? '2' : '20', 20),
+    };
+    expect(issues([reconciled])).toBeUndefined();
+    expect(
+      eventPayload({ kind: 'adjustment', facilityId: 'home', programId: 'p', lines: [reconciled] })
+        .lineItems[0].quantity,
+    ).toBe(part === 'packs' ? 40 : 20);
+  }
+});
+
 it('does not blame expiry when a kit card is excluded by stock or product eligibility', () => {
   const zero = {
     ...card,

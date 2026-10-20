@@ -1,10 +1,19 @@
-import { onlineManager } from '@tanstack/react-query';
-import { waitFor } from '@testing-library/react';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
+import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
+import {
+  foregroundStockEvents,
+  holdForegroundStockEvent,
+  releaseForegroundStockEvent,
+  useForegroundStockEventIds,
+  waitForStockEventReceipt,
+} from '@/features/stock-events/lib/stock-event-delivery';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { getLocalDb } from '@/integrations/local-db';
+import { queryKeys } from '@/lib/key-factory';
+import { setDownloadRefresh } from '@/lib/offline-download-status';
 
 const event = {
   sequence: 1,
@@ -16,6 +25,12 @@ const event = {
   programId: 'one',
   status: 'queued',
 } as QueuedStockEvent;
+afterEach(() => {
+  for (const id of foregroundStockEvents) releaseForegroundStockEvent(id);
+  setDownloadRefresh();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 beforeEach(async () => {
   useLoginData
     .getState()
@@ -30,19 +45,17 @@ it('waits at most 65 seconds for a sending event even without a durable receipt'
     .put({ ...event, status: 'sending' });
   const original = globalThis.setTimeout;
   let deadline!: () => void;
-  let startTimer: ReturnType<typeof setTimeout> | undefined;
   vi.spyOn(globalThis, 'setTimeout').mockImplementation((handler, timeout, ...args) => {
     const handle = original(handler, timeout, ...args);
-    if (timeout === 1500) startTimer = handle;
     if (timeout === 65_000)
       deadline = () => {
         if (typeof handler === 'function') handler(...args);
       };
     return handle;
   });
-  const cleared = vi.spyOn(globalThis, 'clearTimeout');
+  const observed = vi.spyOn(getLocalDb().table('stockEventQueue'), 'filter');
   const result = waitForStockEventReceipt(event);
-  await waitFor(() => expect(cleared).toHaveBeenCalledWith(startTimer));
+  await waitFor(() => expect(observed).toHaveBeenCalled());
   deadline();
   expect(await result).toEqual({ kind: 'uncertain' });
   expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).status).toBe('sending');
@@ -84,4 +97,90 @@ it('waits for its own access hold when an earlier event is access-paused', async
   await waitFor(() => expect(filter).toHaveBeenCalled());
   await queue.update(next.sequence, { pauseReason: 'access-changed' });
   expect(await result).toEqual({ kind: 'held', reason: 'access-changed' });
+});
+
+it('keeps a slow online submission in progress and invalidates stock before returning its receipt', async () => {
+  const db = getLocalDb();
+  await db.table('stockEventQueue').put(event);
+  const client = new QueryClient();
+  client.setQueryData(queryKeys.stockCardSummaries.all, ['old-stock']);
+  await db.table('stockEventQueue').update(event.sequence, { status: 'sending' });
+  vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  const observed = vi.spyOn(db.table('stockEventQueue'), 'get');
+  let settled = false;
+  const result = waitForStockEventReceipt(event, client).then((value) => {
+    settled = true;
+    return value;
+  });
+  await waitFor(() => expect(observed).toHaveBeenCalled());
+  await vi.advanceTimersByTimeAsync(1600);
+  expect(settled).toBe(false);
+  const refresh = vi.fn();
+  setDownloadRefresh(refresh);
+  refreshAfterStockEventAccepted(client, event);
+  const receipt = {
+    draftId: event.draftId,
+    revision: event.revision,
+    localEventId: event.localEventId,
+    acceptedAt: Date.now(),
+    source: 'server',
+  };
+  await db.table('stockEventReceipts').put(receipt);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(await result).toEqual({ kind: 'accepted', receipt });
+  expect(client.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated).toBe(true);
+  expect(refresh).toHaveBeenCalledTimes(1);
+  setDownloadRefresh();
+});
+
+it('returns queued after 1.5 seconds when the online uploader never starts', async () => {
+  await getLocalDb().table('stockEventQueue').put(event);
+  vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  let outcome: unknown;
+  const result = waitForStockEventReceipt(event).then((value) => {
+    outcome = value;
+    return value;
+  });
+  await vi.advanceTimersByTimeAsync(1600);
+  expect(outcome).toEqual({ kind: 'queued' });
+  await result;
+  expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).status).toBe('queued');
+});
+
+it('updates foreground counts when the waiting tab closes without waiting for a saved deadline', async () => {
+  const name = `${getLocalDb().name}:fg:${event.localEventId}`;
+  let held: { name: string }[] = [{ name }];
+  vi.stubGlobal('navigator', { locks: { query: async () => ({ held, pending: [] }) } });
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+  const next = renderHook(() => useForegroundStockEventIds());
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  expect(next.result.current.has(event.localEventId)).toBe(true);
+  held = [];
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1000);
+  });
+  expect(next.result.current.has(event.localEventId)).toBe(false);
+  next.unmount();
+});
+
+it('holds foreground ownership until its delivery wait ends', async () => {
+  let locked = false;
+  const request = vi.fn(async (_name, _options, run) => {
+    locked = true;
+    try {
+      await run({});
+    } finally {
+      locked = false;
+    }
+  });
+  vi.stubGlobal('navigator', { locks: { request } });
+  await holdForegroundStockEvent(event.localEventId);
+  expect(locked).toBe(true);
+  const error = { localEventId: event.localEventId, category: 'refused', event };
+  await getLocalDb().table('stockEventSyncErrors').put(error);
+  expect(await waitForStockEventReceipt(event)).toEqual({ kind: 'refused', error });
+  await waitFor(() => expect(locked).toBe(false));
+  expect(foregroundStockEvents.has(event.localEventId)).toBe(false);
 });

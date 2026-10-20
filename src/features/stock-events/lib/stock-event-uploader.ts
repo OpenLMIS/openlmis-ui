@@ -2,9 +2,12 @@ import { onlineManager } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { liveQuery } from 'dexie';
 import { toast } from 'sonner';
-import { useLoginData } from '@/features/auth/store/login-data';
-import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
-import { foregroundStockEvents } from '@/features/stock-events/lib/stock-event-delivery';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import {
+  refreshAfterStockEventAccepted,
+  subscribeStockEventAcceptances,
+} from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
+import { foregroundStockEventIds } from '@/features/stock-events/lib/stock-event-delivery';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import {
   pruneStockEvents,
@@ -22,6 +25,7 @@ import { isOnline, reportConnectionFailure } from '@/lib/online';
 import { hasProgramGrant, parsePermissions } from '@/lib/permissions';
 import { QueueReceiptError } from '@/lib/queue-transport';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { getSessionState, subscribeSessionState } from '@/lib/session-state';
 import { freshUploadAccess, uploadAccessEpoch } from '@/lib/upload-access';
 
 export function startStockEventUploader(
@@ -31,6 +35,7 @@ export function startStockEventUploader(
     retryReceipt?: () => Promise<void>;
   } = {},
 ) {
+  const stopAcceptances = subscribeStockEventAcceptances(queryClient);
   let stopped = false;
   let running = false;
   let pending = false;
@@ -43,7 +48,7 @@ export function startStockEventUploader(
   let retryDelay = 1000;
   const pruned = new Set<string>();
   const valid = () => {
-    const state = useLoginData.getState();
+    const state = getSessionState();
     return (
       !stopped &&
       isOnline() &&
@@ -54,13 +59,13 @@ export function startStockEventUploader(
     );
   };
   const restingPhase = () =>
-    useLoginData.getState().expired || pausedEpoch === uploadAccessEpoch() ? 'session' : 'idle';
+    getSessionState().expired || pausedEpoch === uploadAccessEpoch() ? 'session' : 'idle';
   const run = async () => {
     if (running) {
       pending = true;
       return;
     }
-    const userId = useLoginData.getState().referenceDataUserId;
+    const userId = getSessionState().referenceDataUserId;
     if (stopped || !userId) return;
     if (!navigator.locks) {
       setSyncPhase('unsupported');
@@ -100,7 +105,6 @@ export function startStockEventUploader(
         check();
         if (!valid() || epoch !== uploadAccessEpoch() || access.userId !== userId) return;
         const permissions = parsePermissions(access.permissionStrings ?? []);
-        setSyncPhase('syncing');
         const send: SyncDependencies['send'] =
           dependencies.send ??
           (async (event) => {
@@ -120,15 +124,27 @@ export function startStockEventUploader(
           });
         let acceptedCount = 0;
         let sentCount = 0;
+        const backgroundEvents = new Set<string>();
+        let foreground = false;
         await syncStockEvents(db, userId, {
           check,
           canSend: () => valid() && epoch === uploadAccessEpoch(),
           permitted: (event) =>
             access.homeFacility?.id === event.facilityId &&
             access.programs.some((program) => program.id === event.programId) &&
-            hasProgramGrant(permissions, 'STOCK_ADJUST', event.facilityId, event.programId),
+            hasProgramGrant(
+              permissions,
+              EVENT_KINDS[event.kind].right,
+              event.facilityId,
+              event.programId,
+            ),
           send: async (event) => {
-            sentCount++;
+            foreground = (await foregroundStockEventIds()).has(event.localEventId);
+            if (!foreground) {
+              backgroundEvents.add(event.localEventId);
+              sentCount++;
+              setSyncPhase('syncing');
+            }
             const response = await send(event);
             if (response.status === 401) pausedEpoch = epoch;
             return response;
@@ -136,20 +152,20 @@ export function startStockEventUploader(
           retryReceipt:
             dependencies.retryReceipt ??
             (async () => {
-              setSyncPhase('receipt');
+              if (!foreground) setSyncPhase('receipt');
               await new Promise((resolve) => setTimeout(resolve, 1000));
             }),
           accepted: (event: QueuedStockEvent) => {
             check();
             refreshAfterStockEventAccepted(queryClient, event);
-            acceptedCount++;
-            if (!foregroundStockEvents.has(event.localEventId))
-              toast.success(i18n.t('device-events.synced'), {
-                description: i18n.t('device-events.synced-description'),
-              });
+            if (backgroundEvents.has(event.localEventId)) acceptedCount++;
           },
         });
         check();
+        if (acceptedCount)
+          toast.success(i18n.t('device-events.synced'), {
+            description: i18n.t('device-events.synced-count', { count: acceptedCount }),
+          });
         const unfinished = await db.transaction(
           'r',
           ['stockEventQueue', 'stockEventSyncErrors'],
@@ -184,8 +200,8 @@ export function startStockEventUploader(
     } catch (error) {
       if (scope === getSessionScope() && !stopped) {
         reportConnectionFailure(error);
-        setSyncPhase(useLoginData.getState().expired ? 'session' : 'failed');
-        if (!useLoginData.getState().expired && !retryTimer) {
+        setSyncPhase(getSessionState().expired ? 'session' : 'failed');
+        if (!getSessionState().expired && !retryTimer) {
           retryTimer = setTimeout(() => {
             retryTimer = undefined;
             void run();
@@ -207,7 +223,7 @@ export function startStockEventUploader(
     clearInterval(accessTimer);
     accessTimer = undefined;
     accessPaused = false;
-    if (!useLoginData.getState().referenceDataUserId) return;
+    if (!getSessionState().referenceDataUserId) return;
     const scope = getSessionScope();
     const db = getLocalDb();
     subscription = liveQuery(() =>
@@ -232,7 +248,7 @@ export function startStockEventUploader(
       },
     });
   };
-  const unsubscribe = useLoginData.subscribe((state, previous) => {
+  const unsubscribe = subscribeSessionState((state, previous) => {
     if (state.referenceDataUserId !== previous.referenceDataUserId) {
       pausedEpoch = undefined;
       forceAccess = false;
@@ -269,6 +285,7 @@ export function startStockEventUploader(
   void run();
   return () => {
     stopped = true;
+    stopAcceptances();
     clearTimeout(retryTimer);
     clearInterval(accessTimer);
     window.removeEventListener('focus', focus);

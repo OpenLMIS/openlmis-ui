@@ -1,6 +1,6 @@
 import { onlineManager } from '@tanstack/react-query';
 import { createRootRoute, createRouter, RouterContextProvider } from '@tanstack/react-router';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
@@ -15,11 +15,24 @@ vi.mock('@tanstack/react-router', async (original) => ({
   useRouter: () => ({ invalidate }),
 }));
 
+const chunk = vi.hoisted(() => ({ reloadOnce: vi.fn() }));
+vi.mock('@/lib/chunk-load', async (original) => ({
+  ...(await original<typeof import('@/lib/chunk-load')>()),
+  reloadOnce: chunk.reloadOnce,
+}));
+
+const missingChunk = () =>
+  new TypeError('Failed to fetch dynamically imported module: /v2/assets/route-old.js');
+
 const reset = vi.fn();
 const renderFallback = (error: unknown) =>
   render(<ErrorFallback error={error as Error} info={undefined} reset={reset} />);
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.clearAllMocks();
+  onlineManager.setOnline(true);
+});
 
 describe('ErrorFallback', () => {
   it.each([true, false])('shows error details only in development (DEV=%s)', (development) => {
@@ -95,4 +108,35 @@ it('reseeds connection on retry after Continue Offline', async () => {
   renderFallback(networkError());
   await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
   expect(onlineManager.isOnline()).toBe(true);
+});
+
+describe('a page that fails while offline', () => {
+  it.each([
+    ['a part of the app this device lacks', missingChunk()],
+    ['any other failure', new TypeError('Cannot read properties of undefined')],
+  ])('says it is not available offline for %s, and retries on reconnect', (_, error) => {
+    onlineManager.setOnline(false);
+    renderFallback(error);
+
+    expect(screen.getByRole('heading', { name: 'offline.unavailable-title' })).toBeInTheDocument();
+    expect(screen.queryByText('error.title')).not.toBeInTheDocument();
+
+    act(() => onlineManager.setOnline(true));
+
+    if (error.message.includes('dynamically')) expect(chunk.reloadOnce).toHaveBeenCalledOnce();
+    else expect(reset).toHaveBeenCalledOnce();
+  });
+});
+
+it('reloads into the current version when an app part is missing online', () => {
+  render(
+    <ErrorFallback
+      back={<Button>Back</Button>}
+      error={missingChunk()}
+      info={undefined}
+      reset={reset}
+    />,
+  );
+
+  expect(chunk.reloadOnce).toHaveBeenCalledOnce();
 });

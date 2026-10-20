@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { fetchLotsByIds, fetchOrderablesByIds } from '@/features/reference-data/api/api';
+import {
+  fetchAllOrderableVersions,
+  fetchLotsByIds,
+  fetchOrderablesByIds,
+} from '@/features/reference-data/api/api';
 import {
   cancelStockEvent,
   fetchAllStockEventLines,
@@ -13,12 +17,14 @@ import { client } from '@/integrations/axios';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), post: vi.fn() } }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  fetchAllOrderableVersions: vi.fn(),
   fetchOrderablesByIds: vi.fn(),
   fetchLotsByIds: vi.fn(),
 }));
 const get = vi.mocked(client.get);
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(fetchAllOrderableVersions).mockResolvedValue([]);
   vi.mocked(fetchOrderablesByIds).mockResolvedValue([]);
   vi.mocked(fetchLotsByIds).mockResolvedValue([]);
 });
@@ -32,59 +38,102 @@ const summaryCard = {
   lot: { id: 'l1' },
   stockOnHand: 10,
   active: false,
+  occurredDate: '2026-10-14',
 };
 
 describe('fetchEventStockCards', () => {
-  it('reads v2 with legacy params, resolves fulfilling products and lots, dedupes cards and keeps inactive stock', async () => {
+  it('reads every v2 page, resolves exact product versions and lots, dedupes cards and keeps inactive stock', async () => {
+    const versionedProduct = { ...product, meta: { versionNumber: 2 } };
+    const versionedCard = { ...summaryCard, orderable: { id: 'o1', versionNumber: 2 } };
     get.mockResolvedValueOnce({
       data: {
+        totalPages: 2,
+        content: [{ orderable: { id: 'approved' }, canFulfillForMe: [versionedCard] }],
+      },
+    });
+    get.mockResolvedValueOnce({
+      data: {
+        totalPages: 2,
         content: [
-          { orderable: { id: 'approved' }, canFulfillForMe: [summaryCard] },
           {
             orderable: { id: 'another' },
-            canFulfillForMe: [summaryCard, { ...summaryCard, stockCard: { id: 's2' }, lot: null }],
+            canFulfillForMe: [
+              versionedCard,
+              { ...versionedCard, stockCard: { id: 's2' }, lot: null },
+            ],
           },
         ],
       },
     });
-    vi.mocked(fetchOrderablesByIds).mockResolvedValueOnce([product]);
+    vi.mocked(fetchAllOrderableVersions).mockResolvedValueOnce([versionedProduct]);
     vi.mocked(fetchLotsByIds).mockResolvedValueOnce([lot]);
     await expect(fetchEventStockCards(selection)).resolves.toEqual([
-      { id: 's1', orderable: product, lot, stockOnHand: 10 },
-      { id: 's2', orderable: product, lot: null, stockOnHand: 10 },
+      {
+        id: 's1',
+        orderable: versionedProduct,
+        lot,
+        stockOnHand: 10,
+        active: false,
+        occurredDate: '2026-10-14',
+      },
+      {
+        id: 's2',
+        orderable: versionedProduct,
+        lot: null,
+        stockOnHand: 10,
+        active: false,
+        occurredDate: '2026-10-14',
+      },
     ]);
-    expect(get).toHaveBeenCalledExactlyOnceWith('/v2/stockCardSummaries', {
-      params: { ...selection, nonEmptyOnly: true },
-    });
-    expect(fetchOrderablesByIds).toHaveBeenCalledExactlyOnceWith(['o1', 'o1']);
-    expect(fetchLotsByIds).toHaveBeenCalledExactlyOnceWith(['l1']);
+    expect(get).toHaveBeenCalledTimes(2);
+    for (const page of [0, 1])
+      expect(get).toHaveBeenNthCalledWith(page + 1, '/v2/stockCardSummaries', {
+        params: { ...selection, nonEmptyOnly: true, page, size: 100 },
+      });
+    expect(fetchAllOrderableVersions).toHaveBeenCalledExactlyOnceWith(
+      [{ id: 'o1', versionNumber: 2 }],
+      {},
+    );
+    expect(fetchOrderablesByIds).toHaveBeenCalledExactlyOnceWith(['approved', 'another'], {});
+    expect(fetchLotsByIds).toHaveBeenCalledExactlyOnceWith(['l1'], {});
   });
   it('passes no-lot stock to the empty-id lookup', async () => {
     get.mockResolvedValueOnce({
-      data: { content: [{ canFulfillForMe: [{ ...summaryCard, lot: null }] }] },
+      data: { totalPages: 1, content: [{ canFulfillForMe: [{ ...summaryCard, lot: null }] }] },
     });
     vi.mocked(fetchOrderablesByIds).mockResolvedValueOnce([product]);
     await expect(fetchEventStockCards(selection)).resolves.toEqual([
-      { id: 's1', orderable: product, lot: null, stockOnHand: 10 },
+      {
+        id: 's1',
+        orderable: product,
+        lot: null,
+        stockOnHand: 10,
+        active: false,
+        occurredDate: '2026-10-14',
+      },
     ]);
-    expect(fetchLotsByIds).toHaveBeenCalledExactlyOnceWith([]);
+    expect(fetchLotsByIds).toHaveBeenCalledExactlyOnceWith([], {});
   });
   it('offers no cards for products absent from v2, without looking up unrelated records', async () => {
-    get.mockResolvedValueOnce({ data: { content: [{ canFulfillForMe: [] }] } });
+    get.mockResolvedValueOnce({ data: { totalPages: 1, content: [{ canFulfillForMe: [] }] } });
     await expect(fetchEventStockCards(selection)).resolves.toEqual([]);
-    expect(fetchOrderablesByIds).toHaveBeenCalledExactlyOnceWith([]);
-    expect(fetchLotsByIds).toHaveBeenCalledExactlyOnceWith([]);
+    expect(fetchOrderablesByIds).toHaveBeenCalledExactlyOnceWith([], {});
+    expect(fetchLotsByIds).toHaveBeenCalledExactlyOnceWith([], {});
   });
   it('rejects unresolved products or lots instead of offering incomplete cards', async () => {
     for (const missing of ['product', 'lot']) {
-      get.mockResolvedValueOnce({ data: { content: [{ canFulfillForMe: [summaryCard] }] } });
+      get.mockResolvedValueOnce({
+        data: { totalPages: 1, content: [{ canFulfillForMe: [summaryCard] }] },
+      });
       vi.mocked(fetchOrderablesByIds).mockResolvedValueOnce(missing === 'product' ? [] : [product]);
       vi.mocked(fetchLotsByIds).mockResolvedValueOnce(missing === 'lot' ? [] : [lot]);
       await expect(fetchEventStockCards(selection)).rejects.toThrow();
     }
   });
   it('rejects a failed hydration instead of caching a partial list', async () => {
-    get.mockResolvedValueOnce({ data: { content: [{ canFulfillForMe: [summaryCard] }] } });
+    get.mockResolvedValueOnce({
+      data: { totalPages: 1, content: [{ canFulfillForMe: [summaryCard] }] },
+    });
     vi.mocked(fetchOrderablesByIds).mockRejectedValueOnce(new Error('Unavailable'));
     vi.mocked(fetchLotsByIds).mockResolvedValueOnce([lot]);
     await expect(fetchEventStockCards(selection)).rejects.toThrow('Unavailable');

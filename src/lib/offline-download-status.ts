@@ -1,12 +1,13 @@
+import type { ParseKeys } from 'i18next';
 import { useSyncExternalStore } from 'react';
 import { createNoticeCountdown } from '@/lib/notice-countdown';
 
 export type DownloadStatus = {
   phase: 'idle' | 'running' | 'complete' | 'failed' | 'unsupported';
-  incompletePrograms: { id: string; name: string }[];
+  incompletePrograms: { id: string; name: string; dataset?: string; datasetLabel?: ParseKeys }[];
   reason?: 'timeout' | 'offline' | 'session' | 'read';
   accessFailed?: boolean;
-  trigger?: 'boot' | 'force' | 'retry' | 'refresh';
+  trigger?: 'boot' | 'force' | 'retry' | 'refresh' | 'access';
 };
 const idle: DownloadStatus = { phase: 'idle', incompletePrograms: [] };
 let status = idle;

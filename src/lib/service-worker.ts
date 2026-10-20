@@ -3,6 +3,7 @@ import { Workbox } from 'workbox-window';
 import { SUPPORTED_LANGUAGES } from '@/lib/config';
 
 const UPDATE_CHECK_MS = 60 * 60 * 1000;
+const ACTIVATION_TIMEOUT_MS = 3000;
 
 type Options = {
   enabled?: boolean;
@@ -14,8 +15,8 @@ let reloadPage = () => window.location.reload();
 let updateReady = false;
 const listeners = new Set<() => void>();
 
-function setUpdateReady(ready: boolean) {
-  updateReady = ready;
+function markUpdateReady() {
+  updateReady = true;
   for (const listener of listeners) listener();
 }
 
@@ -34,7 +35,7 @@ function watchForUpdates(registration: ServiceWorkerRegistration) {
     const installing = registration.installing;
     installing?.addEventListener('statechange', () => {
       if (installing.state === 'installed' && isOurs(navigator.serviceWorker.controller)) {
-        setUpdateReady(true);
+        markUpdateReady();
       }
     });
   });
@@ -45,7 +46,7 @@ export function registerServiceWorker({ enabled = import.meta.env.PROD, reload }
   if (reload) reloadPage = reload;
   const base = import.meta.env.BASE_URL;
   workbox = new Workbox(`${base}sw.js`, { scope: base });
-  workbox.addEventListener('waiting', () => setUpdateReady(true));
+  workbox.addEventListener('waiting', () => markUpdateReady());
   void workbox.register().then((registration) => {
     if (!registration) return;
     watchForUpdates(registration);
@@ -56,20 +57,23 @@ export function registerServiceWorker({ enabled = import.meta.env.PROD, reload }
 }
 
 export async function applyUpdate(beforeReload: () => void = () => {}) {
+  let reloaded = false;
   const reload = () => {
+    if (reloaded) return;
+    reloaded = true;
     beforeReload();
     reloadPage();
   };
   const registration = await navigator.serviceWorker?.getRegistration(import.meta.env.BASE_URL);
-  if (!workbox || !registration?.waiting) {
+  const waiting = registration?.waiting;
+  if (!waiting) {
     reload();
     return;
   }
-  workbox.addEventListener('controlling', reload);
-  workbox.messageSkipWaiting();
+  navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true });
+  setTimeout(reload, ACTIVATION_TIMEOUT_MS);
+  waiting.postMessage({ type: 'SKIP_WAITING' });
 }
-
-export const dismissUpdate = () => setUpdateReady(false);
 
 export function useUpdateReady() {
   return useSyncExternalStore(

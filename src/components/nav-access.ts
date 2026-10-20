@@ -6,9 +6,14 @@ import { useDeviceWork } from '@/components/device-work';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  EVENT_KINDS,
+  hasOfflineCapability,
+  OFFLINE_EVENT_RIGHTS,
+} from '@/features/stock-events/lib/event-kinds';
+import { isOfflineCapable } from '@/features/stock-events/lib/offline-pages';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { useFlag } from '@/lib/feature-flags';
-import { isOfflineCapable } from '@/lib/offline-capability';
 import { useOnline } from '@/lib/online';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
@@ -38,11 +43,8 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
   '/stock-management/transaction-history': RIGHTS.stockCardsView,
   '/stock-management/physical-inventory': RIGHTS.stockInventoriesEdit,
-  '/offline-events': RIGHTS.stockAdjust,
-  '/stock-management/adjustments': RIGHTS.stockAdjust,
-  '/stock-management/issue': RIGHTS.stockAdjust,
-  '/stock-management/receive': RIGHTS.stockAdjust,
-  '/stock-management/unpack': RIGHTS.stockAdjust,
+  '/offline-events': OFFLINE_EVENT_RIGHTS,
+  ...Object.fromEntries(Object.values(EVENT_KINDS).map((kind) => [kind.listRoute, kind.right])),
 };
 
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */
@@ -75,7 +77,7 @@ export function navWithinRights(
     .filter((group) => group.items.length > 0);
 }
 
-function useSignedInRights() {
+export function useSignedInRights() {
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: rights } = useQuery({ ...rightsOptions(userId ?? ''), enabled: Boolean(userId) });
   return rights;
@@ -138,4 +140,8 @@ export function useAccountLinks(): AccountLink[] {
         ]
       : []),
   ];
+}
+
+export function useHasOfflineCapability() {
+  return hasOfflineCapability(useSignedInRights());
 }

@@ -213,7 +213,7 @@ it('restores a modified local count ahead of the server and marks only pending o
     savedAt: 1,
   });
   const write = Promise.withResolvers<void>();
-  vi.mocked(writeInventoryLocal).mockReturnValue(write.promise);
+  vi.mocked(writeInventoryLocal).mockReturnValue(write.promise.then(() => undefined));
   const user = userEvent.setup();
   setup();
   const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
@@ -335,7 +335,14 @@ it('always confirms Save, sends hidden members, and clears the local copy only o
       }),
     ),
   );
-  await waitFor(() => expect(clearInventoryLocal).toHaveBeenCalledWith('d'));
+  await waitFor(() =>
+    expect(clearInventoryLocal).toHaveBeenCalledWith(
+      'd',
+      expect.any(Number),
+      expect.any(Number),
+      expect.anything(),
+    ),
+  );
 });
 async function submitAndReturnToInvalidPage(
   user: ReturnType<typeof userEvent.setup>,
@@ -438,7 +445,14 @@ it('requires Delete confirmation and clears the device copy after deletion', asy
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.delete' }),
   );
-  await waitFor(() => expect(clearInventoryLocal).toHaveBeenCalledWith('d'));
+  await waitFor(() =>
+    expect(clearInventoryLocal).toHaveBeenCalledWith(
+      'd',
+      expect.any(Number),
+      expect.any(Number),
+      expect.anything(),
+    ),
+  );
   expect(deletePhysicalInventory).toHaveBeenCalledWith('d');
 });
 it('never resends a Submit whose outcome is unknown and retains the copy', async () => {
@@ -533,6 +547,8 @@ it('keeps Delete on an added row after Save replaces its editable lot with the s
         expect.objectContaining({ key: 'A|created', justAdded: true, newLot: undefined }),
       ]),
     }),
+    expect.any(Number),
+    expect.anything(),
   );
   expect(savePhysicalInventory).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -617,7 +633,12 @@ it('submits exactly once, clears the copy, and offers the print choice', async (
       ],
     }),
   );
-  expect(clearInventoryLocal).toHaveBeenCalledWith('d');
+  expect(clearInventoryLocal).toHaveBeenCalledWith(
+    'd',
+    expect.any(Number),
+    expect.any(Number),
+    expect.anything(),
+  );
   expect(invalidate).toHaveBeenCalledTimes(4);
   await user.click(screen.getByRole('button', { name: 'physical-inventory.no' }));
   expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();

@@ -1,14 +1,12 @@
 import { type ColumnDef, useTable } from '@tanstack/react-table';
 import { liveQuery } from 'dexie';
-import { MoreHorizontalIcon } from 'lucide-react';
+import { RotateCcwIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  DataTable,
-  type DataTableFeatures,
-  dataTableFeatures,
-} from '@/components/data-table/data-table';
+import { RowActions } from '@/components/card-actions';
+import { type DataTableFeatures, dataTableFeatures } from '@/components/data-table/data-table';
 import { ErrorAlert } from '@/components/dialog-parts';
+import { DialogTable } from '@/components/dialog-table';
 import { formatTimestamp } from '@/components/form/date-value';
 import {
   FormDialog,
@@ -31,19 +29,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   createStockEventContext,
   deleteStockEventCopy,
   readArchivedStockEvents,
   type StockEventDraft,
   type StockEventSelection,
 } from '@/features/stock-events/lib/stock-event-local';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { announceDeviceSave } from '@/lib/device-save-announcement';
 import { getSessionScope } from '@/lib/session-scope';
@@ -70,6 +62,8 @@ export function EventArchivedCopies(props: Props) {
 function ArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Props) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
+  const { measure, cards } = useDialogCardLayout('lg');
+  const closeRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef(onRestore);
   restoreRef.current = onRestore;
   const [copies, setCopies] = useState<StockEventDraft[]>([]);
@@ -146,6 +140,7 @@ function ArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Pr
       {
         accessorKey: 'lines',
         header: t('stock-events.draft-line-count'),
+        meta: { label: t('stock-events.draft-line-count') },
         cell: ({ row }) => new Intl.NumberFormat(i18n.language).format(row.original.lines.length),
       },
       {
@@ -153,38 +148,29 @@ function ArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Pr
         header: '',
         meta: { className: 'w-10' },
         cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  disabled={pending || disabled}
-                  aria-label={t('stock-events.draft-copy-actions', {
-                    time: savedTime(row.original),
-                  })}
-                />
-              }
-            >
-              <MoreHorizontalIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => void restore(row.original)}>
-                  {t('stock-events.draft-restore')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => {
-                    setDeleteFailed(false);
-                    setDeleting(row.original);
-                  }}
-                >
-                  {t('stock-events.draft-delete')}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <RowActions
+            label={t('stock-events.draft-copy-actions', { time: savedTime(row.original) })}
+            actions={[
+              {
+                id: 'restore',
+                icon: <RotateCcwIcon />,
+                label: t('stock-events.draft-restore'),
+                disabled: pending || disabled,
+                onSelect: () => void restore(row.original),
+              },
+              {
+                id: 'delete',
+                icon: <Trash2Icon />,
+                destructive: true,
+                label: t('stock-events.draft-delete'),
+                disabled: pending || disabled,
+                onSelect: () => {
+                  setDeleteFailed(false);
+                  setDeleting(row.original);
+                },
+              },
+            ]}
+          />
         ),
       },
     ],
@@ -201,54 +187,63 @@ function ArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Pr
   if (!copies.length && !open && !readFailed) return null;
   return (
     <>
-      <Button size="sm" variant="outline" disabled={disabled} onClick={() => setOpen(true)}>
+      <Button size="lg" variant="outline" disabled={disabled} onClick={() => setOpen(true)}>
         {t('stock-events.draft-archives')}
       </Button>
       <FormDialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
-        <FormDialogHeader>
-          <FormDialogTitle>{t('stock-events.draft-archives')}</FormDialogTitle>
-          <FormDialogDescription>
-            {t('stock-events.draft-archives-description')}
-          </FormDialogDescription>
-        </FormDialogHeader>
-        <FormDialogBody>
-          {(readFailed || restoreFailed) && (
-            <ErrorAlert
-              title={t('stock-events.draft-recovery-error-title')}
-              description={t('stock-events.draft-recovery-error-description')}
+        <div className="flex min-h-0 flex-1 flex-col gap-4" ref={measure}>
+          <FormDialogHeader>
+            <FormDialogTitle>{t('stock-events.draft-archives')}</FormDialogTitle>
+            <FormDialogDescription>
+              {t('stock-events.draft-archives-description')}
+            </FormDialogDescription>
+          </FormDialogHeader>
+          <FormDialogBody>
+            {(readFailed || restoreFailed) && (
+              <ErrorAlert
+                title={t('stock-events.draft-recovery-error-title')}
+                description={t('stock-events.draft-recovery-error-description')}
+              />
+            )}
+            <DialogTable
+              cards={cards}
+              title="savedAt"
+              table={table}
+              empty={t('stock-events.draft-no-archives')}
             />
-          )}
-          <DataTable table={table} empty={t('stock-events.draft-no-archives')} />
-        </FormDialogBody>
-        <FormDialogFooter>
-          <FormDialogCancel disabled={pending}>{t('dialog.close')}</FormDialogCancel>
-        </FormDialogFooter>
+          </FormDialogBody>
+          <FormDialogFooter>
+            <div className="contents" ref={closeRef}>
+              <FormDialogCancel disabled={pending}>{t('dialog.close')}</FormDialogCancel>
+            </div>
+          </FormDialogFooter>
+        </div>
+        <AlertDialog
+          open={!!deleting}
+          onOpenChange={(next) => !next && !pending && setDeleting(null)}
+        >
+          <AlertDialogContent finalFocus={() => closeRef.current?.querySelector('button') ?? null}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('stock-events.draft-delete-title')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('stock-events.draft-delete-description')}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {deleteFailed && (
+              <ErrorAlert
+                title={t('stock-events.draft-recovery-error-title')}
+                description={t('stock-events.draft-recovery-error-description')}
+              />
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={pending}>{t('stock-events.cancel')}</AlertDialogCancel>
+              <Button variant="destructive" disabled={pending} onClick={() => void remove()}>
+                {t('stock-events.draft-delete')}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </FormDialog>
-      <AlertDialog
-        open={!!deleting}
-        onOpenChange={(next) => !next && !pending && setDeleting(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('stock-events.draft-delete-title')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('stock-events.draft-delete-description')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteFailed && (
-            <ErrorAlert
-              title={t('stock-events.draft-recovery-error-title')}
-              description={t('stock-events.draft-recovery-error-description')}
-            />
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>{t('stock-events.cancel')}</AlertDialogCancel>
-            <Button variant="destructive" disabled={pending} onClick={() => void remove()}>
-              {t('stock-events.draft-delete')}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

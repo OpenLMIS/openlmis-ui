@@ -101,8 +101,8 @@ try {
         open.onsuccess = () => {
           const db = open.result;
           const read = db
-            .transaction('adjustmentDownloads')
-            .objectStore('adjustmentDownloads')
+            .transaction('homeStockDownloads')
+            .objectStore('homeStockDownloads')
             .getAll();
           read.onsuccess = () => {
             db.close();
@@ -115,12 +115,17 @@ try {
   await expect
     .poll(async () => (await bundles()).length, { timeout: 120_000 })
     .toBeGreaterThanOrEqual(2);
-  await expect(
-    page.getByRole('note').filter({ hasText: 'Fetching the necessary data for offline' }),
-  ).toHaveCount(0, { timeout: 120_000 });
+  await expect(page.getByRole('note').filter({ hasText: 'Downloading Offline Data' })).toHaveCount(
+    0,
+    { timeout: 120_000 },
+  );
   const first = await bundles();
   report.bundles = first.map((bundle) => ({
     programId: bundle.programId,
+    formatVersion: bundle.formatVersion,
+    summaries: bundle.summaries?.length ?? 0,
+    summaryBytes: Buffer.byteLength(JSON.stringify(bundle.summaries ?? [])),
+    productBytes: Buffer.byteLength(JSON.stringify(bundle.products ?? [])),
     cards: bundle.cards.length,
     products: new Set(
       bundle.cards.map((card) => `${card.orderable.id}|${card.orderable.meta?.versionNumber}`),
@@ -179,7 +184,7 @@ try {
           request.onsuccess = () => resolve(request.result);
         });
       const access = (await read('offlineAccess'))[0];
-      const bundle = (await read('adjustmentDownloads')).find((bundle) => bundle.cards.length);
+      const bundle = (await read('homeStockDownloads')).find((bundle) => bundle.cards.length);
       const card = bundle.cards[0];
       const reason = bundle.reasons.find(
         (assignment) => !assignment.hidden && assignment.reason.reasonCategory === 'ADJUSTMENT',
@@ -209,6 +214,10 @@ try {
         userId: access.userId,
         facilityId: bundle.facilityId,
         programId: bundle.programId,
+        formatVersion: bundle.formatVersion,
+        summaries: bundle.summaries?.length ?? 0,
+        summaryBytes: Buffer.byteLength(JSON.stringify(bundle.summaries ?? [])),
+        productBytes: Buffer.byteLength(JSON.stringify(bundle.products ?? [])),
         kind: 'adjustment',
         revision: 1,
         state,
@@ -221,6 +230,10 @@ try {
         const payload = {
           facilityId: bundle.facilityId,
           programId: bundle.programId,
+          formatVersion: bundle.formatVersion,
+          summaries: bundle.summaries?.length ?? 0,
+          summaryBytes: Buffer.byteLength(JSON.stringify(bundle.summaries ?? [])),
+          productBytes: Buffer.byteLength(JSON.stringify(bundle.products ?? [])),
           signature: 'Local sizing fixture',
           eventOrigin: 'ADJUSTMENT',
           lineItems: draft.lines.map(() => ({
@@ -265,6 +278,10 @@ try {
           localEventId: refused.localEventId,
           facilityId: bundle.facilityId,
           programId: bundle.programId,
+          formatVersion: bundle.formatVersion,
+          summaries: bundle.summaries?.length ?? 0,
+          summaryBytes: Buffer.byteLength(JSON.stringify(bundle.summaries ?? [])),
+          productBytes: Buffer.byteLength(JSON.stringify(bundle.products ?? [])),
           event: { ...event(refused), sequence: 101 },
           category: 'stock-changed',
           httpStatus: 400,

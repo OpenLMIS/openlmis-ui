@@ -148,8 +148,9 @@ config or a corrected translation reaches users on their next load.
 
 Nothing in nginx needs to change for it. Everything under `/v2/` except `assets/` is already
 served `no-cache`, `sw.js` included, which is what lets a new version be noticed; the gateway
-passes those headers through. A deployment then shows open tabs an "Update Available" notice,
-and the new version loads when the user chooses Reload.
+passes those headers through. A deployment then shows open tabs an update button with a small
+dot beside the theme and language buttons at the bottom of the sidebar, and the new version
+loads when the user clicks it.
 
 The legacy UI has its own worker for the whole site. The two keep separate caches and do not
 touch each other's.

@@ -952,7 +952,8 @@ Read the applicable skill before using it.
 ## Offline
 
 Follow the [offline plan](docs/offline-plan/offline-plan.md). Adjustments supports offline
-downloads, drafts, submission and recovery. Other stock screens follow in FM-166. Tickets with
+downloads, drafts, submission and recovery. Stock On Hand and Stock Card summaries read
+downloaded home stock offline. Other stock screens and card history follow in FM-166. Tickets with
 offline criteria stay open until those criteria are met.
 
 ### Browser tests
@@ -1000,12 +1001,16 @@ offline criteria stay open until those criteria are met.
 - Custom route errors use `ErrorFallback`; retry reseeds connection state and invalidates failed
   loaders before reset only while online. Pass `reportCaughtError` (`src/lib/report-error.ts`)
   to `createRoot` to suppress offline errors and log other caught errors with component stacks.
+- Lazy chunks removed by a newer worker fail with `isChunkLoadError` (`src/lib/chunk-load.ts`).
+  Online, `ErrorFallback` reloads once through the leave guard (`reloadOnce`); offline, it and
+  any other route failure show Not Available Offline and retry on reconnect.
 - `SidebarNotices` above footer buttons shows You're Offline (warning, persistent), You're Back
   Online (success, four seconds). Update Available is a ghost icon button beside the footer
   theme/language pickers, with an info dot and a shared tooltip/accessible reload label.
   The footer controls stack on the collapsed rail. Its action uses the leave guard before
   applying the update; `StatusAnnouncer` announces readiness once. `OfflineDot` marks the
-  header menu while the sidebar is closed. Download and sync progress switch in place to
+  header menu while the sidebar is closed for warnings and update availability, with an
+  accessible label. Download and sync progress switch in place to
   success checks for four seconds: Offline Data Ready and Offline Events Synced. All timed
   notices share createNoticeCountdown with dismissal, and show a decorative tone-coloured
   draining edge bar. Hover/focus pauses both; resume with the exact remaining time. Collapse
@@ -1023,15 +1028,18 @@ offline criteria stay open until those criteria are met.
 - While offline, You're Offline is the only connection notice. Suppress Sign In To Sync and
   connection-related Sync Paused notices and download failures with reason `offline`, including
   in StatusAnnouncer. Reconnecting may show a retained download failure again. Show sign-in again
-  when connected if needed. Keep distinct capability, held-work, receipt-write notices and update availability.
+  when connected if needed. Keep distinct capability, held-work and receipt-write notices, and
+  update availability.
 - Visual notices are notes. The shell `StatusAnnouncer` is the single persistent live region;
   device saves and sync outcomes announce through it. Keep notice ids stable and cap/scroll
   the sidebar footer. Collapsed actions have translated action-first accessible names.
 
 ### Shell capabilities and identity
 
-- `src/lib/offline-capability.ts` owns route capabilities, separately from downloaded readiness and
-  rights. Connection-dependent navigation stays clickable offline, with a disconnected icon and
+- `stock-events/lib/offline-pages.ts` derives stock route capabilities from `EVENT_KINDS`
+  and the provider's lightweight page declarations, separately from downloaded readiness. The shared matcher/error stay in
+  `src/lib/offline-capability.ts`. Connection-dependent navigation stays clickable offline,
+  with a disconnected icon and
   accessible description. Use `useOfflineNavigation` for the shared Close-only AlertDialog,
   without navigation, native disabled states or connection tooltips. Use `data-unavailable`
   on SidebarMenuButton/SubButton, CommandItem and DropdownMenuItem to keep the previous
@@ -1052,10 +1060,10 @@ offline criteria stay open until those criteria are met.
   bounded-out checks offer a neutral unknown-count warning. Confirmation is identity-scoped,
   closes on identity change and never deletes device work. Password changes use this path too.
 - Offline expiry preserves editing without a blocking dialog. Sign In To Sync appears only
-  with adjustment access or pending device work; a warning never expires auth on a timer.
+  with an offline kind right or pending device work; a warning never expires auth on a timer.
   Session waits reject on connection loss, enabling device fallback without request replay.
 - Route composition supplies shell device-work summaries/counting callbacks. Share subscriptions
-  and avoid full event reads for users without adjustment rights or owned device work. Start
+  and avoid full event reads for users without an offline kind right or owned device work. Start
   offline services through dynamic imports after sign-in; clean up on unmount.
 
 ### Local data
@@ -1072,11 +1080,43 @@ offline criteria stay open until those criteria are met.
 - `offlineAccessQuery` preserves device markers, bounds device freshness and makes saved access
   stale on reconnect before checking rights. `homeFacilityOptions` uses the stripped snapshot;
   whole-record `facilityOptions` reads remain server-only.
+- Download freshness and access/dataset retry backoff share a per-database localStorage schedule.
+  Visible tabs check once a minute; failures wait 1, 2, 4, 8, 16 then 30 minutes. Recheck under
+  the download lock; explicit Retry, reconnect and renewal bypass the periodic delay.
+- Download preparation saves the deployment time zone. If locale settings fail, keep the saved
+  zone or persist UTC and show one fallback notice. Snapshot ages use `formatTimestamp` in that zone.
 - Foreground bundle reads may join background downloads but retain ordinary renewal/replay;
   only coordinator downloads use fail-fast `backgroundRead`. Retain complete older bundles
   after refresh failure. Accepted events request nonblocking scoped refreshes.
 - Scans consult saved mappings only when offline/unreachable. Absence in a complete scan-enabled
   bundle means not in local stock, never globally unregistered.
+
+- Stock read routes compose home-stock readers from `src/routes/-home-stock-read.ts`; features
+  accept device readers rather than importing stock-events. The provider's eligible home
+  programs require adjustment and viewing grants. Keep summaries separate from history and
+  queued balances; missing downloads show LocalDataUnavailableError. Keep picker-only device
+  facilities out of the shared facility lookup cache. Invalid offline selections stay below the picker;
+  reconnect retries missing downloads and reloads picker options for the new connection generation.
+
+### Add an offline screen
+
+- For event screens, declare `right`, `download` dataset, `drafts`, routes and label in
+  `EVENT_KINDS`. Read-only dataset screens share the provider's lightweight `pages` declaration
+  with `offline-pages.ts`. Check actual downloaded readiness separately from route capability.
+- Keep endpoint readers, snapshots, retry/freshness rules and upload wiring in the owning
+  feature. Stock reads use `stock-events/api/stock-card-reader.ts` for paging and versions.
+- Register downloads in `src/routes/-device-work-provider.tsx`. `defineDownloadProvider`
+  accepts a unique id, translated label, table, optional read-only `pages`, `eligible(access)`, `scopes(access)`,
+  `fetch(scope, signal)`, `isFresh(record, access, scope)` and `accepts(record, access, scope)`.
+  Scopes carry a storage key, id/name and optional facility/program refresh key. Providers
+  return complete owner-scoped generations; only the coordinator publishes them under its lock.
+- `src/lib/` owns generic coordinator/lock/status/access machinery and the revisioned
+  `draft-store`/serial `draft-writer`. Features supply policy; routes compose features.
+  Stock editor submission uses `useDeviceSubmission`; `useDeviceDrafts` owns draft/leave policy.
+  Inventory uses the same draft machinery and supplies revision-aware write/clear callbacks.
+- Add a schema version for persisted changes. Preserve typed fields, display lookups and exact
+  payloads. Check fallback absence, owner changes, conflicts and kind-specific grants with
+  focused tests. Translate any copy into every locale and verify Arabic layout.
 
 ### Stock event device drafts
 
@@ -1096,6 +1136,9 @@ offline criteria stay open until those criteria are met.
   a note and retain the shared announcement path without a second live region.
 - Refresh resumed product/lot snapshots by identity while preserving typed text. Explain missing
   cards/invalid lots through the existing invalid-submit dialog and the kind's card policy.
+- Foreground delivery owns an event-specific Web Lock plus an in-memory id until its wait ends;
+  release ownership on every enqueue failure. Poll remote ownership only with queued/sending work.
+  If sending has not started within 1.5 seconds, return Queued and let the uploader continue.
 - Offline submission never POSTs from the editor. Flush, validate, collect signature and atomically
   revision-check/freeze the draft with one immutable queue row. Preserve its exact body and unique
   localEventId; repeated confirmation reuses it. Queued drafts cannot autosave or be discarded.
@@ -1160,8 +1203,8 @@ offline criteria stay open until those criteria are met.
   intact and long codes break anywhere, preserving copied hyphens. The table keeps codes nowrap.
   Recovery dialogs live in URL search via `useSearchNavigation`/`CLOSED_DIALOGS`, retaining their
   target during close; missing events use DialogNotFound. Unknown reason ids stay blank in tables.
-- Offline Events/nav require adjustment rights or owned non-accepted work. Non-sending recovery
-  stays available without adjustment rights; Send Again still needs its scoped grant. History
+- Offline Events/nav require an offline kind right or owned non-accepted work. Non-sending recovery
+  stays available without offline kind rights; Send Again still needs its scoped grant. History
   links require exact viewing rights, no preloading and a connection explanation when offline.
   Receipt metadata appears only for receipts. Never expose raw transport JSON or saved revisions.
 - Prune only accepted receipts/drafts. Keep queue rows, refusals, sync errors and archived copies.
@@ -1169,7 +1212,8 @@ offline criteria stay open until those criteria are met.
   Offer Review once on the most severe substantive note. Sign In To Sync
   leaves reauthentication to SessionExpiredDialog. Timing/retention values and sequencing
   evidence belong in the ticket plan.
-- Stock event program pickers show no download readiness column. Pending work for the kind
+- Stock event program pickers show no download readiness column. While offline, unavailable
+  programs show Not Available Offline beneath their disabled, focusable action as its description. Pending work for the kind
   appears in an offline Alert with a bolt icon and Offline Events link. Copy follows connection
   state and uses one complete ICU message with a translated link through `Trans`, plurals
   and a kind select with proper singular/plural nouns in each language. Pass the raw kind

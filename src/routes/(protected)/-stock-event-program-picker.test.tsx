@@ -1,17 +1,20 @@
 import { onlineManager, QueryClient } from '@tanstack/react-query';
-import { screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
 import { I18nextProvider } from 'react-i18next';
 import { expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
+import { useLoginData } from '@/features/auth/store/login-data';
 import {
   deploymentTimeZoneOptions,
   homeFacilityOptions,
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
+import { getLocalDb } from '@/integrations/local-db';
 import { parsePermissions } from '@/lib/permissions';
 import { StockEventProgramPicker } from '@/routes/(protected)/-stock-event-program-picker';
 import { renderPage } from '@/tests/render-page';
@@ -29,6 +32,10 @@ vi.mock('@/features/stock-events/hooks/use-device-events', () => ({
 it.each([true, false])(
   'shows pending work for this kind with connection-specific copy (online=%s)',
   async (online) => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+    await getLocalDb().table('homeStockDownloads').clear();
     onlineManager.setOnline(online);
     const language = createInstance();
     await language.use(ICU).init({
@@ -81,6 +88,40 @@ it.each([true, false])(
       'href',
       '/offline-events',
     );
-    expect(await screen.findByRole('link', { name: 'Edit' })).toBeInTheDocument();
+    const action = await screen.findByRole('link', { name: 'Edit' });
+    if (online) {
+      expect(action).not.toHaveAttribute('aria-disabled', 'true');
+      expect(screen.queryByText('Not Available Offline')).not.toBeInTheDocument();
+    } else {
+      expect(action).toHaveAttribute('aria-disabled', 'true');
+      expect(action).toHaveAccessibleDescription(en['stock-programs.offline-description']);
+      await act(async () => {
+        await getLocalDb()
+          .table('homeStockDownloads')
+          .put({
+            facilityId: 'f',
+            facilityTypeId: 'type',
+            programId: 'p',
+            userId: 'u',
+            formatVersion: 3,
+            generation: 'available',
+            fetchedAt: Date.now(),
+            scanning: false,
+            summaries: [],
+            products: [],
+            cards: [],
+            reasons: [],
+            tradeItems: [],
+            identities: [],
+          } satisfies HomeStockBundle);
+      });
+      await waitFor(() =>
+        expect(screen.getByRole('link', { name: 'Edit' })).not.toHaveAttribute(
+          'aria-disabled',
+          'true',
+        ),
+      );
+      expect(screen.queryByText('Not Available Offline')).not.toBeInTheDocument();
+    }
   },
 );

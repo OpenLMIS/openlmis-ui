@@ -34,6 +34,8 @@ type StockProgramRow = {
   status?: ReactNode;
   actionLabel?: string;
   disabled?: boolean;
+  disabledReason?: string;
+  disabledDescription?: string;
 };
 
 type StockProgramPickerProps = {
@@ -131,6 +133,8 @@ function ProgramPickerContent({
       render={onAction ? undefined : linkFor?.(row)}
       role={onAction ? undefined : 'link'}
       disabled={row.disabled}
+      focusableWhenDisabled={!!row.disabledReason}
+      aria-describedby={row.disabledReason ? `program-unavailable-${row.id}` : undefined}
       onClick={onAction ? () => onAction(row) : undefined}
       size={cards ? 'sm' : 'xl'}
       width="shrink"
@@ -149,7 +153,17 @@ function ProgramPickerContent({
               <span className="min-w-0 flex-1 wrap-anywhere">
                 <bdi>{row.label}</bdi>
               </span>
-              {action(row)}
+              <div className="flex flex-col items-end gap-1">
+                {action(row)}
+                {row.disabledReason && (
+                  <span className="text-xs text-muted-foreground">
+                    {row.disabledReason}
+                    <span id={`program-unavailable-${row.id}`} className="sr-only">
+                      {row.disabledDescription ?? row.disabledReason}
+                    </span>
+                  </span>
+                )}
+              </div>
             </CardBand>
             {statusLabel ? (
               <CardRows>
@@ -177,7 +191,17 @@ function ProgramPickerContent({
               </TableCell>
             ) : null}
             <TableCell>
-              <div className="flex justify-end">{action(row)}</div>
+              <div className="flex flex-col items-end gap-1">
+                {action(row)}
+                {row.disabledReason && (
+                  <span className="text-xs text-muted-foreground">
+                    {row.disabledReason}
+                    <span id={`program-unavailable-${row.id}`} className="sr-only">
+                      {row.disabledDescription ?? row.disabledReason}
+                    </span>
+                  </span>
+                )}
+              </div>
             </TableCell>
           </TableRow>
         ))}

@@ -66,7 +66,7 @@ export function useStockEventAutosave(
       setState((previous) =>
         next.status === 'saving' ? { ...next, error: previous.error } : next,
       );
-      if (next.status === 'failed' || next.status === 'conflict') {
+      if (next.status === 'failed') {
         if (!failed) announceDeviceSave('stock-events.draft-failed');
         failed = true;
       } else if (next.status === 'saved' && failed) {
@@ -149,11 +149,15 @@ export function useStockEventAutosave(
         if (scope === getSessionScope() && serial === writer.current) setBusy(false);
       }
     },
-    async submit(payload: StockEvent, display: StockEventDisplay) {
+    async submit(
+      payload: StockEvent,
+      display: StockEventDisplay,
+      options?: { foreground?: boolean },
+    ) {
       clearTimeout(timer.current);
       const serial = writer.current;
       if (!serial) throw new Error('The device draft is not ready');
-      return serial.submit(payload, display);
+      return serial.submit(payload, display, options);
     },
     async restore(copy: StockEventDraft) {
       clearTimeout(timer.current);
@@ -198,7 +202,6 @@ export function useStockEventAutosave(
       } catch (error) {
         if (scope !== getSessionScope() || serial !== writer.current) return;
         setState({ status: 'conflict', error });
-        announceDeviceSave('stock-events.draft-failed');
       }
     },
   };

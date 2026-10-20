@@ -2,15 +2,17 @@ import {
   createFileRoute,
   type ErrorComponentProps,
   Link,
+  useRouter,
   useRouterState,
 } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActionTooltip } from '@/components/action-tooltip';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
+import { DownloadedAt } from '@/components/downloaded-at';
 import { ErrorFallback } from '@/components/error-fallback';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
@@ -57,10 +59,12 @@ import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
+import { useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import { withShownReversals } from '@/lib/stock-labels';
+import { readStockCardOnDevice } from '@/routes/-home-stock-read';
 
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: router types extend by interface merging.
@@ -96,7 +100,7 @@ export const Route = createFileRoute(
   preload: false,
   loader: async ({ context: { queryClient }, params, cause }) => {
     const userId = useLoginData.getState().referenceDataUserId;
-    const options = stockCardOptions(params.stockCardId);
+    const options = stockCardOptions(params.stockCardId, readStockCardOnDevice);
     const state = queryClient.getQueryState(options.queryKey);
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
     const [permissions, card] =
@@ -124,6 +128,14 @@ function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
   const search = Route.useSearch();
+  const online = useOnline();
+  const wasOnline = useRef(online);
+  const router = useRouter();
+  useEffect(() => {
+    if (wasOnline.current === online) return;
+    wasOnline.current = online;
+    void router.invalidate();
+  }, [online, router]);
   const eventSearch = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
     [search.mode, search.programId, search.facilityId],
@@ -133,7 +145,7 @@ function StockCardPage() {
   const { measure, columnView, cards, layout } = useCardLayout(data?.card.lineItems);
   const userId = useReloadForUser(
     data?.userId,
-    stockCardOptions(Route.useParams().stockCardId).queryKey,
+    stockCardOptions(Route.useParams().stockCardId, readStockCardOnDevice).queryKey,
   );
   if (!data || data.userId !== userId) return null;
   return (
@@ -157,23 +169,35 @@ function StockCardPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
+          {data.card.summaryOnly && (
+            <div className="flex flex-col gap-1">
+              <p className="text-muted-foreground text-sm">{t('stock-card.offline-summary')}</p>
+              {data.card.downloadedAt !== undefined && (
+                <DownloadedAt timestamp={data.card.downloadedAt} />
+              )}
+            </div>
+          )}
           <DataTableToolbar align="end">
             {canSwitch && (
               <div className="flex-1 @2xl/main:flex-none">
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
-            <StockCardColumns columnView={columnView} canSwitch={canSwitch} layout={layout} />
+            {!data.card.summaryOnly && (
+              <StockCardColumns columnView={columnView} canSwitch={canSwitch} layout={layout} />
+            )}
           </DataTableToolbar>
-          <StockCardLines
-            cards={cards}
-            card={data.card}
-            search={search}
-            onSearchChange={updateSearch}
-            unit={unit}
-            columnVisibility={columnView.visibility}
-            eventSearch={eventSearch}
-          />
+          {!data.card.summaryOnly && (
+            <StockCardLines
+              cards={cards}
+              card={data.card}
+              search={search}
+              onSearchChange={updateSearch}
+              unit={unit}
+              columnVisibility={columnView.visibility}
+              eventSearch={eventSearch}
+            />
+          )}
         </div>
       </WorkspaceContent>
     </Workspace>
@@ -254,7 +278,7 @@ function StockCardPending() {
   const { canSwitch } = useQuantityUnit();
   useReloadForUser(
     useLoginData((state) => state.referenceDataUserId),
-    stockCardOptions(Route.useParams().stockCardId).queryKey,
+    stockCardOptions(Route.useParams().stockCardId, readStockCardOnDevice).queryKey,
   );
   const search = Route.useSearch();
   const hasLot = useRouterState({ select: (state) => state.location.state.cardHasLot ?? true });
@@ -316,7 +340,7 @@ function StockCardError(props: ErrorComponentProps) {
   const search = Route.useSearch();
   useReloadForUser(
     useLoginData((state) => state.referenceDataUserId),
-    stockCardOptions(Route.useParams().stockCardId).queryKey,
+    stockCardOptions(Route.useParams().stockCardId, readStockCardOnDevice).queryKey,
   );
   if (
     !isNotFound(props.error) &&

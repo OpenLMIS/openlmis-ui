@@ -49,6 +49,7 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
+  const railTooltipSide = !isMobile && state === 'collapsed' ? 'inline-end' : 'top';
   const navGroups = useNavGroups();
   const accountLinks = useAccountLinks();
   const sidebarGroups = navGroups.map((group) => ({
@@ -131,10 +132,10 @@ export function AppSidebar() {
           <SidebarNotices />
         </div>
         <div className="flex items-center group-data-[collapsible=icon]:flex-col">
-          <ThemeSwitcher tone="sidebar" />
-          <LanguageSwitcher tone="sidebar" />
+          <ThemeSwitcher tone="sidebar" tooltipSide={railTooltipSide} />
+          <LanguageSwitcher tone="sidebar" tooltipSide={railTooltipSide} />
           <div className="ms-auto group-data-[collapsible=icon]:ms-0">
-            <UpdateButton />
+            <UpdateButton tooltipSide={railTooltipSide} />
           </div>
         </div>
       </SidebarFooter>

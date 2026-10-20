@@ -1,23 +1,23 @@
 import { onlineManager } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
 import { AxiosError, isAxiosError } from 'axios';
-import { fetchPermissionStrings } from '@/features/auth/api/api';
-import { useLoginData } from '@/features/auth/store/login-data';
-import {
-  fetchFacility,
-  fetchUserPrograms,
-  fetchUserRecord,
-} from '@/features/reference-data/api/api';
 import { getLocalDb } from '@/integrations/local-db';
+import { queryClient } from '@/integrations/tanstack-query';
+import { prepareDeploymentTimeZone, storedTimeZone } from '@/lib/deployment-time-zone';
 import {
-  type AdjustmentBundle,
-  type AdjustmentScope,
-  downloadIsStale,
-  fetchAdjustmentBundle,
-  retryDownloadRead,
-} from '@/lib/adjustment-bundle';
-import { getFlag } from '@/lib/feature-flags';
-import { type AccessReaders, type OfflineAccess, refreshOfflineAccess } from '@/lib/offline-access';
+  type DownloadProvider,
+  type DownloadRecord,
+  type DownloadTask,
+  downloadProviders,
+} from '@/lib/download-provider';
+import { downloadSchedule } from '@/lib/download-schedule';
+import {
+  type AccessReaders,
+  isDeviceAccess,
+  type OfflineAccess,
+  offlineAccessIsStale,
+  refreshOfflineAccess,
+} from '@/lib/offline-access';
 import { offlineDownloadLock } from '@/lib/offline-download-lock';
 import {
   type DownloadStatus,
@@ -26,38 +26,44 @@ import {
   setDownloadRetry,
   setDownloadStatus,
 } from '@/lib/offline-download-status';
+import { OFFLINE_FRESH_FOR } from '@/lib/offline-freshness';
 import { isOnline } from '@/lib/online';
-import { hasProgramGrant, parsePermissions, programGrants } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
-import { homeStockPrograms } from '@/lib/stock-programs';
+import { getSessionState, subscribeSessionState } from '@/lib/session-state';
 import { setUploadAccessReader, uploadAccessEpoch } from '@/lib/upload-access';
 
 type Dependencies = {
   initialTrigger?: 'boot' | 'force';
-  access?: AccessReaders;
-  bundle?: (filter: AdjustmentScope, signal: AbortSignal) => Promise<AdjustmentBundle>;
+  onTimeZoneFallback?: () => void;
+  access:
+    | AccessReaders
+    | ((
+        config: AxiosRequestConfig,
+        check: () => void,
+        purpose: 'download' | 'upload',
+      ) => AccessReaders);
+  providers: readonly DownloadProvider[];
 };
-type Trigger = 'boot' | 'force' | 'retry' | 'refresh';
-const triggerPriority: Record<Trigger, number> = { refresh: 0, boot: 1, retry: 2, force: 3 };
+type Trigger = 'boot' | 'force' | 'retry' | 'refresh' | 'access';
+const triggerPriority: Record<Trigger, number> = {
+  refresh: 0,
+  boot: 1,
+  access: 2,
+  retry: 3,
+  force: 4,
+};
+const FRESHNESS_CHECK_MS = 60_000;
 
-function accessReaders(config: AxiosRequestConfig): AccessReaders {
-  return {
-    permissions: (id) => fetchPermissionStrings(id, config),
-    user: (id) => fetchUserRecord(id, config),
-    programs: (id) => fetchUserPrograms(id, config),
-    home: (id) => fetchFacility(id, config),
-  };
-}
-function withRetry(raw: AccessReaders, check: () => void): AccessReaders {
-  return {
-    permissions: (id) => retryDownloadRead(() => raw.permissions(id), check),
-    user: (id) => retryDownloadRead(() => raw.user(id), check),
-    programs: (id) => retryDownloadRead(() => raw.programs(id), check),
-    home: (id) => retryDownloadRead(() => raw.home(id), check),
-  };
-}
-
-export function startOfflineCoordinator(dependencies: Dependencies = {}) {
+export function startOfflineCoordinator(dependencies: Dependencies) {
+  const providers = downloadProviders(dependencies.providers);
+  const readersFor = (
+    config: AxiosRequestConfig,
+    check: () => void,
+    purpose: 'download' | 'upload' = 'download',
+  ) =>
+    typeof dependencies.access === 'function'
+      ? dependencies.access(config, check, purpose)
+      : dependencies.access;
   let freshAccess: { epoch: string; saved: OfflineAccess } | undefined;
   let active: AbortController | undefined;
   let channel: BroadcastChannel | undefined;
@@ -82,11 +88,15 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
           : { phase: 'idle', incompletePrograms: [] },
       );
   };
-  const run = async (trigger: Trigger) => {
+  const run = async (trigger: Trigger, periodic = false) => {
     const publishRun = (status: DownloadStatus) => publish({ ...status, trigger });
-    const { referenceDataUserId: userId, isAuthenticated, expired } = useLoginData.getState();
+    const { referenceDataUserId: userId, isAuthenticated, expired } = getSessionState();
     if (stopped || !userId || !isAuthenticated || expired || !isOnline()) return;
     const db = getLocalDb();
+    if (periodic) {
+      const schedule = downloadSchedule(db.name);
+      if (!schedule.due() || schedule.retryAt('access') > Date.now()) return;
+    }
     const name = offlineDownloadLock(db);
     if (channelName !== name) {
       channel?.close();
@@ -146,8 +156,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     const check = () => {
       assertSessionScope(scope);
       controller.signal.throwIfAborted();
-      if (!isOnline() || useLoginData.getState().expired || stopped)
-        throw new Error('Download stopped.');
+      if (!isOnline() || getSessionState().expired || stopped) throw new Error('Download stopped.');
     };
     const wait = <T>(promise: Promise<T>): Promise<T> =>
       new Promise((resolve, reject) => {
@@ -163,18 +172,40 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     observedRunning = false;
     try {
       const accessTable = db.table<OfflineAccess>('offlineAccess');
-      const bundles = db.table<AdjustmentBundle>('adjustmentDownloads');
-      const [initialAccess, initialBundles] = await wait(
-        Promise.all([accessTable.get(userId), bundles.toArray()]),
+      const [initialAccess, initialRecords] = await wait(
+        Promise.all([
+          accessTable.get(userId),
+          Promise.all(
+            providers.map(async (provider) => ({
+              provider,
+              records: await db
+                .table<DownloadRecord>(provider.table)
+                .toCollection()
+                .primaryKeys()
+                .then(async (keys) => {
+                  const records = await db.table<DownloadRecord>(provider.table).bulkGet(keys);
+                  return keys.flatMap((key, index) =>
+                    records[index]
+                      ? [[JSON.stringify(key), records[index].generation] as const]
+                      : [],
+                  );
+                }),
+            })),
+          ),
+        ]),
       );
       check();
       const baseline = new Map(
-        initialBundles.map((bundle) => [bundle.programId, bundle.generation]),
+        initialRecords.flatMap(({ provider, records }) =>
+          records.map(([key, generation]) => [`${provider.id}:${key}`, generation]),
+        ),
       );
       channel?.postMessage({ type: 'observe' });
       await navigator.locks.request(name, { signal: controller.signal }, async () => {
         check();
         if (observedCompletion && !refreshPrograms.size) return;
+        const schedule = downloadSchedule(db.name);
+        if (periodic && (!schedule.due() || schedule.retryAt('access') > Date.now())) return;
         let saved = await accessTable.get(userId);
         check();
         const accessChanged = saved && saved.generation !== initialAccess?.generation;
@@ -184,7 +215,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
             : trigger === 'retry'
               ? previousStatus.accessFailed || !saved
               : trigger === 'boot'
-                ? downloadIsStale(saved)
+                ? offlineAccessIsStale(saved)
                 : !accessChanged;
         if (refreshAccess) {
           publishRun({ phase: 'running', incompletePrograms: [], accessFailed: true });
@@ -194,74 +225,113 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
             signal: controller.signal,
             sessionScope: scope,
           };
-          const readers = withRetry(dependencies.access ?? accessReaders(config), check);
+          const readers = readersFor(config, check);
           const epoch = uploadAccessEpoch();
-          saved = await wait(refreshOfflineAccess(readers, check));
-          check();
+          try {
+            saved = await wait(refreshOfflineAccess(readers, check));
+            check();
+          } catch (error) {
+            check();
+            schedule.failed('access');
+            schedule.save();
+            throw error;
+          }
+          schedule.succeeded('access', saved.fetchedAt);
           if (epoch === uploadAccessEpoch()) freshAccess = { epoch, saved };
         }
         if (!saved) throw new Error('Access download unavailable');
-        const home = saved.homeFacility;
-        const permissions = parsePermissions(saved.permissionStrings);
-        const programs = homeStockPrograms({
-          homeFacility: home,
-          programs: saved.programs,
-          grants: programGrants(permissions, 'STOCK_ADJUST'),
+        schedule.consider(saved.fetchedAt + OFFLINE_FRESH_FOR);
+        const preparingTimeZone = refreshAccess || !storedTimeZone();
+        const timeZone = preparingTimeZone
+          ? wait(
+              prepareDeploymentTimeZone(
+                {
+                  session: false,
+                  backgroundRead: true,
+                  signal: controller.signal,
+                  sessionScope: scope,
+                },
+                dependencies.onTimeZoneFallback,
+              ),
+            ).then(() => undefined)
+          : Promise.resolve();
+        let timeZoneError: unknown;
+        const preparedTimeZone = timeZone.catch((error: unknown) => {
+          timeZoneError = error;
         });
-        const eligible = programs.filter(
-          (program) =>
-            home && hasProgramGrant(permissions, 'STOCK_CARDS_VIEW', home.id, program.id),
-        );
         const failed: DownloadStatus['incompletePrograms'] = [];
-        const queue: typeof eligible = [];
-        const scanning = getFlag('GS1_SCANNING');
-        for (const program of eligible) {
-          check();
-          const bundle = await bundles.get([home?.id ?? '', program.id]);
-          check();
-          const changed = bundle && bundle.generation !== baseline.get(program.id);
-          const requestKey = programKey(home?.id ?? '', program.id);
-          const requested = refreshPrograms.has(requestKey);
-          if (trigger === 'refresh' && !requested) continue;
-          if (
-            !requested &&
-            trigger === 'retry' &&
-            !previousStatus.incompletePrograms.some((item) => item.id === program.id) &&
-            !previousStatus.accessFailed
-          )
-            continue;
-          if (
-            !requested &&
-            (changed ||
-              (trigger === 'boot' &&
-                !downloadIsStale(bundle) &&
-                bundle?.facilityTypeId === home?.type.id &&
-                (!scanning || bundle?.scanning)))
-          )
-            continue;
-          if (requested) {
-            refreshPrograms.delete(requestKey);
-            await db.transaction('rw', bundles, async () => {
-              check();
-              await bundles.update([home?.id ?? '', program.id], { stale: true });
-              check();
-            });
+        type Work = { provider: DownloadProvider; task: DownloadTask; workKey: string };
+        const queue: Work[] = [];
+        const eligibleKeys = new Set<string>();
+        const requestedKeys = new Set(refreshPrograms);
+        for (const key of requestedKeys) refreshPrograms.delete(key);
+        for (const provider of providers) {
+          if (!provider.eligible(saved)) continue;
+          const table = db.table<DownloadRecord>(provider.table);
+          for (const task of provider.tasks(saved)) {
             check();
+            if (task.refreshKey) eligibleKeys.add(task.refreshKey);
+            const workKey = `${provider.id}:${JSON.stringify(task.key)}`;
+            if (periodic && schedule.retryAt(workKey) > Date.now()) {
+              schedule.consider(schedule.retryAt(workKey));
+              failed.push({
+                id: task.id,
+                name: task.name,
+                dataset: provider.id,
+                datasetLabel: provider.label,
+              });
+              continue;
+            }
+            const record = await table.get(task.key);
+            check();
+            const changed =
+              record &&
+              record.generation !== baseline.get(`${provider.id}:${JSON.stringify(task.key)}`);
+            const requested = !!task.refreshKey && requestedKeys.has(task.refreshKey);
+            if (trigger === 'refresh' && !requested) continue;
+            if (
+              !requested &&
+              trigger === 'retry' &&
+              !previousStatus.incompletePrograms.some(
+                (item) => item.id === task.id && (!item.dataset || item.dataset === provider.id),
+              ) &&
+              !previousStatus.accessFailed
+            )
+              continue;
+            if (
+              changed ||
+              (!requested && (trigger === 'boot' || trigger === 'access') && task.isFresh(record))
+            ) {
+              if (record) schedule.succeeded(workKey, record.fetchedAt);
+              continue;
+            }
+            if (requested) {
+              await db.transaction('rw', table, async () => {
+                check();
+                await table.update(task.key, { stale: true });
+                check();
+              });
+              check();
+            }
+            queue.push({ provider, task, workKey: `${provider.id}:${JSON.stringify(task.key)}` });
           }
-          queue.push(program);
         }
-        const eligibleKeys = new Set(
-          eligible.map((program) => programKey(home?.id ?? '', program.id)),
-        );
-        for (const requestKey of refreshPrograms)
-          if (!eligibleKeys.has(requestKey)) refreshPrograms.delete(requestKey);
-        if (!refreshAccess && !queue.length) return;
+        for (const key of refreshPrograms) if (!eligibleKeys.has(key)) refreshPrograms.delete(key);
+        if (!refreshAccess && !queue.length) {
+          await preparedTimeZone;
+          if (timeZoneError) throw timeZoneError;
+          check();
+          schedule.save();
+          if (!failed.length && (preparingTimeZone || previousStatus.phase === 'failed'))
+            publishRun({ phase: 'complete', incompletePrograms: [] });
+          return;
+        }
         let reason: DownloadStatus['reason'];
         const incomplete = new Map(
-          [
-            ...failed,
-            ...queue.map((program) => ({ id: program.id, name: program.name ?? program.code })),
-          ].map((program) => [program.id, program]),
+          queue.map(({ provider, task, workKey }) => [
+            workKey,
+            { id: task.id, name: task.name, dataset: provider.id, datasetLabel: provider.label },
+          ]),
         );
         publishRun({
           phase: 'running',
@@ -269,34 +339,22 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
           accessFailed: false,
         });
         const worker = async () => {
-          for (let program = queue.shift(); program; program = queue.shift()) {
+          for (let work = queue.shift(); work; work = queue.shift()) {
+            const { provider, task, workKey } = work;
+            const table = db.table<DownloadRecord>(provider.table);
             check();
             try {
-              const filter: AdjustmentScope = {
-                facilityId: home?.id ?? '',
-                programId: program.id,
-                facilityTypeId: home?.type.id ?? '',
-                scanning,
-              };
-              const bundle = await wait(
-                (dependencies.bundle ?? fetchAdjustmentBundle)(filter, controller.signal),
-              );
+              const record = await wait(task.fetch(controller.signal));
               check();
-              if (
-                bundle.userId !== userId ||
-                bundle.facilityId !== filter.facilityId ||
-                bundle.programId !== filter.programId ||
-                bundle.facilityTypeId !== filter.facilityTypeId ||
-                bundle.formatVersion !== 1
-              )
-                throw new Error('Downloaded bundle scope mismatch');
-              await db.transaction('rw', bundles, async () => {
+              if (record.userId !== userId) throw new Error('Downloaded dataset owner mismatch');
+              await db.transaction('rw', table, async () => {
                 check();
-                await bundles.put(bundle);
+                await table.put(record);
                 check();
               });
               check();
-              incomplete.delete(program.id);
+              schedule.succeeded(workKey, record.fetchedAt);
+              incomplete.delete(workKey);
               publishRun({
                 phase: 'running',
                 incompletePrograms: [...incomplete.values()],
@@ -310,6 +368,8 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
                 error.code !== AxiosError.ECONNABORTED &&
                 error.code !== AxiosError.ERR_CANCELED
               ) {
+                schedule.failed(workKey);
+                schedule.save();
                 publishRun({
                   phase: 'failed',
                   incompletePrograms: [...incomplete.values()],
@@ -321,12 +381,21 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
               }
               if (isAxiosError(error) && error.code === AxiosError.ECONNABORTED) reason = 'timeout';
               else reason ??= 'read';
-              failed.push({ id: program.id, name: program.name ?? program.code });
+              schedule.failed(workKey);
+              failed.push({
+                id: task.id,
+                name: task.name,
+                dataset: provider.id,
+                datasetLabel: provider.label,
+              });
             }
           }
         };
         await Promise.all(Array.from({ length: Math.min(2, queue.length) }, worker));
+        await preparedTimeZone;
+        if (timeZoneError) throw timeZoneError;
         check();
+        schedule.save();
         publishRun(
           failed.length
             ? {
@@ -360,12 +429,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     const db = getLocalDb();
     const check = () => {
       assertSessionScope(scope);
-      if (
-        stopped ||
-        !isOnline() ||
-        useLoginData.getState().expired ||
-        epoch !== uploadAccessEpoch()
-      )
+      if (stopped || !isOnline() || getSessionState().expired || epoch !== uploadAccessEpoch())
         throw new Error('The sync access session changed.');
     };
     if (!navigator.locks) throw new Error('Web Locks are required for safe sync.');
@@ -375,7 +439,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
       check();
       if (!force && freshAccess?.epoch === epoch) return freshAccess.saved;
       const config = { session: false, backgroundRead: true, sessionScope: scope };
-      const readers = dependencies.access ?? accessReaders(config);
+      const readers = readersFor(config, check, 'upload');
       const saved = await refreshOfflineAccess(readers, check);
       check();
       freshAccess = { epoch, saved };
@@ -390,7 +454,7 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     refreshPrograms.add(programKey(facilityId, programId));
     void run('refresh');
   });
-  const unsubscribe = useLoginData.subscribe((state, previous) => {
+  const unsubscribe = subscribeSessionState((state, previous) => {
     if (state.referenceDataUserId !== previous.referenceDataUserId) {
       stopActive();
       channel?.close();
@@ -408,16 +472,50 @@ export function startOfflineCoordinator(dependencies: Dependencies = {}) {
     )
       void run('force');
   });
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   const unsubscribeOnline = onlineManager.subscribe((online) => {
-    if (online) void run('force');
+    clearTimeout(reconnectTimer);
+    if (online) reconnectTimer = setTimeout(() => void run('force'), 250);
     else stopActive('offline');
   });
+  const accessValues = new Map<string, string>();
+  const observesAccess = ([resource, part, id]: readonly unknown[]) => {
+    const userId = getSessionState().referenceDataUserId;
+    return (
+      !!userId &&
+      ((resource === 'auth' && part === 'rights' && id === userId) ||
+        (resource === 'users' && (part === 'record' || part === 'programs') && id === userId) ||
+        (resource === 'facilities' && part === 'home'))
+    );
+  };
+  const fingerprint = (value: unknown) =>
+    JSON.stringify(value, (_key, item) => (item instanceof Set ? [...item].sort() : item));
+  for (const query of queryClient.getQueryCache().getAll())
+    if (observesAccess(query.queryKey) && !isDeviceAccess(query.state.data))
+      accessValues.set(query.queryHash, fingerprint(query.state.data));
+  const unsubscribeAccess = queryClient.getQueryCache().subscribe((event) => {
+    if (event.type !== 'updated' || event.action.type !== 'success') return;
+    const { query } = event;
+    if (!observesAccess(query.queryKey) || isDeviceAccess(query.state.data)) return;
+    const value = fingerprint(query.state.data);
+    const previous = accessValues.get(query.queryHash);
+    accessValues.set(query.queryHash, value);
+    if (previous === undefined || previous === value) return;
+    freshAccess = undefined;
+    void run('access');
+  });
+  const freshnessTimer = setInterval(() => {
+    if (!active && document.visibilityState === 'visible') void run('boot', true);
+  }, FRESHNESS_CHECK_MS);
   void run(dependencies.initialTrigger ?? 'boot');
   return () => {
     stopped = true;
     stopActive();
     unsubscribe();
     unsubscribeOnline();
+    unsubscribeAccess();
+    clearInterval(freshnessTimer);
+    clearTimeout(reconnectTimer);
     channel?.close();
     setUploadAccessReader();
     setDownloadRetry();

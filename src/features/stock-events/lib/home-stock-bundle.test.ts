@@ -3,13 +3,14 @@ import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  fetchHomeStockBundle,
+  getHomeStockBundle,
+  readHomeStockBundle,
+} from '@/features/stock-events/lib/home-stock-bundle';
+import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
-import {
-  fetchAdjustmentBundle,
-  getAdjustmentBundle,
-  readAdjustmentBundle,
-} from '@/lib/adjustment-bundle';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import type { AccessReaders } from '@/lib/offline-access';
 import { startOfflineCoordinator } from '@/lib/offline-coordinator';
@@ -22,6 +23,8 @@ const product = (versionNumber: number) => ({
   fullProductName: `Version ${versionNumber}`,
   description: 'discard',
   netContent: 10,
+  children: [{ orderable: { id: 'child' }, quantity: 2 }],
+  programs: [{ programId: 'program', orderableDisplayCategoryId: 'category' }],
   identifiers: { tradeItem: 'trade', secret: 'discard' },
   dispensable: { displayUnit: 'tablet', secret: 'discard' },
   extraData: { useVVM: 'true', secret: 'discard' },
@@ -29,12 +32,15 @@ const product = (versionNumber: number) => ({
 });
 const summary = (versionNumber: number) => ({
   orderable: { id: 'product', versionNumber },
+  stockOnHand: versionNumber,
   canFulfillForMe: [
     {
       stockCard: { id: `card-${versionNumber}` },
       orderable: { id: 'product' },
       lot: { id: 'lot' },
       stockOnHand: versionNumber,
+      active: true,
+      occurredDate: '2026-01-01',
     },
   ],
 });
@@ -44,7 +50,7 @@ beforeEach(async () => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'bundle-user', username: 'user', accessToken: 'token' });
-  await getLocalDb().table('adjustmentDownloads').clear();
+  await getLocalDb().table('homeStockDownloads').clear();
   requests = [];
   client.defaults.adapter = async (config) => {
     requests.push(`${config.url}:${config.params?.page ?? 0}`);
@@ -110,17 +116,21 @@ afterEach(() => {
 
 it('coalesces foreground reads, retains both requested versions and every page, and never persists', async () => {
   const [first, second] = await Promise.all([
-    getAdjustmentBundle(filter),
-    getAdjustmentBundle(filter),
+    getHomeStockBundle(filter),
+    getHomeStockBundle(filter),
   ]);
   expect(first).toBe(second);
   expect(first.cards.map((card) => card.orderable.meta?.versionNumber)).toEqual([1, 2]);
   expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(2);
   expect(requests.filter((path) => path.startsWith('/orderables/search'))).toHaveLength(2);
   expect(JSON.stringify(first)).not.toContain('discard');
+  expect(first.cards[0].orderable.children).toEqual([{ orderable: { id: 'child' }, quantity: 2 }]);
+  expect(first.cards[0].orderable.programs).toEqual([
+    { programId: 'program', orderableDisplayCategoryId: 'category' },
+  ]);
   expect(first.tradeItems).toEqual([]);
   expect(requests.filter((path) => path.startsWith('/tradeItems'))).toHaveLength(0);
-  expect(await getLocalDb().table('adjustmentDownloads').count()).toBe(0);
+  expect(await getLocalDb().table('homeStockDownloads').count()).toBe(0);
 });
 
 it('rejects unresolved identities rather than publishing a partial bundle', async () => {
@@ -135,33 +145,33 @@ it('rejects unresolved identities rather than publishing a partial bundle', asyn
           headers: {},
         }
       : (adapter as import('axios').AxiosAdapter)(config);
-  await expect(getAdjustmentBundle(filter)).rejects.toThrow('product');
+  await expect(getHomeStockBundle(filter)).rejects.toThrow('product');
 });
 
 it('runs offline and rejects a missing bundle with local-unavailable instead of an empty list', async () => {
   onlineManager.setOnline(false);
-  await expect(getAdjustmentBundle(filter)).rejects.toBeInstanceOf(LocalDataUnavailableError);
-  await expect(readAdjustmentBundle(filter)).rejects.toBeInstanceOf(LocalDataUnavailableError);
+  await expect(getHomeStockBundle(filter)).rejects.toBeInstanceOf(LocalDataUnavailableError);
+  await expect(readHomeStockBundle(filter)).rejects.toBeInstanceOf(LocalDataUnavailableError);
   expect(requests).toEqual([]);
 });
 
 it('falls back on a timed-out read but never on service refusal or cancellation', async () => {
-  const saved = await getAdjustmentBundle(filter);
-  await getLocalDb().table('adjustmentDownloads').put(saved);
+  const saved = await getHomeStockBundle(filter);
+  await getLocalDb().table('homeStockDownloads').put(saved);
   client.defaults.adapter = async () => {
     throw new AxiosError('Timed out', AxiosError.ECONNABORTED);
   };
-  await expect(getAdjustmentBundle(filter)).resolves.toEqual(saved);
+  await expect(getHomeStockBundle(filter)).resolves.toEqual(saved);
   const refusal = Object.assign(new AxiosError('Refused'), { response: { status: 403, data: {} } });
   client.defaults.adapter = async () => {
     throw refusal;
   };
-  await expect(getAdjustmentBundle(filter)).rejects.toBe(refusal);
+  await expect(getHomeStockBundle(filter)).rejects.toBe(refusal);
   const canceled = new AxiosError('Canceled', AxiosError.ERR_CANCELED);
   client.defaults.adapter = async () => {
     throw canceled;
   };
-  await expect(getAdjustmentBundle(filter)).rejects.toBe(canceled);
+  await expect(getHomeStockBundle(filter)).rejects.toBe(canceled);
 });
 
 it('bounds timed-out background reads without declaring the browser offline', async () => {
@@ -169,18 +179,28 @@ it('bounds timed-out background reads without declaring the browser offline', as
     throw new AxiosError('Timed out', AxiosError.ECONNABORTED);
   });
   client.defaults.adapter = adapter;
-  await expect(fetchAdjustmentBundle(filter)).rejects.toMatchObject({
+  await expect(fetchHomeStockBundle(filter)).rejects.toMatchObject({
     code: AxiosError.ECONNABORTED,
   });
-  expect(adapter).toHaveBeenCalledTimes(2);
+  expect(adapter).toHaveBeenCalledTimes(4);
   expect(onlineManager.isOnline()).toBe(true);
+});
+
+it('rejects saved stock and reasons for a different facility type during device fallback', async () => {
+  const saved = await getHomeStockBundle(filter);
+  await getLocalDb().table('homeStockDownloads').put(saved);
+  onlineManager.setOnline(false);
+  await expect(getHomeStockBundle(filter)).resolves.toEqual(saved);
+  await expect(
+    getHomeStockBundle({ ...filter, facilityTypeId: 'changed-type' }),
+  ).rejects.toBeInstanceOf(LocalDataUnavailableError);
 });
 
 it('serves online editor reads without Web Locks and never persists them', async () => {
   vi.stubGlobal('navigator', {});
   try {
-    expect((await getAdjustmentBundle(filter)).cards).toHaveLength(2);
-    expect(await getLocalDb().table('adjustmentDownloads').count()).toBe(0);
+    expect((await getHomeStockBundle(filter)).cards).toHaveLength(2);
+    expect(await getLocalDb().table('homeStockDownloads').count()).toBe(0);
   } finally {
     vi.unstubAllGlobals();
   }
@@ -192,7 +212,7 @@ it('accepts a complete empty program without requesting unrelated products or lo
     config.url === '/v2/stockCardSummaries'
       ? { data: { content: [], totalPages: 1 }, status: 200, statusText: 'OK', headers: {}, config }
       : adapter(config);
-  const saved = await getAdjustmentBundle(filter);
+  const saved = await getHomeStockBundle(filter);
   expect(saved.cards).toEqual([]);
   expect(saved.identities).toEqual([]);
   expect(saved.tradeItems).toEqual([]);
@@ -226,10 +246,10 @@ it.each(['axios', 'abort'] as const)(
       return adapter(config);
     };
     const controller = new AbortController();
-    const background = fetchAdjustmentBundle(filter, controller.signal);
+    const background = fetchHomeStockBundle(filter, controller.signal);
     const rejected = expect(background).rejects.toThrow();
     await downloading;
-    const foreground = getAdjustmentBundle(filter);
+    const foreground = getHomeStockBundle(filter);
     await Promise.resolve();
     expect(foregroundReads).toBe(0);
     controller.abort();
@@ -264,11 +284,11 @@ it.each(['foreground', 'coordinator'] as const)(
     };
     const background =
       source === 'coordinator'
-        ? expect(fetchAdjustmentBundle(filter)).rejects.toMatchObject({
+        ? expect(fetchHomeStockBundle(filter)).rejects.toMatchObject({
             code: AxiosError.ERR_CANCELED,
           })
         : undefined;
-    const result = getAdjustmentBundle(filter);
+    const result = getHomeStockBundle(filter);
     await waitFor(() => expect(useLoginData.getState().expired).toBe(true));
     useLoginData.getState().setLoginData({
       referenceDataUserId: 'bundle-user',
@@ -276,14 +296,14 @@ it.each(['foreground', 'coordinator'] as const)(
       accessToken: 'renewed',
     });
     expect((await result).cards).toHaveLength(2);
-    expect(refused).toHaveBeenCalledTimes(1);
+    expect(refused).toHaveBeenCalledTimes(2);
     await background;
   },
 );
 
 it('joins a coordinator download and retains scanning mappings without duplicating stock reads', async () => {
-  const background = fetchAdjustmentBundle(filter);
-  const foreground = getAdjustmentBundle(filter);
+  const background = fetchHomeStockBundle(filter);
+  const foreground = getHomeStockBundle(filter);
   const [downloaded, read] = await Promise.all([background, foreground]);
   expect(read).toBe(downloaded);
   expect(downloaded.scanning).toBe(true);
@@ -298,7 +318,7 @@ it('keeps a scan-enabled program usable when a referenced trade item is missing'
     config.url === '/tradeItems'
       ? { data: { content: [], totalPages: 1 }, status: 200, statusText: 'OK', headers: {}, config }
       : adapter(config);
-  const downloaded = await fetchAdjustmentBundle(filter);
+  const downloaded = await fetchHomeStockBundle(filter);
   expect(downloaded.scanning).toBe(true);
   expect(downloaded.cards).toHaveLength(2);
   expect(downloaded.tradeItems).toEqual([]);
@@ -323,9 +343,9 @@ it('restarts its own read when coordinator trade items fail with 500', async () 
     }
     return adapter(config);
   };
-  const background = fetchAdjustmentBundle(filter);
+  const background = fetchHomeStockBundle(filter);
   const rejected = expect(background).rejects.toMatchObject({ response: { status: 500 } });
-  const foreground = getAdjustmentBundle(filter);
+  const foreground = getHomeStockBundle(filter);
   fail();
   await rejected;
   expect((await foreground).cards).toHaveLength(2);
@@ -333,14 +353,14 @@ it('restarts its own read when coordinator trade items fail with 500', async () 
 });
 
 it('rejects a missing lot and the coordinator retains the previous complete generation', async () => {
-  const saved = await fetchAdjustmentBundle({ ...filter, scanning: false });
-  await getLocalDb().table('adjustmentDownloads').put(saved);
+  const saved = await fetchHomeStockBundle({ ...filter, scanning: false });
+  await getLocalDb().table('homeStockDownloads').put(saved);
   const adapter = client.defaults.adapter as import('axios').AxiosAdapter;
   client.defaults.adapter = async (config) =>
     config.url === '/lots'
       ? { data: { content: [], totalPages: 1 }, status: 200, statusText: 'OK', config, headers: {} }
       : adapter(config);
-  await expect(fetchAdjustmentBundle(filter)).rejects.toThrow('lot not found');
+  await expect(fetchHomeStockBundle(filter)).rejects.toThrow('lot not found');
   vi.stubGlobal('navigator', {
     locks: { request: async (_name: string, _options: unknown, run: () => Promise<void>) => run() },
   });
@@ -368,17 +388,26 @@ it('rejects a missing lot and the coordinator retains the previous complete gene
       supportedPrograms: [{ ...program, supportActive: true, supportLocallyFulfilled: true }],
     }),
   } satisfies AccessReaders;
-  const download = vi.fn(fetchAdjustmentBundle);
-  const stop = startOfflineCoordinator({ access, bundle: download });
+  const download = vi.fn(fetchHomeStockBundle);
+  const stop = startOfflineCoordinator({ access, providers: [homeStockProvider(download)] });
   try {
     onlineManager.setOnline(false);
     onlineManager.setOnline(true);
     await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
     expect(download).toHaveBeenCalled();
     await expect(download.mock.results.at(-1)?.value).rejects.toThrow('lot not found');
-    expect(await getLocalDb().table('adjustmentDownloads').get(['home', 'program'])).toEqual(saved);
+    expect(await getLocalDb().table('homeStockDownloads').get(['home', 'program'])).toEqual(saved);
   } finally {
     stop();
     vi.unstubAllGlobals();
   }
+});
+
+it('uses every page and exact product versions for online stock reads as well as downloads', async () => {
+  const { fetchEventStockCards } = await import('@/features/stock-events/api/api');
+  const cards = await fetchEventStockCards(filter);
+  expect(cards.map((card) => card.orderable.meta?.versionNumber)).toEqual([1, 2]);
+  expect(cards.map((card) => card.id)).toEqual(['card-1', 'card-2']);
+  expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(2);
+  expect(requests.some((path) => path.startsWith('/validReasons'))).toBe(false);
 });

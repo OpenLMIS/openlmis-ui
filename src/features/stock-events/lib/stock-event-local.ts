@@ -2,7 +2,10 @@ import type Dexie from 'dexie';
 import type { EventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
 import { getLocalDb, getLocalDbUserId } from '@/integrations/local-db';
+import { assertDraftRevision, DraftConflictError, saveRevisionedDraft } from '@/lib/draft-store';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+
+export { DraftConflictError } from '@/lib/draft-store';
 
 export type StockEventSelection = {
   kind: ConfiguredEventKind;
@@ -42,11 +45,6 @@ export function createStockEventContext(selection: StockEventSelection): StockEv
     sessionScope: getSessionScope(),
     db: getLocalDb(),
   };
-}
-export class DraftConflictError extends Error {
-  constructor(public stored: StockEventDraft | undefined) {
-    super('This draft was edited in another tab');
-  }
 }
 const editingKey = (context: StockEventSelection) => [
   context.kind,
@@ -90,28 +88,19 @@ export async function saveStockEventDraft(
   lines: EventLine[],
   downloadGeneration?: string,
 ): Promise<StockEventDraft | undefined> {
-  assertSessionScope(context.sessionScope);
-  const table = context.db.table<StockEventDraft>('stockEventDrafts');
-  const saved = await context.db.transaction(
-    'rw',
-    table,
-    context.db.table('adjustmentDownloads'),
-    async () => {
-      const stored = await readStockEventDraft(context);
-      if (stored?.draftId !== expected?.draftId || stored?.revision !== expected?.revision)
-        throw new DraftConflictError(stored);
-      if (!lines.length) {
-        if (stored) {
-          await table.delete(stored.draftId);
-          assertSessionScope(context.sessionScope);
-        }
-        return undefined;
-      }
+  return saveRevisionedDraft({
+    ...context,
+    table: context.db.table<StockEventDraft, string>('stockEventDrafts'),
+    tables: ['homeStockDownloads'],
+    expected,
+    read: () => readStockEventDraft(context),
+    async next(stored) {
+      if (!lines.length) return undefined;
       const bundle = await context.db
-        .table('adjustmentDownloads')
+        .table('homeStockDownloads')
         .get([context.facilityId, context.programId]);
       assertSessionScope(context.sessionScope);
-      const next: StockEventDraft = {
+      return {
         ...record(
           context,
           lines,
@@ -121,14 +110,10 @@ export async function saveStockEventDraft(
         revision: (stored?.revision ?? 0) + 1,
         localEventId: stored?.localEventId ?? crypto.randomUUID(),
       };
-      await table.put(next);
-      assertSessionScope(context.sessionScope);
-      return next;
     },
-  );
-  assertSessionScope(context.sessionScope);
-  return saved;
+  });
 }
+
 export async function archiveStockEventCopy(
   context: StockEventContext,
   lines: EventLine[],
@@ -179,8 +164,7 @@ export async function restoreStockEventCopy(
   const table = context.db.table<StockEventDraft>('stockEventDrafts');
   return context.db.transaction('rw', table, async () => {
     const stored = await readStockEventDraft(context);
-    if (stored?.draftId !== expected?.draftId || stored?.revision !== expected?.revision)
-      throw new DraftConflictError(stored);
+    assertDraftRevision(stored, expected);
     const archived = await checkedCopy(context, copy);
     if (stored) await table.put({ ...stored, state: 'archived', revision: stored.revision + 1 });
     const restored: StockEventDraft = {

@@ -4,10 +4,12 @@ import type {
   InventoryScope,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { getLocalDb } from '@/integrations/local-db';
+import { assertDraftRevision, type DraftRevision, saveRevisionedDraft } from '@/lib/draft-store';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export type InventoryLocalCopy = InventoryScope & {
   draftId: string;
+  revision?: number;
   lines: InventoryLine[];
   removedKeys?: string[];
   modified: boolean;
@@ -28,21 +30,41 @@ export async function writeInventoryLocal(
   scope = getSessionScope(),
   db: Dexie = getLocalDb(),
 ) {
-  assertSessionScope(scope);
-  const table = db.table<InventoryLocalCopy>('physicalInventoryDrafts');
-  await db.transaction('rw', table, async () => {
-    assertSessionScope(scope);
-    await table.put(copy);
-    assertSessionScope(scope);
+  const table = db.table<InventoryLocalCopy, string>('physicalInventoryDrafts');
+  const expected = copy.revision ? copy : undefined;
+  return saveRevisionedDraft({
+    db,
+    sessionScope: scope,
+    table,
+    expected,
+    async read() {
+      const stored = await table.get(copy.draftId);
+      assertSessionScope(scope);
+      if (stored && !stored.revision && !copy.revision) return undefined;
+      return stored;
+    },
+    next: () => ({ ...copy, revision: (copy.revision ?? 0) + 1 }),
   });
 }
 
-export async function clearInventoryLocal(draftId: string) {
-  const scope = getSessionScope();
-  const db = getLocalDb();
+export async function clearInventoryLocal(
+  draftId: string,
+  revision?: number,
+  scope = getSessionScope(),
+  db: Dexie = getLocalDb(),
+) {
   await db.transaction('rw', 'physicalInventoryDrafts', async () => {
     assertSessionScope(scope);
-    await db.table('physicalInventoryDrafts').delete(draftId);
+    const table = db.table<InventoryLocalCopy>('physicalInventoryDrafts');
+    if (revision !== undefined) {
+      const stored = await table.get(draftId);
+      assertSessionScope(scope);
+      assertDraftRevision<DraftRevision>(
+        stored,
+        !stored && revision === 0 ? undefined : { draftId, revision },
+      );
+    }
+    await table.delete(draftId);
     assertSessionScope(scope);
   });
 }

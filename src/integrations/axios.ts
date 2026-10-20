@@ -1,7 +1,11 @@
 import axios, { isAxiosError } from 'axios';
 import { SessionEndedError, waitForSession } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { reportConnectionFailure, reportConnectionSuccess } from '@/lib/online';
+import {
+  getConnectionFailureGeneration,
+  reportConnectionFailure,
+  reportConnectionSuccess,
+} from '@/lib/online';
 import { QueueNotSentError, QueueReceiptError, type QueueTransport } from '@/lib/queue-transport';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -11,6 +15,8 @@ declare module 'axios' {
     /** `false` for signing in and out, whose refusal is never an expired session. */
     session?: boolean;
     backgroundRead?: boolean;
+    connectionGeneration?: number;
+    connectionStatus?: boolean;
     queueTransport?: QueueTransport;
     sessionScope?: number;
     /** The user the request was sent for, so a refusal is never resent as someone else. */
@@ -64,7 +70,10 @@ client.interceptors.request.use(async (config) => {
     if (config.sentFor !== referenceDataUserId) throw new SessionEndedError();
   }
   if (config.backgroundRead && expired) throw new Error('The download session expired.');
-  if (config.headers.Authorization || config.anonymous) return config;
+  if (config.headers.Authorization || config.anonymous) {
+    config.connectionGeneration = getConnectionFailureGeneration();
+    return config;
+  }
 
   const token =
     expired && referenceDataUserId && config.session !== false
@@ -74,13 +83,20 @@ client.interceptors.request.use(async (config) => {
   const authorization = bearer(token);
   if (authorization) config.headers.Authorization = authorization;
 
+  config.connectionGeneration = getConnectionFailureGeneration();
   return config;
 });
 
 // A refused token keeps the page as it is: the request waits for a new session, then is sent again.
 client.interceptors.response.use(
   (response) => {
-    reportConnectionSuccess();
+    if (
+      response.config.connectionStatus !== false &&
+      (typeof response.data !== 'string' ||
+        String(response.headers['content-type'] ?? '').includes('application/json') ||
+        /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(response.data))
+    )
+      reportConnectionSuccess(response.config.url, response.config.connectionGeneration);
     if (!response.config.anonymous) {
       try {
         assertSessionScope(response.config.sessionScope ?? getSessionScope());
@@ -97,8 +113,8 @@ client.interceptors.response.use(
     return response;
   },
   async (error) => {
-    reportConnectionFailure(error);
     const config = isAxiosError(error) ? error.config : undefined;
+    if (config?.connectionStatus !== false) reportConnectionFailure(error);
     if (config && !config.anonymous) {
       assertSessionScope(config.sessionScope ?? getSessionScope());
     }

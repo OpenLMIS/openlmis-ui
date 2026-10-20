@@ -25,9 +25,14 @@ import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-de
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { wakeStockEventSync } from '@/lib/device-event-status';
+import { announceDeviceSave } from '@/lib/device-save-announcement';
 import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
+vi.mock('@/lib/device-save-announcement', async (original) => ({
+  ...(await original<typeof import('@/lib/device-save-announcement')>()),
+  announceDeviceSave: vi.fn(),
+}));
 const navigation = vi.hoisted(() => vi.fn());
 vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
@@ -156,9 +161,23 @@ it('no-view recovery calls no history, cancel keeps uncertainty, only confirmed 
   expect(client.get).not.toHaveBeenCalled();
   expect(client.post).not.toHaveBeenCalled();
 });
-it('no-view It Was Recorded records the exact user-confirmed receipt without network calls', async () => {
+it('It Was Recorded preserves uncertainty on cancel and records only after confirmation', async () => {
   const { uncertain, onClose } = await open();
   await userEvent.click(screen.getByRole('button', { name: 'device-events.recorded' }));
+  const warning = await screen.findByRole('alertdialog');
+  expect(warning).toHaveTextContent('device-events.recorded-warning');
+  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(0);
+  await userEvent.click(within(warning).getByRole('button', { name: 'device-events.cancel' }));
+  expect((await getLocalDb().table('stockEventQueue').get(uncertain.sequence)).status).toBe(
+    'uncertain',
+  );
+  expect(onClose).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'device-events.recorded' }));
+  await userEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'device-events.recorded',
+    }),
+  );
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   expect(
     (await getLocalDb().table('stockEventReceipts').get([uncertain.draftId, uncertain.revision]))
@@ -175,6 +194,11 @@ it('a stale recovery choice explains that the event changed without repeating it
     .table('stockEventQueue')
     .update(uncertain.sequence, { attemptId: 'new-attempt' });
   await userEvent.click(screen.getByRole('button', { name: 'device-events.recorded' }));
+  await userEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'device-events.recorded',
+    }),
+  );
   await waitFor(() =>
     expect(toast.warning).toHaveBeenCalledWith('device-events.changed-title', {
       description: 'device-events.changed-description',
@@ -189,8 +213,19 @@ it('a stale recovery choice explains that the event changed without repeating it
 
 it('keeps recorded recovery available after losing adjustment grants but blocks Send Again', async () => {
   const { onClose } = await open(false);
-  expect(screen.getByRole('button', { name: 'device-events.send-again' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'device-events.send-again' })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  expect(
+    screen.getByRole('button', { name: 'device-events.send-again' }),
+  ).toHaveAccessibleDescription('device-events.no-send');
   await userEvent.click(screen.getByRole('button', { name: 'device-events.recorded' }));
+  await userEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'device-events.recorded',
+    }),
+  );
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(client.post).not.toHaveBeenCalled();
 });
@@ -209,6 +244,7 @@ it('dismisses a refusal after confirmation and shows only a human message in det
     (await getLocalDb().table('stockEventSyncErrors').get(uncertain.localEventId)).dismissedAt,
   ).toBeDefined();
   expect(client.post).not.toHaveBeenCalled();
+  expect(announceDeviceSave).toHaveBeenCalledWith('device-events.refused-removed');
   const local = renderHook(() => useDeviceEvents());
   await waitFor(() => expect(local.result.current.events).toEqual([]));
   expect(await countUnsyncedDeviceWork()).toBe(0);
@@ -304,6 +340,9 @@ it.each([
       expect(document.activeElement).toHaveTextContent('device-events.no-events-title'),
     );
     expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+    expect(announceDeviceSave).toHaveBeenCalledWith(
+      status === 'accepted' ? 'device-events.synced-removed' : 'device-events.removed',
+    );
     if (status === 'accepted') {
       const receipt = await getLocalDb().table('stockEventReceipts').toCollection().first();
       expect(receipt.hiddenAt).toBeDefined();
@@ -311,3 +350,22 @@ it.each([
     }
   },
 );
+
+it('explains why a refusal already copied for correction cannot be copied again', async () => {
+  const { uncertain } = await open(false, 'refused', 'adjustment', false);
+  if (!uncertain.error) throw new Error('Missing refusal');
+  renderPage(
+    <DeviceEventRecovery
+      event={{ ...uncertain, error: { ...uncertain.error, resolvedAt: Date.now() } }}
+      canView={false}
+      canSend={false}
+      onClose={vi.fn()}
+    />,
+    { queryClient: new QueryClient() },
+  );
+  const copy = await screen.findByRole('button', { name: 'device-events.copy' });
+  expect(copy).toHaveAttribute('aria-disabled', 'true');
+  expect(copy).toHaveAccessibleDescription('device-events.copy-resolved');
+  await userEvent.click(copy);
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+});

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
 import { I18nextProvider } from 'react-i18next';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import { OfflineDot, SidebarNotices, StatusAnnouncer } from '@/components/sidebar-notices';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -17,14 +17,14 @@ import { allowUnload, useLeaveGuard } from '@/hooks/use-leave-guard';
 import { announceQueuedEvents, setSyncPhase } from '@/lib/device-event-status';
 import { setDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline } from '@/lib/online';
-import { applyUpdate, dismissUpdate, registerServiceWorker } from '@/lib/service-worker';
+import { applyUpdate } from '@/lib/service-worker';
 
 vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
 }));
 const device = vi.hoisted(() => ({ allowed: false, events: [] as DeviceEvent[] }));
-vi.mock('@/components/nav-access', () => ({ useHasRight: () => device.allowed }));
+vi.mock('@/components/nav-access', () => ({ useHasOfflineCapability: () => device.allowed }));
 vi.mock('@/components/device-work', async (original) => ({
   ...(await original<typeof import('@/components/device-work')>()),
   useDeviceWork: () => ({
@@ -44,22 +44,26 @@ vi.mock('@/components/device-work', async (original) => ({
   }),
 }));
 
-const worker = vi.hoisted(() => ({ waiting: () => {} }));
+const update = vi.hoisted(() => ({ ready: false, listeners: new Set<() => void>() }));
+const setUpdateReady = (ready: boolean) => {
+  update.ready = ready;
+  for (const listener of update.listeners) listener();
+};
 
-vi.mock('workbox-window', () => ({
-  Workbox: function Workbox() {
-    return {
-      addEventListener: (type: string, handler: () => void) => {
-        if (type === 'waiting') worker.waiting = handler;
-      },
-      register: () => Promise.resolve(undefined),
-    };
-  },
-}));
-vi.mock('@/lib/service-worker', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/service-worker')>()),
-  applyUpdate: vi.fn(),
-}));
+vi.mock('@/lib/service-worker', async () => {
+  const { useSyncExternalStore } = await import('react');
+  return {
+    applyUpdate: vi.fn(),
+    useUpdateReady: () =>
+      useSyncExternalStore(
+        (onChange) => {
+          update.listeners.add(onChange);
+          return () => update.listeners.delete(onChange);
+        },
+        () => update.ready,
+      ),
+  };
+});
 
 function UnsavedDraft({ ask }: { ask: (proceed: () => void) => void }) {
   useLeaveGuard(true, ask);
@@ -78,23 +82,14 @@ const renderNotices = ({ extra = null as React.ReactNode, defaultOpen = true } =
     </TooltipProvider>,
   );
 
-const showUpdate = () => act(() => worker.waiting());
-
-beforeAll(() => {
-  vi.stubGlobal('navigator', {
-    ...navigator,
-    serviceWorker: { controller: null, addEventListener: vi.fn() },
-  });
-  registerServiceWorker({ enabled: true });
-  vi.unstubAllGlobals();
-});
+const showUpdate = () => act(() => setUpdateReady(true));
 
 afterEach(() => {
   vi.useRealTimers();
   act(() => {
     onlineManager.setOnline(true);
     dismissBackOnline();
-    dismissUpdate();
+    setUpdateReady(false);
     setDownloadStatus({ phase: 'idle', incompletePrograms: [] });
     setSyncPhase('idle');
     device.allowed = false;
@@ -281,11 +276,11 @@ describe('OfflineDot', () => {
         <OfflineDot />
       </SidebarProvider>,
     );
-    expect(container.querySelector('[aria-hidden=true]')).not.toBeInTheDocument();
+    expect(container.querySelector('[role=img]')).not.toBeInTheDocument();
 
     act(() => onlineManager.setOnline(false));
 
-    expect(container.querySelector('[aria-hidden=true]')).toBeInTheDocument();
+    expect(container.querySelector('[role=img]')).toBeInTheDocument();
   });
 
   it('stays away while the sidebar is open, since its own notice shows', () => {
@@ -296,7 +291,7 @@ describe('OfflineDot', () => {
       </SidebarProvider>,
     );
 
-    expect(container.querySelector('[aria-hidden=true]')).not.toBeInTheDocument();
+    expect(container.querySelector('[role=img]')).not.toBeInTheDocument();
   });
 });
 
@@ -463,4 +458,47 @@ it('pauses an auto-dismiss countdown while hovered or focused, then resumes the 
   expect(notice).toBeInTheDocument();
   act(() => vi.advanceTimersByTime(1));
   expect(screen.queryByText('offline.back-online')).not.toBeInTheDocument();
+});
+
+it('marks a closed sidebar for sync warnings and updates while online', () => {
+  device.allowed = true;
+  device.events = [{ status: 'queued', pauseReason: 'access-changed' }] as DeviceEvent[];
+  renderNotices({ defaultOpen: false, extra: <OfflineDot /> });
+  expect(screen.getByRole('img')).toHaveAccessibleName('device-events.access-changed');
+  device.events.push({ status: 'queued' } as DeviceEvent);
+  act(() => setSyncPhase('session'));
+  expect(screen.getByRole('img')).toHaveAccessibleName(/device-events.sign-in/);
+  showUpdate();
+  expect(screen.getByRole('img')).toHaveAccessibleName(/update.reload-to-update/);
+  expect(screen.getByRole('button', { name: 'device-events.sign-in' }).tabIndex).toBe(0);
+});
+
+it('groups failed programs by dataset in separate messages', async () => {
+  const language = createInstance();
+  await language.use(ICU).init({
+    lng: 'en',
+    keySeparator: false,
+    nsSeparator: false,
+    resources: { en: { translation: en } },
+  });
+  setDownloadStatus({
+    phase: 'failed',
+    reason: 'read',
+    incompletePrograms: [
+      { id: 'p1', name: 'Medicines', datasetLabel: 'stock-on-hand.title' },
+      { id: 'p2', name: 'Vaccines', datasetLabel: 'stock-on-hand.title' },
+      { id: 'p3', name: 'Supplies', datasetLabel: 'nav.stock-management.adjustments' },
+    ],
+  });
+  render(
+    <I18nextProvider i18n={language}>
+      <SidebarProvider>
+        <SidebarNotices />
+      </SidebarProvider>
+    </I18nextProvider>,
+  );
+  const description = screen.getByRole('note').querySelector('.whitespace-pre-line');
+  expect(description?.textContent).toContain(
+    'Stock On Hand: Medicines, Vaccines\nAdjustments: Supplies',
+  );
 });

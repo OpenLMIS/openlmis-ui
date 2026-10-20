@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { client } from '@/integrations/axios';
+import { isOnline, reportConnectionFailure } from '@/lib/online';
 
 const ada = { referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'old-token' };
 
@@ -391,4 +392,38 @@ it('ends a refused session wait on connection loss without replaying the request
   useLoginData.getState().setLoginData({ ...ada, accessToken: 'new-token' });
   await flush();
   expect(sent).toHaveLength(1);
+});
+
+it('uses valid API success to reconnect but ignores a captive portal response', async () => {
+  const network = new AxiosError('network', AxiosError.ERR_NETWORK);
+  reportConnectionFailure(network);
+  client.defaults.adapter = async (config) => ({
+    data: '<html>Sign In To Wi-Fi</html>',
+    status: 200,
+    statusText: 'OK',
+    headers: { 'content-type': 'text/html' },
+    config,
+  });
+  await client.get('/users/ada-id');
+  expect(isOnline()).toBe(false);
+  serve('old-token');
+  await client.get('/users/ada-id');
+  expect(isOnline()).toBe(true);
+});
+
+it('ignores a success dispatched before the latest connection failure', async () => {
+  let release!: () => void;
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  serve('old-token', hold);
+  const oldRequest = client.get('/old-read');
+  await flush();
+  reportConnectionFailure(new AxiosError('network', AxiosError.ERR_NETWORK));
+  release();
+  await oldRequest;
+  expect(isOnline()).toBe(false);
+  serve('old-token');
+  await client.get('/new-read');
+  expect(isOnline()).toBe(true);
 });

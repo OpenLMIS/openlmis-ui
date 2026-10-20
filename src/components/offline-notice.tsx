@@ -1,20 +1,15 @@
 import { RotateCcwIcon, WifiOffIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useHasRight } from '@/components/nav-access';
+import { toast } from 'sonner';
+import { useHasOfflineCapability } from '@/components/nav-access';
+import { StatusPage } from '@/components/status-page';
 import { Button } from '@/components/ui/button';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
-import { RIGHTS } from '@/features/auth/lib/rights';
+import { EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { isOfflineError } from '@/lib/http';
-import { useOnReconnect } from '@/lib/online';
+import { isOnline, useOnReconnect } from '@/lib/online';
 
-export function useOfflineFailure(error: unknown, retry: () => void) {
-  const offline = isOfflineError(error);
+export function useOfflineFailure(error: unknown, retry: () => void, failedOffline = false) {
+  const offline = failedOffline || isOfflineError(error);
   useOnReconnect(() => {
     if (offline) retry();
   });
@@ -24,35 +19,60 @@ export function useOfflineFailure(error: unknown, retry: () => void) {
 export function OfflineNotice({
   onRetry,
   reason,
+  headingLevel = 2,
 }: {
   onRetry: () => void;
-  reason?: 'online-only';
+  reason?: 'online-only' | 'not-downloaded';
+  headingLevel?: 1 | 2;
 }) {
   const { t } = useTranslation();
+  const Heading = headingLevel === 1 ? 'h1' : 'h2';
+  const title =
+    reason === 'online-only'
+      ? 'offline.page-title'
+      : reason === 'not-downloaded'
+        ? 'offline.unavailable-title'
+        : 'offline.notice-title';
 
   return (
-    <Empty height="screen">
+    <StatusPage>
       <EmptyHeader>
-        <EmptyMedia variant="icon">
+        <EmptyMedia size={headingLevel === 1 ? 'lg' : 'default'} variant="icon">
           <WifiOffIcon />
         </EmptyMedia>
-        <EmptyTitle>
-          <h2>{t(reason === 'online-only' ? 'offline.page-title' : 'offline.notice-title')}</h2>
+        <EmptyTitle size={headingLevel === 1 ? 'lg' : 'default'}>
+          <Heading tabIndex={headingLevel === 1 ? -1 : undefined}>{t(title)}</Heading>
         </EmptyTitle>
-        <EmptyDescription>
-          {reason === 'online-only' ? <OnlinePageDescription /> : t('offline.notice-description')}
+        <EmptyDescription size={headingLevel === 1 ? 'lg' : 'default'}>
+          {reason === 'online-only' ? (
+            <OnlinePageDescription />
+          ) : (
+            t(
+              reason === 'not-downloaded'
+                ? 'offline.unavailable-description'
+                : 'offline.notice-description',
+            )
+          )}
         </EmptyDescription>
       </EmptyHeader>
-      <Button onClick={onRetry} size="sm" variant="secondary">
-        <RotateCcwIcon />
+      <Button
+        onClick={() => {
+          onRetry();
+          if (!isOnline())
+            toast.info(t('offline.title'), { description: t('offline.retry-unavailable') });
+        }}
+        size="lg"
+        variant="outline"
+      >
+        <RotateCcwIcon data-icon="inline-start" />
         {t('error.try-again')}
       </Button>
-    </Empty>
+    </StatusPage>
   );
 }
 
 function OnlinePageDescription() {
   const { t } = useTranslation();
-  const canAdjust = useHasRight(RIGHTS.stockAdjust);
-  return t(canAdjust ? 'offline.page-description' : 'offline.page-description-generic');
+  const canWorkOffline = useHasOfflineCapability();
+  return t(canWorkOffline ? 'offline.page-description' : 'offline.page-description-generic');
 }

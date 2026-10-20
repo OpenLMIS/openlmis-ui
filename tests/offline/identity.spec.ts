@@ -13,7 +13,7 @@ test.beforeEach(async ({ context }) => {
   await context.route('**/api/stockEvents', (route) => route.abort());
 });
 
-test('offline shell disables server navigation and blocks direct routes without protected requests', {
+test('offline navigation explains unavailable pages and blocks direct routes without protected requests', {
   tag: '@offline-shell',
 }, async ({ page, context, channel, browser }) => {
   test.skip(
@@ -29,8 +29,13 @@ test('offline shell disables server navigation and blocks direct routes without 
     if (new URL(request.url()).pathname === '/api/users') protectedRequests.push(request.url());
   });
   const issue = page.getByRole('button', { name: 'Issue', exact: true });
-  await expect(issue).toBeDisabled();
-  await issue.click({ force: true });
+  await expect(issue).toHaveAttribute('data-unavailable');
+  await expect(issue).toBeEnabled();
+  await issue.click();
+  const unavailable = page.getByRole('alertdialog');
+  await expect(unavailable).toContainText("This page can't be loaded while offline.");
+  await unavailable.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(issue).toBeFocused();
   await expect(page).toHaveURL(/adjustments$/);
   await page.goto('./administration/users');
   await expect(page.getByRole('heading', { name: 'Connect To Open This Page' })).toBeVisible();
@@ -92,7 +97,7 @@ test('offline expiry keeps editor drafts usable through reload and resumes only 
   await expect(
     page.getByRole('heading', { name: 'HOME - Fixture Clinic - Fixture Medicines' }),
   ).toBeVisible();
-  await expect(page.getByRole('note').filter({ hasText: 'Sign In To Sync' })).toBeVisible();
+  await expect(page.getByRole('note').filter({ hasText: "You're Offline" })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Product', exact: true })).toHaveValue(
     'Fixture Product',
   );

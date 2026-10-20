@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { applyUpdate, useUpdateReady } from '@/lib/service-worker';
 
-export function UpdateButton() {
+export function UpdateButton({ tooltipSide = 'top' }: { tooltipSide?: 'top' | 'inline-end' }) {
   const { t } = useTranslation();
   const updateReady = useUpdateReady();
   if (!updateReady) return null;
@@ -27,7 +27,7 @@ export function UpdateButton() {
       >
         <RefreshCwIcon />
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent side={tooltipSide}>{label}</TooltipContent>
     </Tooltip>
   );
 }

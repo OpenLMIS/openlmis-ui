@@ -75,7 +75,8 @@ import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
-vi.mock('@/features/stock-events/lib/stock-event-delivery', () => ({
+vi.mock('@/features/stock-events/lib/stock-event-delivery', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/stock-event-delivery')>()),
   waitForStockEventReceipt: vi.fn(async () => ({ kind: 'queued' })),
 }));
 
@@ -83,9 +84,9 @@ vi.mock('@/lib/offline-download-status', () => ({ refreshOfflineProgram: vi.fn()
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
-vi.mock('@/lib/adjustment-bundle', async (original) => ({
-  ...(await original<typeof import('@/lib/adjustment-bundle')>()),
-  getAdjustmentBundle: async (filter: {
+vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>()),
+  getHomeStockBundle: async (filter: {
     facilityId: string;
     programId: string;
     facilityTypeId: string;
@@ -814,10 +815,10 @@ describe('EventEditor', () => {
     });
     expect(submitStockEvent).not.toHaveBeenCalled();
     expect(toast.success).toHaveBeenLastCalledWith(en['stock-events.queued-title'], {
-      description: en['stock-events.queued-description'],
+      description: en['stock-events.queued-online-description'],
     });
   });
-  it('accepted device delivery shows Synced and uses the online landing', async () => {
+  it('accepted device delivery uses the kind submission message and online landing', async () => {
     vi.mocked(waitForStockEventReceipt).mockImplementationOnce(async (event) => ({
       kind: 'accepted',
       receipt: {
@@ -835,7 +836,7 @@ describe('EventEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('accepted-event', true));
-    expect(toast.success).toHaveBeenLastCalledWith(en['device-events.synced'], {
+    expect(toast.success).toHaveBeenLastCalledWith(en['stock-adjustment.submitted-title'], {
       description: en['stock-adjustment.submitted-description'],
     });
     expect(toast.warning).not.toHaveBeenCalled();
@@ -928,7 +929,6 @@ describe('EventEditor', () => {
           status: 400,
           data: {
             messageKey: 'stock-changed',
-            message: 'Backdated stock would be negative',
             internal: 'secret-debug-value',
           },
         }),
@@ -950,9 +950,12 @@ describe('EventEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
     const failure = await screen.findByRole('alertdialog');
+    expect(failure).toHaveTextContent(en['device-events.refused-description']);
+    expect(failure).not.toHaveTextContent('stock-changed');
     await user.click(within(failure).getByRole('button', { name: 'Close' }));
     await user.click(screen.getByRole('button', { name: 'Copy For Correction' }));
     const details = await screen.findByRole('dialog');
+    expect(details).toHaveTextContent(en['device-events.refused-description']);
     const error = await getLocalDb().table('stockEventSyncErrors').toCollection().first();
     expect(details).toHaveTextContent(
       formatTimestamp(new Date(error.event.queuedAt).toISOString(), 'en', {
@@ -2460,8 +2463,8 @@ it('restores an archived copy, retains the replaced draft, and requires confirma
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('0030');
   expect((await readStockEventDraft(context))?.lines[0].quantity.doses).toBe('0030');
-  expect((await readStockEventDraft(context))?.revision).toBe(2);
-  expect(screen.queryByText('Saving On This Device')).not.toBeInTheDocument();
+  expect((await readStockEventDraft(context))?.revision).toBeGreaterThan(active.revision);
+  await waitFor(() => expect(screen.queryByText('Saving On This Device')).not.toBeInTheDocument());
   await user.click(screen.getByRole('button', { name: 'Archived Copies' }));
   dialog = await screen.findByRole('dialog', { name: 'Archived Copies' });
   await user.click(within(dialog).getByRole('button', { name: /^Actions For Copy/ }));

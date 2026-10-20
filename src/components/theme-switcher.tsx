@@ -15,9 +15,10 @@ const DEFAULT_CHOICE = 'default';
 
 type ThemeSwitcherProps = {
   tone?: 'default' | 'sidebar';
+  tooltipSide?: 'top' | 'inline-end';
 };
 
-export function ThemeSwitcher({ tone = 'default' }: ThemeSwitcherProps) {
+export function ThemeSwitcher({ tone = 'default', tooltipSide = 'top' }: ThemeSwitcherProps) {
   const { t } = useTranslation();
   const choice = useAppearanceStore((state) => state.choice ?? DEFAULT_CHOICE);
   const label = t('sidebar.theme');
@@ -34,7 +35,7 @@ export function ThemeSwitcher({ tone = 'default' }: ThemeSwitcherProps) {
         >
           <SunMoonIcon />
         </TooltipTrigger>
-        <TooltipContent>{label}</TooltipContent>
+        <TooltipContent side={tooltipSide}>{label}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup

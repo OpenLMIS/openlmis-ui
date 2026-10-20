@@ -2,6 +2,7 @@ import Dexie from 'dexie';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { eventPayload, newEventLine } from '@/features/stock-events/lib/event-form';
+import { foregroundStockEvents } from '@/features/stock-events/lib/stock-event-delivery';
 import {
   createStockEventContext,
   DraftConflictError,
@@ -139,4 +140,51 @@ it('announces only waiting work when earlier events have their own pause notice'
   if (!next) throw new Error('Missing draft');
   await enqueueStockEvent(context, next, payload(), display);
   expect(announceQueuedEvents).toHaveBeenCalledExactlyOnceWith(1);
+});
+
+it('registers foreground delivery before publishing the queue and skips its offline announcement', async () => {
+  const context = createStockEventContext(selection);
+  const draft = await saveStockEventDraft(context, undefined, [line]);
+  if (!draft) throw new Error('Missing draft');
+  const queued = await enqueueStockEvent(context, draft, payload(), display, { foreground: true });
+  expect(foregroundStockEvents.has(queued.localEventId)).toBe(true);
+  expect(queued).not.toHaveProperty('foregroundUntil');
+  expect(announceQueuedEvents).not.toHaveBeenCalled();
+  foregroundStockEvents.clear();
+});
+
+it('releases foreground ownership when the session changes after the transaction commits', async () => {
+  const context = createStockEventContext(selection);
+  const draft = await saveStockEventDraft(context, undefined, [line]);
+  if (!draft) throw new Error('Missing draft');
+  let released = false;
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: async (_name: string, _options: unknown, run: (lock: object) => Promise<void>) => {
+        await run({});
+        released = true;
+      },
+    },
+  });
+  const transaction = context.db.transaction.bind(context.db);
+  vi.spyOn(context.db, 'transaction').mockImplementationOnce((...args) =>
+    transaction(...args).then((result) => {
+      useLoginData.getState().clearLoginData();
+      return result;
+    }),
+  );
+  try {
+    await expect(
+      enqueueStockEvent(context, draft, payload(), display, { foreground: true }),
+    ).rejects.toThrow();
+    expect(foregroundStockEvents.has(draft.localEventId)).toBe(false);
+    await Promise.resolve();
+    expect(released).toBe(true);
+  } finally {
+    const { releaseForegroundStockEvent } = await import(
+      '@/features/stock-events/lib/stock-event-delivery'
+    );
+    releaseForegroundStockEvent(draft.localEventId);
+    vi.unstubAllGlobals();
+  }
 });

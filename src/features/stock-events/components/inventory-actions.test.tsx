@@ -86,6 +86,8 @@ function setup(overrides: Partial<ComponentProps<typeof InventoryActions>> = {})
           showInDoses
           disabled={false}
           flush={vi.fn()}
+          clearLocal={clearInventoryLocal}
+          writeLocal={writeInventoryLocal}
           onBusy={vi.fn()}
           onLots={vi.fn()}
           onSaved={onSaved}
@@ -344,4 +346,17 @@ it('retains a created lot after device persistence fails so Save can retry witho
       lineItems: [expect.objectContaining({ orderableId: 'p', lotId: 'created', quantity: 0 })],
     }),
   );
+});
+
+it('deletes a conflicted draft without flushing stale edits', async () => {
+  const user = userEvent.setup();
+  const flush = vi.fn().mockRejectedValue(new Error('Draft conflict'));
+  const { onDeleted } = setup({ flush, writeDisabled: true });
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.delete' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.delete' }),
+  );
+  await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
+  expect(deletePhysicalInventory).toHaveBeenCalledWith('d');
+  expect(flush).not.toHaveBeenCalled();
 });

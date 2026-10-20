@@ -1,8 +1,8 @@
 import { createRouter } from '@tanstack/react-router';
 import { ErrorFallback } from '@/components/error-fallback';
 import { PendingFallback } from '@/components/pending-fallback';
+import { isOfflineCapable } from '@/features/stock-events/lib/offline-pages';
 import { queryClient } from '@/integrations/tanstack-query';
-import { isOfflineCapable } from '@/lib/offline-capability';
 import { isOnline } from '@/lib/online';
 import { getSessionScope } from '@/lib/session-scope';
 import { routeTree } from '@/route-tree.gen';

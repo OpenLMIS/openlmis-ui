@@ -1,6 +1,8 @@
 import { AxiosError, isAxiosError } from 'axios';
 import { client } from '@/integrations/axios';
+import { isChunkLoadError } from '@/lib/chunk-load';
 import { LocalDataUnavailableError } from '@/lib/local-data';
+import { isOnline } from '@/lib/online';
 
 export const isNotFound = (error: unknown) => isAxiosError(error) && error.response?.status === 404;
 
@@ -10,6 +12,7 @@ export const isConflict = (error: unknown) => isAxiosError(error) && error.respo
 
 export const isOfflineError = (error: unknown) =>
   error instanceof LocalDataUnavailableError ||
+  (isChunkLoadError(error) && !isOnline()) ||
   (isAxiosError(error) && !error.response && error.code !== AxiosError.ECONNABORTED);
 
 export function isAccessFallbackError(error: unknown) {

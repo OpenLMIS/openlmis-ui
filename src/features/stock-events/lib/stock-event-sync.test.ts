@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
@@ -108,6 +109,31 @@ it('orders all scopes and blocks only the uncertain facility/program', async () 
   ]);
   expect((await getLocalDb().table('stockEventQueue').get(blocked.sequence)).status).toBe('queued');
   expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1);
+});
+
+it('retains a post-dispatch network failure as uncertain and never resends on a second sync', async () => {
+  const event = await enqueue();
+  const db = getLocalDb();
+  const send = vi.fn(async () => {
+    throw new AxiosError('Connection lost after dispatch', AxiosError.ERR_NETWORK, undefined, {});
+  });
+  const deps = dependencies(send);
+  await syncStockEvents(db, event.userId, deps);
+  expect(await db.table('stockEventQueue').get(event.sequence)).toMatchObject({
+    status: 'uncertain',
+    postBody: event.postBody,
+    attemptId: expect.any(String),
+    attemptStartedAt: expect.any(Number),
+  });
+  expect(await db.table('stockEventDrafts').get(event.draftId)).toMatchObject({
+    state: 'uncertain',
+  });
+  expect(await db.table('stockEventSyncErrors').get(event.localEventId)).toMatchObject({
+    category: 'uncertain',
+  });
+  await syncStockEvents(db, event.userId, deps);
+  expect(send).toHaveBeenCalledOnce();
+  expect(await db.table('stockEventReceipts').count()).toBe(0);
 });
 it('after 201 retries only the receipt transaction, never POST, before reporting acceptance', async () => {
   const event = await enqueue();
@@ -312,6 +338,7 @@ for (const [status, data, kind] of [
   [201, {}, 'uncertain'],
   [201, '<html>ok</html>', 'uncertain'],
   [404, { messageKey: 'missing' }, 'refused'],
+  [403, { messageKey: 'forbidden', message: 'Access denied' }, 'refused'],
   [401, { messageKey: 'expired' }, 'session'],
   [401, { error: 'invalid_token' }, 'session'],
   [401, '<html>proxy</html>', 'uncertain'],

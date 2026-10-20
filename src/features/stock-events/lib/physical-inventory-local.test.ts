@@ -23,7 +23,7 @@ const copy = {
 beforeEach(() => signIn(crypto.randomUUID()));
 it('writes, reads and clears a draft in the owner database', async () => {
   await writeInventoryLocal(copy);
-  expect(await readInventoryLocal('d')).toEqual(copy);
+  expect(await readInventoryLocal('d')).toEqual({ ...copy, revision: 1 });
   await clearInventoryLocal('d');
   expect(await readInventoryLocal('d')).toBeUndefined();
 });
@@ -46,5 +46,30 @@ it('surfaces storage failure', async () => {
 it('retains device copies when their server draft no longer exists', async () => {
   await writeInventoryLocal(copy);
   await readInventoryLocal('missing');
-  expect(await readInventoryLocal('d')).toEqual(copy);
+  expect(await readInventoryLocal('d')).toEqual({ ...copy, revision: 1 });
+});
+
+it('rejects a stale inventory revision and stops its serial writer without overwriting the other tab', async () => {
+  const { createInventoryWriter } = await import(
+    '@/features/stock-events/lib/physical-inventory-autosave'
+  );
+  const { DraftConflictError } = await import('@/lib/draft-store');
+  const initial = await writeInventoryLocal(copy);
+  expect(initial).toBeDefined();
+  const other = await writeInventoryLocal({ ...copy, revision: initial?.revision, savedAt: 2 });
+  const status = vi.fn();
+  const write = vi.fn(async (savedAt: number) => {
+    await writeInventoryLocal({ ...copy, revision: initial?.revision, savedAt });
+  });
+  const writer = createInventoryWriter(write, status);
+  writer.enqueue(3);
+  await expect(writer.flush()).rejects.toBeInstanceOf(DraftConflictError);
+  expect(status).toHaveBeenLastCalledWith('conflict');
+  await expect(clearInventoryLocal('d', initial?.revision)).rejects.toBeInstanceOf(
+    DraftConflictError,
+  );
+  writer.enqueue(4);
+  await expect(writer.flush()).rejects.toBeInstanceOf(DraftConflictError);
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(await readInventoryLocal('d')).toEqual(other);
 });

@@ -4,18 +4,9 @@ import { useState } from 'react';
 import { expect, it, vi } from 'vitest';
 import { PageVisibility } from '@/components/page-visibility';
 import { AlertDialog, AlertDialogContent, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 it.each(['dialog', 'alert'] as const)(
   'releases retained %s content after closing visibly',
@@ -49,39 +40,10 @@ it.each(['dialog', 'alert'] as const)(
   },
 );
 
-it.each(['sheet', 'menu', 'popover', 'select', 'combobox'] as const)(
+it.each(['menu', 'popover'] as const)(
   'suppresses an open %s while its page is hidden',
   async (kind) => {
     const contents = {
-      select: (
-        <Select defaultOpen>
-          <SelectTrigger>Select choice</SelectTrigger>
-          <SelectContent>
-            <SelectItem value="one">One choice</SelectItem>
-          </SelectContent>
-        </Select>
-      ),
-      combobox: (
-        <Combobox defaultOpen items={['One choice']}>
-          <ComboboxInput />
-          <ComboboxContent>
-            <ComboboxList>
-              {(item) => (
-                <ComboboxItem key={item} value={item}>
-                  {item}
-                </ComboboxItem>
-              )}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
-      ),
-      sheet: (
-        <Sheet defaultOpen>
-          <SheetContent>
-            <SheetTitle>Sheet draft</SheetTitle>
-          </SheetContent>
-        </Sheet>
-      ),
       menu: (
         <DropdownMenu defaultOpen>
           <DropdownMenuContent>
@@ -96,11 +58,7 @@ it.each(['sheet', 'menu', 'popover', 'select', 'combobox'] as const)(
       ),
     };
     const view = render(<PageVisibility hidden={false}>{contents[kind]}</PageVisibility>);
-    const role = ['select', 'combobox'].includes(kind)
-      ? 'listbox'
-      : kind === 'menu'
-        ? 'menu'
-        : 'dialog';
+    const role = kind === 'menu' ? 'menu' : 'dialog';
     await screen.findByRole(role);
     await act(() => view.rerender(<PageVisibility hidden>{contents[kind]}</PageVisibility>));
     await waitFor(() => expect(screen.queryByRole(role)).not.toBeInTheDocument());

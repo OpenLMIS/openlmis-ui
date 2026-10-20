@@ -17,7 +17,7 @@ function failClosedRoutes(context: BrowserContext) {
       }
     };
     handlers.set(handler, guarded);
-    await route(url, guarded, options);
+    return route(url, guarded, options);
   };
   context.unroute = (url, handler) =>
     unroute(url, handler ? (handlers.get(handler) ?? handler) : undefined);
@@ -34,6 +34,8 @@ function preserveFirefoxWorkerCache(context: BrowserContext, initiallyOffline = 
   context.route = async (...args) => {
     routes.push(args);
     if (!offline) await route(...args);
+    const dispose = () => context.unroute(args[0], args[1]);
+    return { dispose, [Symbol.asyncDispose]: dispose };
   };
   context.unroute = async (url, handler) => {
     routes = routes.filter(

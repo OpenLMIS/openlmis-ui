@@ -1,18 +1,26 @@
 # Working Offline
 
 Adjustments can use downloaded data, save drafts and submit events without a connection.
-Home and Offline Events also open offline. Other stock pages, administration, printing and
-PDF downloads need a connection until their own offline support is added.
+Home, Offline Events, Stock On Hand and Stock Card summaries also open offline. Transaction
+history, other stock pages, administration, printing and PDF downloads need a connection.
 
 ## Before You Disconnect
 
 Sign in while connected, using the browser and device you will take with you. Downloads run
 in the background without stopping your work. Keep the app open until the download finishes.
 The sidebar reports download progress and failures at every width. If a download fails, use
-Retry. A previous complete download stays available.
+Retry. A previous complete download stays available. While the app stays open and visible,
+older downloads refresh automatically. Failed downloads retry after increasing waits, up to
+30 minutes. Retry or reconnecting starts another attempt without waiting for that delay.
 
-Only permitted home-facility programs with stock viewing access are downloaded. A downloaded
-program is a snapshot of stock at download time. The app cannot download new data while
+Downloaded times use your deployment's time zone. If the app cannot load that setting, it
+keeps the last known zone. Without a saved zone, it shows a notice and uses UTC until the
+setting is available again.
+
+The app downloads only your home-facility programs where you have both permission to make
+Adjustments and permission to view Stock Cards. Programs at other facilities and programs
+without both permissions are not downloaded. A downloaded program is a snapshot of stock
+at download time. The app cannot download new data while
 disconnected. Wait for downloads to finish and check the sidebar for failures before leaving.
 
 A disconnected icon marks pages that need a connection. Selecting one while offline opens
@@ -30,12 +38,28 @@ changed the draft, choose Load Saved Draft or Keep An Archived Copy. The app sto
 save so one tab cannot silently replace the other tab's work.
 
 Submit Offline validates the lines and asks for your signature. Confirmation saves a frozen
-event on the device. It returns to the Adjustments program list and shows Saved On This Device.
-It has not changed server stock yet. Further adjustments start a new draft.
+event on the device. Event Queued confirms that it is stored, then Stock On Hand opens for
+the same facility and program. The downloaded stock has not changed yet. Further adjustments
+start a new draft.
 
-While connected, Submit uses the same device queue. Synced appears only after the server
-accepts the event and the app records that result. Connected acceptance opens Stock On Hand.
-There is no offline print offer.
+While connected, Submit uses the same device queue. The success message appears only after
+the server accepts the event and the app records that result. Acceptance opens Stock On Hand.
+There is no offline print offer. If sending has not started within 1.5 seconds, the app confirms
+Event Queued and lets you continue. Keep the app open for the queued event to sync. Other tabs
+recognize an upload in progress, so the same event is not sent twice.
+
+## Read Downloaded Stock
+
+Stock On Hand reads the downloaded home-facility snapshot, including product and lot details,
+filters and pages. Both stock views show Downloaded with the snapshot date and time so you
+can check its age. Stock Card shows the downloaded product, lot and balance summary. Its
+transaction history is not downloaded; connect to see movements or check whether an uncertain
+event was recorded. Queued events do not change the downloaded balance. They appear in stock
+after they sync and a new stock download completes.
+
+Only programs whose downloads completed are readable. Another facility, an undownloaded
+program or an undownloaded card shows Not Available Offline. Reconnect and finish the download
+before trying again.
 
 ## Reconnect And Review Offline Events
 

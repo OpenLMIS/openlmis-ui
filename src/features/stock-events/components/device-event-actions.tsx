@@ -1,14 +1,7 @@
-import { EyeIcon, MoreHorizontalIcon, Trash2Icon } from 'lucide-react';
+import { EyeIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { type CardAction, CardActions, RowActions } from '@/components/card-actions';
 import {
   canRemoveDeviceEvent,
   DeviceEventRemoval,
@@ -32,55 +25,31 @@ export function DeviceEventActions({
 }) {
   const { t } = useTranslation();
   const [removing, setRemoving] = useState(false);
+  const actions: CardAction[] = [
+    {
+      id: 'review',
+      icon: <EyeIcon />,
+      label: t('device-events.review-event'),
+      name: layout === 'cards' ? label : undefined,
+      onSelect: onOpen,
+    },
+    ...(canRemoveDeviceEvent(event)
+      ? [
+          {
+            id: 'remove',
+            icon: <Trash2Icon />,
+            label: t('device-events.remove'),
+            name: layout === 'cards' ? removeLabel : undefined,
+            destructive: true,
+            onSelect: () => setRemoving(true),
+          },
+        ]
+      : []),
+  ];
+  const Actions = layout === 'cards' ? CardActions : RowActions;
   return (
     <>
-      {layout === 'cards' ? (
-        <div className="flex shrink-0 items-center gap-1">
-          <div className="size-7">
-            {canRemoveDeviceEvent(event) && (
-              <Button
-                variant="destructive"
-                size="icon-sm"
-                aria-label={removeLabel}
-                onClick={() => setRemoving(true)}
-              >
-                <Trash2Icon />
-              </Button>
-            )}
-          </div>
-          <Button variant="outline" size="icon-sm" aria-label={label} onClick={onOpen}>
-            <EyeIcon />
-          </Button>
-        </div>
-      ) : (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={t('device-events.actions-label', { event: label })}
-              />
-            }
-          >
-            <MoreHorizontalIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent width="content">
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={onOpen}>
-                <EyeIcon />
-                {t('device-events.review-event')}
-              </DropdownMenuItem>
-              {canRemoveDeviceEvent(event) && (
-                <DropdownMenuItem variant="destructive" onClick={() => setRemoving(true)}>
-                  <Trash2Icon />
-                  {t('device-events.remove')}
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      <Actions actions={actions} label={t('device-events.actions-label', { event: label })} />
       {removing && (
         <DeviceEventRemoval
           event={event}

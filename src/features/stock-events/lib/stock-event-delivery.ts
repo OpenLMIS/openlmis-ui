@@ -1,13 +1,17 @@
+import { onlineManager, type QueryClient } from '@tanstack/react-query';
 import { liveQuery } from 'dexie';
+import { useEffect, useState } from 'react';
+import { invalidateAcceptedStockEvent } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import type {
   StockEventReceipt,
   StockEventSyncError,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { getLocalDb } from '@/integrations/local-db';
+import { queryClient as defaultQueryClient } from '@/integrations/tanstack-query';
 import { wakeStockEventSync } from '@/lib/device-event-status';
 import { isOnline } from '@/lib/online';
-import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { assertSessionScope, getSessionScope, useSessionScope } from '@/lib/session-scope';
 
 export type StockEventDelivery =
   | { kind: 'accepted'; receipt: StockEventReceipt }
@@ -17,24 +21,111 @@ export type StockEventDelivery =
   | { kind: 'held'; reason: NonNullable<QueuedStockEvent['pauseReason']> }
   | { kind: 'queued' };
 export const foregroundStockEvents = new Set<string>();
-export function waitForStockEventReceipt(event: QueuedStockEvent): Promise<StockEventDelivery> {
-  if (!isOnline()) return Promise.resolve({ kind: 'queued' });
+const foregroundReleases = new Map<string, () => void>();
+const foregroundLockPrefix = () => `${getLocalDb().name}:fg:`;
+export const isForegroundStockEvent = (event: { localEventId: string }) =>
+  foregroundStockEvents.has(event.localEventId);
+
+export function releaseForegroundStockEvent(localEventId: string) {
+  foregroundStockEvents.delete(localEventId);
+  foregroundReleases.get(localEventId)?.();
+  foregroundReleases.delete(localEventId);
+}
+
+export async function holdForegroundStockEvent(localEventId: string) {
+  if (foregroundStockEvents.has(localEventId)) return;
+  if (!navigator.locks) {
+    foregroundStockEvents.add(localEventId);
+    return;
+  }
+  await new Promise<void>((resolve, reject) => {
+    void navigator.locks
+      .request(`${foregroundLockPrefix()}${localEventId}`, { ifAvailable: true }, async (lock) => {
+        if (!lock) {
+          resolve();
+          return;
+        }
+        foregroundStockEvents.add(localEventId);
+        const held = new Promise<void>((release) => foregroundReleases.set(localEventId, release));
+        resolve();
+        await held;
+      })
+      .catch(reject);
+  });
+}
+
+export async function foregroundStockEventIds(): Promise<ReadonlySet<string>> {
+  const ids = new Set(foregroundStockEvents);
+  if (navigator.locks?.query) {
+    const prefix = foregroundLockPrefix();
+    try {
+      const { held } = await navigator.locks.query();
+      for (const lock of held ?? [])
+        if (lock.name?.startsWith(prefix)) ids.add(lock.name.slice(prefix.length));
+    } catch {}
+  }
+  return ids;
+}
+
+export function useForegroundStockEventIds(enabled = true) {
+  const scope = useSessionScope();
+  const [ids, setIds] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    const update = async () => {
+      try {
+        const current = await foregroundStockEventIds();
+        if (active && scope === getSessionScope())
+          setIds((previous) =>
+            previous.size === current.size && [...current].every((id) => previous.has(id))
+              ? previous
+              : current,
+          );
+      } catch {}
+    };
+    void update();
+    const timer = setInterval(() => void update(), 1000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [enabled, scope]);
+  return ids;
+}
+
+export async function waitForStockEventReceipt(
+  event: QueuedStockEvent,
+  queryClient: QueryClient = defaultQueryClient,
+): Promise<StockEventDelivery> {
   const db = getLocalDb();
   const scope = getSessionScope();
-  foregroundStockEvents.add(event.localEventId);
+  if (!isOnline()) {
+    releaseForegroundStockEvent(event.localEventId);
+    return { kind: 'queued' };
+  }
+  await holdForegroundStockEvent(event.localEventId);
   return new Promise((resolve) => {
     let sending = false;
     let done = false;
     const finish = (outcome: StockEventDelivery) => {
       if (done) return;
       done = true;
-      clearTimeout(startTimer);
       clearTimeout(deadline);
+      clearTimeout(startDeadline);
       subscription.unsubscribe();
-      foregroundStockEvents.delete(event.localEventId);
+      unsubscribeOnline();
+      releaseForegroundStockEvent(event.localEventId);
+      if (outcome.kind === 'accepted' && scope === getSessionScope())
+        invalidateAcceptedStockEvent(queryClient);
       resolve(outcome);
     };
-    const startTimer = setTimeout(() => finish({ kind: 'queued' }), 1500);
+    const unsubscribeOnline = onlineManager.subscribe((online) => {
+      if (!online && !sending) finish({ kind: 'queued' });
+    });
+    const startDeadline = setTimeout(() => {
+      if (!sending) finish({ kind: 'queued' });
+    }, 1500);
     const deadline = setTimeout(() => finish({ kind: sending ? 'uncertain' : 'queued' }), 65_000);
     const subscription = liveQuery(async () => {
       assertSessionScope(scope);
@@ -72,10 +163,7 @@ export function waitForStockEventReceipt(event: QueuedStockEvent): Promise<Stock
         else if (row?.pauseReason) finish({ kind: 'held', reason: row.pauseReason });
         else if (earlier) finish({ kind: 'blocked' });
         else if (!row || (sending && row.status === 'queued')) finish({ kind: 'queued' });
-        else if (row.status === 'sending') {
-          sending = true;
-          clearTimeout(startTimer);
-        }
+        else if (row.status === 'sending') sending = true;
       },
       error: () => finish({ kind: sending ? 'uncertain' : 'queued' }),
     });

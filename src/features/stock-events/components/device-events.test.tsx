@@ -194,9 +194,15 @@ it.each([
       expect(lines[0]).toHaveTextContent('Damaged');
       expect(lines[1]).toHaveTextContent('Lost');
     }
-    if (status === 'uncertain')
-      expect(screen.getByRole('button', { name: 'device-events.send-again' })).toBeDisabled();
-    else if (status === 'queued' || status === 'refused')
+    if (status === 'uncertain') {
+      const resend = screen.getByRole('button', { name: 'device-events.send-again' });
+      expect(resend).toHaveAttribute('aria-disabled', 'true');
+      expect(resend).toHaveAccessibleDescription('device-events.no-send');
+      resend.focus();
+      expect(resend).toHaveFocus();
+      await userEvent.click(resend);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    } else if (status === 'queued' || status === 'refused')
       expect(
         screen.getByRole('button', {
           name: 'device-events.remove',

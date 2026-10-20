@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { createContext, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { FormDialog, FormDialogTitle } from '@/components/form-dialog/form-dialog';
@@ -26,8 +26,12 @@ vi.mock('@/components/device-work', () => ({
   useDeviceWork: () => ({ hasDeviceEvents: false, countUnsyncedWork: async () => 0 }),
 }));
 
-vi.mock('@/components/nav-access', () => ({ useHasRight: () => false }));
+vi.mock('@/components/nav-access', () => ({
+  useHasRight: () => false,
+  useHasOfflineCapability: () => false,
+}));
 vi.mock('@/components/app-shell', () => ({
+  AppShellContext: createContext(true),
   AppShell: ({ children }: { children: React.ReactNode }) => {
     const { confirm, dialog } = useOfflineSignOut();
     return (

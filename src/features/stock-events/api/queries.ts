@@ -12,48 +12,48 @@ import {
   fetchStockEventLines,
   fetchStockEvents,
 } from '@/features/stock-events/api/api';
+import {
+  getHomeStockBundle,
+  type HomeStockScope,
+  readHomeStockBundle,
+} from '@/features/stock-events/lib/home-stock-bundle';
 import type {
   EventStockCardsFilter,
   EventStockOnHandFilter,
   PageQuery,
   StockEventsQuery,
 } from '@/features/stock-events/lib/types';
-import {
-  type AdjustmentScope,
-  getAdjustmentBundle,
-  readAdjustmentBundle,
-} from '@/lib/adjustment-bundle';
 import { getFlag } from '@/lib/feature-flags';
-import { adjustmentBundleKeys, queryKeys } from '@/lib/key-factory';
+import { homeStockBundleKeys, queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 
-export const adjustmentScope = (
+export const homeStockScope = (
   filter: EventStockCardsFilter,
   facilityTypeId: string,
-): AdjustmentScope => ({ ...filter, facilityTypeId, scanning: getFlag('GS1_SCANNING') });
+): HomeStockScope => ({ ...filter, facilityTypeId, scanning: getFlag('GS1_SCANNING') });
 
-export const eventStockCardsOptions = (filter: EventStockCardsFilter, bundle?: AdjustmentScope) =>
+export const eventStockCardsOptions = (filter: EventStockCardsFilter, bundle?: HomeStockScope) =>
   queryOptions({
-    queryKey: bundle ? adjustmentBundleKeys.cards(bundle) : queryKeys.stockEvents.list(filter),
+    queryKey: bundle ? homeStockBundleKeys.cards(bundle) : queryKeys.stockEvents.list(filter),
     queryFn: async () =>
-      bundle ? (await getAdjustmentBundle(bundle)).cards : fetchEventStockCards(filter),
+      bundle ? (await getHomeStockBundle(bundle)).cards : fetchEventStockCards(filter),
     networkMode: 'always',
   });
 
 export const eventValidReasonsOptions = (
   filter: { program: string; facilityType: string },
-  bundle?: AdjustmentScope,
+  bundle?: HomeStockScope,
 ) =>
   queryOptions({
-    queryKey: bundle ? adjustmentBundleKeys.reasons(bundle) : queryKeys.validReasons.list(filter),
+    queryKey: bundle ? homeStockBundleKeys.reasons(bundle) : queryKeys.validReasons.list(filter),
     queryFn: async () =>
-      bundle ? (await getAdjustmentBundle(bundle)).reasons : fetchValidReasons(filter),
+      bundle ? (await getHomeStockBundle(bundle)).reasons : fetchValidReasons(filter),
     networkMode: 'always',
   });
 
-export async function fetchAdjustmentTradeItem(
+export async function fetchHomeStockTradeItem(
   queryClient: QueryClient,
-  filter: AdjustmentScope,
+  filter: HomeStockScope,
   gtin: string,
 ) {
   return onlineOrDevice(
@@ -62,7 +62,7 @@ export async function fetchAdjustmentTradeItem(
       offline: false,
     }),
     async () => {
-      const bundle = await readAdjustmentBundle(filter);
+      const bundle = await readHomeStockBundle(filter);
       if (!bundle.scanning) throw new LocalDataUnavailableError();
       return {
         tradeItem: bundle.tradeItems.find((item) => item.gtin === gtin) ?? null,

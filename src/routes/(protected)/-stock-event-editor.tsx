@@ -32,10 +32,10 @@ import {
 } from '@/features/reference-data/api/queries';
 import { fetchStockEventReport } from '@/features/stock-events/api/api';
 import {
-  adjustmentScope,
   eventApprovedProductsOptions,
   eventStockCardsOptions,
   eventValidReasonsOptions,
+  homeStockScope,
 } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import {
@@ -69,22 +69,23 @@ export async function loadStockEventEditor(
   programId: string,
   kind: ConfiguredEventKind,
 ) {
+  const right = EVENT_KINDS[kind].right;
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) {
-    throw new ForbiddenError(RIGHTS.stockAdjust);
+    throw new ForbiddenError(right);
   }
   const [permissions, user] = await Promise.all([
-    requirePermissions(queryClient, RIGHTS.stockAdjust),
+    requirePermissions(queryClient, right),
     queryClient.fetchQuery(userRecordOptions(userId)),
   ]);
   const homeId = user.homeFacilityId;
-  if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockAdjust, homeId, programId)) {
-    throw new ForbiddenError(RIGHTS.stockAdjust);
+  if (!homeId || !hasProgramGrant(permissions, right, homeId, programId)) {
+    throw new ForbiddenError(right);
   }
   const homeFacility = await queryClient.fetchQuery(homeFacilityOptions(homeId));
   const program = homeFacility.supportedPrograms?.find((program) => program.id === programId);
   if (!program) {
-    throw new ForbiddenError(RIGHTS.stockAdjust);
+    throw new ForbiddenError(right);
   }
   queryClient.prefetchQuery(userProgramsOptions(userId));
   if (EVENT_KINDS[kind].drafts === 'device') queryClient.prefetchQuery(deploymentTimeZoneOptions());
@@ -95,7 +96,7 @@ export async function loadStockEventEditor(
     if (counterparty !== 'none')
       queryClient.prefetchQuery(counterpartyOptions(counterparty, filter));
     const bundleScope = EVENT_KINDS[kind].download
-      ? adjustmentScope(filter, homeFacility.type.id)
+      ? homeStockScope(filter, homeFacility.type.id)
       : undefined;
     if (products.from === 'stock-cards')
       queryClient.prefetchQuery(eventStockCardsOptions(filter, bundleScope));
@@ -321,13 +322,11 @@ export function StockEventEditorPage(props: StockEventEditorPageProps) {
   ) : (
     <StockEventEditorContent
       {...props}
-      onSubmitted={(_eventId, synced) =>
-        !synced && EVENT_KINDS[props.kind].drafts === 'device'
-          ? navigate({ to: EVENT_KINDS[props.kind].listRoute })
-          : navigate({
-              to: '/stock-management/stock-on-hand',
-              search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
-            })
+      onSubmitted={() =>
+        navigate({
+          to: '/stock-management/stock-on-hand',
+          search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
+        })
       }
     />
   );

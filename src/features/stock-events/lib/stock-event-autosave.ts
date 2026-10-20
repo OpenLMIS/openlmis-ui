@@ -1,7 +1,6 @@
 import type { EventLine } from '@/features/stock-events/lib/event-form';
 import {
   archiveStockEventCopy,
-  DraftConflictError,
   readStockEventDraft,
   restoreStockEventCopy,
   type StockEventContext,
@@ -14,12 +13,10 @@ import {
   type StockEventDisplay,
 } from '@/features/stock-events/lib/stock-event-queue';
 import type { StockEvent } from '@/features/stock-events/lib/types';
+import { createDraftWriter, type DraftSaveState as StockEventSaveState } from '@/lib/draft-writer';
 import { assertSessionScope } from '@/lib/session-scope';
 
-export type StockEventSaveState = {
-  status: 'loading' | 'saving' | 'saved' | 'failed' | 'conflict';
-  error?: unknown;
-};
+export type { DraftSaveState as StockEventSaveState } from '@/lib/draft-writer';
 export function createStockEventWriter(
   context: StockEventContext,
   initial: StockEventDraft | undefined,
@@ -27,89 +24,50 @@ export function createStockEventWriter(
   generation?: () => string | undefined,
 ) {
   let expected = initial;
-  let latest: EventLine[] | undefined;
   let current = initial?.lines ?? [];
-  let running: Promise<void> | undefined;
-  let stopped = false;
-  let conflict = false;
   let frozen = false;
   let submitting: Promise<QueuedStockEvent> | undefined;
-  function fail(error: unknown, alreadyConflicted = false) {
-    stopped = true;
-    conflict = alreadyConflicted || error instanceof DraftConflictError;
-    onStatus({ status: conflict ? 'conflict' : 'failed', error });
-  }
-  async function drain() {
-    while (latest && !stopped) {
-      const next = latest;
-      latest = undefined;
-      try {
-        expected = await saveStockEventDraft(context, expected, next, generation?.());
-        if (!latest) onStatus({ status: 'saved' });
-      } catch (error) {
-        latest ??= next;
-        fail(error);
-      }
-    }
-  }
-  function start() {
-    running ??= drain().finally(() => {
-      running = undefined;
-      if (latest && !stopped) start();
-    });
-  }
+  const serial = createDraftWriter<EventLine[]>(async (lines) => {
+    expected = await saveStockEventDraft(context, expected, lines, generation?.());
+  }, onStatus);
   function stage(lines: EventLine[]) {
     if (frozen || submitting) return;
     current = lines;
-    latest = lines;
-    if (!stopped) onStatus({ status: 'saving' });
+    serial.stage(lines);
   }
   return {
     stage,
     start: () => {
-      if (!stopped && latest) start();
+      if (!frozen && !submitting) serial.start();
     },
     enqueue(lines: EventLine[]) {
       stage(lines);
-      if (!stopped) start();
+      serial.start();
     },
-    async flush() {
-      if (!stopped && latest) start();
-      await running;
-      return !stopped;
-    },
-    retry() {
-      if (conflict) return;
-      stopped = false;
-      conflict = false;
-      onStatus({ status: 'saving' });
-      start();
-    },
+    flush: serial.flush,
+    retry: serial.retry,
     async replace(lines: EventLine[]) {
       if (frozen || submitting) return false;
-      await running;
-      if (conflict) return false;
-      latest = lines;
-      stopped = false;
-      conflict = false;
-      onStatus({ status: 'saving' });
-      start();
-      await running;
-      if (!stopped) current = lines;
-      else latest = current;
-      return !stopped;
+      await serial.wait();
+      if (serial.conflicted) return false;
+      serial.retain(lines);
+      serial.retry();
+      await serial.wait();
+      if (!serial.stopped) current = lines;
+      else serial.retain(current);
+      return !serial.stopped;
     },
-    submit(payload: StockEvent, display: StockEventDisplay) {
+    submit(payload: StockEvent, display: StockEventDisplay, options?: { foreground?: boolean }) {
       submitting ??= (async () => {
         if (!(await this.flush()) || !expected) throw new Error('The draft is not saved');
         try {
-          const queued = await enqueueStockEvent(context, expected, payload, display);
+          const queued = await enqueueStockEvent(context, expected, payload, display, options);
           frozen = true;
-          latest = undefined;
+          serial.clear();
           return queued;
         } catch (error) {
-          latest ??= current;
-          fail(error, conflict);
+          serial.retain(current);
+          serial.fail(error, serial.conflicted);
           throw error;
         }
       })().finally(() => {
@@ -123,33 +81,29 @@ export function createStockEventWriter(
       try {
         expected = await restoreStockEventCopy(context, expected, copy);
         current = expected.lines;
-        latest = undefined;
-        onStatus({ status: 'saved' });
+        serial.reset();
         return expected;
       } catch (error) {
-        fail(error);
+        serial.fail(error);
         return undefined;
       }
     },
     async discard() {
       if (frozen || submitting) return false;
-      await running;
+      await serial.wait();
       try {
         expected = await saveStockEventDraft(context, expected, []);
         current = [];
-        latest = undefined;
-        stopped = false;
-        conflict = false;
-        onStatus({ status: 'saved' });
+        serial.reset();
         return true;
       } catch (error) {
-        fail(error);
+        serial.fail(error);
         return false;
       }
     },
     async resolve(choice: 'load' | 'copy') {
       if (frozen || submitting) return expected;
-      await running;
+      await serial.wait();
       assertSessionScope(context.sessionScope);
       const stored = await context.db.transaction('rw', 'stockEventDrafts', async () => {
         if (choice === 'copy')
@@ -164,10 +118,7 @@ export function createStockEventWriter(
       assertSessionScope(context.sessionScope);
       expected = stored;
       current = stored?.lines ?? [];
-      latest = undefined;
-      stopped = false;
-      conflict = false;
-      onStatus({ status: 'saved' });
+      serial.reset();
       return stored;
     },
   };

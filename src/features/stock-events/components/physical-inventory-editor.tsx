@@ -260,6 +260,7 @@ function InventoryRows(props: RowsProps) {
         localFailed={local.isError}
         localRemoved={local.data?.modified ? (local.data.removedKeys ?? []) : []}
         localModified={Boolean(local.data?.modified)}
+        localRevision={local.data?.revision}
       />
     </>
   );
@@ -279,6 +280,7 @@ function InventoryDraftRows({
   localFailed,
   localRemoved,
   localModified,
+  localRevision,
   quantityUnit,
   addOpen,
   onAddClose,
@@ -296,6 +298,7 @@ function InventoryDraftRows({
   localFailed: boolean;
   localRemoved: string[];
   localModified: boolean;
+  localRevision?: number;
 }) {
   const { t, i18n } = useTranslation();
   const [entryUpdatedAfter] = useState(eligibleUpdatedAfter);
@@ -377,12 +380,15 @@ function InventoryDraftRows({
         : null,
     [busy, submitted, modified, form, draft, baseline, withDisplayedMembership],
   );
-  const autosave = usePhysicalInventoryAutosave(copy, form);
+  const autosave = usePhysicalInventoryAutosave(copy, form, localRevision);
   const status = readFailed && !modified && !form.state.isDirty ? 'failed' : autosave.status;
   const allowLeave = useRef(false);
-  const guard = useDiscardGuard(!submitted && (status === 'saving' || status === 'failed'), {
-    allowLeave: () => allowLeave.current,
-  });
+  const guard = useDiscardGuard(
+    !submitted && (status === 'saving' || status === 'failed' || status === 'conflict'),
+    {
+      allowLeave: () => allowLeave.current,
+    },
+  );
   const [dialog, setDialog] = useState<{
     type: 'reasons' | 'lot' | 'deactivate';
     line: InventoryLine;
@@ -654,8 +660,10 @@ function InventoryDraftRows({
         username={username}
         showInDoses={quantityUnit.unit === 'DOSES'}
         disabled={busy || mutation.isPending}
-        writeDisabled={!eligible.data || eligible.isError}
+        writeDisabled={!eligible.data || eligible.isError || status === 'conflict'}
         flush={autosave.flush}
+        writeLocal={autosave.write}
+        clearLocal={autosave.clear}
         onBusy={setBusy}
         onLots={(next) =>
           form.setFieldValue('lines', Object.fromEntries(next.map((line) => [line.key, line])))

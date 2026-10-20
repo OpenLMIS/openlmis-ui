@@ -40,11 +40,11 @@ test('offline Submit retains its committed event through persistent restart', {
     await page.getByRole('button', { name: 'Submit Offline', exact: true }).click();
     await page.getByRole('textbox', { name: 'Signature', exact: true }).fill('Fixture User');
     await page.getByRole('button', { name: 'Confirm', exact: true }).dblclick();
-    await expect(page).toHaveURL(/\/adjustments$/);
+    await expect(page).toHaveURL(/\/stock-on-hand/);
     await expect(
       page
         .getByRole('region', { name: 'Notifications alt+T' })
-        .getByText('Saved On This Device', { exact: true }),
+        .getByText('Event Queued', { exact: true }),
     ).toBeVisible();
     await expect(page.locator('[data-slot=sidebar-menu-badge]')).toHaveText('1');
     expect(posts).toBe(0);
@@ -70,7 +70,7 @@ test('offline Submit retains its committed event through persistent restart', {
   }
 });
 
-test('connected acceptance shows Synced and restores the facility/program Stock on Hand landing', async ({
+test('connected acceptance shows submitted confirmation and restores the facility/program Stock on Hand landing', async ({
   context,
   page,
 }) => {
@@ -111,7 +111,9 @@ test('connected acceptance shows Synced and restores the facility/program Stock 
     new RegExp(`stock-on-hand.*facilityId=${home}.*programId=${program}`),
   );
   await expect(
-    page.getByRole('region', { name: 'Notifications alt+T' }).getByText('Synced', { exact: true }),
+    page
+      .getByRole('region', { name: 'Notifications alt+T' })
+      .getByText('Adjustment Submitted', { exact: true }),
   ).toBeVisible();
   expect(posts).toHaveLength(1);
 });

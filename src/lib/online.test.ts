@@ -1,6 +1,6 @@
 import { onlineManager } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   dismissBackOnline,
@@ -112,7 +112,7 @@ describe('server reachability', () => {
     const fetch = vi
       .fn()
       .mockRejectedValueOnce(new TypeError('unreachable'))
-      .mockResolvedValueOnce({ ok: true });
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ timeZoneId: 'UTC' }) });
     vi.stubGlobal('fetch', fetch);
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
     const reconnect = vi.fn();
@@ -171,7 +171,7 @@ it('bounds unreachable-server probe backoff at thirty seconds', async () => {
 it('keeps escalating through successful probes when the API still has no response', async () => {
   vi.useFakeTimers();
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
-  const fetch = vi.fn().mockResolvedValue({ ok: true });
+  const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ timeZoneId: 'UTC' }) });
   vi.stubGlobal('fetch', fetch);
   const fail = () => reportConnectionFailure(new AxiosError('network', AxiosError.ERR_NETWORK));
   fail();
@@ -196,7 +196,7 @@ it.each(['seed', 'browser'])(
   async (hint) => {
     vi.useFakeTimers();
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
-    let answer!: (response: { ok: boolean }) => void;
+    let answer!: (response: { ok: boolean; json: () => Promise<unknown> }) => void;
     const fetch = vi
       .fn()
       .mockRejectedValueOnce(new TypeError('network'))
@@ -218,8 +218,83 @@ it.each(['seed', 'browser'])(
     retry();
     await vi.advanceTimersByTimeAsync(0);
     expect(fetch).toHaveBeenCalledTimes(2);
-    answer({ ok: true });
+    answer({ ok: true, json: async () => ({ timeZoneId: 'UTC' }) });
     await vi.advanceTimersByTimeAsync(0);
+    expect(isOnline()).toBe(true);
+  },
+);
+
+it('rejects captive portal HTML and unrelated JSON before reconnecting', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => {
+        throw new SyntaxError('HTML');
+      },
+    })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ signedIn: false }) })
+    .mockResolvedValue({ ok: true, json: async () => ({ timeZoneId: 'UTC' }) });
+  vi.stubGlobal('fetch', fetch);
+  reportConnectionFailure(new AxiosError('network', AxiosError.ERR_NETWORK));
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(isOnline()).toBe(false);
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(isOnline()).toBe(false);
+  await vi.advanceTimersByTimeAsync(4000);
+  expect(isOnline()).toBe(true);
+});
+
+it('restores connectivity on API success and cancels an in-flight probe', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  const fetch = vi.fn((_url: string, _options: RequestInit) => new Promise<Response>(() => {}));
+  vi.stubGlobal('fetch', fetch);
+  const reconnect = vi.fn();
+  renderHook(() => useOnReconnect(reconnect));
+  reportConnectionFailure(new AxiosError('network', AxiosError.ERR_NETWORK));
+  await vi.advanceTimersByTimeAsync(1000);
+  const signal = fetch.mock.calls[0][1].signal;
+  reportConnectionSuccess();
+  expect(isOnline()).toBe(true);
+  expect(signal?.aborted).toBe(true);
+  expect(reconnect).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(120000);
+  expect(fetch).toHaveBeenCalledOnce();
+});
+
+it.each([AxiosError.ERR_NETWORK, AxiosError.ECONNABORTED])(
+  'checks the failed auth service after %s before reopening an expired session',
+  async (code) => {
+    vi.useFakeTimers();
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const fetch = vi.fn().mockRejectedValue(new TypeError('Auth unreachable'));
+    vi.stubGlobal('fetch', fetch);
+    reportConnectionFailure(
+      new AxiosError('network', code, {
+        headers: new AxiosHeaders(),
+        baseURL: '/api',
+        url: '/oauth/token?grant_type=password',
+        session: false,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/oauth/token',
+      expect.objectContaining({ cache: 'no-store', credentials: 'omit' }),
+    );
+    expect(fetch.mock.calls[0][1].headers?.Authorization).toBeUndefined();
+    expect(isOnline()).toBe(false);
+    reportConnectionSuccess('/localeSettings');
+    expect(isOnline()).toBe(false);
+    fetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: 'unauthorized' }),
+    });
+    await vi.advanceTimersByTimeAsync(2000);
     expect(isOnline()).toBe(true);
   },
 );

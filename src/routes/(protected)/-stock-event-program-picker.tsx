@@ -1,9 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { type ErrorComponentProps, Link } from '@tanstack/react-router';
+import { liveQuery } from 'dexie';
 import type { ParseKeys } from 'i18next';
 import { ClipboardPenLineIcon, ZapIcon } from 'lucide-react';
-import type { ReactElement, ReactNode } from 'react';
+import { type ReactElement, type ReactNode, useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { LoadError } from '@/components/load-error';
 import { NoAccess } from '@/components/no-access-page';
@@ -24,7 +25,6 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { ForbiddenError, isForbidden, requirePermissions } from '@/features/auth/lib/access';
-import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   homeFacilityOptions,
@@ -33,15 +33,18 @@ import {
 } from '@/features/reference-data/api/queries';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import { readHomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
+import { getLocalDb } from '@/integrations/local-db';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
+import { useSessionScope } from '@/lib/session-scope';
 import { homeStockPrograms } from '@/lib/stock-programs';
 
 export async function loadStockEventPrograms(
   queryClient: QueryClient,
-  right: string = RIGHTS.stockAdjust,
+  right: string,
 ): Promise<{ userId: string; permissions: Permissions }> {
   const userId = useLoginData.getState().referenceDataUserId;
   const permissions = await requirePermissions(queryClient, right);
@@ -122,6 +125,7 @@ export type ProgramsTableProps = {
   hasHomeFacility: boolean;
   programs: readonly NamedRecord[];
   facilityId?: string;
+  facilityTypeId?: string;
 };
 export function StockEventProgramPicker(props: PickerProps) {
   const { userId, permissions } = props;
@@ -146,11 +150,16 @@ export function StockEventProgramPicker(props: PickerProps) {
           <EventPrograms
             userId={userId}
             permissions={permissions}
-            right={'kind' in props ? RIGHTS.stockAdjust : props.right}
+            right={'kind' in props ? EVENT_KINDS[props.kind].right : props.right}
             renderTable={
               'kind' in props
                 ? (table) => (
-                    <ProgramsTable {...table} action={copy.action} editorLink={props.editorLink} />
+                    <ProgramsTable
+                      {...table}
+                      kind={props.kind}
+                      action={copy.action}
+                      editorLink={props.editorLink}
+                    />
                   )
                 : props.children
             }
@@ -223,6 +232,7 @@ function HomePrograms({
   return renderTable({
     hasHomeFacility: true,
     facilityId: homeId,
+    facilityTypeId: homeFacility.type.id,
     programs: homeStockPrograms({ homeFacility, ...sources }),
   });
 }
@@ -232,17 +242,74 @@ function ProgramsTable({
   programs,
   action,
   editorLink,
+  kind,
+  facilityId,
+  facilityTypeId,
 }: ProgramsTableProps & {
+  kind: ConfiguredEventKind;
   action: PickerCopy['action'];
   editorLink: (programId: string) => ReactElement;
 }) {
   const { t } = useTranslation();
+  const online = useOnline();
+  const scope = useSessionScope();
+  const key = JSON.stringify([
+    scope,
+    facilityId,
+    facilityTypeId,
+    programs.map((program) => program.id),
+  ]);
+  const [downloaded, setDownloaded] = useState({ key: '', ids: new Set<string>() });
+  useEffect(() => {
+    if (online || EVENT_KINDS[kind].download !== 'home-stock' || !facilityId || !facilityTypeId)
+      return;
+    let active = true;
+    const subscription = liveQuery(() =>
+      getLocalDb().table('homeStockDownloads').where('facilityId').equals(facilityId).toArray(),
+    ).subscribe({
+      next: () => {
+        void Promise.all(
+          programs.map(async (program) => {
+            try {
+              await readHomeStockBundle({ facilityId, facilityTypeId, programId: program.id });
+              return program.id;
+            } catch {
+              return null;
+            }
+          }),
+        ).then((ids) => {
+          if (active) setDownloaded({ key, ids: new Set(ids.filter((id) => id !== null)) });
+        });
+      },
+      error: () => {
+        if (active) setDownloaded({ key, ids: new Set() });
+      },
+    });
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [online, kind, programs, facilityId, facilityTypeId, key]);
   return (
     <StockProgramPicker
       actionLabel={t(action)}
       hasHomeFacility={hasHomeFacility}
       linkFor={(row) => editorLink(row.id)}
-      rows={programs.map((program) => ({ id: program.id, label: recordLabel(program) }))}
+      rows={programs.map((program) => ({
+        id: program.id,
+        label: recordLabel(program),
+        disabled:
+          !online &&
+          EVENT_KINDS[kind].download === 'home-stock' &&
+          (downloaded.key !== key || !downloaded.ids.has(program.id)),
+        disabledReason:
+          !online &&
+          EVENT_KINDS[kind].download === 'home-stock' &&
+          (downloaded.key !== key || !downloaded.ids.has(program.id))
+            ? t('offline.unavailable-title')
+            : undefined,
+        disabledDescription: t('stock-programs.offline-description'),
+      }))}
     />
   );
 }

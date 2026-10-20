@@ -10,8 +10,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useDeviceWork } from '@/components/device-work';
-import { useHasRight } from '@/components/nav-access';
+import { useHasOfflineCapability } from '@/components/nav-access';
 import { NoticeCountdownBar } from '@/components/notice-countdown';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { RIGHTS } from '@/features/auth/lib/rights';
 import { useOfflineSession } from '@/hooks/use-offline-session';
 import {
   syncCountdown,
@@ -39,6 +39,7 @@ import {
 import {
   backOnlineCountdown,
   dismissBackOnline,
+  isOnline,
   seedOnline,
   useBackOnline,
   useOnline,
@@ -68,7 +69,7 @@ const ICON_TONE: Record<Notice['variant'], string> = {
 function useNotices(): Notice[] {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const canAdjust = useHasRight(RIGHTS.stockAdjust);
+  const canWorkOffline = useHasOfflineCapability();
   const device = useDeviceWork();
   const { waiting } = device;
   const ownPhase = useSyncPhase();
@@ -90,7 +91,14 @@ function useNotices(): Notice[] {
       Icon: WifiOffIcon,
       title: t('offline.title'),
       description: t('offline.description'),
-      action: { label: t('error.try-again'), onClick: seedOnline },
+      action: {
+        label: t('error.try-again'),
+        onClick: () => {
+          seedOnline();
+          if (!isOnline())
+            toast.info(t('offline.title'), { description: t('offline.retry-unavailable') });
+        },
+      },
     });
   }
   if (online && backOnline) {
@@ -129,6 +137,13 @@ function useNotices(): Notice[] {
     });
   if (download.phase === 'failed' && (online || download.reason !== 'offline')) {
     const reason = download.reason ?? 'read';
+    const programsByDataset = new Map<string, string[]>();
+    for (const item of download.incompletePrograms) {
+      const label = item.datasetLabel ?? '';
+      const programs = programsByDataset.get(label) ?? [];
+      programs.push(item.name);
+      programsByDataset.set(label, programs);
+    }
     notices.push({
       id: 'offline-download',
       variant: 'warning',
@@ -136,22 +151,23 @@ function useNotices(): Notice[] {
       title: t('offline.download.incomplete'),
       description: [
         t(`offline.download.failure-${reason}`),
-        download.incompletePrograms.length
-          ? t('offline.download.failed-programs', {
-              programs: download.incompletePrograms.map((program) => program.name).join(', '),
-            })
-          : '',
+        ...[...programsByDataset].map(([label, programs]) =>
+          t('offline.download.failed-programs', {
+            dataset: label ? t(label as import('i18next').ParseKeys) : t('offline.download.data'),
+            programs: programs.join(', '),
+          }),
+        ),
       ]
         .filter(Boolean)
-        .join(' '),
+        .join('\n'),
       action: { label: t('offline.download.retry'), onClick: retryOfflineDownload },
     });
   }
   const signInPending =
-    (offlineSession && (canAdjust || device.retained)) ||
-    (canAdjust && waiting && phase === 'session');
-  const receiptPending = canAdjust && waiting && phase === 'receipt';
-  const syncPending = canAdjust && waiting && phase === 'syncing';
+    (offlineSession && (canWorkOffline || device.retained)) ||
+    (canWorkOffline && waiting && phase === 'session');
+  const receiptPending = canWorkOffline && waiting && phase === 'receipt';
+  const syncPending = canWorkOffline && waiting && phase === 'syncing';
   if (receiptPending || (online && (signInPending || syncPending))) {
     const syncing = !receiptPending && !signInPending;
     notices.push({
@@ -171,7 +187,7 @@ function useNotices(): Notice[] {
       closesSidebar: true,
     });
   }
-  if (canAdjust && !offlineSession && phase === 'complete' && device.pending === 0)
+  if (canWorkOffline && !offlineSession && phase === 'complete' && device.pending === 0)
     notices.push({
       id: 'device-events-sync',
       variant: 'success',
@@ -179,7 +195,7 @@ function useNotices(): Notice[] {
       title: t('device-events.sync-complete'),
       countdown: syncCountdown,
     });
-  if (canAdjust && phase === 'unsupported')
+  if (canWorkOffline && phase === 'unsupported')
     notices.push({
       id: 'device-events-sync',
       variant: 'warning',
@@ -187,7 +203,7 @@ function useNotices(): Notice[] {
       title: t('device-events.sync-unavailable'),
       description: t('device-events.locks-required'),
     });
-  if (online && canAdjust && !offlineSession && waiting && phase === 'failed')
+  if (online && canWorkOffline && !offlineSession && waiting && phase === 'failed')
     notices.push({
       id: 'device-events-sync',
       variant: 'warning',
@@ -219,7 +235,7 @@ function useNotices(): Notice[] {
 
 export function SidebarNotices() {
   const { t } = useTranslation();
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, setOpen } = useSidebar();
   const notices = useNotices();
   const reviewAction = useRef<HTMLButtonElement>(null);
   const reviewNoticeId = notices.find((notice) => notice.action && notice.closesSidebar)?.id;
@@ -243,7 +259,11 @@ export function SidebarNotices() {
                     action.onClick();
                     if (closesSidebar) setOpenMobile(false);
                   }}
-                  tooltip={`${title}${description ? `: ${description}` : ''}: ${action.label}`}
+                  tooltip={{
+                    children: (
+                      <span className="whitespace-pre-line">{`${title}${description ? `: ${description}` : ''}: ${action.label}`}</span>
+                    ),
+                  }}
                 >
                   <Icon
                     className={`${ICON_TONE[variant]}${spinning ? ' animate-spin motion-reduce:animate-none' : ''}`}
@@ -251,8 +271,15 @@ export function SidebarNotices() {
                 </SidebarMenuButton>
               ) : (
                 <SidebarMenuButton
-                  render={<span />}
-                  tooltip={description ? `${title}: ${description}` : title}
+                  aria-label={description ? `${title}: ${description}` : title}
+                  onClick={() => setOpen(true)}
+                  tooltip={{
+                    children: (
+                      <span className="whitespace-pre-line">
+                        {description ? `${title}: ${description}` : title}
+                      </span>
+                    ),
+                  }}
                 >
                   <Icon
                     aria-hidden="true"
@@ -303,7 +330,7 @@ export function SidebarNotices() {
             <AlertTitle>{title}</AlertTitle>
             {(description || action) && (
               <AlertDescription>
-                {description}
+                {description && <span className="whitespace-pre-line">{description}</span>}
                 {action && (
                   <div className="pt-1">
                     <Button
@@ -383,12 +410,19 @@ export function StatusAnnouncer() {
 }
 
 export function OfflineDot() {
-  const online = useOnline();
+  const { t } = useTranslation();
+  const warnings = useNotices().filter((notice) => notice.variant === 'warning');
+  const updateReady = useUpdateReady();
   const { isMobile, open, openMobile } = useSidebar();
-  if (online || (isMobile ? openMobile : open)) return null;
+  if ((!warnings.length && !updateReady) || (isMobile ? openMobile : open)) return null;
+  const label = [
+    ...warnings.map((notice) => notice.title),
+    ...(updateReady ? [t('update.reload-to-update')] : []),
+  ].join('. ');
   return (
     <span
-      aria-hidden="true"
+      role="img"
+      aria-label={label}
       className="pointer-events-none absolute top-1 end-1 size-2 rounded-full bg-warning"
     />
   );

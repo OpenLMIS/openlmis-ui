@@ -3,7 +3,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useCallback } from 'react';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { requireRight } from '@/features/auth/lib/access';
-import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { DeviceEventsPage } from '@/features/stock-events/components/device-events';
@@ -13,13 +12,14 @@ import {
   type DeviceEventsSearch,
   deviceEventsSearchSchema,
 } from '@/features/stock-events/lib/device-events-search';
+import { OFFLINE_EVENT_RIGHTS } from '@/features/stock-events/lib/event-kinds';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { parsePermissions } from '@/lib/permissions';
 
 export const Route = createFileRoute('/(protected)/_protected/offline-events')({
   validateSearch: deviceEventsSearchSchema,
   loader: async ({ context: { queryClient } }) => {
-    if (!(await hasOwnDeviceEvents())) await requireRight(queryClient, RIGHTS.stockAdjust);
+    if (!(await hasOwnDeviceEvents())) await requireRight(queryClient, OFFLINE_EVENT_RIGHTS);
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
   },
   component: DeviceEvents,

@@ -38,6 +38,10 @@ export function getLocalDb(): Dexie {
       stockEventSyncErrors: '&localEventId',
       stockEventReceipts: '[draftId+revision], &localEventId',
     });
+    database.version(8).stores({
+      adjustmentDownloads: null,
+      homeStockDownloads: '[facilityId+programId]',
+    });
   }
   return database;
 }

@@ -1,21 +1,42 @@
-import { onlineManager } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import Dexie from 'dexie';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
+import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
+import {
+  refreshAfterStockEventAccepted,
+  subscribeStockEventAcceptances,
+} from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
+import { foregroundStockEvents } from '@/features/stock-events/lib/stock-event-delivery';
 import {
   createStockEventContext,
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
+import { startStockEventUploader } from '@/features/stock-events/lib/stock-event-uploader';
 import { client } from '@/integrations/axios';
+import i18n from '@/integrations/i18n';
 import { getLocalDb } from '@/integrations/local-db';
+import { queryClient } from '@/integrations/tanstack-query';
 import { getSyncPhase, useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
+import { queryKeys } from '@/lib/key-factory';
 import type { OfflineAccess } from '@/lib/offline-access';
-import { startStockEventUploader } from '@/lib/stock-event-uploader';
+import { setDownloadRefresh } from '@/lib/offline-download-status';
 
+vi.mock('@/features/stock-events/lib/event-kinds', async (original) => {
+  const module = await original<typeof import('@/features/stock-events/lib/event-kinds')>();
+  return {
+    ...module,
+    EVENT_KINDS: {
+      ...module.EVENT_KINDS,
+      issue: { ...module.EVENT_KINDS.issue, right: 'STOCK_ISSUE' },
+    },
+  };
+});
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
 const owner = { referenceDataUserId: 'uploader', username: 'Ada', accessToken: 'first' };
 const line = newEventLine(
@@ -65,9 +86,9 @@ afterEach(() => {
   client.defaults.adapter = originalAdapter;
   vi.unstubAllGlobals();
 });
-async function enqueue() {
+async function enqueue(kind: ConfiguredEventKind = 'adjustment') {
   const context = createStockEventContext({
-    kind: 'adjustment',
+    kind,
     facilityId: 'home',
     programId: 'one',
   });
@@ -84,6 +105,7 @@ async function enqueue() {
   );
 }
 it('waits for fresh access, orders enqueues, and two coordinators share one upload lock', async () => {
+  const translated = vi.spyOn(i18n, 't');
   const first = await enqueue();
   const second = await enqueue();
   let releaseAccess!: (saved: OfflineAccess) => void;
@@ -119,6 +141,8 @@ it('waits for fresh access, orders enqueues, and two coordinators share one uplo
   expect(send.mock.calls[1][0].sequence).toBe(second.sequence);
   await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(2));
   await waitFor(() => expect(getSyncPhase()).toBe('complete'));
+  expect(toast.success).toHaveBeenCalledOnce();
+  expect(translated).toHaveBeenCalledWith('device-events.synced-count', { count: 2 });
 });
 it('a service 401 pauses until same-user renewal and fresh access, then resends exactly once', async () => {
   const event = await enqueue();
@@ -327,4 +351,157 @@ it('does not report completion when a run accepts an event but leaves refused an
   await waitFor(() => expect(getSyncPhase()).toBe('idle'));
   expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1);
   expect((await getLocalDb().table('stockEventQueue').toArray())[0].status).toBe('uncertain');
+});
+
+it('requires the queued kind right, even when another offline kind is allowed at the same scope', async () => {
+  const event = await enqueue('issue');
+  let permissionStrings = ['STOCK_ADJUST|home|one'];
+  const access = vi.fn(async () => ({ ...snapshot, permissionStrings }));
+  const send = vi.fn(async () => accepted);
+  stops.push(startStockEventUploader({ access, send }));
+  onlineManager.setOnline(true);
+  await waitFor(async () =>
+    expect(await getLocalDb().table('stockEventQueue').get(event.sequence)).toMatchObject({
+      pauseReason: 'access-changed',
+    }),
+  );
+  expect(send).not.toHaveBeenCalled();
+  permissionStrings = ['STOCK_ISSUE|home|one'];
+  wakeStockEventSync();
+  await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
+});
+
+it('keeps foreground acceptance out of offline sync phases and summary toasts', async () => {
+  const event = await enqueue();
+  foregroundStockEvents.add(event.localEventId);
+  const send = vi.fn(async () => {
+    expect(getSyncPhase()).toBe('idle');
+    return accepted;
+  });
+  try {
+    stops.push(startStockEventUploader({ access: async () => snapshot, send }));
+    onlineManager.setOnline(true);
+    await waitFor(async () =>
+      expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1),
+    );
+    expect(getSyncPhase()).toBe('idle');
+    expect(toast.success).not.toHaveBeenCalled();
+  } finally {
+    foregroundStockEvents.delete(event.localEventId);
+  }
+});
+
+it('broadcasts acceptance and invalidates other-tab stock only for the current owner', async () => {
+  const channels: {
+    name: string;
+    onmessage?: (message: { data: unknown }) => void;
+    postMessage: ReturnType<typeof vi.fn>;
+  }[] = [];
+  vi.stubGlobal(
+    'BroadcastChannel',
+    class {
+      onmessage?: (message: { data: unknown }) => void;
+      postMessage = vi.fn();
+      close = vi.fn();
+      constructor(public name: string) {
+        channels.push(this);
+      }
+    },
+  );
+  const event = await enqueue();
+  stops.push(startStockEventUploader({ access: async () => snapshot }));
+  queryClient.setQueryData(queryKeys.stockCardSummaries.all, ['old-stock']);
+  const listener = channels.find((channel) => channel.onmessage);
+  expect(listener).toBeDefined();
+  listener?.onmessage?.({
+    data: { type: 'accepted', userId: 'someone-else', facilityId: 'home', programId: 'one' },
+  });
+  expect(queryClient.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated).toBe(false);
+  listener?.onmessage?.({
+    data: { type: 'accepted', userId: event.userId, facilityId: 'home', programId: 'one' },
+  });
+  expect(queryClient.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated).toBe(true);
+  refreshAfterStockEventAccepted(queryClient, event);
+  expect(
+    channels.some((channel) =>
+      channel.postMessage.mock.calls.some(
+        ([data]) =>
+          data.type === 'accepted' &&
+          data.userId === event.userId &&
+          data.facilityId === event.facilityId &&
+          data.programId === event.programId,
+      ),
+    ),
+  ).toBe(true);
+  const receive = listener?.onmessage;
+  useLoginData.getState().setLoginData({
+    referenceDataUserId: 'other-uploader',
+    username: 'Other',
+    accessToken: 'other',
+  });
+  queryClient.setQueryData(queryKeys.stockCardSummaries.all, ['next-owner-stock']);
+  receive?.({
+    data: { type: 'accepted', userId: event.userId, facilityId: 'home', programId: 'one' },
+  });
+  expect(queryClient.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated).toBe(false);
+  queryClient.clear();
+});
+
+it('invalidates multiple receiving clients without requesting a download in each tab', async () => {
+  const listeners: { onmessage?: (message: { data: unknown }) => void }[] = [];
+  vi.stubGlobal(
+    'BroadcastChannel',
+    class {
+      onmessage?: (message: { data: unknown }) => void;
+      constructor() {
+        listeners.push(this);
+      }
+      postMessage() {}
+      close() {}
+    },
+  );
+  const clients = [new QueryClient(), new QueryClient()];
+  const refresh = vi.fn();
+  setDownloadRefresh(refresh);
+  for (const other of clients) {
+    other.setQueryData(queryKeys.stockCardSummaries.all, ['old']);
+    stops.push(subscribeStockEventAcceptances(other));
+  }
+  const event = await enqueue();
+  refreshAfterStockEventAccepted(queryClient, event);
+  for (const listener of listeners)
+    listener.onmessage?.({
+      data: {
+        type: 'accepted',
+        origin: 'another-tab',
+        userId: event.userId,
+        facilityId: event.facilityId,
+        programId: event.programId,
+      },
+    });
+  expect(
+    clients.every((other) => other.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated),
+  ).toBe(true);
+  expect(refresh).toHaveBeenCalledTimes(1);
+  setDownloadRefresh();
+});
+
+it('sends an abandoned foreground row as background without waiting for its old deadline', async () => {
+  const event = await enqueue();
+  await getLocalDb()
+    .table('stockEventQueue')
+    .update(event.sequence, { foregroundUntil: Date.now() + 65_000 });
+  Object.assign(navigator.locks, { query: vi.fn(async () => ({ held: [], pending: [] })) });
+  const phases: string[] = [];
+  const send = vi.fn(async () => {
+    phases.push(getSyncPhase());
+    return accepted;
+  });
+  stops.push(startStockEventUploader({ access: async () => snapshot, send }));
+  onlineManager.setOnline(true);
+  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
+  await waitFor(() => expect(toast.success).toHaveBeenCalledOnce());
+  expect(getSyncPhase()).toBe('complete');
+  expect(phases).toEqual(['syncing']);
 });

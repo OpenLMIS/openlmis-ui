@@ -1,7 +1,7 @@
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { Link, useRouter } from '@tanstack/react-router';
 import { HouseIcon, RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NoAccessPage } from '@/components/no-access-page';
 import { OfflineNotice, useOfflineFailure } from '@/components/offline-notice';
@@ -15,8 +15,16 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { isForbidden } from '@/features/auth/lib/access';
+import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
+import { isOfflineError } from '@/lib/http';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { isOnline, seedOnline } from '@/lib/online';
+
+const reloadPage = () => {
+  allowUnload();
+  window.location.reload();
+};
 
 type ErrorFallbackProps = ErrorComponentProps & {
   title?: string;
@@ -27,21 +35,36 @@ type ErrorFallbackProps = ErrorComponentProps & {
 export function ErrorFallback({ error, reset, title, description, back }: ErrorFallbackProps) {
   const { t } = useTranslation();
   const router = useRouter();
+  const staleApp = isChunkLoadError(error);
+  const [failedOffline] = useState(() => !isOnline());
+  const rerun = () => {
+    void router.invalidate();
+    reset();
+  };
   const retry = () => {
     seedOnline();
-    if (isOnline()) {
-      void router.invalidate();
-      reset();
-    }
+    if (!isOnline()) return;
+    if (staleApp) whenLeaveAllowed(() => reloadOnce(reloadPage) || rerun());
+    else rerun();
   };
-  const offline = useOfflineFailure(error, retry);
+  const offline = useOfflineFailure(error, retry, failedOffline && !isForbidden(error));
+  useEffect(() => {
+    if (staleApp && isOnline()) whenLeaveAllowed(() => reloadOnce(reloadPage));
+  }, [staleApp]);
   // A route that needs a right it lacks, or a refusal from the server, is not an error.
   if (isForbidden(error)) return <NoAccessPage />;
   if (offline)
     return (
       <OfflineNotice
+        headingLevel={1}
         onRetry={retry}
-        reason={error instanceof OfflinePageUnavailableError ? 'online-only' : undefined}
+        reason={
+          error instanceof OfflinePageUnavailableError
+            ? 'online-only'
+            : staleApp || !isOfflineError(error)
+              ? 'not-downloaded'
+              : undefined
+        }
       />
     );
   const parsedError = error instanceof Error ? error : new Error(String(error));

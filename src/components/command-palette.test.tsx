@@ -110,6 +110,8 @@ it('lets keyboard users reach an offline item and hear its reason without leavin
   await userEvent.keyboard('{ArrowDown}');
   const issue = screen.getByRole('option', { name: /nav.stock-management.issue/ });
   expect(issue).toHaveTextContent('offline.connection-required');
+  expect(issue).toHaveAccessibleName('nav.stock-management.issue');
+  expect(issue).toHaveAccessibleDescription('offline.connection-required');
   expect(issue).toHaveAttribute('data-unavailable');
   expect(issue).not.toHaveAttribute('aria-disabled', 'true');
   await waitFor(() => expect(issue).toHaveAttribute('data-selected', 'true'));

@@ -122,7 +122,10 @@ export function CommandPalette() {
                         <span className="min-w-0">
                           <span className="block">{title}</span>
                           {link.connectionRequired && (
-                            <span className="block text-xs text-muted-foreground">
+                            <span
+                              aria-hidden="true"
+                              className="block text-xs text-muted-foreground"
+                            >
                               {t('offline.connection-required')}
                             </span>
                           )}
@@ -156,7 +159,7 @@ export function CommandPalette() {
                     <span className="min-w-0">
                       <span className="block">{title}</span>
                       {link.connectionRequired && (
-                        <span className="block text-xs text-muted-foreground">
+                        <span aria-hidden="true" className="block text-xs text-muted-foreground">
                           {t('offline.connection-required')}
                         </span>
                       )}

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Handler = (event?: unknown) => void;
 const handlers: Record<string, Handler[]> = {};
-const messageSkipWaiting = vi.fn();
+const skipWaiting = vi.fn();
 const register = vi.fn();
 
 vi.mock('workbox-window', () => ({
@@ -13,7 +13,6 @@ vi.mock('workbox-window', () => ({
         handlers[type] ??= [];
         handlers[type].push(handler);
       },
-      messageSkipWaiting,
       register,
     };
   }),
@@ -29,7 +28,7 @@ function stubServiceWorker({ controller = null as { scriptURL: string } | null, 
   const target = new EventTarget();
   const container = Object.assign(target, {
     controller,
-    getRegistration: async () => ({ waiting: waiting ? {} : null }),
+    getRegistration: async () => ({ waiting: waiting ? { postMessage: skipWaiting } : null }),
   });
   vi.stubGlobal('navigator', { ...navigator, serviceWorker: container });
   return {
@@ -103,23 +102,6 @@ describe('registerServiceWorker', () => {
     };
   }
 
-  it('tells the tab about every later version, not only the first one after it opened', async () => {
-    stubServiceWorker({ controller: ours });
-    const install = stubRegistration();
-    const { dismissUpdate, registerServiceWorker, useUpdateReady } = await load();
-    registerServiceWorker({ enabled: true });
-    await waitFor(() => expect(register).toHaveBeenCalled());
-    await Promise.resolve();
-    const { result } = renderHook(() => useUpdateReady());
-
-    act(() => install());
-    expect(result.current).toBe(true);
-    act(() => dismissUpdate());
-    act(() => install());
-
-    expect(result.current).toBe(true);
-  });
-
   it('checks for a new version every hour', async () => {
     vi.useFakeTimers();
     stubServiceWorker({ controller: ours });
@@ -151,43 +133,48 @@ describe('registerServiceWorker', () => {
   });
 
   it('never reloads a tab that did not ask, when another tab takes the update', async () => {
-    stubServiceWorker({});
+    const worker = stubServiceWorker({});
     const { registerServiceWorker } = await load();
     const reload = vi.fn();
     registerServiceWorker({ enabled: true, reload });
 
-    fire('controlling');
+    worker.takeControl(ours);
 
     expect(reload).not.toHaveBeenCalled();
   });
 });
 
 describe('applyUpdate', () => {
+  beforeEach(() => skipWaiting.mockReset());
+
   it('activates the waiting version, then reloads once it controls the page', async () => {
+    vi.useFakeTimers();
+    const worker = stubServiceWorker({ waiting: true });
+    const { applyUpdate, registerServiceWorker } = await load();
+    const steps: string[] = [];
+    registerServiceWorker({ enabled: true, reload: () => steps.push('reload') });
+
+    await applyUpdate(() => steps.push('before'));
+    expect(skipWaiting).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+    expect(steps).toEqual([]);
+
+    worker.takeControl(ours);
+    expect(steps).toEqual(['before', 'reload']);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(steps).toEqual(['before', 'reload']);
+  });
+
+  it('reloads anyway when the new version never reports taking control', async () => {
+    vi.useFakeTimers();
     stubServiceWorker({ waiting: true });
     const { applyUpdate, registerServiceWorker } = await load();
     const reload = vi.fn();
     registerServiceWorker({ enabled: true, reload });
 
     await applyUpdate();
-    expect(messageSkipWaiting).toHaveBeenCalledOnce();
-    expect(reload).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(3000);
 
-    fire('controlling');
     expect(reload).toHaveBeenCalledOnce();
-  });
-
-  it('runs the step before reloading only when the reload happens', async () => {
-    stubServiceWorker({ waiting: true });
-    const { applyUpdate, registerServiceWorker } = await load();
-    const steps: string[] = [];
-    registerServiceWorker({ enabled: true, reload: () => steps.push('reload') });
-
-    await applyUpdate(() => steps.push('before'));
-    expect(steps).toEqual([]);
-    fire('controlling');
-
-    expect(steps).toEqual(['before', 'reload']);
   });
 
   it('just reloads when another tab already activated the new version', async () => {
@@ -198,22 +185,8 @@ describe('applyUpdate', () => {
 
     await applyUpdate();
 
-    expect(messageSkipWaiting).not.toHaveBeenCalled();
+    expect(skipWaiting).not.toHaveBeenCalled();
     expect(reload).toHaveBeenCalledOnce();
-  });
-});
-
-describe('dismissUpdate', () => {
-  it('hides the notice until the next start', async () => {
-    stubServiceWorker({});
-    const { dismissUpdate, registerServiceWorker, useUpdateReady } = await load();
-    registerServiceWorker({ enabled: true });
-    const { result } = renderHook(() => useUpdateReady());
-    act(() => fire('waiting'));
-
-    act(() => dismissUpdate());
-
-    expect(result.current).toBe(false);
   });
 });
 

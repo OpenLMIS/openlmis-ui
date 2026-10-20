@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { parseDateValue } from '@/components/form/date-value';
-import { type QuantityValue, quantityValue } from '@/components/form/quantity-value';
+import {
+  type QuantityValue,
+  quantityValue,
+  updateQuantityValue,
+} from '@/components/form/quantity-value';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
 import {
@@ -32,6 +36,7 @@ const lineFields = z.object({
   stockOnHand: z.number().nullable(),
   productHasLots: z.boolean(),
   netContent: z.number().nullable().optional(),
+  quantityPackSizeChanged: z.boolean().optional(),
   useVVM: z.boolean(),
   counterparty: z.string(),
   counterpartyComments: z.string(),
@@ -137,6 +142,15 @@ export function eventLinesSchema({
     }
 
     const quantity = quantitySchema.safeParse(line.quantity.doses);
+    if (
+      line.quantityPackSizeChanged &&
+      quantity.success &&
+      toWholeNumber(line.quantity.doses) !==
+        toWholeNumber(
+          updateQuantityValue(line.quantity, 'packs', line.quantity.packs, line.netContent).doses,
+        )
+    )
+      issue(['quantity', 'doses'], 'stock-events.draft-pack-size-changed');
     if (!quantity.success) {
       for (const error of quantity.error.issues) issue(['quantity', 'doses'], error.message);
     } else if (
@@ -344,6 +358,8 @@ export function refreshStockEventLines(
           lot: card.lot,
           stockOnHand: card.stockOnHand,
           netContent: card.orderable.netContent,
+          quantityPackSizeChanged:
+            line.quantityPackSizeChanged || line.netContent !== card.orderable.netContent,
           useVVM: card.orderable.extraData?.useVVM === 'true',
           productHasLots: productsWithLots.has(card.orderable.id),
         }

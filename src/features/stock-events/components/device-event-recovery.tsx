@@ -33,8 +33,8 @@ import {
 } from '@/features/stock-events/components/device-event-removal';
 import { EventStatus } from '@/features/stock-events/components/event-status';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import { kindLabels } from '@/features/stock-events/lib/kind-labels';
 import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
+import { refusalMessage } from '@/features/stock-events/lib/refusal-message';
 import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import {
@@ -48,6 +48,7 @@ import { recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
 
 const confirmationCopy = {
+  recorded: { title: 'device-events.recorded', warning: 'device-events.recorded-warning' },
   resend: { title: 'device-events.send-again', warning: 'device-events.duplicate-warning' },
   copy: { title: 'device-events.copy', warning: 'device-events.copy-warning' },
 } as const;
@@ -82,12 +83,15 @@ export function DeviceEventRecovery({
   const { t, i18n } = useTranslation();
   const online = useOnline();
   const descriptionId = useId();
+  const connectionId = useId();
+  const sendReasonId = useId();
+  const copyReasonId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const offlineNavigation = useOfflineNavigation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [removing, setRemoving] = useState(false);
-  const [confirmation, setConfirmation] = useState<'resend' | 'copy' | null>(null);
+  const [confirmation, setConfirmation] = useState<'recorded' | 'resend' | 'copy' | null>(null);
   const confirmationTarget = useDialogTarget(confirmation ?? undefined, () =>
     setConfirmation(null),
   );
@@ -155,7 +159,7 @@ export function DeviceEventRecovery({
           <DialogHeader>
             <DialogTitle>{t('device-events.details')}</DialogTitle>
             <p className="sr-only" id={descriptionId}>
-              {t(kindLabels[event.kind])}.{' '}
+              {t(EVENT_KINDS[event.kind].copy.label)}.{' '}
               {t(
                 event.receipt?.source === 'user'
                   ? 'device-events.recorded-by-you'
@@ -167,7 +171,7 @@ export function DeviceEventRecovery({
             <SettingsList density="compact">
               <SettingsItem label={t('device-events.type')}>
                 <span className="inline-flex flex-wrap items-center justify-end gap-2">
-                  <span>{t(kindLabels[event.kind])}</span>
+                  <span>{t(EVENT_KINDS[event.kind].copy.label)}</span>
                   <EventStatus event={event} />
                 </span>
               </SettingsItem>
@@ -206,11 +210,7 @@ export function DeviceEventRecovery({
             {event.status === 'refused' && (
               <div className="flex min-w-0 flex-col gap-2">
                 <h3 className="font-medium">{t('device-events.full-error')}</h3>
-                <p dir="auto">
-                  {event.error?.messageKey === event.error?.message
-                    ? t('device-events.refused-description')
-                    : event.error?.message}
-                </p>
+                <p dir="auto">{refusalMessage(event.error, t)}</p>
               </div>
             )}
             {event.pauseReason && (
@@ -243,7 +243,7 @@ export function DeviceEventRecovery({
                                 offlineNavigation.show(click.currentTarget);
                               }
                             }}
-                            aria-describedby={!online ? 'event-history-connection' : undefined}
+                            aria-describedby={!online ? connectionId : undefined}
                             nativeButton={false}
                             role="link"
                             render={
@@ -277,8 +277,18 @@ export function DeviceEventRecovery({
             )}
           </div>
           {!online && canView && (
-            <p id="event-history-connection" className="sr-only">
+            <p id={connectionId} className="sr-only">
               {t('offline.connection-required')}
+            </p>
+          )}
+          {!canSend && event.status === 'uncertain' && (
+            <p id={sendReasonId} className="text-sm text-muted-foreground">
+              {t('device-events.no-send')}
+            </p>
+          )}
+          {event.status === 'refused' && event.error?.resolvedAt && (
+            <p id={copyReasonId} className="text-sm text-muted-foreground">
+              {t('device-events.copy-resolved')}
             </p>
           )}
           <DialogFooter wrap>
@@ -293,7 +303,7 @@ export function DeviceEventRecovery({
                     offlineNavigation.show(click.currentTarget);
                   }
                 }}
-                aria-describedby={!online ? 'event-history-connection' : undefined}
+                aria-describedby={!online ? connectionId : undefined}
                 render={
                   event.receipt?.serverEventId ? (
                     <Link
@@ -323,13 +333,15 @@ export function DeviceEventRecovery({
                 <Button
                   disabled={operation.isPending}
                   variant="outline"
-                  onClick={() => void act('recorded')}
+                  onClick={() => setConfirmation('recorded')}
                 >
                   {t('device-events.recorded')}
                 </Button>
                 <Button
                   variant="outline"
                   disabled={operation.isPending || !canSend}
+                  focusableWhenDisabled
+                  aria-describedby={!canSend ? sendReasonId : undefined}
                   onClick={() => setConfirmation('resend')}
                 >
                   {t('device-events.send-again')}
@@ -340,6 +352,8 @@ export function DeviceEventRecovery({
               <Button
                 variant="outline"
                 disabled={operation.isPending || !!event.error?.resolvedAt}
+                focusableWhenDisabled
+                aria-describedby={event.error?.resolvedAt ? copyReasonId : undefined}
                 onClick={() => setConfirmation('copy')}
               >
                 {t('device-events.copy')}
@@ -386,7 +400,7 @@ export function DeviceEventRecovery({
               </AlertDialogCancel>
               <Button
                 disabled={operation.isPending}
-                variant={confirmationShown === 'copy' ? 'default' : 'destructive'}
+                variant={confirmationShown === 'resend' ? 'destructive' : 'default'}
                 onClick={() => {
                   if (confirmation) void act(confirmation);
                 }}

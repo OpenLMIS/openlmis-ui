@@ -2,12 +2,14 @@ import { type ColumnDef, useTable } from '@tanstack/react-table';
 import { ListChecksIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardActionsSkeleton } from '@/components/card-actions';
 import {
   CardBand,
   CardList,
   CardListItem,
   CardListSkeleton,
   CardRows,
+  SkeletonBar,
 } from '@/components/card-list';
 import {
   DataTable,
@@ -43,7 +45,7 @@ import { DeviceEventRecovery } from '@/features/stock-events/components/device-e
 import { EventStatus } from '@/features/stock-events/components/event-status';
 import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
 import type { DeviceEventsSearch } from '@/features/stock-events/lib/device-events-search';
-import { kindLabels } from '@/features/stock-events/lib/kind-labels';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useCardView } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
@@ -51,7 +53,12 @@ import { usePageStart } from '@/hooks/use-page-start';
 import { orEmpty, tableValue } from '@/lib/empty-value';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { hasProgramGrant, type Permissions } from '@/lib/permissions';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import {
+  type SearchChange,
+  searchSort,
+  toPaginationState,
+  useTableSearchState,
+} from '@/lib/table-search';
 
 const hideable = [
   { id: 'facility', labelKey: 'facility-program.facility', hideBelow: '3xl' },
@@ -107,10 +114,11 @@ export function DeviceEventsPage({
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <div className="flex min-w-0 flex-col gap-4" ref={measure}>
+        <div className="flex min-w-0 flex-col gap-4 lg:gap-6" ref={measure}>
           <DataTableToolbar>
             <div className="flex-1 @2xl/main:flex-none">
               <DataTableFilters
+                size="lg"
                 activeCount={search.status ? 1 : 0}
                 onClear={() =>
                   onSearchChange({ status: undefined, page: undefined, event: undefined }, true)
@@ -136,8 +144,16 @@ export function DeviceEventsPage({
                 />
               </DataTableFilters>
             </div>
-            <div className="ms-auto">
+            <div className="@2xl/main:ms-auto">
               <DataTableViewOptions
+                size="lg"
+                sort={{
+                  columns: [
+                    { id: 'occurredDate', label: t('device-events.occurred-date') },
+                    { id: 'queuedAt', label: t('device-events.queued-at') },
+                  ],
+                  ...searchSort(search, defaultSort, onSearchChange),
+                }}
                 {...view}
                 layout={layout}
                 columns={hideable.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
@@ -239,7 +255,7 @@ function DeviceEventsTable({
         | 'device-events.remove-event-label' = 'device-events.review-event-label',
     ) =>
       t(key, {
-        type: t(kindLabels[event.kind]),
+        type: t(EVENT_KINDS[event.kind].copy.label),
         date: formatTimestamp(new Date(event.queuedAt).toISOString(), i18n.language, {
           time: true,
           timeZone,
@@ -253,7 +269,7 @@ function DeviceEventsTable({
       {
         accessorKey: 'kind',
         header: t('device-events.type'),
-        cell: ({ row }) => t(kindLabels[row.original.kind]),
+        cell: ({ row }) => t(EVENT_KINDS[row.original.kind].copy.label),
         meta: { className: 'w-32' },
       },
       {
@@ -360,7 +376,16 @@ function DeviceEventsTable({
     );
   if (loading || !local.events)
     return cards ? (
-      <CardListSkeleton count={pagination.pageSize} rows={4} />
+      <CardListSkeleton
+        count={pagination.pageSize}
+        rows={hideable.filter(({ id }) => columnVisibility[id] !== false).length}
+        band={
+          <>
+            <SkeletonBar width="w-24" />
+            <CardActionsSkeleton count={2} />
+          </>
+        }
+      />
     ) : (
       <DataTableSkeleton table={table} rowCount={pagination.pageSize} />
     );
@@ -418,7 +443,7 @@ function DeviceEventsTable({
             (local.permissionsFetchedAt ?? 0) > permissionsUpdatedAt
               ? (local.permissions ?? permissions)
               : permissions,
-            'STOCK_ADJUST',
+            EVENT_KINDS[selected.kind].right,
             selected.facilityId,
             selected.programId,
           )}
@@ -438,7 +463,7 @@ function DeviceEventsTable({
             {data.map((event) => (
               <CardListItem key={event.localEventId}>
                 <CardBand>
-                  <span>{t(kindLabels[event.kind])}</span>
+                  <span>{t(EVENT_KINDS[event.kind].copy.label)}</span>
                   <DeviceEventActions
                     layout="cards"
                     event={event}

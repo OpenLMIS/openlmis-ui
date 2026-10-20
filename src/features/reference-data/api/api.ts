@@ -1,5 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
+import { latestOrderableVersions } from '@/features/reference-data/lib/latest-orderable-versions';
 import {
   normalizeRejectionReason,
   normalizeRejectionReasonCategory,
@@ -103,7 +104,7 @@ export async function fetchFacilityTypeApprovedOrderables({
     params: { facilityType: types, program: programCode },
     paramsSerializer: { indexes: null },
   });
-  return latestVersions(data.content.map(({ orderable }) => orderable));
+  return latestOrderableVersions(data.content.map(({ orderable }) => orderable));
 }
 
 export async function fetchFacilityTypes(
@@ -170,22 +171,11 @@ export async function fetchOrderables({
   return data;
 }
 
-const versionOf = (orderable: Orderable) => orderable.meta?.versionNumber ?? 0;
-
-function latestVersions(orderables: readonly Orderable[]) {
-  const latest = new Map<string, Orderable>();
-  for (const orderable of orderables) {
-    const kept = latest.get(orderable.id);
-    if (!kept || versionOf(orderable) > versionOf(kept)) latest.set(orderable.id, orderable);
-  }
-  return [...latest.values()];
-}
-
 export async function fetchOrderablesByIds(
   ids: readonly string[],
   config?: AxiosRequestConfig,
 ): Promise<Orderable[]> {
-  return latestVersions(await fetchByIds<Orderable>('/orderables', ids, 'id', config));
+  return latestOrderableVersions(await fetchByIds<Orderable>('/orderables', ids, 'id', config));
 }
 
 export type OrderableIdentity = { id: string; versionNumber: number };
@@ -193,7 +183,7 @@ export type OrderableIdentity = { id: string; versionNumber: number };
 export async function fetchOrderablesByIdentities(
   identities: readonly OrderableIdentity[],
 ): Promise<Orderable[]> {
-  return latestVersions(await fetchAllOrderableVersions(identities));
+  return latestOrderableVersions(await fetchAllOrderableVersions(identities));
 }
 
 export async function fetchAllOrderableVersions(
@@ -334,23 +324,10 @@ export async function fetchOrderablesByTradeItems(
     found.push(...matching);
     if (page + 1 >= data.totalPages) break;
   }
-  return latestVersions(found);
+  return latestOrderableVersions(found);
 }
 
-const TIME_ZONE_KEY = 'openlmis-ui.time-zone';
-
-export const storedTimeZone = () => localStorage.getItem(TIME_ZONE_KEY);
-
-export async function fetchDeploymentTimeZone(): Promise<string> {
-  const { data } = await client.get<{ timeZoneId?: string | null }>('/localeSettings', {
-    baseURL: '/',
-    anonymous: true,
-    timeout: 10_000,
-  });
-  if (!data.timeZoneId) throw new Error('No time zone in the locale settings');
-  localStorage.setItem(TIME_ZONE_KEY, data.timeZoneId);
-  return data.timeZoneId;
-}
+export { fetchDeploymentTimeZone, storedTimeZone } from '@/lib/deployment-time-zone';
 
 export async function fetchValidReasons(
   params: ValidReasonsFilter,

@@ -1,4 +1,9 @@
-import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  useQuery,
+  useQueryClient,
+  useSuspenseQueries,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
@@ -10,12 +15,7 @@ import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
 } from '@/components/facility-program-selector/facility-program-selector';
-import {
-  prefetchFacilityProgramOptions,
-  useFacilityProgramOptions,
-} from '@/components/facility-program-selector/use-facility-program-options';
-import { ListError } from '@/components/list-error';
-import { LoadError } from '@/components/load-error';
+import { OfflineNotice } from '@/components/offline-notice';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,6 +33,12 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { fetchMinimalFacilities } from '@/features/reference-data/api/api';
+import {
+  minimalFacilitiesOptions,
+  userProgramsOptions,
+  userRecordOptions,
+} from '@/features/reference-data/api/queries';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
 import {
   prefetchStockOnHand,
@@ -59,6 +65,7 @@ import {
   type CompleteSelection,
   type FacilityProgramOptions,
   type FacilityProgramSelection,
+  facilityProgramOptions,
   isCompleteSelection,
   type NamedRecord,
   recordLabel,
@@ -66,10 +73,33 @@ import {
   validSelection,
 } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
-
+import { offlineAccessQuery, withOfflineAccess } from '@/lib/offline-access';
+import { getConnectionGeneration, isOnline, useOnline } from '@/lib/online';
 import { hasProgramGrant, type ProgramGrant, programGrants } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
+import { readStockOnHandOnDevice } from '@/routes/-home-stock-read';
+import { StockReadError } from '@/routes/-stock-read-error';
+
+const stockPickerQueries = (userId: string, online = isOnline()) =>
+  [
+    userRecordOptions(userId),
+    userProgramsOptions(userId),
+    {
+      queryKey: [
+        ...minimalFacilitiesOptions().queryKey,
+        'stock-picker',
+        online ? getConnectionGeneration() : 'device',
+      ],
+      queryFn: () =>
+        withOfflineAccess(fetchMinimalFacilities, (saved) =>
+          saved.homeFacility
+            ? [{ ...saved.homeFacility, name: saved.homeFacility.name ?? saved.homeFacility.code }]
+            : [],
+        ),
+      ...offlineAccessQuery(5 * 60 * 1000),
+    },
+  ] as const;
 
 const RIGHT = RIGHTS.stockCardsView;
 
@@ -85,7 +115,10 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
-    prefetchFacilityProgramOptions(queryClient, userId);
+    const [user, programs, facilities] = stockPickerQueries(userId);
+    queryClient.prefetchQuery(user);
+    queryClient.prefetchQuery(programs);
+    queryClient.prefetchQuery(facilities);
     const selection = {
       mode: search.mode,
       programId: search.programId,
@@ -95,7 +128,11 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
       isCompleteSelection(selection) &&
       hasProgramGrant(permissions, RIGHT, selection.facilityId, selection.programId)
     ) {
-      prefetchStockOnHand(queryClient, toSummariesQuery(search, selection));
+      prefetchStockOnHand(
+        queryClient,
+        toSummariesQuery(search, selection),
+        readStockOnHandOnDevice,
+      );
     }
   },
   pendingComponent: StockOnHandPending,
@@ -240,7 +277,7 @@ function StockOnHandContent({ userId }: { userId: string }) {
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
           <QueryBoundary
             errorComponent={({ error, reset }) => (
-              <LoadError
+              <StockReadError
                 description={t('facility-program.load-error-description')}
                 error={error}
                 reset={reset}
@@ -280,7 +317,20 @@ function StockOnHandBody({
   onSearchChange,
 }: StockOnHandBodyProps) {
   const queryClient = useQueryClient();
-  const options = useFacilityProgramOptions(userId, grants);
+  const online = useOnline();
+  const [user, programs, facilities] = useSuspenseQueries({
+    queries: stockPickerQueries(userId, online),
+  });
+  const options = useMemo(
+    () =>
+      facilityProgramOptions({
+        homeFacilityId: user.data.homeFacilityId,
+        programs: programs.data,
+        facilities: facilities.data,
+        grants,
+      }),
+    [user.data.homeFacilityId, programs.data, facilities.data, grants],
+  );
   const applied = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
     [search.mode, search.programId, search.facilityId],
@@ -345,6 +395,8 @@ function StockOnHandOutcome({
   pending,
 }: StockOnHandOutcomeProps) {
   const { t } = useTranslation();
+  const online = useOnline();
+  const queryClient = useQueryClient();
   const { unit } = useQuantityUnit();
   const filters = (
     <StockOnHandToolbar
@@ -356,6 +408,15 @@ function StockOnHandOutcome({
   );
 
   if (!valid) {
+    if (isCompleteSelection(applied) && !online)
+      return (
+        <OfflineNotice
+          reason="not-downloaded"
+          onRetry={() => {
+            void queryClient.invalidateQueries({ queryKey: minimalFacilitiesOptions().queryKey });
+          }}
+        />
+      );
     const refused = isCompleteSelection(applied);
     return (
       <div className="flex flex-col gap-4">
@@ -452,7 +513,7 @@ function StockOnHandList({
       />
       <QueryBoundary
         errorComponent={({ error, reset }) => (
-          <ListError
+          <StockReadError
             description={t('stock-on-hand.error-description')}
             error={error}
             reset={reset}
@@ -469,6 +530,7 @@ function StockOnHandList({
         resetKey={JSON.stringify(query)}
       >
         <StockOnHandResults
+          readOnDevice={readStockOnHandOnDevice}
           cards={columnView.cards}
           collapsedKey={collapsedKey}
           facilityId={selection.facilityId}
@@ -505,7 +567,10 @@ function StockOnHandPrintButton({
   query,
 }: PrintButtonProps) {
   const { t } = useTranslation();
-  const { data: page } = useQuery({ ...stockCardSummariesOptions(query), enabled: false });
+  const { data: page } = useQuery({
+    ...stockCardSummariesOptions(query, readStockOnHandOnDevice),
+    enabled: false,
+  });
   const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
   const print = usePrintReport({
     userId,

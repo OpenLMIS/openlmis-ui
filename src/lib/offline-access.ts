@@ -1,6 +1,7 @@
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { Facility, Program } from '@/features/reference-data/lib/types';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
+import { OFFLINE_FRESH_FOR } from '@/lib/offline-freshness';
 import { getConnectionGeneration } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { UserRecord } from '@/lib/user-types';
@@ -23,7 +24,7 @@ export type AccessReaders = {
   home: (facilityId: string) => Promise<Facility>;
 };
 
-async function readOfflineAccess() {
+export async function readOfflineAccess() {
   const scope = getSessionScope();
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new LocalDataUnavailableError();
@@ -39,6 +40,8 @@ async function readOfflineAccess() {
 
 const DEVICE_ACCESS_FRESH_FOR = 30_000;
 const deviceResults = new WeakMap<object, number>();
+export const isDeviceAccess = (value: unknown) =>
+  typeof value === 'object' && value !== null && deviceResults.has(value);
 export function offlineAccessStaleTime(value: unknown, serverStaleTime: number) {
   const generation =
     typeof value === 'object' && value !== null ? deviceResults.get(value) : undefined;
@@ -65,10 +68,20 @@ export async function withOfflineAccess<T extends object>(
     assertSessionScope(scope);
     const result = select(saved);
     if (result === undefined) throw new LocalDataUnavailableError();
-    deviceResults.set(result, getConnectionGeneration());
     return result;
   };
-  return onlineOrDevice(online, device);
+  return withDeviceData(online, device);
+}
+
+export function withDeviceData<T extends object>(
+  online: () => Promise<T>,
+  device: () => Promise<T>,
+) {
+  return onlineOrDevice(online, async () => {
+    const result = await device();
+    deviceResults.set(result, getConnectionGeneration());
+    return result;
+  });
 }
 
 function snapshotUser(user: UserRecord): UserRecord {
@@ -157,3 +170,6 @@ export async function refreshOfflineAccess(readers: AccessReaders, check: () => 
   check();
   return snapshot;
 }
+
+export const offlineAccessIsStale = (access: OfflineAccess | undefined, now = Date.now()) =>
+  !access || now - access.fetchedAt >= OFFLINE_FRESH_FOR;

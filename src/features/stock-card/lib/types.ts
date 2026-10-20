@@ -41,7 +41,9 @@ export type StockCard = {
     dispensable?: { displayUnit?: string | null };
   };
   lot: LotSummary | null;
-  stockOnHand: number;
+  stockOnHand: number | null;
   active: boolean;
   lineItems: StockCardLine[];
+  summaryOnly?: boolean;
+  downloadedAt?: number;
 };

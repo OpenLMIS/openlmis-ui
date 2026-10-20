@@ -5,6 +5,7 @@ import {
   type InventorySaveStatus,
 } from '@/features/stock-events/lib/physical-inventory-autosave';
 import {
+  clearInventoryLocal,
   type InventoryLocalCopy,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
@@ -14,21 +15,33 @@ import { getSessionScope } from '@/lib/session-scope';
 export function usePhysicalInventoryAutosave(
   copy: () => InventoryLocalCopy | null,
   form: PhysicalInventoryForm,
+  initialRevision?: number,
 ) {
   const [status, setStatus] = useState<InventorySaveStatus>('saved');
   const [queued, setQueued] = useState(() => copy);
   const [writer] = useState(() => {
     const scope = getSessionScope();
     const db = getLocalDb();
-    return createInventoryWriter<InventoryLocalCopy>(
+    let revision = initialRevision;
+    const serial = createInventoryWriter<InventoryLocalCopy>(
       async (value) => {
         if (getSessionScope() !== scope) return;
-        await writeInventoryLocal(value, scope, db);
+        const saved = await writeInventoryLocal({ ...value, revision }, scope, db);
+        revision = saved?.revision;
       },
       (next) => {
         if (getSessionScope() === scope) setStatus(next);
       },
     );
+    return {
+      ...serial,
+      reset: serial.reset,
+      async clear(draftId: string) {
+        await serial.flush();
+        await clearInventoryLocal(draftId, revision ?? 0, scope, db);
+        revision = undefined;
+      },
+    };
   });
   useEffect(() => {
     if (copy !== queued) {
@@ -50,6 +63,11 @@ export function usePhysicalInventoryAutosave(
   return {
     status: copy !== queued ? ('saving' as const) : status,
     flush: writer.flush,
-    reset: () => setStatus('saved'),
+    clear: writer.clear,
+    async write(value: InventoryLocalCopy) {
+      writer.enqueue(value);
+      await writer.flush();
+    },
+    reset: writer.reset,
   };
 }

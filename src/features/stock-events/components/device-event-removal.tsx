@@ -53,7 +53,13 @@ export function DeviceEventRemoval({
       const changed = await mutation.mutateAsync();
       if (!mutation.isCurrent()) return;
       if (changed) {
-        announceDeviceSave('device-events.removed');
+        announceDeviceSave(
+          event.status === 'accepted'
+            ? 'device-events.synced-removed'
+            : event.status === 'refused'
+              ? 'device-events.refused-removed'
+              : 'device-events.removed',
+        );
         onRemoved();
       } else
         toast.warning(t('device-events.changed-title'), {

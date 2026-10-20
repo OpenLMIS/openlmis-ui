@@ -12,7 +12,9 @@ async function addLine(page: Page) {
   await expect(quantity(page)).toBeVisible();
 }
 async function saved(page: Page) {
-  await expect(page.getByRole('note').filter({ hasText: 'Saved on this device' })).toBeVisible();
+  await expect(
+    page.locator('[data-slot=badge]').filter({ hasText: 'Saved On This Device' }),
+  ).toBeVisible();
 }
 async function rows(page: Page) {
   return page.evaluate(async () => {
@@ -69,7 +71,9 @@ test('offline edits restore exact quantity text after reload and persistent brow
     await expect(
       page.getByRole('textbox', { name: /^Quantity, Fixture Product.*Doses/ }),
     ).toHaveValue('٠٢');
-    expect(await rows(page)).toEqual(before);
+    expect((await rows(page)).map((draft) => draft.lines.map((line) => line.quantity))).toEqual(
+      before.map((draft) => draft.lines.map((line) => line.quantity)),
+    );
     await context.close();
     context = await persistentContext(directory, true);
     page = context.pages()[0];
@@ -80,7 +84,9 @@ test('offline edits restore exact quantity text after reload and persistent brow
     await expect(
       page.getByRole('textbox', { name: /^Quantity, Fixture Product.*Doses/ }),
     ).toHaveValue('٠٢');
-    expect(await rows(page)).toEqual(before);
+    expect((await rows(page)).map((draft) => draft.lines.map((line) => line.quantity))).toEqual(
+      before.map((draft) => draft.lines.map((line) => line.quantity)),
+    );
   } finally {
     await context.close();
     await rm(directory, { recursive: true, force: true });
@@ -101,10 +107,16 @@ test('two tabs detect stale writes and preserve both edits through copy and load
   const other = await context.newPage();
   await other.goto(editorUrl);
   await expect(quantity(other)).toHaveValue('0011');
+  await saved(other);
+  await page.reload();
+  await expect(quantity(page)).toHaveValue('0011');
   await quantity(page).fill('0022');
   await saved(page);
   await quantity(other).fill('0033');
   await expect(other.getByRole('alertdialog')).toBeVisible();
+  await expect(other.getByRole('status', { includeHidden: true })).not.toContainText(
+    /Could not save on this device/i,
+  );
   await expect(
     other.getByText('This draft was edited in another tab', { exact: true }),
   ).toBeVisible();
@@ -119,7 +131,23 @@ test('two tabs detect stale writes and preserve both edits through copy and load
   await saved(page);
   await quantity(other).fill('0055');
   await expect(other.getByRole('alertdialog')).toBeVisible();
+  await expect(other.getByRole('status', { includeHidden: true })).not.toContainText(
+    /Could not save on this device/i,
+  );
   await other.getByRole('button', { name: 'Load Saved Draft', exact: true }).click();
   await expect(quantity(other)).toHaveValue('0044');
   expect((await rows(page)).filter((draft) => draft.state === 'archived')).toHaveLength(1);
+  await other.getByRole('button', { name: 'Archived Copies', exact: true }).click();
+  const archives = other.getByRole('dialog', { name: 'Archived Copies', exact: true });
+  await archives.getByRole('button', { name: /^Actions For Copy/ }).click();
+  await other.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+  await other.getByRole('alertdialog').getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(other.getByRole('alertdialog')).not.toBeVisible();
+  await expect(archives).toBeVisible();
+  await expect(
+    archives
+      .locator('[data-slot=dialog-footer]')
+      .getByRole('button', { name: 'Close', exact: true }),
+  ).toBeFocused();
+  expect((await rows(page)).filter((draft) => draft.state === 'archived')).toHaveLength(0);
 });

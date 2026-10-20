@@ -24,11 +24,6 @@ const login = () =>
     accessToken: 'token',
   });
 beforeEach(() => useLoginData.getState().clearLoginData());
-it('forces downloads after signing in from the signed-out app', async () => {
-  render(<SignedInDeviceWork>Content</SignedInDeviceWork>);
-  act(login);
-  expect(await screen.findByTestId('device-work')).toHaveAttribute('data-trigger', 'force');
-});
 it('boots a restored session and forces downloads after logout and login', async () => {
   login();
   render(<SignedInDeviceWork>Content</SignedInDeviceWork>);

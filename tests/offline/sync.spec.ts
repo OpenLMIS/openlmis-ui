@@ -28,7 +28,8 @@ test('interrupted upload becomes uncertain after restart and is never automatica
     await stub(context, async () => 'finish');
     await context.route('**/api/stockEvents', async (route) => {
       posts.push(route.request().postDataJSON().signature);
-      if (posts.length === 1) await new Promise<void>((resolve) => context.once('close', resolve));
+      if (posts.length === 1)
+        await new Promise<void>((resolve) => context.once('close', () => resolve()));
       else await route.fulfill({ status: 201, json: uuid(posts.length) });
     });
   };

@@ -114,6 +114,9 @@ export async function stub(
       url.pathname in fixtures ? { json: fixtures[url.pathname] } : { status: 404, json: {} },
     );
   });
+  await context.route('**/api/stockEvents**', (route) =>
+    route.request().method() === 'POST' ? route.abort() : route.continue(),
+  );
   await context.route('**/localeSettings{,/**,?*}', (route) =>
     route.fulfill({ json: { timeZoneId: 'UTC' } }),
   );
@@ -141,8 +144,8 @@ export async function generation(page: Page) {
       request.onsuccess = () => {
         const db = request.result;
         const read = db
-          .transaction('adjustmentDownloads')
-          .objectStore('adjustmentDownloads')
+          .transaction('homeStockDownloads')
+          .objectStore('homeStockDownloads')
           .get(['home', 'program']);
         read.onsuccess = () => {
           db.close();

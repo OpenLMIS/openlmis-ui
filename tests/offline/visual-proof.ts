@@ -81,7 +81,7 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
             }));
             expect(metrics.scrollWidth).toBeLessThanOrEqual(width);
             expect(metrics.statuses).toBe(1);
-            if (surface === 'program-readiness') {
+            if (surface === 'program-picker') {
               const brokenWords = await page.locator('tbody td').evaluateAll((cells) => {
                 const broken: string[] = [];
                 for (const cell of cells) {
@@ -124,7 +124,7 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
           };
           await context.setOffline(true);
           await expect(page.getByText(programName, { exact: true }).first()).toBeVisible();
-          await capture('program-readiness');
+          await capture('program-picker');
           await page.goto('./stock-management/adjustments/program');
           const units = page.getByRole('radiogroup', { name: catalog['quantity-unit.label'] });
           await expect(units).toBeVisible();
@@ -138,16 +138,14 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
             .fill(language === 'ar' ? '١٢' : '12');
           await page.getByRole('combobox', { name: /^.+Fixture Product/ }).click();
           await page.getByRole('option', { name: 'Damaged', exact: true }).click();
-          await expect(
-            page.getByRole('note').filter({ hasText: catalog['stock-events.draft-saved'] }),
-          ).toBeVisible();
           const saved = page
-            .getByRole('note')
+            .locator('[data-slot=badge]')
             .filter({ hasText: catalog['stock-events.draft-saved'] });
+          await expect(saved).toBeVisible();
           const toolbar = page
             .getByRole('textbox', { name: catalog['stock-events.keywords'] })
             .locator('xpath=ancestor::fieldset/..');
-          await expect(toolbar.getByRole('note')).toContainText(
+          await expect(toolbar.locator('[data-slot=badge]')).toContainText(
             catalog['stock-events.draft-saved'],
           );
           expect(
@@ -176,18 +174,15 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
             .click();
           await expect(page).toHaveURL(/adjustments$/);
           await capture('saved-device');
-          if (size === 'phone')
-            await page
-              .getByRole('button', { name: catalog['sidebar.toggle-sidebar'], exact: true })
-              .click();
           await page
-            .getByRole('link', { name: new RegExp(`^${catalog['device-events.title']}`) })
+            .getByRole('note')
+            .getByRole('link', { name: catalog['device-events.title'], exact: true })
             .first()
             .click();
           await expect(
             page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
           ).toBeVisible();
-          await capture('device-events');
+          await capture('offline-events');
           if (size === 'phone')
             await page
               .getByRole('button', { name: catalog['sidebar.toggle-sidebar'], exact: true })

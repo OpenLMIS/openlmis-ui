@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -21,12 +21,14 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { fetchStockCard, fetchStockCardReport } from '@/features/stock-card/api/api';
 import type { StockCard } from '@/features/stock-card/lib/types';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId';
 import { expectRouteWarning } from '@/tests/expect-route-warning';
+import { seedHomeStock } from '@/tests/home-stock';
 import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
@@ -670,4 +672,28 @@ describe('stock card freshness', () => {
       within(screen.getByRole('region', { name: 'Vaccine - each' })).getByText('999'),
     ).toBeInTheDocument();
   });
+});
+
+it('opens a downloaded summary offline without presenting empty transaction history', async () => {
+  await seedHomeStock(card, USER);
+  onlineManager.setOnline(false);
+  const client = new QueryClient({
+    defaultOptions: { queries: { networkMode: 'always', retry: false } },
+  });
+  client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+  renderRoute(path(), client);
+  expect(await screen.findByText('stock-card.offline-summary')).toBeInTheDocument();
+  expect(screen.getByText('Vaccine - each')).toBeInTheDocument();
+  expect(screen.getByText('LOT-A')).toBeInTheDocument();
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(fetchStockCard).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'stock-card.print' })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  act(() => onlineManager.setOnline(true));
+  await waitFor(() => expect(fetchStockCard).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(screen.queryByText('stock-card.offline-summary')).not.toBeInTheDocument(),
+  );
 });

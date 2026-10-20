@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { expect } from '@playwright/test';
 import { test, waitForOfflineShell } from './browser-fixtures';
 
+import { records } from './device-fixtures';
 import { generation, login, stub } from './fixtures';
 
 test('held and failed background downloads allow sign-in and navigation', async ({
@@ -18,7 +19,7 @@ test('held and failed background downloads allow sign-in and navigation', async 
   await login(page);
   await expect(page.getByRole('cell', { name: 'Fixture Medicines', exact: true })).toBeVisible();
   await expect(
-    page.getByRole('note').filter({ hasText: 'Fetching the necessary data for offline' }),
+    page.getByRole('note').filter({ hasText: 'Downloading Offline Data' }),
   ).toBeVisible();
   await page.getByRole('link', { name: 'Home', exact: true }).first().click();
   await expect(page).toHaveURL(/\/home$/);
@@ -38,11 +39,12 @@ test('stale bundle survives offline restart with its download time and missing p
     await stub(context, async () => 'finish');
     let page = context.pages()[0];
     await login(page);
-    await expect(page.getByText('Ready Offline', { exact: true })).toBeVisible();
     await expect.poll(() => generation(page)).not.toBeNull();
     await waitForOfflineShell(page);
-    const downloadedAt = (await page.getByText(/^Downloaded /).textContent()) ?? '';
-    expect(downloadedAt).toBeTruthy();
+    const bundle = (await records(page, 'homeStockDownloads')).find(
+      (row) => row.programId === 'program',
+    );
+    expect(bundle?.fetchedAt).toEqual(expect.any(Number));
     await page.evaluate(async () => {
       const name = (await indexedDB.databases()).find((db) =>
         db.name?.endsWith(':download-user'),
@@ -53,8 +55,8 @@ test('stale bundle survives offline restart with its download time and missing p
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           const db = request.result;
-          const transaction = db.transaction('adjustmentDownloads', 'readwrite');
-          const table = transaction.objectStore('adjustmentDownloads');
+          const transaction = db.transaction('homeStockDownloads', 'readwrite');
+          const table = transaction.objectStore('homeStockDownloads');
           const read = table.get(['home', 'program']);
           read.onsuccess = () => table.put({ ...read.result, stale: true });
           transaction.oncomplete = () => {
@@ -69,13 +71,15 @@ test('stale bundle survives offline restart with its download time and missing p
     context = await persistentContext(directory, true);
     page = context.pages()[0];
     await page.goto('./stock-management/adjustments');
-    await expect(page.getByText('Needs Refresh', { exact: true })).toBeVisible();
-    await expect(page.getByText(downloadedAt, { exact: true })).toBeVisible();
-    await expect(page.getByText('Not Downloaded', { exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Fixture Medicines', exact: true })).toBeVisible();
+    const restored = (await records(page, 'homeStockDownloads')).find(
+      (row) => row.programId === 'program',
+    );
+    expect(restored).toMatchObject({ stale: true, fetchedAt: bundle?.fetchedAt });
     await page
       .getByRole('row')
       .filter({ hasText: 'Fixture Medicines' })
-      .getByRole('link', { name: 'Make Adjustment' })
+      .getByRole('link', { name: 'Make Adjustments' })
       .click();
     await expect(
       page.getByRole('heading', { name: 'HOME - Fixture Clinic - Fixture Medicines', exact: true }),
@@ -111,18 +115,18 @@ test('another tab observes the batch and does not duplicate held stock reads', a
   });
   await login(page);
   await expect(
-    page.getByRole('note').filter({ hasText: 'Fetching the necessary data for offline' }),
+    page.getByRole('note').filter({ hasText: 'Downloading Offline Data' }),
   ).toBeVisible();
   await expect.poll(() => stockReads).toBe(1);
   const other = await context.newPage();
   await other.goto('./stock-management/adjustments');
   await expect(other.getByRole('cell', { name: 'Fixture Medicines', exact: true })).toBeVisible();
   await expect(
-    other.getByRole('note').filter({ hasText: 'Fetching the necessary data for offline' }),
+    other.getByRole('note').filter({ hasText: 'Downloading Offline Data' }),
   ).toBeVisible();
   expect(stockReads).toBe(1);
   release('finish');
-  await expect(other.getByText('Ready Offline', { exact: true })).toBeVisible();
+  await expect.poll(() => generation(other)).not.toBeNull();
   await expect(
     other.getByRole('note').filter({ hasText: 'Offline Download Incomplete' }),
   ).toBeVisible();

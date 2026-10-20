@@ -89,9 +89,9 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchLotsByTradeItems: vi.fn(),
 }));
 
-vi.mock('@/lib/adjustment-bundle', async (original) => ({
-  ...(await original<typeof import('@/lib/adjustment-bundle')>()),
-  getAdjustmentBundle: async (filter: {
+vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>()),
+  getHomeStockBundle: async (filter: {
     facilityId: string;
     programId: string;
     facilityTypeId: string;
@@ -191,7 +191,10 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
     renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
   ) {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+      defaultOptions: {
+        queries: { staleTime: Infinity, retry: false },
+        mutations: { networkMode: 'always' },
+      },
     });
     const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
     const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
@@ -399,7 +402,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
   });
 
   if (kind === 'adjustments') {
-    it('queues with a signature and returns to Adjustments without offering print', async () => {
+    it('queues with a signature and returns to scoped Stock On Hand without offering print', async () => {
       vi.mocked(fetchPermissionStrings).mockResolvedValue([
         ...grants,
         `STOCK_CARDS_VIEW|${HOME}|${FP}`,
@@ -437,8 +440,16 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         await screen.findByRole('textbox', { name: 'stock-events.signature' }),
         'Ada',
       );
+      act(() => onlineManager.setOnline(false));
       await user.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-      await waitFor(() => expect(router.state.location.pathname).toBe(PICKER));
+      await waitFor(() =>
+        expect(router.state.location.pathname).toBe('/stock-management/stock-on-hand'),
+      );
+      expect(router.state.location.search).toMatchObject({
+        mode: 'my',
+        facilityId: HOME,
+        programId: FP,
+      });
       expect(submitStockEvent).not.toHaveBeenCalled();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });

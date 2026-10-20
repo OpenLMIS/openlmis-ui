@@ -57,9 +57,9 @@ export const userRecordKey = (userId: string) =>
 export const userProgramsKey = (userId?: string) =>
   [...queryKeys.users.all, 'programs', ...(userId ? [userId] : [])] as const;
 
-export const adjustmentBundleKeys = {
+export const homeStockBundleKeys = {
   cards: (filter: Record<string, unknown>) =>
-    [...queryKeys.stockEvents.list(filter), 'adjustment-bundle'] as const,
+    [...queryKeys.stockEvents.list(filter), 'home-stock-bundle'] as const,
   reasons: (filter: Record<string, unknown>) =>
-    [...queryKeys.validReasons.list(filter), 'adjustment-bundle'] as const,
+    [...queryKeys.validReasons.list(filter), 'home-stock-bundle'] as const,
 };
