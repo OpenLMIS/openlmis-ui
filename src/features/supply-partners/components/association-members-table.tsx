@@ -44,6 +44,9 @@ function MemberRemoveCell({ row }: CellContext<DataTableFeatures, Member, unknow
   if (cards) {
     return (
       <CardActions
+        label={t('card-actions.actions-for', {
+          name: row.original.name || row.original.code || row.original.id,
+        })}
         actions={[
           {
             id: 'remove',

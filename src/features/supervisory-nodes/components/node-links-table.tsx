@@ -296,6 +296,7 @@ function NodeLinkActions({
   if (cards) {
     return (
       <CardActions
+        label={t('card-actions.actions-for', { name: label })}
         actions={[
           {
             id: 'edit',

@@ -68,6 +68,7 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES, ca
           cell: ({ row }) =>
             cards ? (
               <CardActions
+                label={t('card-actions.actions-for', { name: row.original.name })}
                 actions={[
                   {
                     id: 'configure',

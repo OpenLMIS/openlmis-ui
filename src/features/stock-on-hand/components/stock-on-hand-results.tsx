@@ -628,6 +628,7 @@ function StockCardView({
   if (cards) {
     return (
       <CardActions
+        label={t('card-actions.actions-for', { name: `${product} ${lot}` })}
         actions={[
           {
             id: 'view',

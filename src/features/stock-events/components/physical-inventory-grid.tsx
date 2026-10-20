@@ -720,6 +720,7 @@ function InventoryCell({
       if (cards)
         return (
           <CardActions
+            label={t('card-actions.actions-for', { name: row })}
             actions={[
               line.justAdded
                 ? {
@@ -737,6 +738,7 @@ function InventoryCell({
                     label: t('physical-inventory.deactivate'),
                     name: label(t('physical-inventory.deactivate')),
                     disabled: editor.pending || !editor.online,
+                    focusableWhenDisabled: !editor.online,
                     onSelect: () => editor.onDeactivate(line),
                   },
             ]}

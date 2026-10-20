@@ -7,6 +7,7 @@
   "auth.logout-error-title": "Sign Out Failed",
   "breadcrumbs.label": "Breadcrumb",
   "breadcrumbs.show-more": "Show more breadcrumbs",
+  "card-actions.actions-for": "Actions For {name}",
   "command.empty": "No results found.",
   "command.placeholder": "Search pages and actions...",
   "command.search": "Search...",

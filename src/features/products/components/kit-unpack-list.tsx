@@ -117,6 +117,7 @@ export function KitUnpackList({
         !readOnly &&
         (cards ? (
           <CardActions
+            label={t('card-actions.actions-for', { name })}
             actions={[
               {
                 id: 'remove',

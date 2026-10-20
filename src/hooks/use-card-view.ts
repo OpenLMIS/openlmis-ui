@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { z } from 'zod';
 import {
   CONTAINER_WIDTHS,
@@ -39,6 +40,8 @@ export const isDialogCards = (width: number | undefined, size: CardDialogSize, r
 
 export function useDialogCardLayout<T extends HTMLElement>(size: CardDialogSize) {
   const [measure, width] = useElementWidth<T>();
-  const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const [rem] = useState(
+    () => Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
+  );
   return { measure, width, cards: isDialogCards(width, size, rem) };
 }

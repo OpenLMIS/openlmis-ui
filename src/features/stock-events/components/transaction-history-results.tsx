@@ -158,6 +158,7 @@ function ViewEvent({
   if (cards) {
     return (
       <CardActions
+        label={t('card-actions.actions-for', { name: document })}
         actions={[
           {
             id: 'view',

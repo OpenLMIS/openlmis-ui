@@ -3,7 +3,6 @@ import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanst
 import type { TFunction } from 'i18next';
 import {
   AlertCircleIcon,
-  ChartColumnIcon,
   EllipsisIcon,
   EyeIcon,
   MapPinIcon,
@@ -152,7 +151,7 @@ function GeographicZoneActions({
             ? [
                 {
                   id: 'population',
-                  icon: <ChartColumnIcon />,
+                  icon: <UsersIcon />,
                   label: t('geographic-zones.visualize'),
                   onSelect: () => actions.onPopulation(zone.id),
                 },

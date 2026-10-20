@@ -195,6 +195,19 @@ function createColumns(options: ColumnOptions) {
   return columnHelper.columns([role, ...withActions]);
 }
 
+function removeAndRefocus(trigger: HTMLButtonElement, onRemove: () => void) {
+  const scope = trigger.closest('[role="tabpanel"]') ?? trigger.ownerDocument;
+  const buttons = [...scope.querySelectorAll<HTMLElement>('[data-remove-role]')];
+  const index = buttons.indexOf(trigger);
+  onRemove();
+  requestAnimationFrame(() => {
+    const left = scope.querySelectorAll<HTMLElement>('[data-remove-role]');
+    (
+      left[Math.min(index, left.length - 1)] ?? scope.querySelector<HTMLElement>('[data-add-role]')
+    )?.focus();
+  });
+}
+
 function RoleActions({ role, onRemove }: { role: string; onRemove: () => void }) {
   const { t } = useTranslation();
 
@@ -210,7 +223,8 @@ function RoleActions({ role, onRemove }: { role: string; onRemove: () => void })
             icon: <Trash2Icon />,
             label: t('users.roles.remove'),
             destructive: true,
-            onSelect: onRemove,
+            data: { 'data-remove-role': true },
+            onSelect: (trigger) => removeAndRefocus(trigger, onRemove),
           },
         ]}
       />

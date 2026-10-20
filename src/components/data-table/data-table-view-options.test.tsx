@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -38,10 +38,13 @@ describe('DataTableViewOptions', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'View' }));
-    await userEvent.click(await screen.findByRole('menuitemradio', { name: 'Email' }));
+    const sortBy = await screen.findByRole('group', { name: 'Sort By' });
+    expect(screen.queryByRole('group', { name: '' })).toBeNull();
+    await userEvent.click(within(sortBy).getByRole('menuitemradio', { name: 'Email' }));
     expect(onValueChange).toHaveBeenLastCalledWith({ id: 'email', desc: true });
 
-    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Ascending' }));
+    const order = screen.getByRole('group', { name: 'Sort Order' });
+    await userEvent.click(within(order).getByRole('menuitemradio', { name: 'Ascending' }));
     expect(onValueChange).toHaveBeenLastCalledWith({ id: 'name', desc: false });
   });
 });

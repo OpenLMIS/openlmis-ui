@@ -7,6 +7,7 @@
   "auth.logout-error-title": "Échec de la déconnexion",
   "breadcrumbs.label": "Fil d’Ariane",
   "breadcrumbs.show-more": "Afficher les étapes masquées du fil d’Ariane",
+  "card-actions.actions-for": "Actions pour {name}",
   "command.empty": "Aucun résultat trouvé.",
   "command.placeholder": "Rechercher des pages et des actions...",
   "command.search": "Rechercher...",

@@ -270,6 +270,9 @@ function AddProductsForm({
   );
   const removeCardAction = (line: InventoryLine) => (
     <CardActions
+      label={t('card-actions.actions-for', {
+        name: `${productName(line.orderable)} ${lotLabel(line)}`,
+      })}
       actions={[
         {
           id: 'remove',

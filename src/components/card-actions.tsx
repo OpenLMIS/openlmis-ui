@@ -18,6 +18,7 @@ export type CardAction = {
   name?: string;
   destructive?: boolean;
   disabled?: boolean;
+  focusableWhenDisabled?: boolean;
   onSelect?: (trigger: HTMLButtonElement) => void;
   link?: ReactElement;
   data?: { [key: `data-${string}`]: string | boolean };
@@ -29,7 +30,7 @@ export function cardActionCount(actions: number) {
   return Math.min(actions, MAX_BUTTONS);
 }
 
-export function CardActions({ label, actions }: { label?: string; actions: CardAction[] }) {
+export function CardActions({ label, actions }: { label: string; actions: CardAction[] }) {
   const ordered = [
     ...actions.filter((action) => !action.destructive),
     ...actions.filter((action) => action.destructive),
@@ -57,6 +58,7 @@ function CardActionButton({ action }: { action: CardAction }) {
             {...action.data}
             aria-label={action.name ?? action.label}
             disabled={action.disabled}
+            focusableWhenDisabled={action.focusableWhenDisabled}
             nativeButton={!action.link}
             onClick={action.onSelect && ((event) => action.onSelect?.(event.currentTarget))}
             render={action.link}
@@ -72,7 +74,7 @@ function CardActionButton({ action }: { action: CardAction }) {
   );
 }
 
-function CardActionsMenu({ actions, label }: { actions: CardAction[]; label?: string }) {
+function CardActionsMenu({ actions, label }: { actions: CardAction[]; label: string }) {
   const menu = useMenuOpensDialog();
   const trigger = useRef<HTMLButtonElement>(null);
   return (

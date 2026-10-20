@@ -7,6 +7,7 @@
   "auth.logout-error-title": "فشل تسجيل الخروج",
   "breadcrumbs.label": "مسار التنقل",
   "breadcrumbs.show-more": "إظهار المزيد من مسار التنقل",
+  "card-actions.actions-for": "إجراءات {name}",
   "command.empty": "لا توجد نتائج.",
   "command.placeholder": "ابحث في الصفحات والإجراءات...",
   "command.search": "بحث...",

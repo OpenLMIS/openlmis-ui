@@ -92,3 +92,35 @@ it('picks products from their cards on phones', async () => {
   await user.click(within(dialog).getByRole('button', { name: 'Add Products' }));
   expect(onCommit).toHaveBeenCalledWith(['o2']);
 });
+
+it('scrolls phone cards to the top for pager moves but not when a search returns to page 1', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+  const scroll = vi.fn();
+  HTMLElement.prototype.scrollIntoView = scroll;
+  const options = Array.from({ length: 23 }, (_, index) => ({
+    id: `o${index + 1}`,
+    productCode: `P${String(index + 1).padStart(2, '0')}`,
+    fullProductName: `Product ${index + 1}`,
+    description: null,
+  }));
+  const user = userEvent.setup();
+  renderPage(
+    <AssociationProductsDialog
+      open
+      selectedIds={[]}
+      selectedProducts={[]}
+      options={options}
+      onCommit={vi.fn()}
+      onClose={vi.fn()}
+      onDirtyChange={vi.fn()}
+    />,
+  );
+  const dialog = await screen.findByRole('dialog', { name: 'Add Products' });
+  await user.click(within(dialog).getByRole('button', { name: 'Next Page' }));
+  await within(dialog).findByRole('checkbox', { name: /P11/ });
+  expect(scroll).toHaveBeenCalledOnce();
+  scroll.mockClear();
+  await user.type(within(dialog).getByRole('textbox', { name: 'Search by name or code' }), 'P');
+  await within(dialog).findByRole('checkbox', { name: /P01/ });
+  expect(scroll).not.toHaveBeenCalled();
+});

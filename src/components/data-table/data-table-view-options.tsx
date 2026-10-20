@@ -30,20 +30,23 @@ export type DataTableViewSort = {
 
 type DataTableViewOptionsProps = {
   /** The columns a user may hide; leave out the identifying column and actions, which always show. */
-  columns: DataTableViewColumn[];
+  columns?: DataTableViewColumn[];
   disabled?: boolean;
-  visibility: ColumnVisibilityState;
-  onVisibilityChange: (visibility: ColumnVisibilityState) => void;
+  visibility?: ColumnVisibilityState;
+  onVisibilityChange?: (visibility: ColumnVisibilityState) => void;
   /** Returns every column to its default, e.g. the one suited to the screen size. */
   onReset?: () => void;
   layout?: 'table' | 'cards';
   sort?: DataTableViewSort;
 };
 
+const NO_COLUMNS: DataTableViewColumn[] = [];
+const ALL_VISIBLE: ColumnVisibilityState = {};
+
 export function DataTableViewOptions({
-  columns,
+  columns = NO_COLUMNS,
   disabled,
-  visibility,
+  visibility = ALL_VISIBLE,
   onVisibilityChange,
   onReset,
   layout = 'table',
@@ -62,32 +65,28 @@ export function DataTableViewOptions({
       <DropdownMenuContent align="end" width="auto">
         {sorting && (
           <>
-            <DropdownMenuGroup>
+            <DropdownMenuRadioGroup
+              onValueChange={(id: string) => sorting.onValueChange({ ...sorting.value, id })}
+              value={sorting.value.id}
+            >
               <DropdownMenuLabel>{labels.sortBy}</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                onValueChange={(id: string) => sorting.onValueChange({ ...sorting.value, id })}
-                value={sorting.value.id}
-              >
-                {sorting.columns.map((column) => (
-                  <DropdownMenuRadioItem key={column.id} value={column.id}>
-                    {column.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuGroup>
+              {sorting.columns.map((column) => (
+                <DropdownMenuRadioItem key={column.id} value={column.id}>
+                  {column.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
+            <DropdownMenuRadioGroup
+              onValueChange={(order: string) =>
+                sorting.onValueChange({ ...sorting.value, desc: order === 'desc' })
+              }
+              value={sorting.value.desc ? 'desc' : 'asc'}
+            >
               <DropdownMenuLabel>{labels.sortOrder}</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                onValueChange={(order: string) =>
-                  sorting.onValueChange({ ...sorting.value, desc: order === 'desc' })
-                }
-                value={sorting.value.desc ? 'desc' : 'asc'}
-              >
-                <DropdownMenuRadioItem value="asc">{labels.ascending}</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="desc">{labels.descending}</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuGroup>
+              <DropdownMenuRadioItem value="asc">{labels.ascending}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="desc">{labels.descending}</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
             {columns.length > 0 && <DropdownMenuSeparator />}
           </>
         )}
@@ -101,7 +100,7 @@ export function DataTableViewOptions({
                 checked={isVisible(column.id)}
                 key={column.id}
                 onCheckedChange={(checked) =>
-                  onVisibilityChange({ ...visibility, [column.id]: checked })
+                  onVisibilityChange?.({ ...visibility, [column.id]: checked })
                 }
               >
                 {column.label}

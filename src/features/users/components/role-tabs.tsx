@@ -130,7 +130,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
                   )}
                   {props.onAdd && (
                     <div className={cards ? undefined : 'ms-auto'}>
-                      <Button onClick={props.onAdd}>
+                      <Button data-add-role onClick={props.onAdd}>
                         <PlusIcon data-icon="inline-start" />
                         {t('users.roles.add')}
                       </Button>

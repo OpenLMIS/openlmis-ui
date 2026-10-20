@@ -481,8 +481,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   its action in a band, using the table's No lot defined text. Rows show Pack Size, Expiry,
   Stock On Hand, Current Stock, VVM, Reasons and Unaccounted. Multi-lot products add a Total
   section matching the table summary. Add Products dialog lines use flat cards with inline errors.
-  Administration lists switch to cards too, through `TableCards` and `TableCardsSkeleton`
-  (`src/components/table-cards.tsx`) over the same TanStack table: the `title` column and the
+  Every table switches to cards below 672px. Other tables use `TableCards` and
+  `TableCardsSkeleton` (`src/components/table-cards.tsx`) over the same TanStack table: the `title` column and the
   `actions` cell form the band; every other visible column is a row labelled by `meta.label`.
   Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"` for two lines),
   which wraps in full in cards; `TableCards` bolds the band title. It calls each column's `cell`
@@ -495,17 +495,16 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   action. Every card band action, Stock included, goes through `CardActions`
   (`src/components/card-actions.tsx`), given as data: outline icon buttons with a tooltip and the
   table's accessible name, tinted `destructive` for destructive ones, inside a group named like
-  the table's "..." menu. Up to three show as buttons; four or more show two plus a "..." menu
-  holding the rest, destructive last. The main action (Edit, then Configure, then View) sits at
-  the band's end, other actions before it; skeletons pass the same count to
-  `CardActionsSkeleton` or `TableCardsSkeleton actions`.
-  Editor tables (product tabs, requisition groups, supervisory node links, supply partner
-  associations, user roles) switch to cards too. Dialog tables switch to cards as well, measured
+  the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then
+  View) first in `actions`; it sits at the band's end. Up to three show as buttons; four or more
+  show two plus a "..." menu holding the rest, destructive last. Server deletes always confirm;
+  draft-row removal is instant. Skeletons pass the same count to `CardActionsSkeleton` or
+  `TableCardsSkeleton actions`. Editor and dialog tables follow the same rule. Dialogs measure
   with `useDialogCardLayout(size)` (`src/hooks/use-card-view.ts`): below 672px or once the screen
   squeezes a narrower dialog below its own width. `DialogTable` and `DialogTableSkeleton`
   (`src/components/dialog-table.tsx`) render flat `TableCards` in `DialogCards`: the dialog body
-  scrolls forms, cards and pager as one, with no nested scroll area, and a page change scrolls to
-  the first card. Measure outside `FormDialogBody`, whose scrollbar would flip the layout.
+  scrolls forms, cards and pager as one, with no nested scroll area, and a pager move scrolls to
+  the first card; filters and past-end clamps do not. Measure outside `FormDialogBody`, whose scrollbar would flip the layout.
   Requisition template Columns cards keep drag-to-reorder: the handle, indicator, label and
   Display checkbox form the band, `CardListItem drag` moves the card and `CardDragPreview` draws
   the overlay. Keep headers on one line;
@@ -548,7 +547,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Filter changes clear selection and close confirmations. `useFilterScoped` prevents stale
   visible rows from changing selection or opening deletion. Name each checkbox with every
   distinguishing row detail.
-- Render `DataTableSelectionBar` after the table with count, Clear and actions. Selection
+- Render `DataTableSelectionBar` after the table with count, Clear and actions: one line, info
+  tint, outline Clear; actions label through `SelectionBarLabel` with `full` and `short` text so
+  the bar stays on one line on phones. Selection
   stays out of the URL. Bulk delete awaits every request, reports failures and focuses the
   list after rows/bar disappear; see Valid Destinations.
 - PDF actions use `usePrintReport` (`src/hooks/use-print-report.ts`) for permission checks,

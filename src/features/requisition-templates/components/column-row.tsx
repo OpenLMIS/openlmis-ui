@@ -222,6 +222,7 @@ function useColumnFields({ form, column }: Props, cards: boolean) {
           <field.SelectField
             layout="inline"
             size={size}
+            wrap={cards ? 'wrap' : undefined}
             errorDescriptionId={describedBy('source')}
             label={named(t('requisition-templates.configure.source'))}
             items={definition.sources.map((source) => ({
@@ -252,6 +253,7 @@ function useColumnFields({ form, column }: Props, cards: boolean) {
             <field.SelectField
               layout="inline"
               size={size}
+              wrap={cards ? 'wrap' : undefined}
               errorDescriptionId={describedBy('optionId')}
               label={named(t('requisition-templates.configure.additional-options'))}
               items={definition.options.map((option) => ({
@@ -385,9 +387,6 @@ const ColumnCardBody = memo(function ColumnCardBody({
           htmlFor={`template-row-${column.columnDefinition.id}-display`}
         >
           <span aria-hidden>{t('requisition-templates.configure.display')}</span>
-          <span className="sr-only">
-            {t('requisition-templates.configure.display-label', { label: name })}
-          </span>
           {fields.display}
         </label>
       </CardBand>

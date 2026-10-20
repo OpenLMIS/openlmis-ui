@@ -9,7 +9,7 @@ import {
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 
-export function DialogCards({
+function DialogCards({
   children,
   footer,
   page,
@@ -20,15 +20,28 @@ export function DialogCards({
 }) {
   const content = useRef<HTMLDivElement>(null);
   const shownPage = useRef(page);
+  const requested = useRef(false);
   useLayoutEffect(() => {
     if (page === shownPage.current) return;
     shownPage.current = page;
+    if (!requested.current) return;
+    requested.current = false;
     content.current?.scrollIntoView?.({ block: 'start' });
   }, [page]);
+  const request = () => {
+    requested.current = true;
+    setTimeout(() => {
+      requested.current = false;
+    });
+  };
   return (
     <div className="flex scroll-mt-1 flex-col gap-4" ref={content}>
       {children}
-      {footer && <DataTablePagerCard>{footer}</DataTablePagerCard>}
+      {footer && (
+        <div className="contents" onClickCapture={request}>
+          <DataTablePagerCard>{footer}</DataTablePagerCard>
+        </div>
+      )}
     </div>
   );
 }

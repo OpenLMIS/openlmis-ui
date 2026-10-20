@@ -509,6 +509,7 @@ function ProgramsFields({ form, cards }: { form: FacilityForm; cards: boolean })
         !row.saved &&
         (cards ? (
           <CardActions
+            label={t('card-actions.actions-for', { name })}
             actions={[
               {
                 id: 'remove',

@@ -253,6 +253,9 @@ export function InventoryReasonsDialog({
                               </form.AppField>
                             </div>
                             <CardActions
+                              label={t('card-actions.actions-for', {
+                                name: `${product} ${inventoryLotCode(line) ?? t('stock-events.no-lot-defined')} ${item.reason.name ?? item.reason.id}`,
+                              })}
                               actions={[
                                 {
                                   id: 'remove',

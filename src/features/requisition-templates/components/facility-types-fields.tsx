@@ -144,6 +144,7 @@ export function FacilityTypesFields({
                     <bdi>{row.name}</bdi>
                   </div>
                   <CardActions
+                    label={t('card-actions.actions-for', { name: row.name })}
                     actions={[
                       {
                         id: 'remove',

@@ -518,6 +518,7 @@ const LineCell = memo(function LineCell({
       if (cards)
         return (
           <CardActions
+            label={t('card-actions.actions-for', { name: row })}
             actions={[
               {
                 id: 'remove',

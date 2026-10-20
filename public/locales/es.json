@@ -7,6 +7,7 @@
   "auth.logout-error-title": "No se pudo cerrar sesión",
   "breadcrumbs.label": "Ruta de navegación",
   "breadcrumbs.show-more": "Mostrar más elementos de la ruta de navegación",
+  "card-actions.actions-for": "Acciones para {name}",
   "command.empty": "No se encontraron resultados.",
   "command.placeholder": "Buscar páginas y acciones...",
   "command.search": "Buscar...",

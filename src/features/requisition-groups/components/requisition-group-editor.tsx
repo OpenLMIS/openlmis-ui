@@ -436,10 +436,20 @@ function focusAfterRemove(
     (buttons?.[Math.min(index, buttons.length - 1)] ?? add)?.focus();
   });
 }
-function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
+function RemoveButton({
+  name,
+  label,
+  onClick,
+}: {
+  name: string;
+  label: string;
+  onClick: () => void;
+}) {
+  const { t } = useTranslation();
   if (useInCards()) {
     return (
       <CardActions
+        label={t('card-actions.actions-for', { name })}
         actions={[
           {
             id: 'remove',
@@ -539,6 +549,7 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
             meta: { className: 'w-16' },
             cell: ({ row }) => (
               <RemoveButton
+                name={row.original.program.name ?? row.original.program.id}
                 label={t('requisition-groups.form.remove-program', {
                   program: row.original.program.name ?? row.original.program.id,
                 })}
@@ -716,6 +727,7 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
       cell: ({ row }) =>
         remove && (
           <RemoveButton
+            name={row.original.name}
             label={t('requisition-groups.form.remove-facility', {
               facility: row.original.name,
             })}

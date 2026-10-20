@@ -521,6 +521,7 @@ function PairsFields({ form }: { form: ReasonForm }) {
       ),
       remove: cards ? (
         <CardActions
+          label={t('card-actions.actions-for', { name: pair })}
           actions={[
             {
               id: 'remove',
