@@ -28,6 +28,7 @@ it('reports failure and retries the next change', async () => {
   expect(status).toHaveBeenLastCalledWith('failed');
   writer.enqueue(2);
   await writer.flush();
+  expect(write.mock.calls).toEqual([[1], [2]]);
   expect(status).toHaveBeenLastCalledWith('saved');
 });
 

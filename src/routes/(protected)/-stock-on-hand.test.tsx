@@ -898,8 +898,10 @@ it('opens downloaded stock with a cold cache offline without requesting products
   expect(fetchMinimalFacilities).not.toHaveBeenCalled();
   expect(fetchOrderablesByIds).not.toHaveBeenCalled();
   expect(fetchLotsByIds).not.toHaveBeenCalled();
-  act(() => onlineManager.setOnline(true));
-  expect(await client.fetchQuery(minimalFacilitiesOptions())).toHaveLength(2);
+  await act(async () => {
+    onlineManager.setOnline(true);
+    expect(await client.fetchQuery(minimalFacilitiesOptions())).toHaveLength(2);
+  });
   expect(fetchMinimalFacilities).toHaveBeenCalled();
 });
 

@@ -343,19 +343,6 @@ it('announces uncertain and refused counts without duplicate count cards', async
   for (const note of notes)
     expect(note).not.toHaveTextContent(/Events? Waiting To Sync|Refused Event/);
 });
-it('Sign In To Sync has no review action of its own', () => {
-  device.allowed = true;
-  device.events = [{ status: 'queued' }] as DeviceEvent[];
-  setSyncPhase('session');
-  renderNotices();
-  const notice = screen
-    .getAllByRole('note')
-    .find((note) => note.textContent?.includes('device-events.sign-in'));
-  expect(notice).toBeDefined();
-  expect(within(notice as HTMLElement).queryByRole('button')).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'device-events.review' })).not.toBeInTheDocument();
-});
-
 it('keeps the offline connection notice alone and offers sign-in after reconnect', () => {
   device.allowed = true;
   device.events = [{ status: 'queued' }] as DeviceEvent[];
@@ -377,6 +364,11 @@ it('keeps the offline connection notice alone and offers sign-in after reconnect
     screen.getAllByRole('note').some((note) => note.textContent?.includes('device-events.sign-in')),
   ).toBe(true);
   expect(screen.getByRole('status')).toHaveTextContent('device-events.sign-in');
+  const signIn = screen
+    .getAllByRole('note')
+    .find((note) => note.textContent?.includes('device-events.sign-in'));
+  expect(within(signIn as HTMLElement).queryByRole('button')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'device-events.review' })).not.toBeInTheDocument();
   act(() => useLoginData.getState().clearLoginData());
 });
 
@@ -497,8 +489,7 @@ it('groups failed programs by dataset in separate messages', async () => {
       </SidebarProvider>
     </I18nextProvider>,
   );
-  const description = screen.getByRole('note').querySelector('.whitespace-pre-line');
-  expect(description?.textContent).toContain(
+  expect(screen.getByRole('note').textContent).toContain(
     'Stock On Hand: Medicines, Vaccines\nAdjustments: Supplies',
   );
 });

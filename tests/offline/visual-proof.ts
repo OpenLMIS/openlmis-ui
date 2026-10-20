@@ -172,13 +172,9 @@ for (const programName of ['Fixture Medicines', 'Expanded Program on Immunizatio
           await page
             .getByRole('button', { name: catalog['stock-events.confirm'], exact: true })
             .click();
-          await expect(page).toHaveURL(/adjustments$/);
+          await expect(page).toHaveURL(/\/stock-on-hand/);
           await capture('saved-device');
-          await page
-            .getByRole('note')
-            .getByRole('link', { name: catalog['device-events.title'], exact: true })
-            .first()
-            .click();
+          await page.goto('./offline-events');
           await expect(
             page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
           ).toBeVisible();

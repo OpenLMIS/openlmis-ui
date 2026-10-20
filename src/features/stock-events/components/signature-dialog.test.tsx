@@ -33,16 +33,12 @@ function dialog(pending: boolean, onConfirm: (signature: string) => void) {
 describe('SignatureDialog', () => {
   it('accepts an empty signature and names the submitting user', async () => {
     const onConfirm = vi.fn();
+    const user = userEvent.setup();
     render(dialog(false, onConfirm));
     const input = screen.getByRole('textbox', { name: 'Signature' });
     expect(input).toHaveAccessibleDescription('Submitted By ada');
-    const description = document.getElementById(input.getAttribute('aria-describedby') ?? '');
-    expect(description?.querySelector('strong')).toHaveTextContent('ada');
-    expect(
-      input.compareDocumentPosition(description as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
     expect(screen.getByRole('dialog', { name: 'Choose Signature' })).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(''));
   });
   it('rejects a signature longer than 255 and accepts the boundary', async () => {

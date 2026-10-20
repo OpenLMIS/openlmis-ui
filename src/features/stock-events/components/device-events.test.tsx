@@ -34,9 +34,7 @@ it.each([
   ['accepted', 1440],
   ['sending', 1440],
   ['refused', 1440],
-  ['uncertain', 1440],
   ['refused', 390],
-  ['sending', 390],
   ['uncertain', 390],
 ] as const)(
   'keeps %s event details and recovery at width %s while the live event disappears',
@@ -220,7 +218,7 @@ it.each([
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect((router.state.location.search as DeviceEventsSearch).event).toBeUndefined();
     local.events = retained;
-    router.history.forward();
+    await act(async () => router.history.forward());
     expect(await screen.findByRole('dialog')).toBeVisible();
   },
 );

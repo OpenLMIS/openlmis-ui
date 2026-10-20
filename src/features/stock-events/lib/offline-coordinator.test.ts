@@ -109,6 +109,30 @@ const begin = () => {
 };
 const finished = () => waitFor(() => expect(getDownloadStatus().phase).toBe('complete'));
 
+it('persists capped failure backoff per task and resets only successful work', () => {
+  const database = getLocalDb().name;
+  let now = Date.now();
+  vi.spyOn(Date, 'now').mockImplementation(() => now);
+  for (const delay of [1, 2, 4, 8, 16, 30, 30]) {
+    const schedule = downloadSchedule(database);
+    schedule.failed('access');
+    schedule.save();
+    const reopened = downloadSchedule(database);
+    expect(reopened.retryAt('access')).toBe(now + delay * 60_000);
+    expect(reopened.due()).toBe(false);
+    now += delay * 60_000;
+    expect(reopened.due()).toBe(true);
+  }
+  const schedule = downloadSchedule(database);
+  schedule.failed('stock');
+  schedule.succeeded('access', now);
+  schedule.save();
+  const reopened = downloadSchedule(database);
+  expect(reopened.retryAt('access')).toBe(0);
+  expect(reopened.retryAt('stock')).toBe(now + 60_000);
+  expect(downloadSchedule(`${database}:other`).retryAt('stock')).toBe(0);
+});
+
 it('persists the deployment time zone before reporting offline data ready', async () => {
   let release!: () => void;
   const held = new Promise<void>((resolve) => {

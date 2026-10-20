@@ -79,6 +79,10 @@ it('filters and pages downloaded summaries with names, lots and inactive metadat
   expect(
     (await readStockOnHandOnDevice({ ...query, orderableCode: 'missing' })).totalElements,
   ).toBe(0);
+  expect(
+    (await readStockOnHandOnDevice({ ...query, orderableName: 'missing' })).totalElements,
+  ).toBe(0);
+  expect((await readStockOnHandOnDevice({ ...query, lotCode: 'missing' })).totalElements).toBe(0);
   expect((await readStockOnHandOnDevice({ ...query, page: 1, size: 1 })).content).toEqual([]);
 });
 it('shows a downloaded Stock Card summary without inventing transaction history', async () => {

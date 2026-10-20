@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
+import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { httpError, networkError } from '@/tests/http-error';
 
 vi.mock('@/components/no-access-page', () => ({ NoAccessPage: () => <p>no-access</p> }));
@@ -138,5 +139,30 @@ it('reloads into the current version when an app part is missing online', () => 
     />,
   );
 
+  expect(chunk.reloadOnce).toHaveBeenCalledOnce();
+});
+
+it('holds automatic chunk recovery until unsaved work allows leaving', () => {
+  let proceed!: () => void;
+  function UnsavedDraft() {
+    useLeaveGuard(true, (next) => {
+      proceed = next;
+    });
+    return null;
+  }
+  render(
+    <>
+      <UnsavedDraft />
+      <ErrorFallback
+        back={<Button>Back</Button>}
+        error={missingChunk()}
+        info={undefined}
+        reset={reset}
+      />
+    </>,
+  );
+  expect(chunk.reloadOnce).not.toHaveBeenCalled();
+  expect(proceed).toBeTypeOf('function');
+  act(proceed);
   expect(chunk.reloadOnce).toHaveBeenCalledOnce();
 });

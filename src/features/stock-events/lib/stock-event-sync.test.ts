@@ -4,6 +4,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import {
   createStockEventContext,
+  readStockEventDraft,
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import {
@@ -177,6 +178,7 @@ it('retains a whole backdated stock-changed refusal and continues', async () => 
 });
 it('marks recorded without a POST, releases the barrier, and ignores repeated/stale choices', async () => {
   const event = await enqueue();
+  const later = await enqueue();
   await getLocalDb()
     .table('stockEventQueue')
     .update(event.sequence, { status: 'sending', attemptId: 'a' });
@@ -194,7 +196,9 @@ it('marks recorded without a POST, releases the barrier, and ignores repeated/st
   expect(receipt.confirmedBy).toBe(event.userId);
   const deps = dependencies();
   await syncStockEvents(getLocalDb(), event.userId, deps);
-  expect(deps.send).not.toHaveBeenCalled();
+  expect(deps.send.mock.calls.map(([sent]) => sent.localEventId)).toEqual([later.localEventId]);
+  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(2);
 });
 it('an explicit resend preserves body, sequence and attempted history and permits one attempt', async () => {
   const event = await enqueue();
@@ -531,7 +535,7 @@ it.each([false, true])(
     );
     const error = await db.table('stockEventSyncErrors').get(event.localEventId);
     const context = createStockEventContext(event);
-    if (copied) await copyRefusedEvent(context, error);
+    const correction = copied ? await copyRefusedEvent(context, error) : undefined;
     expect(
       await dismissRefusedEvent(context, { ...error, event: { ...error.event, revision: 999 } }),
     ).toBe(false);
@@ -542,6 +546,10 @@ it.each([false, true])(
       resolvedAt: expect.any(Number),
     });
     expect((await db.table('stockEventDrafts').get(event.draftId)).state).toBe('refused');
+    if (copied) {
+      expect(correction).toBeDefined();
+      expect(await readStockEventDraft(context)).toEqual(correction);
+    }
   },
 );
 

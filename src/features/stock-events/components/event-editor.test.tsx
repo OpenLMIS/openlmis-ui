@@ -340,6 +340,10 @@ async function pickReason(user: ReturnType<typeof userEvent.setup>) {
 }
 async function filter(user: ReturnType<typeof userEvent.setup>, keyword: string) {
   const input = await screen.findByRole('textbox', { name: 'Keywords' });
+  await waitFor(() => {
+    expect(input).toBeEnabled();
+    expect(input).not.toHaveAttribute('readonly');
+  });
   await user.clear(input);
   await user.type(input, keyword);
   await user.keyboard('{Enter}');
@@ -355,6 +359,23 @@ async function validIssueLine(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('combobox', { name: /^Issue To,/ }));
   await user.click(await screen.findByRole('option', { name: 'Hospital' }));
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
+}
+
+async function seedAdjustmentDraft() {
+  const context = createStockEventContext({
+    kind: 'adjustment',
+    facilityId: 'facility',
+    programId: 'program',
+  });
+  const line = newEventLine(card, undefined, '2026-10-14', {
+    kind: 'adjustment',
+    productHasLots: true,
+    reasons: [reason],
+    defaultReasonId: 'lost',
+  });
+  line.quantity = { doses: '17', packs: '1', remainder: '1' };
+  const draft = await saveStockEventDraft(context, undefined, [line]);
+  return { context, draft };
 }
 
 describe('EventEditor', () => {
@@ -499,16 +520,18 @@ describe('EventEditor', () => {
     },
   );
   it('blocks Confirm if the session owner changes before the route renders', async () => {
-    const { user } = setup();
+    const { user, onSubmitted } = setup();
     await validLine(user);
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await screen.findByRole('dialog');
     act(() => useLoginData.setState({ referenceDataUserId: 'other-user' }));
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(submitStockEvent).not.toHaveBeenCalled();
+    expect(onSubmitted).not.toHaveBeenCalled();
+    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
   });
   it('blocks a retained Confirm after switching away and back to the draft owner', async () => {
-    const { user } = setup();
+    const { user, onSubmitted } = setup();
     await validLine(user);
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await screen.findByRole('dialog');
@@ -519,6 +542,8 @@ describe('EventEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(submitStockEvent).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
+    expect(onSubmitted).not.toHaveBeenCalled();
+    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
   });
   it.each(['success', 'failure'])(
     'ignores a submit %s that finishes after switching user',
@@ -594,6 +619,7 @@ describe('EventEditor', () => {
   it.each(['manual', 'scan'])(
     'retains last-added defaults after removal for %s additions',
     async (method) => {
+      vi.setSystemTime(new Date('2026-10-20T12:00:00Z'));
       const { user } = setup();
       await add(user);
       await pickReason(user);
@@ -1202,7 +1228,10 @@ it('allows leaving a queued Adjustment without retiring its frozen draft', async
   router?.history.destroy();
 });
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.useRealTimers();
+});
 
 it('uses Issue stock eligibility for both the picker and scan resolver and preselects its configured transfer reason', async () => {
   const zero = {
@@ -2368,16 +2397,7 @@ it('explains a failed device flush when Submit is clicked', async () => {
 });
 
 it('refreshes resumed stock and product snapshots while keeping typed values and enforcing the new debit cap', async () => {
-  const { user } = setup();
-  await validLine(user);
-  await screen.findByText('Saved On This Device');
-  const context = createStockEventContext({
-    kind: 'adjustment',
-    facilityId: 'facility',
-    programId: 'program',
-  });
-  const previous = await readStockEventDraft(context);
-  cleanup();
+  const { context, draft: previous } = await seedAdjustmentDraft();
   const fresh = {
     ...card,
     stockOnHand: 5,
@@ -2413,10 +2433,7 @@ it('refreshes resumed stock and product snapshots while keeping typed values and
 });
 
 it('keeps a resumed missing stock line highlighted and explains why it cannot submit', async () => {
-  const { user } = setup();
-  await validLine(user);
-  await screen.findByText('Saved On This Device');
-  cleanup();
+  await seedAdjustmentDraft();
   const next = setup(true, (client) => client.setQueryData(editorStockOptions().queryKey, [other]));
   expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
   expect(
@@ -2540,10 +2557,7 @@ it.each(['no stock rights', 'failed read'])(
 );
 
 it('allows a resumed expired-lot Adjustment to submit', async () => {
-  const { user } = setup();
-  await validLine(user);
-  await screen.findByText('Saved On This Device');
-  cleanup();
+  await seedAdjustmentDraft();
   const next = setup(true, (client) =>
     client.setQueryData(editorStockOptions().queryKey, [
       { ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } },

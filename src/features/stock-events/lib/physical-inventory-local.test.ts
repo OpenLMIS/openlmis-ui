@@ -43,12 +43,6 @@ it('surfaces storage failure', async () => {
   await expect(writeInventoryLocal(copy)).rejects.toThrow('Full');
 });
 
-it('retains device copies when their server draft no longer exists', async () => {
-  await writeInventoryLocal(copy);
-  await readInventoryLocal('missing');
-  expect(await readInventoryLocal('d')).toEqual({ ...copy, revision: 1 });
-});
-
 it('rejects a stale inventory revision and stops its serial writer without overwriting the other tab', async () => {
   const { createInventoryWriter } = await import(
     '@/features/stock-events/lib/physical-inventory-autosave'

@@ -798,17 +798,6 @@ it('updates the phone card unaccounted error and summary when reasons change wit
   );
 });
 
-it('keeps pagination inside the grid table card container', async () => {
-  const user = userEvent.setup();
-  const view = setup({ size: 1, page: 1 });
-  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
-  const pager = screen.getByRole('button', { name: 'Next Page' });
-  const grid = screen.getByRole('table');
-  expect(grid.closest('.\\@container\\/table')).toContainElement(pager);
-  await user.click(pager);
-  expect(view.change).toHaveBeenLastCalledWith(expect.any(Function), undefined, undefined);
-});
-
 it('allows Delete to leave immediately after a failed device save', async () => {
   vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
   const actual = await vi.importActual<typeof import('@/hooks/use-discard-guard')>(

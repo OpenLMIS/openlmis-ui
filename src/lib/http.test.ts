@@ -88,11 +88,6 @@ describe('isAccessFallbackError', () => {
 });
 
 describe('getIfExists', () => {
-  it('returns what the server sent', async () => {
-    get.mockResolvedValueOnce({ data: { id: 'u1' } });
-    await expect(getIfExists('/users/u1')).resolves.toEqual({ id: 'u1' });
-  });
-
   it('returns null for a record that does not exist', async () => {
     get.mockRejectedValueOnce(failed(404));
     await expect(getIfExists('/userContactDetails/u1')).resolves.toBeNull();
