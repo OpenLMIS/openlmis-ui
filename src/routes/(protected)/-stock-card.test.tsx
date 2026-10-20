@@ -1,4 +1,4 @@
-import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -17,20 +17,16 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { fetchStockCard, fetchStockCardReport } from '@/features/stock-card/api/api';
 import type { StockCard } from '@/features/stock-card/lib/types';
-import { getLocalDb } from '@/integrations/local-db';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId';
 import { expectRouteWarning } from '@/tests/expect-route-warning';
-import { seedHomeStock } from '@/tests/home-stock';
 import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
@@ -106,10 +102,9 @@ function renderRoute(
   return { router, queryClient, unmount: view.unmount };
 }
 
-beforeEach(async () => {
+beforeEach(() => {
   vi.clearAllMocks();
   useLoginData.setState({ referenceDataUserId: USER });
-  await getLocalDb().table('stockCardHistory').clear();
   vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
   vi.mocked(fetchStockCard).mockResolvedValue(card);
 });
@@ -674,114 +669,5 @@ describe('stock card freshness', () => {
     expect(
       within(screen.getByRole('region', { name: 'Vaccine - each' })).getByText('999'),
     ).toBeInTheDocument();
-  });
-});
-
-it('opens a downloaded summary offline without presenting empty transaction history', async () => {
-  await seedHomeStock(card, USER);
-  onlineManager.setOnline(false);
-  const client = new QueryClient({
-    defaultOptions: { queries: { networkMode: 'always', retry: false } },
-  });
-  client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
-  renderRoute(path(), client);
-  expect(await screen.findByText('stock-card.offline-summary')).toBeInTheDocument();
-  expect(screen.getByText('Vaccine - each')).toBeInTheDocument();
-  expect(screen.getByText('LOT-A')).toBeInTheDocument();
-  expect(screen.queryByRole('table')).not.toBeInTheDocument();
-  expect(fetchStockCard).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: 'stock-card.print' })).toHaveAttribute(
-    'aria-disabled',
-    'true',
-  );
-  act(() => onlineManager.setOnline(true));
-  await waitFor(() => expect(fetchStockCard).toHaveBeenCalled());
-  await waitFor(() =>
-    expect(screen.queryByText('stock-card.offline-summary')).not.toBeInTheDocument(),
-  );
-});
-
-it.each([
-  [false, false],
-  [true, false],
-  [true, true],
-])(
-  'reopens viewed history as table=%s, unreachable=%s after a fresh query cache',
-  async (table, unreachable) => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      width: table ? 1400 : 400,
-    } as DOMRect);
-    const viewed = {
-      ...card,
-      lineItems: [
-        {
-          ...card.lineItems[0],
-          source: { name: 'District Warehouse' },
-          destination: { name: 'Clinic Annex' },
-          reason: { name: 'Stock Transfer', reasonType: 'CREDIT', reasonCategory: 'TRANSFER' },
-          username: 'Alex',
-          eventOrigin: 'ADJUSTMENT',
-          originEventId: 'event1',
-          documentNumber: 'HISTORY-1',
-        },
-      ],
-    } as StockCard;
-    vi.mocked(fetchStockCard).mockResolvedValue(viewed);
-    await seedHomeStock(card, USER);
-    const first = renderRoute();
-    await screen.findByText('HISTORY-1');
-    const saved = await getLocalDb().table('stockCardHistory').get(card.id);
-    expect(saved).toMatchObject({ userId: USER, card: viewed, fetchedAt: expect.any(Number) });
-    first.unmount();
-    await getLocalDb().table('homeStockDownloads').clear();
-    vi.mocked(fetchStockCard).mockClear();
-    if (unreachable)
-      vi.mocked(fetchStockCard).mockRejectedValue(
-        new AxiosError('Timed out', AxiosError.ECONNABORTED),
-      );
-    else onlineManager.setOnline(false);
-    const client = new QueryClient({
-      defaultOptions: { queries: { networkMode: 'always', retry: false } },
-    });
-    client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
-    renderRoute(path(), client);
-    expect(await screen.findByText('HISTORY-1')).toBeInTheDocument();
-    expect(screen.getByText('Alex')).toBeInTheDocument();
-    expect(screen.getByText('District Warehouse')).toBeInTheDocument();
-    expect(screen.getByText('Clinic Annex')).toBeInTheDocument();
-    expect(screen.getByText('Stock Transfer')).toBeInTheDocument();
-    expect(screen.getByText('stock-card.offline-history')).toBeInTheDocument();
-    expect(screen.getByText('offline.downloaded-at')).toBeInTheDocument();
-    expect(screen.queryByText('stock-card.offline-summary')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'stock-card.print' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
-    await userEvent.click(screen.getByRole('radio', { name: 'quantity-unit.packs' }));
-    expect(screen.getByRole('radio', { name: 'quantity-unit.packs' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    expect(fetchStockCard).toHaveBeenCalledTimes(unreachable ? 1 : 0);
-  },
-);
-
-it('replaces saved history on each online visit', async () => {
-  const first = renderRoute();
-  await screen.findByText('Vaccine - each');
-  first.unmount();
-  const updated = {
-    ...card,
-    stockOnHand: 99,
-    lineItems: [
-      ...card.lineItems,
-      { id: 'line2', occurredDate: '2026-02-01', quantity: 76, stockOnHand: 99 },
-    ],
-  };
-  vi.mocked(fetchStockCard).mockResolvedValue(updated);
-  renderRoute();
-  await screen.findByText('Vaccine - each');
-  expect(await getLocalDb().table('stockCardHistory').get(card.id)).toMatchObject({
-    card: updated,
   });
 });

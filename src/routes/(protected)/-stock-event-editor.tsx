@@ -322,11 +322,13 @@ export function StockEventEditorPage(props: StockEventEditorPageProps) {
   ) : (
     <StockEventEditorContent
       {...props}
-      onSubmitted={() =>
-        navigate({
-          to: '/stock-management/stock-on-hand',
-          search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
-        })
+      onSubmitted={(_eventId, synced) =>
+        !synced && EVENT_KINDS[props.kind].drafts === 'device'
+          ? navigate({ to: EVENT_KINDS[props.kind].listRoute })
+          : navigate({
+              to: '/stock-management/stock-on-hand',
+              search: { mode: 'my', facilityId: homeFacility.id, programId: program.id },
+            })
       }
     />
   );

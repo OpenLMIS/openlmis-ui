@@ -26,7 +26,12 @@ test('offline navigation explains unavailable pages and blocks direct routes wit
   await context.setOffline(true);
   const protectedRequests: string[] = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).pathname === '/api/users') protectedRequests.push(request.url());
+    if (
+      /^\/api\/(users$|stockCards(?:\/|$)|v2\/stockCardSummaries$)/.test(
+        new URL(request.url()).pathname,
+      )
+    )
+      protectedRequests.push(request.url());
   });
   const issue = page.getByRole('button', { name: 'Issue', exact: true });
   await expect(issue).toHaveAttribute('data-unavailable');
@@ -37,6 +42,18 @@ test('offline navigation explains unavailable pages and blocks direct routes wit
   await unavailable.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(issue).toBeFocused();
   await expect(page).toHaveURL(/adjustments$/);
+  const stock = page.getByRole('button', { name: 'Stock On Hand', exact: true });
+  await expect(stock).toHaveAttribute('data-unavailable');
+  await expect(stock.locator('svg.lucide-wifi-off')).toBeVisible();
+  await stock.click();
+  await expect(unavailable).toContainText('Connect To Open This Page');
+  await unavailable.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(stock).toBeFocused();
+  await expect(page).toHaveURL(/adjustments$/);
+  for (const path of ['stock-management/stock-on-hand', 'stock-management/stock-on-hand/card']) {
+    await page.goto(`./${path}`);
+    await expect(page.getByRole('heading', { name: 'Connect To Open This Page' })).toBeVisible();
+  }
   await page.goto('./administration/users');
   await expect(page.getByRole('heading', { name: 'Connect To Open This Page' })).toBeVisible();
   expect(protectedRequests).toHaveLength(0);

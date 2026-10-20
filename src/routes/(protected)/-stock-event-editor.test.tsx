@@ -402,7 +402,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
   });
 
   if (kind === 'adjustments') {
-    it('queues with a signature and returns to scoped Stock On Hand without offering print', async () => {
+    it('queues with a signature and returns to the program list without offering print', async () => {
       vi.mocked(fetchPermissionStrings).mockResolvedValue([
         ...grants,
         `STOCK_CARDS_VIEW|${HOME}|${FP}`,
@@ -442,14 +442,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       );
       act(() => onlineManager.setOnline(false));
       await user.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
-      await waitFor(() =>
-        expect(router.state.location.pathname).toBe('/stock-management/stock-on-hand'),
-      );
-      expect(router.state.location.search).toMatchObject({
-        mode: 'my',
-        facilityId: HOME,
-        programId: FP,
-      });
+      await waitFor(() => expect(router.state.location.pathname).toBe(PICKER));
       expect(submitStockEvent).not.toHaveBeenCalled();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });

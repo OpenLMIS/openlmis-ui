@@ -25,7 +25,6 @@ import {
   DataTablePagination,
   DataTablePaginationSkeleton,
 } from '@/components/data-table/data-table-pagination';
-import { DownloadedAt } from '@/components/downloaded-at';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
@@ -38,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { fetchLotsByIds, fetchOrderablesByIds } from '@/features/reference-data/api/api';
+import { lotsByIdsOptions, orderablesByIdsOptions } from '@/features/reference-data/api/queries';
 import { productName } from '@/features/reference-data/lib/product-name';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { stockCardSummariesOptions } from '@/features/stock-on-hand/api/queries';
@@ -53,12 +52,10 @@ import type { StockCardRow, StockProductGroup } from '@/features/stock-on-hand/l
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { orEmpty, tableValue } from '@/lib/empty-value';
-import { queryKeys } from '@/lib/key-factory';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 type StockOnHandResultsProps = {
-  pendingEvents?: ReactNode;
   cards: boolean;
   search: StockOnHandSearch;
   facilityId: string;
@@ -67,7 +64,6 @@ type StockOnHandResultsProps = {
   columns: ColumnVisibilityState;
   collapsedKey: string;
   onSearchChange: SearchChange<StockOnHandSearch>;
-  readOnDevice?: import('@/features/stock-on-hand/lib/types').DeviceStockOnHandReader;
 };
 
 const collapsedSchema = z.array(z.string());
@@ -75,7 +71,6 @@ const collapsedSchema = z.array(z.string());
 const NO_SORT = { id: 'productCode', desc: false };
 
 export function StockOnHandResults({
-  pendingEvents,
   cards,
   search,
   facilityId,
@@ -84,36 +79,14 @@ export function StockOnHandResults({
   columns,
   collapsedKey,
   onSearchChange,
-  readOnDevice,
 }: StockOnHandResultsProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const query = toSummariesQuery(deferredSearch, { facilityId, programId });
-  const { data: page } = useSuspenseQuery(stockCardSummariesOptions(query, readOnDevice));
+  const { data: page } = useSuspenseQuery(stockCardSummariesOptions(query));
   const ids = useMemo(() => summaryIds(page.content), [page]);
   const [orderables, lots] = useSuspenseQueries({
-    queries: [
-      {
-        queryKey: queryKeys.orderables.list({
-          ids: ids.orderableIds.toSorted(),
-          ...(page.device ? { deviceGeneration: page.device.generation } : {}),
-        }),
-        queryFn: () =>
-          page.device
-            ? Promise.resolve(page.device.products)
-            : fetchOrderablesByIds(ids.orderableIds),
-        staleTime: 5 * 60 * 1000,
-      },
-      {
-        queryKey: queryKeys.lots.list({
-          ids: ids.lotIds.toSorted(),
-          ...(page.device ? { deviceGeneration: page.device.generation } : {}),
-        }),
-        queryFn: () =>
-          page.device ? Promise.resolve(page.device.lots) : fetchLotsByIds(ids.lotIds),
-        staleTime: 5 * 60 * 1000,
-      },
-    ],
+    queries: [orderablesByIdsOptions(ids.orderableIds), lotsByIdsOptions(ids.lotIds)],
   });
   const includeInactive = showsInactive(deferredSearch);
   const groups = useMemo(
@@ -201,21 +174,10 @@ export function StockOnHandResults({
     isStale,
   };
 
-  return (
-    <>
-      {page.device && (
-        <div className="flex flex-col gap-1">
-          <p className="text-muted-foreground text-sm">{t('stock-on-hand.offline-snapshot')}</p>
-          <DownloadedAt timestamp={page.device.fetchedAt} />
-        </div>
-      )}
-      {page.device && pendingEvents}
-      {cards ? (
-        <GroupedCards {...view} columns={columns} listRef={pageStart.ref} />
-      ) : (
-        <GroupedTable {...view} columns={columns} />
-      )}
-    </>
+  return cards ? (
+    <GroupedCards {...view} columns={columns} listRef={pageStart.ref} />
+  ) : (
+    <GroupedTable {...view} columns={columns} />
   );
 }
 

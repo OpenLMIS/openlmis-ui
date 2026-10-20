@@ -8,10 +8,7 @@ import type {
   TradeItem,
   ValidReasonAssignment,
 } from '@/features/reference-data/lib/types';
-import {
-  type HomeStockSummary,
-  readEventStockCards,
-} from '@/features/stock-events/api/stock-card-reader';
+import { readEventStockCards } from '@/features/stock-events/api/stock-card-reader';
 import { retryDownloadRead } from '@/features/stock-events/lib/download-read';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { isOnline } from '@/lib/online';
@@ -35,11 +32,9 @@ export type HomeStockBundle = HomeStockScope & {
   userId: string;
   generation: string;
   fetchedAt: number;
-  formatVersion: 3;
+  formatVersion: 4;
   stale?: boolean;
   cards: HomeStockCard[];
-  summaries: HomeStockSummary[];
-  products: Orderable[];
   reasons: ValidReasonAssignment[];
   tradeItems: TradeItem[];
   identities: { id: string; versionNumber: number }[];
@@ -58,7 +53,7 @@ export async function readHomeStockBundle(
   if (
     !bundle ||
     bundle.userId !== userId ||
-    bundle.formatVersion !== 3 ||
+    bundle.formatVersion !== 4 ||
     bundle.facilityId !== filter.facilityId ||
     bundle.programId !== filter.programId ||
     bundle.facilityTypeId !== filter.facilityTypeId
@@ -108,7 +103,7 @@ async function fetchBundle(
       throw new AxiosError('Download stopped.', AxiosError.ERR_CANCELED);
   };
   const read = <T>(task: () => Promise<T>) => retryDownloadRead(task, check);
-  const [{ cards, identities, summaries, products }, reasons] = await Promise.all([
+  const [{ cards, identities }, reasons] = await Promise.all([
     readEventStockCards(filter, config, read),
     read(() =>
       fetchValidReasons({ program: filter.programId, facilityType: filter.facilityTypeId }, config),
@@ -143,21 +138,8 @@ async function fetchBundle(
     userId,
     generation: crypto.randomUUID(),
     fetchedAt: Date.now(),
-    formatVersion: 3,
+    formatVersion: 4,
     cards: hydrated,
-    summaries: summaries.map((summary) => ({
-      orderable: { id: summary.orderable.id },
-      stockOnHand: summary.stockOnHand,
-      canFulfillForMe: summary.canFulfillForMe.map((card) => ({
-        stockCard: { id: card.stockCard.id },
-        orderable: { id: card.orderable.id },
-        lot: card.lot ? { id: card.lot.id } : null,
-        stockOnHand: card.stockOnHand,
-        active: card.active,
-        occurredDate: card.occurredDate,
-      })),
-    })),
-    products: products.map(snapshotProduct),
     identities,
     reasons: reasons.map(({ id, program, facilityType, hidden, reason }) => ({
       id,
