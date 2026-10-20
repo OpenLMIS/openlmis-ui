@@ -4,7 +4,6 @@ import {
   CircleCheckIcon,
   LoaderCircleIcon,
   type LucideIcon,
-  RefreshCwIcon,
   WifiIcon,
   WifiOffIcon,
   XIcon,
@@ -23,7 +22,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { useOfflineSession } from '@/hooks/use-offline-session';
 import {
   syncCountdown,
@@ -45,7 +43,7 @@ import {
   useBackOnline,
   useOnline,
 } from '@/lib/online';
-import { applyUpdate, dismissUpdate, useUpdateReady } from '@/lib/service-worker';
+import { useUpdateReady } from '@/lib/service-worker';
 import { useSessionScope } from '@/lib/session-scope';
 
 type Notice = {
@@ -82,7 +80,6 @@ function useNotices(): Notice[] {
   const online = useOnline();
   const offlineSession = useOfflineSession();
   const backOnline = useBackOnline();
-  const updateReady = useUpdateReady();
 
   const download = useDownloadStatus();
   const notices: Notice[] = [];
@@ -104,19 +101,6 @@ function useNotices(): Notice[] {
       Icon: WifiIcon,
       title: t('offline.back-online'),
       onClose: dismissBackOnline,
-    });
-  }
-  if (updateReady) {
-    notices.push({
-      id: 'app-update',
-      variant: 'info',
-      Icon: RefreshCwIcon,
-      title: t('update.title'),
-      action: {
-        label: t('update.reload'),
-        onClick: () => whenLeaveAllowed(() => void applyUpdate(allowUnload)),
-      },
-      onClose: dismissUpdate,
     });
   }
   if (download.phase === 'running' && download.trigger !== 'refresh')
@@ -357,6 +341,7 @@ export function SidebarNotices() {
 }
 
 export function StatusAnnouncer() {
+  const updateReady = useUpdateReady();
   const notices = useNotices();
   const queued = useQueuedAnnouncement();
   const { uncertain, refused } = useDeviceWork();
@@ -364,6 +349,7 @@ export function StatusAnnouncer() {
   const scope = useSessionScope();
   const { t } = useTranslation();
   const current: Record<string, string> = {};
+  if (updateReady) current['app-update'] = t('update.reload-to-update');
   for (const { id, title, description } of notices) {
     current[id] = description ? `${title.replace(/[.!?؟。]+$/u, '')}. ${description}` : title;
   }

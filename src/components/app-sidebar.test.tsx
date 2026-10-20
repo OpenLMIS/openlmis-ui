@@ -10,6 +10,7 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
 import * as mobile from '@/hooks/use-mobile';
 import { parsePermissions } from '@/lib/permissions';
+import * as serviceWorker from '@/lib/service-worker';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/lib/feature-flags', async (importOriginal) => {
@@ -98,7 +99,8 @@ describe('AppSidebar account links', () => {
     expect(screen.getByRole('link', { name: 'home.title' })).not.toHaveAttribute('data-active');
   });
 
-  it('keeps both destinations on the collapsed sidebar', async () => {
+  it('keeps account destinations and update controls on the collapsed sidebar', async () => {
+    vi.spyOn(serviceWorker, 'useUpdateReady').mockReturnValue(true);
     renderSidebar(['SYSTEM_SETTINGS_MANAGE'], { defaultOpen: false });
 
     expect(await screen.findByRole('link', { name: 'nav-user.account' })).toHaveAttribute(
@@ -109,6 +111,10 @@ describe('AppSidebar account links', () => {
       'href',
       '/settings',
     );
+    expect(screen.getByRole('button', { name: 'sidebar.theme' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'sidebar.change-language' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'update.reload-to-update' })).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 
   it('closes the mobile sidebar when Account is opened', async () => {

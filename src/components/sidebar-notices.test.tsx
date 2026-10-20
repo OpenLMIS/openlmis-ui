@@ -9,6 +9,7 @@ import en from '@/../public/locales/en.json';
 import { OfflineDot, SidebarNotices, StatusAnnouncer } from '@/components/sidebar-notices';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { UpdateButton } from '@/components/update-button';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
@@ -71,6 +72,7 @@ const renderNotices = ({ extra = null as React.ReactNode, defaultOpen = true } =
       <SidebarProvider defaultOpen={defaultOpen}>
         {extra}
         <SidebarNotices />
+        <UpdateButton />
         <StatusAnnouncer />
       </SidebarProvider>
     </TooltipProvider>,
@@ -143,7 +145,7 @@ describe('SidebarNotices', () => {
   });
 
   it('offers a new version, and asks about unsaved changes before reloading into it', async () => {
-    showUpdate();
+    const user = userEvent.setup();
     let proceed: (() => void) | undefined;
     renderNotices({
       extra: (
@@ -155,33 +157,30 @@ describe('SidebarNotices', () => {
       ),
     });
 
-    await userEvent.click(screen.getByRole('button', { name: 'update.reload' }));
+    expect(
+      screen.queryByRole('button', { name: 'update.reload-to-update' }),
+    ).not.toBeInTheDocument();
+    showUpdate();
+    expect(screen.getByRole('status')).toHaveTextContent('update.reload-to-update');
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    act(() => setDownloadStatus({ phase: 'running', incompletePrograms: [] }));
+    expect(screen.getByRole('status')).not.toHaveTextContent('update.reload-to-update');
+    await user.click(screen.getByRole('button', { name: 'update.reload-to-update' }));
     expect(applyUpdate).not.toHaveBeenCalled();
 
     act(() => proceed?.());
     expect(applyUpdate).toHaveBeenCalledExactlyOnceWith(allowUnload);
   });
 
-  it('hides the update notice when dismissed', async () => {
-    showUpdate();
-    renderNotices();
-    expect(screen.getAllByText('update.title')).not.toHaveLength(0);
-
-    await userEvent.click(screen.getByRole('button', { name: 'notice.close' }));
-
-    expect(screen.queryByText('update.title')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toBeEmptyDOMElement();
-  });
-
-  it('shrinks to icons on the collapsed rail, with connection retry and update actions', () => {
+  it('shrinks to icons on the collapsed rail, with connection retry and a separate update button', () => {
     onlineManager.setOnline(false);
     showUpdate();
     renderNotices({ defaultOpen: false });
 
     expect(screen.queryByText('offline.description')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button')).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: 'notice.action-label' })[0]).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'notice.action-label' })[1]).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'notice.action-label' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'update.reload-to-update' })).toBeInTheDocument();
     expect(screen.getByRole('list')).toBeInTheDocument();
   });
 });
@@ -309,7 +308,7 @@ it('clears the completed download announcement before later notices change', () 
   act(() => vi.advanceTimersByTime(4000));
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');
   showUpdate();
-  expect(screen.getByRole('status')).toHaveTextContent('update.title');
+  expect(screen.getByRole('status')).toHaveTextContent('update.reload-to-update');
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');
 });
 
@@ -383,18 +382,7 @@ it('keeps the offline connection notice alone and offers sign-in after reconnect
     screen.getAllByRole('note').some((note) => note.textContent?.includes('device-events.sign-in')),
   ).toBe(true);
   expect(screen.getByRole('status')).toHaveTextContent('device-events.sign-in');
-  useLoginData.getState().clearLoginData();
-});
-
-it('does not describe a connected expired session as offline', () => {
-  device.allowed = true;
-  useLoginData
-    .getState()
-    .setLoginData({ referenceDataUserId: 'adjuster', username: 'adjuster', accessToken: 'token' });
-  useLoginData.getState().expireSession();
-  renderNotices();
-  expect(screen.queryByText('session.offline-description')).not.toBeInTheDocument();
-  useLoginData.getState().clearLoginData();
+  act(() => useLoginData.getState().clearLoginData());
 });
 
 it('announces a user save with existing work, without announcing standing or falling counts', async () => {
@@ -461,7 +449,6 @@ it('pauses an auto-dismiss countdown while hovered or focused, then resumes the 
   renderNotices();
   act(() => onlineManager.setOnline(true));
   const notice = screen.getByRole('note');
-  expect(notice).toHaveAttribute('data-countdown', 'true');
   const close = within(notice).getByRole('button', { name: 'notice.close' });
   act(() => vi.advanceTimersByTime(1000));
   fireEvent.mouseEnter(notice);

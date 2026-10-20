@@ -4,6 +4,7 @@ import { LogOutIcon, WifiOffIcon } from 'lucide-react';
 import { type ReactElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDeviceWork } from '@/components/device-work';
+import { LocalizedCount } from '@/components/localized-count';
 import { useAccountLinks, useNavGroups } from '@/components/nav-access';
 import { useOfflineNavigation } from '@/components/offline-navigation';
 import { useOfflineSignOut } from '@/components/offline-sign-out';
@@ -94,7 +95,7 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
                 {link.to === '/offline-events' && pending > 0 && (
                   <span className="ms-auto">
                     <Badge variant="secondary" aria-hidden>
-                      {pending.toLocaleString()}
+                      <LocalizedCount count={pending} />
                     </Badge>
                   </span>
                 )}

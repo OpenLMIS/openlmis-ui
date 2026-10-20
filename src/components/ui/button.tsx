@@ -60,6 +60,10 @@ const buttonVariants = cva(
         full: "w-full",
         shrink: "min-w-0 shrink",
       },
+      indicator: {
+        none: "",
+        info: "relative after:pointer-events-none after:absolute after:top-1 after:end-1 after:size-1.5 after:rounded-full after:bg-info",
+      },
       // Ghost hover uses `muted`, which is invisible on the sidebar surface.
       tone: {
         default: "",
@@ -74,6 +78,7 @@ const buttonVariants = cva(
       align: "default",
       width: "default",
       tone: "default",
+      indicator: "none",
     },
   }
 )
@@ -87,12 +92,13 @@ function Button({
   align = "default",
   width = "default",
   tone = "default",
+  indicator = "none",
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, padding, align, width, tone, wrap, className }))}
+      className={cn(buttonVariants({ variant, size, padding, align, width, tone, indicator, wrap, className }))}
       {...props}
     />
   )

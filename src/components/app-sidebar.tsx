@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { CustomTrigger } from '@/components/custom-trigger';
 import { useDeviceWork } from '@/components/device-work';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { LocalizedCount } from '@/components/localized-count';
 import { Logo } from '@/components/logo';
 import { useAccountLinks, useNavGroups } from '@/components/nav-access';
 import { useOfflineNavigation } from '@/components/offline-navigation';
@@ -38,6 +39,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { UpdateButton } from '@/components/update-button';
 import { useAppName, useShowAppName } from '@/lib/app-configuration';
 import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
@@ -128,9 +130,12 @@ export function AppSidebar() {
         <div className="max-h-64 scroll-py-2 overflow-y-auto overscroll-contain pb-2">
           <SidebarNotices />
         </div>
-        <div className="flex items-center group-data-[collapsible=icon]:hidden">
+        <div className="flex items-center group-data-[collapsible=icon]:flex-col">
           <ThemeSwitcher tone="sidebar" />
           <LanguageSwitcher tone="sidebar" />
+          <div className="ms-auto group-data-[collapsible=icon]:ms-0">
+            <UpdateButton />
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
@@ -223,7 +228,7 @@ function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
       {offline.dialog}
       {count > 0 && (
         <SidebarMenuBadge collapsed="indicator" aria-hidden>
-          {count.toLocaleString()}
+          <LocalizedCount count={count} />
         </SidebarMenuBadge>
       )}
     </SidebarMenuItem>

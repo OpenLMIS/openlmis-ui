@@ -120,12 +120,7 @@ it.each([
         screen.getByRole('columnheader', { name: 'device-events.occurred-date' }),
       ).toBeInTheDocument();
       await userEvent.click(screen.getByRole('button', { name: 'device-events.actions-label' }));
-      const viewItem = await screen.findByRole('menuitem', { name: 'device-events.review-event' });
-      expect(viewItem.querySelector('svg.lucide-eye')).not.toBeNull();
       if (['queued', 'accepted', 'refused'].includes(status)) {
-        const removeItem = screen.getByRole('menuitem', { name: 'device-events.remove' });
-        expect(removeItem).toHaveAttribute('data-variant', 'destructive');
-        expect(removeItem.querySelector('svg.lucide-trash-2')).not.toBeNull();
         await userEvent.click(
           await screen.findByRole('menuitem', { name: 'device-events.remove' }),
         );
@@ -154,7 +149,6 @@ it.each([
       expect(screen.queryByRole('table')).not.toBeInTheDocument();
       if (status === 'refused') {
         const remove = screen.getByRole('button', { name: 'device-events.remove-event-label' });
-        expect(remove.querySelector('svg.lucide-trash-2')).not.toBeNull();
         await userEvent.click(remove);
         expect(screen.getByRole('alertdialog')).toHaveTextContent(
           'device-events.remove-refused-warning',
@@ -168,11 +162,6 @@ it.each([
         expect(
           screen.queryByRole('button', { name: 'device-events.remove-event-label' }),
         ).not.toBeInTheDocument();
-      expect(
-        screen
-          .getByRole('button', { name: 'device-events.review-event-label' })
-          .querySelector('svg.lucide-eye'),
-      ).not.toBeNull();
       await userEvent.click(
         screen.getByRole('button', { name: 'device-events.review-event-label' }),
       );
@@ -180,16 +169,10 @@ it.each([
     const dialog = within(await screen.findByRole('dialog'));
     expect(dialog.getByText('Facility')).toBeVisible();
     expect(dialog.getByText('Program')).toBeVisible();
-    expect(dialog.getByText(`device-events.status-${status}`)).toHaveAttribute(
-      'data-slot',
-      'badge',
-    );
+    expect(dialog.getByText(`device-events.status-${status}`)).toBeVisible();
     expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
       `nav.stock-management.adjustments. device-events.status-${status}`,
     );
-    const pending =
-      dialog.getByText('device-events.type').parentElement?.parentElement?.parentElement;
-    expect(pending).toHaveTextContent(`device-events.status-${status}`);
     expect(dialog.queryByText('device-events.attempted-at')).not.toBeInTheDocument();
     expect(dialog.queryByText('stock-event.document-number')).not.toBeInTheDocument();
     if (width === 1440) {

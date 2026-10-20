@@ -1001,7 +1001,10 @@ offline criteria stay open until those criteria are met.
   loaders before reset only while online. Pass `reportCaughtError` (`src/lib/report-error.ts`)
   to `createRoot` to suppress offline errors and log other caught errors with component stacks.
 - `SidebarNotices` above footer buttons shows You're Offline (warning, persistent), You're Back
-  Online (success, four seconds) and Update Available (info, Reload). `OfflineDot` marks the
+  Online (success, four seconds). Update Available is a ghost icon button beside the footer
+  theme/language pickers, with an info dot and a shared tooltip/accessible reload label.
+  The footer controls stack on the collapsed rail. Its action uses the leave guard before
+  applying the update; `StatusAnnouncer` announces readiness once. `OfflineDot` marks the
   header menu while the sidebar is closed. Download and sync progress switch in place to
   success checks for four seconds: Offline Data Ready and Offline Events Synced. All timed
   notices share createNoticeCountdown with dismissal, and show a decorative tone-coloured
@@ -1020,7 +1023,7 @@ offline criteria stay open until those criteria are met.
 - While offline, You're Offline is the only connection notice. Suppress Sign In To Sync and
   connection-related Sync Paused notices and download failures with reason `offline`, including
   in StatusAnnouncer. Reconnecting may show a retained download failure again. Show sign-in again
-  when connected if needed. Keep distinct capability, held-work, receipt-write and update notes.
+  when connected if needed. Keep distinct capability, held-work, receipt-write notices and update availability.
 - Visual notices are notes. The shell `StatusAnnouncer` is the single persistent live region;
   device saves and sync outcomes announce through it. Keep notice ids stable and cap/scroll
   the sidebar footer. Collapsed actions have translated action-first accessible names.
