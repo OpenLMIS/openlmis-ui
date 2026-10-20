@@ -586,6 +586,7 @@
   "offline-events.removed": "Unsent Offline Event Removed",
   "offline-events.retained-description": "Review pending events, refusals and sync receipts saved on this device.",
   "offline-events.retry": "Retry Sync",
+  "offline-events.retry-refused": "Retry",
   "offline-events.review": "Review Offline Events",
   "offline-events.review-event": "View Details",
   "offline-events.review-event-label": "View Details For {type}, Queued {date}, {status}",

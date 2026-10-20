@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
+import { DeviceEventActions } from '@/features/stock-events/components/device-event-actions';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
 import { OfflineEventsPage } from '@/features/stock-events/components/offline-events';
 import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
@@ -369,3 +370,79 @@ it('explains why a refusal already copied for correction cannot be copied again'
   await userEvent.click(copy);
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 });
+
+it('Retry requeues a refusal without confirmation, retains one visible event and announces it', async () => {
+  const { uncertain: refused, onClose } = await open(true, 'refused');
+  const events = renderHook(() => useOfflineEvents()).result;
+  await waitFor(() => expect(events.current.events).toHaveLength(1));
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.retry-refused' }));
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  expect((await getLocalDb().table('stockEventQueue').get(refused.sequence)).postBody).toBe(
+    refused.postBody,
+  );
+  await waitFor(() =>
+    expect(events.current.events?.map((event) => event.status)).toEqual(['queued']),
+  );
+  expect(announceDeviceSave).toHaveBeenCalledWith('offline-events.status-queued');
+  expect(client.post).not.toHaveBeenCalled();
+  await syncStockEvents(getLocalDb(), refused.userId, {
+    check: () => {},
+    canSend: () => true,
+    permitted: () => true,
+    send: async () => ({ status: 201, data: '11111111-1111-4111-8111-111111111111' }),
+    retryReceipt: async () => {},
+    accepted: () => {},
+  });
+  await waitFor(() =>
+    expect(events.current.events?.map((event) => event.status)).toEqual(['accepted']),
+  );
+});
+it.each(['uncertain', 'accepted', 'queued'] as const)(
+  'does not offer Retry for %s events',
+  async (status) => {
+    await open(true, status);
+    expect(
+      screen.queryByRole('button', { name: 'offline-events.retry-refused' }),
+    ).not.toBeInTheDocument();
+  },
+);
+it('keeps refused Retry disabled without sending rights and retains correction/removal', async () => {
+  await open(false, 'refused');
+  const retry = screen.getByRole('button', { name: 'offline-events.retry-refused' });
+  expect(retry).toHaveAttribute('aria-disabled', 'true');
+  expect(retry).toHaveAccessibleDescription('offline-events.no-send');
+  await userEvent.click(retry);
+  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+  expect(screen.getByRole('button', { name: 'offline-events.copy' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'offline-events.remove' })).toBeEnabled();
+});
+
+it.each(['menu', 'cards'] as const)(
+  'offers explicit Retry first in refused %s actions',
+  async (layout) => {
+    const { uncertain: event } = await open(true, 'refused', 'adjustment', false);
+    renderPage(
+      <DeviceEventActions
+        event={event}
+        canSend
+        label="View event"
+        removeLabel="Remove event"
+        onOpen={vi.fn()}
+        onRemoved={vi.fn()}
+        layout={layout}
+      />,
+    );
+    if (layout === 'menu')
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'offline-events.actions-label' }),
+      );
+    const retry = await screen.findByRole(layout === 'menu' ? 'menuitem' : 'button', {
+      name: 'offline-events.retry-refused',
+    });
+    if (layout === 'menu') expect(screen.getAllByRole('menuitem')[0]).toBe(retry);
+    await userEvent.click(retry);
+    await waitFor(async () => expect(await getLocalDb().table('stockEventQueue').count()).toBe(1));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  },
+);

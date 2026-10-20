@@ -90,9 +90,13 @@ are inside Filters.
 - Queued means waiting to send. You may remove an event that has never been attempted, after
   confirmation. Removing it does not change server stock.
 - Sending means an upload is in progress. Keep the app open and wait for its result.
-- Refused means the server rejected the whole event. Review the full reason. Copy For
-  Correction makes an editable copy and keeps the original refusal. A stock-changed refusal
-  can include backdated movements that would make a later balance negative.
+- Refused means the server rejected the whole event. Review the full reason. Choose Retry in
+  the row menu, phone card or details to send the same event again, without changing it or
+  confirming again. It waits in Queued until connected with a valid session and permission.
+  Success shows Synced; another refusal shows the new reason. Refused events only retry when
+  you choose Retry. Copy For Correction instead makes an editable copy and keeps the original
+  refusal; that original can no longer be retried. A stock-changed refusal can include backdated
+  movements that would make a later balance negative.
 - Needs Review means the app did not receive a reliable result. The server may have recorded it.
   Later events for that facility and program wait; other programs can continue.
 - Synced means a server acceptance was recorded. Marked As Recorded By You identifies a

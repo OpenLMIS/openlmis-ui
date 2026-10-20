@@ -22,6 +22,7 @@ import {
   recoverSending,
   removeQueuedEvent,
   resolveUncertain,
+  retryRefusedEvent,
   syncStockEvents,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { getLocalDb } from '@/integrations/local-db';
@@ -580,4 +581,136 @@ it('hides accepted work without its payload, retains the receipt and removes its
     }),
   ).rejects.toThrow();
   expect(await db.table('stockEventQueue').count()).toBe(0);
+});
+
+async function refuse() {
+  const event = await enqueue();
+  await syncStockEvents(
+    getLocalDb(),
+    event.userId,
+    dependencies(vi.fn(async () => response(400, { messageKey: 'bad', message: 'First refusal' }))),
+  );
+  return getLocalDb().table('stockEventSyncErrors').get(event.localEventId);
+}
+it.each(['accepted', 'refused'] as const)(
+  'explicit refused Retry sends the frozen body once and finishes %s',
+  async (outcome) => {
+    const error = await refuse();
+    const event = error.event;
+    const context = createStockEventContext(event);
+    expect(await retryRefusedEvent(context, error)).toBe(true);
+    expect(await retryRefusedEvent(context, error)).toBe(false);
+    const queued = await getLocalDb().table('stockEventQueue').get(event.sequence);
+    expect(queued).toMatchObject({
+      status: 'queued',
+      postBody: event.postBody,
+      payload: event.payload,
+      localEventId: event.localEventId,
+      revision: event.revision,
+      attemptId: event.attemptId,
+    });
+    expect((await getLocalDb().table('stockEventDrafts').get(event.draftId)).history).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ choice: 'retry', attemptId: event.attemptId }),
+      ]),
+    );
+    const deps = dependencies(
+      vi.fn(async () =>
+        outcome === 'accepted'
+          ? response(201, id)
+          : response(400, { messageKey: 'changed', message: 'Second refusal' }),
+      ),
+    );
+    await syncStockEvents(getLocalDb(), event.userId, deps);
+    await syncStockEvents(getLocalDb(), event.userId, deps);
+    expect(deps.send).toHaveBeenCalledOnce();
+    expect(deps.send.mock.calls[0][0]).toMatchObject({
+      postBody: event.postBody,
+      payload: event.payload,
+    });
+    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+    expect((await getLocalDb().table('stockEventDrafts').get(event.draftId)).state).toBe(outcome);
+    if (outcome === 'accepted') {
+      expect(
+        await getLocalDb().table('stockEventReceipts').get([event.draftId, event.revision]),
+      ).toMatchObject({
+        source: 'server',
+        serverEventId: id,
+      });
+    } else {
+      const next = await getLocalDb().table('stockEventSyncErrors').get(event.localEventId);
+      expect(next).toMatchObject({ message: 'Second refusal', messageKey: 'changed' });
+      expect(next.resolvedAt).toBeUndefined();
+      expect(next.dismissedAt).toBeUndefined();
+      expect(next.history).toEqual([
+        expect.objectContaining({ message: 'First refusal', attemptId: event.attemptId }),
+      ]);
+      expect(next.event.attemptId).not.toBe(event.attemptId);
+      expect(await retryRefusedEvent(context, error)).toBe(false);
+    }
+  },
+);
+it('refused Retry rejects stale, foreign, dismissed and uncertain decisions', async () => {
+  const error = await refuse();
+  const context = createStockEventContext(error.event);
+  for (const changed of [
+    { event: { ...error.event, attemptId: 'stale' } },
+    { event: { ...error.event, revision: 999 } },
+    { event: { ...error.event, localEventId: 'other' } },
+    { category: 'uncertain' },
+  ])
+    expect(await retryRefusedEvent(context, { ...error, ...changed })).toBe(false);
+  await expect(retryRefusedEvent({ ...context, userId: 'other' }, error)).rejects.toThrow();
+  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+  await dismissRefusedEvent(context, error);
+  expect(await retryRefusedEvent(context, error)).toBe(false);
+});
+it('refused Retry rolls back when the session changes during its transaction', async () => {
+  const error = await refuse();
+  const context = createStockEventContext(error.event);
+  const { getSessionScope } = await import('@/lib/session-scope');
+  const table = context.db.table('stockEventSyncErrors');
+  const get = table.get.bind(table);
+  vi.spyOn(table, 'get').mockImplementationOnce(() =>
+    get(error.localEventId).then((value) => {
+      useLoginData.getState().clearLoginData();
+      useLoginData.getState().setLoginData(owner);
+      expect(getSessionScope()).not.toBe(context.sessionScope);
+      return value;
+    }),
+  );
+  await expect(retryRefusedEvent(context, error)).rejects.toThrow();
+  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+  expect((await getLocalDb().table('stockEventDrafts').get(error.event.draftId)).state).toBe(
+    'refused',
+  );
+});
+it('retried refusals obey access, session and facility/program barriers in the existing uploader', async () => {
+  const error = await refuse();
+  const blocked = await enqueue();
+  const other = await enqueue('two');
+  await getLocalDb()
+    .table('stockEventQueue')
+    .update(blocked.sequence, { status: 'sending', attemptId: 'unknown' });
+  await recoverSending(getLocalDb(), blocked.userId, () => {});
+  await retryRefusedEvent(createStockEventContext(error.event), error);
+  const deps = dependencies();
+  await syncStockEvents(getLocalDb(), error.event.userId, deps);
+  expect(deps.send.mock.calls.map(([sent]) => sent.localEventId)).toEqual([other.localEventId]);
+  await resolveUncertain(
+    createStockEventContext(blocked),
+    await getLocalDb().table('stockEventQueue').get(blocked.sequence),
+    'recorded',
+  );
+  const paused = { ...dependencies(), permitted: () => false };
+  await syncStockEvents(getLocalDb(), error.event.userId, paused);
+  expect(paused.send).not.toHaveBeenCalled();
+  expect((await getLocalDb().table('stockEventQueue').get(error.event.sequence)).pauseReason).toBe(
+    'access-changed',
+  );
+  const session = { ...dependencies(), canSend: () => false };
+  await syncStockEvents(getLocalDb(), error.event.userId, session);
+  expect(session.send).not.toHaveBeenCalled();
+  await syncStockEvents(getLocalDb(), error.event.userId, deps);
+  expect(deps.send).toHaveBeenCalledTimes(2);
 });

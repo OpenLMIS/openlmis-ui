@@ -21,7 +21,7 @@ export type StockEventDraft = StockEventSelection & {
   history?: {
     attemptId?: string;
     attemptStartedAt?: number;
-    choice?: 'recorded' | 'resend';
+    choice?: 'recorded' | 'resend' | 'retry';
     userId: string;
     at: number;
     outcome: string;

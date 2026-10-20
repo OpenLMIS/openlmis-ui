@@ -141,7 +141,7 @@ function history(
   draft: StockEventDraft,
   event: QueuedStockEvent,
   outcome: string,
-  choice?: 'recorded' | 'resend',
+  choice?: 'recorded' | 'resend' | 'retry',
 ) {
   return [
     ...(draft.history ?? []),
@@ -520,6 +520,75 @@ export async function removeQueuedEvent(context: StockEventContext, event: Queue
       await context.db.table('stockEventDrafts').delete(row.draftId);
       check();
     }
+    return true;
+  });
+}
+export async function retryRefusedEvent(context: StockEventContext, error: StockEventSyncError) {
+  const check = ownerCheck(context, error.event.userId);
+  check();
+  if (error.category === 'uncertain') return false;
+  return context.db.transaction('rw', tables(context.db), async () => {
+    check();
+    const stored = await context.db
+      .table<StockEventSyncError>('stockEventSyncErrors')
+      .get(error.localEventId);
+    check();
+    if (
+      !stored ||
+      stored.category === 'uncertain' ||
+      stored.resolvedAt ||
+      stored.dismissedAt ||
+      stored.localEventId !== error.event.localEventId ||
+      stored.event.localEventId !== error.event.localEventId ||
+      stored.event.userId !== context.userId ||
+      stored.event.kind !== context.kind ||
+      stored.event.facilityId !== context.facilityId ||
+      stored.event.programId !== context.programId ||
+      stored.event.draftId !== error.event.draftId ||
+      stored.event.revision !== error.event.revision ||
+      stored.event.attemptId !== error.event.attemptId
+    )
+      return false;
+    const event = stored.event;
+    const draft = await context.db.table<StockEventDraft>('stockEventDrafts').get(event.draftId);
+    check();
+    if (
+      draft?.state !== 'refused' ||
+      draft.userId !== context.userId ||
+      draft.kind !== event.kind ||
+      draft.localEventId !== event.localEventId ||
+      draft.revision !== event.revision ||
+      draft.facilityId !== event.facilityId ||
+      draft.programId !== event.programId
+    )
+      return false;
+    const existing = await context.db
+      .table<QueuedStockEvent>('stockEventQueue')
+      .where('localEventId')
+      .equals(event.localEventId)
+      .first();
+    check();
+    if (existing) return false;
+    await context.db.table('stockEventQueue').add({
+      ...event,
+      status: 'queued',
+      pauseReason: undefined,
+      lastFailure: undefined,
+    });
+    check();
+    const now = Date.now();
+    await context.db.table('stockEventDrafts').put({
+      ...draft,
+      state: 'queued',
+      updatedAt: now,
+      history: history(draft, event, stored.category, 'retry'),
+    });
+    check();
+    await context.db.table('stockEventSyncErrors').update(error.localEventId, {
+      resolvedAt: now,
+      dismissedAt: now,
+    });
+    check();
     return true;
   });
 }

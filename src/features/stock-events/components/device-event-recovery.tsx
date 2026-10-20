@@ -32,6 +32,7 @@ import {
   DeviceEventRemoval,
 } from '@/features/stock-events/components/device-event-removal';
 import { EventStatus } from '@/features/stock-events/components/event-status';
+import { useRefusedEventRetry } from '@/features/stock-events/hooks/use-refused-event-retry';
 import { announceDeviceSave } from '@/features/stock-events/lib/device-save-announcement';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
@@ -108,6 +109,8 @@ export function DeviceEventRecovery({
     },
     retry: false,
   });
+  const retry = useRefusedEventRetry(event, canSend, onClose);
+  const pending = operation.isPending || retry.pending;
   const act = async (choice: 'recorded' | 'resend' | 'copy') => {
     try {
       const changed = await operation.mutateAsync(choice);
@@ -149,7 +152,7 @@ export function DeviceEventRecovery({
       <Dialog
         open
         onOpenChange={(open) => {
-          if (!open && !operation.isPending) onClose();
+          if (!open && !pending) onClose();
         }}
       >
         <DialogContent
@@ -283,7 +286,7 @@ export function DeviceEventRecovery({
               {t('offline.connection-required')}
             </p>
           )}
-          {!canSend && event.status === 'uncertain' && (
+          {!canSend && (event.status === 'uncertain' || retry.available) && (
             <p id={sendReasonId} className="text-sm text-muted-foreground">
               {t('offline-events.no-send')}
             </p>
@@ -330,10 +333,23 @@ export function DeviceEventRecovery({
                 {t('offline-events.history')}
               </Button>
             )}
+            {retry.available && (
+              <Button
+                variant="outline"
+                disabled={pending || !canSend}
+                focusableWhenDisabled
+                aria-describedby={!canSend ? sendReasonId : undefined}
+                onClick={() => {
+                  void retry.retry();
+                }}
+              >
+                {t('offline-events.retry-refused')}
+              </Button>
+            )}
             {event.status === 'uncertain' && (
               <>
                 <Button
-                  disabled={operation.isPending}
+                  disabled={pending}
                   variant="outline"
                   onClick={() => setConfirmation('recorded')}
                 >
@@ -341,7 +357,7 @@ export function DeviceEventRecovery({
                 </Button>
                 <Button
                   variant="outline"
-                  disabled={operation.isPending || !canSend}
+                  disabled={pending || !canSend}
                   focusableWhenDisabled
                   aria-describedby={!canSend ? sendReasonId : undefined}
                   onClick={() => setConfirmation('resend')}
@@ -353,7 +369,7 @@ export function DeviceEventRecovery({
             {event.status === 'refused' && (
               <Button
                 variant="outline"
-                disabled={operation.isPending || !!event.error?.resolvedAt}
+                disabled={pending || !!event.error?.resolvedAt}
                 focusableWhenDisabled
                 aria-describedby={event.error?.resolvedAt ? copyReasonId : undefined}
                 onClick={() => setConfirmation('copy')}
@@ -362,16 +378,12 @@ export function DeviceEventRecovery({
               </Button>
             )}
             {canRemoveDeviceEvent(event) && (
-              <Button
-                variant="destructive"
-                disabled={operation.isPending}
-                onClick={() => setRemoving(true)}
-              >
+              <Button variant="destructive" disabled={pending} onClick={() => setRemoving(true)}>
                 <Trash2Icon data-icon="inline-start" />
                 {t('offline-events.remove')}
               </Button>
             )}
-            <Button ref={closeRef} disabled={operation.isPending} onClick={onClose}>
+            <Button ref={closeRef} disabled={pending} onClick={onClose}>
               {t('offline-events.close')}
             </Button>
           </DialogFooter>
@@ -386,7 +398,7 @@ export function DeviceEventRecovery({
             }}
           />
         )}
-        <AlertDialog {...confirmationTarget.dialogProps(operation.isPending)}>
+        <AlertDialog {...confirmationTarget.dialogProps(pending)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
@@ -397,11 +409,9 @@ export function DeviceEventRecovery({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={operation.isPending}>
-                {t('offline-events.cancel')}
-              </AlertDialogCancel>
+              <AlertDialogCancel disabled={pending}>{t('offline-events.cancel')}</AlertDialogCancel>
               <Button
-                disabled={operation.isPending}
+                disabled={pending}
                 variant={confirmationShown === 'resend' ? 'destructive' : 'default'}
                 onClick={() => {
                   if (confirmation) void act(confirmation);

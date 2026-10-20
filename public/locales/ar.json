@@ -586,6 +586,7 @@
   "offline-events.removed": "تمت إزالة الحدث غير المرسل دون اتصال",
   "offline-events.retained-description": "راجع الأحداث المعلقة والرفض وإيصالات المزامنة المحفوظة على هذا الجهاز.",
   "offline-events.retry": "إعادة محاولة المزامنة",
+  "offline-events.retry-refused": "إعادة المحاولة",
   "offline-events.review": "مراجعة الأحداث دون اتصال",
   "offline-events.review-event": "عرض التفاصيل",
   "offline-events.review-event-label": "عرض تفاصيل {type}، في قائمة الانتظار منذ {date}، {status}",

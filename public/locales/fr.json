@@ -586,6 +586,7 @@
   "offline-events.removed": "Événement Hors Ligne Non Envoyé Supprimé",
   "offline-events.retained-description": "Vérifiez les événements en attente, les refus et les reçus de synchronisation enregistrés sur cet appareil.",
   "offline-events.retry": "Réessayer La Synchronisation",
+  "offline-events.retry-refused": "Réessayer",
   "offline-events.review": "Consulter Les Événements Hors Ligne",
   "offline-events.review-event": "Voir Les Détails",
   "offline-events.review-event-label": "Voir Les Détails De {type}, En Attente Depuis {date}, {status}",

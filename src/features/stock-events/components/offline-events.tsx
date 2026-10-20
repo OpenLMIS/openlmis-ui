@@ -322,6 +322,20 @@ function OfflineEventsTable({
       }),
     [t, i18n.language, timeZone],
   );
+  const currentPermissions =
+    (local.permissionsFetchedAt ?? 0) > permissionsUpdatedAt
+      ? (local.permissions ?? permissions)
+      : permissions;
+  const canSend = useCallback(
+    (event: DeviceEvent) =>
+      hasProgramGrant(
+        currentPermissions,
+        EVENT_KINDS[event.kind].right,
+        event.facilityId,
+        event.programId,
+      ),
+    [currentPermissions],
+  );
   const columns = useMemo<ColumnDef<DataTableFeatures, DeviceEvent>[]>(
     () => [
       {
@@ -360,6 +374,7 @@ function OfflineEventsTable({
         header: '',
         cell: ({ row }) => (
           <DeviceEventActions
+            canSend={canSend(row.original)}
             event={row.original}
             label={reviewLabel(row.original)}
             removeLabel={reviewLabel(row.original, 'offline-events.remove-event-label')}
@@ -370,7 +385,7 @@ function OfflineEventsTable({
         meta: { className: 'w-12', skeleton: 'control' },
       },
     ],
-    [t, reviewLabel, onOpenEvent],
+    [t, reviewLabel, onOpenEvent, canSend],
   );
   const sorted = useMemo(
     () =>
@@ -511,21 +526,12 @@ function OfflineEventsTable({
           refreshOfflineDownload={refreshOfflineDownload}
           event={selected}
           canView={hasProgramGrant(
-            (local.permissionsFetchedAt ?? 0) > permissionsUpdatedAt
-              ? (local.permissions ?? permissions)
-              : permissions,
+            currentPermissions,
             'STOCK_CARDS_VIEW',
             selected.facilityId,
             selected.programId,
           )}
-          canSend={hasProgramGrant(
-            (local.permissionsFetchedAt ?? 0) > permissionsUpdatedAt
-              ? (local.permissions ?? permissions)
-              : permissions,
-            EVENT_KINDS[selected.kind].right,
-            selected.facilityId,
-            selected.programId,
-          )}
+          canSend={canSend(selected)}
           timeZone={timeZone}
           onClose={onCloseEvent}
           onRemoved={() => setRemovedId(selected.localEventId)}
@@ -545,6 +551,7 @@ function OfflineEventsTable({
                   <span>{t(EVENT_KINDS[event.kind].copy.label)}</span>
                   <DeviceEventActions
                     layout="cards"
+                    canSend={canSend(event)}
                     event={event}
                     label={reviewLabel(event)}
                     removeLabel={reviewLabel(event, 'offline-events.remove-event-label')}

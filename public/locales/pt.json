@@ -586,6 +586,7 @@
   "offline-events.removed": "Evento Offline Não Enviado Removido",
   "offline-events.retained-description": "Reveja os eventos pendentes, as recusas e os comprovativos de sincronização guardados neste dispositivo.",
   "offline-events.retry": "Tentar Sincronizar Novamente",
+  "offline-events.retry-refused": "Tentar novamente",
   "offline-events.review": "Rever Eventos Offline",
   "offline-events.review-event": "Ver Detalhes",
   "offline-events.review-event-label": "Ver Detalhes De {type}, Na Fila Desde {date}, {status}",

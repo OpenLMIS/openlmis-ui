@@ -1015,6 +1015,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   Proven not-sent failures restore the owner's queue. Recognized service 401 pauses for renewal.
 - Verified acceptance atomically saves a receipt and removes the queue row. Receipt-write errors
   retry local persistence under the lock, never the POST. Unknown outcomes never auto-resend.
+- Refused Retry explicitly requeues the same frozen body without confirmation; retain attempts and
+  require uploader checks. Keep Copy For Correction secondary; uncertain work never gets Retry.
 - Recovery checks owner/revision/status/attempt transactionally. It Was Recorded writes a user
   receipt; Send Again needs a duplicate warning and scoped grant. Preserve payload/history.
 - Only never-attempted queued work is removable as unsent. Keep changed linked drafts. Refusal
