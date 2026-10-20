@@ -112,3 +112,8 @@ describe('canOpen', () => {
     expect(canOpen('/administration/lots', new Set(['ORDERABLES_MANAGE']))).toBe(false);
   });
 });
+
+it('offers Offline Events offline before access or events have been downloaded', () => {
+  expect(canOpen('/offline-events', undefined, false, true)).toBe(true);
+  expect(canOpen('/stock-management/adjustments', undefined, false, true)).toBe(false);
+});

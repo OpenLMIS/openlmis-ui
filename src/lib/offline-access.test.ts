@@ -339,3 +339,17 @@ it('reads downloaded access without a session wait when offline and expired', as
   expect(hasProgramGrant(permissions, 'STOCK_ADJUST', 'home', 'p1')).toBe(true);
   expect(fetchPermissionStrings).not.toHaveBeenCalled();
 });
+
+it('starts independent access reads together and reads home as soon as the user arrives', async () => {
+  const pending = Promise.withResolvers<string[]>();
+  const access = readers();
+  vi.mocked(access.permissions).mockReturnValue(pending.promise);
+  const result = saveAccess(access);
+  try {
+    await waitFor(() => expect(access.home).toHaveBeenCalledWith('home'));
+    expect(access.programs).toHaveBeenCalledWith('ada');
+  } finally {
+    pending.resolve([]);
+    await result;
+  }
+});

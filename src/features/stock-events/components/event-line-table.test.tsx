@@ -43,12 +43,14 @@ function LinesFixture({
   kind,
   cards = false,
   count = 10,
+  stockProblem,
   onRemove = noop,
   onSearchChange = noop,
 }: {
   kind: ConfiguredEventKind;
   cards?: boolean;
   count?: number;
+  stockProblem?: 'missing';
   onRemove?: (key: string) => void;
   onSearchChange?: SearchChange<EventSearch>;
 }) {
@@ -63,8 +65,8 @@ function LinesFixture({
   useEffect(() => {
     form.setFieldValue(
       'lines',
-      Array.from({ length: count }, (_, index) =>
-        newEventLine(
+      Array.from({ length: count }, (_, index) => ({
+        ...newEventLine(
           {
             stockOnHand: 50,
             orderable: {
@@ -80,9 +82,10 @@ function LinesFixture({
           '2026-10-08',
           { kind, productHasLots: false },
         ),
-      ),
+        stockProblem,
+      })),
     );
-  }, [form, kind, count]);
+  }, [form, kind, count, stockProblem]);
   const lines = useStore(form.store, (state) => state.values.lines);
   return (
     <EventLineTable
@@ -274,5 +277,19 @@ it.each([false, true])(
         within(input.closest('tr') as HTMLTableRowElement).getByText(message),
       ).toBeInTheDocument();
     }
+  },
+);
+
+it.each([false, true])(
+  'explains restored stock problems before submit (cards: %s)',
+  async (cards) => {
+    renderPage(<LinesFixture kind="adjustment" cards={cards} count={1} stockProblem="missing" />);
+    const note = await screen.findByText('stock-events.draft-stock-unavailable');
+    expect(note).toBeVisible();
+    const product = screen.getByText(cards ? 'Product 0 - tablet (C0)' : 'Product 0 - tablet');
+    expect(product.closest('[aria-describedby]')).toHaveAccessibleDescription(
+      'stock-events.draft-stock-unavailable',
+    );
+    expect(document.querySelector('tr[aria-invalid]')).not.toBeInTheDocument();
   },
 );

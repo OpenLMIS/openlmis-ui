@@ -1906,6 +1906,7 @@
   "stock-events.draft-sign-out": "Log Out",
   "stock-events.draft-sign-out-description": "Your latest edits could not be saved. Logging out keeps the last saved draft on this device, but loses unsaved edits.",
   "stock-events.draft-stock-invalid": "Some saved lines have no current stock card or a lot that is no longer allowed for this event. Remove those lines before submitting. Other lines may need a lower quantity after stock is refreshed.",
+  "stock-events.draft-stock-unavailable": "Stock is no longer available for this event. Remove this line.",
   "stock-events.edit-lot": "Edit Lot, {row}",
   "stock-events.edit-lot-description": "Change the code or expiration date of this new lot of {product}.",
   "stock-events.edit-lot-title": "Edit Lot",

@@ -274,7 +274,7 @@ edits, which have no prop for TypeScript to detect:
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
 | `sidebar.tsx` | Keep both menu button variants free of `aria-disabled:pointer-events-none` so connection-dependent entries remain clickable offline |
-| `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `aria-invalid:bg-destructive/10` for invalid draft lines |
+| `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `data-[invalid]:bg-destructive/10` for invalid draft lines |
 | `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
 
@@ -966,6 +966,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Only the coordinator publishes complete owner-scoped access/dataset generations under the
   download Web Lock. Foreground reads never persist partial generations. Recheck shared schedule
   deadlines under that lock; keep upload locks separate and retain complete older bundles.
+- Upload access reads bypass the download lock without publishing, reusing current-epoch access.
 - Foreground bundle reads retain ordinary renewal behavior; only background downloads fail fast.
   Accepted events request scoped refreshes. Preserve trigger priority and visible retry feedback.
 - Keep business payloads, access snapshots, drafts and queues out of localStorage. The deployment
@@ -1004,6 +1005,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   autosave or be discarded. The editor never sends an offline POST directly.
 - Foreground delivery holds event ownership while waiting and releases it on every enqueue
   failure. Poll remote ownership only for queued/sending work; teardown listeners and timers.
+  Exclude active access preparation from the 1.5-second foreground start deadline.
 - Serialize uploads with an owner-database Web Lock. No timeout lease fallback. Require fresh
   session/connection-scoped access and exact grants; absent grants pause rather than refuse.
 - Commit attempt metadata before dispatch. Send oldest eligible work once; sending/uncertain
@@ -1030,8 +1032,9 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   `useOfflineFailure`; reconnect retries must use the same path. Custom route retries invalidate
   failed loaders before reset only while online. Report caught errors through the shared reporter.
 - Route capabilities gate direct routes/preloads as well as navigation. Use the shared offline
-  navigation dialog for unavailable links, preserving menu context and focus. Check server-action
-  guards before work and after async access reads. Keep keyboard activation and descriptions.
+  navigation dialog provider across sidebar, account menu and palette, preserving context and focus.
+  Check server-action guards before work and after async access reads. Keep keyboard activation and descriptions.
+- Offline Events opens for every signed-in user offline, even without downloaded access.
 - Hidden pages retain drafts/guards only for a valid protected match in the same session scope.
   Persistent overlay drafts stay mounted behind the visibility gate; transient overlays close.
   Discard decisions opt out so navigation and Log Out remain answerable.
@@ -1040,6 +1043,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   silent refresh/no-op passes must not replace visible progress or reset completion countdowns.
 - Start offline services dynamically after sign-in; stop subscriptions/timers on teardown.
   Wire feature services directly in route composition rather than through callback globals.
+  Keep routed content mounted; lazy services publish memoized work/status through sibling Suspense.
 
 ### Service worker
 

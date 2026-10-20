@@ -10,6 +10,7 @@ import {
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { getLocalDb } from '@/integrations/local-db';
+import { DraftConflictError } from '@/lib/draft-store';
 import { getSessionScope } from '@/lib/session-scope';
 
 export function usePhysicalInventoryAutosave(
@@ -37,8 +38,16 @@ export function usePhysicalInventoryAutosave(
       ...serial,
       reset: serial.reset,
       async clear(draftId: string) {
-        await serial.flush();
-        await clearInventoryLocal(draftId, revision ?? 0, scope, db);
+        await serial.clear((conflict) =>
+          clearInventoryLocal(
+            draftId,
+            conflict instanceof DraftConflictError
+              ? (conflict.stored?.revision ?? 0)
+              : (revision ?? 0),
+            scope,
+            db,
+          ),
+        );
         revision = undefined;
       },
     };

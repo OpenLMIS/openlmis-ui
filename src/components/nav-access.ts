@@ -18,8 +18,9 @@ export function canOpen(
   to: LiveNavLink['to'],
   rights: ReadonlySet<string> | undefined,
   hasDeviceEvents = false,
+  offline = false,
 ) {
-  if (to === '/offline-events' && hasDeviceEvents) return true;
+  if (to === '/offline-events' && (hasDeviceEvents || offline)) return true;
   const right = to && navRightFor(to);
   return !right || [right].flat().some((name) => rights?.has(name) ?? false);
 }
@@ -29,8 +30,9 @@ export function navWithinRights(
   groups: LiveNavGroup[],
   rights: ReadonlySet<string> | undefined,
   hasDeviceEvents = false,
+  offline = false,
 ): LiveNavGroup[] {
-  const allowed = (link: LiveNavLink) => canOpen(link.to, rights, hasDeviceEvents);
+  const allowed = (link: LiveNavLink) => canOpen(link.to, rights, hasDeviceEvents, offline);
   return groups
     .map((group) => ({
       ...group,
@@ -59,7 +61,7 @@ export function useNavGroups() {
       ...link,
       connectionRequired: !online && !isOfflineCapable(link.to ?? ''),
     });
-    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents).map((group) => ({
+    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents, !online).map((group) => ({
       ...group,
       items: group.items.map((item) =>
         isNavParent(item) ? { ...item, items: item.items.map(mark) } : mark(item),
@@ -78,7 +80,7 @@ export function useCanOpen() {
   const { hasDeviceEvents } = useDeviceWork();
   const online = useOnline();
   return (to: LiveNavLink['to']) =>
-    canOpen(to, rights, hasDeviceEvents) && (online || isOfflineCapable(to ?? ''));
+    canOpen(to, rights, hasDeviceEvents, !online) && (online || isOfflineCapable(to ?? ''));
 }
 
 type AccountLink = {

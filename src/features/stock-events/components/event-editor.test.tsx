@@ -2443,7 +2443,8 @@ it('keeps a resumed missing stock line highlighted and explains why it cannot su
   expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
   expect(
     screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }).closest('tr'),
-  ).toHaveAttribute('aria-invalid', 'true');
+  ).toHaveAttribute('data-invalid', 'true');
+  expect(screen.getByText(en['stock-events.draft-stock-unavailable'])).toBeVisible();
   await next.user.click(screen.getByRole('button', { name: 'Submit' }));
   expect(await screen.findByRole('alertdialog')).toHaveTextContent(
     en['stock-events.draft-stock-invalid'],
@@ -2571,7 +2572,7 @@ it('allows a resumed expired-lot Adjustment to submit', async () => {
   );
   const quantity = await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
   expect(quantity).toHaveValue('17');
-  expect(quantity.closest('tr')).not.toHaveAttribute('aria-invalid', 'true');
+  expect(quantity.closest('tr')).not.toHaveAttribute('data-invalid', 'true');
   await next.user.click(screen.getByRole('button', { name: 'Submit' }));
   await next.user.click(await screen.findByRole('button', { name: 'Confirm' }));
   await waitFor(async () => expect(await getLocalDb().table('stockEventQueue').count()).toBe(1));

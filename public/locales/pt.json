@@ -1906,6 +1906,7 @@
   "stock-events.draft-sign-out": "Terminar Sessão",
   "stock-events.draft-sign-out-description": "Não foi possível guardar as últimas alterações. Terminar sessão mantém o último rascunho guardado neste dispositivo, mas perde as alterações não guardadas.",
   "stock-events.draft-stock-invalid": "Algumas linhas guardadas não têm ficha de stock atual ou têm um lote que já não é permitido para este evento. Remova essas linhas antes de submeter. Outras linhas podem precisar de uma quantidade menor após atualizar o stock.",
+  "stock-events.draft-stock-unavailable": "O stock já não está disponível para este evento. Remova esta linha.",
   "stock-events.edit-lot": "Editar Lote, {row}",
   "stock-events.edit-lot-description": "Altere o código ou a data de validade deste novo lote de {product}.",
   "stock-events.edit-lot-title": "Editar Lote",

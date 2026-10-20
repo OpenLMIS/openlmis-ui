@@ -126,7 +126,7 @@ export function DataTable<TData extends RowData>({
             {rows.length > 0 ? (
               rows.map((row) => (
                 <TableRow
-                  aria-invalid={isRowInvalid?.(row.original) || undefined}
+                  data-invalid={isRowInvalid?.(row.original) || undefined}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
                   key={row.id}
                 >

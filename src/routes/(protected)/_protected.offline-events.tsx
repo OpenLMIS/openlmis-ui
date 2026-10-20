@@ -15,12 +15,24 @@ import {
   offlineEventsSearchSchema,
 } from '@/features/stock-events/lib/offline-events-search';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { isOfflineError } from '@/lib/http';
+import { isOnline } from '@/lib/online';
 import { parsePermissions } from '@/lib/permissions';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const Route = createFileRoute('/(protected)/_protected/offline-events')({
   validateSearch: offlineEventsSearchSchema,
   loader: async ({ context: { queryClient } }) => {
-    if (!(await hasOwnDeviceEvents())) await requireRight(queryClient, OFFLINE_EVENT_RIGHTS);
+    const scope = getSessionScope();
+    const userId = useLoginData.getState().referenceDataUserId ?? '';
+    try {
+      await queryClient.ensureQueryData(permissionsOptions(userId));
+      if (isOnline() && !(await hasOwnDeviceEvents()))
+        await requireRight(queryClient, OFFLINE_EVENT_RIGHTS);
+    } catch (error) {
+      if (!isOfflineError(error)) throw error;
+    }
+    assertSessionScope(scope);
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
   },
   component: OfflineEvents,

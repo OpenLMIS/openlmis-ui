@@ -1906,6 +1906,7 @@
   "stock-events.draft-sign-out": "Se Déconnecter",
   "stock-events.draft-sign-out-description": "Vos dernières modifications n’ont pas pu être enregistrées. La déconnexion conserve le dernier brouillon enregistré sur cet appareil, mais les modifications non enregistrées seront perdues.",
   "stock-events.draft-stock-invalid": "Certaines lignes enregistrées n’ont plus de fiche de stock ou leur lot n’est plus autorisé pour cet événement. Supprimez ces lignes avant l’envoi. D’autres lignes peuvent nécessiter une quantité inférieure après l’actualisation du stock.",
+  "stock-events.draft-stock-unavailable": "Le stock n’est plus disponible pour ce mouvement. Supprimez cette ligne.",
   "stock-events.edit-lot": "Modifier Le Lot, {row}",
   "stock-events.edit-lot-description": "Modifiez le code ou la date d’expiration de ce nouveau lot de {product}.",
   "stock-events.edit-lot-title": "Modifier Le Lot",

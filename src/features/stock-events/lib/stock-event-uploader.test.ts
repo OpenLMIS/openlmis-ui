@@ -16,7 +16,10 @@ import {
   refreshAfterStockEventAccepted,
   subscribeStockEventAcceptances,
 } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
-import { foregroundStockEvents } from '@/features/stock-events/lib/stock-event-delivery';
+import {
+  foregroundStockEvents,
+  waitForStockEventReceipt,
+} from '@/features/stock-events/lib/stock-event-delivery';
 import {
   createStockEventContext,
   saveStockEventDraft,
@@ -503,6 +506,49 @@ it('sends an abandoned foreground row as background without waiting for its old 
   onlineManager.setOnline(true);
   await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
   await waitFor(() => expect(toast.success).toHaveBeenCalledOnce());
-  expect(getSyncPhase()).toBe('complete');
+  await waitFor(() => expect(getSyncPhase()).toBe('complete'));
   expect(phases).toEqual(['syncing']);
+});
+
+it('accepts a foreground submit using the current access snapshot without re-reading it', async () => {
+  const event = await enqueue();
+  foregroundStockEvents.add(event.localEventId);
+  onlineManager.setOnline(true);
+  const read = vi.fn(async () => snapshot);
+  const access = vi.fn(async (force?: boolean) => (force ? read() : snapshot));
+  const send = vi.fn(async () => accepted);
+  try {
+    stops.push(startStockEventUploader({ access, send }));
+    const result = waitForStockEventReceipt(event);
+    expect((await result).kind).toBe('accepted');
+    expect(send).toHaveBeenCalledOnce();
+    expect(read).not.toHaveBeenCalled();
+  } finally {
+    foregroundStockEvents.delete(event.localEventId);
+  }
+});
+
+it('excludes access preparation from the foreground sending start deadline', async () => {
+  const event = await enqueue();
+  foregroundStockEvents.add(event.localEventId);
+  const preparing = Promise.withResolvers<OfflineAccess>();
+  const access = vi.fn(() => preparing.promise);
+  const send = vi.fn(async () => accepted);
+  onlineManager.setOnline(true);
+  stops.push(startStockEventUploader({ access, send }));
+  let settled = false;
+  const result = waitForStockEventReceipt(event).then((value) => {
+    settled = true;
+    return value;
+  });
+  try {
+    await waitFor(() => expect(access).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 1600));
+    expect(settled).toBe(false);
+    preparing.resolve(snapshot);
+    expect((await result).kind).toBe('accepted');
+  } finally {
+    preparing.resolve(snapshot);
+    foregroundStockEvents.delete(event.localEventId);
+  }
 });

@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { DeviceSyncContext } from '@/components/device-work';
+import { useContext, useEffect, useMemo } from 'react';
+import { DeviceSyncPublisher, EMPTY_DEVICE_SYNC } from '@/components/device-work';
 import {
   syncCountdown,
   useQueuedAnnouncement,
@@ -8,15 +8,16 @@ import {
 } from '@/features/stock-events/lib/device-event-status';
 import { useDeviceSaveAnnouncement } from '@/features/stock-events/lib/device-save-announcement';
 
-export function DeviceStatusProvider({ children }: { children: ReactNode }) {
+export function DeviceStatusProvider() {
   const phase = useSyncPhase();
   const queued = useQueuedAnnouncement();
   const save = useDeviceSaveAnnouncement();
-  return (
-    <DeviceSyncContext
-      value={{ phase, queued, save, countdown: syncCountdown, wake: wakeStockEventSync }}
-    >
-      {children}
-    </DeviceSyncContext>
+  const publish = useContext(DeviceSyncPublisher);
+  const value = useMemo(
+    () => ({ phase, queued, save, countdown: syncCountdown, wake: wakeStockEventSync }),
+    [phase, queued, save],
   );
+  useEffect(() => publish(value), [publish, value]);
+  useEffect(() => () => publish(EMPTY_DEVICE_SYNC), [publish]);
+  return null;
 }

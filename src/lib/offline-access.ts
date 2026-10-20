@@ -118,21 +118,22 @@ function snapshotHome(home: Facility): Facility {
   };
 }
 
-export async function refreshOfflineAccess(readers: AccessReaders, check: () => void) {
+export async function readAccessSnapshot(readers: AccessReaders, check: () => void) {
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new LocalDataUnavailableError();
-  const { getLocalDb } = await import('@/integrations/local-db');
   check();
-  const db = getLocalDb();
-  check();
-  const permissionStrings = await readers.permissions(userId);
-  check();
-  const user = await readers.user(userId);
-  check();
-  if (user.id !== userId) throw new Error('The downloaded user does not match the session.');
-  const programs = await readers.programs(userId);
-  check();
-  const home = user.homeFacilityId ? await readers.home(user.homeFacilityId) : null;
+  const userAndHome = readers.user(userId).then(async (user) => {
+    check();
+    if (user.id !== userId) throw new Error('The downloaded user does not match the session.');
+    const home = user.homeFacilityId ? await readers.home(user.homeFacilityId) : null;
+    check();
+    return { user, home };
+  });
+  const [permissionStrings, programs, { user, home }] = await Promise.all([
+    readers.permissions(userId),
+    readers.programs(userId),
+    userAndHome,
+  ]);
   check();
   if (home && home.id !== user.homeFacilityId) {
     throw new Error('The downloaded home facility does not match the user.');
@@ -147,6 +148,14 @@ export async function refreshOfflineAccess(readers: AccessReaders, check: () => 
     generation: crypto.randomUUID(),
     formatVersion: 1,
   };
+  return snapshot;
+}
+
+export async function refreshOfflineAccess(readers: AccessReaders, check: () => void) {
+  const snapshot = await readAccessSnapshot(readers, check);
+  const { getLocalDb } = await import('@/integrations/local-db');
+  check();
+  const db = getLocalDb();
   const table = db.table<OfflineAccess>('offlineAccess');
   await db.transaction('rw', table, async () => {
     check();

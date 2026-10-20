@@ -4,6 +4,7 @@ import { liveQuery } from 'dexie';
 import { toast } from 'sonner';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  beginSyncPreparation,
   getSyncPhase,
   setSyncPhase,
   setSyncWake,
@@ -109,7 +110,8 @@ export function startStockEventUploader(dependencies: {
         const epoch = uploadAccessEpoch();
         const force = forceAccess;
         forceAccess = false;
-        const access = await dependencies.access(force);
+        const endPreparation = beginSyncPreparation();
+        const access = await dependencies.access(force).finally(endPreparation);
         check();
         if (!valid() || epoch !== uploadAccessEpoch() || access.userId !== userId) return;
         const permissions = parsePermissions(access.permissionStrings ?? []);
@@ -281,7 +283,7 @@ export function startStockEventUploader(dependencies: {
   };
   window.addEventListener('focus', focus);
   setSyncWake(() => {
-    forceAccess = true;
+    forceAccess ||= accessPaused;
     void run();
   });
   watch();

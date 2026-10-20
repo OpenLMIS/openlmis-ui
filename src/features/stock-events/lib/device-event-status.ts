@@ -32,3 +32,25 @@ export const wakeStockEventSync = () => wake?.();
 export function setSyncWake(callback?: () => void) {
   wake = callback;
 }
+
+const preparationListeners = new Set<() => void>();
+let preparation = { scope: getSessionScope(), count: 0 };
+export const isSyncPreparing = () =>
+  preparation.scope === getSessionScope() && preparation.count > 0;
+export function subscribeSyncPreparation(listener: () => void) {
+  preparationListeners.add(listener);
+  return () => {
+    preparationListeners.delete(listener);
+  };
+}
+export function beginSyncPreparation() {
+  const scope = getSessionScope();
+  if (preparation.scope !== scope) preparation = { scope, count: 0 };
+  preparation.count++;
+  for (const listener of preparationListeners) listener();
+  return () => {
+    if (preparation.scope !== scope) return;
+    preparation.count--;
+    for (const listener of preparationListeners) listener();
+  };
+}

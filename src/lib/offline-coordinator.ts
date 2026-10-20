@@ -12,6 +12,7 @@ import {
   isDeviceAccess,
   type OfflineAccess,
   offlineAccessIsStale,
+  readAccessSnapshot,
   refreshOfflineAccess,
 } from '@/lib/offline-access';
 import { createDownloadChannel } from '@/lib/offline-download-channel';
@@ -344,7 +345,6 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
   const readFreshAccess = async (force = false) => {
     const epoch = uploadAccessEpoch();
     const scope = getSessionScope();
-    const db = getLocalDb();
     const check = () => {
       assertSessionScope(scope);
       if (
@@ -358,16 +358,12 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
     if (!navigator.locks) throw new Error('Web Locks are required for safe sync.');
     check();
     if (!force && freshAccess?.epoch === epoch) return freshAccess.saved;
-    return navigator.locks.request(offlineDownloadLock(db), async () => {
-      check();
-      if (!force && freshAccess?.epoch === epoch) return freshAccess.saved;
-      const config = { session: false, backgroundRead: true, sessionScope: scope };
-      const readers = dependencies.access(config, check, 'upload');
-      const saved = await refreshOfflineAccess(readers, check);
-      check();
-      freshAccess = { epoch, saved };
-      return saved;
-    });
+    const config = { session: false, backgroundRead: true, sessionScope: scope };
+    const readers = dependencies.access(config, check, 'upload');
+    const saved = await readAccessSnapshot(readers, check);
+    check();
+    freshAccess = { epoch, saved };
+    return saved;
   };
   setDownloadStatus({ phase: 'idle', incomplete: [] });
   setDownloadRetry(() => {

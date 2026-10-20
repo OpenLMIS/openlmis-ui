@@ -4,8 +4,20 @@ import { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { downloadIsStale } from '@/features/stock-events/lib/download-read';
+import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
+import {
+  foregroundStockEvents,
+  releaseForegroundStockEvent,
+  waitForStockEventReceipt,
+} from '@/features/stock-events/lib/stock-event-delivery';
+import {
+  createStockEventContext,
+  saveStockEventDraft,
+} from '@/features/stock-events/lib/stock-event-local';
+import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
+import { startStockEventUploader } from '@/features/stock-events/lib/stock-event-uploader';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
@@ -938,5 +950,75 @@ it('backs off periodic access failures across tabs before reading bundles or req
     vi.mocked(raw.permissions).mockImplementation(async () =>
       programs.flatMap(({ id }) => [`STOCK_ADJUST|home|${id}`, `STOCK_CARDS_VIEW|home|${id}`]),
     );
+  }
+});
+
+it('refreshes upload access without waiting for a held download lock or publishing it', async () => {
+  begin();
+  await finished();
+  const saved = await getLocalDb().table('offlineAccess').get('downloader');
+  const held = Promise.withResolvers<void>();
+  vi.mocked(navigator.locks.request).mockImplementation(async () => held.promise);
+  vi.mocked(raw.permissions).mockClear();
+  const result = freshUploadAccess(true);
+  try {
+    await waitFor(() => expect(raw.permissions).toHaveBeenCalled());
+    expect((await result).userId).toBe('downloader');
+    expect(await getLocalDb().table('offlineAccess').get('downloader')).toEqual(saved);
+  } finally {
+    held.resolve();
+    await result;
+  }
+});
+
+it('accepts an online foreground event while a download owns its lock', async () => {
+  begin();
+  await finished();
+  const context = createStockEventContext({
+    kind: 'adjustment',
+    facilityId: 'home',
+    programId: 'p1',
+  });
+  const line = newEventLine(
+    {
+      orderable: { id: 'product', productCode: 'P', fullProductName: 'Product' },
+      lot: null,
+      stockOnHand: 20,
+    },
+    undefined,
+    '2026-10-14',
+    { kind: 'adjustment', productHasLots: false },
+  );
+  const draft = await saveStockEventDraft(context, undefined, [line]);
+  if (!draft) throw new Error('Missing draft');
+  const event = await enqueueStockEvent(
+    context,
+    draft,
+    { facilityId: 'home', programId: 'p1', lineItems: [] },
+    { facility: { id: 'home', code: 'HOME', name: 'Home' }, program: programs[0] },
+  );
+  const held = Promise.withResolvers<void>();
+  const requested = vi.mocked(navigator.locks.request);
+  requested.mockImplementation(async (name, ...args) => {
+    if (name.endsWith(':offline-download')) await held.promise;
+    const action = args.at(-1) as () => Promise<unknown>;
+    return action();
+  });
+  const downloadLock = navigator.locks.request(
+    `${getLocalDb().name}:offline-download`,
+    async () => {},
+  );
+  foregroundStockEvents.add(event.localEventId);
+  const send = vi.fn(async () => ({ status: 201, data: '11111111-1111-4111-8111-111111111111' }));
+  const stopUploader = startStockEventUploader({ access: freshUploadAccess, send });
+  try {
+    expect((await waitForStockEventReceipt(event)).kind).toBe('accepted');
+    expect(send).toHaveBeenCalledOnce();
+    for (const reader of Object.values(raw)) expect(reader).toHaveBeenCalledTimes(1);
+  } finally {
+    held.resolve();
+    releaseForegroundStockEvent(event.localEventId);
+    stopUploader();
+    await downloadLock;
   }
 });

@@ -85,9 +85,7 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
                       }
                     : undefined
                 }
-                aria-description={
-                  link.connectionRequired ? t('offline.connection-required') : undefined
-                }
+                aria-describedby={link.connectionRequired ? offline.descriptionId : undefined}
                 render={link.connectionRequired ? undefined : <Link to={link.to} />}
               >
                 {link.icon && <link.icon />}
@@ -112,7 +110,6 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
             {t('nav-user.log-out')}
           </DropdownMenuItem>
         </DropdownMenuContent>
-        {offline.dialog}
       </DropdownMenu>
       {offlineSignOut.dialog}
     </>

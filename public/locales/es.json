@@ -1906,6 +1906,7 @@
   "stock-events.draft-sign-out": "Cerrar Sesión",
   "stock-events.draft-sign-out-description": "No se pudieron guardar los últimos cambios. Al cerrar sesión se conserva el último borrador guardado en este dispositivo, pero se pierden los cambios sin guardar.",
   "stock-events.draft-stock-invalid": "Algunas líneas guardadas no tienen una ficha de existencias actual o tienen un lote que ya no está permitido para este evento. Elimine esas líneas antes de enviar. Otras líneas pueden necesitar una cantidad menor tras actualizar las existencias.",
+  "stock-events.draft-stock-unavailable": "Las existencias ya no están disponibles para este evento. Elimine esta línea.",
   "stock-events.edit-lot": "Editar Lote, {row}",
   "stock-events.edit-lot-description": "Cambie el código o la fecha de vencimiento de este nuevo lote de {product}.",
   "stock-events.edit-lot-title": "Editar Lote",

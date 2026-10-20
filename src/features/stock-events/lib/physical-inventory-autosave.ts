@@ -22,6 +22,13 @@ export function createInventoryWriter<T>(
       await serial.flush();
       if (conflict) throw conflict;
     },
+    async clear(remove: (conflict: unknown) => Promise<void>) {
+      serial.clear();
+      await serial.wait();
+      await remove(conflict);
+      conflict = undefined;
+      serial.reset();
+    },
     reset() {
       if (conflict instanceof DraftConflictError) return;
       serial.reset();

@@ -1,7 +1,11 @@
 import { onlineManager, type QueryClient } from '@tanstack/react-query';
 import { liveQuery } from 'dexie';
 import { useEffect, useState } from 'react';
-import { wakeStockEventSync } from '@/features/stock-events/lib/device-event-status';
+import {
+  isSyncPreparing,
+  subscribeSyncPreparation,
+  wakeStockEventSync,
+} from '@/features/stock-events/lib/device-event-status';
 import { invalidateAcceptedStockEvent } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import type {
@@ -115,6 +119,7 @@ export async function waitForStockEventReceipt(
       clearTimeout(startDeadline);
       subscription.unsubscribe();
       unsubscribeOnline();
+      unsubscribePreparation();
       releaseForegroundStockEvent(event.localEventId);
       if (outcome.kind === 'accepted' && scope === getSessionScope())
         invalidateAcceptedStockEvent(queryClient);
@@ -123,9 +128,16 @@ export async function waitForStockEventReceipt(
     const unsubscribeOnline = onlineManager.subscribe((online) => {
       if (!online && !sending) finish({ kind: 'queued' });
     });
-    const startDeadline = setTimeout(() => {
-      if (!sending) finish({ kind: 'queued' });
-    }, 1500);
+    let startDeadline: ReturnType<typeof setTimeout> | undefined;
+    const updateStartDeadline = () => {
+      clearTimeout(startDeadline);
+      if (!isSyncPreparing())
+        startDeadline = setTimeout(() => {
+          if (!sending) finish({ kind: 'queued' });
+        }, 1500);
+    };
+    const unsubscribePreparation = subscribeSyncPreparation(updateStartDeadline);
+    updateStartDeadline();
     const deadline = setTimeout(() => finish({ kind: sending ? 'uncertain' : 'queued' }), 65_000);
     const subscription = liveQuery(async () => {
       assertSessionScope(scope);

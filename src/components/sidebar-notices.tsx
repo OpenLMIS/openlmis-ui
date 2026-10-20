@@ -40,6 +40,7 @@ import {
 } from '@/lib/online';
 import { useUpdateReady } from '@/lib/service-worker';
 import { useSessionScope } from '@/lib/session-scope';
+import { cn } from '@/lib/utils';
 
 type Notice = {
   id: string;
@@ -260,7 +261,11 @@ export function SidebarNotices() {
                   }}
                 >
                   <Icon
-                    className={`${ICON_TONE[variant]}${spinning ? ' animate-spin motion-reduce:animate-none' : ''}`}
+                    aria-hidden="true"
+                    className={cn(
+                      ICON_TONE[variant],
+                      spinning && 'animate-spin motion-reduce:animate-none',
+                    )}
                   />
                 </SidebarMenuButton>
               ) : (
@@ -277,7 +282,10 @@ export function SidebarNotices() {
                 >
                   <Icon
                     aria-hidden="true"
-                    className={`${ICON_TONE[variant]}${spinning ? ' animate-spin motion-reduce:animate-none' : ''}`}
+                    className={cn(
+                      ICON_TONE[variant],
+                      spinning && 'animate-spin motion-reduce:animate-none',
+                    )}
                   />
                 </SidebarMenuButton>
               )}

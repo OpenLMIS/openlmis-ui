@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { beforeEach, expect, it } from 'vitest';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -45,4 +45,18 @@ it('opens the local recovery route without adjustment rights only for the owning
     });
   expect(await hasOwnDeviceEvents()).toBe(false);
   client.clear();
+});
+
+it('opens empty Offline Events on an offline reload before any access download completes', async () => {
+  await getLocalDb().table('offlineAccess').clear();
+  onlineManager.setOnline(false);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, networkMode: 'always' } },
+  });
+  const loader = Route.options.loader as (input: unknown) => Promise<void>;
+  try {
+    await expect(loader({ context: { queryClient: client } })).resolves.toBeUndefined();
+  } finally {
+    client.clear();
+  }
 });

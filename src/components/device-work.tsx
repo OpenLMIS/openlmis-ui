@@ -14,7 +14,7 @@ export type DeviceWork = {
   countUnsyncedWork: () => Promise<number>;
   refreshOfflineDownload: (refreshKey: string) => void;
 };
-export const DeviceWorkContext = createContext<DeviceWork>({
+export const EMPTY_DEVICE_WORK: DeviceWork = {
   hasDeviceEvents: false,
   waiting: 0,
   pending: 0,
@@ -27,7 +27,9 @@ export const DeviceWorkContext = createContext<DeviceWork>({
   countUnsyncedWork: async () => {
     throw new Error('Device work is not available.');
   },
-});
+};
+export const DeviceWorkContext = createContext<DeviceWork>(EMPTY_DEVICE_WORK);
+export const DeviceWorkPublisher = createContext<(work: DeviceWork) => void>(() => {});
 export const useDeviceWork = () => useContext(DeviceWorkContext);
 
 export type DeviceSync = {
@@ -37,10 +39,12 @@ export type DeviceSync = {
   save: ParseKeys | null;
   wake: () => void;
 };
-export const DeviceSyncContext = createContext<DeviceSync>({
+export const EMPTY_DEVICE_SYNC: DeviceSync = {
   phase: 'idle',
   queued: null,
   save: null,
   wake: () => {},
-});
+};
+export const DeviceSyncContext = createContext<DeviceSync>(EMPTY_DEVICE_SYNC);
+export const DeviceSyncPublisher = createContext<(sync: DeviceSync) => void>(() => {});
 export const useDeviceSync = () => useContext(DeviceSyncContext);

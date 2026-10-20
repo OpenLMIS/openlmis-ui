@@ -1,8 +1,8 @@
 import { onlineManager } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import { DeviceWorkContext } from '@/components/device-work';
+import { type DeviceWork, DeviceWorkPublisher, EMPTY_DEVICE_WORK } from '@/components/device-work';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import {
   fetchFacility,
@@ -16,7 +16,6 @@ import {
   isForegroundStockEvent,
   useForegroundStockEventIds,
 } from '@/features/stock-events/lib/stock-event-delivery';
-import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import i18n from '@/integrations/i18n';
@@ -24,20 +23,13 @@ import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
 import { isOnline } from '@/lib/online';
 import { DeviceStatusProvider } from '@/routes/-device-status-provider';
 
-export function DeviceWorkProvider({
-  children,
-  initialTrigger,
-}: {
-  children: ReactNode;
-  initialTrigger: 'boot' | 'force';
-}) {
-  const services = useRef<{ refresh: (key: string) => void } | undefined>(undefined);
+export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: 'boot' | 'force' }) {
   const { events, hasDeviceEvents } = useOfflineEvents(true, true);
   const foreground = useForegroundStockEventIds(
     events?.some((event) => event.status === 'queued' || event.status === 'sending') ?? false,
   );
-  const background = (event: DeviceEvent) =>
-    !isForegroundStockEvent(event) && !foreground.has(event.localEventId);
+  const services = useRef<{ refresh: (key: string) => void } | undefined>(undefined);
+  const refreshOfflineDownload = useCallback((key: string) => services.current?.refresh(key), []);
   useEffect(() => {
     const stop = startDeviceWorkServices(initialTrigger, loadDeviceWorkServices, (current) => {
       services.current = current;
@@ -47,34 +39,61 @@ export function DeviceWorkProvider({
       stop();
     };
   }, [initialTrigger]);
-  return (
-    <DeviceWorkContext
-      value={{
-        hasDeviceEvents,
-        pending: events?.filter(isPendingDeviceEvent).length ?? 0,
-        waiting:
-          events?.filter(
-            (event) =>
-              background(event) &&
-              !event.pauseReason &&
-              ['queued', 'sending'].includes(event.status),
-          ).length ?? 0,
-        uncertain: events?.filter((event) => event.status === 'uncertain').length ?? 0,
-        refused:
-          events?.filter((event) => event.status === 'refused' && !event.error?.resolvedAt)
-            .length ?? 0,
-        sending: events?.some((event) => background(event) && event.status === 'sending') ?? false,
-        retained: events?.some((event) => event.status !== 'accepted') ?? false,
-        pauses: (['access-changed', 'draft-changed'] as const).filter((reason) =>
-          events?.some((event) => event.pauseReason === reason),
-        ),
-        countUnsyncedWork: countUnsyncedDeviceWork,
-        refreshOfflineDownload: (key) => services.current?.refresh(key),
-      }}
-    >
-      <DeviceStatusProvider>{children}</DeviceStatusProvider>
-    </DeviceWorkContext>
+  const publish = useContext(DeviceWorkPublisher);
+  const pending = events?.filter(isPendingDeviceEvent).length ?? 0;
+  const waiting =
+    events?.filter(
+      (event) =>
+        !isForegroundStockEvent(event) &&
+        !foreground.has(event.localEventId) &&
+        !event.pauseReason &&
+        ['queued', 'sending'].includes(event.status),
+    ).length ?? 0;
+  const uncertain = events?.filter((event) => event.status === 'uncertain').length ?? 0;
+  const refused =
+    events?.filter((event) => event.status === 'refused' && !event.error?.resolvedAt).length ?? 0;
+  const sending =
+    events?.some(
+      (event) =>
+        !isForegroundStockEvent(event) &&
+        !foreground.has(event.localEventId) &&
+        event.status === 'sending',
+    ) ?? false;
+  const retained = events?.some((event) => event.status !== 'accepted') ?? false;
+  const accessChanged = events?.some((event) => event.pauseReason === 'access-changed') ?? false;
+  const draftChanged = events?.some((event) => event.pauseReason === 'draft-changed') ?? false;
+  const value = useMemo<DeviceWork>(
+    () => ({
+      hasDeviceEvents,
+      pending,
+      waiting,
+      uncertain,
+      refused,
+      sending,
+      retained,
+      pauses: [
+        ...(accessChanged ? ['access-changed' as const] : []),
+        ...(draftChanged ? ['draft-changed' as const] : []),
+      ],
+      countUnsyncedWork: countUnsyncedDeviceWork,
+      refreshOfflineDownload,
+    }),
+    [
+      hasDeviceEvents,
+      pending,
+      waiting,
+      uncertain,
+      refused,
+      sending,
+      retained,
+      accessChanged,
+      draftChanged,
+      refreshOfflineDownload,
+    ],
   );
+  useEffect(() => publish(value), [publish, value]);
+  useEffect(() => () => publish(EMPTY_DEVICE_WORK), [publish]);
+  return <DeviceStatusProvider />;
 }
 
 export function deviceAccessReaders(

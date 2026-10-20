@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import { type LucideIcon, SearchIcon, WifiOffIcon } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAccountLinks, useNavGroups } from '@/components/nav-access';
 import { useOfflineNavigation } from '@/components/offline-navigation';
@@ -41,7 +41,6 @@ export function CommandPalette() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const offline = useOfflineNavigation();
-  const connectionReasonId = useId();
   const [open, setOpen] = useState(false);
   const paletteRef = useRef<HTMLDivElement>(null);
   const navGroups = useNavGroups();
@@ -90,9 +89,6 @@ export function CommandPalette() {
         title={t('command.title')}
       >
         <Command ref={paletteRef}>
-          <p id={connectionReasonId} className="sr-only">
-            {t('offline.connection-required')}
-          </p>
           <CommandInput placeholder={t('command.placeholder')} />
           <CommandList>
             <CommandEmpty>{t('command.empty')}</CommandEmpty>
@@ -106,7 +102,9 @@ export function CommandPalette() {
                       <CommandItem
                         key={link.titleKey}
                         data-unavailable={link.connectionRequired || undefined}
-                        aria-describedby={link.connectionRequired ? connectionReasonId : undefined}
+                        aria-describedby={
+                          link.connectionRequired ? offline.descriptionId : undefined
+                        }
                         onSelect={() => {
                           if (link.connectionRequired) {
                             offline.show();
@@ -143,7 +141,7 @@ export function CommandPalette() {
                   <CommandItem
                     key={link.to}
                     data-unavailable={link.connectionRequired || undefined}
-                    aria-describedby={link.connectionRequired ? connectionReasonId : undefined}
+                    aria-describedby={link.connectionRequired ? offline.descriptionId : undefined}
                     onSelect={() => {
                       if (link.connectionRequired) {
                         offline.show();
@@ -170,7 +168,6 @@ export function CommandPalette() {
             </CommandGroup>
           </CommandList>
         </Command>
-        {offline.dialog}
       </CommandDialog>
     </>
   );

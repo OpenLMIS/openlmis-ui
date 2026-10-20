@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { formatTimestamp } from '@/components/form/date-value';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { useOfflineNavigation } from '@/components/offline-navigation';
+import { useOfflineNavigationDialog } from '@/components/offline-navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -89,7 +89,7 @@ export function DeviceEventRecovery({
   const sendReasonId = useId();
   const copyReasonId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
-  const offlineNavigation = useOfflineNavigation();
+  const offlineNavigation = useOfflineNavigationDialog();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [removing, setRemoving] = useState(false);
