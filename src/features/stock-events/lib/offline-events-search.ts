@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { tableSearchSchema } from '@/lib/table-search';
 
-export const deviceEventsSearchSchema = tableSearchSchema(['occurredDate', 'queuedAt'])
+export const offlineEventsSearchSchema = tableSearchSchema(['occurredDate', 'queuedAt'])
   .pick({ page: true, size: true, sort: true, dir: true })
   .extend({
     event: z.string().min(1).optional().catch(undefined),
@@ -10,5 +10,5 @@ export const deviceEventsSearchSchema = tableSearchSchema(['occurredDate', 'queu
       .optional()
       .catch(undefined),
   });
-export type DeviceEventsSearch = z.infer<typeof deviceEventsSearchSchema>;
+export type OfflineEventsSearch = z.infer<typeof offlineEventsSearchSchema>;
 export const CLOSED_DIALOGS = { event: undefined } as const;

@@ -8,7 +8,8 @@ import type {
   StockOnHandPage,
 } from '@/features/stock-on-hand/lib/types';
 import { queryKeys } from '@/lib/key-factory';
-import { offlineAccessQuery, withDeviceData } from '@/lib/offline-access';
+import { onlineOrDevice } from '@/lib/local-data';
+import { offlineAccessQuery } from '@/lib/offline-access';
 import { isOnline } from '@/lib/online';
 
 export const stockCardSummariesOptions = (
@@ -21,7 +22,7 @@ export const stockCardSummariesOptions = (
     ),
     queryFn: (): Promise<StockOnHandPage> =>
       device
-        ? withDeviceData(
+        ? onlineOrDevice(
             () => fetchStockCardSummaries(query),
             () => device(query),
           )

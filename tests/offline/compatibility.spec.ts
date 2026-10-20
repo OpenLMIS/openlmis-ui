@@ -28,7 +28,7 @@ test('sign-out and a different sign-in isolate device work and the original owne
   await login(page, 'other-user');
   await page.goto('./offline-events');
   await expect(
-    page.getByText(catalog['device-events.no-events-title'], { exact: true }),
+    page.getByText(catalog['offline-events.no-events-title'], { exact: true }),
   ).toBeVisible();
   const storage = await page.evaluate(async () => ({
     names: (await indexedDB.databases()).map((db) => db.name),
@@ -53,7 +53,7 @@ test('sign-out and a different sign-in isolate device work and the original owne
   await login(page);
   await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(1);
   await page
-    .getByRole('link', { name: catalog['device-events.title'], exact: true })
+    .getByRole('link', { name: catalog['offline-events.title'], exact: true })
     .first()
     .click();
   expect(posts).toBe(1);

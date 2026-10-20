@@ -33,9 +33,8 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { fetchMinimalFacilities } from '@/features/reference-data/api/api';
 import {
-  minimalFacilitiesOptions,
+  stockPickerFacilitiesOptions,
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
@@ -73,8 +72,7 @@ import {
   validSelection,
 } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
-import { offlineAccessQuery, withOfflineAccess } from '@/lib/offline-access';
-import { getConnectionGeneration, isOnline, useOnline } from '@/lib/online';
+import { isOnline, useOnline } from '@/lib/online';
 import { hasProgramGrant, type ProgramGrant, programGrants } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
@@ -85,20 +83,7 @@ const stockPickerQueries = (userId: string, online = isOnline()) =>
   [
     userRecordOptions(userId),
     userProgramsOptions(userId),
-    {
-      queryKey: [
-        ...minimalFacilitiesOptions().queryKey,
-        'stock-picker',
-        online ? getConnectionGeneration() : 'device',
-      ],
-      queryFn: () =>
-        withOfflineAccess(fetchMinimalFacilities, (saved) =>
-          saved.homeFacility
-            ? [{ ...saved.homeFacility, name: saved.homeFacility.name ?? saved.homeFacility.code }]
-            : [],
-        ),
-      ...offlineAccessQuery(5 * 60 * 1000),
-    },
+    stockPickerFacilitiesOptions(online),
   ] as const;
 
 const RIGHT = RIGHTS.stockCardsView;
@@ -413,7 +398,9 @@ function StockOnHandOutcome({
         <OfflineNotice
           reason="not-downloaded"
           onRetry={() => {
-            void queryClient.invalidateQueries({ queryKey: minimalFacilitiesOptions().queryKey });
+            void queryClient.invalidateQueries({
+              queryKey: stockPickerFacilitiesOptions().queryKey,
+            });
           }}
         />
       );

@@ -23,7 +23,9 @@ it('recovers a failed service import on reconnect and stops both services on unm
   onlineManager.setOnline(false);
   const coordinatorStop = vi.fn();
   const uploaderStop = vi.fn();
-  const coordinator = vi.fn(() => coordinatorStop);
+  const access = vi.fn();
+  const refresh = vi.fn();
+  const coordinator = vi.fn(() => ({ stop: coordinatorStop, freshAccess: access, refresh }));
   const uploader = vi.fn(() => uploaderStop);
   const load = vi
     .fn()
@@ -40,7 +42,7 @@ it('recovers a failed service import on reconnect and stops both services on unm
   await waitFor(() => expect(coordinator).toHaveBeenCalledOnce());
   expect(reloadOnce).not.toHaveBeenCalled();
   expect(whenLeaveAllowed).not.toHaveBeenCalled();
-  expect(uploader).toHaveBeenCalledOnce();
+  expect(uploader).toHaveBeenCalledExactlyOnceWith({ access, refresh });
   document.dispatchEvent(new Event('visibilitychange'));
   expect(load).toHaveBeenCalledTimes(2);
   stop();

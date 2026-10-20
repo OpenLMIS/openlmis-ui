@@ -28,21 +28,21 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
   const config: EventKindConfig = EVENT_KINDS[event.kind];
   const counterparty = config.counterparty === 'none' ? null : COUNTERPARTY[config.counterparty];
   const headers: ParseKeys[] = [
-    'device-events.lots',
-    'device-events.quantity',
-    ...(config.reasons ? (['device-events.reason', 'stock-events.reason-comments'] as const) : []),
+    'offline-events.lot',
+    'offline-events.quantity',
+    ...(config.reasons ? (['offline-events.reason', 'stock-events.reason-comments'] as const) : []),
     ...(counterparty ? [counterparty.column, counterparty.comments] : []),
-    'device-events.occurred-date',
+    'offline-events.occurred-date',
     'stock-events.vvm-status',
   ];
   const lines = event.payload.lineItems.map((item, index) => {
     const line = event.lines[index];
     const values: Partial<Record<ParseKeys, string | null | undefined>> = {
-      'device-events.lots': line?.lot?.lotCode,
-      'device-events.quantity': new Intl.NumberFormat(i18n.language).format(item.quantity),
-      'device-events.reason': event.reasons?.find((reason) => reason.id === item.reasonId)?.name,
+      'offline-events.lot': line?.lot?.lotCode,
+      'offline-events.quantity': new Intl.NumberFormat(i18n.language).format(item.quantity),
+      'offline-events.reason': event.reasons?.find((reason) => reason.id === item.reasonId)?.name,
       'stock-events.reason-comments': item.reasonFreeText,
-      'device-events.occurred-date': item.occurredDate
+      'offline-events.occurred-date': item.occurredDate
         ? formatDateValue(item.occurredDate, i18n.language)
         : undefined,
       'stock-events.vvm-status': item.extraData?.vvmStatus
@@ -86,7 +86,7 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
                 {visibleHeaders.map(({ header, index }) => (
                   <SettingsItem key={header} label={t(header)}>
                     <span
-                      className={header === 'device-events.lots' ? 'break-all' : undefined}
+                      className={header === 'offline-events.lot' ? 'break-all' : undefined}
                       dir="auto"
                     >
                       {orEmpty(line.values[index])}
@@ -103,7 +103,7 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
             <TableHeader>
               <TableRow>
                 {(
-                  ['device-events.products', ...visibleHeaders.map(({ header }) => header)] as const
+                  ['offline-events.product', ...visibleHeaders.map(({ header }) => header)] as const
                 ).map((header) => (
                   <TableHead key={header}>
                     <DataTableHeaderLabel>{t(header)}</DataTableHeaderLabel>
@@ -121,7 +121,7 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
                     <TableCell key={header}>
                       <span
                         className={
-                          header === 'device-events.lots'
+                          header === 'offline-events.lot'
                             ? 'whitespace-nowrap'
                             : 'whitespace-pre-wrap'
                         }

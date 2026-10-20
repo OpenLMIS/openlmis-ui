@@ -33,7 +33,7 @@ function pageHiddenDetails() {
   };
 }
 
-export function useCloseOnPageHidden(
+function useCloseOnPageHidden(
   open: boolean,
   onClose: (details: ReturnType<typeof pageHiddenDetails>) => void,
 ) {

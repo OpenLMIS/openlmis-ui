@@ -5,11 +5,11 @@ type Announcement =
   | 'stock-events.draft-saved'
   | 'stock-events.draft-copy-saved'
   | 'stock-events.draft-restored'
-  | 'device-events.recorded-by-you'
-  | 'device-events.status-queued'
-  | 'device-events.removed'
-  | 'device-events.refused-removed'
-  | 'device-events.synced-removed';
+  | 'offline-events.recorded-by-you'
+  | 'offline-events.status-queued'
+  | 'offline-events.removed'
+  | 'offline-events.refused-removed'
+  | 'offline-events.synced-removed';
 
 const announcement = createScopedAnnouncement<Announcement>();
 export const announceDeviceSave = announcement.announce;

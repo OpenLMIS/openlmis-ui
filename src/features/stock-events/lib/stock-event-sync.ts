@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { QueueNotSentError } from '@/features/stock-events/lib/queue-transport';
 import {
   archiveStockEventCopy,
   readStockEventDraft,
@@ -6,7 +7,6 @@ import {
   type StockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
-import { QueueNotSentError } from '@/lib/queue-transport';
 import { assertSessionScope } from '@/lib/session-scope';
 
 type UploadResponse = { status: number; data: unknown };

@@ -11,10 +11,18 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { UpdateButton } from '@/components/update-button';
 import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  announceQueuedEvents,
+  setSyncPhase,
+  syncCountdown,
+  useQueuedAnnouncement,
+  useSyncPhase,
+  wakeStockEventSync,
+} from '@/features/stock-events/lib/device-event-status';
+import { useDeviceSaveAnnouncement } from '@/features/stock-events/lib/device-save-announcement';
 import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { allowUnload, useLeaveGuard } from '@/hooks/use-leave-guard';
-import { announceQueuedEvents, setSyncPhase } from '@/lib/device-event-status';
 import { setDownloadStatus } from '@/lib/offline-download-status';
 import { dismissBackOnline } from '@/lib/online';
 import { applyUpdate } from '@/lib/service-worker';
@@ -27,6 +35,13 @@ const device = vi.hoisted(() => ({ allowed: false, events: [] as DeviceEvent[] }
 vi.mock('@/components/nav-access', () => ({ useHasOfflineCapability: () => device.allowed }));
 vi.mock('@/components/device-work', async (original) => ({
   ...(await original<typeof import('@/components/device-work')>()),
+  useDeviceSync: () => ({
+    phase: useSyncPhase(),
+    queued: useQueuedAnnouncement(),
+    save: useDeviceSaveAnnouncement(),
+    countdown: syncCountdown,
+    wake: wakeStockEventSync,
+  }),
   useDeviceWork: () => ({
     hasDeviceEvents: device.events.length > 0,
     pending: device.events.filter(isPendingDeviceEvent).length,
@@ -90,7 +105,7 @@ afterEach(() => {
     onlineManager.setOnline(true);
     dismissBackOnline();
     setUpdateReady(false);
-    setDownloadStatus({ phase: 'idle', incompletePrograms: [] });
+    setDownloadStatus({ phase: 'idle', incomplete: [] });
     setSyncPhase('idle');
     device.allowed = false;
     device.events = [];
@@ -158,7 +173,7 @@ describe('SidebarNotices', () => {
     showUpdate();
     expect(screen.getByRole('status')).toHaveTextContent('update.reload-to-update');
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
-    act(() => setDownloadStatus({ phase: 'running', incompletePrograms: [] }));
+    act(() => setDownloadStatus({ phase: 'running', incomplete: [] }));
     expect(screen.getByRole('status')).not.toHaveTextContent('update.reload-to-update');
     await user.click(screen.getByRole('button', { name: 'update.reload-to-update' }));
     expect(applyUpdate).not.toHaveBeenCalled();
@@ -198,7 +213,7 @@ it('replaces download progress with one completion notice for four seconds and r
   onlineManager.setOnline(false);
   renderNotices();
   expect(screen.getByRole('status')).toHaveTextContent('offline.title');
-  act(() => setDownloadStatus({ phase: 'running', incompletePrograms: [] }));
+  act(() => setDownloadStatus({ phase: 'running', incomplete: [] }));
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.fetching');
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
   expect(screen.getAllByRole('status')).toHaveLength(1);
@@ -209,7 +224,7 @@ it('replaces download progress with one completion notice for four seconds and r
   const progress = screen
     .getAllByRole('note')
     .find((note) => note.textContent?.includes('offline.download.fetching'));
-  act(() => setDownloadStatus({ phase: 'complete', incompletePrograms: [] }));
+  act(() => setDownloadStatus({ phase: 'complete', incomplete: [] }));
   expect(progress).toHaveTextContent('offline.download.finished');
   expect(screen.getByRole('status').textContent?.match(/offline.download.finished/g)).toHaveLength(
     1,
@@ -218,14 +233,21 @@ it('replaces download progress with one completion notice for four seconds and r
   expect(progress).toBeInTheDocument();
   act(() => vi.advanceTimersByTime(1));
   expect(progress).not.toBeInTheDocument();
-  act(() => setDownloadStatus({ phase: 'running', incompletePrograms: [] }));
-  act(() => setDownloadStatus({ phase: 'failed', incompletePrograms: [], reason: 'timeout' }));
+  act(() => setDownloadStatus({ phase: 'running', incomplete: [] }));
+  act(() => setDownloadStatus({ phase: 'failed', incomplete: [], reason: 'timeout' }));
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.incomplete');
   expect(screen.queryByText('offline.download.finished')).not.toBeInTheDocument();
   act(() =>
     setDownloadStatus({
       phase: 'failed',
-      incompletePrograms: [{ id: 'med', name: 'Medicines' }],
+      incomplete: [
+        {
+          id: 'med',
+          name: 'Medicines',
+          dataset: 'home-stock',
+          datasetLabel: 'offline.download.home-stock',
+        },
+      ],
       reason: 'timeout',
     }),
   );
@@ -240,7 +262,14 @@ it('suppresses an offline-caused download failure until reconnecting', () => {
   setDownloadStatus({
     phase: 'failed',
     reason: 'offline',
-    incompletePrograms: [{ id: 'p', name: 'Program' }],
+    incomplete: [
+      {
+        id: 'p',
+        name: 'Program',
+        dataset: 'home-stock',
+        datasetLabel: 'offline.download.home-stock',
+      },
+    ],
   });
   renderNotices();
   expect(screen.getAllByRole('note')).toHaveLength(1);
@@ -254,7 +283,7 @@ it('suppresses an offline-caused download failure until reconnecting', () => {
 it('keeps accepted-event refresh progress and completion silent while retaining read failures', () => {
   renderNotices();
   for (const phase of ['running', 'complete'] as const) {
-    act(() => setDownloadStatus({ phase, trigger: 'refresh', incompletePrograms: [] }));
+    act(() => setDownloadStatus({ phase, trigger: 'refresh', incomplete: [] }));
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
   }
@@ -263,7 +292,7 @@ it('keeps accepted-event refresh progress and completion silent while retaining 
       phase: 'failed',
       trigger: 'refresh',
       reason: 'read',
-      incompletePrograms: [],
+      incomplete: [],
     }),
   );
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.incomplete');
@@ -298,7 +327,7 @@ describe('OfflineDot', () => {
 it('clears the completed download announcement before later notices change', () => {
   vi.useFakeTimers();
   renderNotices();
-  act(() => setDownloadStatus({ phase: 'complete', incompletePrograms: [] }));
+  act(() => setDownloadStatus({ phase: 'complete', incomplete: [] }));
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.finished');
   act(() => vi.advanceTimersByTime(4000));
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.finished');
@@ -355,20 +384,22 @@ it('keeps the offline connection notice alone and offers sign-in after reconnect
   renderNotices();
   expect(screen.getAllByRole('note')).toHaveLength(1);
   expect(screen.getByRole('note')).toHaveTextContent('offline.title');
-  expect(screen.getByRole('status')).not.toHaveTextContent('device-events.sign-in');
+  expect(screen.getByRole('status')).not.toHaveTextContent('offline-events.sign-in');
   act(() => setSyncPhase('failed'));
   expect(screen.getAllByRole('note')).toHaveLength(1);
-  expect(screen.getByRole('status')).not.toHaveTextContent('device-events.sync-failed');
+  expect(screen.getByRole('status')).not.toHaveTextContent('offline-events.sync-failed');
   act(() => onlineManager.setOnline(true));
   expect(
-    screen.getAllByRole('note').some((note) => note.textContent?.includes('device-events.sign-in')),
+    screen
+      .getAllByRole('note')
+      .some((note) => note.textContent?.includes('offline-events.sign-in')),
   ).toBe(true);
-  expect(screen.getByRole('status')).toHaveTextContent('device-events.sign-in');
+  expect(screen.getByRole('status')).toHaveTextContent('offline-events.sign-in');
   const signIn = screen
     .getAllByRole('note')
-    .find((note) => note.textContent?.includes('device-events.sign-in'));
+    .find((note) => note.textContent?.includes('offline-events.sign-in'));
   expect(within(signIn as HTMLElement).queryByRole('button')).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'device-events.review' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'offline-events.review' })).not.toBeInTheDocument();
   act(() => useLoginData.getState().clearLoginData());
 });
 
@@ -408,12 +439,12 @@ it('replaces sync progress with one completion notice for four seconds, without 
   setSyncPhase('syncing');
   renderNotices();
   const progress = screen.getByRole('note');
-  expect(progress).toHaveTextContent('device-events.syncing');
+  expect(progress).toHaveTextContent('offline-events.syncing');
   device.events = [];
   act(() => setSyncPhase('complete'));
-  expect(progress).toHaveTextContent('device-events.sync-complete');
+  expect(progress).toHaveTextContent('offline-events.sync-complete');
   expect(
-    screen.getByRole('status').textContent?.match(/device-events.sync-complete/g),
+    screen.getByRole('status').textContent?.match(/offline-events.sync-complete/g),
   ).toHaveLength(1);
   act(() => vi.advanceTimersByTime(3999));
   expect(progress).toBeInTheDocument();
@@ -423,11 +454,11 @@ it('replaces sync progress with one completion notice for four seconds, without 
   device.events = [{ status: 'queued' }] as DeviceEvent[];
   act(() => setSyncPhase('syncing'));
   act(() => setSyncPhase('failed'));
-  expect(screen.getByRole('note')).toHaveTextContent('device-events.sync-failed');
-  expect(screen.queryByText('device-events.sync-complete')).not.toBeInTheDocument();
+  expect(screen.getByRole('note')).toHaveTextContent('offline-events.sync-failed');
+  expect(screen.queryByText('offline-events.sync-complete')).not.toBeInTheDocument();
   device.events = [{ status: 'refused' }, { status: 'uncertain' }] as DeviceEvent[];
   act(() => setSyncPhase('complete'));
-  expect(screen.queryByText('device-events.sync-complete')).not.toBeInTheDocument();
+  expect(screen.queryByText('offline-events.sync-complete')).not.toBeInTheDocument();
 });
 
 it('pauses an auto-dismiss countdown while hovered or focused, then resumes the remaining lifetime', () => {
@@ -456,13 +487,13 @@ it('marks a closed sidebar for sync warnings and updates while online', () => {
   device.allowed = true;
   device.events = [{ status: 'queued', pauseReason: 'access-changed' }] as DeviceEvent[];
   renderNotices({ defaultOpen: false, extra: <OfflineDot /> });
-  expect(screen.getByRole('img')).toHaveAccessibleName('device-events.access-changed');
+  expect(screen.getByRole('img')).toHaveAccessibleName('offline-events.access-changed');
   device.events.push({ status: 'queued' } as DeviceEvent);
   act(() => setSyncPhase('session'));
-  expect(screen.getByRole('img')).toHaveAccessibleName(/device-events.sign-in/);
+  expect(screen.getByRole('img')).toHaveAccessibleName(/offline-events.sign-in/);
   showUpdate();
   expect(screen.getByRole('img')).toHaveAccessibleName(/update.reload-to-update/);
-  expect(screen.getByRole('button', { name: 'device-events.sign-in' }).tabIndex).toBe(0);
+  expect(screen.getByRole('button', { name: 'offline-events.sign-in' }).tabIndex).toBe(0);
 });
 
 it('groups failed programs by dataset in separate messages', async () => {
@@ -476,10 +507,15 @@ it('groups failed programs by dataset in separate messages', async () => {
   setDownloadStatus({
     phase: 'failed',
     reason: 'read',
-    incompletePrograms: [
-      { id: 'p1', name: 'Medicines', datasetLabel: 'stock-on-hand.title' },
-      { id: 'p2', name: 'Vaccines', datasetLabel: 'stock-on-hand.title' },
-      { id: 'p3', name: 'Supplies', datasetLabel: 'nav.stock-management.adjustments' },
+    incomplete: [
+      { id: 'p1', name: 'Medicines', dataset: 'home-stock', datasetLabel: 'stock-on-hand.title' },
+      { id: 'p2', name: 'Vaccines', dataset: 'home-stock', datasetLabel: 'stock-on-hand.title' },
+      {
+        id: 'p3',
+        name: 'Supplies',
+        dataset: 'adjustments',
+        datasetLabel: 'nav.stock-management.adjustments',
+      },
     ],
   });
   render(

@@ -30,7 +30,7 @@ test('offline Submit retains its committed event through persistent restart', {
     await context.setOffline(true);
     await page.goto('./offline-events');
     await expect(
-      page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+      page.getByRole('heading', { name: catalog['offline-events.title'], exact: true }),
     ).toBeVisible();
     await page.goto('./stock-management/adjustments/program');
     await page.getByRole('button', { name: 'Add', exact: true }).click();
@@ -58,10 +58,10 @@ test('offline Submit retains its committed event through persistent restart', {
     page = context.pages()[0];
     await page.goto('./offline-events');
     await expect(
-      page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+      page.getByRole('heading', { name: catalog['offline-events.title'], exact: true }),
     ).toBeVisible();
     await expect(page.getByRole('table')).toContainText('Fixture Clinic');
-    await expect(page.getByRole('table')).toContainText(catalog['device-events.status-queued']);
+    await expect(page.getByRole('table')).toContainText(catalog['offline-events.status-queued']);
     await expect(page.locator('[data-slot=sidebar-menu-badge]')).toHaveText('1');
     expect(posts).toBe(0);
   } finally {

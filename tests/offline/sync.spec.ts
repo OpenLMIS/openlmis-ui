@@ -14,7 +14,7 @@ async function ready(page: Page) {
   await expect.poll(() => generation(page)).not.toBeNull();
   await page.goto('./offline-events');
   await expect(
-    page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+    page.getByRole('heading', { name: catalog['offline-events.title'], exact: true }),
   ).toBeVisible();
 }
 
@@ -52,7 +52,7 @@ test('interrupted upload becomes uncertain after restart and is never automatica
     await expect
       .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
       .toBe('uncertain');
-    await expect(page.getByRole('table')).toContainText(catalog['device-events.status-uncertain']);
+    await expect(page.getByRole('table')).toContainText(catalog['offline-events.status-uncertain']);
     expect(posts).toEqual(['Unknown']);
   } finally {
     await context.close();
@@ -85,19 +85,21 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   const other = await context.newPage();
   await other.goto('./offline-events');
   await expect(
-    other.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+    other.getByRole('heading', { name: catalog['offline-events.title'], exact: true }),
   ).toBeVisible();
   await context.setOffline(true);
   await enqueue(page, [{ signature: 'First' }, { signature: 'Second' }]);
   await context.setOffline(false);
   await expect.poll(() => posts.length).toBe(1);
   await expect(
-    page.getByRole('note').filter({ hasText: catalog['device-events.syncing'] }),
+    page.getByRole('note').filter({ hasText: catalog['offline-events.syncing'] }),
   ).toBeVisible();
   expect(posts[0].signature).toBe('First');
   expect(posts[0]).not.toHaveProperty('documentNumber');
   expect(await records(page, 'stockEventReceipts')).toHaveLength(0);
-  await expect(page.getByRole('table')).not.toContainText(catalog['device-events.status-accepted']);
+  await expect(page.getByRole('table')).not.toContainText(
+    catalog['offline-events.status-accepted'],
+  );
   expect(maximum).toBe(1);
   await releases[0]();
   await expect.poll(() => posts.length).toBe(2);
@@ -106,7 +108,7 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   expect(await records(page, 'stockEventReceipts')).toHaveLength(1);
   await releases[1]();
   await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(2);
-  await expect(page.getByRole('table')).toContainText(catalog['device-events.status-accepted']);
+  await expect(page.getByRole('table')).toContainText(catalog['offline-events.status-accepted']);
   await expect
     .poll(async () =>
       (
@@ -114,7 +116,7 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
           [page, other].map((tab) =>
             tab
               .getByRole('note')
-              .filter({ hasText: catalog['device-events.sync-complete'] })
+              .filter({ hasText: catalog['offline-events.sync-complete'] })
               .isVisible(),
           ),
         )
@@ -142,7 +144,7 @@ test('closing the uploading tab leaves uncertainty in the surviving tab without 
   const other = await context.newPage();
   await other.goto('./offline-events');
   await expect(
-    other.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+    other.getByRole('heading', { name: catalog['offline-events.title'], exact: true }),
   ).toBeVisible();
   await context.setOffline(true);
   await enqueue(page, [{ signature: 'Interrupted Owner' }, { signature: 'Held Behind Owner' }]);
@@ -155,7 +157,7 @@ test('closing the uploading tab leaves uncertainty in the surviving tab without 
     .poll(async () => (await records(survivor, 'stockEventQueue'))[0]?.status)
     .toBe('uncertain');
   await expect(survivor.getByRole('table')).toContainText(
-    catalog['device-events.status-uncertain'],
+    catalog['offline-events.status-uncertain'],
   );
   expect(await records(survivor, 'stockEventQueue')).toHaveLength(2);
   expect(posts).toBe(1);

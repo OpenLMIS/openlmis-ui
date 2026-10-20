@@ -1,6 +1,7 @@
 import { onlineManager, type QueryClient } from '@tanstack/react-query';
 import { liveQuery } from 'dexie';
 import { useEffect, useState } from 'react';
+import { wakeStockEventSync } from '@/features/stock-events/lib/device-event-status';
 import { invalidateAcceptedStockEvent } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import type {
@@ -9,7 +10,6 @@ import type {
 } from '@/features/stock-events/lib/stock-event-sync';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryClient as defaultQueryClient } from '@/integrations/tanstack-query';
-import { wakeStockEventSync } from '@/lib/device-event-status';
 import { isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope, useSessionScope } from '@/lib/session-scope';
 

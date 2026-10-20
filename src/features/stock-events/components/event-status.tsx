@@ -42,8 +42,8 @@ export function EventStatus({ event }: { event: DeviceEvent }) {
       />
       {t(
         event.receipt?.source === 'user'
-          ? 'device-events.recorded-by-you'
-          : `device-events.status-${event.status}`,
+          ? 'offline-events.recorded-by-you'
+          : `offline-events.status-${event.status}`,
       )}
     </Badge>
   );

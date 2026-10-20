@@ -15,12 +15,19 @@ import type { AccessReaders } from '@/lib/offline-access';
 import { startOfflineCoordinator } from '@/lib/offline-coordinator';
 import {
   getDownloadStatus,
-  refreshOfflineProgram,
   retryOfflineDownload,
   setDownloadStatus,
 } from '@/lib/offline-download-status';
 import { parsePermissions } from '@/lib/permissions';
 
+let freshUploadAccess: ReturnType<typeof startOfflineCoordinator>['freshAccess'];
+let refreshOfflineDownload: (key: string) => void;
+function startCoordinator(dependencies: Parameters<typeof startOfflineCoordinator>[0]) {
+  const coordinator = startOfflineCoordinator(dependencies);
+  refreshOfflineDownload = coordinator.refresh;
+  freshUploadAccess = coordinator.freshAccess;
+  return coordinator.stop;
+}
 const programs = ['p1', 'p2'].map((id) => ({ id, code: id, name: id, active: true }));
 const raw: AccessReaders = {
   permissions: vi.fn(async () =>
@@ -105,7 +112,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 const begin = () => {
-  stop = startOfflineCoordinator({ access: raw, providers: [homeStockProvider(download)] });
+  stop = startCoordinator({ access: () => raw, providers: [homeStockProvider(download)] });
 };
 const finished = () => waitFor(() => expect(getDownloadStatus().phase).toBe('complete'));
 
@@ -257,7 +264,7 @@ it('retains a stored time zone on refresh failure and clears an earlier failure 
   begin();
   await finished();
   expect(localStorage.getItem('openlmis-ui.time-zone')).toBe('Africa/Blantyre');
-  setDownloadStatus({ phase: 'failed', incompletePrograms: [], reason: 'read' });
+  setDownloadStatus({ phase: 'failed', incomplete: [], reason: 'read' });
   retryOfflineDownload();
   await finished();
   expect(download).toHaveBeenCalledTimes(2);
@@ -284,7 +291,7 @@ it('returns immediately with a held download, commits only complete programs and
   onlineManager.setOnline(true);
   await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
   expect(getDownloadStatus().reason).toBe('timeout');
-  expect(getDownloadStatus().incompletePrograms.map((program) => program.id)).toEqual(['p1']);
+  expect(getDownloadStatus().incomplete.map((program) => program.id)).toEqual(['p1']);
   expect(await getLocalDb().table('homeStockDownloads').get(['home', 'p1'])).toEqual(old);
   expect(await getLocalDb().table('physicalInventoryDrafts').get('retained-pi')).toEqual({
     draftId: 'retained-pi',
@@ -320,8 +327,8 @@ it('forces fresh sign-in downloads even when saved bundles are young', async () 
   await finished();
   stop?.();
   download.mockClear();
-  stop = startOfflineCoordinator({
-    access: raw,
+  stop = startCoordinator({
+    access: () => raw,
     providers: [homeStockProvider(download)],
     initialTrigger: 'force',
   });
@@ -402,8 +409,8 @@ it('rechecks generations under the shared lock instead of duplicating a complete
   begin();
   await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
   const secondDownload = vi.fn(async ({ programId }: { programId: string }) => bundle(programId));
-  const secondStop = startOfflineCoordinator({
-    access: raw,
+  const secondStop = startCoordinator({
+    access: () => raw,
     providers: [homeStockProvider(secondDownload)],
   });
   try {
@@ -422,7 +429,7 @@ it('stops unfinished scopes on a no-response connection failure even when the br
   begin();
   await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
   expect(getDownloadStatus().reason).toBe('offline');
-  expect(getDownloadStatus().incompletePrograms.map((program) => program.id)).toEqual(['p1', 'p2']);
+  expect(getDownloadStatus().incomplete.map((program) => program.id)).toEqual(['p1', 'p2']);
   expect(await getLocalDb().table('homeStockDownloads').count()).toBe(0);
   expect(onlineManager.isOnline()).toBe(true);
 });
@@ -457,7 +464,7 @@ it('excludes programs without stock viewing rights from downloads and Retry fail
   begin();
   await finished();
   expect(download.mock.calls.map(([filter]) => filter.programId)).toEqual(['p2']);
-  expect(getDownloadStatus().incompletePrograms).toEqual([]);
+  expect(getDownloadStatus().incomplete).toEqual([]);
   expect(await getLocalDb().table('homeStockDownloads').get(['home', 'p1'])).toBeUndefined();
 });
 
@@ -491,7 +498,17 @@ it.each([false, true])(
     receive({
       data: {
         type: 'status',
-        status: { phase: 'running', incompletePrograms: [{ id: 'p1', name: 'p1' }] },
+        status: {
+          phase: 'running',
+          incomplete: [
+            {
+              id: 'p1',
+              name: 'p1',
+              dataset: 'home-stock',
+              datasetLabel: 'offline.download.home-stock',
+            },
+          ],
+        },
       },
     });
     await waitFor(() =>
@@ -508,7 +525,7 @@ it.each([false, true])(
         setTimeout(() => {
           phaseBeforeFinal = getDownloadStatus().phase;
           receive({
-            data: { type: 'status', status: { phase: 'complete', incompletePrograms: [] } },
+            data: { type: 'status', status: { phase: 'complete', incomplete: [] } },
           });
           resolve();
         }, 0),
@@ -532,7 +549,7 @@ it('marks accepted online stock stale and refreshes only that program without wa
         release = resolve;
       }),
   );
-  refreshOfflineProgram({ facilityId: 'home', programId: 'p1' });
+  refreshOfflineDownload('home:p1');
   await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
   expect(getDownloadStatus()).toMatchObject({ phase: 'running', trigger: 'refresh' });
   expect(download.mock.calls[0][0].programId).toBe('p1');
@@ -555,12 +572,12 @@ it('keeps a queued user retry visible when a later accepted-event refresh joins 
         release = resolve;
       }),
   );
-  refreshOfflineProgram({ facilityId: 'home', programId: 'p1' });
+  refreshOfflineDownload('home:p1');
   await waitFor(() =>
     expect(getDownloadStatus()).toMatchObject({ phase: 'running', trigger: 'refresh' }),
   );
   retryOfflineDownload();
-  refreshOfflineProgram({ facilityId: 'home', programId: 'p2' });
+  refreshOfflineDownload('home:p2');
   release(bundle('p1'));
   await waitFor(() =>
     expect(getDownloadStatus()).toMatchObject({ phase: 'complete', trigger: 'retry' }),
@@ -577,7 +594,7 @@ it('queues a submitted program refresh behind an older in-flight batch', async (
   );
   begin();
   await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
-  refreshOfflineProgram({ facilityId: 'home', programId: 'p1' });
+  refreshOfflineDownload('home:p1');
   release(bundle('p1'));
   await waitFor(() => expect(download).toHaveBeenCalledTimes(3));
   await finished();
@@ -605,8 +622,8 @@ it('drops refresh requests outside eligible home programs so an observed complet
   let remoteCompletion = false;
   vi.mocked(navigator.locks.request).mockImplementation(async (_name, _options, task) => {
     if (remoteCompletion) {
-      receive({ data: { type: 'status', status: { phase: 'running', incompletePrograms: [] } } });
-      receive({ data: { type: 'status', status: { phase: 'complete', incompletePrograms: [] } } });
+      receive({ data: { type: 'status', status: { phase: 'running', incomplete: [] } } });
+      receive({ data: { type: 'status', status: { phase: 'complete', incomplete: [] } } });
     }
     const result = await task({} as Lock);
     completedLocks += 1;
@@ -616,9 +633,9 @@ it('drops refresh requests outside eligible home programs so an observed complet
   await finished();
   await waitFor(() => expect(completedLocks).toBe(1));
   download.mockClear();
-  refreshOfflineProgram({ facilityId: 'away', programId: 'p2' });
+  refreshOfflineDownload('away:p2');
   await waitFor(() => expect(completedLocks).toBe(2));
-  refreshOfflineProgram({ facilityId: 'home', programId: 'p1' });
+  refreshOfflineDownload('home:p1');
   await waitFor(() => expect(completedLocks).toBe(3));
   remoteCompletion = true;
   onlineManager.setOnline(false);
@@ -634,7 +651,6 @@ it('refreshes a cached upload snapshot explicitly without a token or connection 
   });
   begin();
   await finished();
-  const { freshUploadAccess } = await import('@/lib/upload-access');
   const first = await freshUploadAccess();
   vi.mocked(raw.permissions).mockResolvedValueOnce([]);
   expect((await freshUploadAccess()).generation).toBe(first.generation);
@@ -656,7 +672,6 @@ it('isolates provider failures and retries only the failed dataset when scope id
       id: 'first',
       label: 'offline.download.home-stock',
       table: 'homeStockDownloads',
-      eligible: () => true,
       scopes: () => [{ id: 'same', name: 'Same', key: ['home', 'same'] }],
       fetch: first,
       accepts: () => true,
@@ -666,16 +681,15 @@ it('isolates provider failures and retries only the failed dataset when scope id
       id: 'second',
       label: 'offline.download.home-stock',
       table: 'physicalInventoryDrafts',
-      eligible: () => true,
       scopes: () => [{ id: 'same', name: 'Same', key: 'provider-record' }],
       fetch: second,
       accepts: () => true,
       isFresh: () => false,
     }),
   ];
-  stop = startOfflineCoordinator({ access: raw, providers });
+  stop = startCoordinator({ access: () => raw, providers });
   await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
-  expect(getDownloadStatus().incompletePrograms).toEqual([
+  expect(getDownloadStatus().incomplete).toEqual([
     { id: 'same', name: 'Same', dataset: 'first', datasetLabel: 'offline.download.home-stock' },
   ]);
   expect(await getLocalDb().table('physicalInventoryDrafts').get('provider-record')).toMatchObject({
@@ -749,8 +763,8 @@ it('shares freshness scheduling and exponential failure backoff across two coord
   await finished();
   await tail;
   const second = vi.fn(async ({ programId }: { programId: string }) => bundle(programId));
-  const secondStop = startOfflineCoordinator({
-    access: raw,
+  const secondStop = startCoordinator({
+    access: () => raw,
     providers: [homeStockProvider(second)],
   });
   try {
@@ -816,14 +830,14 @@ it('announces UTC fallback once while two tabs keep downloaded data ready withou
   });
   client.defaults.adapter = zoneRead;
   const note = vi.fn();
-  stop = startOfflineCoordinator({
-    access: raw,
+  stop = startCoordinator({
+    access: () => raw,
     providers: [homeStockProvider(download)],
     onTimeZoneFallback: note,
   });
   await finished();
-  const secondStop = startOfflineCoordinator({
-    access: raw,
+  const secondStop = startCoordinator({
+    access: () => raw,
     providers: [homeStockProvider(download)],
     onTimeZoneFallback: note,
   });
@@ -876,8 +890,8 @@ it('backs off periodic access failures across tabs before reading bundles or req
   begin();
   await finished();
   await tail;
-  const secondStop = startOfflineCoordinator({
-    access: raw,
+  const secondStop = startCoordinator({
+    access: () => raw,
     providers: [homeStockProvider(download)],
   });
   try {

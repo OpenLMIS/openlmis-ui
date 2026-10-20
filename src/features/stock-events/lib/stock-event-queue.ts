@@ -1,3 +1,4 @@
+import { announceQueuedEvents } from '@/features/stock-events/lib/device-event-status';
 import {
   foregroundStockEventIds,
   holdForegroundStockEvent,
@@ -7,12 +8,9 @@ import type {
   StockEventContext,
   StockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
-import {
-  DraftConflictError,
-  readStockEventDraft,
-} from '@/features/stock-events/lib/stock-event-local';
+import { readStockEventDraft } from '@/features/stock-events/lib/stock-event-local';
 import type { StockEvent } from '@/features/stock-events/lib/types';
-import { announceQueuedEvents } from '@/lib/device-event-status';
+import { DraftConflictError } from '@/lib/draft-store';
 import type { NamedRecord } from '@/lib/facility-program-selection';
 import { assertSessionScope } from '@/lib/session-scope';
 

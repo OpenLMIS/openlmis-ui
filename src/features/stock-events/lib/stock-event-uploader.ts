@@ -2,7 +2,17 @@ import { onlineManager } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { liveQuery } from 'dexie';
 import { toast } from 'sonner';
+import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  getSyncPhase,
+  setSyncPhase,
+  setSyncWake,
+} from '@/features/stock-events/lib/device-event-status';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import {
+  QueueReceiptError,
+  stockEventTransport,
+} from '@/features/stock-events/lib/queue-transport';
 import {
   refreshAfterStockEventAccepted,
   subscribeStockEventAcceptances,
@@ -20,21 +30,19 @@ import { client } from '@/integrations/axios';
 import i18n from '@/integrations/i18n';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
-import { getSyncPhase, setSyncPhase, setSyncWake } from '@/lib/device-event-status';
+import type { OfflineAccess } from '@/lib/offline-access';
 import { isOnline, reportConnectionFailure } from '@/lib/online';
 import { hasProgramGrant, parsePermissions } from '@/lib/permissions';
-import { QueueReceiptError } from '@/lib/queue-transport';
+import { onSessionResumed } from '@/lib/session-resumed';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
-import { getSessionState, subscribeSessionState } from '@/lib/session-state';
-import { freshUploadAccess, uploadAccessEpoch } from '@/lib/upload-access';
+import { uploadAccessEpoch } from '@/lib/upload-access';
 
-export function startStockEventUploader(
-  dependencies: {
-    access?: typeof freshUploadAccess;
-    send?: SyncDependencies['send'];
-    retryReceipt?: () => Promise<void>;
-  } = {},
-) {
+export function startStockEventUploader(dependencies: {
+  access: (force?: boolean) => Promise<OfflineAccess>;
+  refresh?: (refreshKey: string) => void;
+  send?: SyncDependencies['send'];
+  retryReceipt?: () => Promise<void>;
+}) {
   const stopAcceptances = subscribeStockEventAcceptances(queryClient);
   let stopped = false;
   let running = false;
@@ -48,7 +56,7 @@ export function startStockEventUploader(
   let retryDelay = 1000;
   const pruned = new Set<string>();
   const valid = () => {
-    const state = getSessionState();
+    const state = useLoginData.getState();
     return (
       !stopped &&
       isOnline() &&
@@ -59,13 +67,13 @@ export function startStockEventUploader(
     );
   };
   const restingPhase = () =>
-    getSessionState().expired || pausedEpoch === uploadAccessEpoch() ? 'session' : 'idle';
+    useLoginData.getState().expired || pausedEpoch === uploadAccessEpoch() ? 'session' : 'idle';
   const run = async () => {
     if (running) {
       pending = true;
       return;
     }
-    const userId = getSessionState().referenceDataUserId;
+    const userId = useLoginData.getState().referenceDataUserId;
     if (stopped || !userId) return;
     if (!navigator.locks) {
       setSyncPhase('unsupported');
@@ -101,7 +109,7 @@ export function startStockEventUploader(
         const epoch = uploadAccessEpoch();
         const force = forceAccess;
         forceAccess = false;
-        const access = await (dependencies.access ?? freshUploadAccess)(force);
+        const access = await dependencies.access(force);
         check();
         if (!valid() || epoch !== uploadAccessEpoch() || access.userId !== userId) return;
         const permissions = parsePermissions(access.permissionStrings ?? []);
@@ -110,7 +118,7 @@ export function startStockEventUploader(
           (async (event) => {
             try {
               const response = await client.post('/stockEvents', event.postBody, {
-                queueTransport: { userId },
+                queueTransport: stockEventTransport(userId),
                 sessionScope: scope,
                 sentFor: userId,
               });
@@ -157,14 +165,14 @@ export function startStockEventUploader(
             }),
           accepted: (event: QueuedStockEvent) => {
             check();
-            refreshAfterStockEventAccepted(queryClient, event);
+            refreshAfterStockEventAccepted(queryClient, event, dependencies.refresh);
             if (backgroundEvents.has(event.localEventId)) acceptedCount++;
           },
         });
         check();
         if (acceptedCount)
-          toast.success(i18n.t('device-events.synced'), {
-            description: i18n.t('device-events.synced-count', { count: acceptedCount }),
+          toast.success(i18n.t('offline-events.synced'), {
+            description: i18n.t('offline-events.synced-count', { count: acceptedCount }),
           });
         const unfinished = await db.transaction(
           'r',
@@ -200,8 +208,8 @@ export function startStockEventUploader(
     } catch (error) {
       if (scope === getSessionScope() && !stopped) {
         reportConnectionFailure(error);
-        setSyncPhase(getSessionState().expired ? 'session' : 'failed');
-        if (!getSessionState().expired && !retryTimer) {
+        setSyncPhase(useLoginData.getState().expired ? 'session' : 'failed');
+        if (!useLoginData.getState().expired && !retryTimer) {
           retryTimer = setTimeout(() => {
             retryTimer = undefined;
             void run();
@@ -223,7 +231,7 @@ export function startStockEventUploader(
     clearInterval(accessTimer);
     accessTimer = undefined;
     accessPaused = false;
-    if (!getSessionState().referenceDataUserId) return;
+    if (!useLoginData.getState().referenceDataUserId) return;
     const scope = getSessionScope();
     const db = getLocalDb();
     subscription = liveQuery(() =>
@@ -248,8 +256,8 @@ export function startStockEventUploader(
       },
     });
   };
-  const unsubscribe = subscribeSessionState((state, previous) => {
-    if (state.referenceDataUserId !== previous.referenceDataUserId) {
+  const unsubscribe = onSessionResumed({
+    onUserChange: () => {
       pausedEpoch = undefined;
       forceAccess = false;
       retryDelay = 1000;
@@ -257,16 +265,11 @@ export function startStockEventUploader(
       retryTimer = undefined;
       setSyncPhase('idle');
       watch();
-    }
-    if (state.expired) setSyncPhase('session');
-    if (
-      state.isAuthenticated &&
-      !state.expired &&
-      (previous.expired ||
-        state.accessToken !== previous.accessToken ||
-        state.referenceDataUserId !== previous.referenceDataUserId)
-    )
+    },
+    onExpired: () => setSyncPhase('session'),
+    onResume: () => {
       void run();
+    },
   });
   const unsubscribeOnline = onlineManager.subscribe((online) => {
     if (online) void run();

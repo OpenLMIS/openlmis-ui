@@ -1,4 +1,6 @@
+import type { ParseKeys } from 'i18next';
 import { createContext, useContext } from 'react';
+import type { NoticeCountdown } from '@/lib/notice-countdown';
 
 export type DeviceWork = {
   hasDeviceEvents: boolean;
@@ -10,6 +12,7 @@ export type DeviceWork = {
   retained: boolean;
   pauses: readonly ('access-changed' | 'draft-changed')[];
   countUnsyncedWork: () => Promise<number>;
+  refreshOfflineDownload: (refreshKey: string) => void;
 };
 export const DeviceWorkContext = createContext<DeviceWork>({
   hasDeviceEvents: false,
@@ -20,8 +23,24 @@ export const DeviceWorkContext = createContext<DeviceWork>({
   sending: false,
   retained: false,
   pauses: [],
+  refreshOfflineDownload: () => {},
   countUnsyncedWork: async () => {
     throw new Error('Device work is not available.');
   },
 });
 export const useDeviceWork = () => useContext(DeviceWorkContext);
+
+export type DeviceSync = {
+  phase: 'idle' | 'syncing' | 'complete' | 'session' | 'unsupported' | 'receipt' | 'failed';
+  countdown?: NoticeCountdown;
+  queued: { count: number } | null;
+  save: ParseKeys | null;
+  wake: () => void;
+};
+export const DeviceSyncContext = createContext<DeviceSync>({
+  phase: 'idle',
+  queued: null,
+  save: null,
+  wake: () => {},
+});
+export const useDeviceSync = () => useContext(DeviceSyncContext);

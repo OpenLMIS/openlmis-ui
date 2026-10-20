@@ -1,6 +1,7 @@
 import { onlineManager } from '@tanstack/react-query';
 import { AxiosError, isAxiosError } from 'axios';
 import { useEffect, useEffectEvent, useSyncExternalStore } from 'react';
+import { create } from 'zustand';
 import { createNoticeCountdown } from '@/lib/notice-countdown';
 
 let unreachable = false;
@@ -10,6 +11,21 @@ let authProbeUrl: string | undefined;
 let probeTimer: ReturnType<typeof setTimeout> | undefined;
 let probeController: AbortController | undefined;
 let probeDelay = 1000;
+
+function stopProbing() {
+  authProbeUrl = undefined;
+  unreachable = false;
+  clearTimeout(probeTimer);
+  probeTimer = undefined;
+  probeController?.abort();
+  probeController = undefined;
+}
+
+function markUnreachable() {
+  unreachable = true;
+  onlineManager.setOnline(false);
+  scheduleProbe();
+}
 
 function scheduleProbe(delay = probeDelay) {
   if (delay === 0) {
@@ -60,13 +76,9 @@ function scheduleProbe(delay = probeDelay) {
 export function reportConnectionSuccess(url?: string, sentGeneration = failureGeneration) {
   if (sentGeneration !== failureGeneration) return;
   if (authProbeUrl && url !== undefined && !url.includes('/oauth/')) return;
+  // Only API success resets backoff; a probe can recover while the API still fails.
   probeDelay = 1000;
-  authProbeUrl = undefined;
-  unreachable = false;
-  clearTimeout(probeTimer);
-  probeTimer = undefined;
-  probeController?.abort();
-  probeController = undefined;
+  stopProbing();
   if (navigator.onLine) onlineManager.setOnline(true);
 }
 
@@ -82,9 +94,7 @@ export function reportConnectionFailure(error: unknown) {
   if (error.config?.url?.includes('/oauth/')) {
     authProbeUrl = `${(error.config.baseURL ?? '/api').replace(/\/$/, '')}/oauth/token`;
   }
-  unreachable = true;
-  onlineManager.setOnline(false);
-  scheduleProbe();
+  markUnreachable();
 }
 
 onlineManager.setEventListener((setOnline) => {
@@ -104,23 +114,14 @@ onlineManager.setEventListener((setOnline) => {
 let connectionGeneration = 0;
 export const getConnectionGeneration = () => connectionGeneration;
 
-let backOnline = false;
+const useBackOnlineStore = create(() => ({ backOnline: false }));
 export const backOnlineCountdown = createNoticeCountdown(() => setBackOnline(false));
-const backOnlineListeners = new Set<() => void>();
-
-function setBackOnline(value: boolean) {
-  backOnline = value;
-  for (const listener of backOnlineListeners) listener();
-}
+const setBackOnline = (backOnline: boolean) => useBackOnlineStore.setState({ backOnline });
 
 onlineManager.subscribe((online) => {
   if (online) {
     connectionGeneration += 1;
-    unreachable = false;
-    authProbeUrl = undefined;
-    clearTimeout(probeTimer);
-    probeTimer = undefined;
-    probeController?.abort();
+    stopProbing();
   }
   backOnlineCountdown.stop();
   setBackOnline(online);
@@ -132,11 +133,7 @@ export function seedOnline() {
   else onlineManager.setOnline(navigator.onLine);
 }
 
-export const continueOffline = () => {
-  unreachable = true;
-  onlineManager.setOnline(false);
-  scheduleProbe();
-};
+export const continueOffline = markUnreachable;
 
 export const isOnline = () => onlineManager.isOnline();
 
@@ -154,12 +151,4 @@ export const dismissBackOnline = () => {
   setBackOnline(false);
 };
 
-export function useBackOnline() {
-  return useSyncExternalStore(
-    (onChange) => {
-      backOnlineListeners.add(onChange);
-      return () => backOnlineListeners.delete(onChange);
-    },
-    () => backOnline,
-  );
-}
+export const useBackOnline = () => useBackOnlineStore((state) => state.backOnline);

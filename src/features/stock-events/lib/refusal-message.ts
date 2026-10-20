@@ -7,5 +7,5 @@ export function refusalMessage(
 ) {
   return error?.message.trim() && error.message !== error.messageKey
     ? error.message
-    : t('device-events.refused-description');
+    : t('offline-events.refused-description');
 }

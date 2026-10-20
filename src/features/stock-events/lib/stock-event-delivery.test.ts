@@ -13,7 +13,6 @@ import {
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
-import { setDownloadRefresh } from '@/lib/offline-download-status';
 
 const event = {
   sequence: 1,
@@ -27,7 +26,6 @@ const event = {
 } as QueuedStockEvent;
 afterEach(() => {
   for (const id of foregroundStockEvents) releaseForegroundStockEvent(id);
-  setDownloadRefresh();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -116,8 +114,7 @@ it('keeps a slow online submission in progress and invalidates stock before retu
   await vi.advanceTimersByTimeAsync(1600);
   expect(settled).toBe(false);
   const refresh = vi.fn();
-  setDownloadRefresh(refresh);
-  refreshAfterStockEventAccepted(client, event);
+  refreshAfterStockEventAccepted(client, event, refresh);
   const receipt = {
     draftId: event.draftId,
     revision: event.revision,
@@ -130,7 +127,6 @@ it('keeps a slow online submission in progress and invalidates stock before retu
   expect(await result).toEqual({ kind: 'accepted', receipt });
   expect(client.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated).toBe(true);
   expect(refresh).toHaveBeenCalledTimes(1);
-  setDownloadRefresh();
 });
 
 it('returns queued after 1.5 seconds when the online uploader never starts', async () => {

@@ -34,7 +34,7 @@ test('copying a refusal replaces its dialog entry and Back returns to the device
   await page.goto('./offline-events');
   await page.locator('tbody button[aria-haspopup=menu]').click();
   await page
-    .getByRole('menuitem', { name: catalog['device-events.review-event'], exact: true })
+    .getByRole('menuitem', { name: catalog['offline-events.review-event'], exact: true })
     .click();
   await expect(page).toHaveURL(/offline-events\?event=/);
   await expect(page.getByRole('dialog')).toContainText('Fixture refusal');
@@ -46,7 +46,7 @@ test('copying a refusal replaces its dialog entry and Back returns to the device
   await page.goBack();
   await expect(page).toHaveURL(/\/offline-events$/);
   await expect(
-    page.getByRole('heading', { name: catalog['device-events.title'], exact: true }),
+    page.getByRole('heading', { name: catalog['offline-events.title'], exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   expect(posts).toBe(1);
@@ -70,7 +70,7 @@ test('Arabic phone navigation keeps /v2 and palette focus after the offline dial
   await expect(page.getByRole('img', { name: new RegExp(labels['offline.title']) })).toBeVisible();
   await page
     .getByRole('note')
-    .getByRole('link', { name: labels['device-events.title'], exact: true })
+    .getByRole('link', { name: labels['offline-events.title'], exact: true })
     .click();
   await expect(page).toHaveURL(/\/v2\/offline-events$/);
   await page.keyboard.press('Control+k');

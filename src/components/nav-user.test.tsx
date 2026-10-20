@@ -1,3 +1,4 @@
+import '@/routes/-offline-pages';
 import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -112,6 +113,7 @@ it.each([
             retained: false,
             pauses: [],
             countUnsyncedWork: async () => pending,
+            refreshOfflineDownload: () => {},
           }}
         >
           <NavUser trigger={<button type="button">Open Account Menu</button>} />
@@ -122,7 +124,7 @@ it.each([
     await user.click(await screen.findByRole('button', { name: 'Open Account Menu' }));
     const menu = within(await screen.findByRole('menu'));
     const event = menu.queryByRole('menuitem', {
-      name: pending > 0 ? 'device-events.nav-count' : 'nav.offline-events',
+      name: pending > 0 ? 'offline-events.nav-count' : 'nav.offline-events',
     });
     if (visible) {
       expect(event).toHaveAttribute('href', '/offline-events');
@@ -134,7 +136,7 @@ it.each([
       expect(items.indexOf(event as HTMLElement)).toBeLessThan(
         items.indexOf(menu.getByRole('menuitem', { name: 'nav-user.log-out' })),
       );
-      await user.click(menu.getByRole('menuitem', { name: 'device-events.nav-count' }));
+      await user.click(menu.getByRole('menuitem', { name: 'offline-events.nav-count' }));
       await waitFor(() => expect(router.state.location.pathname).toBe('/offline-events'));
     } else expect(event).toBeNull();
   },

@@ -1,3 +1,4 @@
+import '@/routes/-offline-pages';
 import { HouseIcon } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 import { canOpen, navWithinRights } from '@/components/nav-access';

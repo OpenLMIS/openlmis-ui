@@ -1,4 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
+import type { ParseKeys } from 'i18next';
 import {
   AlertTriangleIcon,
   CircleCheckIcon,
@@ -11,7 +12,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { useDeviceWork } from '@/components/device-work';
+import { useDeviceSync, useDeviceWork } from '@/components/device-work';
 import { useHasOfflineCapability } from '@/components/nav-access';
 import { NoticeCountdownBar } from '@/components/notice-countdown';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -23,13 +24,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useOfflineSession } from '@/hooks/use-offline-session';
-import {
-  syncCountdown,
-  useQueuedAnnouncement,
-  useSyncPhase,
-  wakeStockEventSync,
-} from '@/lib/device-event-status';
-import { useDeviceSaveAnnouncement } from '@/lib/device-save-announcement';
 import type { NoticeCountdown } from '@/lib/notice-countdown';
 import {
   downloadCountdown,
@@ -72,10 +66,10 @@ function useNotices(): Notice[] {
   const canWorkOffline = useHasOfflineCapability();
   const device = useDeviceWork();
   const { waiting } = device;
-  const ownPhase = useSyncPhase();
+  const { phase: ownPhase, countdown: syncCountdown, wake } = useDeviceSync();
   const phase = ownPhase === 'idle' && device.sending ? 'syncing' : ownPhase;
   const review = {
-    label: t('device-events.review'),
+    label: t('offline-events.review'),
     onClick: () => void navigate({ to: '/offline-events' }),
   };
   const online = useOnline();
@@ -137,9 +131,9 @@ function useNotices(): Notice[] {
     });
   if (download.phase === 'failed' && (online || download.reason !== 'offline')) {
     const reason = download.reason ?? 'read';
-    const programsByDataset = new Map<string, string[]>();
-    for (const item of download.incompletePrograms) {
-      const label = item.datasetLabel ?? '';
+    const programsByDataset = new Map<ParseKeys, string[]>();
+    for (const item of download.incomplete) {
+      const label = item.datasetLabel;
       const programs = programsByDataset.get(label) ?? [];
       programs.push(item.name);
       programsByDataset.set(label, programs);
@@ -153,7 +147,7 @@ function useNotices(): Notice[] {
         t(`offline.download.failure-${reason}`),
         ...[...programsByDataset].map(([label, programs]) =>
           t('offline.download.failed-programs', {
-            dataset: label ? t(label as import('i18next').ParseKeys) : t('offline.download.data'),
+            dataset: t(label),
             programs: programs.join(', '),
           }),
         ),
@@ -177,12 +171,12 @@ function useNotices(): Notice[] {
       spinning: syncing,
       title: t(
         receiptPending
-          ? 'device-events.receipt-write'
+          ? 'offline-events.receipt-write'
           : signInPending
-            ? 'device-events.sign-in'
-            : 'device-events.syncing',
+            ? 'offline-events.sign-in'
+            : 'offline-events.syncing',
       ),
-      description: receiptPending ? t('device-events.receipt-write-description') : undefined,
+      description: receiptPending ? t('offline-events.receipt-write-description') : undefined,
       action: !receiptPending && signInPending ? undefined : review,
       closesSidebar: true,
     });
@@ -192,7 +186,7 @@ function useNotices(): Notice[] {
       id: 'device-events-sync',
       variant: 'success',
       Icon: CircleCheckIcon,
-      title: t('device-events.sync-complete'),
+      title: t('offline-events.sync-complete'),
       countdown: syncCountdown,
     });
   if (canWorkOffline && phase === 'unsupported')
@@ -200,17 +194,17 @@ function useNotices(): Notice[] {
       id: 'device-events-sync',
       variant: 'warning',
       Icon: AlertTriangleIcon,
-      title: t('device-events.sync-unavailable'),
-      description: t('device-events.locks-required'),
+      title: t('offline-events.sync-unavailable'),
+      description: t('offline-events.locks-required'),
     });
   if (online && canWorkOffline && !offlineSession && waiting && phase === 'failed')
     notices.push({
       id: 'device-events-sync',
       variant: 'warning',
       Icon: AlertTriangleIcon,
-      title: t('device-events.sync-failed'),
-      description: t('device-events.sync-failed-description'),
-      action: { label: t('device-events.retry'), onClick: wakeStockEventSync },
+      title: t('offline-events.sync-failed'),
+      description: t('offline-events.sync-failed-description'),
+      action: { label: t('offline-events.retry'), onClick: wake },
     });
   for (const reason of ['access-changed', 'draft-changed'] as const) {
     if (device.pauses.includes(reason))
@@ -218,8 +212,8 @@ function useNotices(): Notice[] {
         id: `device-events-${reason}`,
         variant: 'warning',
         Icon: AlertTriangleIcon,
-        title: t(`device-events.${reason}`),
-        description: t(`device-events.${reason}-description`),
+        title: t(`offline-events.${reason}`),
+        description: t(`offline-events.${reason}-description`),
         action: review,
         closesSidebar: true,
       });
@@ -370,9 +364,8 @@ export function SidebarNotices() {
 export function StatusAnnouncer() {
   const updateReady = useUpdateReady();
   const notices = useNotices();
-  const queued = useQueuedAnnouncement();
+  const { queued, save: deviceSave } = useDeviceSync();
   const { uncertain, refused } = useDeviceWork();
-  const deviceSave = useDeviceSaveAnnouncement();
   const scope = useSessionScope();
   const { t } = useTranslation();
   const current: Record<string, string> = {};
@@ -380,9 +373,9 @@ export function StatusAnnouncer() {
   for (const { id, title, description } of notices) {
     current[id] = description ? `${title.replace(/[.!?؟。]+$/u, '')}. ${description}` : title;
   }
-  if (uncertain) current.uncertain = t('device-events.uncertain-count', { count: uncertain });
-  if (refused) current.refused = t('device-events.refused-count', { count: refused });
-  if (queued) current.queued = t('device-events.waiting', { count: queued.count });
+  if (uncertain) current.uncertain = t('offline-events.uncertain-count', { count: uncertain });
+  if (refused) current.refused = t('offline-events.refused-count', { count: refused });
+  if (queued) current.queued = t('offline-events.waiting', { count: queued.count });
   if (deviceSave) current.save = t(deviceSave);
   const signature = JSON.stringify(current);
   const [announced, setAnnounced] = useState<{

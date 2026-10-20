@@ -1,6 +1,6 @@
 import { onlineManager } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { DeviceWorkContext } from '@/components/device-work';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -9,18 +9,20 @@ import {
   fetchUserPrograms,
   fetchUserRecord,
 } from '@/features/reference-data/api/api';
-import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
+import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
 import { retryDownloadRead } from '@/features/stock-events/lib/download-read';
 import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import {
   isForegroundStockEvent,
   useForegroundStockEventIds,
 } from '@/features/stock-events/lib/stock-event-delivery';
+import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import i18n from '@/integrations/i18n';
 import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
 import { isOnline } from '@/lib/online';
+import { DeviceStatusProvider } from '@/routes/-device-status-provider';
 
 export function DeviceWorkProvider({
   children,
@@ -29,11 +31,22 @@ export function DeviceWorkProvider({
   children: ReactNode;
   initialTrigger: 'boot' | 'force';
 }) {
-  const { events, hasDeviceEvents } = useDeviceEvents(true, true);
+  const services = useRef<{ refresh: (key: string) => void } | undefined>(undefined);
+  const { events, hasDeviceEvents } = useOfflineEvents(true, true);
   const foreground = useForegroundStockEventIds(
     events?.some((event) => event.status === 'queued' || event.status === 'sending') ?? false,
   );
-  useEffect(() => startDeviceWorkServices(initialTrigger), [initialTrigger]);
+  const background = (event: DeviceEvent) =>
+    !isForegroundStockEvent(event) && !foreground.has(event.localEventId);
+  useEffect(() => {
+    const stop = startDeviceWorkServices(initialTrigger, loadDeviceWorkServices, (current) => {
+      services.current = current;
+    });
+    return () => {
+      services.current = undefined;
+      stop();
+    };
+  }, [initialTrigger]);
   return (
     <DeviceWorkContext
       value={{
@@ -42,8 +55,7 @@ export function DeviceWorkProvider({
         waiting:
           events?.filter(
             (event) =>
-              !isForegroundStockEvent(event) &&
-              !foreground.has(event.localEventId) &&
+              background(event) &&
               !event.pauseReason &&
               ['queued', 'sending'].includes(event.status),
           ).length ?? 0,
@@ -51,21 +63,16 @@ export function DeviceWorkProvider({
         refused:
           events?.filter((event) => event.status === 'refused' && !event.error?.resolvedAt)
             .length ?? 0,
-        sending:
-          events?.some(
-            (event) =>
-              !isForegroundStockEvent(event) &&
-              !foreground.has(event.localEventId) &&
-              event.status === 'sending',
-          ) ?? false,
+        sending: events?.some((event) => background(event) && event.status === 'sending') ?? false,
         retained: events?.some((event) => event.status !== 'accepted') ?? false,
         pauses: (['access-changed', 'draft-changed'] as const).filter((reason) =>
           events?.some((event) => event.pauseReason === reason),
         ),
         countUnsyncedWork: countUnsyncedDeviceWork,
+        refreshOfflineDownload: (key) => services.current?.refresh(key),
       }}
     >
-      {children}
+      <DeviceStatusProvider>{children}</DeviceStatusProvider>
     </DeviceWorkContext>
   );
 }
@@ -95,6 +102,9 @@ const loadDeviceWorkServices = () =>
 export function startDeviceWorkServices(
   initialTrigger: 'boot' | 'force',
   load: typeof loadDeviceWorkServices = loadDeviceWorkServices,
+  onReady?: (
+    services: ReturnType<typeof import('@/lib/offline-coordinator').startOfflineCoordinator>,
+  ) => void,
 ) {
   let active = true;
   let loading = false;
@@ -117,7 +127,7 @@ export function startDeviceWorkServices(
     try {
       const [coordinator, uploader, { homeStockProvider }] = await load();
       if (!active) return;
-      const stopCoordinator = coordinator.startOfflineCoordinator({
+      const services = coordinator.startOfflineCoordinator({
         initialTrigger,
         providers: [homeStockProvider()],
         access: deviceAccessReaders,
@@ -127,13 +137,17 @@ export function startDeviceWorkServices(
           }),
       });
       try {
-        const stopUploader = uploader.startStockEventUploader();
+        const stopUploader = uploader.startStockEventUploader({
+          access: services.freshAccess,
+          refresh: services.refresh,
+        });
+        onReady?.(services);
         stop = () => {
           stopUploader();
-          stopCoordinator();
+          services.stop();
         };
       } catch (error) {
-        stopCoordinator();
+        services.stop();
         throw error;
       }
       failure = undefined;

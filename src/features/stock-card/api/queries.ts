@@ -2,7 +2,8 @@ import { queryOptions } from '@tanstack/react-query';
 import { fetchStockCard } from '@/features/stock-card/api/api';
 import type { StockCard } from '@/features/stock-card/lib/types';
 import { queryKeys } from '@/lib/key-factory';
-import { offlineAccessQuery, withDeviceData } from '@/lib/offline-access';
+import { onlineOrDevice } from '@/lib/local-data';
+import { offlineAccessQuery } from '@/lib/offline-access';
 import { isOnline } from '@/lib/online';
 
 export const stockCardOptions = (id: string, device?: (id: string) => Promise<StockCard>) =>
@@ -13,7 +14,7 @@ export const stockCardOptions = (id: string, device?: (id: string) => Promise<St
         : queryKeys.stockCards.detail(id),
     queryFn: () =>
       device
-        ? withDeviceData(
+        ? onlineOrDevice(
             () => fetchStockCard(id),
             () => device(id),
           )

@@ -6,46 +6,12 @@ import { useDeviceWork } from '@/components/device-work';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
-import {
-  EVENT_KINDS,
-  hasOfflineCapability,
-  OFFLINE_EVENT_RIGHTS,
-} from '@/features/stock-events/lib/event-kinds';
-import { isOfflineCapable } from '@/features/stock-events/lib/offline-pages';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { useFlag } from '@/lib/feature-flags';
+import { navRightFor } from '@/lib/nav-rights';
+import { hasOfflineCapability, isOfflineCapable } from '@/lib/offline-pages';
 import { useOnline } from '@/lib/online';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
-
-/** The right a page asks for, or a list of which any one opens it, so the nav only offers pages the user can open. */
-const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readonly string[]>> = {
-  '/administration/facilities': RIGHTS.facilitiesManage,
-  '/administration/supply-lines': RIGHTS.supplyLinesManage,
-  '/administration/geographic-zones': RIGHTS.geographicZonesManage,
-  '/administration/supervisory-nodes': RIGHTS.supervisoryNodesManage,
-  '/administration/supply-partners': RIGHTS.supplyPartnersManage,
-  '/administration/facility-types': RIGHTS.facilitiesManage,
-  '/administration/lots': RIGHTS.lotsManage,
-  '/administration/products': [RIGHTS.orderablesManage, RIGHTS.facilityApprovedOrderablesManage],
-  '/administration/users': RIGHTS.usersManage,
-  '/administration/roles': RIGHTS.usersManage,
-  '/administration/service-accounts': RIGHTS.serviceAccountsManage,
-  '/administration/programs': RIGHTS.programsManage,
-  '/administration/processing-schedules': RIGHTS.processingSchedulesManage,
-  '/administration/ideal-stock-amounts': RIGHTS.systemIdealStockAmountsManage,
-  '/administration/requisition-templates': RIGHTS.requisitionTemplatesManage,
-  '/administration/reasons': RIGHTS.stockCardLineItemReasonsManage,
-  '/administration/requisition-groups': RIGHTS.requisitionGroupsManage,
-  '/administration/rejection-reason-categories': RIGHTS.usersManage,
-  '/administration/rejection-reasons': RIGHTS.usersManage,
-  '/administration/valid-destinations': RIGHTS.stockDestinationsManage,
-  '/administration/valid-sources': RIGHTS.stockSourcesManage,
-  '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
-  '/stock-management/transaction-history': RIGHTS.stockCardsView,
-  '/stock-management/physical-inventory': RIGHTS.stockInventoriesEdit,
-  '/offline-events': OFFLINE_EVENT_RIGHTS,
-  ...Object.fromEntries(Object.values(EVENT_KINDS).map((kind) => [kind.listRoute, kind.right])),
-};
 
 /** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */
 export function canOpen(
@@ -54,7 +20,7 @@ export function canOpen(
   hasDeviceEvents = false,
 ) {
   if (to === '/offline-events' && hasDeviceEvents) return true;
-  const right = to && NAV_RIGHTS[to];
+  const right = to && navRightFor(to);
   return !right || [right].flat().some((name) => rights?.has(name) ?? false);
 }
 
@@ -77,7 +43,7 @@ export function navWithinRights(
     .filter((group) => group.items.length > 0);
 }
 
-export function useSignedInRights() {
+function useSignedInRights() {
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: rights } = useQuery({ ...rightsOptions(userId ?? ''), enabled: Boolean(userId) });
   return rights;

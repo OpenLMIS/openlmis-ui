@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { announceDeviceSave } from '@/features/stock-events/lib/device-save-announcement';
 import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import {
@@ -19,7 +20,6 @@ import {
   removeQueuedEvent,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { announceDeviceSave } from '@/lib/device-save-announcement';
 
 export const canRemoveDeviceEvent = (event: DeviceEvent) =>
   event.status === 'accepted' ||
@@ -55,21 +55,21 @@ export function DeviceEventRemoval({
       if (changed) {
         announceDeviceSave(
           event.status === 'accepted'
-            ? 'device-events.synced-removed'
+            ? 'offline-events.synced-removed'
             : event.status === 'refused'
-              ? 'device-events.refused-removed'
-              : 'device-events.removed',
+              ? 'offline-events.refused-removed'
+              : 'offline-events.removed',
         );
         onRemoved();
       } else
-        toast.warning(t('device-events.changed-title'), {
-          description: t('device-events.changed-description'),
+        toast.warning(t('offline-events.changed-title'), {
+          description: t('offline-events.changed-description'),
         });
       onClose();
     } catch {
       if (mutation.isCurrent())
-        toast.error(t('device-events.action-failed'), {
-          description: t('device-events.action-failed-description'),
+        toast.error(t('offline-events.action-failed'), {
+          description: t('offline-events.action-failed-description'),
         });
     }
   };
@@ -82,23 +82,23 @@ export function DeviceEventRemoval({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('device-events.remove')}</AlertDialogTitle>
+          <AlertDialogTitle>{t('offline-events.remove')}</AlertDialogTitle>
           <AlertDialogDescription>
             {t(
               event.status === 'accepted'
-                ? 'device-events.remove-synced-warning'
+                ? 'offline-events.remove-synced-warning'
                 : event.status === 'refused'
-                  ? 'device-events.remove-refused-warning'
-                  : 'device-events.remove-warning',
+                  ? 'offline-events.remove-refused-warning'
+                  : 'offline-events.remove-warning',
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={mutation.isPending}>
-            {t('device-events.cancel')}
+            {t('offline-events.cancel')}
           </AlertDialogCancel>
           <Button variant="destructive" disabled={mutation.isPending} onClick={() => void remove()}>
-            {t('device-events.remove')}
+            {t('offline-events.remove')}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

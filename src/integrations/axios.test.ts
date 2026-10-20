@@ -3,6 +3,7 @@ import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
+import { stockEventTransport } from '@/features/stock-events/lib/queue-transport';
 import { client } from '@/integrations/axios';
 import { isOnline, reportConnectionFailure } from '@/lib/online';
 
@@ -322,25 +323,29 @@ describe('client', () => {
 it('queue transport rejects an expired session before dispatch with no renewal wait', async () => {
   const { adapter } = serve('old-token');
   useLoginData.getState().expireSession();
-  const { QueueNotSentError } = await import('@/lib/queue-transport');
+  const { QueueNotSentError } = await import('@/features/stock-events/lib/queue-transport');
   await expect(
-    client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } }),
+    client.post('/stockEvents', '{}', { queueTransport: stockEventTransport('ada-id') }),
   ).rejects.toBeInstanceOf(QueueNotSentError);
   expect(adapter).not.toHaveBeenCalled();
 });
 it('queue transport scope switch before dispatch is typed not-sent', async () => {
   const { adapter } = serve('other');
-  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  const request = client.post('/stockEvents', '{}', {
+    queueTransport: stockEventTransport('ada-id'),
+  });
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'other', username: 'Other', accessToken: 'other' });
-  const { QueueNotSentError } = await import('@/lib/queue-transport');
+  const { QueueNotSentError } = await import('@/features/stock-events/lib/queue-transport');
   await expect(request).rejects.toBeInstanceOf(QueueNotSentError);
   expect(adapter).not.toHaveBeenCalled();
 });
 it('queue transport never intercepts and replays a service 401', async () => {
   const { adapter } = serve('renewed');
-  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  const request = client.post('/stockEvents', '{}', {
+    queueTransport: stockEventTransport('ada-id'),
+  });
   await expect(request).rejects.toMatchObject({ response: { status: 401 } });
   expect(useLoginData.getState().expired).toBe(true);
   useLoginData.getState().setLoginData({ ...ada, accessToken: 'renewed' });
@@ -355,7 +360,9 @@ it('queue transport retains response identity errors as potentially dispatched',
       finish = resolve;
     }),
   );
-  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  const request = client.post('/stockEvents', '{}', {
+    queueTransport: stockEventTransport('ada-id'),
+  });
   await flush();
   useLoginData
     .getState()
@@ -374,8 +381,10 @@ it('queue 201 after identity change exposes its receipt only through the owner-b
     return { status: 201, statusText: 'Created', data, headers: {}, config };
   });
   client.defaults.adapter = adapter;
-  const { QueueReceiptError } = await import('@/lib/queue-transport');
-  const request = client.post('/stockEvents', '{}', { queueTransport: { userId: 'ada-id' } });
+  const { QueueReceiptError } = await import('@/features/stock-events/lib/queue-transport');
+  const request = client.post('/stockEvents', '{}', {
+    queueTransport: stockEventTransport('ada-id'),
+  });
   await expect(request).rejects.toBeInstanceOf(QueueReceiptError);
   await expect(request).rejects.toMatchObject({ response: { status: 201, data } });
   expect(adapter).toHaveBeenCalledOnce();

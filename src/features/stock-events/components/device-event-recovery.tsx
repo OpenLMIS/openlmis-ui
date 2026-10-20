@@ -32,6 +32,7 @@ import {
   DeviceEventRemoval,
 } from '@/features/stock-events/components/device-event-removal';
 import { EventStatus } from '@/features/stock-events/components/event-status';
+import { announceDeviceSave } from '@/features/stock-events/lib/device-save-announcement';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import { refusalMessage } from '@/features/stock-events/lib/refusal-message';
@@ -43,23 +44,22 @@ import {
   resolveUncertain,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { announceDeviceSave } from '@/lib/device-save-announcement';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
 
 const confirmationCopy = {
-  recorded: { title: 'device-events.recorded', warning: 'device-events.recorded-warning' },
-  resend: { title: 'device-events.send-again', warning: 'device-events.duplicate-warning' },
-  copy: { title: 'device-events.copy', warning: 'device-events.copy-warning' },
+  recorded: { title: 'offline-events.recorded', warning: 'offline-events.recorded-warning' },
+  resend: { title: 'offline-events.send-again', warning: 'offline-events.duplicate-warning' },
+  copy: { title: 'offline-events.copy', warning: 'offline-events.copy-warning' },
 } as const;
 const pauseCopy = {
   'access-changed': {
-    title: 'device-events.access-changed',
-    description: 'device-events.access-changed-description',
+    title: 'offline-events.access-changed',
+    description: 'offline-events.access-changed-description',
   },
   'draft-changed': {
-    title: 'device-events.draft-changed',
-    description: 'device-events.draft-changed-description',
+    title: 'offline-events.draft-changed',
+    description: 'offline-events.draft-changed-description',
   },
 } as const;
 
@@ -71,6 +71,7 @@ export function DeviceEventRecovery({
   onClose,
   onCopied,
   onRemoved,
+  refreshOfflineDownload,
 }: {
   event: DeviceEvent;
   canView: boolean;
@@ -79,6 +80,7 @@ export function DeviceEventRecovery({
   onClose: () => void;
   onCopied?: () => void;
   onRemoved?: () => void;
+  refreshOfflineDownload?: (refreshKey: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const online = useOnline();
@@ -113,10 +115,10 @@ export function DeviceEventRecovery({
       setConfirmation(null);
       if (changed) {
         if (choice === 'recorded') {
-          refreshAfterStockEventAccepted(queryClient, event);
-          announceDeviceSave('device-events.recorded-by-you');
+          refreshAfterStockEventAccepted(queryClient, event, refreshOfflineDownload);
+          announceDeviceSave('offline-events.recorded-by-you');
         }
-        if (choice === 'resend') announceDeviceSave('device-events.status-queued');
+        if (choice === 'resend') announceDeviceSave('offline-events.status-queued');
         if (choice === 'copy' && onCopied) onCopied();
         else if (choice === 'copy')
           await navigate({
@@ -126,15 +128,15 @@ export function DeviceEventRecovery({
           });
         else onClose();
       } else {
-        toast.warning(t('device-events.changed-title'), {
-          description: t('device-events.changed-description'),
+        toast.warning(t('offline-events.changed-title'), {
+          description: t('offline-events.changed-description'),
         });
         onClose();
       }
     } catch {
       if (!operation.isCurrent()) return;
-      toast.error(t('device-events.action-failed'), {
-        description: t('device-events.action-failed-description'),
+      toast.error(t('offline-events.action-failed'), {
+        description: t('offline-events.action-failed-description'),
       });
     }
   };
@@ -157,19 +159,19 @@ export function DeviceEventRecovery({
           initialFocus={closeRef}
         >
           <DialogHeader>
-            <DialogTitle>{t('device-events.details')}</DialogTitle>
+            <DialogTitle>{t('offline-events.details')}</DialogTitle>
             <p className="sr-only" id={descriptionId}>
               {t(EVENT_KINDS[event.kind].copy.label)}.{' '}
               {t(
                 event.receipt?.source === 'user'
-                  ? 'device-events.recorded-by-you'
-                  : `device-events.status-${event.status}`,
+                  ? 'offline-events.recorded-by-you'
+                  : `offline-events.status-${event.status}`,
               )}
             </p>
           </DialogHeader>
           <div className="shrink-0 min-w-0">
             <SettingsList density="compact">
-              <SettingsItem label={t('device-events.type')}>
+              <SettingsItem label={t('offline-events.type')}>
                 <span className="inline-flex flex-wrap items-center justify-end gap-2">
                   <span>{t(EVENT_KINDS[event.kind].copy.label)}</span>
                   <EventStatus event={event} />
@@ -178,12 +180,12 @@ export function DeviceEventRecovery({
               {[
                 [t('facility-program.facility'), recordLabel(event.facility)],
                 [t('facility-program.program'), recordLabel(event.program)],
-                [t('device-events.queued-at'), timestamp(event.queuedAt)],
-                [t('device-events.attempted-at'), timestamp(event.attemptStartedAt)],
-                [t('device-events.signature'), event.payload.signature],
+                [t('offline-events.queued-at'), timestamp(event.queuedAt)],
+                [t('offline-events.attempted-at'), timestamp(event.attemptStartedAt)],
+                [t('offline-events.signature'), event.payload.signature],
                 ...(event.receipt
                   ? [
-                      [t('device-events.server-event-id'), event.receipt.serverEventId],
+                      [t('offline-events.server-event-id'), event.receipt.serverEventId],
                       [t('stock-event.document-number'), event.receipt.documentNumber],
                     ]
                   : []),
@@ -203,13 +205,13 @@ export function DeviceEventRecovery({
             <DeviceEventLines event={event} />
             {event.error?.category === 'stock-changed' && (
               <Alert variant="warning">
-                <AlertTitle>{t('device-events.stock-changed')}</AlertTitle>
-                <AlertDescription>{t('device-events.stock-changed-description')}</AlertDescription>
+                <AlertTitle>{t('offline-events.stock-changed')}</AlertTitle>
+                <AlertDescription>{t('offline-events.stock-changed-description')}</AlertDescription>
               </Alert>
             )}
             {event.status === 'refused' && (
               <div className="flex min-w-0 flex-col gap-2">
-                <h3 className="font-medium">{t('device-events.full-error')}</h3>
+                <h3 className="font-medium">{t('offline-events.full-error')}</h3>
                 <p dir="auto">{refusalMessage(event.error, t)}</p>
               </div>
             )}
@@ -222,13 +224,13 @@ export function DeviceEventRecovery({
             {event.status === 'uncertain' && (
               <>
                 <Alert variant="warning">
-                  <AlertDescription>{t('device-events.uncertain-description')}</AlertDescription>
+                  <AlertDescription>{t('offline-events.uncertain-description')}</AlertDescription>
                 </Alert>
                 {canView ? (
                   <>
                     {!online && (
                       <p className="text-sm text-muted-foreground">
-                        {t('device-events.history-offline')}
+                        {t('offline-events.history-offline')}
                       </p>
                     )}
                     <div className="flex flex-wrap gap-2">
@@ -255,7 +257,7 @@ export function DeviceEventRecovery({
                             }
                           >
                             <span className="truncate">
-                              {t('device-events.stock-card', {
+                              {t('offline-events.stock-card', {
                                 product:
                                   event.lines.find(
                                     (line) =>
@@ -271,7 +273,7 @@ export function DeviceEventRecovery({
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm">{t('device-events.no-view')}</p>
+                  <p className="text-sm">{t('offline-events.no-view')}</p>
                 )}
               </>
             )}
@@ -283,12 +285,12 @@ export function DeviceEventRecovery({
           )}
           {!canSend && event.status === 'uncertain' && (
             <p id={sendReasonId} className="text-sm text-muted-foreground">
-              {t('device-events.no-send')}
+              {t('offline-events.no-send')}
             </p>
           )}
           {event.status === 'refused' && event.error?.resolvedAt && (
             <p id={copyReasonId} className="text-sm text-muted-foreground">
-              {t('device-events.copy-resolved')}
+              {t('offline-events.copy-resolved')}
             </p>
           )}
           <DialogFooter wrap>
@@ -325,7 +327,7 @@ export function DeviceEventRecovery({
                   )
                 }
               >
-                {t('device-events.history')}
+                {t('offline-events.history')}
               </Button>
             )}
             {event.status === 'uncertain' && (
@@ -335,7 +337,7 @@ export function DeviceEventRecovery({
                   variant="outline"
                   onClick={() => setConfirmation('recorded')}
                 >
-                  {t('device-events.recorded')}
+                  {t('offline-events.recorded')}
                 </Button>
                 <Button
                   variant="outline"
@@ -344,7 +346,7 @@ export function DeviceEventRecovery({
                   aria-describedby={!canSend ? sendReasonId : undefined}
                   onClick={() => setConfirmation('resend')}
                 >
-                  {t('device-events.send-again')}
+                  {t('offline-events.send-again')}
                 </Button>
               </>
             )}
@@ -356,7 +358,7 @@ export function DeviceEventRecovery({
                 aria-describedby={event.error?.resolvedAt ? copyReasonId : undefined}
                 onClick={() => setConfirmation('copy')}
               >
-                {t('device-events.copy')}
+                {t('offline-events.copy')}
               </Button>
             )}
             {canRemoveDeviceEvent(event) && (
@@ -366,11 +368,11 @@ export function DeviceEventRecovery({
                 onClick={() => setRemoving(true)}
               >
                 <Trash2Icon data-icon="inline-start" />
-                {t('device-events.remove')}
+                {t('offline-events.remove')}
               </Button>
             )}
             <Button ref={closeRef} disabled={operation.isPending} onClick={onClose}>
-              {t('device-events.close')}
+              {t('offline-events.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -396,7 +398,7 @@ export function DeviceEventRecovery({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={operation.isPending}>
-                {t('device-events.cancel')}
+                {t('offline-events.cancel')}
               </AlertDialogCancel>
               <Button
                 disabled={operation.isPending}

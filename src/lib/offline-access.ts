@@ -1,6 +1,6 @@
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { Facility, Program } from '@/features/reference-data/lib/types';
-import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
+import { deviceDataGeneration, LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { OFFLINE_FRESH_FOR } from '@/lib/offline-freshness';
 import { getConnectionGeneration } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -39,12 +39,9 @@ export async function readOfflineAccess() {
 }
 
 const DEVICE_ACCESS_FRESH_FOR = 30_000;
-const deviceResults = new WeakMap<object, number>();
-export const isDeviceAccess = (value: unknown) =>
-  typeof value === 'object' && value !== null && deviceResults.has(value);
-export function offlineAccessStaleTime(value: unknown, serverStaleTime: number) {
-  const generation =
-    typeof value === 'object' && value !== null ? deviceResults.get(value) : undefined;
+export const isDeviceAccess = (value: unknown) => deviceDataGeneration(value) !== undefined;
+function offlineAccessStaleTime(value: unknown, serverStaleTime: number) {
+  const generation = deviceDataGeneration(value);
   if (generation === undefined) return serverStaleTime;
   return generation === getConnectionGeneration() ? DEVICE_ACCESS_FRESH_FOR : 0;
 }
@@ -70,18 +67,7 @@ export async function withOfflineAccess<T extends object>(
     if (result === undefined) throw new LocalDataUnavailableError();
     return result;
   };
-  return withDeviceData(online, device);
-}
-
-export function withDeviceData<T extends object>(
-  online: () => Promise<T>,
-  device: () => Promise<T>,
-) {
-  return onlineOrDevice(online, async () => {
-    const result = await device();
-    deviceResults.set(result, getConnectionGeneration());
-    return result;
-  });
+  return onlineOrDevice(online, device);
 }
 
 function snapshotUser(user: UserRecord): UserRecord {

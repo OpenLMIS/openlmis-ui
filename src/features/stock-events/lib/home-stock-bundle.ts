@@ -1,4 +1,6 @@
 import { AxiosError, type AxiosRequestConfig } from 'axios';
+import { SessionEndedError } from '@/features/auth/lib/session';
+import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchTradeItemsByIds, fetchValidReasons } from '@/features/reference-data/api/api';
 import type {
   LotSummary,
@@ -14,7 +16,6 @@ import { retryDownloadRead } from '@/features/stock-events/lib/download-read';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
-import { getSessionState, isSessionEnded } from '@/lib/session-state';
 
 export type HomeStockScope = {
   facilityId: string;
@@ -47,7 +48,7 @@ export async function readHomeStockBundle(
   filter: Pick<HomeStockScope, 'facilityId' | 'programId' | 'facilityTypeId'>,
 ) {
   const scope = getSessionScope();
-  const userId = getSessionState().referenceDataUserId;
+  const userId = useLoginData.getState().referenceDataUserId;
   const { getLocalDb } = await import('@/integrations/local-db');
   assertSessionScope(scope);
   const bundle = await getLocalDb()
@@ -98,12 +99,12 @@ async function fetchBundle(
   config: AxiosRequestConfig & { signal?: AbortSignal },
 ): Promise<HomeStockBundle> {
   const sessionScope = config.sessionScope ?? getSessionScope();
-  const userId = getSessionState().referenceDataUserId;
+  const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new LocalDataUnavailableError();
   const check = () => {
     assertSessionScope(sessionScope);
     config.signal?.throwIfAborted();
-    if (config.backgroundRead && (!isOnline() || getSessionState().expired))
+    if (config.backgroundRead && (!isOnline() || useLoginData.getState().expired))
       throw new AxiosError('Download stopped.', AxiosError.ERR_CANCELED);
   };
   const read = <T>(task: () => Promise<T>) => retryDownloadRead(task, check);
@@ -183,7 +184,7 @@ const downloads = new Map<string, Promise<HomeStockBundle>>();
 const requestKeyFor = (filter: HomeStockScope) =>
   JSON.stringify([
     getSessionScope(),
-    getSessionState().accessToken,
+    useLoginData.getState().accessToken,
     filter.facilityId,
     filter.programId,
     filter.facilityTypeId,
@@ -215,7 +216,7 @@ function fetchForegroundBundle(filter: HomeStockScope) {
     download
       ? download.catch((error: unknown) => {
           assertSessionScope(scope);
-          if (isSessionEnded(error)) throw error;
+          if (error instanceof SessionEndedError) throw error;
           return fetch();
         })
       : fetch()

@@ -1,19 +1,21 @@
 import Dexie from 'dexie';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { announceQueuedEvents } from '@/features/stock-events/lib/device-event-status';
 import { eventPayload, newEventLine } from '@/features/stock-events/lib/event-form';
 import { foregroundStockEvents } from '@/features/stock-events/lib/stock-event-delivery';
 import {
   createStockEventContext,
-  DraftConflictError,
   readStockEventDraft,
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { getLocalDb } from '@/integrations/local-db';
-import { announceQueuedEvents } from '@/lib/device-event-status';
+import { DraftConflictError } from '@/lib/draft-store';
 
-vi.mock('@/lib/device-event-status', () => ({ announceQueuedEvents: vi.fn() }));
+vi.mock('@/features/stock-events/lib/device-event-status', () => ({
+  announceQueuedEvents: vi.fn(),
+}));
 
 const selection = { kind: 'adjustment' as const, facilityId: 'facility', programId: 'program' };
 const line = newEventLine(

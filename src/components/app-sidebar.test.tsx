@@ -1,3 +1,4 @@
+import '@/routes/-offline-pages';
 import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -42,6 +43,7 @@ function renderSidebar(rights: string[], { path = '/', defaultOpen = true, pendi
             retained: false,
             pauses: [],
             countUnsyncedWork: async () => pending,
+            refreshOfflineDownload: () => {},
           }}
         >
           <AppSidebar />
@@ -172,7 +174,7 @@ describe('offline navigation', () => {
 it('puts counted Offline Events directly below Home and keeps its link available offline', async () => {
   onlineManager.setOnline(false);
   renderSidebar([], { pending: 4 });
-  const events = await screen.findByRole('link', { name: 'device-events.nav-count' });
+  const events = await screen.findByRole('link', { name: 'offline-events.nav-count' });
   expect(events).toHaveAttribute('href', '/offline-events');
   expect(events).not.toHaveAttribute('aria-disabled', 'true');
   const items = [...(events.closest('ul')?.children ?? [])];

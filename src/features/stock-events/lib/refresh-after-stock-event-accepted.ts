@@ -1,9 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { useLoginData } from '@/features/auth/store/login-data';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
-import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import { getSessionScope } from '@/lib/session-scope';
-import { getSessionState, subscribeSessionState } from '@/lib/session-state';
 
 type AcceptedScope = { facilityId: string; programId: string; userId?: string };
 const origin = crypto.randomUUID();
@@ -19,10 +18,14 @@ export function invalidateAcceptedStockEvent(queryClient: QueryClient) {
     void queryClient.invalidateQueries({ queryKey });
 }
 
-export function refreshAfterStockEventAccepted(queryClient: QueryClient, event: AcceptedScope) {
-  const userId = getSessionState().referenceDataUserId;
+export function refreshAfterStockEventAccepted(
+  queryClient: QueryClient,
+  event: AcceptedScope,
+  refreshOfflineDownload?: (refreshKey: string) => void,
+) {
+  const userId = useLoginData.getState().referenceDataUserId;
   if (!userId || (event.userId && event.userId !== userId)) return;
-  refreshOfflineProgram(event);
+  refreshOfflineDownload?.(`${event.facilityId}:${event.programId}`);
   invalidateAcceptedStockEvent(queryClient);
   if (typeof BroadcastChannel === 'undefined') return;
   let channel: BroadcastChannel | undefined;
@@ -32,8 +35,6 @@ export function refreshAfterStockEventAccepted(queryClient: QueryClient, event: 
       type: 'accepted',
       origin,
       userId,
-      facilityId: event.facilityId,
-      programId: event.programId,
     });
   } catch {
     return;
@@ -47,7 +48,7 @@ export function subscribeStockEventAcceptances(queryClient: QueryClient) {
   const watch = () => {
     channel?.close();
     channel = undefined;
-    const userId = getSessionState().referenceDataUserId;
+    const userId = useLoginData.getState().referenceDataUserId;
     if (!userId || typeof BroadcastChannel === 'undefined') return;
     const scope = getSessionScope();
     try {
@@ -60,15 +61,13 @@ export function subscribeStockEventAcceptances(queryClient: QueryClient) {
         scope !== getSessionScope() ||
         data?.type !== 'accepted' ||
         data.origin === origin ||
-        data.userId !== userId ||
-        typeof data.facilityId !== 'string' ||
-        typeof data.programId !== 'string'
+        data.userId !== userId
       )
         return;
       invalidateAcceptedStockEvent(queryClient);
     };
   };
-  const unsubscribe = subscribeSessionState((state, previous) => {
+  const unsubscribe = useLoginData.subscribe((state, previous) => {
     if (state.referenceDataUserId !== previous.referenceDataUserId) watch();
   });
   watch();

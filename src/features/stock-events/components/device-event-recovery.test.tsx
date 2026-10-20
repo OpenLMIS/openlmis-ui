@@ -7,8 +7,10 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
-import { DeviceEventsPage } from '@/features/stock-events/components/device-events';
-import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
+import { OfflineEventsPage } from '@/features/stock-events/components/offline-events';
+import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
+import { wakeStockEventSync } from '@/features/stock-events/lib/device-event-status';
+import { announceDeviceSave } from '@/features/stock-events/lib/device-save-announcement';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
 import {
@@ -24,13 +26,11 @@ import {
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
-import { wakeStockEventSync } from '@/lib/device-event-status';
-import { announceDeviceSave } from '@/lib/device-save-announcement';
 import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
-vi.mock('@/lib/device-save-announcement', async (original) => ({
-  ...(await original<typeof import('@/lib/device-save-announcement')>()),
+vi.mock('@/features/stock-events/lib/device-save-announcement', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/device-save-announcement')>()),
   announceDeviceSave: vi.fn(),
 }));
 const navigation = vi.hoisted(() => vi.fn());
@@ -40,7 +40,7 @@ vi.mock('@tanstack/react-router', async (original) => ({
 }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), warning: vi.fn() } }));
-vi.mock('@/lib/device-event-status', () => ({
+vi.mock('@/features/stock-events/lib/device-event-status', () => ({
   wakeStockEventSync: vi.fn(),
   announceQueuedEvents: vi.fn(),
 }));
@@ -138,20 +138,20 @@ async function open(
 }
 it('no-view recovery calls no history, cancel keeps uncertainty, only confirmed Send Again releases it', async () => {
   const { uncertain, onClose } = await open();
-  expect(screen.getByText('device-events.no-view')).toBeVisible();
+  expect(screen.getByText('offline-events.no-view')).toBeVisible();
   expect(screen.queryByRole('link')).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'device-events.send-again' }));
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.send-again' }));
   const warning = screen.getByRole('alertdialog');
-  expect(warning).toHaveTextContent('device-events.duplicate-warning');
-  await userEvent.click(within(warning).getByRole('button', { name: 'device-events.cancel' }));
+  expect(warning).toHaveTextContent('offline-events.duplicate-warning');
+  await userEvent.click(within(warning).getByRole('button', { name: 'offline-events.cancel' }));
   expect((await getLocalDb().table('stockEventQueue').get(uncertain.sequence)).status).toBe(
     'uncertain',
   );
   expect(wakeStockEventSync).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole('button', { name: 'device-events.send-again' }));
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.send-again' }));
   await userEvent.click(
     within(screen.getByRole('alertdialog')).getByRole('button', {
-      name: 'device-events.send-again',
+      name: 'offline-events.send-again',
     }),
   );
   await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
@@ -163,19 +163,19 @@ it('no-view recovery calls no history, cancel keeps uncertainty, only confirmed 
 });
 it('It Was Recorded preserves uncertainty on cancel and records only after confirmation', async () => {
   const { uncertain, onClose } = await open();
-  await userEvent.click(screen.getByRole('button', { name: 'device-events.recorded' }));
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.recorded' }));
   const warning = await screen.findByRole('alertdialog');
-  expect(warning).toHaveTextContent('device-events.recorded-warning');
+  expect(warning).toHaveTextContent('offline-events.recorded-warning');
   expect(await getLocalDb().table('stockEventReceipts').count()).toBe(0);
-  await userEvent.click(within(warning).getByRole('button', { name: 'device-events.cancel' }));
+  await userEvent.click(within(warning).getByRole('button', { name: 'offline-events.cancel' }));
   expect((await getLocalDb().table('stockEventQueue').get(uncertain.sequence)).status).toBe(
     'uncertain',
   );
   expect(onClose).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole('button', { name: 'device-events.recorded' }));
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.recorded' }));
   await userEvent.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
-      name: 'device-events.recorded',
+      name: 'offline-events.recorded',
     }),
   );
   await waitFor(() => expect(onClose).toHaveBeenCalled());
@@ -193,15 +193,15 @@ it('a stale recovery choice explains that the event changed without repeating it
   await getLocalDb()
     .table('stockEventQueue')
     .update(uncertain.sequence, { attemptId: 'new-attempt' });
-  await userEvent.click(screen.getByRole('button', { name: 'device-events.recorded' }));
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.recorded' }));
   await userEvent.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
-      name: 'device-events.recorded',
+      name: 'offline-events.recorded',
     }),
   );
   await waitFor(() =>
-    expect(toast.warning).toHaveBeenCalledWith('device-events.changed-title', {
-      description: 'device-events.changed-description',
+    expect(toast.warning).toHaveBeenCalledWith('offline-events.changed-title', {
+      description: 'offline-events.changed-description',
     }),
   );
   expect(onClose).toHaveBeenCalledOnce();
@@ -213,17 +213,17 @@ it('a stale recovery choice explains that the event changed without repeating it
 
 it('keeps recorded recovery available after losing adjustment grants but blocks Send Again', async () => {
   const { onClose } = await open(false);
-  expect(screen.getByRole('button', { name: 'device-events.send-again' })).toHaveAttribute(
+  expect(screen.getByRole('button', { name: 'offline-events.send-again' })).toHaveAttribute(
     'aria-disabled',
     'true',
   );
   expect(
-    screen.getByRole('button', { name: 'device-events.send-again' }),
-  ).toHaveAccessibleDescription('device-events.no-send');
-  await userEvent.click(screen.getByRole('button', { name: 'device-events.recorded' }));
+    screen.getByRole('button', { name: 'offline-events.send-again' }),
+  ).toHaveAccessibleDescription('offline-events.no-send');
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.recorded' }));
   await userEvent.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
-      name: 'device-events.recorded',
+      name: 'offline-events.recorded',
     }),
   );
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
@@ -234,18 +234,18 @@ it('dismisses a refusal after confirmation and shows only a human message in det
   const { uncertain, onClose } = await open(false, 'refused');
   expect(screen.getByRole('dialog')).toHaveTextContent('Human refusal');
   expect(screen.queryByText(/secret-debug-value/)).not.toBeInTheDocument();
-  expect(screen.queryByText('device-events.revision')).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'device-events.remove' }));
+  expect(screen.queryByText('offline-events.revision')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.remove' }));
   const warning = screen.getByRole('alertdialog');
-  expect(warning).toHaveTextContent('device-events.remove-refused-warning');
-  await userEvent.click(within(warning).getByRole('button', { name: 'device-events.remove' }));
+  expect(warning).toHaveTextContent('offline-events.remove-refused-warning');
+  await userEvent.click(within(warning).getByRole('button', { name: 'offline-events.remove' }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(
     (await getLocalDb().table('stockEventSyncErrors').get(uncertain.localEventId)).dismissedAt,
   ).toBeDefined();
   expect(client.post).not.toHaveBeenCalled();
-  expect(announceDeviceSave).toHaveBeenCalledWith('device-events.refused-removed');
-  const local = renderHook(() => useDeviceEvents());
+  expect(announceDeviceSave).toHaveBeenCalledWith('offline-events.refused-removed');
+  const local = renderHook(() => useOfflineEvents());
   await waitFor(() => expect(local.result.current.events).toEqual([]));
   expect(await countUnsyncedDeviceWork()).toBe(0);
 });
@@ -253,16 +253,16 @@ it('shows a synced server reference and links straight to its transaction histor
   await open(true, 'accepted');
   expect(screen.getByRole('dialog')).toHaveTextContent('11111111-1111-4111-8111-111111111111');
   expect(screen.getByRole('dialog')).toHaveTextContent('DOC-42');
-  expect(screen.getByText('device-events.status-accepted')).toHaveAttribute(
+  expect(screen.getByText('offline-events.status-accepted')).toHaveAttribute(
     'data-variant',
     'success',
   );
-  expect(screen.getByRole('link', { name: 'device-events.history' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'offline-events.history' })).toHaveAttribute(
     'href',
     '/stock-management/transaction-history/11111111-1111-4111-8111-111111111111',
   );
-  const history = screen.getByRole('link', { name: 'device-events.history' });
-  const close = screen.getByRole('button', { name: 'device-events.close' });
+  const history = screen.getByRole('link', { name: 'offline-events.history' });
+  const close = screen.getByRole('button', { name: 'offline-events.close' });
   const footer = history.closest('[data-slot=dialog-footer]');
   expect(footer?.lastElementChild).toBe(close);
   await waitFor(() => expect(close).toHaveFocus());
@@ -282,9 +282,9 @@ it('shows a synced server reference and links straight to its transaction histor
 
 it('opens the correction in the refused event kind editor', async () => {
   const { onClose } = await open(true, 'refused', 'issue');
-  await userEvent.click(screen.getByRole('button', { name: 'device-events.copy' }));
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.copy' }));
   await userEvent.click(
-    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'device-events.copy' }),
+    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'offline-events.copy' }),
   );
   await waitFor(() =>
     expect(navigation).toHaveBeenCalledWith({
@@ -309,7 +309,7 @@ it.each([
     function Page() {
       const [event, setEvent] = useState<string>();
       return (
-        <DeviceEventsPage
+        <OfflineEventsPage
           search={{ event }}
           onSearchChange={() => {}}
           onOpenEvent={setEvent}
@@ -322,26 +322,26 @@ it.each([
     renderPage(<Page />, { queryClient });
     if (source === 'details') {
       await userEvent.click(
-        await screen.findByRole('button', { name: 'device-events.review-event-label' }),
+        await screen.findByRole('button', { name: 'offline-events.review-event-label' }),
       );
       await userEvent.click(
         within(await screen.findByRole('dialog')).getByRole('button', {
-          name: 'device-events.remove',
+          name: 'offline-events.remove',
         }),
       );
     } else
       await userEvent.click(
-        await screen.findByRole('button', { name: 'device-events.remove-event-label' }),
+        await screen.findByRole('button', { name: 'offline-events.remove-event-label' }),
       );
     const confirm = await screen.findByRole('alertdialog');
-    await userEvent.click(within(confirm).getByRole('button', { name: 'device-events.remove' }));
+    await userEvent.click(within(confirm).getByRole('button', { name: 'offline-events.remove' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     await waitFor(() =>
-      expect(document.activeElement).toHaveTextContent('device-events.no-events-title'),
+      expect(document.activeElement).toHaveTextContent('offline-events.no-events-title'),
     );
     expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
     expect(announceDeviceSave).toHaveBeenCalledWith(
-      status === 'accepted' ? 'device-events.synced-removed' : 'device-events.removed',
+      status === 'accepted' ? 'offline-events.synced-removed' : 'offline-events.removed',
     );
     if (status === 'accepted') {
       const receipt = await getLocalDb().table('stockEventReceipts').toCollection().first();
@@ -363,9 +363,9 @@ it('explains why a refusal already copied for correction cannot be copied again'
     />,
     { queryClient: new QueryClient() },
   );
-  const copy = await screen.findByRole('button', { name: 'device-events.copy' });
+  const copy = await screen.findByRole('button', { name: 'offline-events.copy' });
   expect(copy).toHaveAttribute('aria-disabled', 'true');
-  expect(copy).toHaveAccessibleDescription('device-events.copy-resolved');
+  expect(copy).toHaveAccessibleDescription('offline-events.copy-resolved');
   await userEvent.click(copy);
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 });

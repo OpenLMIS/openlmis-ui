@@ -58,6 +58,7 @@ import {
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
+import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
 import {
   archiveStockEventCopy,
@@ -71,7 +72,6 @@ import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
-import { refreshOfflineProgram } from '@/lib/offline-download-status';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
@@ -80,7 +80,12 @@ vi.mock('@/features/stock-events/lib/stock-event-delivery', async (original) => 
   waitForStockEventReceipt: vi.fn(async () => ({ kind: 'queued' })),
 }));
 
-vi.mock('@/lib/offline-download-status', () => ({ refreshOfflineProgram: vi.fn() }));
+vi.mock('@/features/stock-events/lib/refresh-after-stock-event-accepted', async (original) => ({
+  ...(await original<
+    typeof import('@/features/stock-events/lib/refresh-after-stock-event-accepted')
+  >()),
+  refreshAfterStockEventAccepted: vi.fn(),
+}));
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
@@ -870,25 +875,25 @@ describe('EventEditor', () => {
   it.each([
     {
       kind: 'uncertain',
-      title: 'device-events.needs-review',
-      description: 'device-events.needs-review-description',
+      title: 'offline-events.needs-review',
+      description: 'offline-events.needs-review-description',
     },
     {
       kind: 'blocked',
-      title: 'device-events.blocked-title',
-      description: 'device-events.blocked-description',
+      title: 'offline-events.blocked-title',
+      description: 'offline-events.blocked-description',
     },
     {
       kind: 'held',
       reason: 'access-changed',
-      title: 'device-events.access-changed',
-      description: 'device-events.access-changed-held-description',
+      title: 'offline-events.access-changed',
+      description: 'offline-events.access-changed-held-description',
     },
     {
       kind: 'held',
       reason: 'draft-changed',
-      title: 'device-events.draft-changed',
-      description: 'device-events.draft-changed-held-description',
+      title: 'offline-events.draft-changed',
+      description: 'offline-events.draft-changed-held-description',
     },
   ] as const)(
     '$kind $reason delivery warns with its cause and uses the program-list landing',
@@ -901,7 +906,7 @@ describe('EventEditor', () => {
       await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith(expect.any(String), false));
       expect(toast.warning).toHaveBeenCalledWith(en[outcome.title], {
         description: en[outcome.description],
-        action: { label: en['device-events.review'], onClick: expect.any(Function) },
+        action: { label: en['offline-events.review'], onClick: expect.any(Function) },
       });
       expect(toast.success).not.toHaveBeenCalled();
     },
@@ -976,12 +981,12 @@ describe('EventEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
     const failure = await screen.findByRole('alertdialog');
-    expect(failure).toHaveTextContent(en['device-events.refused-description']);
+    expect(failure).toHaveTextContent(en['offline-events.refused-description']);
     expect(failure).not.toHaveTextContent('stock-changed');
     await user.click(within(failure).getByRole('button', { name: 'Close' }));
     await user.click(screen.getByRole('button', { name: 'Copy For Correction' }));
     const details = await screen.findByRole('dialog');
-    expect(details).toHaveTextContent(en['device-events.refused-description']);
+    expect(details).toHaveTextContent(en['offline-events.refused-description']);
     const error = await getLocalDb().table('stockEventSyncErrors').toCollection().first();
     expect(details).toHaveTextContent(
       formatTimestamp(new Date(error.event.queuedAt).toISOString(), 'en', {
@@ -1224,7 +1229,7 @@ it('allows leaving a queued Adjustment without retiring its frozen draft', async
   expect(unload.defaultPrevented).toBe(false);
   const [draft] = await getLocalDb().table('stockEventDrafts').toArray();
   expect(draft.state).toBe('queued');
-  expect(refreshOfflineProgram).not.toHaveBeenCalled();
+  expect(refreshAfterStockEventAccepted).not.toHaveBeenCalled();
   router?.history.destroy();
 });
 

@@ -1,15 +1,11 @@
 import { onlineManager } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
 import { AxiosError, isAxiosError } from 'axios';
+import { useLoginData } from '@/features/auth/store/login-data';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
 import { prepareDeploymentTimeZone, storedTimeZone } from '@/lib/deployment-time-zone';
-import {
-  type DownloadProvider,
-  type DownloadRecord,
-  type DownloadTask,
-  downloadProviders,
-} from '@/lib/download-provider';
+import type { DownloadProvider, DownloadRecord, DownloadTask } from '@/lib/download-provider';
 import { downloadSchedule } from '@/lib/download-schedule';
 import {
   type AccessReaders,
@@ -18,30 +14,29 @@ import {
   offlineAccessIsStale,
   refreshOfflineAccess,
 } from '@/lib/offline-access';
+import { createDownloadChannel } from '@/lib/offline-download-channel';
+import { downloadDecision } from '@/lib/offline-download-decision';
 import { offlineDownloadLock } from '@/lib/offline-download-lock';
 import {
   type DownloadStatus,
   getDownloadStatus,
-  setDownloadRefresh,
   setDownloadRetry,
   setDownloadStatus,
 } from '@/lib/offline-download-status';
 import { OFFLINE_FRESH_FOR } from '@/lib/offline-freshness';
 import { isOnline } from '@/lib/online';
+import { onSessionResumed } from '@/lib/session-resumed';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
-import { getSessionState, subscribeSessionState } from '@/lib/session-state';
-import { setUploadAccessReader, uploadAccessEpoch } from '@/lib/upload-access';
+import { uploadAccessEpoch } from '@/lib/upload-access';
 
 type Dependencies = {
   initialTrigger?: 'boot' | 'force';
   onTimeZoneFallback?: () => void;
-  access:
-    | AccessReaders
-    | ((
-        config: AxiosRequestConfig,
-        check: () => void,
-        purpose: 'download' | 'upload',
-      ) => AccessReaders);
+  access: (
+    config: AxiosRequestConfig,
+    check: () => void,
+    purpose: 'download' | 'upload',
+  ) => AccessReaders;
   providers: readonly DownloadProvider[];
 };
 type Trigger = 'boot' | 'force' | 'retry' | 'refresh' | 'access';
@@ -54,43 +49,34 @@ const triggerPriority: Record<Trigger, number> = {
 };
 const FRESHNESS_CHECK_MS = 60_000;
 
+const downloadEntry = (provider: DownloadProvider, task: DownloadTask) => ({
+  id: task.id,
+  name: task.name,
+  dataset: provider.id,
+  datasetLabel: provider.label,
+});
+
 export function startOfflineCoordinator(dependencies: Dependencies) {
-  const providers = downloadProviders(dependencies.providers);
-  const readersFor = (
-    config: AxiosRequestConfig,
-    check: () => void,
-    purpose: 'download' | 'upload' = 'download',
-  ) =>
-    typeof dependencies.access === 'function'
-      ? dependencies.access(config, check, purpose)
-      : dependencies.access;
+  const providers = dependencies.providers;
   let freshAccess: { epoch: string; saved: OfflineAccess } | undefined;
   let active: AbortController | undefined;
-  let channel: BroadcastChannel | undefined;
-  let channelName: string | undefined;
   let stopped = false;
   let pending: Trigger | undefined;
-  let observedCompletion = false;
-  let observedRunning = false;
-  const refreshPrograms = new Set<string>();
-  const programKey = (facilityId: string, programId: string) => `${facilityId}:${programId}`;
-  let watchedChannel: BroadcastChannel | undefined;
-  const publish = (status: DownloadStatus) => {
-    setDownloadStatus(status);
-    channel?.postMessage({ type: 'status', status });
-  };
+  const refreshKeys = new Set<string>();
+  const channel = createDownloadChannel(() => !!active);
+  const publish = channel.publish;
   const stopActive = (reason?: DownloadStatus['reason']) => {
     active?.abort();
     if (getDownloadStatus().phase === 'running')
       publish(
         reason
           ? { ...getDownloadStatus(), phase: 'failed', reason }
-          : { phase: 'idle', incompletePrograms: [] },
+          : { phase: 'idle', incomplete: [] },
       );
   };
   const run = async (trigger: Trigger, periodic = false) => {
     const publishRun = (status: DownloadStatus) => publish({ ...status, trigger });
-    const { referenceDataUserId: userId, isAuthenticated, expired } = getSessionState();
+    const { referenceDataUserId: userId, isAuthenticated, expired } = useLoginData.getState();
     if (stopped || !userId || !isAuthenticated || expired || !isOnline()) return;
     const db = getLocalDb();
     if (periodic) {
@@ -98,52 +84,9 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
       if (!schedule.due() || schedule.retryAt('access') > Date.now()) return;
     }
     const name = offlineDownloadLock(db);
-    if (channelName !== name) {
-      channel?.close();
-      channel = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(name);
-      channelName = name;
-      if (channel)
-        channel.onmessage = ({ data }) => {
-          if (data?.type === 'status') {
-            setDownloadStatus(data.status);
-            if (data.status.phase === 'running') {
-              observedRunning = true;
-              if (watchedChannel !== channel && navigator.locks) {
-                watchedChannel = channel;
-                const scope = getSessionScope();
-                const observedChannel = channel;
-                void navigator.locks
-                  .request(name, { mode: 'shared' }, async () => {
-                    // Completion messages may still be in flight after the lock is released.
-                    await new Promise((resolve) => setTimeout(resolve, 25));
-                    if (stopped || scope !== getSessionScope() || channel !== observedChannel)
-                      return;
-                    const status = getDownloadStatus();
-                    if (status.phase === 'running')
-                      setDownloadStatus(
-                        status.incompletePrograms.length || status.accessFailed
-                          ? { ...status, phase: 'failed', reason: 'read' }
-                          : { phase: 'idle', incompletePrograms: [] },
-                      );
-                  })
-                  .catch(() => undefined)
-                  .finally(() => {
-                    if (watchedChannel === observedChannel) watchedChannel = undefined;
-                  });
-              }
-            }
-            if (
-              observedRunning &&
-              (data.status.phase === 'complete' || data.status.phase === 'failed')
-            )
-              observedCompletion = true;
-          }
-          if (data?.type === 'observe' && active && getDownloadStatus().phase === 'running')
-            channel?.postMessage({ type: 'status', status: getDownloadStatus() });
-        };
-    }
+    channel.connect(name);
     if (!navigator.locks) {
-      publishRun({ phase: 'unsupported', incompletePrograms: [] });
+      publishRun({ phase: 'unsupported', incomplete: [] });
       return;
     }
     if (active) {
@@ -156,7 +99,8 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
     const check = () => {
       assertSessionScope(scope);
       controller.signal.throwIfAborted();
-      if (!isOnline() || getSessionState().expired || stopped) throw new Error('Download stopped.');
+      if (!isOnline() || useLoginData.getState().expired || stopped)
+        throw new Error('Download stopped.');
     };
     const wait = <T>(promise: Promise<T>): Promise<T> =>
       new Promise((resolve, reject) => {
@@ -167,9 +111,14 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
           .finally(() => controller.signal.removeEventListener('abort', abort));
         if (controller.signal.aborted) abort();
       });
+    const config = {
+      session: false,
+      backgroundRead: true,
+      signal: controller.signal,
+      sessionScope: scope,
+    };
     const previousStatus = getDownloadStatus();
-    observedCompletion = false;
-    observedRunning = false;
+    channel.resetObservations();
     try {
       const accessTable = db.table<OfflineAccess>('offlineAccess');
       const [initialAccess, initialRecords] = await wait(
@@ -200,10 +149,10 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
           records.map(([key, generation]) => [`${provider.id}:${key}`, generation]),
         ),
       );
-      channel?.postMessage({ type: 'observe' });
+      channel.observe();
       await navigator.locks.request(name, { signal: controller.signal }, async () => {
         check();
-        if (observedCompletion && !refreshPrograms.size) return;
+        if (channel.completed() && !refreshKeys.size) return;
         const schedule = downloadSchedule(db.name);
         if (periodic && (!schedule.due() || schedule.retryAt('access') > Date.now())) return;
         let saved = await accessTable.get(userId);
@@ -218,14 +167,8 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
                 ? offlineAccessIsStale(saved)
                 : !accessChanged;
         if (refreshAccess) {
-          publishRun({ phase: 'running', incompletePrograms: [], accessFailed: true });
-          const config = {
-            session: false,
-            backgroundRead: true,
-            signal: controller.signal,
-            sessionScope: scope,
-          };
-          const readers = readersFor(config, check);
+          publishRun({ phase: 'running', incomplete: [], accessFailed: true });
+          const readers = dependencies.access(config, check, 'download');
           const epoch = uploadAccessEpoch();
           try {
             saved = await wait(refreshOfflineAccess(readers, check));
@@ -243,65 +186,49 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
         schedule.consider(saved.fetchedAt + OFFLINE_FRESH_FOR);
         const preparingTimeZone = refreshAccess || !storedTimeZone();
         const timeZone = preparingTimeZone
-          ? wait(
-              prepareDeploymentTimeZone(
-                {
-                  session: false,
-                  backgroundRead: true,
-                  signal: controller.signal,
-                  sessionScope: scope,
-                },
-                dependencies.onTimeZoneFallback,
-              ),
-            ).then(() => undefined)
+          ? wait(prepareDeploymentTimeZone(config, dependencies.onTimeZoneFallback)).then(
+              () => undefined,
+            )
           : Promise.resolve();
         let timeZoneError: unknown;
         const preparedTimeZone = timeZone.catch((error: unknown) => {
           timeZoneError = error;
         });
-        const failed: DownloadStatus['incompletePrograms'] = [];
+        const failed: DownloadStatus['incomplete'] = [];
         type Work = { provider: DownloadProvider; task: DownloadTask; workKey: string };
         const queue: Work[] = [];
         const eligibleKeys = new Set<string>();
-        const requestedKeys = new Set(refreshPrograms);
-        for (const key of requestedKeys) refreshPrograms.delete(key);
+        const requestedKeys = new Set(refreshKeys);
+        for (const key of requestedKeys) refreshKeys.delete(key);
         for (const provider of providers) {
-          if (!provider.eligible(saved)) continue;
           const table = db.table<DownloadRecord>(provider.table);
           for (const task of provider.tasks(saved)) {
             check();
             if (task.refreshKey) eligibleKeys.add(task.refreshKey);
             const workKey = `${provider.id}:${JSON.stringify(task.key)}`;
-            if (periodic && schedule.retryAt(workKey) > Date.now()) {
-              schedule.consider(schedule.retryAt(workKey));
-              failed.push({
-                id: task.id,
-                name: task.name,
-                dataset: provider.id,
-                datasetLabel: provider.label,
-              });
-              continue;
-            }
+            const retryAt = periodic ? schedule.retryAt(workKey) : 0;
             const record = await table.get(task.key);
             check();
-            const changed =
-              record &&
-              record.generation !== baseline.get(`${provider.id}:${JSON.stringify(task.key)}`);
             const requested = !!task.refreshKey && requestedKeys.has(task.refreshKey);
-            if (trigger === 'refresh' && !requested) continue;
-            if (
-              !requested &&
-              trigger === 'retry' &&
-              !previousStatus.incompletePrograms.some(
-                (item) => item.id === task.id && (!item.dataset || item.dataset === provider.id),
-              ) &&
-              !previousStatus.accessFailed
-            )
+            const decision = downloadDecision({
+              trigger,
+              requested,
+              retryAt,
+              now: Date.now(),
+              failed: previousStatus.incomplete.some(
+                (item) => item.id === task.id && item.dataset === provider.id,
+              ),
+              accessFailed: !!previousStatus.accessFailed,
+              changed: !!record && record.generation !== baseline.get(workKey),
+              fresh: task.isFresh(record),
+            });
+            if (decision === 'defer') {
+              schedule.consider(retryAt);
+              failed.push(downloadEntry(provider, task));
               continue;
-            if (
-              changed ||
-              (!requested && (trigger === 'boot' || trigger === 'access') && task.isFresh(record))
-            ) {
+            }
+            if (decision === 'skip') continue;
+            if (decision === 'reuse') {
               if (record) schedule.succeeded(workKey, record.fetchedAt);
               continue;
             }
@@ -313,29 +240,26 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
               });
               check();
             }
-            queue.push({ provider, task, workKey: `${provider.id}:${JSON.stringify(task.key)}` });
+            queue.push({ provider, task, workKey });
           }
         }
-        for (const key of refreshPrograms) if (!eligibleKeys.has(key)) refreshPrograms.delete(key);
+        for (const key of refreshKeys) if (!eligibleKeys.has(key)) refreshKeys.delete(key);
         if (!refreshAccess && !queue.length) {
           await preparedTimeZone;
           if (timeZoneError) throw timeZoneError;
           check();
           schedule.save();
           if (!failed.length && (preparingTimeZone || previousStatus.phase === 'failed'))
-            publishRun({ phase: 'complete', incompletePrograms: [] });
+            publishRun({ phase: 'complete', incomplete: [] });
           return;
         }
         let reason: DownloadStatus['reason'];
         const incomplete = new Map(
-          queue.map(({ provider, task, workKey }) => [
-            workKey,
-            { id: task.id, name: task.name, dataset: provider.id, datasetLabel: provider.label },
-          ]),
+          queue.map(({ provider, task, workKey }) => [workKey, downloadEntry(provider, task)]),
         );
         publishRun({
           phase: 'running',
-          incompletePrograms: [...incomplete.values()],
+          incomplete: [...incomplete.values()],
           accessFailed: false,
         });
         const worker = async () => {
@@ -346,7 +270,6 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
             try {
               const record = await wait(task.fetch(controller.signal));
               check();
-              if (record.userId !== userId) throw new Error('Downloaded dataset owner mismatch');
               await db.transaction('rw', table, async () => {
                 check();
                 await table.put(record);
@@ -357,7 +280,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
               incomplete.delete(workKey);
               publishRun({
                 phase: 'running',
-                incompletePrograms: [...incomplete.values()],
+                incomplete: [...incomplete.values()],
                 accessFailed: false,
               });
             } catch (error) {
@@ -372,7 +295,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
                 schedule.save();
                 publishRun({
                   phase: 'failed',
-                  incompletePrograms: [...incomplete.values()],
+                  incomplete: [...incomplete.values()],
                   reason: 'offline',
                   accessFailed: false,
                 });
@@ -382,12 +305,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
               if (isAxiosError(error) && error.code === AxiosError.ECONNABORTED) reason = 'timeout';
               else reason ??= 'read';
               schedule.failed(workKey);
-              failed.push({
-                id: task.id,
-                name: task.name,
-                dataset: provider.id,
-                datasetLabel: provider.label,
-              });
+              failed.push(downloadEntry(provider, task));
             }
           }
         };
@@ -400,11 +318,11 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
           failed.length
             ? {
                 phase: 'failed',
-                incompletePrograms: failed,
+                incomplete: failed,
                 reason: reason ?? 'read',
                 accessFailed: false,
               }
-            : { phase: 'complete', incompletePrograms: [] },
+            : { phase: 'complete', incomplete: [] },
         );
       });
     } catch (error) {
@@ -423,13 +341,18 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
       if (next && !stopped) void run(next);
     }
   };
-  setUploadAccessReader(async (force) => {
+  const readFreshAccess = async (force = false) => {
     const epoch = uploadAccessEpoch();
     const scope = getSessionScope();
     const db = getLocalDb();
     const check = () => {
       assertSessionScope(scope);
-      if (stopped || !isOnline() || getSessionState().expired || epoch !== uploadAccessEpoch())
+      if (
+        stopped ||
+        !isOnline() ||
+        useLoginData.getState().expired ||
+        epoch !== uploadAccessEpoch()
+      )
         throw new Error('The sync access session changed.');
     };
     if (!navigator.locks) throw new Error('Web Locks are required for safe sync.');
@@ -439,38 +362,32 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
       check();
       if (!force && freshAccess?.epoch === epoch) return freshAccess.saved;
       const config = { session: false, backgroundRead: true, sessionScope: scope };
-      const readers = readersFor(config, check, 'upload');
+      const readers = dependencies.access(config, check, 'upload');
       const saved = await refreshOfflineAccess(readers, check);
       check();
       freshAccess = { epoch, saved };
       return saved;
     });
-  });
-  setDownloadStatus({ phase: 'idle', incompletePrograms: [] });
+  };
+  setDownloadStatus({ phase: 'idle', incomplete: [] });
   setDownloadRetry(() => {
     void run('retry');
   });
-  setDownloadRefresh(({ facilityId, programId }) => {
-    refreshPrograms.add(programKey(facilityId, programId));
+  const refreshOfflineDownload = (refreshKey: string) => {
+    refreshKeys.add(refreshKey);
     void run('refresh');
-  });
-  const unsubscribe = subscribeSessionState((state, previous) => {
-    if (state.referenceDataUserId !== previous.referenceDataUserId) {
+  };
+  const unsubscribe = onSessionResumed({
+    onUserChange: () => {
       stopActive();
-      channel?.close();
-      channel = undefined;
-      channelName = undefined;
-      refreshPrograms.clear();
-      setDownloadStatus({ phase: 'idle', incompletePrograms: [] });
-    }
-    if (state.expired) stopActive('session');
-    if (!state.isAuthenticated || state.expired) return;
-    if (
-      state.referenceDataUserId !== previous.referenceDataUserId ||
-      state.accessToken !== previous.accessToken ||
-      previous.expired
-    )
+      channel.close();
+      refreshKeys.clear();
+      setDownloadStatus({ phase: 'idle', incomplete: [] });
+    },
+    onExpired: () => stopActive('session'),
+    onResume: () => {
       void run('force');
+    },
   });
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   const unsubscribeOnline = onlineManager.subscribe((online) => {
@@ -480,7 +397,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
   });
   const accessValues = new Map<string, string>();
   const observesAccess = ([resource, part, id]: readonly unknown[]) => {
-    const userId = getSessionState().referenceDataUserId;
+    const userId = useLoginData.getState().referenceDataUserId;
     return (
       !!userId &&
       ((resource === 'auth' && part === 'rights' && id === userId) ||
@@ -508,7 +425,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
     if (!active && document.visibilityState === 'visible') void run('boot', true);
   }, FRESHNESS_CHECK_MS);
   void run(dependencies.initialTrigger ?? 'boot');
-  return () => {
+  const stop = () => {
     stopped = true;
     stopActive();
     unsubscribe();
@@ -516,9 +433,8 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
     unsubscribeAccess();
     clearInterval(freshnessTimer);
     clearTimeout(reconnectTimer);
-    channel?.close();
-    setUploadAccessReader();
+    channel.close();
     setDownloadRetry();
-    setDownloadRefresh();
   };
+  return { stop, freshAccess: readFreshAccess, refresh: refreshOfflineDownload };
 }

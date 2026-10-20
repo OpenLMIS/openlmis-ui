@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { announceDeviceSave } from '@/features/stock-events/lib/device-save-announcement';
 import {
   createStockEventContext,
   deleteStockEventCopy,
@@ -37,7 +38,6 @@ import {
 } from '@/features/stock-events/lib/stock-event-local';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
-import { announceDeviceSave } from '@/lib/device-save-announcement';
 import { getSessionScope } from '@/lib/session-scope';
 
 type Props = StockEventSelection & {

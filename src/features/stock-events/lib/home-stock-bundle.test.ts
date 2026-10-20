@@ -389,7 +389,10 @@ it('rejects a missing lot and the coordinator retains the previous complete gene
     }),
   } satisfies AccessReaders;
   const download = vi.fn(fetchHomeStockBundle);
-  const stop = startOfflineCoordinator({ access, providers: [homeStockProvider(download)] });
+  const stop = startOfflineCoordinator({
+    access: () => access,
+    providers: [homeStockProvider(download)],
+  });
   try {
     onlineManager.setOnline(false);
     onlineManager.setOnline(true);
@@ -398,7 +401,7 @@ it('rejects a missing lot and the coordinator retains the previous complete gene
     await expect(download.mock.results.at(-1)?.value).rejects.toThrow('lot not found');
     expect(await getLocalDb().table('homeStockDownloads').get(['home', 'program'])).toEqual(saved);
   } finally {
-    stop();
+    stop.stop();
     vi.unstubAllGlobals();
   }
 });

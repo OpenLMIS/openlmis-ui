@@ -5,6 +5,11 @@ import Dexie from 'dexie';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  getSyncPhase,
+  useSyncPhase,
+  wakeStockEventSync,
+} from '@/features/stock-events/lib/device-event-status';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
 import {
@@ -22,10 +27,8 @@ import { client } from '@/integrations/axios';
 import i18n from '@/integrations/i18n';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
-import { getSyncPhase, useSyncPhase, wakeStockEventSync } from '@/lib/device-event-status';
 import { queryKeys } from '@/lib/key-factory';
 import type { OfflineAccess } from '@/lib/offline-access';
-import { setDownloadRefresh } from '@/lib/offline-download-status';
 
 vi.mock('@/features/stock-events/lib/event-kinds', async (original) => {
   const module = await original<typeof import('@/features/stock-events/lib/event-kinds')>();
@@ -142,7 +145,7 @@ it('waits for fresh access, orders enqueues, and two coordinators share one uplo
   await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(2));
   await waitFor(() => expect(getSyncPhase()).toBe('complete'));
   expect(toast.success).toHaveBeenCalledOnce();
-  expect(translated).toHaveBeenCalledWith('device-events.synced-count', { count: 2 });
+  expect(translated).toHaveBeenCalledWith('offline-events.synced-count', { count: 2 });
 });
 it('a service 401 pauses until same-user renewal and fresh access, then resends exactly once', async () => {
   const event = await enqueue();
@@ -429,8 +432,8 @@ it('broadcasts acceptance and invalidates other-tab stock only for the current o
         ([data]) =>
           data.type === 'accepted' &&
           data.userId === event.userId &&
-          data.facilityId === event.facilityId &&
-          data.programId === event.programId,
+          typeof data.origin === 'string' &&
+          Object.keys(data).sort().join(',') === 'origin,type,userId',
       ),
     ),
   ).toBe(true);
@@ -463,13 +466,12 @@ it('invalidates multiple receiving clients without requesting a download in each
   );
   const clients = [new QueryClient(), new QueryClient()];
   const refresh = vi.fn();
-  setDownloadRefresh(refresh);
   for (const other of clients) {
     other.setQueryData(queryKeys.stockCardSummaries.all, ['old']);
     stops.push(subscribeStockEventAcceptances(other));
   }
   const event = await enqueue();
-  refreshAfterStockEventAccepted(queryClient, event);
+  refreshAfterStockEventAccepted(queryClient, event, refresh);
   for (const listener of listeners)
     listener.onmessage?.({
       data: {
@@ -484,7 +486,6 @@ it('invalidates multiple receiving clients without requesting a download in each
     clients.every((other) => other.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated),
   ).toBe(true);
   expect(refresh).toHaveBeenCalledTimes(1);
-  setDownloadRefresh();
 });
 
 it('sends an abandoned foreground row as background without waiting for its old deadline', async () => {

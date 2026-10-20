@@ -72,7 +72,7 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
                 key={link.to}
                 aria-label={
                   link.to === '/offline-events' && pending > 0
-                    ? t('device-events.nav-count', { count: pending })
+                    ? t('offline-events.nav-count', { count: pending })
                     : undefined
                 }
                 data-unavailable={link.connectionRequired || undefined}

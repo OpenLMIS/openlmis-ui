@@ -20,8 +20,8 @@ import { StockEventProgramPicker } from '@/routes/(protected)/-stock-event-progr
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
-vi.mock('@/features/stock-events/hooks/use-device-events', () => ({
-  useDeviceEvents: () => ({
+vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
+  useOfflineEvents: () => ({
     events: [
       { kind: 'adjustment', status: 'queued' },
       { kind: 'issue', status: 'queued' },

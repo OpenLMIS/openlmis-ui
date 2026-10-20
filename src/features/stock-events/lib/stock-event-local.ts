@@ -5,8 +5,6 @@ import { getLocalDb, getLocalDbUserId } from '@/integrations/local-db';
 import { assertDraftRevision, DraftConflictError, saveRevisionedDraft } from '@/lib/draft-store';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
-export { DraftConflictError } from '@/lib/draft-store';
-
 export type StockEventSelection = {
   kind: ConfiguredEventKind;
   facilityId: string;

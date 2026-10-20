@@ -5,9 +5,9 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { expect, it, vi } from 'vitest';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
-import { DeviceEventsPage } from '@/features/stock-events/components/device-events';
-import type { DeviceEventsSearch } from '@/features/stock-events/lib/device-events-search';
+import { OfflineEventsPage } from '@/features/stock-events/components/offline-events';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
+import type { OfflineEventsSearch } from '@/features/stock-events/lib/offline-events-search';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { parsePermissions } from '@/lib/permissions';
@@ -15,8 +15,8 @@ import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 const local = vi.hoisted(() => ({ events: [] as DeviceEvent[], width: 1440 }));
-vi.mock('@/features/stock-events/hooks/use-device-events', () => ({
-  useDeviceEvents: () => local,
+vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
+  useOfflineEvents: () => local,
   useHasDeviceEvents: () => false,
 }));
 vi.mock('@/components/data-table/responsive-columns', async (original) => ({
@@ -94,9 +94,9 @@ it.each([
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
     function Page() {
-      const navigation = useSearchNavigation<DeviceEventsSearch>({ event: undefined });
+      const navigation = useSearchNavigation<OfflineEventsSearch>({ event: undefined });
       return (
-        <DeviceEventsPage
+        <OfflineEventsPage
           search={useSearch({ strict: false })}
           onSearchChange={navigation.updateSearch}
           onOpenEvent={(event) => void navigation.openDialog({ event })}
@@ -115,63 +115,63 @@ it.each([
       expect(screen.queryByText('Product')).not.toBeInTheDocument();
       expect(screen.queryByText('Damaged')).not.toBeInTheDocument();
       expect(
-        screen.getByRole('columnheader', { name: 'device-events.occurred-date' }),
+        screen.getByRole('columnheader', { name: 'offline-events.occurred-date' }),
       ).toBeInTheDocument();
-      await userEvent.click(screen.getByRole('button', { name: 'device-events.actions-label' }));
+      await userEvent.click(screen.getByRole('button', { name: 'offline-events.actions-label' }));
       if (['queued', 'accepted', 'refused'].includes(status)) {
         await userEvent.click(
-          await screen.findByRole('menuitem', { name: 'device-events.remove' }),
+          await screen.findByRole('menuitem', { name: 'offline-events.remove' }),
         );
         const confirmation = within(screen.getByRole('alertdialog'));
         expect(
           confirmation.getByText(
             status === 'accepted'
-              ? 'device-events.remove-synced-warning'
+              ? 'offline-events.remove-synced-warning'
               : status === 'refused'
-                ? 'device-events.remove-refused-warning'
-                : 'device-events.remove-warning',
+                ? 'offline-events.remove-refused-warning'
+                : 'offline-events.remove-warning',
           ),
         ).toBeVisible();
-        await userEvent.click(confirmation.getByRole('button', { name: 'device-events.cancel' }));
-        await userEvent.click(screen.getByRole('button', { name: 'device-events.actions-label' }));
+        await userEvent.click(confirmation.getByRole('button', { name: 'offline-events.cancel' }));
+        await userEvent.click(screen.getByRole('button', { name: 'offline-events.actions-label' }));
       } else
         expect(
-          screen.queryByRole('menuitem', { name: 'device-events.remove' }),
+          screen.queryByRole('menuitem', { name: 'offline-events.remove' }),
         ).not.toBeInTheDocument();
       await userEvent.click(
-        await screen.findByRole('menuitem', { name: 'device-events.review-event' }),
+        await screen.findByRole('menuitem', { name: 'offline-events.review-event' }),
       );
     } else {
       await screen.findByText('Facility');
       expect(screen.queryByText('Product')).not.toBeInTheDocument();
       expect(screen.queryByRole('table')).not.toBeInTheDocument();
       if (status === 'refused') {
-        const remove = screen.getByRole('button', { name: 'device-events.remove-event-label' });
+        const remove = screen.getByRole('button', { name: 'offline-events.remove-event-label' });
         await userEvent.click(remove);
         expect(screen.getByRole('alertdialog')).toHaveTextContent(
-          'device-events.remove-refused-warning',
+          'offline-events.remove-refused-warning',
         );
         await userEvent.click(
           within(screen.getByRole('alertdialog')).getByRole('button', {
-            name: 'device-events.cancel',
+            name: 'offline-events.cancel',
           }),
         );
       } else
         expect(
-          screen.queryByRole('button', { name: 'device-events.remove-event-label' }),
+          screen.queryByRole('button', { name: 'offline-events.remove-event-label' }),
         ).not.toBeInTheDocument();
       await userEvent.click(
-        screen.getByRole('button', { name: 'device-events.review-event-label' }),
+        screen.getByRole('button', { name: 'offline-events.review-event-label' }),
       );
     }
     const dialog = within(await screen.findByRole('dialog'));
     expect(dialog.getByText('Facility')).toBeVisible();
     expect(dialog.getByText('Program')).toBeVisible();
-    expect(dialog.getByText(`device-events.status-${status}`)).toBeVisible();
+    expect(dialog.getByText(`offline-events.status-${status}`)).toBeVisible();
     expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
-      `nav.stock-management.adjustments. device-events.status-${status}`,
+      `nav.stock-management.adjustments. offline-events.status-${status}`,
     );
-    expect(dialog.queryByText('device-events.attempted-at')).not.toBeInTheDocument();
+    expect(dialog.queryByText('offline-events.attempted-at')).not.toBeInTheDocument();
     expect(dialog.queryByText('stock-event.document-number')).not.toBeInTheDocument();
     if (width === 1440) {
       const rows = within(dialog.getByRole('table')).getAllByRole('row');
@@ -193,9 +193,9 @@ it.each([
       expect(lines[1]).toHaveTextContent('Lost');
     }
     if (status === 'uncertain') {
-      const resend = screen.getByRole('button', { name: 'device-events.send-again' });
+      const resend = screen.getByRole('button', { name: 'offline-events.send-again' });
       expect(resend).toHaveAttribute('aria-disabled', 'true');
-      expect(resend).toHaveAccessibleDescription('device-events.no-send');
+      expect(resend).toHaveAccessibleDescription('offline-events.no-send');
       resend.focus();
       expect(resend).toHaveFocus();
       await userEvent.click(resend);
@@ -203,7 +203,7 @@ it.each([
     } else if (status === 'queued' || status === 'refused')
       expect(
         screen.getByRole('button', {
-          name: 'device-events.remove',
+          name: 'offline-events.remove',
         }),
       ).toBeEnabled();
     expect(router.state.location.search).toMatchObject({ event: 'e' });
@@ -212,11 +212,11 @@ it.each([
       local.events = [];
       await router.invalidate();
     });
-    expect(screen.getByRole('dialog')).not.toHaveTextContent('device-events.not-found-title');
-    expect(screen.getByRole('dialog')).toHaveTextContent('device-events.details');
-    await userEvent.click(screen.getByRole('button', { name: 'device-events.close' }));
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('offline-events.not-found-title');
+    expect(screen.getByRole('dialog')).toHaveTextContent('offline-events.details');
+    await userEvent.click(screen.getByRole('button', { name: 'offline-events.close' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect((router.state.location.search as DeviceEventsSearch).event).toBeUndefined();
+    expect((router.state.location.search as OfflineEventsSearch).event).toBeUndefined();
     local.events = retained;
     await act(async () => router.history.forward());
     expect(await screen.findByRole('dialog')).toBeVisible();
@@ -228,9 +228,9 @@ it('opens a directly linked event, replaces search on close, and explains a miss
   client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
   local.events = [];
   function Page() {
-    const navigation = useSearchNavigation<DeviceEventsSearch>({ event: undefined });
+    const navigation = useSearchNavigation<OfflineEventsSearch>({ event: undefined });
     return (
-      <DeviceEventsPage
+      <OfflineEventsPage
         search={useSearch({ strict: false })}
         onSearchChange={navigation.updateSearch}
         onOpenEvent={(event) => void navigation.openDialog({ event })}
@@ -241,10 +241,10 @@ it('opens a directly linked event, replaces search on close, and explains a miss
     );
   }
   const router = renderPage(<Page />, { queryClient: client, path: '/?event=missing' });
-  expect(await screen.findByRole('dialog')).toHaveTextContent('device-events.not-found-title');
+  expect(await screen.findByRole('dialog')).toHaveTextContent('offline-events.not-found-title');
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
   await waitFor(() =>
-    expect((router.state.location.search as DeviceEventsSearch).event).toBeUndefined(),
+    expect((router.state.location.search as OfflineEventsSearch).event).toBeUndefined(),
   );
   expect(router.history.canGoBack()).toBe(false);
 });
@@ -302,9 +302,9 @@ it.each([1440, 390])(
     function Page() {
       const [, setVersion] = useState(0);
       refresh = () => setVersion((version) => version + 1);
-      const navigation = useSearchNavigation<DeviceEventsSearch>({ event: undefined });
+      const navigation = useSearchNavigation<OfflineEventsSearch>({ event: undefined });
       return (
-        <DeviceEventsPage
+        <OfflineEventsPage
           search={useSearch({ strict: false })}
           onSearchChange={navigation.updateSearch}
           onOpenEvent={(event) => void navigation.openDialog({ event })}
@@ -331,12 +331,12 @@ it.each([1440, 390])(
     });
     await waitFor(() => expect(order()).toEqual(['Second', 'Third', 'First']));
     await user.click(screen.getByRole('button', { name: 'Filters' }));
-    await user.click(screen.getByRole('combobox', { name: 'device-events.status' }));
-    await user.click(await screen.findByRole('option', { name: 'device-events.status-refused' }));
+    await user.click(screen.getByRole('combobox', { name: 'offline-events.status' }));
+    await user.click(await screen.findByRole('option', { name: 'offline-events.status-refused' }));
     await waitFor(() => expect(order()).toEqual(['Second']));
     expect(router.state.location.search).toMatchObject({ status: 'refused' });
     await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
     await waitFor(() => expect(order()).toEqual(['Second', 'Third', 'First']));
-    expect((router.state.location.search as DeviceEventsSearch).status).toBeUndefined();
+    expect((router.state.location.search as OfflineEventsSearch).status).toBeUndefined();
   },
 );

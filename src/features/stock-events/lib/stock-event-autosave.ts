@@ -13,14 +13,13 @@ import {
   type StockEventDisplay,
 } from '@/features/stock-events/lib/stock-event-queue';
 import type { StockEvent } from '@/features/stock-events/lib/types';
-import { createDraftWriter, type DraftSaveState as StockEventSaveState } from '@/lib/draft-writer';
+import { createDraftWriter, type DraftSaveState } from '@/lib/draft-writer';
 import { assertSessionScope } from '@/lib/session-scope';
 
-export type { DraftSaveState as StockEventSaveState } from '@/lib/draft-writer';
 export function createStockEventWriter(
   context: StockEventContext,
   initial: StockEventDraft | undefined,
-  onStatus: (state: StockEventSaveState) => void,
+  onStatus: (state: DraftSaveState) => void,
   generation?: () => string | undefined,
 ) {
   let expected = initial;

@@ -255,8 +255,8 @@ export function EventEditor({
       const copy = await correction.mutateAsync();
       if (!correction.isCurrent()) return;
       if (!copy) {
-        toast.warning(t('device-events.changed-title'), {
-          description: t('device-events.changed-description'),
+        toast.warning(t('offline-events.changed-title'), {
+          description: t('offline-events.changed-description'),
         });
         return;
       }
@@ -266,8 +266,8 @@ export function EventEditor({
       draft.reload();
     } catch {
       if (correction.isCurrent())
-        toast.error(t('device-events.action-failed'), {
-          description: t('device-events.action-failed-description'),
+        toast.error(t('offline-events.action-failed'), {
+          description: t('offline-events.action-failed-description'),
         });
     }
   };
@@ -759,7 +759,7 @@ export function EventEditor({
                     variant="outline"
                     onClick={() => setReviewRefusal(true)}
                   >
-                    {t('device-events.copy')}
+                    {t('offline-events.copy')}
                   </Button>
                 </AlertDescription>
               </Alert>
@@ -973,29 +973,31 @@ export function EventEditor({
             <AlertDialogTitle>{t(failure?.title ?? config.copy.invalidTitle)}</AlertDialogTitle>
             <AlertDialogDescription>
               {failure?.description ?? t(config.copy.invalidDescription)}
-              {refusal && <span className="block pt-2">{t('device-events.copy-warning')}</span>}
+              {refusal && <span className="block pt-2">{t('offline-events.copy-warning')}</span>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <div
-              className={
-                refusal ? 'flex w-full flex-col gap-2 sm:flex-row sm:justify-end' : 'contents'
-              }
-            >
-              {refusal && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => void navigate({ to: '/offline-events' })}
-                  >
-                    {t('device-events.review')}
-                  </Button>
-                  <Button disabled={correction.isPending} onClick={() => void correctRefusal()}>
-                    {t('device-events.copy')}
-                  </Button>
-                </>
-              )}
-              <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
+            <div className={refusal ? '@container w-full' : 'contents'}>
+              <div
+                className={
+                  refusal ? 'flex flex-col gap-2 @sm:flex-row @sm:justify-end' : 'contents'
+                }
+              >
+                {refusal && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => void navigate({ to: '/offline-events' })}
+                    >
+                      {t('offline-events.review')}
+                    </Button>
+                    <Button disabled={correction.isPending} onClick={() => void correctRefusal()}>
+                      {t('offline-events.copy')}
+                    </Button>
+                  </>
+                )}
+                <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
+              </div>
             </div>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1008,8 +1010,8 @@ export function EventEditor({
             <LoadError
               error={error}
               reset={reset}
-              title={t('device-events.error-title')}
-              description={t('device-events.error-description')}
+              title={t('offline-events.error-title')}
+              description={t('offline-events.error-description')}
             />
           )}
         >

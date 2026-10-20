@@ -11,10 +11,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { StockEventSaveState } from '@/features/stock-events/lib/stock-event-autosave';
-import { DraftConflictError } from '@/features/stock-events/lib/stock-event-local';
+import { DraftConflictError } from '@/lib/draft-store';
+import type { DraftSaveState } from '@/lib/draft-writer';
 
-type Props = StockEventSaveState & {
+type Props = DraftSaveState & {
   onRetry: () => void;
   onResolve: (choice: 'load' | 'copy') => Promise<void>;
 };

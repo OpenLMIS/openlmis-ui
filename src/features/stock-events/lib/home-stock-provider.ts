@@ -5,7 +5,6 @@ import {
   type HomeStockBundle,
   type HomeStockScope,
 } from '@/features/stock-events/lib/home-stock-bundle';
-import { HOME_STOCK_PAGES } from '@/features/stock-events/lib/home-stock-pages';
 import { type DownloadScope, defineDownloadProvider } from '@/lib/download-provider';
 import { getFlag } from '@/lib/feature-flags';
 import { hasProgramGrant, parsePermissions, programGrants } from '@/lib/permissions';
@@ -16,8 +15,6 @@ export function homeStockProvider(fetch = fetchHomeStockBundle) {
     id: 'home-stock',
     label: 'offline.download.home-stock',
     table: 'homeStockDownloads',
-    pages: HOME_STOCK_PAGES,
-    eligible: (access) => !!access.homeFacility,
     scopes(access) {
       const home = access.homeFacility;
       if (!home) return [];

@@ -1,6 +1,10 @@
 import { isAccessFallbackError } from '@/lib/http';
-import { isOnline } from '@/lib/online';
+import { getConnectionGeneration, isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+
+const deviceResults = new WeakMap<object, number>();
+export const deviceDataGeneration = (value: unknown) =>
+  typeof value === 'object' && value !== null ? deviceResults.get(value) : undefined;
 
 export class LocalDataUnavailableError extends Error {
   constructor() {
@@ -26,5 +30,7 @@ export async function onlineOrDevice<T>(
   }
   const result = await device();
   assertSessionScope(scope);
+  if (typeof result === 'object' && result !== null)
+    deviceResults.set(result, getConnectionGeneration());
   return result;
 }

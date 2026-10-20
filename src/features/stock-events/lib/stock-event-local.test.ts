@@ -5,7 +5,6 @@ import { newEventLine } from '@/features/stock-events/lib/event-form';
 import {
   archiveStockEventCopy,
   createStockEventContext,
-  DraftConflictError,
   deleteStockEventCopy,
   readArchivedStockEvents,
   readStockEventDraft,
@@ -13,6 +12,7 @@ import {
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import { getLocalDb } from '@/integrations/local-db';
+import { DraftConflictError } from '@/lib/draft-store';
 
 const selection = { kind: 'adjustment' as const, facilityId: 'facility', programId: 'program' };
 const line = newEventLine(

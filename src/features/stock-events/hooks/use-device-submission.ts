@@ -150,21 +150,21 @@ export function useDeviceSubmission({
           toast.warning(
             t(
               delivery.kind === 'uncertain'
-                ? 'device-events.needs-review'
+                ? 'offline-events.needs-review'
                 : delivery.kind === 'held'
-                  ? `device-events.${delivery.reason}`
-                  : 'device-events.blocked-title',
+                  ? `offline-events.${delivery.reason}`
+                  : 'offline-events.blocked-title',
             ),
             {
               description: t(
                 delivery.kind === 'uncertain'
-                  ? 'device-events.needs-review-description'
+                  ? 'offline-events.needs-review-description'
                   : delivery.kind === 'held'
-                    ? `device-events.${delivery.reason}-held-description`
-                    : 'device-events.blocked-description',
+                    ? `offline-events.${delivery.reason}-held-description`
+                    : 'offline-events.blocked-description',
               ),
               action: {
-                label: t('device-events.review'),
+                label: t('offline-events.review'),
                 onClick: () => void navigate({ to: '/offline-events' }),
               },
             },

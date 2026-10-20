@@ -4,7 +4,7 @@ import type {
   InventoryScope,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { getLocalDb } from '@/integrations/local-db';
-import { assertDraftRevision, type DraftRevision, saveRevisionedDraft } from '@/lib/draft-store';
+import { type DraftRevision, saveRevisionedDraft } from '@/lib/draft-store';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export type InventoryLocalCopy = InventoryScope & {
@@ -53,18 +53,19 @@ export async function clearInventoryLocal(
   scope = getSessionScope(),
   db: Dexie = getLocalDb(),
 ) {
-  await db.transaction('rw', 'physicalInventoryDrafts', async () => {
-    assertSessionScope(scope);
-    const table = db.table<InventoryLocalCopy>('physicalInventoryDrafts');
-    if (revision !== undefined) {
+  assertSessionScope(scope);
+  const table = db.table<DraftRevision, string>('physicalInventoryDrafts');
+  const expected = revision === undefined ? await table.get(draftId) : { draftId, revision };
+  assertSessionScope(scope);
+  await saveRevisionedDraft({
+    db,
+    sessionScope: scope,
+    table,
+    expected,
+    read: async () => {
       const stored = await table.get(draftId);
-      assertSessionScope(scope);
-      assertDraftRevision<DraftRevision>(
-        stored,
-        !stored && revision === 0 ? undefined : { draftId, revision },
-      );
-    }
-    await table.delete(draftId);
-    assertSessionScope(scope);
+      return !stored && revision === 0 ? expected : stored;
+    },
+    next: () => undefined,
   });
 }

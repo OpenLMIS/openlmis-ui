@@ -1,12 +1,20 @@
+import { createStore } from 'zustand/vanilla';
+
 export function createNoticeCountdown(expire: () => void, duration = 4000) {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let state = { duration, remaining: duration, startedAt: 0, paused: false, revision: 0 };
+  const store = createStore(() => ({
+    duration,
+    remaining: duration,
+    startedAt: 0,
+    paused: false,
+    revision: 0,
+  }));
   const reasons = new Set<string>();
-  const listeners = new Set<() => void>();
-  const remaining = () =>
-    state.paused ? state.remaining : Math.max(0, state.remaining - (Date.now() - state.startedAt));
-  const notify = () => {
-    for (const listener of listeners) listener();
+  const remaining = () => {
+    const state = store.getState();
+    return state.paused
+      ? state.remaining
+      : Math.max(0, state.remaining - (Date.now() - state.startedAt));
   };
   const stop = () => {
     clearTimeout(timer);
@@ -17,47 +25,41 @@ export function createNoticeCountdown(expire: () => void, duration = 4000) {
     timer = setTimeout(() => {
       timer = undefined;
       expire();
-    }, state.remaining);
+    }, store.getState().remaining);
   };
   return {
     start: () => {
       stop();
-      state = {
+      store.setState({
         duration,
         remaining: duration,
         startedAt: Date.now(),
         paused: false,
-        revision: state.revision + 1,
-      };
+        revision: store.getState().revision + 1,
+      });
       schedule();
-      notify();
     },
     stop,
     pause: (reason: string, paused: boolean) => {
       if (paused) reasons.add(reason);
       else reasons.delete(reason);
+      const state = store.getState();
       const next = reasons.size > 0;
       if (next === state.paused) return;
       const time = remaining();
       clearTimeout(timer);
-      state = {
+      store.setState({
         ...state,
         remaining: time,
         paused: next,
         startedAt: Date.now(),
-        revision: state.revision + 1,
-      };
+        revision: store.getState().revision + 1,
+      });
       if (!next) schedule();
-      notify();
     },
     remaining,
-    getSnapshot: () => state,
-    subscribe: (listener: () => void) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    getSnapshot: store.getState,
+    subscribe: store.subscribe,
   };
 }
 export type NoticeCountdown = ReturnType<typeof createNoticeCountdown>;

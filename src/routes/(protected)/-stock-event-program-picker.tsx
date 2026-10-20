@@ -31,7 +31,7 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
-import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
+import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { readHomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
@@ -172,7 +172,7 @@ export function StockEventProgramPicker(props: PickerProps) {
 
 function PendingDeviceWork({ kind }: { kind: ConfiguredEventKind }) {
   const { t } = useTranslation();
-  const { events } = useDeviceEvents();
+  const { events } = useOfflineEvents();
   const online = useOnline();
   const count =
     events?.filter((event) => event.kind === kind && isPendingDeviceEvent(event)).length ?? 0;
@@ -185,8 +185,8 @@ function PendingDeviceWork({ kind }: { kind: ConfiguredEventKind }) {
           t={t}
           i18nKey={
             online
-              ? 'device-events.program-pending-online'
-              : 'device-events.program-pending-offline'
+              ? 'offline-events.program-pending-online'
+              : 'offline-events.program-pending-offline'
           }
           count={count}
           values={{ count, kind }}

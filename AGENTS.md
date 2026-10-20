@@ -783,7 +783,8 @@ home facility, user programs, all facilities and page grants, following legacy:
 - Before loading protected pages, await `requireRight(queryClient, RIGHTS.x)` or
   `requirePermissions` for grants (`src/features/auth/lib/access.ts`), alongside required data.
   Missing rights throw `ForbiddenError`. Add matching `NAV_RIGHTS` entries in
-  `src/components/nav-access.ts` for sidebar, palette and breadcrumb filtering.
+  `src/lib/nav-rights.ts` for sidebar, palette and breadcrumb filtering.
+  Route composition registers feature-owned navigation rights.
 - For legacy's either-right pages, pass both rights to `requireRight` and `NAV_RIGHTS`.
   Gate individual actions with the resolved rights set, including directly linked dialogs.
 - Record-and-grant pages (Stock Card, stock events) use `useReloadForUser`
@@ -981,6 +982,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Use `onlineOrDevice` for unreachable reads, timeouts or non-JSON gateway failures. Definitive
   service errors and cancellations never fall back. Missing local data raises
   `LocalDataUnavailableError`, never a server 404. Preserve device markers and freshness bounds.
+  Use `withOfflineAccess` when a read must select the saved access snapshot offline.
 - Home-stock downloads require supported home programs with STOCK_ADJUST and STOCK_CARDS_VIEW.
   Keep summaries separate from history and queued balances. Routes supply device readers to
   stock features; picker-only fallbacks must not contaminate shared facility lookup caches.

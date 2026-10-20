@@ -1,3 +1,4 @@
+import '@/routes/-offline-pages';
 import { createFileRoute, Outlet, redirect, useLocation, useRouter } from '@tanstack/react-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
@@ -6,8 +7,8 @@ import { ErrorFallback } from '@/components/error-fallback';
 import { OfflineNotice } from '@/components/offline-notice';
 import { PageVisibility } from '@/components/page-visibility';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { isOfflineCapable } from '@/features/stock-events/lib/offline-pages';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
+import { isOfflineCapable } from '@/lib/offline-pages';
 import { isOnline, seedOnline, useOnline } from '@/lib/online';
 import { loginSearch } from '@/lib/redirect';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';

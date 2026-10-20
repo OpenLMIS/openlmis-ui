@@ -192,7 +192,7 @@ function NavLinkItem({ item, pathname, onNavigate }: NavLinkItemProps) {
   const { pending } = useDeviceWork();
   const offline = useOfflineNavigation();
   const count = item.to === '/offline-events' ? pending : 0;
-  const label = count ? t('device-events.nav-count', { count }) : title;
+  const label = count ? t('offline-events.nav-count', { count }) : title;
 
   return (
     <SidebarMenuItem>

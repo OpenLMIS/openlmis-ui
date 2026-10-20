@@ -12,7 +12,7 @@ import type { OfflineAccess } from '@/lib/offline-access';
 import { type Permissions, parsePermissions } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope, useSessionScope } from '@/lib/session-scope';
 
-export function useDeviceEvents(enabled = true, onlyIfPresent = false) {
+export function useOfflineEvents(enabled = true, onlyIfPresent = false) {
   const scope = useSessionScope();
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<{

@@ -1,42 +1,27 @@
 import type { ParseKeys } from 'i18next';
-import { useSyncExternalStore } from 'react';
+import { create } from 'zustand';
 import { createNoticeCountdown } from '@/lib/notice-countdown';
 
+export type DownloadEntry = { id: string; name: string; dataset: string; datasetLabel: ParseKeys };
 export type DownloadStatus = {
   phase: 'idle' | 'running' | 'complete' | 'failed' | 'unsupported';
-  incompletePrograms: { id: string; name: string; dataset?: string; datasetLabel?: ParseKeys }[];
+  incomplete: DownloadEntry[];
   reason?: 'timeout' | 'offline' | 'session' | 'read';
   accessFailed?: boolean;
   trigger?: 'boot' | 'force' | 'retry' | 'refresh' | 'access';
 };
-const idle: DownloadStatus = { phase: 'idle', incompletePrograms: [] };
-let status = idle;
-const listeners = new Set<() => void>();
+const idle: DownloadStatus = { phase: 'idle', incomplete: [] };
+const useStatus = create(() => ({ status: idle }));
 let retry: (() => void) | undefined;
-type ProgramScope = { facilityId: string; programId: string };
-let refresh: ((scope: ProgramScope) => void) | undefined;
 export const downloadCountdown = createNoticeCountdown(() => setDownloadStatus(idle));
-export const getDownloadStatus = () => status;
-export function setDownloadStatus(value: DownloadStatus) {
+export const getDownloadStatus = () => useStatus.getState().status;
+export function setDownloadStatus(status: DownloadStatus) {
   downloadCountdown.stop();
-  status = value;
-  if (value.phase === 'complete') downloadCountdown.start();
-  for (const listener of listeners) listener();
+  useStatus.setState({ status });
+  if (status.phase === 'complete') downloadCountdown.start();
 }
 export function setDownloadRetry(callback?: () => void) {
   retry = callback;
 }
 export const retryOfflineDownload = () => retry?.();
-export function useDownloadStatus() {
-  return useSyncExternalStore((listener) => {
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }, getDownloadStatus);
-}
-
-export function setDownloadRefresh(callback?: (scope: ProgramScope) => void) {
-  refresh = callback;
-}
-export const refreshOfflineProgram = (scope: ProgramScope) => refresh?.(scope);
+export const useDownloadStatus = () => useStatus((state) => state.status);

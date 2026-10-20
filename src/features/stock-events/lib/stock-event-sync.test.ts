@@ -2,6 +2,7 @@ import { AxiosError } from 'axios';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
+import { QueueNotSentError } from '@/features/stock-events/lib/queue-transport';
 import {
   createStockEventContext,
   readStockEventDraft,
@@ -24,7 +25,6 @@ import {
   syncStockEvents,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { getLocalDb } from '@/integrations/local-db';
-import { QueueNotSentError } from '@/lib/queue-transport';
 
 const owner = { referenceDataUserId: 'sync-user', username: 'Ada', accessToken: 'token' };
 const line = newEventLine(

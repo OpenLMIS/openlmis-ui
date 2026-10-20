@@ -29,7 +29,7 @@ export function DeviceEventActions({
     {
       id: 'review',
       icon: <EyeIcon />,
-      label: t('device-events.review-event'),
+      label: t('offline-events.review-event'),
       name: layout === 'cards' ? label : undefined,
       onSelect: onOpen,
     },
@@ -38,7 +38,7 @@ export function DeviceEventActions({
           {
             id: 'remove',
             icon: <Trash2Icon />,
-            label: t('device-events.remove'),
+            label: t('offline-events.remove'),
             name: layout === 'cards' ? removeLabel : undefined,
             destructive: true,
             onSelect: () => setRemoving(true),
@@ -49,7 +49,7 @@ export function DeviceEventActions({
   const Actions = layout === 'cards' ? CardActions : RowActions;
   return (
     <>
-      <Actions actions={actions} label={t('device-events.actions-label', { event: label })} />
+      <Actions actions={actions} label={t('offline-events.actions-label', { event: label })} />
       {removing && (
         <DeviceEventRemoval
           event={event}

@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EventForm } from '@/features/stock-events/hooks/use-event-form';
+import { announceDeviceSave } from '@/features/stock-events/lib/device-save-announcement';
 import { type EventLine, refreshStockEventLines } from '@/features/stock-events/lib/event-form';
-import {
-  createStockEventWriter,
-  type StockEventSaveState,
-} from '@/features/stock-events/lib/stock-event-autosave';
+import { createStockEventWriter } from '@/features/stock-events/lib/stock-event-autosave';
 import {
   createStockEventContext,
   readStockEventDraft,
@@ -13,7 +11,7 @@ import {
 } from '@/features/stock-events/lib/stock-event-local';
 import type { StockEventDisplay } from '@/features/stock-events/lib/stock-event-queue';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
-import { announceDeviceSave } from '@/lib/device-save-announcement';
+import type { DraftSaveState } from '@/lib/draft-writer';
 import { getSessionScope } from '@/lib/session-scope';
 
 export function useStockEventAutosave(
@@ -24,7 +22,7 @@ export function useStockEventAutosave(
   today: string,
   generation: () => string | undefined = () => undefined,
 ) {
-  const [state, setState] = useState<StockEventSaveState>({ status: 'loading' });
+  const [state, setState] = useState<DraftSaveState>({ status: 'loading' });
   const [busy, setBusy] = useState(false);
   const snapshots = useRef({ cards, today });
   snapshots.current = { cards, today };
@@ -61,7 +59,7 @@ export function useStockEventAutosave(
     let subscription: { unsubscribe: () => void } | undefined;
     writer.current = undefined;
     setState({ status: 'loading' });
-    const onStatus = (next: StockEventSaveState) => {
+    const onStatus = (next: DraftSaveState) => {
       if (!current()) return;
       setState((previous) =>
         next.status === 'saving' ? { ...next, error: previous.error } : next,

@@ -6,7 +6,7 @@ import {
   reportConnectionFailure,
   reportConnectionSuccess,
 } from '@/lib/online';
-import { QueueNotSentError, QueueReceiptError, type QueueTransport } from '@/lib/queue-transport';
+import type { QueueTransport } from '@/lib/queue-transport';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 declare module 'axios' {
@@ -58,9 +58,9 @@ client.interceptors.request.use(async (config) => {
         config.queueTransport.userId !== referenceDataUserId ||
         (config.sentFor != null && config.sentFor !== referenceDataUserId)
       )
-        throw new QueueNotSentError();
+        throw config.queueTransport.notSent();
     } catch {
-      throw new QueueNotSentError();
+      throw config.queueTransport.notSent();
     }
   }
   config.sentFor ??= referenceDataUserId;
@@ -106,7 +106,10 @@ client.interceptors.response.use(
           response.config.queueTransport &&
           response.config.sentFor === response.config.queueTransport.userId
         )
-          throw new QueueReceiptError({ status: response.status, data: response.data });
+          throw response.config.queueTransport.receipt({
+            status: response.status,
+            data: response.data,
+          });
         throw error;
       }
     }

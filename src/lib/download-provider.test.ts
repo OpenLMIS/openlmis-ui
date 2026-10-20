@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { defineDownloadProvider, downloadProviders } from '@/lib/download-provider';
+import { defineDownloadProvider } from '@/lib/download-provider';
 import type { OfflineAccess } from '@/lib/offline-access';
 
 it('rejects a fetched record for another owner or scope before it can be published', async () => {
@@ -13,7 +13,6 @@ it('rejects a fetched record for another owner or scope before it can be publish
     id: 'example',
     label: 'offline.download.home-stock',
     table: 'example',
-    eligible: () => true,
     scopes: () => [{ id: 'scope', name: 'Scope', key: 'scope' }],
     fetch,
     accepts: (record, _access, scope) => record.scope === scope.id,
@@ -28,5 +27,4 @@ it('rejects a fetched record for another owner or scope before it can be publish
   fetch.mockResolvedValueOnce({ userId: 'owner', generation: 'g', fetchedAt: 1, scope: 'scope' });
   await expect(task.fetch(signal)).resolves.toMatchObject({ userId: 'owner', scope: 'scope' });
   expect(fetch).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'scope' }), signal);
-  expect(() => downloadProviders([provider, provider])).toThrow('Duplicate download provider');
 });

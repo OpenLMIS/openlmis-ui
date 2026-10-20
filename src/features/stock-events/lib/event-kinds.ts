@@ -359,5 +359,3 @@ export const OFFLINE_EVENT_KINDS = Object.values(EVENT_KINDS).filter(
   (kind) => kind.download !== null && kind.drafts === 'device',
 );
 export const OFFLINE_EVENT_RIGHTS = [...new Set(OFFLINE_EVENT_KINDS.map((kind) => kind.right))];
-export const hasOfflineCapability = (rights: ReadonlySet<string> | undefined) =>
-  OFFLINE_EVENT_RIGHTS.some((right) => rights?.has(right));

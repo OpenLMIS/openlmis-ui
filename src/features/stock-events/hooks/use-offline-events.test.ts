@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
+import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
 import { getLocalDb } from '@/integrations/local-db';
 
 beforeEach(async () => {
@@ -14,7 +14,7 @@ beforeEach(async () => {
 
 it('avoids full reads until owned work appears and updates the shared shell summary live', async () => {
   const receipts = vi.spyOn(getLocalDb().table('stockEventReceipts'), 'toArray');
-  const result = renderHook(() => useDeviceEvents(true, true)).result;
+  const result = renderHook(() => useOfflineEvents(true, true)).result;
   await waitFor(() => expect(result.current.events).toEqual([]));
   expect(receipts).not.toHaveBeenCalled();
   await getLocalDb()

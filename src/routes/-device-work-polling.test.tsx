@@ -5,10 +5,12 @@ import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { DeviceWorkProvider } from '@/routes/-device-work-provider';
 
 const state = vi.hoisted(() => ({ events: [] as DeviceEvent[], hasDeviceEvents: true }));
-vi.mock('@/features/stock-events/hooks/use-device-events', () => ({
-  useDeviceEvents: () => state,
+vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
+  useOfflineEvents: () => state,
 }));
-vi.mock('@/lib/offline-coordinator', () => ({ startOfflineCoordinator: () => () => {} }));
+vi.mock('@/lib/offline-coordinator', () => ({
+  startOfflineCoordinator: () => ({ stop: () => {}, freshAccess: vi.fn(), refresh: vi.fn() }),
+}));
 vi.mock('@/features/stock-events/lib/stock-event-uploader', () => ({
   startStockEventUploader: () => () => {},
 }));

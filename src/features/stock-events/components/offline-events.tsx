@@ -43,9 +43,9 @@ import {
 import { DeviceEventActions } from '@/features/stock-events/components/device-event-actions';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
 import { EventStatus } from '@/features/stock-events/components/event-status';
-import { useDeviceEvents } from '@/features/stock-events/hooks/use-device-events';
-import type { DeviceEventsSearch } from '@/features/stock-events/lib/device-events-search';
+import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import type { OfflineEventsSearch } from '@/features/stock-events/lib/offline-events-search';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useCardView } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
@@ -63,8 +63,8 @@ import {
 const hideable = [
   { id: 'facility', labelKey: 'facility-program.facility', hideBelow: '3xl' },
   { id: 'program', labelKey: 'facility-program.program', hideBelow: '4xl' },
-  { id: 'occurredDate', labelKey: 'device-events.occurred-date' },
-  { id: 'status', labelKey: 'device-events.status' },
+  { id: 'occurredDate', labelKey: 'offline-events.occurred-date' },
+  { id: 'status', labelKey: 'offline-events.status' },
 ] as const;
 const defaultSort = { id: 'occurredDate', desc: true };
 const statuses = ['queued', 'sending', 'uncertain', 'refused', 'accepted'] as const;
@@ -80,18 +80,20 @@ function EventDate({ event }: { event: DeviceEvent }) {
   ));
 }
 
-export function DeviceEventsPage({
+export function OfflineEventsPage({
   search,
   onSearchChange,
   onOpenEvent,
   onCloseEvent,
   permissions,
   permissionsUpdatedAt,
+  refreshOfflineDownload,
 }: {
   permissions: Permissions;
   permissionsUpdatedAt: number;
-  search: DeviceEventsSearch;
-  onSearchChange: SearchChange<DeviceEventsSearch>;
+  refreshOfflineDownload?: (refreshKey: string) => void;
+  search: OfflineEventsSearch;
+  onSearchChange: SearchChange<OfflineEventsSearch>;
   onOpenEvent: (event: string) => void;
   onCloseEvent: () => void;
 }) {
@@ -109,12 +111,12 @@ export function DeviceEventsPage({
           <WorkspaceIcon>
             <ListChecksIcon />
           </WorkspaceIcon>
-          <WorkspaceTitle>{t('device-events.title')}</WorkspaceTitle>
-          <WorkspaceDescription>{t('device-events.retained-description')}</WorkspaceDescription>
+          <WorkspaceTitle>{t('offline-events.title')}</WorkspaceTitle>
+          <WorkspaceDescription>{t('offline-events.retained-description')}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <div className="flex min-w-0 flex-col gap-4 lg:gap-6" ref={measure}>
+        <div className="flex min-w-0 flex-col gap-4 @lg/main:gap-6" ref={measure}>
           <DataTableToolbar>
             <div className="flex-1 @2xl/main:flex-none">
               <DataTableFilters
@@ -125,12 +127,12 @@ export function DeviceEventsPage({
                 }
               >
                 <DataTableSelectFilter
-                  label={t('device-events.status')}
+                  label={t('offline-events.status')}
                   value={search.status ?? ''}
                   onValueChange={(status) =>
                     onSearchChange(
                       {
-                        status: (status as DeviceEventsSearch['status']) || undefined,
+                        status: (status as OfflineEventsSearch['status']) || undefined,
                         page: undefined,
                         event: undefined,
                       },
@@ -139,7 +141,7 @@ export function DeviceEventsPage({
                   }
                   options={statuses.map((value) => ({
                     value,
-                    label: t(`device-events.status-${value}`),
+                    label: t(`offline-events.status-${value}`),
                   }))}
                 />
               </DataTableFilters>
@@ -149,8 +151,8 @@ export function DeviceEventsPage({
                 size="lg"
                 sort={{
                   columns: [
-                    { id: 'occurredDate', label: t('device-events.occurred-date') },
-                    { id: 'queuedAt', label: t('device-events.queued-at') },
+                    { id: 'occurredDate', label: t('offline-events.occurred-date') },
+                    { id: 'queuedAt', label: t('offline-events.queued-at') },
                   ],
                   ...searchSort(search, defaultSort, onSearchChange),
                 }}
@@ -161,9 +163,10 @@ export function DeviceEventsPage({
             </div>
           </DataTableToolbar>
           <QueryBoundary
-            resetKey="device-events"
+            resetKey="offline-events"
             pendingFallback={
-              <DeviceEventsTable
+              <OfflineEventsTable
+                refreshOfflineDownload={refreshOfflineDownload}
                 permissions={permissions}
                 permissionsUpdatedAt={permissionsUpdatedAt}
                 search={search}
@@ -179,12 +182,13 @@ export function DeviceEventsPage({
               <ListError
                 error={error}
                 reset={reset}
-                title={t('device-events.error-title')}
-                description={t('device-events.error-description')}
+                title={t('offline-events.error-title')}
+                description={t('offline-events.error-description')}
               />
             )}
           >
-            <DeviceEventsReady
+            <OfflineEventsReady
+              refreshOfflineDownload={refreshOfflineDownload}
               permissions={permissions}
               permissionsUpdatedAt={permissionsUpdatedAt}
               search={search}
@@ -200,11 +204,11 @@ export function DeviceEventsPage({
     </Workspace>
   );
 }
-function DeviceEventsReady(props: Parameters<typeof DeviceEventsTable>[0]) {
+function OfflineEventsReady(props: Parameters<typeof OfflineEventsTable>[0]) {
   const timeZone = useDeploymentTimeZone();
-  return <DeviceEventsTable {...props} timeZone={timeZone} />;
+  return <OfflineEventsTable {...props} timeZone={timeZone} />;
 }
-function DeviceEventsTable({
+function OfflineEventsTable({
   search,
   onSearchChange,
   onOpenEvent,
@@ -215,11 +219,13 @@ function DeviceEventsTable({
   loading = false,
   permissions,
   permissionsUpdatedAt,
+  refreshOfflineDownload,
 }: {
   permissions: Permissions;
   permissionsUpdatedAt: number;
-  search: DeviceEventsSearch;
-  onSearchChange: SearchChange<DeviceEventsSearch>;
+  refreshOfflineDownload?: (refreshKey: string) => void;
+  search: OfflineEventsSearch;
+  onSearchChange: SearchChange<OfflineEventsSearch>;
   onOpenEvent: (event: string) => void;
   onCloseEvent: () => void;
   columnVisibility: Record<string, boolean>;
@@ -228,7 +234,7 @@ function DeviceEventsTable({
   loading?: boolean;
 }) {
   const { t, i18n } = useTranslation();
-  const local = useDeviceEvents(!loading);
+  const local = useOfflineEvents(!loading);
   const listRef = useRef<HTMLDivElement>(null);
   const [removedId, setRemovedId] = useState<string>();
   useEffect(() => {
@@ -251,8 +257,8 @@ function DeviceEventsTable({
     (
       event: DeviceEvent,
       key:
-        | 'device-events.review-event-label'
-        | 'device-events.remove-event-label' = 'device-events.review-event-label',
+        | 'offline-events.review-event-label'
+        | 'offline-events.remove-event-label' = 'offline-events.review-event-label',
     ) =>
       t(key, {
         type: t(EVENT_KINDS[event.kind].copy.label),
@@ -260,7 +266,7 @@ function DeviceEventsTable({
           time: true,
           timeZone,
         }),
-        status: t(`device-events.status-${event.status}`),
+        status: t(`offline-events.status-${event.status}`),
       }),
     [t, i18n.language, timeZone],
   );
@@ -268,7 +274,7 @@ function DeviceEventsTable({
     () => [
       {
         accessorKey: 'kind',
-        header: t('device-events.type'),
+        header: t('offline-events.type'),
         cell: ({ row }) => t(EVENT_KINDS[row.original.kind].copy.label),
         meta: { className: 'w-32' },
       },
@@ -286,14 +292,14 @@ function DeviceEventsTable({
         id: 'occurredDate',
         accessorFn: (event) => occurredDate(event).join(),
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title={t('device-events.occurred-date')} />
+          <DataTableColumnHeader column={column} title={t('offline-events.occurred-date')} />
         ),
         cell: ({ row }) => <EventDate event={row.original} />,
         meta: { className: 'w-36' },
       },
       {
         accessorKey: 'status',
-        header: t('device-events.status'),
+        header: t('offline-events.status'),
         cell: ({ row }) => <EventStatus event={row.original} />,
         meta: { className: 'w-36' },
       },
@@ -304,7 +310,7 @@ function DeviceEventsTable({
           <DeviceEventActions
             event={row.original}
             label={reviewLabel(row.original)}
-            removeLabel={reviewLabel(row.original, 'device-events.remove-event-label')}
+            removeLabel={reviewLabel(row.original, 'offline-events.remove-event-label')}
             onOpen={() => onOpenEvent(row.original.localEventId)}
             onRemoved={() => setRemovedId(row.original.localEventId)}
           />
@@ -342,7 +348,7 @@ function DeviceEventsTable({
     `${pagination.pageIndex}:${pagination.pageSize}`,
     cards,
   );
-  const searchState = useTableSearchState<DeviceEventsSearch>({
+  const searchState = useTableSearchState<OfflineEventsSearch>({
     search: deferred,
     defaultSort,
     onSearchChange: (update) => onSearchChange(update, false, pageStart.navigation),
@@ -370,8 +376,8 @@ function DeviceEventsTable({
       <ListError
         error={local.error}
         reset={local.retry}
-        title={t('device-events.error-title')}
-        description={t('device-events.error-description')}
+        title={t('offline-events.error-title')}
+        description={t('offline-events.error-description')}
       />
     );
   if (loading || !local.events)
@@ -394,12 +400,12 @@ function DeviceEventsTable({
       <DataTableEmpty
         icon={<ListChecksIcon />}
         title={t(
-          search.status ? 'device-events.no-matches-title' : 'device-events.no-events-title',
+          search.status ? 'offline-events.no-matches-title' : 'offline-events.no-events-title',
         )}
         description={t(
           search.status
-            ? 'device-events.no-matches-description'
-            : 'device-events.no-events-description',
+            ? 'offline-events.no-matches-description'
+            : 'offline-events.no-events-description',
         )}
         action={
           search.status ? (
@@ -423,13 +429,14 @@ function DeviceEventsTable({
           }}
         >
           <DialogNotFound
-            title={t('device-events.not-found-title')}
-            description={t('device-events.not-found-description')}
+            title={t('offline-events.not-found-title')}
+            description={t('offline-events.not-found-description')}
           />
         </FormDialog>
       )}
       {selected && (
         <DeviceEventRecovery
+          refreshOfflineDownload={refreshOfflineDownload}
           event={selected}
           canView={hasProgramGrant(
             (local.permissionsFetchedAt ?? 0) > permissionsUpdatedAt
@@ -468,7 +475,7 @@ function DeviceEventsTable({
                     layout="cards"
                     event={event}
                     label={reviewLabel(event)}
-                    removeLabel={reviewLabel(event, 'device-events.remove-event-label')}
+                    removeLabel={reviewLabel(event, 'offline-events.remove-event-label')}
                     onOpen={() => onOpenEvent(event.localEventId)}
                     onRemoved={() => setRemovedId(event.localEventId)}
                   />
@@ -485,12 +492,12 @@ function DeviceEventsTable({
                     </SettingsItem>
                   )}
                   {columnVisibility.occurredDate !== false && (
-                    <SettingsItem label={t('device-events.occurred-date')}>
+                    <SettingsItem label={t('offline-events.occurred-date')}>
                       <EventDate event={event} />
                     </SettingsItem>
                   )}
                   {columnVisibility.status !== false && (
-                    <SettingsItem label={t('device-events.status')}>
+                    <SettingsItem label={t('offline-events.status')}>
                       <EventStatus event={event} />
                     </SettingsItem>
                   )}
