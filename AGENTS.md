@@ -809,10 +809,8 @@ one hue light-to-dark, checked for even steps/contrast in both modes. Use the ra
 for ordered data. Status uses `success`, `warning`, `destructive` plus icon and label;
 never color alone. `--offline`/`--offline-foreground` in globals.css define the lavender/purple
 light/dark status pair; expose them through Tailwind and Alert variant="offline". This is a fixed
-status palette, like info/warning/success, outside preset brand/chart tokens. The kind-specific
-pending offline-events Alert uses it in either connection state; its offline lead-in is a
-translator-controlled `<strong>` within the complete ICU message. Keep the sidebar offline
-connection notice in its warning tone.
+status palette, like info/warning/success, outside preset brand/chart tokens. Screen-specific
+notice presentation belongs in [FM-165](plans/FM-165.md).
 
 ## App configuration
 
@@ -951,275 +949,125 @@ Read the applicable skill before using it.
 
 ## Offline
 
-Follow the [offline plan](docs/offline-plan/offline-plan.md). Adjustments supports offline
-downloads, drafts, submission and recovery. Stock On Hand and Stock Card summaries read
-downloaded home stock offline. Other stock screens and card history follow in FM-166. Tickets with
-offline criteria stay open until those criteria are met.
+See [FM-165](plans/FM-165.md) for scope, UI decisions, timing and rollout limits.
+Keep business data in Dexie, server cache in Query and app assets in the service worker.
 
-### Browser tests
+### Module ownership and providers
 
-- Specs import `test` from `tests/offline/browser-fixtures.ts`; persistent profiles use its
-  `persistentContext` fixture so the selected engine, channel and base URL are respected.
-  Create persistent profiles under `os.tmpdir()` and remove them after the scenario.
-  Fixture handlers abort on exceptions before surfacing the failure. The preview server also
-  refuses all `/api` requests independently of interception. Stock event POSTs must always be
-  stubbed or blocked; a failed handler must never fall through to a backend.
-- Vitest covers the no-Web-Locks fallback: coordinator/uploader stay disabled while online
-  bundle reads remain available. The browser suite does not certify that fallback.
-- Keep page URLs relative to `baseURL`, such as `./stock-management/adjustments`.
-- Run `pnpm test:offline` (Chromium) during development and `pnpm test:offline:browsers`
-  for the installed-engine matrix. Reproduction recipes belong in the ticket plan.
-- Firefox removes request routes only while natively offline to preserve its worker cache,
-  then re-dispatches online/offline events. This does not prove native reconnect events after
-  navigation. WebKit skips must name the unavailable behavior and retain diagnostic evidence.
+- `src/lib/` owns generic providers, coordinator, locks, access, connectivity, session scoping,
+  draft storage and the serial writer. Features own datasets, endpoint readers and policies;
+  routes compose features and register services. Preserve the feature import boundary.
+- Providers declare a unique id, translated label, table, scopes, fetch, freshness and acceptance
+  checks through `defineDownloadProvider`. Scopes carry a complete key, display id/name and
+  optional facility/program refresh key. Empty scopes are valid; reject mismatched records.
+- Keep offline route capability in shared shell policy, separate from dataset eligibility and
+  downloaded readiness. Do not put route declarations or a second eligibility policy on providers.
+- Only the coordinator publishes complete owner-scoped access/dataset generations under the
+  download Web Lock. Foreground reads never persist partial generations. Recheck shared schedule
+  deadlines under that lock; keep upload locks separate and retain complete older bundles.
+- Foreground bundle reads retain ordinary renewal behavior; only background downloads fail fast.
+  Accepted events request scoped refreshes. Preserve trigger priority and visible retry feedback.
+- Keep business payloads, access snapshots, drafts and queues out of localStorage. The deployment
+  time zone and per-database download schedule are intentional localStorage metadata.
+
+### Data, session and identity
+
+- `getLocalDb()` opens one database per deployment/user. Close on identity change without
+  deleting records. Version persisted changes and preserve released data during upgrades.
+- Capture owner/session scope before async work; check after awaits and inside write transactions.
+  Late upload outcomes may persist only for their original owner, never update another user's UI.
+- Access snapshots whitelist fields and preserve raw permission strings, never credentials.
+  Refresh grants after reconnect/renewal. Local access availability never authorizes an upload.
+- Use `onlineOrDevice` for unreachable reads, timeouts or non-JSON gateway failures. Definitive
+  service errors and cancellations never fall back. Missing local data raises
+  `LocalDataUnavailableError`, never a server 404. Preserve device markers and freshness bounds.
+- Home-stock downloads require supported home programs with STOCK_ADJUST and STOCK_CARDS_VIEW.
+  Keep summaries separate from history and queued balances. Routes supply device readers to
+  stock features; picker-only fallbacks must not contaminate shared facility lookup caches.
+- Offline scans consult complete saved mappings. Absence means unavailable locally, never proof
+  that a barcode is globally unregistered. Preserve exact product versions and typed values.
+- Flush drafts before guarded transitions and Log Out. Count owner-scoped work once, deduplicate
+  ids and exclude resolved work. Warn neutrally if counting fails; retain committed work.
+  Scope confirmations to identity. Expiry pauses sync without blocking local editing.
+
+### Drafts, queue and recovery
+
+- Enable downloads/drafts through kind policy. Use the shared revisioned draft store and serial
+  writer; inventory supplies revision-aware write/clear callbacks. Stage immediately for leave
+  protection; announce a save only after commit. Failed saves remain visible during retries.
+- Enforce one editing draft per kind/facility/program. Compare id/revision on durable transitions;
+  conflicts require explicit Load/Copy. Subscriptions never replace edits. Archive atomically.
+- Flush, validate and sign before atomically freezing the draft and one immutable queue row.
+  Preserve the exact body/localEventId; repeated confirmation reuses it. Frozen drafts cannot
+  autosave or be discarded. The editor never sends an offline POST directly.
+- Foreground delivery holds event ownership while waiting and releases it on every enqueue
+  failure. Poll remote ownership only for queued/sending work; teardown listeners and timers.
+- Serialize uploads with an owner-database Web Lock. No timeout lease fallback. Require fresh
+  session/connection-scoped access and exact grants; absent grants pause rather than refuse.
+- Commit attempt metadata before dispatch. Send oldest eligible work once; sending/uncertain
+  work blocks later events in its facility/program. Recover orphaned sends only under the lock.
+- Queue transport never waits for renewal, interceptor-replays a 401 or retries mutations.
+  Proven not-sent failures restore the owner's queue. Recognized service 401 pauses for renewal.
+- Verified acceptance atomically saves a receipt and removes the queue row. Receipt-write errors
+  retry local persistence under the lock, never the POST. Unknown outcomes never auto-resend.
+- Recovery checks owner/revision/status/attempt transactionally. It Was Recorded writes a user
+  receipt; Send Again needs a duplicate warning and scoped grant. Preserve payload/history.
+- Only never-attempted queued work is removable as unsent. Keep changed linked drafts. Refusal
+  correction retains the original and archives edits; dismissal retains audit history. Accepted
+  removal keeps minimal duplicate protection. Never delete sending/uncertain work as unsent.
+- Keep recovery available for owned work without offline-kind rights. Protected history links
+  still require viewing rights; never preload them. Never expose raw transport JSON/revisions.
+  Prune only accepted records, never unresolved work or archived copies.
+
+### Connectivity and shell
+
+- Use `src/lib/online.ts`, never navigator.onLine elsewhere. No-response failures establish
+  disconnection; cancellation, local absence and timeouts do not. Browser hints request probes.
+  Never overlap probes; retain backoff until a real API request succeeds.
+- Queries use networkMode always. Pass errors to shared page/list/dialog/widget fallbacks using
+  `useOfflineFailure`; reconnect retries must use the same path. Custom route retries invalidate
+  failed loaders before reset only while online. Report caught errors through the shared reporter.
+- Route capabilities gate direct routes/preloads as well as navigation. Use the shared offline
+  navigation dialog for unavailable links, preserving menu context and focus. Check server-action
+  guards before work and after async access reads. Keep keyboard activation and descriptions.
+- Hidden pages retain drafts/guards only for a valid protected match in the same session scope.
+  Persistent overlay drafts stay mounted behind the visibility gate; transient overlays close.
+  Discard decisions opt out so navigation and Log Out remain answerable.
+- Use one persistent shell StatusAnnouncer; visual notices are notes, never extra live regions.
+  Suppress redundant connection failures while offline. Completion requires verified work;
+  silent refresh/no-op passes must not replace visible progress or reset completion countdowns.
+- Start offline services dynamically after sign-in; stop subscriptions/timers on teardown.
+  Wire feature services directly in route composition rather than through callback globals.
 
 ### Service worker
 
-- Only `registerServiceWorker()` in `src/lib/service-worker.ts` registers the worker, once
-  from `src/index.tsx` in production. Never use `virtual:pwa-register` hooks or register on mount.
-  Keep scope and asset/catalog URLs under `BASE_URL`; use Dexie for business data, never API caches.
-- Precache app assets and network-first runtime config/catalogs. Use `openlmis-ui-*` cache
-  names to coexist with the legacy worker; `clientsClaim` controls the first visit. Fetch config
-  and every supported catalog after takeover. Check updates hourly and notify all tabs.
-- `applyUpdate()` activates/reloads only the requesting tab, or reloads if another tab already
-  activated the worker.
-- Reload calls `whenLeaveAllowed`, then `applyUpdate(allowUnload)`. Call `allowUnload()` just
-  before reload to avoid a second prompt; retain guards if reload never comes. Verify offline
-  behavior using a production build, not the dev server.
-
-### Connection failures and notices
-
-- Use `online.ts` hooks/helpers, never `navigator.onLine` outside that module. No-response
-  network failures establish disconnection; cancellation, local absence and timeouts do not.
-  Browser hints/retries request a probe rather than asserting server reachability. Keep probe
-  backoff across public-probe success until a real API request succeeds; retries may replace
-  a waiting timer but never overlap an active probe.
-- Queries use `networkMode: 'always'`. Pass errors to `ErrorFallback` for pages/blocking
-  loaders, `ListError` for paged boundaries, `LoadError` inside features without auth imports,
-  `DialogLoadError` for dialogs and Home's `WidgetError` for widgets. They use `OfflineNotice`
-  and `useOfflineFailure(error, retry)`; new retry views use the same hook for reconnect retries.
-- Custom route errors use `ErrorFallback`; retry reseeds connection state and invalidates failed
-  loaders before reset only while online. Pass `reportCaughtError` (`src/lib/report-error.ts`)
-  to `createRoot` to suppress offline errors and log other caught errors with component stacks.
-- Lazy chunks removed by a newer worker fail with `isChunkLoadError` (`src/lib/chunk-load.ts`).
-  Online, `ErrorFallback` reloads once through the leave guard (`reloadOnce`); offline, it and
-  any other route failure show Not Available Offline and retry on reconnect.
-- `SidebarNotices` above footer buttons shows You're Offline (warning, persistent), You're Back
-  Online (success, four seconds). Update Available is a ghost icon button beside the footer
-  theme/language pickers, with an info dot and a shared tooltip/accessible reload label.
-  The footer controls stack on the collapsed rail. Its action uses the leave guard before
-  applying the update; `StatusAnnouncer` announces readiness once. `OfflineDot` marks the
-  header menu while the sidebar is closed for warnings and update availability, with an
-  accessible label. Download and sync progress switch in place to
-  success checks for four seconds: Offline Data Ready and Offline Events Synced. All timed
-  notices share createNoticeCountdown with dismissal, and show a decorative tone-coloured
-  draining edge bar. Hover/focus pauses both; resume with the exact remaining time. Collapse
-  releases pauses; the rail has no bar. Reduced motion hides the bar while retaining timing. Publish sync
-  completion only after a verified successful run leaves no pending queue rows or unresolved
-  errors. No-op uploader passes preserve its timer. The announcer reads completion once from
-  the notice; do not also announce individual acceptance as run completion. Spinners respect
-  reduced motion. Download statuses carry their trigger through local and cross-tab updates;
-  hide progress/completion for accepted-event `refresh` runs, retaining boot/force/retry notices.
-  Coalesce queued triggers by force > retry > boot > refresh; refresh cannot silence visible work.
-  Collapsed actions remain clickable with title/count tooltips.
-  Auto-dismiss Alerts use countdown to isolate and clip the flush full-width bottom bar to
-  the alert border radius. The decorative 2px fill inherits the notice tone; preserve the shared
-  dismissal timer, hover/focus pause and reduced-motion behavior.
-- While offline, You're Offline is the only connection notice. Suppress Sign In To Sync and
-  connection-related Sync Paused notices and download failures with reason `offline`, including
-  in StatusAnnouncer. Reconnecting may show a retained download failure again. Show sign-in again
-  when connected if needed. Keep distinct capability, held-work and receipt-write notices, and
-  update availability.
-- Visual notices are notes. The shell `StatusAnnouncer` is the single persistent live region;
-  device saves and sync outcomes announce through it. Keep notice ids stable and cap/scroll
-  the sidebar footer. Collapsed actions have translated action-first accessible names.
-
-### Shell capabilities and identity
-
-- `stock-events/lib/offline-pages.ts` derives stock route capabilities from `EVENT_KINDS`
-  and the provider's lightweight page declarations, separately from downloaded readiness. The shared matcher/error stay in
-  `src/lib/offline-capability.ts`. Connection-dependent navigation stays clickable offline,
-  with a disconnected icon and
-  accessible description. Use `useOfflineNavigation` for the shared Close-only AlertDialog,
-  without navigation, native disabled states or connection tooltips. Use `data-unavailable`
-  on SidebarMenuButton/SubButton, CommandItem and DropdownMenuItem to keep the previous
-  dimmed appearance, cursor-default and no hover/active highlight while allowing focus and
-  activation. Keep a neutral visible keyboard focus/selection ring in menus and the palette.
-  Collapsed unavailable-item tooltips add the translated connection reason on its own line.
-  Keep normal keyboard/menu navigation and the accessible connection description.
-  Retain menu/palette context and restore focus on close. Keep collapsed-rail title/count tooltips; only connection-reason
-  tooltips are removed. Block online-only direct routes/preloads before child loaders.
-- An already-open server page may hide while retaining its draft/guards. Same-path changes
-  reuse it only after a successful protected match for the current session scope. Hidden
-  Dialog/AlertDialog portals retain drafts until a visible close; transient overlays close.
-  DiscardChangesDialog opts out so navigation and logout decisions remain answerable.
-- Guard Print/Refresh/server actions before work and after asynchronous permission reads.
-  Use focusable disabled controls, tooltips and accessible descriptions.
-- Logout flushes drafts, then counts owner-scoped unsynced work once and offers one combined
-  retention/offline warning. Deduplicate event ids; exclude accepted/resolved work. Failed or
-  bounded-out checks offer a neutral unknown-count warning. Confirmation is identity-scoped,
-  closes on identity change and never deletes device work. Password changes use this path too.
-- Offline expiry preserves editing without a blocking dialog. Sign In To Sync appears only
-  with an offline kind right or pending device work; a warning never expires auth on a timer.
-  Session waits reject on connection loss, enabling device fallback without request replay.
-- Route composition supplies shell device-work summaries/counting callbacks. Share subscriptions
-  and avoid full event reads for users without an offline kind right or owned device work. Start
-  offline services through dynamic imports after sign-in; clean up on unmount.
-
-### Local data
-
-- `getLocalDb()` opens one deployment/user database and closes it on identity change without
-  deleting records. Preserve released schema data when upgrading. Keep development-version
-  compatibility and migration evidence in the ticket plan, not coding guidance.
-- Local data tests use `fake-indexeddb`; `src/tests/setup.ts` restores online state after each test.
-- Only the coordinator publishes complete access/bundle generations under `offlineDownloadLock`.
-  Online foreground reads never persist partial generations. Keep the upload lock separate.
-- Use `onlineOrDevice` for fallback after unreachable reads, timeouts or non-JSON gateway
-  errors. Definitive service errors/cancellations never fall back. Missing data uses
-  `LocalDataUnavailableError`, never a server 404. Check session scope after async boundaries.
-- `offlineAccessQuery` preserves device markers, bounds device freshness and makes saved access
-  stale on reconnect before checking rights. `homeFacilityOptions` uses the stripped snapshot;
-  whole-record `facilityOptions` reads remain server-only.
-- Download freshness and access/dataset retry backoff share a per-database localStorage schedule.
-  Visible tabs check once a minute; failures wait 1, 2, 4, 8, 16 then 30 minutes. Recheck under
-  the download lock; explicit Retry, reconnect and renewal bypass the periodic delay.
-- Download preparation saves the deployment time zone. If locale settings fail, keep the saved
-  zone or persist UTC and show one fallback notice. Snapshot ages use `formatTimestamp` in that zone.
-- Foreground bundle reads may join background downloads but retain ordinary renewal/replay;
-  only coordinator downloads use fail-fast `backgroundRead`. Retain complete older bundles
-  after refresh failure. Accepted events request nonblocking scoped refreshes.
-- Scans consult saved mappings only when offline/unreachable. Absence in a complete scan-enabled
-  bundle means not in local stock, never globally unregistered.
-
-- Stock read routes compose home-stock readers from `src/routes/-home-stock-read.ts`; features
-  accept device readers rather than importing stock-events. The provider's eligible home
-  programs require adjustment and viewing grants. Keep summaries separate from history and
-  queued balances; missing downloads show LocalDataUnavailableError. Keep picker-only device
-  facilities out of the shared facility lookup cache. Invalid offline selections stay below the picker;
-  reconnect retries missing downloads and reloads picker options for the new connection generation.
+- Register once in production through `src/lib/service-worker.ts`, never on component mount or
+  through virtual:pwa-register hooks. Derive scope and assets/catalogs from BASE_URL.
+- Precache app assets; runtime-cache only configuration/catalogs, network-first. Never cache
+  API data in the worker. Use openlmis-ui-prefixed caches to coexist with legacy.
+- Apply updates only to the requesting tab through the leave guard. Call allowUnload just before
+  reload; retain protection if reload never happens. Verify using a production build.
+- Chunk-load recovery reloads once online through the guard. Offline route/chunk failures show
+  Not Available Offline and retry on reconnect, without reload loops.
 
 ### Add an offline screen
 
-- For event screens, declare `right`, `download` dataset, `drafts`, routes and label in
-  `EVENT_KINDS`. Read-only dataset screens share the provider's lightweight `pages` declaration
-  with `offline-pages.ts`. Check actual downloaded readiness separately from route capability.
-- Keep endpoint readers, snapshots, retry/freshness rules and upload wiring in the owning
-  feature. Stock reads use `stock-events/api/stock-card-reader.ts` for paging and versions.
-- Register downloads in `src/routes/-device-work-provider.tsx`. `defineDownloadProvider`
-  accepts a unique id, translated label, table, optional read-only `pages`, `eligible(access)`, `scopes(access)`,
-  `fetch(scope, signal)`, `isFresh(record, access, scope)` and `accepts(record, access, scope)`.
-  Scopes carry a storage key, id/name and optional facility/program refresh key. Providers
-  return complete owner-scoped generations; only the coordinator publishes them under its lock.
-- `src/lib/` owns generic coordinator/lock/status/access machinery and the revisioned
-  `draft-store`/serial `draft-writer`. Features supply policy; routes compose features.
-  Stock editor submission uses `useDeviceSubmission`; `useDeviceDrafts` owns draft/leave policy.
-  Inventory uses the same draft machinery and supplies revision-aware write/clear callbacks.
-- Add a schema version for persisted changes. Preserve typed fields, display lookups and exact
-  payloads. Check fallback absence, owner changes, conflicts and kind-specific grants with
-  focused tests. Translate any copy into every locale and verify Arabic layout.
+- Declare event right, dataset, drafts, routes and label in EVENT_KINDS; register read-only
+  routes in shared shell capability policy. Check actual download readiness separately.
+- Keep endpoint readers, snapshots, scope/freshness checks and upload policy in the owning
+  feature. Register its download provider through route composition with complete typed scopes.
+- Reuse coordinator, session checks, draft store/writer, queue and locks. Stock editors use
+  useDeviceSubmission/useDeviceDrafts; other editors supply revision-aware persistence callbacks.
+- Add schema versions for persisted changes. Preserve typed fields, display lookups and exact
+  payloads. Test absent data, owner changes, conflicts, grants and interrupted delivery at the
+  cheapest useful boundary. Translate copy in every locale and verify Arabic layout.
 
-### Stock event device drafts
+### Browser tests
 
-- Kind policies enable device drafts/downloads independently. Preserve the existing behavior of
-  kinds whose offline pass has not shipped. Keep kind-specific routes/copy in configuration.
-- Capture database owner/session scope. Check after awaits inside write transactions so stale
-  operations roll back. Keep display snapshots and every typed `QuantityValue` text part.
-- Enforce one editing draft per kind/facility/program. Compare draft id and revision for every
-  durable transition; increment editing revisions. Conflicts stop writes until explicit Load or
-  Copy. Subscriptions must never replace edits. Copy/Restore archive the active edits atomically.
-- Use one serial autosave writer. Stage immediately for leave protection and flush before
-  durable transitions/navigation/logout. Announce Saved On This Device only after commit.
-  Failures remain visible during retries. Logout retains committed drafts.
-  EventDraftStatus and archived-copy actions occupy the line toolbar end group before the
-  quantity-unit toggle and View. Reserve the same status slot in pending/empty editors so
-  controls stay anchored; narrow toolbars wrap the status above the controls. Keep the status
-  a note and retain the shared announcement path without a second live region.
-- Refresh resumed product/lot snapshots by identity while preserving typed text. Explain missing
-  cards/invalid lots through the existing invalid-submit dialog and the kind's card policy.
-- Foreground delivery owns an event-specific Web Lock plus an in-memory id until its wait ends;
-  release ownership on every enqueue failure. Poll remote ownership only with queued/sending work.
-  If sending has not started within 1.5 seconds, return Queued and let the uploader continue.
-- Offline submission never POSTs from the editor. Flush, validate, collect signature and atomically
-  revision-check/freeze the draft with one immutable queue row. Preserve its exact body and unique
-  localEventId; repeated confirmation reuses it. Queued drafts cannot autosave or be discarded.
-- Uploader POSTs are serialized by the owner database's Web Lock. Without Web Locks automatic
-  sync is disabled; never substitute a timeout lease. Fresh identity/session/connection-scoped
-  access and exact grants precede dispatch. Missing grants pause work without inventing refusals.
-- Queue transport never waits for renewal or replays a 401. Typed not-sent failures return to
-  the original owner's queue and clear attempt metadata. Disable mutation retries. Teardown
-  removes polling/listeners; successful passes and owner changes reset retry state.
-- Commit sending status and attempt metadata before dispatch. Send oldest eligible work once.
-  Sending/uncertain work blocks later events in that facility/program. Recover orphaned sending
-  only under the upload lock. Draft mismatches pause for review; recheck pauses on later passes.
-- A verified 201 UUID atomically saves receipt/accepted state and removes the queue row. Late
-  results may persist only in the captured owner's database; never update the next user's UI.
-  Receipt-write failures retry local persistence while holding the lock, never POST again.
-- Definite service refusals retain original/error data. Recognized service 401 pauses until
-  same-user renewal and fresh grants. Timeout, abort, gateway errors, unrecognized responses,
-  crashes before receipt commit and post-dispatch scope failures stay uncertain. Never auto-resend.
-- Unknown-result recovery checks exact owner/revision/status/attempt in one transaction.
-  It Was Recorded writes a user receipt without POST; Send Again requires the duplicate warning
-  and retains body/sequence/history. Stale decisions explain that the event changed.
-- Refusal Copy For Correction makes an editable copy in one explained confirmation. Dismiss
-  hides the refusal from review/counts while retaining audit data. Only never-attempted queued
-  events may be deleted; remove the linked draft only if it still matches. Accepted receipt
-  removal keeps the minimal duplicate-protection record as described below.
-- Offline Events at `/offline-events` sits directly below Home in the shared nav source. Its
-  badge counts queued, sending, uncertain and unresolved refused events, including held work;
-  zero hides it, and the collapsed label/tooltip includes the count.
-  SidebarMenuBadge collapsed="indicator" retains a logical-positioned dot on the rail icon. Count-only sidebar cards are
-  omitted; StatusAnnouncer announces user queue saves plus uncertain and refused counts,
-  without standing waiting counts on load or while sync reduces them. Share
-  `isPendingDeviceEvent` between the shell summary and kind-specific picker counts.
-- Offline Events uses one compact row per event: type, facility, program, occurred dates,
-  status and View Details in the end-of-row menu. Offer Remove Event directly for never-attempted
-  queued events, accepted events and refusals; omit it for sending/uncertain work. Refused removal
-  dismisses without deleting correction copies. Accepted removal drops the local payload/draft,
-  hides the row and keeps a minimal receipt for duplicate protection; explain that server stock
-  is unchanged. Use session-scoped mutations and focus the list after removal. Hide facility/program
-  by measured width; stored View choices override defaults. Below 672px use type/View Details bands and rows for
-  facility, program, date and status. Card bands use aria-labelled icon-sm actions without tooltips: destructive
-  trash before outline Eye/View Details. Reserve the trash slot when removal is unavailable.
-  Table menu View Details has EyeIcon; Remove Event uses destructive and Trash2Icon. Every
-  destructive removal uses a confirmation AlertDialog, including the details footer.
-  Line details appear only in the Event Details dialog.
-  Share descriptive action labels and EventStatus badges across list/cards/dialog: accepted
-  success/check, queued info/clock, sending info/spinner with reduced motion, uncertain warning
-  and refused destructive. Preserve pagination, sorting and live status filtering through Filters.
-  Event Details uses DialogContent size="xl" (48rem). Its compact metadata and footer stay
-  fixed while only the lines/recovery context scrolls. Its title has no visible subtitle or separate
-  status. Keep a meaningful screen-reader-only description, and wrap the status badge beside the
-  Pending Event value.
-  Dialog metadata uses SettingsList density="compact"/SettingsItem and omits empty rows.
-  Its lines use a bordered compact table with blank missing cells, one-line headers and vertical
-  dividers. Show Reason Comments/VVM only when at least one line has a value;
-  below 672px measured within the dialog, use flat product-band cards with settings rows.
-  DialogFooter wrap puts Transaction History (outline) and recovery actions before the final
-  primary Close button in DOM order. Recovery actions are outline; Remove Event uses the
-  standard destructive Button with Trash2Icon and shared removal confirmation. Set initial
-  focus to Close, never a destructive action.
-  History is an outline footer link with no preload or wrapping height override. Stock Card
-  links use the same offline dialog behaviour. Lot cards use break-all so fitting codes stay
-  intact and long codes break anywhere, preserving copied hyphens. The table keeps codes nowrap.
-  Recovery dialogs live in URL search via `useSearchNavigation`/`CLOSED_DIALOGS`, retaining their
-  target during close; missing events use DialogNotFound. Unknown reason ids stay blank in tables.
-- Offline Events/nav require an offline kind right or owned non-accepted work. Non-sending recovery
-  stays available without offline kind rights; Send Again still needs its scoped grant. History
-  links require exact viewing rights, no preloading and a connection explanation when offline.
-  Receipt metadata appears only for receipts. Never expose raw transport JSON or saved revisions.
-- Prune only accepted receipts/drafts. Keep queue rows, refusals, sync errors and archived copies.
-  Queue-save announcements retain their own count; the nav count includes held work.
-  Offer Review once on the most severe substantive note. Sign In To Sync
-  leaves reauthentication to SessionExpiredDialog. Timing/retention values and sequencing
-  evidence belong in the ticket plan.
-- Stock event program pickers show no download readiness column. While offline, unavailable
-  programs show Not Available Offline beneath their disabled, focusable action as its description. Pending work for the kind
-  appears in an offline Alert with a bolt icon and Offline Events link. Copy follows connection
-  state and uses one complete ICU message with a translated link through `Trans`, plurals
-  and a kind select with proper singular/plural nouns in each language. Pass the raw kind
-  identifier to the ICU select. Use a named tag such as `eventLink`; HTML `link` is a void tag.
-  Keep generic picker status support for inventories.
-
-- SignatureDialog puts Submitted By below Signature as TextField description, linked by the
-  field's aria-describedby. Use one ICU Trans message with a strong component around the raw
-  username; IsolatingICU handles RTL. Keep the title and omit the header description.
+- Specs use `tests/offline/browser-fixtures.ts`, including persistentContext for selected engine,
+  channel and base URL. Temporary profiles belong under os.tmpdir() and are removed afterward.
+- Abort failed fixture handlers; keep the guarded preview's independent API denial. Stock POSTs
+  must always be stubbed or blocked. Keep URLs relative to baseURL.
+- Run pnpm test:offline for Chromium and pnpm test:offline:browsers for installed engines.
+  Missing engines and known interception gaps are coverage limits, not passing checks.
+  Reproduction recipes belong in the plan. Unit tests cover the no-Web-Locks fallback.

@@ -81,7 +81,7 @@ export const test = base.extend<{
           browser.version() === '27.2' &&
           playwrightPackage.version === '1.64.1' &&
           testInfo.tags.includes('@webkit-fixture-routing'),
-        'WebKit 27.2 / Playwright 1.64.1 worker-controlled API requests bypass fixtures, including sign-in, access refresh and submission. Offline worker navigation is fixed. Reproduce with scripts/diagnose-offline-webkit.mjs.',
+        'WebKit 27.2 / Playwright 1.64.1 worker-controlled API requests bypass fixtures, including sign-in, access refresh and submission. Offline worker navigation is fixed. See plans/FM-165.md for the isolated reproduction recipe.',
       );
       await use(undefined);
     },

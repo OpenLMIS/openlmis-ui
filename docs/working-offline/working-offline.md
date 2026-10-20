@@ -44,8 +44,8 @@ start a new draft.
 
 While connected, Submit uses the same device queue. The success message appears only after
 the server accepts the event and the app records that result. Acceptance opens Stock On Hand.
-There is no offline print offer. If sending has not started within 1.5 seconds, the app confirms
-Event Queued and lets you continue. Keep the app open for the queued event to sync. Other tabs
+There is no offline print offer. If sending cannot start promptly, the app confirms Event Queued
+and lets you continue. Keep the app open for the queued event to sync. Other tabs
 recognize an upload in progress, so the same event is not sent twice.
 
 ## Read Downloaded Stock

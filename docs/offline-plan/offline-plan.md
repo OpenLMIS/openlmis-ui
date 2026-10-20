@@ -6,20 +6,21 @@ See [Working Offline](../working-offline/working-offline.md) for day-to-day inst
 
 ## Available Behavior
 
-The app's files and all language catalogs are saved after an online visit. Home, Adjustments and
-Offline Events can then reopen offline, including after a browser restart. Other pages and
-print/PDF actions explain that they need a connection.
+The app's files and all language catalogs are saved after an online visit. Home, Adjustments,
+Offline Events, Stock On Hand and Stock Card summaries can then reopen offline, including after
+a browser restart. Transaction history, other pages and print/PDF actions need a connection.
 
-At sign-in, the app downloads permitted home-facility Adjustments programs in the background.
+At sign-in, the app downloads supported home-facility programs where the user can both make
+Adjustments and view Stock Cards. Downloads run in the background.
 Each program becomes ready only when its complete bundle is stored. The sidebar reports progress
 and failures. Reconnect and same-user renewal refresh access and bundles; connected boot reuses
 complete data younger than 30 minutes. Older complete copies remain usable offline.
 A failed refresh keeps the previous complete copy.
 
 This workflow permits a new local Adjustment, not just editing an existing server draft. Issue,
-Receive, Stock On Hand, Stock Card and Physical Inventory still need their offline passes in
-FM-166. Full pending-events and sync-error pages remain FM-168 and FM-169; Offline Events already
-provides the recovery decisions needed by the Adjustments spike.
+Receive and Physical Inventory still need their offline passes in FM-166. Stock Card history
+is deliberately excluded from current downloads. Full pending-events and sync-error pages remain
+FM-168 and FM-169; Offline Events already provides the recovery decisions needed by the spike.
 
 ## Data And Saves
 
@@ -76,6 +77,5 @@ interaction with the site. Home-screen app behavior has separate rules. See [Web
 policy](https://webkit.org/blog/14403/updates-to-storage-policy/) and [WebKit tracking
 prevention](https://webkit.org/tracking-prevention/).
 
-Storage estimates include origin-wide overhead and app caches, not just business data. The small
-two-program local fixture is a sizing floor. Typical users, large facilities, Receive's catalog
+Storage estimates include origin-wide overhead and app caches, not just business data. Small test datasets are a sizing floor. Typical users, large facilities, Receive's catalog
 and stock-card histories need independent measurement before FM-166 rollout sizing.

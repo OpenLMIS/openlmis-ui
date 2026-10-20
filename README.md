@@ -58,7 +58,6 @@ at startup. Feature flags have no `.env` fallback.
 | `pnpm test:run` | Vitest single run |
 | `pnpm test:offline` | Production `/v2` offline suite in headless Chromium |
 | `pnpm test:offline:browsers` | Same suite in each runnable browser, with an availability report |
-| `pnpm test:offline:proof` | English/Arabic desktop/phone captures in headless Chromium |
 | `pnpm sort-messages` | Alphabetize translation keys |
 
 Local test runs use Vitest's `25%` worker limit. CI runs two test shards with its default
@@ -125,15 +124,13 @@ stock-event POSTs are stubbed or blocked. Install the required browser binaries,
 pnpm exec playwright install chromium firefox webkit
 pnpm test:offline              # Chromium scenarios
 pnpm test:offline:browsers     # Installed browser engines and channels
-pnpm test:offline:proof        # English/Arabic visual checks
 ```
 
 WebKit needs its host libraries (`pnpm exec playwright install-deps webkit`); Chrome and Edge
 need their Linux channels installed. Missing browsers are reported separately from test results.
-Reports go to `.offline/`; visual proof defaults to `.screenshots/offline-proof/`.
-Set `OFFLINE_PROOF_LABEL`, `OFFLINE_PROOF_OUTPUT` or `OFFLINE_PREVIEW_URL` to override those
-run settings. For a configured read-only demo preview, run
-`node scripts/measure-offline-storage.mjs` or `node scripts/measure-offline-bundle.mjs`.
+Reports go to `.offline/`. Set `OFFLINE_PREVIEW_URL` to use an isolated, guarded preview
+instead of the server managed by the test configuration. The Chromium suite runs nightly and
+on pull requests labeled `offline`; see `.github/workflows/offline.yml`.
 
 ## Contributing
 

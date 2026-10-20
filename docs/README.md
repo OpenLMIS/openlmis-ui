@@ -7,7 +7,7 @@ One directory per topic, markdown only.
 | [dual-boot](dual-boot/dual-boot.md) | Two UIs running side by side: where each lives, how to choose, what signing in and out does | Anyone using or supporting the system |
 | [deployment](deployment/deployment.md) | How the container is routed, configured and published, and why | Whoever deploys or changes it |
 | [deployment/how-to-add-new-ui](deployment/how-to-add-new-ui.md) | Step by step: rolling the UI out to another environment | Whoever is deploying it to a server |
-| [working-offline](working-offline/working-offline.md) | Downloads, drafts, Submit Offline, Offline Events and recovery | People working offline and support teams |
+| [working-offline](working-offline/working-offline.md) | Downloads, drafts, submission, Offline Events, stock summaries and recovery | People working offline and support teams |
 | [offline-plan](offline-plan/offline-plan.md) | How the app works offline: what is done, what comes next | Anyone working on or supporting offline use |
 
 Code conventions and the rules for writing code are in [AGENTS.md](../AGENTS.md), not
