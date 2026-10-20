@@ -29,9 +29,11 @@ export function PickerAddButton({
   children,
   icon = <PlusIcon data-icon="inline-start" />,
   ...props
-}: Omit<ComponentProps<typeof Button>, 'className' | 'width' | 'variant'> & { icon?: ReactNode }) {
+}: Omit<ComponentProps<typeof Button>, 'className' | 'width' | 'variant' | 'size'> & {
+  icon?: ReactNode;
+}) {
   return (
-    <Button type="button" {...props}>
+    <Button size="lg" type="button" {...props}>
       {icon}
       {children}
     </Button>

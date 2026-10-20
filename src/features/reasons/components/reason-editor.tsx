@@ -550,7 +550,7 @@ function PairsFields({ form }: { form: ReasonForm }) {
   return (
     <div className="flex flex-col gap-4" ref={measure}>
       <div className="flex justify-end">
-        <Button onClick={() => setAdding(true)} ref={addButton} variant="outline">
+        <Button onClick={() => setAdding(true)} ref={addButton} size="lg" variant="outline">
           <PlusIcon data-icon="inline-start" />
           {t('reasons.form.add-pair-title')}
         </Button>
@@ -788,7 +788,7 @@ function PairsSkeleton({ rows }: { rows: number }) {
   return (
     <div className="flex flex-col gap-4" ref={measure}>
       <div className="flex justify-end">
-        <Button disabled variant="outline">
+        <Button disabled size="lg" variant="outline">
           <PlusIcon data-icon="inline-start" />
           {t('reasons.form.add-pair-title')}
         </Button>

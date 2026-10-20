@@ -550,7 +550,7 @@ function ProgramsFields({ form, cards }: { form: FacilityForm; cards: boolean })
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <Button onClick={() => setAdding(true)} ref={addButton} variant="outline">
+        <Button onClick={() => setAdding(true)} ref={addButton} size="lg" variant="outline">
           <PlusIcon data-icon="inline-start" />
           {t('facilities.form.add-program')}
         </Button>

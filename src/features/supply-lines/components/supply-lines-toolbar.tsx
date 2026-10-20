@@ -44,6 +44,7 @@ export function SupplyLinesToolbar({
     <DataTableToolbar>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           disabled={disabled}
           activeCount={[search.supplyingFacilityId, search.programId].filter(Boolean).length}
           onClear={() => onFilterChange(CLEARED_SUPPLY_LINE_FILTERS)}
@@ -54,6 +55,7 @@ export function SupplyLinesToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           disabled={disabled}
           columns={SUPPLY_LINE_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,

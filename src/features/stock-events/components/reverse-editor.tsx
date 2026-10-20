@@ -505,6 +505,7 @@ export function ReverseEditor({
                 )}
                 <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                   <DataTableViewOptions
+                    size="lg"
                     {...columnView}
                     layout={layout}
                     columns={REVERSE_HIDEABLE_COLUMNS.filter(

@@ -278,14 +278,7 @@ export function DataTableToolbar({
   children: ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        'flex flex-wrap items-center gap-2',
-        '@max-2xl/main:[&_[data-slot=input-group]]:h-9 @max-2xl/main:[&_[data-slot=radio-group]]:h-9 @max-2xl/main:[&_a[data-slot=button]]:h-9',
-        '@max-2xl/main:[&_button:not([data-slot=input-group]_*,[role=radio],[role=checkbox],[role=switch])]:h-9',
-        align === 'end' && 'justify-end',
-      )}
-    >
+    <div className={cn('flex flex-wrap items-center gap-2', align === 'end' && 'justify-end')}>
       {children}
     </div>
   );

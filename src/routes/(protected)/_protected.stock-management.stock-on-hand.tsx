@@ -134,6 +134,7 @@ function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
   return (
     <div>
       <DataTableViewOptions
+        size="lg"
         columns={STOCK_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
         layout={columnView.layout}
         onReset={columnView.onReset}
@@ -166,7 +167,7 @@ function StockOnHandListSkeleton({
           onFilterChange={noop}
           onUnitChange={canSwitch ? noop : undefined}
           print={
-            <Button type="button" width="full">
+            <Button size="lg" type="button" width="full">
               <PrinterIcon data-icon="inline-start" />
               {t('stock-on-hand.print')}
             </Button>
@@ -534,6 +535,7 @@ function StockOnHandPrintButton({
     <Button
       disabled={!page || page.totalElements === 0 || print.isPending}
       onClick={print.print}
+      size="lg"
       width="full"
     >
       {print.isPending ? (

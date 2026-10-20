@@ -103,6 +103,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
                 <DataTableToolbar>
                   <div className={cards ? 'w-full' : SEARCH_WIDTH}>
                     <DataTableSearch
+                      size="lg"
                       label={t('users.roles.search-label')}
                       onValueChange={(q) => onSearchChange({ q, page: undefined }, true)}
                       placeholder={t('users.roles.search')}
@@ -112,6 +113,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
                   {cards && (
                     <div className="ms-auto">
                       <DataTableViewOptions
+                        size="lg"
                         layout="cards"
                         sort={{
                           columns: SORT_COLUMNS[item.type].map(({ id, labelKey }) => ({
@@ -127,7 +129,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
                   )}
                   {props.onAdd && (
                     <div className={cards ? undefined : 'ms-auto'}>
-                      <Button data-add-role onClick={props.onAdd}>
+                      <Button size="lg" data-add-role onClick={props.onAdd}>
                         <PlusIcon data-icon="inline-start" />
                         {t('users.roles.add')}
                       </Button>
@@ -196,12 +198,10 @@ export function RoleTabsSkeleton({ tab, search, editable = false }: RoleTabsSkel
           <div className="flex flex-col gap-4">
             <DataTableToolbar>
               <div className={cards ? 'w-full' : SEARCH_WIDTH}>
-                <Block className="h-8 w-full @max-2xl/main:h-9" />
+                <Block className="h-9 w-full" />
               </div>
               {cards && <Block className="ms-auto h-9 w-20" />}
-              {editable && (
-                <Block className={cn('h-8 w-28 @max-2xl/main:h-9', !cards && 'ms-auto')} />
-              )}
+              {editable && <Block className={cn('h-9 w-28', !cards && 'ms-auto')} />}
             </DataTableToolbar>
             <RoleAssignmentsTableSkeleton
               cards={cards}

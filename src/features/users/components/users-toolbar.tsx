@@ -39,6 +39,7 @@ export function UsersToolbar({
       {/* Search above the rest while the page is narrow, one row once there is room; sized by the page. */}
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           label={t('users.search')}
           onValueChange={(q) => onFilterChange({ q: q || undefined, page: undefined })}
           value={search.q ?? ''}
@@ -46,6 +47,7 @@ export function UsersToolbar({
       </div>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={search.status ? 1 : 0}
           onClear={() => onFilterChange({ status: undefined, page: undefined })}
         >
@@ -67,6 +69,7 @@ export function UsersToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={USER_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
           layout={layout}
           onReset={columnView.onReset}
@@ -79,7 +82,7 @@ export function UsersToolbar({
         />
       </div>
       <div className="w-full @2xl/main:w-auto">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('users.add')}
         </Button>

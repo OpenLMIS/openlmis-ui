@@ -18,6 +18,7 @@ type DataTableSearchProps = {
   id?: string;
   maxLength?: number;
   disabled?: boolean;
+  size?: 'default' | 'lg';
 };
 
 export function DataTableSearch({
@@ -29,6 +30,7 @@ export function DataTableSearch({
   id,
   maxLength,
   disabled,
+  size = 'default',
 }: DataTableSearchProps) {
   const labels = useDataTableLabels();
   const { draft, commit, inputProps } = useDebouncedInput(value, onValueChange, { resetKey });
@@ -36,7 +38,7 @@ export function DataTableSearch({
 
   return (
     <div className="w-full">
-      <InputGroup>
+      <InputGroup size={size}>
         <InputGroupAddon>
           <SearchIcon />
         </InputGroupAddon>

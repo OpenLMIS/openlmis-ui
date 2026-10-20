@@ -33,6 +33,7 @@ export function RejectionReasonsToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           label={t('rejection-reasons.search')}
           value={search.name ?? ''}
           onValueChange={(name) =>
@@ -42,6 +43,7 @@ export function RejectionReasonsToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={REJECTION_REASON_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),
@@ -64,7 +66,7 @@ export function RejectionReasonsToolbar({
         />
       </div>
       <div className="flex-1 @2xl/main:flex-none">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('rejection-reasons.add')}
         </Button>

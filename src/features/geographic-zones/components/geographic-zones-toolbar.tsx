@@ -55,6 +55,7 @@ export function GeographicZonesToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           onValueChange={(name) => onFilterChange({ name: name || undefined, page: undefined })}
           placeholder={t('geographic-zones.search')}
           value={search.name ?? ''}
@@ -62,6 +63,7 @@ export function GeographicZonesToolbar({
       </div>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={activeCount}
           onClear={() =>
             onFilterChange({
@@ -102,6 +104,7 @@ export function GeographicZonesToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={GEOGRAPHIC_ZONE_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),

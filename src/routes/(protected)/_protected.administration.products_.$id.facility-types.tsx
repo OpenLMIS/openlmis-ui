@@ -75,6 +75,7 @@ function FacilityTypesTab() {
       <DataTableToolbar>
         <div className="@2xl/main:ms-auto">
           <DataTableViewOptions
+            size="lg"
             columns={APPROVAL_HIDEABLE_COLUMNS.map(({ id: column, labelKey }) => ({
               id: column,
               label: t(labelKey),
@@ -87,7 +88,7 @@ function FacilityTypesTab() {
         </div>
         {canEditApprovals && (
           <div className="flex-1 @2xl/main:flex-none">
-            <Button onClick={() => openDialog({ approval: 'new' })} width="full">
+            <Button size="lg" onClick={() => openDialog({ approval: 'new' })} width="full">
               <PlusIcon data-icon="inline-start" />
               {t('products.approvals.add')}
             </Button>

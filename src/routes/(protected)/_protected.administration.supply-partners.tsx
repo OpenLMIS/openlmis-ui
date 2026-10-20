@@ -74,7 +74,7 @@ function ListPage() {
         <div className="flex flex-col gap-4" ref={measure}>
           <DataTableToolbar>
             <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">
-              <Button onClick={() => void openDialog({ partner: 'new' })} width="full">
+              <Button size="lg" onClick={() => void openDialog({ partner: 'new' })} width="full">
                 <PlusIcon data-icon="inline-start" />
                 {t('supply-partners.add')}
               </Button>
@@ -110,7 +110,7 @@ function ListPending() {
         <div className="flex flex-col gap-4" ref={measure}>
           <DataTableToolbar>
             <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">
-              <Button disabled width="full">
+              <Button size="lg" disabled width="full">
                 <PlusIcon data-icon="inline-start" />
                 {t('supply-partners.add')}
               </Button>

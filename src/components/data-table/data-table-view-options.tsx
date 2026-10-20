@@ -38,6 +38,7 @@ type DataTableViewOptionsProps = {
   onReset?: () => void;
   layout?: 'table' | 'cards';
   sort?: DataTableViewSort;
+  size?: 'default' | 'lg';
 };
 
 const NO_COLUMNS: DataTableViewColumn[] = [];
@@ -51,6 +52,7 @@ export function DataTableViewOptions({
   onReset,
   layout = 'table',
   sort,
+  size = 'default',
 }: DataTableViewOptionsProps) {
   const labels = useDataTableLabels();
   const isVisible = (id: string) => visibility[id] !== false;
@@ -58,7 +60,9 @@ export function DataTableViewOptions({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" width="full" disabled={disabled} />}>
+      <DropdownMenuTrigger
+        render={<Button disabled={disabled} size={size} variant="outline" width="full" />}
+      >
         <Settings2Icon data-icon="inline-start" />
         {labels.view}
       </DropdownMenuTrigger>

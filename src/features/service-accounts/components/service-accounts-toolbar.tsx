@@ -26,7 +26,7 @@ export function ServiceAccountsToolbar({
 }: ServiceAccountsToolbarProps) {
   const { t } = useTranslation();
   const add = (
-    <Button disabled={disabled} onClick={onAdd} width="full">
+    <Button disabled={disabled} onClick={onAdd} size="lg" width="full">
       <PlusIcon data-icon="inline-start" />
       {t('service-accounts.add')}
     </Button>
@@ -42,6 +42,7 @@ export function ServiceAccountsToolbar({
   return (
     <DataTableToolbar>
       <DataTableViewOptions
+        size="lg"
         disabled={disabled}
         layout={layout}
         sort={{

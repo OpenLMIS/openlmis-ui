@@ -204,6 +204,7 @@ export function SupplyPartnerEditor({
                   </h2>
                   <Button
                     type="button"
+                    size="lg"
                     variant="outline"
                     disabled={pending}
                     onClick={(event) => {

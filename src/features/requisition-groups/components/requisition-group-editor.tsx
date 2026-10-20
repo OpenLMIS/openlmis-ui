@@ -588,6 +588,7 @@ function ProgramsToolbar({
     <DataTableToolbar>
       <div className="ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={PROGRAM_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
           disabled={disabled}
           layout={layout}
@@ -597,7 +598,7 @@ function ProgramsToolbar({
         />
       </div>
       {!readOnly && (
-        <Button ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
+        <Button size="lg" ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
           <PlusIcon data-icon="inline-start" />
           {t('requisition-groups.form.add-program')}
         </Button>
@@ -778,6 +779,7 @@ function MembersToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           disabled={disabled}
           value={query ?? ''}
           placeholder={t('requisition-groups.form.member-search')}
@@ -786,6 +788,7 @@ function MembersToolbar({
       </div>
       <div className="ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={MEMBER_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
           disabled={disabled}
           layout={layout}
@@ -799,7 +802,7 @@ function MembersToolbar({
         />
       </div>
       {!readOnly && (
-        <Button ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
+        <Button size="lg" ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
           <PlusIcon data-icon="inline-start" />
           {t('requisition-groups.form.add-facility')}
         </Button>

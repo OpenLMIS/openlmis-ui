@@ -106,6 +106,7 @@ export function FacilityTypesFields({
           >
             <PickerAddField ref={pickerRef}>
               <ComboboxInput
+                size="lg"
                 aria-label={pickerLabel}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}

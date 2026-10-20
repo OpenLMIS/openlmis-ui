@@ -525,9 +525,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   and Code goes inside. Selects, comboboxes, dates, switches and secondary text such as Lot Code
   go inside too. No search means the button stands alone; no other filters means no button.
   Physical Inventory is the exception: its progress bar leads the toolbar, so Keywords sits
-  inside Filters there. Wrap toolbars in `DataTableToolbar` (`align="end"` for unit/View rows):
-  below `@2xl/main` it makes its buttons, search and unit toggle 36px to match header actions;
-  toolbar skeleton blocks add `@max-2xl/main:h-9`.
+  inside Filters there. Wrap toolbars in `DataTableToolbar` (`align="end"` for unit/View rows).
+- Page-level controls (header actions, toolbars, pickers and Add buttons above child tables)
+  pass the `lg` size: 36px at every width, with h-9 skeleton blocks. Controls in table rows
+  stay `sm`; those in cards, dialogs and the Filters popover keep the default. Never resize
+  shadcn controls from a parent.
 - `DataTableFilters` badges the count of its own active filters and offers Clear Filters for
   them only, as a `destructive` Button. Fields apply live, without an Apply button. Pending
   toolbars render it disabled.
@@ -567,9 +569,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
   `Table density/layout/width/scroll`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
-  `ComboboxInput width/clearLabel`, `PopoverContent width`, `Skeleton fill`,
+  `ComboboxInput width/clearLabel`, `InputGroup size="lg"`, `PopoverContent width`, `Skeleton fill`,
   `Button variant="destructive-solid"` and `"destructive-outline"`. These become plain
-  `className`s in the registry. `selectionColumn` ships the checkbox's indeterminate-minus
+  `className`s in the registry; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
@@ -707,9 +709,10 @@ Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/ut
 `@tanstack/react-form`, `lucide-react` and sibling files only; no app hooks, other lib modules,
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
 `DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `Field spacing/surface`,
-`FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel`,
-`ComboboxChip removeLabel`, `RadioGroup columns`, `SelectTrigger width/wrap`, `Button align/width`,
-`PopoverContent width/padding`.
+`FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel/size`,
+`ComboboxChip removeLabel`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
+`Button align/width`, `PopoverContent width/padding`. Each `lg` size is a plain `h-9` className
+in the registry.
 
 **Every toast has a short Title Case title and a detail sentence as `description`**, displayed
 at most two lines. `Toaster` supplies the translated close button; callers never pass one.

@@ -211,6 +211,7 @@ function StockEventColumns({
   return (
     <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
       <DataTableViewOptions
+        size="lg"
         layout={layout}
         columns={STOCK_EVENT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
           id,
@@ -311,11 +312,11 @@ function StockEventPending() {
         </WorkspaceHeading>
         <WorkspaceActions>
           {rights?.has(RIGHTS.stockEventsCancel) && (
-            <div className="h-10 w-24">
+            <div className="h-9 w-24">
               <Skeleton fill />
             </div>
           )}
-          <div className="h-10 w-24">
+          <div className="h-9 w-24">
             <Skeleton fill />
           </div>
         </WorkspaceActions>
@@ -325,15 +326,13 @@ function StockEventPending() {
           <EventHeaderSkeleton />
           <div className="flex justify-end gap-2">
             {canSwitch && (
-              <div className="h-8 flex-1 @max-2xl/main:h-9 @2xl/main:w-36 @2xl/main:flex-none">
+              <div className="h-9 flex-1 @2xl/main:w-36 @2xl/main:flex-none">
                 <Skeleton fill />
               </div>
             )}
             <div
               className={
-                canSwitch
-                  ? 'h-8 w-20 shrink-0 @max-2xl/main:h-9'
-                  : 'h-8 flex-1 @max-2xl/main:h-9 @2xl/main:w-20 @2xl/main:flex-none'
+                canSwitch ? 'h-9 w-20 shrink-0' : 'h-9 flex-1 @2xl/main:w-20 @2xl/main:flex-none'
               }
             >
               <Skeleton fill />

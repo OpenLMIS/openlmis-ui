@@ -188,6 +188,7 @@ function StockCardLotPicker({
           {productCombobox(
             <PickerAddField ref={field}>
               <ComboboxInput
+                size="lg"
                 id={`${id}-product`}
                 aria-required="true"
                 aria-label={t(copy.product)}
@@ -218,6 +219,7 @@ function StockCardLotPicker({
           </FieldLabel>
           {productCombobox(
             <ComboboxInput
+              size="lg"
               id={`${id}-product`}
               aria-required="true"
               aria-label={t(copy.product)}
@@ -241,6 +243,7 @@ function StockCardLotPicker({
               onValueChange={setLotId}
             >
               <SelectTrigger
+                size="lg"
                 id={`${id}-lot`}
                 aria-required="true"
                 aria-label={t('stock-events.lot-code')}
@@ -265,6 +268,7 @@ function StockCardLotPicker({
       )}
       <div className="@3xl/main:w-auto">
         <Button
+          size="lg"
           width="full"
           data-add-product=""
           disabled={disabled || !pickedCard}
@@ -555,6 +559,7 @@ function ApprovedProductLotPicker({
             disabled={disabled}
           >
             <ComboboxInput
+              size="lg"
               id={`${id}-product`}
               aria-required="true"
               aria-label={t(EVENT_KINDS[kind].copy.product)}
@@ -613,6 +618,7 @@ function ApprovedProductLotPicker({
               onValueChange={setLotValue}
             >
               <SelectTrigger
+                size="lg"
                 id={`${id}-lot`}
                 aria-required="true"
                 aria-label={t('stock-events.lot-code')}
@@ -643,6 +649,7 @@ function ApprovedProductLotPicker({
                 <FieldLabelText label={t('stock-events.new-lot-code')} required />
               </FieldLabel>
               <Input
+                controlSize="lg"
                 id={`${id}-code`}
                 aria-required="true"
                 aria-invalid={!!errors.lotCode || undefined}
@@ -668,6 +675,7 @@ function ApprovedProductLotPicker({
                 <FieldLabelText label={t('stock-events.expiry-date')} />
               </FieldLabel>
               <DatePicker
+                size="lg"
                 id={`${id}-expiry`}
                 clearLabel={t('stock-events.clear-expiry-date')}
                 describedBy={errors.expirationDate ? `${id}-expiry-error` : undefined}
@@ -687,6 +695,7 @@ function ApprovedProductLotPicker({
       )}
       <div className="@3xl/main:w-auto">
         <Button
+          size="lg"
           width="full"
           data-add-product=""
           disabled={disabled || !pickedLot || loading}
@@ -752,6 +761,7 @@ export function ProductLotPickerSkeleton({
           <PickerAddField>
             <Combobox disabled>
               <ComboboxInput
+                size="lg"
                 disabled
                 aria-label={t(copy.product)}
                 aria-required="true"
@@ -779,6 +789,7 @@ export function ProductLotPickerSkeleton({
           </FieldLabel>
           <Combobox disabled>
             <ComboboxInput
+              size="lg"
               disabled
               aria-label={t(copy.product)}
               aria-required="true"
@@ -789,7 +800,7 @@ export function ProductLotPickerSkeleton({
         </Field>
       </div>
       <div className="@3xl/main:w-auto">
-        <Button width="full" disabled type="button">
+        <Button size="lg" width="full" disabled type="button">
           <PlusIcon data-icon="inline-start" />
           {t('stock-events.add')}
         </Button>

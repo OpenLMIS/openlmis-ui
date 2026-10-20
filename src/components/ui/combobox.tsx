@@ -58,15 +58,18 @@ function ComboboxInput({
   showClear = false,
   clearLabel = "Clear",
   width = "auto",
+  size = "default",
   ...props
-}: ComboboxPrimitive.Input.Props & {
+}: Omit<ComboboxPrimitive.Input.Props, "size"> & {
   showTrigger?: boolean
   showClear?: boolean
   clearLabel?: string
   width?: "auto" | "full"
+  size?: "default" | "lg"
 }) {
   return (
     <InputGroup
+      size={size}
       className={cn(width === "full" ? "w-full" : "w-auto", className)}
     >
       <ComboboxPrimitive.Input

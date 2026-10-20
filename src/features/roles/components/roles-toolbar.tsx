@@ -39,6 +39,7 @@ export function RolesToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           label={t('roles.search')}
           onValueChange={(q) => onFilterChange({ q: q || undefined, page: undefined })}
           value={search.q ?? ''}
@@ -46,6 +47,7 @@ export function RolesToolbar({
       </div>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={search.type ? 1 : 0}
           onClear={() => onFilterChange({ type: undefined, page: undefined })}
         >
@@ -61,6 +63,7 @@ export function RolesToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={ROLE_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
           layout={layout}
           onReset={columnView.onReset}
@@ -74,7 +77,7 @@ export function RolesToolbar({
       </div>
       {onCreate && (
         <div className="w-full @2xl/main:w-auto">
-          <Button onClick={onCreate} width="full">
+          <Button size="lg" onClick={onCreate} width="full">
             <PlusIcon data-icon="inline-start" />
             {t('roles.create')}
           </Button>

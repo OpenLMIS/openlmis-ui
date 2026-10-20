@@ -128,6 +128,7 @@ function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
   return (
     <div>
       <DataTableViewOptions
+        size="lg"
         layout={columnView.layout}
         columns={EVENT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
         onReset={columnView.onReset}

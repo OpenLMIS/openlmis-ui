@@ -116,6 +116,7 @@ function NodePickerRow({
       >
         <PickerAddField ref={field}>
           <ComboboxInput
+            size="lg"
             aria-label={t(`supervisory-nodes.form.pick-${kind}`)}
             dir="auto"
             placeholder={t(`supervisory-nodes.form.pick-${kind}`)}

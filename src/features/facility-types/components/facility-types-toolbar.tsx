@@ -33,6 +33,7 @@ export function FacilityTypesToolbar({
     <DataTableToolbar>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={FACILITY_TYPE_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),
@@ -51,7 +52,7 @@ export function FacilityTypesToolbar({
         />
       </div>
       <div className="flex-1 @2xl/main:flex-none">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('facility-types.add')}
         </Button>

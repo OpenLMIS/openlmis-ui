@@ -31,6 +31,7 @@ export function SchedulesToolbar({
     <DataTableToolbar>
       {layout === 'cards' && (
         <DataTableViewOptions
+          size="lg"
           disabled={disabled}
           layout={layout}
           sort={{
@@ -40,7 +41,7 @@ export function SchedulesToolbar({
         />
       )}
       <div className="flex-1 @2xl/main:ms-auto @2xl/main:w-auto @2xl/main:flex-none">
-        <Button disabled={disabled} onClick={onAdd} width="full">
+        <Button size="lg" disabled={disabled} onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('processing-schedules.add')}
         </Button>

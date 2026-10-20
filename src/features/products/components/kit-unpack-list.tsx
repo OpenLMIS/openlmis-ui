@@ -172,7 +172,7 @@ export function KitUnpackList({
         {!readOnly && (
           <DataTableToolbar>
             <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">
-              <Button onClick={onAddOpen} ref={addButton} type="button" width="full">
+              <Button size="lg" onClick={onAddOpen} ref={addButton} type="button" width="full">
                 <PlusIcon data-icon="inline-start" />
                 {t('products.kit.add')}
               </Button>

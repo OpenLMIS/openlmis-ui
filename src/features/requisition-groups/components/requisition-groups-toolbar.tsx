@@ -57,6 +57,7 @@ export function RequisitionGroupsToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           onValueChange={(name) => onFilterChange({ name: name || undefined, page: undefined })}
           placeholder={t('requisition-groups.name')}
           value={search.name ?? ''}
@@ -64,6 +65,7 @@ export function RequisitionGroupsToolbar({
       </div>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={[search.program, search.zone].filter(Boolean).length}
           onClear={() => onFilterChange({ program: undefined, zone: undefined, page: undefined })}
         >
@@ -87,6 +89,7 @@ export function RequisitionGroupsToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={REQUISITION_GROUP_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),
@@ -99,6 +102,7 @@ export function RequisitionGroupsToolbar({
       </div>
       <div className="w-full @2xl/main:w-auto">
         <Button
+          size="lg"
           nativeButton={false}
           render={
             <Link

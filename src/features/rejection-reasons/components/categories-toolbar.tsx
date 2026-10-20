@@ -33,6 +33,7 @@ export function CategoriesToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           label={t('rejection-reason-categories.search')}
           value={search.name ?? ''}
           onValueChange={(name) =>
@@ -42,6 +43,7 @@ export function CategoriesToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={CATEGORY_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),
@@ -57,7 +59,7 @@ export function CategoriesToolbar({
         />
       </div>
       <div className="flex-1 @2xl/main:flex-none">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('rejection-reason-categories.add')}
         </Button>

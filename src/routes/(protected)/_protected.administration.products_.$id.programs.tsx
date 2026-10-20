@@ -78,6 +78,7 @@ function ProgramsTab() {
       <DataTableToolbar>
         <div className="@2xl/main:ms-auto">
           <DataTableViewOptions
+            size="lg"
             columns={PROGRAM_LINK_HIDEABLE_COLUMNS.map(({ id: column, labelKey }) => ({
               id: column,
               label: t(labelKey),
@@ -90,7 +91,7 @@ function ProgramsTab() {
         </div>
         {canEditProduct && (
           <div className="flex-1 @2xl/main:flex-none">
-            <Button onClick={() => openDialog({ program: 'new' })} width="full">
+            <Button size="lg" onClick={() => openDialog({ program: 'new' })} width="full">
               <PlusIcon data-icon="inline-start" />
               {t('products.programs.add')}
             </Button>

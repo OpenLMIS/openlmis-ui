@@ -54,6 +54,7 @@ export function AssignmentsToolbar({
     <DataTableToolbar>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={[search.facilityId, search.programId].filter(Boolean).length}
           onClear={() =>
             onFilterChange({ facilityId: undefined, programId: undefined, page: undefined })
@@ -79,6 +80,7 @@ export function AssignmentsToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={ASSIGNMENT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),
@@ -90,7 +92,7 @@ export function AssignmentsToolbar({
         />
       </div>
       <div className="w-full @2xl/main:w-auto">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('valid-assignments.add', { kind })}
         </Button>

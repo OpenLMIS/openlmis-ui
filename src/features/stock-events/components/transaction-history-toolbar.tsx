@@ -39,6 +39,7 @@ export function TransactionHistoryToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           onValueChange={(value) => change({ documentNumber: value || undefined })}
           placeholder={t('transaction-history.search-document-number')}
           value={search.documentNumber ?? ''}
@@ -46,6 +47,7 @@ export function TransactionHistoryToolbar({
       </div>
       <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={activeFilters(search)}
           disabled={disabled}
           onClear={() => change({ type: undefined, startDate: undefined, endDate: undefined })}

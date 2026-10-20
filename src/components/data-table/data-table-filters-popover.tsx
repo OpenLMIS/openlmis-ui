@@ -10,6 +10,7 @@ type DataTableFiltersProps = {
   onClear: () => void;
   disabled?: boolean;
   children?: ReactNode;
+  size?: 'default' | 'lg';
 };
 
 export function DataTableFilters({
@@ -17,12 +18,15 @@ export function DataTableFilters({
   onClear,
   disabled = false,
   children,
+  size = 'default',
 }: DataTableFiltersProps) {
   const labels = useDataTableLabels();
   return (
     <Popover>
       <PopoverTrigger
-        render={<Button disabled={disabled} type="button" variant="outline" width="full" />}
+        render={
+          <Button disabled={disabled} size={size} type="button" variant="outline" width="full" />
+        }
       >
         <FilterIcon data-icon="inline-start" />
         {labels.filters}

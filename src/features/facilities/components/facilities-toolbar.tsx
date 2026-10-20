@@ -48,6 +48,7 @@ export function FacilitiesToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           onValueChange={(name) => onFilterChange({ name: name || undefined, page: undefined })}
           placeholder={t('facilities.search')}
           value={search.name ?? ''}
@@ -55,6 +56,7 @@ export function FacilitiesToolbar({
       </div>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={search.zoneId ? 1 : 0}
           onClear={() => onFilterChange({ zoneId: undefined, page: undefined })}
         >
@@ -71,6 +73,7 @@ export function FacilitiesToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={FACILITY_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),
@@ -86,7 +89,7 @@ export function FacilitiesToolbar({
         />
       </div>
       <div className="w-full @2xl/main:w-auto">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('facilities.add')}
         </Button>

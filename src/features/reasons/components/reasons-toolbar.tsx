@@ -36,6 +36,7 @@ export function ReasonsToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          size="lg"
           label={t('reasons.search')}
           onValueChange={(q) => onFilterChange({ q: q || undefined, page: undefined })}
           value={search.q ?? ''}
@@ -43,6 +44,7 @@ export function ReasonsToolbar({
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={REASON_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
           layout={layout}
           onReset={columnView.onReset}
@@ -55,7 +57,7 @@ export function ReasonsToolbar({
         />
       </div>
       <div className="flex-1 @2xl/main:flex-none">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('reasons.add')}
         </Button>

@@ -40,6 +40,7 @@ export function LotsToolbar({ search, onFilterChange, columnView, layout }: Lots
     <DataTableToolbar>
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={[search.product, search.expiryFrom, search.expiryTo].filter(Boolean).length}
           onClear={() =>
             onFilterChange({
@@ -82,6 +83,7 @@ export function LotsToolbar({ search, onFilterChange, columnView, layout }: Lots
       </div>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={LOT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
           layout={layout}
           onReset={columnView.onReset}

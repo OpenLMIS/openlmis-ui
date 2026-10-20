@@ -33,6 +33,7 @@ export function ProgramsToolbar({
     <DataTableToolbar>
       <div className="@2xl/main:ms-auto">
         <DataTableViewOptions
+          size="lg"
           columns={PROGRAM_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
             id,
             label: t(labelKey),
@@ -48,7 +49,7 @@ export function ProgramsToolbar({
         />
       </div>
       <div className="flex-1 @2xl/main:flex-none">
-        <Button onClick={onAdd} width="full">
+        <Button size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('programs.add')}
         </Button>

@@ -34,8 +34,13 @@ export function StockOnHandToolbar({
 }: StockOnHandToolbarProps) {
   const { t } = useTranslation();
   const inactiveId = useId();
-  const text = (key: 'productCode' | 'productName' | 'lotCode', placeholder: string) => (
+  const text = (
+    key: 'productCode' | 'productName' | 'lotCode',
+    placeholder: string,
+    size?: 'lg',
+  ) => (
     <DataTableSearch
+      size={size}
       label={placeholder}
       onValueChange={(value) => onFilterChange({ [key]: value || undefined, page: undefined })}
       placeholder={placeholder}
@@ -46,10 +51,11 @@ export function StockOnHandToolbar({
   return (
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
-        {text('productName', t('stock-on-hand.search-product-name'))}
+        {text('productName', t('stock-on-hand.search-product-name'), 'lg')}
       </div>
       <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
         <DataTableFilters
+          size="lg"
           activeCount={activeFilters(search)}
           disabled={disabled}
           onClear={() =>

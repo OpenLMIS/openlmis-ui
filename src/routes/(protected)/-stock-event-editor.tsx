@@ -186,6 +186,7 @@ export function StockEventPending({
             <DataTableToolbar>
               <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled>
                 <DataTableSearch
+                  size="lg"
                   value=""
                   placeholder={t('stock-events.keywords')}
                   onValueChange={() => {}}
@@ -198,6 +199,7 @@ export function StockEventPending({
               )}
               <div className={unit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
                 <DataTableViewOptions
+                  size="lg"
                   disabled
                   layout={layout}
                   columns={eventHideableColumns(kind)
