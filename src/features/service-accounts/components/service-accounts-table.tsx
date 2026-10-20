@@ -1,10 +1,10 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { KeyRoundIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -14,14 +14,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { serviceAccountsListOptions } from '@/features/service-accounts/api/queries';
 import { CopyKeyButton } from '@/features/service-accounts/components/copy-key-button';
 import {
@@ -30,9 +24,8 @@ import {
   toServiceAccountsQuery,
 } from '@/features/service-accounts/lib/search';
 import type { ServiceAccount } from '@/features/service-accounts/lib/types';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import { usePageStart } from '@/hooks/use-page-start';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, ServiceAccount>();
 
@@ -76,41 +69,22 @@ function createColumns(
 
 function KeyActions({ token, onDelete }: { token: string; onDelete: (token: string) => void }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
 
   const label = t('service-accounts.actions-for', { key: token });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          {
-            id: 'delete',
-            icon: <Trash2Icon />,
-            label: t('service-accounts.delete'),
-            destructive: true,
-            onSelect: () => onDelete(token),
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuItem onClick={menu.opensDialog(() => onDelete(token))} variant="destructive">
-            <Trash2Icon />
-            {t('service-accounts.delete')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'delete',
+          icon: <Trash2Icon />,
+          label: t('service-accounts.delete'),
+          destructive: true,
+          onSelect: () => onDelete(token),
+        },
+      ]}
+    />
   );
 }
 
@@ -143,16 +117,11 @@ function useServiceAccountsTable({
     [i18n.language],
   );
   const columns = useMemo(() => createColumns(t, formatDate, onDelete), [t, formatDate, onDelete]);
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<ServiceAccountsSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_SERVICE_ACCOUNTS_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
 
   const table = useTable({
@@ -165,7 +134,6 @@ function useServiceAccountsTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
   });
   return { table, pageStart };
 }

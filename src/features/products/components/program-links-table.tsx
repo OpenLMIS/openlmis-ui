@@ -1,10 +1,10 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, EyeIcon, LayersIcon, PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { EyeIcon, LayersIcon, PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -14,26 +14,18 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { FlagBadge } from '@/components/flag-badge';
-import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import type { ProductDetail, ProgramLink } from '@/features/products/lib/types';
 import {
   orderableDisplayCategoriesOptions,
   programsOptions,
 } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 
 type ProgramLinkRow = ProgramLink & { name: string };
 
-type RowActions = {
+type LineActions = {
   canEdit: boolean;
   onEdit: (programId: string) => void;
   onRemove: (programId: string) => void;
@@ -41,7 +33,7 @@ type RowActions = {
 
 const columnHelper = createColumnHelper<DataTableFeatures, ProgramLinkRow>();
 
-function createColumns(t: TFunction, formatPrice: (price: number) => string, actions: RowActions) {
+function createColumns(t: TFunction, formatPrice: (price: number) => string, actions: LineActions) {
   return columnHelper.columns([
     columnHelper.accessor('name', {
       header: ({ column }) => (
@@ -106,81 +98,45 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
   ]);
 }
 
-function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: RowActions }) {
+function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: LineActions }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
-  const edit = menu.opensDialog(() => actions.onEdit(link.programId));
 
   const label = t('products.programs.actions-for', { program: link.name });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={
-          actions.canEdit
-            ? [
-                {
-                  id: 'edit',
-                  icon: <PencilIcon />,
-                  label: t('products.programs.edit'),
-                  onSelect: () => actions.onEdit(link.programId),
-                },
-                {
-                  id: 'remove',
-                  icon: <Trash2Icon />,
-                  label: t('products.programs.remove'),
-                  destructive: true,
-                  onSelect: () => actions.onRemove(link.programId),
-                },
-              ]
-            : [
-                {
-                  id: 'view',
-                  icon: <EyeIcon />,
-                  label: t('products.programs.view'),
-                  onSelect: () => actions.onEdit(link.programId),
-                },
-              ]
-        }
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          {actions.canEdit ? (
-            <>
-              <DropdownMenuItem onClick={edit}>
-                <PencilIcon />
-                {t('products.programs.edit')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={menu.opensDialog(() => actions.onRemove(link.programId))}
-                variant="destructive"
-              >
-                <Trash2Icon />
-                {t('products.programs.remove')}
-              </DropdownMenuItem>
-            </>
-          ) : (
-            <DropdownMenuItem onClick={edit}>
-              <EyeIcon />
-              {t('products.programs.view')}
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={
+        actions.canEdit
+          ? [
+              {
+                id: 'edit',
+                icon: <PencilIcon />,
+                label: t('products.programs.edit'),
+                onSelect: () => actions.onEdit(link.programId),
+              },
+              {
+                id: 'remove',
+                icon: <Trash2Icon />,
+                label: t('products.programs.remove'),
+                destructive: true,
+                onSelect: () => actions.onRemove(link.programId),
+              },
+            ]
+          : [
+              {
+                id: 'view',
+                icon: <EyeIcon />,
+                label: t('products.programs.view'),
+                onSelect: () => actions.onEdit(link.programId),
+              },
+            ]
+      }
+    />
   );
 }
 
-type ProgramLinksTableProps = RowActions & {
+type ProgramLinksTableProps = LineActions & {
   cards: boolean;
   product: ProductDetail;
   columnVisibility: ColumnVisibilityState;
@@ -194,7 +150,7 @@ function useProgramLinksTable({
   rows,
   columnVisibility,
   ...actions
-}: RowActions & { rows: ProgramLinkRow[]; columnVisibility: ColumnVisibilityState }) {
+}: LineActions & { rows: ProgramLinkRow[]; columnVisibility: ColumnVisibilityState }) {
   const { t, i18n } = useTranslation();
   const { canEdit, onEdit, onRemove } = actions;
   const columns = useMemo(() => {

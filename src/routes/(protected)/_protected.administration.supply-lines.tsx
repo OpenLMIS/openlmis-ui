@@ -31,6 +31,9 @@ import {
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
+const usePageCardView = () =>
+  useCardView(SUPPLY_LINE_HIDEABLE_COLUMNS, 'supply-lines.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/supply-lines')({
   validateSearch: supplyLinesSearchSchema,
   loaderDeps: ({ search }) => ({
@@ -56,10 +59,7 @@ function SupplyLinesPage() {
     select: ({ supplyLine: _supplyLine, ...listSearch }) => listSearch,
     structuralSharing: true,
   });
-  const { measure, cards, columnView, layout } = useCardView(
-    SUPPLY_LINE_HIDEABLE_COLUMNS,
-    'supply-lines.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
   const { updateSearch } = useSearchNavigation<SupplyLinesSearch>(CLOSED_DIALOGS);
 
@@ -131,10 +131,7 @@ function SupplyLinesHeader() {
 }
 
 function SupplyLinesPagePending() {
-  const { measure, cards, columnView, layout } = useCardView(
-    SUPPLY_LINE_HIDEABLE_COLUMNS,
-    'supply-lines.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   return (
     <Workspace>
       <SupplyLinesHeader />

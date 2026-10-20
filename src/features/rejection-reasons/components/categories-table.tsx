@@ -2,10 +2,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, FolderXIcon, PencilIcon, PlusIcon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { FolderXIcon, PencilIcon, PlusIcon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -16,15 +16,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
-import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { rejectionReasonCategoriesOptions } from '@/features/reference-data/api/queries';
 import type { RejectionReasonCategory } from '@/features/reference-data/lib/types';
 import { pageOfCategories } from '@/features/rejection-reasons/lib/categories-list';
@@ -32,9 +25,9 @@ import {
   type CategoriesListSearch,
   DEFAULT_CATEGORIES_SORT,
 } from '@/features/rejection-reasons/lib/search';
-import { usePageStart } from '@/hooks/use-page-start';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { markDialogOpened } from '@/hooks/use-search-navigation';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, RejectionReasonCategory>();
 
@@ -85,52 +78,24 @@ function CategoryActions({
   const { t } = useTranslation();
   const label = t('rejection-reason-categories.actions-for', { name: category.name });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          {
-            id: 'edit',
-            icon: <PencilIcon />,
-            label: t('rejection-reason-categories.edit'),
-            link: (
-              <Link
-                to="/administration/rejection-reason-categories"
-                search={{ ...listSearch, category: category.id }}
-                state={markDialogOpened}
-              />
-            ),
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              render={
-                <Link
-                  to="/administration/rejection-reason-categories"
-                  search={{ ...listSearch, category: category.id }}
-                  state={markDialogOpened}
-                />
-              }
-            >
-              <PencilIcon />
-              {t('rejection-reason-categories.edit')}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'edit',
+          icon: <PencilIcon />,
+          label: t('rejection-reason-categories.edit'),
+          link: (
+            <Link
+              to="/administration/rejection-reason-categories"
+              search={{ ...listSearch, category: category.id }}
+              state={markDialogOpened}
+            />
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -158,16 +123,11 @@ function useCategoriesTable({
 }: Omit<CategoriesTableProps, 'onAdd'> & { data: RejectionReasonCategory[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<CategoriesListSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_CATEGORIES_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
 
   const table = useTable({
@@ -180,7 +140,6 @@ function useCategoriesTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   return { table, pageStart };

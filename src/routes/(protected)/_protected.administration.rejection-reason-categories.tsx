@@ -35,6 +35,9 @@ const CategoryFormDialog = lazy(() =>
   loadDialog().then((module) => ({ default: module.CategoryFormDialog })),
 );
 const CLOSED_DIALOGS = { category: undefined } satisfies Partial<CategoriesSearch>;
+const usePageCardView = () =>
+  useCardView(CATEGORY_HIDEABLE_COLUMNS, 'rejection-reason-categories.column-visibility');
+
 export const Route = createFileRoute(
   '/(protected)/_protected/administration/rejection-reason-categories',
 )({
@@ -54,10 +57,7 @@ function CategoriesPage() {
     structuralSharing: true,
   });
   const target = Route.useSearch({ select: (search) => search.category });
-  const { measure, cards, columnView, layout } = useCardView(
-    CATEGORY_HIDEABLE_COLUMNS,
-    'rejection-reason-categories.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<CategoriesSearch>(CLOSED_DIALOGS);
   const addCategory = useCallback(() => openDialog({ category: 'new' }), [openDialog]);
@@ -134,10 +134,7 @@ function CategoriesHeader() {
 }
 
 function CategoriesPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    CATEGORY_HIDEABLE_COLUMNS,
-    'rejection-reason-categories.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <CategoriesHeader />

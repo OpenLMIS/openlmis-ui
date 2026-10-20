@@ -50,6 +50,8 @@ declare module '@tanstack/react-router' {
   }
 }
 
+const usePageCardView = () => useCardView(USER_HIDEABLE_COLUMNS, 'users.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/users')({
   validateSearch: usersSearchSchema,
   loaderDeps: ({ search }) => ({
@@ -91,10 +93,7 @@ function UsersPage() {
   });
   const anyDialogOpen = dialogs.user !== undefined || dialogs.password !== undefined;
   const navigate = Route.useNavigate();
-  const { measure, cards, columnView, layout } = useCardView(
-    USER_HIDEABLE_COLUMNS,
-    'users.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
 
   // Typing in a filter replaces the history entry; paging and sorting add one, so Back steps through them.
@@ -188,10 +187,7 @@ function UsersPage() {
 function UsersPagePending() {
   const { t } = useTranslation();
   const appName = useAppName();
-  const { measure, cards, columnView } = useCardView(
-    USER_HIDEABLE_COLUMNS,
-    'users.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <WorkspaceHeader>

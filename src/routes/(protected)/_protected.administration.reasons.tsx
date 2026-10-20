@@ -36,6 +36,8 @@ declare module '@tanstack/react-router' {
 // Legacy reloads the list on every visit; another admin may have changed a reason since.
 const LIST_FRESH_FOR = 30 * 1000;
 
+const usePageCardView = () => useCardView(REASON_HIDEABLE_COLUMNS, 'reasons.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/reasons')({
   validateSearch: reasonsSearchSchema,
   loader: async ({ context: { queryClient } }) => {
@@ -50,10 +52,7 @@ function ReasonsPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { measure, cards, columnView, layout } = useCardView(
-    REASON_HIDEABLE_COLUMNS,
-    'reasons.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch } = useSearchNavigation<ReasonsSearch>({});
   const addReason = useCallback(
     () => navigate({ to: '/administration/reasons/new', state: { reasonsListSearch: search } }),
@@ -122,10 +121,7 @@ function ReasonsHeader() {
 
 /** While the rights check runs on a first visit: the page's header over a table skeleton. */
 function ReasonsPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    REASON_HIDEABLE_COLUMNS,
-    'reasons.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <ReasonsHeader />

@@ -37,6 +37,9 @@ declare module '@tanstack/react-router' {
   }
 }
 
+const usePageCardView = () =>
+  useCardView(REQUISITION_GROUP_HIDEABLE_COLUMNS, 'requisition-groups.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/requisition-groups')({
   validateSearch: requisitionGroupsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toRequisitionGroupsQuery(search) }),
@@ -52,10 +55,7 @@ export const Route = createFileRoute('/(protected)/_protected/administration/req
 
 function RequisitionGroupsPage() {
   const search = Route.useSearch();
-  const { measure, cards, columnView, layout } = useCardView(
-    REQUISITION_GROUP_HIDEABLE_COLUMNS,
-    'requisition-groups.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch } = useSearchNavigation<RequisitionGroupsListSearch>({});
 
   return (
@@ -111,10 +111,7 @@ function RequisitionGroupsHeader() {
 }
 
 function RequisitionGroupsPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    REQUISITION_GROUP_HIDEABLE_COLUMNS,
-    'requisition-groups.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <RequisitionGroupsHeader />

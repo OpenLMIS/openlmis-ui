@@ -59,7 +59,7 @@ export function GeographicZonePopulationDialog({
 function PopulationDialogContent({ zoneId }: { zoneId: string }) {
   const { t } = useTranslation();
   const opening = useOpening();
-  const { measure, cards } = useDialogCardLayout<HTMLDivElement>('table');
+  const { measure, cards } = useDialogCardLayout('table');
   const title = t('geographic-zones.visualize');
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4" ref={measure}>

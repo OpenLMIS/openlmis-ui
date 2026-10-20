@@ -45,6 +45,8 @@ declare module '@tanstack/react-router' {
   }
 }
 
+const usePageCardView = () => useCardView(PRODUCT_HIDEABLE_COLUMNS, 'products.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/products')({
   validateSearch: productsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toProductsQuery(search) }),
@@ -68,10 +70,7 @@ function ProductsPage() {
     select: ({ product: _product, ...list }): ProductsSearch => list,
     structuralSharing: true,
   });
-  const { measure, cards, columnView, layout } = useCardView(
-    PRODUCT_HIDEABLE_COLUMNS,
-    'products.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
 
   const { updateSearch, openDialog, closeDialog } =
@@ -156,10 +155,7 @@ function ProductsHeader() {
 }
 
 function ProductsPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    PRODUCT_HIDEABLE_COLUMNS,
-    'products.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <ProductsHeader />

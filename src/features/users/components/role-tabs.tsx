@@ -112,9 +112,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
                   {cards && (
                     <div className="ms-auto">
                       <DataTableViewOptions
-                        columns={[]}
                         layout="cards"
-                        onVisibilityChange={noop}
                         sort={{
                           columns: SORT_COLUMNS[item.type].map(({ id, labelKey }) => ({
                             id,
@@ -124,7 +122,6 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
                             onSearchChange(patch),
                           ),
                         }}
-                        visibility={{}}
                       />
                     </div>
                   )}

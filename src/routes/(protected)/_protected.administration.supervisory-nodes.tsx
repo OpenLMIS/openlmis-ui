@@ -37,6 +37,9 @@ declare module '@tanstack/react-router' {
   }
 }
 
+const usePageCardView = () =>
+  useCardView(SUPERVISORY_NODE_HIDEABLE_COLUMNS, 'supervisory-nodes.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/supervisory-nodes')({
   validateSearch: supervisoryNodesSearchSchema,
   loaderDeps: ({ search }) => ({ query: toSupervisoryNodesQuery(search) }),
@@ -52,10 +55,7 @@ export const Route = createFileRoute('/(protected)/_protected/administration/sup
 function SupervisoryNodesPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
-  const { measure, cards, columnView, layout } = useCardView(
-    SUPERVISORY_NODE_HIDEABLE_COLUMNS,
-    'supervisory-nodes.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
   const { updateSearch } = useSearchNavigation<SupervisoryNodesSearch>({});
 
@@ -117,10 +117,7 @@ function SupervisoryNodesHeader() {
 }
 
 function SupervisoryNodesPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    SUPERVISORY_NODE_HIDEABLE_COLUMNS,
-    'supervisory-nodes.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace width="large">
       <SupervisoryNodesHeader />

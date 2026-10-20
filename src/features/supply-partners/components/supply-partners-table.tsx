@@ -2,10 +2,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, PencilIcon, TruckIcon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { PencilIcon, TruckIcon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -14,23 +14,15 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { supplyPartnersOptions } from '@/features/supply-partners/api/queries';
 import {
   type SupplyPartnersSearch,
   toSupplyPartnersQuery,
 } from '@/features/supply-partners/lib/search';
 import type { SupplyPartner } from '@/features/supply-partners/lib/types';
-import { usePageStart } from '@/hooks/use-page-start';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const helper = createColumnHelper<DataTableFeatures, SupplyPartner>();
 const NO_SORT = { id: 'name', desc: false };
@@ -78,31 +70,11 @@ function SupplyPartnerActions({
     />
   );
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[{ id: 'edit', icon: <PencilIcon />, label: t('supply-partners.edit'), link }]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuGroup>
-            <DropdownMenuItem render={link}>
-              <PencilIcon />
-              {t('supply-partners.edit')}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[{ id: 'edit', icon: <PencilIcon />, label: t('supply-partners.edit'), link }]}
+    />
   );
 }
 
@@ -115,16 +87,11 @@ function usePartnersTable(
 ) {
   const { t } = useTranslation();
   const cols = useMemo(() => columns(t, search), [t, search]);
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<SupplyPartnersSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const state = useTableSearchState({
+  const { pageStart, searchState: state } = usePagedTableSearch({
     search,
     defaultSort: NO_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -136,7 +103,6 @@ function usePartnersTable(
     manualSorting: true,
     enableSorting: false,
     ...state,
-    onPaginationChange: pageStart.onPaginationChange(state.onPaginationChange),
   });
   return { table, pageStart };
 }

@@ -38,6 +38,9 @@ declare module '@tanstack/react-router' {
   }
 }
 
+const usePageCardView = () =>
+  useCardView(FACILITY_HIDEABLE_COLUMNS, 'facilities.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/facilities')({
   validateSearch: facilitiesSearchSchema,
   loaderDeps: ({ search }) => ({ query: toFacilitiesQuery(search) }),
@@ -54,10 +57,7 @@ function FacilitiesPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { measure, cards, columnView, layout } = useCardView(
-    FACILITY_HIDEABLE_COLUMNS,
-    'facilities.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
   const { updateSearch } = useSearchNavigation<FacilitiesSearch>({});
   const addFacility = useCallback(
@@ -127,10 +127,7 @@ function FacilitiesHeader() {
 }
 
 function FacilitiesPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    FACILITY_HIDEABLE_COLUMNS,
-    'facilities.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <FacilitiesHeader />

@@ -18,10 +18,6 @@ type SchedulesToolbarProps = {
   disabled?: boolean;
 };
 
-const NO_COLUMNS: [] = [];
-const NO_VISIBILITY = {};
-const noop = () => {};
-
 export function SchedulesToolbar({
   search,
   onSortChange,
@@ -35,15 +31,12 @@ export function SchedulesToolbar({
     <DataTableToolbar>
       {layout === 'cards' && (
         <DataTableViewOptions
-          columns={NO_COLUMNS}
           disabled={disabled}
           layout={layout}
-          onVisibilityChange={noop}
           sort={{
             columns: SCHEDULE_SORT_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) })),
             ...searchSort(search, DEFAULT_SCHEDULES_SORT, onSortChange),
           }}
-          visibility={NO_VISIBILITY}
         />
       )}
       <div className="flex-1 @2xl/main:ms-auto @2xl/main:w-auto @2xl/main:flex-none">

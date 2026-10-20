@@ -36,6 +36,9 @@ const RejectionReasonFormDialog = lazy(() =>
   loadDialog().then((module) => ({ default: module.RejectionReasonFormDialog })),
 );
 const CLOSED_DIALOGS = { reason: undefined } satisfies Partial<RejectionReasonsSearch>;
+const usePageCardView = () =>
+  useCardView(REJECTION_REASON_HIDEABLE_COLUMNS, 'rejection-reasons.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/rejection-reasons')({
   validateSearch: rejectionReasonsSearchSchema,
   loader: async ({ context: { queryClient } }) => {
@@ -53,10 +56,7 @@ function RejectionReasonsPage() {
     structuralSharing: true,
   });
   const target = Route.useSearch({ select: (search) => search.reason });
-  const { measure, cards, columnView, layout } = useCardView(
-    REJECTION_REASON_HIDEABLE_COLUMNS,
-    'rejection-reasons.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<RejectionReasonsSearch>(CLOSED_DIALOGS);
   const addReason = useCallback(() => openDialog({ reason: 'new' }), [openDialog]);
@@ -131,10 +131,7 @@ function RejectionReasonsHeader() {
 }
 
 function RejectionReasonsPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    REJECTION_REASON_HIDEABLE_COLUMNS,
-    'rejection-reasons.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <RejectionReasonsHeader />

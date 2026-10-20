@@ -48,6 +48,9 @@ const GeographicZonePopulationDialog = lazy(() =>
   loadDialogs().then(([, module]) => ({ default: module.GeographicZonePopulationDialog })),
 );
 
+const usePageCardView = () =>
+  useCardView(GEOGRAPHIC_ZONE_HIDEABLE_COLUMNS, 'geographic-zones.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/geographic-zones')({
   validateSearch: geographicZonesSearchSchema,
   loaderDeps: ({ search }) => ({ query: toGeographicZonesQuery(search) }),
@@ -76,10 +79,7 @@ function GeographicZonesPage() {
   const population = Route.useSearch({
     select: (search) => (search.zone ? undefined : search.population),
   });
-  const { measure, cards, columnView, layout } = useCardView(
-    GEOGRAPHIC_ZONE_HIDEABLE_COLUMNS,
-    'geographic-zones.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<GeographicZonesSearch>(CLOSED_DIALOGS);
   const showDetail = useCallback((id: string) => openDialog({ zone: id }), [openDialog]);
@@ -160,10 +160,7 @@ function GeographicZonesHeader() {
 }
 
 function GeographicZonesPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    GEOGRAPHIC_ZONE_HIDEABLE_COLUMNS,
-    'geographic-zones.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <GeographicZonesHeader />

@@ -15,7 +15,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -31,7 +31,7 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
-import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import {
   AlertDialog,
   AlertDialogCancel,

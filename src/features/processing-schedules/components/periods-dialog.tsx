@@ -98,7 +98,7 @@ function PeriodDialogContent({ scheduleId, ...props }: PeriodDialogContentProps)
     void queryClient.prefetchQuery(latestPeriodOptions(scheduleId, opening));
     void queryClient.prefetchQuery(periodsListOptions(toPeriodsQuery(scheduleId, search)));
   }, [queryClient, scheduleId, opening, search]);
-  const { measure, cards } = useDialogCardLayout<HTMLDivElement>('table');
+  const { measure, cards } = useDialogCardLayout('table');
   const title = t('processing-schedules.edit');
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4" ref={measure}>

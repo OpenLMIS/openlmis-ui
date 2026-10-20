@@ -1,10 +1,10 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, ListChecksIcon, PencilIcon, SearchXIcon, ShieldIcon } from 'lucide-react';
-import { useCallback, useEffect, useMemo } from 'react';
+import { ListChecksIcon, PencilIcon, SearchXIcon, ShieldIcon } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -14,14 +14,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { rolesOptions } from '@/features/reference-data/api/queries';
 import { roleTypeInfo, roleTypeOf } from '@/features/reference-data/lib/roles';
 import type { Role } from '@/features/reference-data/lib/types';
@@ -33,14 +27,8 @@ import {
   type RoleSortField,
   type RolesSearch,
 } from '@/features/roles/lib/search';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import { usePageStart } from '@/hooks/use-page-start';
-import {
-  type SearchChange,
-  toPaginationState,
-  toSortingState,
-  useTableSearchState,
-} from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState, toSortingState } from '@/lib/table-search';
 
 type RoleRowActions = {
   onEdit?: (roleId: string) => void;
@@ -99,62 +87,35 @@ function createColumns(t: TFunction, actions: RoleRowActions) {
 function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions }) {
   const { t } = useTranslation();
   const { onEdit, onViewRights } = actions;
-  const menu = useMenuOpensDialog();
 
   const label = t('roles.actions-for', { role: role.name });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          ...(onEdit
-            ? [
-                {
-                  id: 'edit',
-                  icon: <PencilIcon />,
-                  label: t('roles.edit'),
-                  onSelect: () => onEdit(role.id),
-                },
-              ]
-            : []),
-          ...(onViewRights
-            ? [
-                {
-                  id: 'rights',
-                  icon: <ListChecksIcon />,
-                  label: t('roles.view-rights'),
-                  onSelect: () => onViewRights(role.id),
-                },
-              ]
-            : []),
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          {onEdit && (
-            <DropdownMenuItem onClick={menu.opensDialog(() => onEdit(role.id))}>
-              <PencilIcon />
-              {t('roles.edit')}
-            </DropdownMenuItem>
-          )}
-          {onViewRights && (
-            <DropdownMenuItem onClick={menu.opensDialog(() => onViewRights(role.id))}>
-              <ListChecksIcon />
-              {t('roles.view-rights')}
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        ...(onEdit
+          ? [
+              {
+                id: 'edit',
+                icon: <PencilIcon />,
+                label: t('roles.edit'),
+                onSelect: () => onEdit(role.id),
+              },
+            ]
+          : []),
+        ...(onViewRights
+          ? [
+              {
+                id: 'rights',
+                icon: <ListChecksIcon />,
+                label: t('roles.view-rights'),
+                onSelect: () => onViewRights(role.id),
+              },
+            ]
+          : []),
+      ]}
+    />
   );
 }
 
@@ -187,15 +148,11 @@ function useRolesTable({
     [t, onEdit, onViewRights],
   );
   const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<RolesSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_ROLES_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
   const [{ id, desc }] = toSortingState(search, DEFAULT_ROLES_SORT) as [
     { id: RoleSortField; desc: boolean },
@@ -219,7 +176,6 @@ function useRolesTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
 

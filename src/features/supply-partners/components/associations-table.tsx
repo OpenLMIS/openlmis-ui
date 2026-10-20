@@ -10,7 +10,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -19,7 +19,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -46,8 +46,8 @@ import type { SupplyPartnerEditSearch } from '@/features/supply-partners/lib/sea
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import { usePageStart } from '@/hooks/use-page-start';
-import { type SearchChange, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import type { SearchChange } from '@/lib/table-search';
 
 const helper = createColumnHelper<DataTableFeatures, AssociationDraft>();
 const NO_SORT = { id: 'program', desc: false };
@@ -294,15 +294,12 @@ function useAssociationTable({
       pending,
     ],
   );
-  const pageStart = usePageStart<HTMLUListElement>(`${page}:${size}`, cards);
-  const onTableChange = useCallback<SearchChange<SupplyPartnerEditSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const state = useTableSearchState({
+  const { pageStart, searchState: state } = usePagedTableSearch({
     search: { ...search, page },
     defaultSort: NO_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
+    page: `${page}:${size}`,
   });
   return {
     pageStart,
@@ -315,7 +312,6 @@ function useAssociationTable({
       manualPagination: true,
       enableSorting: false,
       ...state,
-      onPaginationChange: pageStart.onPaginationChange(state.onPaginationChange),
     }),
     refs,
   };

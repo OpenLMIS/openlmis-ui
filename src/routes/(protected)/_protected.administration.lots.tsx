@@ -34,6 +34,8 @@ const LotFormDialog = lazy(() =>
 
 const CLOSED_DIALOGS = { lot: undefined } satisfies Partial<LotsSearch>;
 
+const usePageCardView = () => useCardView(LOT_HIDEABLE_COLUMNS, 'lots.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/lots')({
   validateSearch: lotsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toLotsQuery(search) }),
@@ -53,10 +55,7 @@ function LotsPage() {
   });
   const lot = Route.useSearch({ select: (search) => search.lot });
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
-  const { measure, cards, columnView, layout } = useCardView(
-    LOT_HIDEABLE_COLUMNS,
-    'lots.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } = useSearchNavigation<LotsSearch>(CLOSED_DIALOGS);
   const editLot = useCallback((id: string) => openDialog({ lot: id }), [openDialog]);
   const [dialogMounted, setDialogMounted] = useState(lot !== undefined);
@@ -129,10 +128,7 @@ function LotsHeader() {
 }
 
 function LotsPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    LOT_HIDEABLE_COLUMNS,
-    'lots.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <LotsHeader />

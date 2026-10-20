@@ -7,10 +7,10 @@ import {
   useTable,
 } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, MapPinnedIcon, SearchXIcon, Trash2Icon } from 'lucide-react';
+import { MapPinnedIcon, SearchXIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableCard,
@@ -22,14 +22,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { selectionColumn } from '@/components/data-table/data-table-selection';
-import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   type AssignmentsSearch,
@@ -52,14 +46,8 @@ import {
 } from '@/features/reference-data/api/queries';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import { usePageStart } from '@/hooks/use-page-start';
-import {
-  type DefaultSort,
-  type SearchChange,
-  toPaginationState,
-  useTableSearchState,
-} from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type DefaultSort, type SearchChange, toPaginationState } from '@/lib/table-search';
 
 type Lookup = string | null | undefined;
 
@@ -175,41 +163,22 @@ function CellSkeleton() {
 
 function AssignmentActions({ label: name, onDelete }: { label: string; onDelete: () => void }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
 
   const label = t('valid-assignments.actions-for', { name });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          {
-            id: 'delete',
-            icon: <Trash2Icon />,
-            label: t('valid-assignments.delete'),
-            destructive: true,
-            onSelect: onDelete,
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuItem onClick={menu.opensDialog(onDelete)} variant="destructive">
-            <Trash2Icon />
-            {t('valid-assignments.delete')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'delete',
+          icon: <Trash2Icon />,
+          label: t('valid-assignments.delete'),
+          destructive: true,
+          onSelect: onDelete,
+        },
+      ]}
+    />
   );
 }
 
@@ -314,16 +283,11 @@ function useAssignmentsTable({
 }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, zones, onDelete), [t, zones, onDelete]);
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<AssignmentsSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: UNSORTED,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
 
   const table = useTable({
@@ -336,7 +300,6 @@ function useAssignmentsTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility, rowSelection },
     onRowSelectionChange,
   });

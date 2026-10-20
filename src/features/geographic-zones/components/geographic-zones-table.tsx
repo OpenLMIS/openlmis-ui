@@ -3,16 +3,15 @@ import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanst
 import type { TFunction } from 'i18next';
 import {
   AlertCircleIcon,
-  EllipsisIcon,
   EyeIcon,
   MapPinIcon,
   PencilIcon,
   SearchXIcon,
   UsersIcon,
 } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -22,16 +21,9 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { geographicZonesListOptions } from '@/features/geographic-zones/api/queries';
 import {
   CLEARED_GEOGRAPHIC_ZONE_FILTERS,
@@ -43,9 +35,8 @@ import {
 import { geographicZonePolicy } from '@/features/geographic-zones/lib/zone-form';
 import { geographicLevelsOptions } from '@/features/reference-data/api/queries';
 import type { GeographicLevel, GeographicZone } from '@/features/reference-data/lib/types';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import { usePageStart } from '@/hooks/use-page-start';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, GeographicZone>();
 
@@ -132,57 +123,30 @@ function GeographicZoneActions({
   actions: ZoneActions;
 }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
-  const cards = useInCards();
   if (!policy) return null;
   const label = t('geographic-zones.actions-for', { zone: zone.name });
-  if (cards) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          {
-            id: 'detail',
-            icon: policy.editable ? <PencilIcon /> : <EyeIcon />,
-            label: t(policy.editable ? 'geographic-zones.edit' : 'geographic-zones.view'),
-            onSelect: () => actions.onDetail(zone.id),
-          },
-          ...(policy.visualizable
-            ? [
-                {
-                  id: 'population',
-                  icon: <UsersIcon />,
-                  label: t('geographic-zones.visualize'),
-                  onSelect: () => actions.onPopulation(zone.id),
-                },
-              ]
-            : []),
-        ]}
-      />
-    );
-  }
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={menu.opensDialog(() => actions.onDetail(zone.id))}>
-              {policy.editable ? <PencilIcon /> : <EyeIcon />}
-              {t(policy.editable ? 'geographic-zones.edit' : 'geographic-zones.view')}
-            </DropdownMenuItem>
-            {policy.visualizable && (
-              <DropdownMenuItem onClick={menu.opensDialog(() => actions.onPopulation(zone.id))}>
-                <UsersIcon />
-                {t('geographic-zones.visualize')}
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'detail',
+          icon: policy.editable ? <PencilIcon /> : <EyeIcon />,
+          label: t(policy.editable ? 'geographic-zones.edit' : 'geographic-zones.view'),
+          onSelect: () => actions.onDetail(zone.id),
+        },
+        ...(policy.visualizable
+          ? [
+              {
+                id: 'population',
+                icon: <UsersIcon />,
+                label: t('geographic-zones.visualize'),
+                onSelect: () => actions.onPopulation(zone.id),
+              },
+            ]
+          : []),
+      ]}
+    />
   );
 }
 
@@ -220,16 +184,11 @@ function useGeographicZonesTable({
     () => createColumns(t, i18n.language, levels, automatic, { onDetail, onPopulation }),
     [t, i18n.language, levels, automatic, onDetail, onPopulation],
   );
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<GeographicZonesSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_GEOGRAPHIC_ZONES_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -241,7 +200,6 @@ function useGeographicZonesTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   return { table, pageStart };

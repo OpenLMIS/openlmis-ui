@@ -47,6 +47,8 @@ const CLOSED_DIALOGS = {
 // Legacy reloads the list on every visit; another admin may have changed a role since.
 const LIST_FRESH_FOR = 30 * 1000;
 
+const usePageCardView = () => useCardView(ROLE_HIDEABLE_COLUMNS, 'roles.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/roles')({
   validateSearch: rolesSearchSchema,
   loaderDeps: ({ search }) => ({ role: search.role }),
@@ -97,10 +99,7 @@ function RolesPage() {
     structuralSharing: true,
   });
   const anyDialogOpen = dialogs.role !== undefined || dialogs.rights !== undefined;
-  const { measure, cards, columnView, layout } = useCardView(
-    ROLE_HIDEABLE_COLUMNS,
-    'roles.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
 
   // Typing in a filter replaces the history entry; paging and sorting add one, so Back steps through them.
   const { updateSearch, openDialog, closeDialog } =
@@ -198,10 +197,7 @@ function RolesHeader() {
 
 /** While the rights check runs on a first visit: the page's header over a table skeleton. */
 function RolesPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    ROLE_HIDEABLE_COLUMNS,
-    'roles.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <RolesHeader />

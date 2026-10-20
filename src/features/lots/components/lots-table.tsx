@@ -1,10 +1,10 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { BoxesIcon, EllipsisIcon, PencilIcon, SearchXIcon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { BoxesIcon, PencilIcon, SearchXIcon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -15,14 +15,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
-import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { lotsListOptions } from '@/features/lots/api/queries';
 import {
   CLEARED_LOT_FILTERS,
@@ -31,9 +25,8 @@ import {
   toLotsQuery,
 } from '@/features/lots/lib/search';
 import type { LotRow } from '@/features/lots/lib/types';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import { usePageStart } from '@/hooks/use-page-start';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, LotRow>();
 
@@ -99,40 +92,21 @@ function createColumns(t: TFunction, language: string, onEdit: (id: string) => v
 
 function LotActions({ lot, onEdit }: { lot: LotRow; onEdit: (id: string) => void }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
 
   const label = t('lots.actions-for', { lot: lot.lotCode });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          {
-            id: 'edit',
-            icon: <PencilIcon />,
-            label: t('lots.edit'),
-            onSelect: () => onEdit(lot.id),
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuItem onClick={menu.opensDialog(() => onEdit(lot.id))}>
-            <PencilIcon />
-            {t('lots.edit')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'edit',
+          icon: <PencilIcon />,
+          label: t('lots.edit'),
+          onSelect: () => onEdit(lot.id),
+        },
+      ]}
+    />
   );
 }
 
@@ -166,16 +140,11 @@ function useLotsTable({
     () => createColumns(t, i18n.language, onEdit),
     [t, i18n.language, onEdit],
   );
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<LotsSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: NO_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
 
   const table = useTable({
@@ -188,7 +157,6 @@ function useLotsTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   return { table, pageStart };

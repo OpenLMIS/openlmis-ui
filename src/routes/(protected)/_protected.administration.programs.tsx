@@ -36,6 +36,8 @@ const ProgramFormDialog = lazy(() =>
 
 const CLOSED_DIALOGS = { program: undefined } satisfies Partial<ProgramsSearch>;
 
+const usePageCardView = () => useCardView(PROGRAM_HIDEABLE_COLUMNS, 'programs.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/programs')({
   validateSearch: programsSearchSchema,
   loaderDeps: ({ search }) => ({ program: search.program }),
@@ -55,10 +57,7 @@ function ProgramsPage() {
     structuralSharing: true,
   });
   const program = Route.useSearch({ select: (search) => search.program });
-  const { measure, cards, columnView, layout } = useCardView(
-    PROGRAM_HIDEABLE_COLUMNS,
-    'programs.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<ProgramsSearch>(CLOSED_DIALOGS);
   const addProgram = useCallback(() => openDialog({ program: 'new' }), [openDialog]);
@@ -135,10 +134,7 @@ function ProgramsHeader() {
 }
 
 function ProgramsPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    PROGRAM_HIDEABLE_COLUMNS,
-    'programs.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <ProgramsHeader />

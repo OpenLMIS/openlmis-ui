@@ -9,9 +9,9 @@ import {
   Trash2Icon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -22,7 +22,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { RoleRightsPopover } from '@/components/role-rights-popover';
-import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,13 +45,8 @@ import {
   TAB_RESET,
 } from '@/features/users/lib/roles-search';
 import type { LookupStatus } from '@/features/users/lib/use-role-lookups';
-import { usePageStart } from '@/hooks/use-page-start';
-import {
-  type SearchChange,
-  toPaginationState,
-  toSortingState,
-  useTableSearchState,
-} from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState, toSortingState } from '@/lib/table-search';
 import { cn } from '@/lib/utils';
 
 const columnHelper = createColumnHelper<DataTableFeatures, RoleRow>();
@@ -278,15 +273,11 @@ function useRoleTable({
     [t, tab, status, onRemove],
   );
   const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<RolesTableSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_ROLES_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
 
   const [{ id, desc }] = toSortingState(search, DEFAULT_ROLES_SORT) as [
@@ -311,7 +302,6 @@ function useRoleTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
   });
 
   return { table, matching: matching.length, pageStart };

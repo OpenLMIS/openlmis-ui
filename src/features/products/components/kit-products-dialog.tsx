@@ -100,7 +100,7 @@ function KitProductsForm({ kitId, inKit, onAdd, onDone }: KitProductsFormProps) 
     pageSize: PAGE_SIZE,
   });
   const [picked, setPicked] = useState<ReadonlyMap<string, Product>>(new Map());
-  const { measure, width, cards } = useDialogCardLayout<HTMLDivElement>('xl');
+  const { measure, width, cards } = useDialogCardLayout('xl');
 
   const results = useQuery({
     ...orderablesSearchOptions({

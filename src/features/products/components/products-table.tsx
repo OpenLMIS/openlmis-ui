@@ -2,10 +2,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, PackageIcon, PencilIcon, SearchXIcon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { PackageIcon, PencilIcon, SearchXIcon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -15,14 +15,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { productsListOptions } from '@/features/products/api/queries';
 import {
   CLEARED_PRODUCT_FILTERS,
@@ -33,8 +27,8 @@ import {
 } from '@/features/products/lib/search';
 import type { Product } from '@/features/products/lib/types';
 import { productName } from '@/features/reference-data/lib/product-name';
-import { usePageStart } from '@/hooks/use-page-start';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, Product>();
 
@@ -88,50 +82,24 @@ function ProductActions({ product, listSearch }: ProductActionsProps) {
     product: productName(product),
   });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          {
-            id: 'edit',
-            icon: <PencilIcon />,
-            label: t('products.edit'),
-            link: (
-              <Link
-                params={{ id: product.id }}
-                state={{ productsListSearch: listSearch }}
-                to="/administration/products/$id/general"
-              />
-            ),
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuItem
-            render={
-              <Link
-                params={{ id: product.id }}
-                state={{ productsListSearch: listSearch }}
-                to="/administration/products/$id/general"
-              />
-            }
-          >
-            <PencilIcon />
-            {t('products.edit')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'edit',
+          icon: <PencilIcon />,
+          label: t('products.edit'),
+          link: (
+            <Link
+              params={{ id: product.id }}
+              state={{ productsListSearch: listSearch }}
+              to="/administration/products/$id/general"
+            />
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -158,16 +126,11 @@ function useProductsTable({
 }: ProductsTableProps & { data: Product[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<ProductsSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_PRODUCTS_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
 
   const table = useTable({
@@ -180,7 +143,6 @@ function useProductsTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   return { table, pageStart };

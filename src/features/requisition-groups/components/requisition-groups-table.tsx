@@ -3,9 +3,9 @@ import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { EllipsisIcon, EyeIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -17,7 +17,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { ListError } from '@/components/list-error';
 import { Block } from '@/components/skeleton-block';
-import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -39,8 +39,8 @@ import {
   toSearchBody,
 } from '@/features/requisition-groups/lib/search';
 import type { RequisitionGroup } from '@/features/requisition-groups/lib/types';
-import { usePageStart } from '@/hooks/use-page-start';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, RequisitionGroup>();
 
@@ -241,16 +241,11 @@ function useRequisitionGroupsTable({
     () => createColumns(t, search, zones, zonesPending),
     [t, search, zones, zonesPending],
   );
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<RequisitionGroupsListSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: NO_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -262,7 +257,6 @@ function useRequisitionGroupsTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   return { table, pageStart };

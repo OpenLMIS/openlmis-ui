@@ -17,8 +17,6 @@ type ServiceAccountsToolbarProps = {
   disabled?: boolean;
 };
 
-const noop = () => {};
-
 export function ServiceAccountsToolbar({
   search,
   onSortChange,
@@ -44,15 +42,12 @@ export function ServiceAccountsToolbar({
   return (
     <DataTableToolbar>
       <DataTableViewOptions
-        columns={[]}
         disabled={disabled}
         layout={layout}
-        onVisibilityChange={noop}
         sort={{
           columns: [{ id: 'createdDate', label: t('service-accounts.created') }],
           ...searchSort(search, DEFAULT_SERVICE_ACCOUNTS_SORT, onSortChange),
         }}
-        visibility={{}}
       />
       <div className="flex-1">{add}</div>
     </DataTableToolbar>

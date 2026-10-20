@@ -69,7 +69,7 @@ function ProductsForm({
   );
   const [query, setQuery] = useState('');
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
-  const { measure, width, cards } = useDialogCardLayout<HTMLDivElement>('table');
+  const { measure, width, cards } = useDialogCardLayout('table');
   const initial = [...selectedIds].sort().join(':');
   const dirty = [...picked.keys()].sort().join(':') !== initial;
   useLayoutEffect(() => {

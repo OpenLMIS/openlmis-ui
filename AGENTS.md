@@ -462,7 +462,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   which tints, and enables the card's reason field. Cards ignore width defaults, so stored View
   choices apply; every visible detail is a row, `EMPTY_VALUE` when empty. View passes
   `layout="cards"` (Toggle Details). Use `usePageStart(key, cards)`
-  (`src/hooks/use-page-start.ts`) for the pager wrapper and navigation options. Each new card
+  (`src/hooks/use-page-start.ts`) for the pager wrapper and navigation options;
+  `usePagedTableSearch` wires it into `useTableSearchState` for URL-paged tables. Each new card
   page opens at its first card below the header; filters and past-end clamps never request a
   scroll. Confirm Reversal cards collapse behind `CardToggleBand`, showing the stock change in
   the band; every card starts collapsed and the dialog's cards have no shadow.
@@ -491,8 +492,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds
   history. A `select` column turns the band into `CardSelectBand`, with a Select Page control
   above the cards; `heading` renders group rows as headings, as on product Facility Types.
-  Components inside cells read `useInCards()` to render `CardActions` instead of their table
-  action. Every card band action, Stock included, goes through `CardActions`
+  Row action cells render `RowActions` with one `actions` list: `CardActions` in cards, the
+  table's ghost "..." menu otherwise; other cell components read `useInCards()`. Every card band action, Stock included, goes through `CardActions`
   (`src/components/card-actions.tsx`), given as data: outline icon buttons with a tooltip and the
   table's accessible name, tinted `destructive` for destructive ones, inside a group named like
   the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then

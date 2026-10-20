@@ -1,5 +1,5 @@
 import { EllipsisIcon } from 'lucide-react';
-import { type ReactElement, type ReactNode, useRef } from 'react';
+import { createContext, type ReactElement, type ReactNode, use, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -26,8 +26,10 @@ export type CardAction = {
 
 const MAX_BUTTONS = 3;
 
-export function cardActionCount(actions: number) {
-  return Math.min(actions, MAX_BUTTONS);
+export const InCardContext = createContext(false);
+
+export function useInCards() {
+  return use(InCardContext);
 }
 
 export function CardActions({ label, actions }: { label: string; actions: CardAction[] }) {
@@ -74,13 +76,31 @@ function CardActionButton({ action }: { action: CardAction }) {
   );
 }
 
-function CardActionsMenu({ actions, label }: { actions: CardAction[]; label: string }) {
+export function RowActions({ label, actions }: { label: string; actions: CardAction[] }) {
+  if (useInCards()) return <CardActions actions={actions} label={label} />;
+  if (actions.length === 0) return null;
+  return (
+    <div className="flex justify-end">
+      <CardActionsMenu actions={actions} label={label} variant="ghost" />
+    </div>
+  );
+}
+
+function CardActionsMenu({
+  actions,
+  label,
+  variant = 'outline',
+}: {
+  actions: CardAction[];
+  label: string;
+  variant?: 'outline' | 'ghost';
+}) {
   const menu = useMenuOpensDialog();
   const trigger = useRef<HTMLButtonElement>(null);
   return (
     <DropdownMenu onOpenChange={menu.onOpenChange}>
       <DropdownMenuTrigger
-        render={<Button aria-label={label} ref={trigger} size="icon-sm" variant="outline" />}
+        render={<Button aria-label={label} ref={trigger} size="icon-sm" variant={variant} />}
       >
         <EllipsisIcon />
       </DropdownMenuTrigger>
@@ -107,7 +127,7 @@ function CardActionsMenu({ actions, label }: { actions: CardAction[]; label: str
 }
 
 export function CardActionsSkeleton({ count }: { count: number }) {
-  const blocks = Array.from({ length: cardActionCount(count) }, (_, index) => index);
+  const blocks = Array.from({ length: Math.min(count, MAX_BUTTONS) }, (_, index) => index);
   return (
     <div className="flex shrink-0 gap-1">
       {blocks.map((block) => (

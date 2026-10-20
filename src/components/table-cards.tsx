@@ -1,6 +1,6 @@
 import { type Cell, flexRender, type Row, type RowData } from '@tanstack/react-table';
-import { createContext, type ReactNode, type Ref, use, useId } from 'react';
-import { CardActionsSkeleton } from '@/components/card-actions';
+import { type ReactNode, type Ref, use, useId } from 'react';
+import { CardActionsSkeleton, InCardContext } from '@/components/card-actions';
 import {
   CardBand,
   CardList,
@@ -18,8 +18,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { cn } from '@/lib/utils';
 
-const InCardContext = createContext(false);
-
 const ACTIONS = 'actions';
 const SELECT = 'select';
 
@@ -33,10 +31,6 @@ type TableCardsProps<TData extends RowData> = {
   heading?: (row: TData) => string | undefined;
   surface?: 'raised' | 'flat';
 };
-
-export function useInCards() {
-  return use(InCardContext);
-}
 
 export function TableCards<TData extends RowData>({
   table,

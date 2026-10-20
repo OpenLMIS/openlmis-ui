@@ -123,7 +123,7 @@ function ViewItems({
       ]),
     [t],
   );
-  const { measure, cards } = useDialogCardLayout<HTMLDivElement>('table');
+  const { measure, cards } = useDialogCardLayout('table');
   const state = useTableSearchState({
     search: { ...search, page },
     defaultSort: NO_SORT,

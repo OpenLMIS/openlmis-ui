@@ -2,17 +2,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import {
-  EllipsisIcon,
-  KeyRoundIcon,
-  PencilIcon,
-  SearchXIcon,
-  ShieldIcon,
-  UsersIcon,
-} from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { KeyRoundIcon, PencilIcon, SearchXIcon, ShieldIcon, UsersIcon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -23,14 +16,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
-import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { usersListOptions } from '@/features/users/api/queries';
 import {
   CLEARED_USER_FILTERS,
@@ -40,10 +27,9 @@ import {
   type UsersSearch,
 } from '@/features/users/lib/search';
 import type { UserListItem } from '@/features/users/lib/types';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
-import { usePageStart } from '@/hooks/use-page-start';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useAppName } from '@/lib/app-configuration';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 import { fullName } from '@/lib/text';
 
 const columnHelper = createColumnHelper<DataTableFeatures, UserListItem>();
@@ -113,70 +99,34 @@ type UserActionsProps = {
 
 function UserActions({ userId, username, listSearch, onEdit, onResetPassword }: UserActionsProps) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
   const label = t('users.actions-for', { username });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          { id: 'edit', icon: <PencilIcon />, label: t('users.edit'), onSelect: onEdit },
-          {
-            id: 'roles',
-            icon: <ShieldIcon />,
-            label: t('users.roles'),
-            link: (
-              <Link
-                params={{ id: userId }}
-                state={{ usersListSearch: listSearch }}
-                to="/administration/users/$id/roles"
-              />
-            ),
-          },
-          {
-            id: 'reset-password',
-            icon: <KeyRoundIcon />,
-            label: t('users.reset-password'),
-            destructive: true,
-            onSelect: onResetPassword,
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" finalFocus={menu.finalFocus} width="auto">
-          <DropdownMenuItem onClick={menu.opensDialog(onEdit)}>
-            <PencilIcon />
-            {t('users.edit')}
-          </DropdownMenuItem>
-          {/* A link, so it can open in a new tab to compare two users' roles. */}
-          <DropdownMenuItem
-            render={
-              <Link
-                params={{ id: userId }}
-                state={{ usersListSearch: listSearch }}
-                to="/administration/users/$id/roles"
-              />
-            }
-          >
-            <ShieldIcon />
-            {t('users.roles')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={menu.opensDialog(onResetPassword)} variant="destructive">
-            <KeyRoundIcon />
-            {t('users.reset-password')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        { id: 'edit', icon: <PencilIcon />, label: t('users.edit'), onSelect: onEdit },
+        {
+          id: 'roles',
+          icon: <ShieldIcon />,
+          label: t('users.roles'),
+          link: (
+            <Link
+              params={{ id: userId }}
+              state={{ usersListSearch: listSearch }}
+              to="/administration/users/$id/roles"
+            />
+          ),
+        },
+        {
+          id: 'reset-password',
+          icon: <KeyRoundIcon />,
+          label: t('users.reset-password'),
+          destructive: true,
+          onSelect: onResetPassword,
+        },
+      ]}
+    />
   );
 }
 
@@ -209,16 +159,11 @@ function useUsersTable({
     () => createColumns(t, { onEdit, onResetPassword, listSearch: search }),
     [t, onEdit, onResetPassword, search],
   );
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<UsersSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_USERS_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
 
   const table = useTable({
@@ -231,7 +176,6 @@ function useUsersTable({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   return { table, pageStart };

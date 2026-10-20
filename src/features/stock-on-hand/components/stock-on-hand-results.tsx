@@ -2,7 +2,7 @@ import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, useTable } from '@tanstack/react-table';
 import { ChevronDownIcon, EyeIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
-import { type ReactNode, type Ref, useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { type ReactNode, type Ref, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { CardActions, CardActionsSkeleton } from '@/components/card-actions';
@@ -49,11 +49,11 @@ import {
 } from '@/features/stock-on-hand/lib/search';
 import { summaryIds, toStockGroups } from '@/features/stock-on-hand/lib/stock-groups';
 import type { StockCardRow, StockProductGroup } from '@/features/stock-on-hand/lib/types';
-import { usePageStart } from '@/hooks/use-page-start';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { orEmpty, tableValue } from '@/lib/empty-value';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 type StockOnHandResultsProps = {
   cards: boolean;
@@ -97,16 +97,11 @@ export function StockOnHandResults({
   const toggle = (id: string, open: boolean) =>
     setCollapsed(open ? collapsed.filter((item) => item !== id) : [...collapsed, id]);
 
-  const { pageIndex, pageSize } = toPaginationState(deferredSearch);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onPageChange = useCallback<SearchChange<StockOnHandSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search: deferredSearch,
     defaultSort: NO_SORT,
-    onSearchChange: onPageChange,
+    onSearchChange,
+    cards,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -117,7 +112,6 @@ export function StockOnHandResults({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
   });
   const isPastLastPage = page.content.length === 0 && page.totalElements > 0;
 

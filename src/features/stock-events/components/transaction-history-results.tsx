@@ -36,9 +36,9 @@ import {
 } from '@/features/stock-events/lib/search';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
-import { usePageStart } from '@/hooks/use-page-start';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { EMPTY_VALUE, tableValue } from '@/lib/empty-value';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const NO_SORT = { id: 'date', desc: true };
 const columnHelper = createColumnHelper<DataTableFeatures, StockEventSummary>();
@@ -264,17 +264,12 @@ function useEventsTable({
   stale: boolean;
 }) {
   const columnDefs = useEventColumns(search, eventDay, stale);
-  const { pageIndex, pageSize } = toPaginationState(search, EVENTS_PAGE_SIZE);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onPageChange = useCallback<SearchChange<TransactionHistorySearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: NO_SORT,
     defaultPageSize: EVENTS_PAGE_SIZE,
-    onSearchChange: onPageChange,
+    onSearchChange,
+    cards,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -286,7 +281,6 @@ function useEventsTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility: columns },
   });
   return { table, pageStart };

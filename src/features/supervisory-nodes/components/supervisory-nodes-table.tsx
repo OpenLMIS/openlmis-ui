@@ -2,10 +2,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -14,15 +14,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
 import { supervisoryNodesPageOptions } from '@/features/supervisory-nodes/api/queries';
 import {
@@ -32,9 +25,9 @@ import {
   toSupervisoryNodesQuery,
 } from '@/features/supervisory-nodes/lib/search';
 import type { NodeRow } from '@/features/supervisory-nodes/lib/types';
-import { usePageStart } from '@/hooks/use-page-start';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { tableValue } from '@/lib/empty-value';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, NodeRow>();
 
@@ -127,52 +120,24 @@ function NodeActions({ node, listSearch }: { node: NodeRow; listSearch: Supervis
   const { t } = useTranslation();
   const label = t('supervisory-nodes.actions-for', { node: node.name || node.code });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          {
-            id: 'edit',
-            icon: <PencilIcon />,
-            label: t('supervisory-nodes.edit'),
-            link: (
-              <Link
-                params={{ id: node.id }}
-                state={{ supervisoryNodesListSearch: listSearch }}
-                to="/administration/supervisory-nodes/$id"
-              />
-            ),
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              render={
-                <Link
-                  params={{ id: node.id }}
-                  state={{ supervisoryNodesListSearch: listSearch }}
-                  to="/administration/supervisory-nodes/$id"
-                />
-              }
-            >
-              <PencilIcon />
-              {t('supervisory-nodes.edit')}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'edit',
+          icon: <PencilIcon />,
+          label: t('supervisory-nodes.edit'),
+          link: (
+            <Link
+              params={{ id: node.id }}
+              state={{ supervisoryNodesListSearch: listSearch }}
+              to="/administration/supervisory-nodes/$id"
+            />
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -198,16 +163,11 @@ function useSupervisoryNodesTable({
 }: SupervisoryNodesTableProps & { data: NodeRow[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<SupervisoryNodesSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: NO_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -219,7 +179,6 @@ function useSupervisoryNodesTable({
     manualSorting: true,
     enableSorting: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   return { table, pageStart };

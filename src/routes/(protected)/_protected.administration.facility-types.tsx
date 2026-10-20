@@ -38,6 +38,9 @@ const FacilityTypeFormDialog = lazy(() =>
 
 const CLOSED_DIALOGS = { facilityType: undefined } satisfies Partial<FacilityTypesSearch>;
 
+const usePageCardView = () =>
+  useCardView(FACILITY_TYPE_HIDEABLE_COLUMNS, 'facility-types.column-visibility');
+
 export const Route = createFileRoute('/(protected)/_protected/administration/facility-types')({
   validateSearch: facilityTypesSearchSchema,
   loaderDeps: ({ search }) => ({
@@ -61,10 +64,7 @@ function FacilityTypesPage() {
     structuralSharing: true,
   });
   const facilityType = Route.useSearch({ select: (search) => search.facilityType });
-  const { measure, cards, columnView, layout } = useCardView(
-    FACILITY_TYPE_HIDEABLE_COLUMNS,
-    'facility-types.column-visibility',
-  );
+  const { measure, cards, columnView, layout } = usePageCardView();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<FacilityTypesSearch>(CLOSED_DIALOGS);
   const addType = useCallback(() => openDialog({ facilityType: 'new' }), [openDialog]);
@@ -141,10 +141,7 @@ function FacilityTypesHeader() {
 }
 
 function FacilityTypesPagePending() {
-  const { measure, cards, columnView } = useCardView(
-    FACILITY_TYPE_HIDEABLE_COLUMNS,
-    'facility-types.column-visibility',
-  );
+  const { measure, cards, columnView } = usePageCardView();
   return (
     <Workspace>
       <FacilityTypesHeader />

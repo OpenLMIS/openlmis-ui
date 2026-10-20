@@ -30,16 +30,16 @@ export function useCardView<T extends HTMLElement = HTMLDivElement>(
   return { measure, cards, columnView, layout } as const;
 }
 
-const DIALOG_WIDTHS_REM = { lg: 32, table: 36, xl: 48, '2xl': 64 } as const;
+const DIALOG_WIDTHS_REM = { lg: 32, table: 36, xl: 48 } as const;
 
-export type CardDialogSize = keyof typeof DIALOG_WIDTHS_REM;
+type CardDialogSize = keyof typeof DIALOG_WIDTHS_REM;
 
 export const isDialogCards = (width: number | undefined, size: CardDialogSize, rem = 16) =>
   width !== undefined &&
   width < Math.min(CONTAINER_WIDTHS['2xl'], (DIALOG_WIDTHS_REM[size] - 2) * rem - 1);
 
-export function useDialogCardLayout<T extends HTMLElement>(size: CardDialogSize) {
-  const [measure, width] = useElementWidth<T>();
+export function useDialogCardLayout(size: CardDialogSize) {
+  const [measure, width] = useElementWidth<HTMLDivElement>();
   const [rem] = useState(
     () => Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
   );

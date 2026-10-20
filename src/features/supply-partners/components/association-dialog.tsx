@@ -133,7 +133,7 @@ export function AssociationDialog({ target, onClose, returnFocus, ...props }: Pr
     [props.onPendingChange],
   );
   const row = props.associations.find((item) => associationKey(item) === shown);
-  const { measure, cards } = useDialogCardLayout<HTMLDivElement>('table');
+  const { measure, cards } = useDialogCardLayout('table');
   return (
     <FormDialog
       {...dialogProps(pending)}

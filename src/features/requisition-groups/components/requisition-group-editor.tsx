@@ -19,7 +19,7 @@ import {
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { CardActions } from '@/components/card-actions';
+import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -57,7 +57,7 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Block } from '@/components/skeleton-block';
-import { TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -104,11 +104,11 @@ import type {
 } from '@/features/requisition-groups/lib/types';
 import { useCardView } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
-import { usePageStart } from '@/hooks/use-page-start';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { tableValue } from '@/lib/empty-value';
 import { queryKeys } from '@/lib/key-factory';
-import { type SearchChange, searchSort, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, searchSort } from '@/lib/table-search';
 
 export const REQUISITION_GROUP_LOOKUPS = {
   nodes: supervisoryNodesOptions(),
@@ -825,11 +825,6 @@ function MembersFields({
   const [adding, setAdding] = useState(false);
   const { measure, view, cards, layout } = useMemberColumnView();
   const page = useMemo(() => memberPage(rows, search), [rows, search]);
-  const pageStart = usePageStart<HTMLUListElement>(`${page.page}:${search.size ?? 10}`, cards);
-  const onTableChange = useCallback<SearchChange<RequisitionGroupEditorSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
   const remove = useCallback(
     (id: string, visible: number) => {
       const index = form.state.values.members.findIndex((item) => item.id === id);
@@ -843,10 +838,12 @@ function MembersFields({
     () => memberColumns(t, readOnly ? undefined : remove),
     [t, readOnly, remove],
   );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_MEMBER_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
+    page: `${page.page}:${search.size ?? 10}`,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -858,7 +855,6 @@ function MembersFields({
     manualSorting: true,
     enableSortingRemoval: false,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: {
       ...searchState.state,
       pagination: { ...searchState.state.pagination, pageIndex: page.page - 1 },

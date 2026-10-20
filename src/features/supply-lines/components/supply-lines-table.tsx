@@ -2,10 +2,10 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, EyeIcon, RouteIcon, SearchXIcon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
+import { EyeIcon, RouteIcon, SearchXIcon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -15,15 +15,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton, useInCards } from '@/components/table-cards';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { supplyLinesPageOptions } from '@/features/supply-lines/api/queries';
 import { ServedFacilitiesPopover } from '@/features/supply-lines/components/served-facilities-popover';
 import {
@@ -34,10 +27,10 @@ import {
   toSupplyLinesQuery,
 } from '@/features/supply-lines/lib/search';
 import type { SupplyLine } from '@/features/supply-lines/lib/types';
-import { usePageStart } from '@/hooks/use-page-start';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { markDialogOpened } from '@/hooks/use-search-navigation';
 import { tableValue } from '@/lib/empty-value';
-import { type SearchChange, toPaginationState, useTableSearchState } from '@/lib/table-search';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const columnHelper = createColumnHelper<DataTableFeatures, SupplyLine>();
 
@@ -103,54 +96,25 @@ function SupplyLineActions({
     program: node.program?.name ?? '',
   });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          {
-            id: 'view',
-            icon: <EyeIcon />,
-            label: t('supply-lines.view'),
-            link: (
-              <Link
-                search={{ ...listSearch, supplyLine: node.id }}
-                state={markDialogOpened}
-                resetScroll={false}
-                to="/administration/supply-lines"
-              />
-            ),
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              render={
-                <Link
-                  search={{ ...listSearch, supplyLine: node.id }}
-                  state={markDialogOpened}
-                  resetScroll={false}
-                  to="/administration/supply-lines"
-                />
-              }
-            >
-              <EyeIcon />
-              {t('supply-lines.view')}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'view',
+          icon: <EyeIcon />,
+          label: t('supply-lines.view'),
+          link: (
+            <Link
+              search={{ ...listSearch, supplyLine: node.id }}
+              state={markDialogOpened}
+              resetScroll={false}
+              to="/administration/supply-lines"
+            />
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -175,16 +139,11 @@ function useSupplyLinesTable({
 }: SupplyLinesTableProps & { data: SupplyLine[]; rowCount: number }) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, search), [t, search]);
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const pageStart = usePageStart<HTMLUListElement>(`${pageIndex}:${pageSize}`, cards);
-  const onTableChange = useCallback<SearchChange<SupplyLinesSearch>>(
-    (update) => onSearchChange(update, false, pageStart.navigation),
-    [onSearchChange, pageStart.navigation],
-  );
-  const searchState = useTableSearchState({
+  const { pageStart, searchState } = usePagedTableSearch({
     search,
     defaultSort: DEFAULT_SUPPLY_LINES_SORT,
-    onSearchChange: onTableChange,
+    onSearchChange,
+    cards,
   });
   const table = useTable({
     features: dataTableFeatures,
@@ -195,7 +154,6 @@ function useSupplyLinesTable({
     manualPagination: true,
     manualSorting: true,
     ...searchState,
-    onPaginationChange: pageStart.onPaginationChange(searchState.onPaginationChange),
     state: { ...searchState.state, columnVisibility },
   });
   return { table, pageStart };

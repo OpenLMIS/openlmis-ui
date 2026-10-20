@@ -114,7 +114,7 @@ export type SearchChange<TSearch> = (
   options?: { resetScroll?: boolean; keepState?: boolean },
 ) => void;
 
-type TableSearchStateOptions<TSearch extends TableSearch> = {
+export type TableSearchStateOptions<TSearch extends TableSearch> = {
   search: TableSearch;
   defaultSort: DefaultSort;
   defaultPageSize?: number;

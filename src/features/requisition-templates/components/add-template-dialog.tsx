@@ -62,7 +62,7 @@ export function AddTemplateDialog({
 }) {
   const { shown, dialogProps } = useDialogTarget(target, onClose);
   const pending = useIsMutating({ mutationKey: SAVE_KEY }) > 0;
-  const { measure, cards } = useDialogCardLayout<HTMLDivElement>('lg');
+  const { measure, cards } = useDialogCardLayout('lg');
   return (
     <FormDialog size="lg" {...dialogProps(pending)}>
       <div className="flex min-h-0 flex-1 flex-col" ref={measure}>
