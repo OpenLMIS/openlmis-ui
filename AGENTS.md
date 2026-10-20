@@ -914,6 +914,7 @@ Read the applicable skill before using it.
 | `plan-implementation` | Research legacy/ticket and write `plans/<KEY>.md` before code |
 | `review-pr` | Parallel correctness, simplification, conventions, React/shadcn and legacy review; fix verified findings |
 | `ticket-review` | Verify shipped acceptance criteria, comment and mark Done; never Epics |
+| `new-ui-rollout` | Add, update or remove the UI on a server without downtime; prepare deployment PRs |
 | `sync-translations` | Sync all catalogs after `en.json` changes |
 | `test-audit` | Audit test value, redundancy and feedback cost |
 | `shadcn` | Add, debug, style and compose shadcn components |
