@@ -46,8 +46,10 @@ export function FacilityTypesFields({
   emptyDescription,
   label,
   addLabel,
+  size = 'lg',
 }: {
   dialogCards?: boolean;
+  size?: 'default' | 'lg';
   label?: string;
   addLabel?: string;
   options: FacilityType[];
@@ -106,7 +108,7 @@ export function FacilityTypesFields({
           >
             <PickerAddField ref={pickerRef}>
               <ComboboxInput
-                size="lg"
+                size={size}
                 aria-label={pickerLabel}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}
@@ -130,7 +132,7 @@ export function FacilityTypesFields({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          <PickerAddButton disabled={!picked} onClick={add}>
+          <PickerAddButton disabled={!picked} onClick={add} size={size}>
             {addLabel ?? t('requisition-templates.configure.add')}
           </PickerAddButton>
         </PickerAdd>

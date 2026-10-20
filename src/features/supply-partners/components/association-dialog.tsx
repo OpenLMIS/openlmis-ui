@@ -708,6 +708,7 @@ function FacilityPicker({
         </ComboboxContent>
       </Combobox>
       <PickerAddButton
+        size="default"
         disabled={disabled || !picked}
         onClick={() => {
           if (picked) {

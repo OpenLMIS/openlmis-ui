@@ -252,6 +252,7 @@ function AddFacilityTypes({ cards, form }: { cards: boolean; form: TemplateForm 
     <form.AppField name="facilityTypeIds">
       {(field) => (
         <FacilityTypesFields
+          size="default"
           dialogCards={cards}
           key={`${values.programId}-${values.requisitionReportOnly}`}
           label={t('requisition-templates.form.facility-type')}

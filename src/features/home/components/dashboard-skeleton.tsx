@@ -53,8 +53,8 @@ export function ActionsSkeleton() {
   return (
     // Two children, like the buttons, so a stacked header stretches them the same way.
     <>
-      <Block className="h-10 w-28" />
-      <Block className="h-10 w-28" />
+      <Block className="h-9 w-28" />
+      <Block className="h-9 w-28" />
     </>
   );
 }
