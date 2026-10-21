@@ -53,10 +53,10 @@ name, code or lot and open a Stock Card from its View action. Queued events do n
 those balances until they sync and stock is downloaded again. Other facilities need a connection.
 
 View a Stock Card while connected to save its full history on this device. The app keeps the
-50 most recently fetched histories for your user. Offline, a card without saved history shows
-its downloaded balance and asks you to connect to view history. Saved history shows its own
-download time and may be older than the latest downloaded balance. Missing downloads show
-Connect To Download This Data. Reconnect to refresh stock and open histories you need.
+viewed home-facility histories for your user until a newer view replaces them. Offline, a card
+without saved history shows its downloaded balance and asks you to connect to view history. Saved history shows its own
+download time. A newer stock download supplies the balance; older history is shown only when
+its balance and active state still agree. Missing downloads show Not Available Offline. Reconnect to refresh stock and open histories you need.
 
 ## Reconnect And Review Offline Events
 
