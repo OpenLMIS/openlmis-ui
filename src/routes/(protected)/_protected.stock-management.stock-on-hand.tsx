@@ -41,7 +41,10 @@ import {
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
 import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
-import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
+import {
+  acceptsStockOnHandBundle,
+  homeStockProvider,
+} from '@/features/stock-events/lib/home-stock-provider';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
 import {
   prefetchStockOnHand,
@@ -333,7 +336,15 @@ function StockOnHandBody({
       })),
     [options.myPrograms, user.data.homeFacilityId],
   );
-  const downloaded = useDownloadedScopes(provider, scopes);
+  const downloaded = useDownloadedScopes(provider, scopes, {
+    enabled: !online,
+    accepts: acceptsStockOnHandBundle,
+  });
+  const programUnavailable = useCallback(
+    (programId: string) =>
+      !online && !downloaded.has(programId) ? t('stock-programs.offline-description') : undefined,
+    [online, downloaded, t],
+  );
   const applied = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
     [search.mode, search.programId, search.facilityId],
@@ -362,11 +373,7 @@ function StockOnHandBody({
     <>
       <FacilityProgramSelector
         applied={applied}
-        programUnavailable={(programId) =>
-          !online && !downloaded.has(programId)
-            ? t('stock-programs.offline-description')
-            : undefined
-        }
+        programUnavailable={programUnavailable}
         onDraftChange={setDraft}
         onSearch={onSearch}
         options={options}
@@ -588,8 +595,9 @@ function StockOnHandPrintButton({
   query,
 }: PrintButtonProps) {
   const { t } = useTranslation();
+  const online = useOnline();
   const { data: page } = useQuery({
-    ...stockCardSummariesOptions(query, readStockOnHandOnDevice, isOnline()),
+    ...stockCardSummariesOptions(query, readStockOnHandOnDevice, online),
     enabled: false,
   });
   const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');

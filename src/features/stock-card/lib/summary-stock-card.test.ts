@@ -31,11 +31,11 @@ it('uses newer bundle balances without presenting inconsistent older history', (
     device: bundle,
   });
 });
-it('keeps consistent history lines alongside a newer balance snapshot', () => {
+it('hides older history even when an issue and receipt leave the balance unchanged', () => {
   expect(project({ ...history, stockOnHand: 10 })).toMatchObject({
     stockOnHand: 10,
-    lineItems: history.lineItems,
-    summaryOnly: false,
+    lineItems: [],
+    summaryOnly: true,
     device: bundle,
   });
 });

@@ -1,6 +1,6 @@
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import type { OfflineAccess } from '@/lib/offline-access';
-import { hasProgramGrant, parsePermissions, programGrants } from '@/lib/permissions';
+import { parsePermissions, programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 
 type HomeStockProgramSources = {
@@ -52,12 +52,5 @@ export function homeStockScopes(access: HomeStockAccess) {
 export function isHomeStockScope(access: HomeStockAccess, facilityId: string, programId: string) {
   return homeStockScopes(access).some(
     (scope) => scope.facilityId === facilityId && scope.programId === programId,
-  );
-}
-
-export function offlineEventScopes(access: HomeStockAccess, right: string) {
-  const permissions = parsePermissions(access.permissionStrings);
-  return homeStockScopes(access).filter((scope) =>
-    hasProgramGrant(permissions, right, scope.facilityId, scope.programId),
   );
 }

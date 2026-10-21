@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { homeStockPrograms, homeStockScopes, offlineEventScopes } from '@/lib/stock-programs';
+import { homeStockPrograms, homeStockScopes } from '@/lib/stock-programs';
 import { offlineAccessFixture } from '@/tests/offline-access';
 
 const named = (id: string, name: string | null = id, code = id) => ({ id, name, code });
@@ -60,7 +60,7 @@ describe('homeStockPrograms', () => {
   });
 });
 
-it('narrows viewable home scopes to the exact event grant', () => {
+it('keeps home download scopes limited to viewing grants', () => {
   const access = offlineAccessFixture({
     programs: [
       { id: 'view', code: 'V', name: 'View', active: true },
@@ -78,7 +78,4 @@ it('narrows viewable home scopes to the exact event grant', () => {
       .map((scope) => scope.programId)
       .sort(),
   ).toEqual(['edit', 'view']);
-  expect(offlineEventScopes(access, 'STOCK_ADJUST').map((scope) => scope.programId)).toEqual([
-    'edit',
-  ]);
 });

@@ -54,9 +54,10 @@ those balances until they sync and stock is downloaded again. Other facilities n
 
 View a Stock Card while connected to save its full history on this device. The app keeps the
 viewed home-facility histories for your user until a newer view replaces them. Offline, a card
-without saved history shows its downloaded balance and asks you to connect to view history. Saved history shows its own
-download time. A newer stock download supplies the balance; older history is shown only when
-its balance and active state still agree. Missing downloads show Not Available Offline. Reconnect to refresh stock and open histories you need.
+without saved history shows its downloaded balance and asks you to connect to view history.
+Saved history shows its own download time. A newer stock download supplies the balance without
+older history lines, even when the balance and active state still agree. Missing downloads show
+Not Available Offline. Reconnect to refresh stock and open histories you need.
 
 ## Reconnect And Review Offline Events
 

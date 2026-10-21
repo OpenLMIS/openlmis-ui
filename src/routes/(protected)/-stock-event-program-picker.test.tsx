@@ -30,9 +30,13 @@ vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
     ] as DeviceEvent[],
   }),
 }));
-it.each([true, false])(
-  'shows pending work for this kind with connection-specific copy (online=%s)',
-  async (online) => {
+it.each([
+  { online: true, view: true },
+  { online: false, view: true },
+  { online: false, view: false },
+])(
+  'shows pending work for this kind with connection-specific copy (%o)',
+  async ({ online, view }) => {
     useLoginData
       .getState()
       .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
@@ -46,6 +50,7 @@ it.each([true, false])(
       resources: { en: { translation: en } },
     });
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    const permissions = ['STOCK_ADJUST|f|p', ...(view ? ['STOCK_CARDS_VIEW|f|p'] : [])];
     const program = { id: 'p', code: 'P', name: 'Medicines', active: true };
     client.setQueryData(userRecordOptions('u').queryKey, {
       id: 'u',
@@ -74,7 +79,7 @@ it.each([true, false])(
           userId: 'u',
           home: { id: 'f' },
           programs: [program],
-          rights: ['STOCK_ADJUST|f|p', 'STOCK_CARDS_VIEW|f|p'],
+          rights: permissions,
         }),
       );
     client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
@@ -82,7 +87,7 @@ it.each([true, false])(
       <I18nextProvider i18n={language}>
         <StockEventProgramPicker
           userId="u"
-          permissions={parsePermissions(['STOCK_ADJUST|f|p', 'STOCK_CARDS_VIEW|f|p'])}
+          permissions={parsePermissions(permissions)}
           kind="adjustment"
           editorLink={() => <a href="/edit">Edit</a>}
         />
@@ -106,6 +111,7 @@ it.each([true, false])(
     } else {
       expect(action).toHaveAttribute('aria-disabled', 'true');
       expect(action).toHaveAccessibleDescription(en['stock-programs.offline-description']);
+      if (!view) return;
       await act(async () => {
         await getLocalDb()
           .table(LOCAL_TABLES.homeStockDownloads)
@@ -114,9 +120,7 @@ it.each([true, false])(
             facilityTypeId: 'type',
             programId: 'p',
             userId: 'u',
-            formatVersion: 5,
-            summaries: [],
-            products: [],
+            formatVersion: 4,
             generation: 'available',
             fetchedAt: Date.now(),
             scanning: false,

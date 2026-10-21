@@ -787,7 +787,7 @@ it('refreshes a previously cached server card after reconnecting', async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { networkMode: 'always', retry: false } },
   });
-  client.setQueryData(stockCardOptions(card.id).queryKey, card);
+  client.setQueryData(stockCardOptions(card.id, undefined, true).queryKey, card);
   onlineManager.setOnline(false);
   renderRoute(path(), client);
   await screen.findByText('stock-card.offline-summary');

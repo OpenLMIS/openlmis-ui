@@ -8,15 +8,15 @@ import type {
   StockOnHandPage,
 } from '@/features/stock-on-hand/lib/types';
 import { deviceQuery } from '@/lib/device-query';
-import { homeStockBundleKeys } from '@/lib/key-factory';
+import { homeStockBundleKeys, queryKeys } from '@/lib/key-factory';
 
 export const stockCardSummariesOptions = (
   query: StockCardSummariesQuery,
-  device?: DeviceStockOnHandReader,
-  online = true,
+  device: DeviceStockOnHandReader | undefined,
+  online: boolean,
 ) =>
   deviceQuery({
-    queryKey: homeStockBundleKeys.summaries(query),
+    queryKey: queryKeys.stockCardSummaries.list(query),
     online,
     server: (): Promise<StockOnHandPage> => fetchStockCardSummaries(query),
     device: device ? () => device(query) : undefined,
@@ -27,8 +27,8 @@ export const stockCardSummariesOptions = (
 export function prefetchStockOnHand(
   queryClient: QueryClient,
   query: StockCardSummariesQuery,
-  device?: DeviceStockOnHandReader,
-  online = true,
+  device: DeviceStockOnHandReader | undefined,
+  online: boolean,
 ) {
   const options = stockCardSummariesOptions(query, device, online);
   queryClient.fetchQuery(options).then(
@@ -43,27 +43,24 @@ export function prefetchStockOnHand(
   );
 }
 
-import { fetchLotsByIds, fetchOrderablesByIds } from '@/features/reference-data/api/api';
-
 export function stockSummaryLookups(
   ids: ReturnType<typeof summaryIds>,
   device: StockOnHandPage['device'],
 ) {
   return [
-    {
-      queryKey: (device
-        ? homeStockBundleKeys.products(ids.orderableIds, device.generation)
-        : orderablesByIdsOptions(ids.orderableIds).queryKey) as readonly unknown[],
-      queryFn: () =>
-        device ? Promise.resolve(device.products) : fetchOrderablesByIds(ids.orderableIds),
-      staleTime: device ? Number.POSITIVE_INFINITY : 10 * 60 * 1000,
-    },
-    {
-      queryKey: (device
-        ? homeStockBundleKeys.lots(ids.lotIds, device.generation)
-        : lotsByIdsOptions(ids.lotIds).queryKey) as readonly unknown[],
-      queryFn: () => (device ? Promise.resolve(device.lots) : fetchLotsByIds(ids.lotIds)),
-      staleTime: device ? Number.POSITIVE_INFINITY : 10 * 60 * 1000,
-    },
+    device
+      ? {
+          queryKey: homeStockBundleKeys.products(ids.orderableIds, device.generation),
+          queryFn: () => Promise.resolve(device.products),
+          staleTime: Number.POSITIVE_INFINITY,
+        }
+      : orderablesByIdsOptions(ids.orderableIds),
+    device
+      ? {
+          queryKey: homeStockBundleKeys.lots(ids.lotIds, device.generation),
+          queryFn: () => Promise.resolve(device.lots),
+          staleTime: Number.POSITIVE_INFINITY,
+        }
+      : lotsByIdsOptions(ids.lotIds),
   ] as const;
 }

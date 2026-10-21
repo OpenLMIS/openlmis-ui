@@ -25,8 +25,8 @@ async function fetchViewedStockCard(id: string, access?: () => Promise<HomeStock
 
 export const stockCardOptions = (
   id: string,
-  device?: (id: string) => Promise<StockCard>,
-  online = true,
+  device: ((id: string) => Promise<StockCard>) | undefined,
+  online: boolean,
   access?: () => Promise<HomeStockAccess>,
 ) =>
   deviceQuery({

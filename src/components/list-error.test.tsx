@@ -36,38 +36,38 @@ describe('ListError', () => {
 
     expect(screen.getByText('no-access')).toBeInTheDocument();
   });
-});
 
-it('retries a missing device download automatically when the connection returns', async () => {
-  onlineManager.setOnline(false);
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, networkMode: 'always' } },
-  });
-  function Stock() {
-    const { data } = useSuspenseQuery({
-      queryKey: ['stock'],
-      queryFn: async () => {
-        if (!onlineManager.isOnline()) throw new LocalDataUnavailableError();
-        return 'Loaded stock';
-      },
+  it('retries a missing device download automatically when the connection returns', async () => {
+    onlineManager.setOnline(false);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, networkMode: 'always' } },
     });
-    return data;
-  }
-  render(
-    <QueryClientProvider client={client}>
-      <QueryBoundary
-        resetKey="stock"
-        pendingFallback="Loading"
-        errorComponent={({ error, reset }) => (
-          <ListError error={error} reset={reset} title="Error" description="Failed" />
-        )}
-      >
-        <Stock />
-      </QueryBoundary>
-    </QueryClientProvider>,
-    { onCaughtError: () => {} },
-  );
-  expect(await screen.findByText('offline.unavailable-title')).toBeInTheDocument();
-  act(() => onlineManager.setOnline(true));
-  expect(await screen.findByText('Loaded stock')).toBeInTheDocument();
+    function Stock() {
+      const { data } = useSuspenseQuery({
+        queryKey: ['stock'],
+        queryFn: async () => {
+          if (!onlineManager.isOnline()) throw new LocalDataUnavailableError();
+          return 'Loaded stock';
+        },
+      });
+      return data;
+    }
+    render(
+      <QueryClientProvider client={client}>
+        <QueryBoundary
+          resetKey="stock"
+          pendingFallback="Loading"
+          errorComponent={({ error, reset }) => (
+            <ListError error={error} reset={reset} title="Error" description="Failed" />
+          )}
+        >
+          <Stock />
+        </QueryBoundary>
+      </QueryClientProvider>,
+      { onCaughtError: () => {} },
+    );
+    expect(await screen.findByText('offline.unavailable-title')).toBeInTheDocument();
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByText('Loaded stock')).toBeInTheDocument();
+  });
 });

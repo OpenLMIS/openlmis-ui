@@ -4,16 +4,15 @@ import { Trans, useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
+import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
+import { useOnline } from '@/lib/online';
 
 type PendingMessage =
   | 'offline-events.program-pending-online'
   | 'offline-events.program-pending-offline'
   | 'offline-events.stock-pending-online'
   | 'offline-events.stock-pending-offline';
-
-import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
-import { useOnline } from '@/lib/online';
 
 export function PendingDeviceWork({
   match,

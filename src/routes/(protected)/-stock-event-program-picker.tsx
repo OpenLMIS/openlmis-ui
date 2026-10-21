@@ -29,15 +29,17 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
-import type { Program } from '@/features/reference-data/lib/types';
 import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
+import {
+  acceptsAdjustmentBundle,
+  homeStockProvider,
+} from '@/features/stock-events/lib/home-stock-provider';
 import { useDownloadedScopes } from '@/hooks/use-downloaded-scopes';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
-import { homeStockPrograms, offlineEventScopes } from '@/lib/stock-programs';
+import { homeStockPrograms } from '@/lib/stock-programs';
 
 export async function loadStockEventPrograms(
   queryClient: QueryClient,
@@ -191,8 +193,6 @@ function EventPrograms({ userId, permissions, right, renderTable }: ProgramSourc
     <HomePrograms
       renderTable={renderTable}
       grants={programGrants(permissions, right)}
-      permissions={permissions}
-      right={right}
       homeId={user.data.homeFacilityId}
       programs={programs.data}
     />
@@ -207,28 +207,14 @@ function HomePrograms({
   homeId: string;
   programs: readonly NamedRecord[];
   grants: readonly ProgramGrant[];
-  permissions: Permissions;
-  right: string;
   renderTable: ProgramSources['renderTable'];
 }) {
-  const online = useOnline();
   const { data: homeFacility } = useSuspenseQuery(homeFacilityOptions(homeId));
   return renderTable({
     hasHomeFacility: true,
     facilityId: homeId,
     facilityTypeId: homeFacility.type.id,
-    programs: online
-      ? homeStockPrograms({ homeFacility, ...sources })
-      : offlineEventScopes(
-          {
-            homeFacility,
-            programs: sources.programs as Program[],
-            permissionStrings: sources.permissions.grants.map(
-              (grant) => `${grant.right}|${grant.facilityId}|${grant.programId}`,
-            ),
-          },
-          sources.right,
-        ).flatMap((scope) => sources.programs.filter((program) => program.id === scope.programId)),
+    programs: homeStockPrograms({ homeFacility, ...sources }),
   });
 }
 
@@ -256,7 +242,10 @@ function ProgramsTable({
       })),
     [programs, facilityId],
   );
-  const downloaded = useDownloadedScopes(provider, scopes);
+  const downloaded = useDownloadedScopes(provider, scopes, {
+    enabled: !online,
+    accepts: acceptsAdjustmentBundle,
+  });
   return (
     <StockProgramPicker
       actionLabel={t(action)}

@@ -7,7 +7,34 @@ import {
 import { LOCAL_TABLES } from '@/integrations/local-db';
 import { type DownloadScope, defineDownloadProvider } from '@/lib/download-provider';
 import { getFlag } from '@/lib/feature-flags';
+import type { OfflineAccess } from '@/lib/offline-access';
 import { homeStockScopes } from '@/lib/stock-programs';
+
+export function acceptsAdjustmentBundle(
+  record: HomeStockBundle,
+  _access: OfflineAccess,
+  scope: HomeStockScope,
+) {
+  return (
+    record.facilityId === scope.facilityId &&
+    record.programId === scope.programId &&
+    record.facilityTypeId === scope.facilityTypeId &&
+    (record.formatVersion === 4 || record.formatVersion === 5)
+  );
+}
+
+export function acceptsStockOnHandBundle(
+  record: HomeStockBundle,
+  access: OfflineAccess,
+  scope: HomeStockScope,
+) {
+  return (
+    acceptsAdjustmentBundle(record, access, scope) &&
+    record.formatVersion === 5 &&
+    Array.isArray(record.summaries) &&
+    Array.isArray(record.products)
+  );
+}
 
 export function homeStockProvider(fetch = fetchHomeStockBundle) {
   return defineDownloadProvider<DownloadScope & HomeStockScope, HomeStockBundle>({
@@ -37,12 +64,6 @@ export function homeStockProvider(fetch = fetchHomeStockBundle) {
       record.userId === access.userId &&
       record.facilityTypeId === scope.facilityTypeId &&
       (!scope.scanning || record.scanning),
-    accepts: (record, _access, scope) =>
-      record.facilityId === scope.facilityId &&
-      record.programId === scope.programId &&
-      record.facilityTypeId === scope.facilityTypeId &&
-      record.formatVersion === 5 &&
-      Array.isArray(record.summaries) &&
-      Array.isArray(record.products),
+    accepts: acceptsStockOnHandBundle,
   });
 }

@@ -987,8 +987,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   failures. Definitive service errors and cancellations never fall back. Missing local data raises
   `LocalDataUnavailableError`, never a server 404. Preserve device markers and freshness bounds.
   Use `withOfflineAccess` when a read must select the saved access snapshot offline.
-- Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `offlineEventScopes`
-  for event grants. `useDownloadedScopes` checks accepted provider records for picker readiness.
+- Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `homeStockPrograms`
+  with event grants for event pickers. `useDownloadedScopes` applies caller acceptance offline.
   Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home
   stock; Stock Card keeps viewed home histories per owner until replaced by a newer view. Check home
   scope and exact grants separately from route capability; show local absence, never a 404.

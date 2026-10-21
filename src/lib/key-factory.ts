@@ -64,7 +64,6 @@ export const stockPickerFacilitiesKey = () =>
   [...queryKeys.facilities.all, 'minimal', 'stock-picker'] as const;
 
 export const homeStockBundleKeys = {
-  summaries: (query: Record<string, unknown>) => queryKeys.stockCardSummaries.list(query),
   products: (ids: string[], generation: string) =>
     ['home-stock-bundle', generation, 'products', ids.toSorted()] as const,
   lots: (ids: string[], generation: string) =>

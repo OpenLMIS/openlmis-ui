@@ -23,7 +23,7 @@ it('never saves a late server card into the next user database', async () => {
     }),
   );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const reading = queryClient.fetchQuery(stockCardOptions('card'));
+  const reading = queryClient.fetchQuery(stockCardOptions('card', undefined, true));
   const rejected = expect(reading).rejects.toBeInstanceOf(SessionEndedError);
   useLoginData.setState({ referenceDataUserId: 'next' });
   resolve({ id: 'card' } as StockCard);

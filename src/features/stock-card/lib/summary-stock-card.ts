@@ -16,9 +16,7 @@ export function summaryStockCard(
   device: DeviceSnapshot,
   history?: StockCard,
 ): StockCard {
-  if (history?.device && history.device.fetchedAt > device.fetchedAt) return history;
-  const consistent =
-    history && history.stockOnHand === card.stockOnHand && history.active === card.active;
+  if (history?.device && history.device.fetchedAt >= device.fetchedAt) return history;
   return {
     id: card.id,
     facility: { ...home, name: home.name ?? home.code },
@@ -30,8 +28,8 @@ export function summaryStockCard(
     lot: card.lot,
     stockOnHand: card.stockOnHand,
     active: card.active,
-    lineItems: consistent ? history.lineItems : [],
-    summaryOnly: !consistent,
+    lineItems: [],
+    summaryOnly: true,
     device,
   };
 }
