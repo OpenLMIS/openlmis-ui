@@ -22,9 +22,11 @@ import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import i18n from '@/integrations/i18n';
 import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
 import { isOnline } from '@/lib/online';
+import { getSessionScope, useSessionScope } from '@/lib/session-scope';
 import { DeviceStatusProvider } from '@/routes/-device-status-provider';
 
 export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: 'boot' | 'force' }) {
+  const scope = useSessionScope();
   const navigate = useNavigate();
   const reviewRefused = useCallback(() => {
     void navigate({ to: '/offline-events', search: { status: 'refused' } });
@@ -101,7 +103,9 @@ export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: 'boot' 
       refreshOfflineDownload,
     ],
   );
-  useEffect(() => publish(value), [publish, value]);
+  useEffect(() => {
+    if (scope === getSessionScope()) publish(value);
+  }, [publish, value, scope]);
   useEffect(() => () => publish(EMPTY_DEVICE_WORK), [publish]);
   return <DeviceStatusProvider />;
 }
