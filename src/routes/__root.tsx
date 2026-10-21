@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
-import { lazy, type ReactNode, Suspense, useCallback, useState } from 'react';
+import { lazy, type ReactNode, Suspense, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   type DeviceSync,
@@ -21,6 +21,7 @@ import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import { DialogCloseLabelProvider } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
 
 const DeviceWorkProvider = lazy(() =>
@@ -42,14 +43,19 @@ export function SignedInDeviceWork({ children }: { children: ReactNode }) {
     (value: DeviceSync) => setSync({ scope: getSessionScope(), value }),
     [],
   );
+  const value = useMemo(
+    () => ({
+      ...(authenticated && work.scope === scope ? work.value : EMPTY_DEVICE_WORK),
+      countUnsyncedWork: countUnsyncedDeviceWork,
+    }),
+    [authenticated, work, scope],
+  );
   const [initialTrigger, setInitialTrigger] = useState<'boot' | 'force'>(
     authenticated ? 'boot' : 'force',
   );
   if (!authenticated && initialTrigger !== 'force') setInitialTrigger('force');
   return (
-    <DeviceWorkContext
-      value={authenticated && work.scope === scope ? work.value : EMPTY_DEVICE_WORK}
-    >
+    <DeviceWorkContext value={value}>
       <DeviceWorkPublisher value={publish}>
         <DeviceSyncContext
           value={authenticated && sync.scope === scope ? sync.value : EMPTY_DEVICE_SYNC}
