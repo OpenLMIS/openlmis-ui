@@ -602,7 +602,7 @@
   "offline-events.stock-card": "Cartão De Estoque: {product}",
   "offline-events.stock-changed": "Estoque Alterado",
   "offline-events.stock-changed-description": "O estoque mudou na data do evento ou depois. O servidor recusou o evento inteiro. Revise o original antes de corrigi-lo.",
-  "offline-events.stock-pending": "<strong>O stock disponível pode não estar correto.</strong> {count, plural, one {# evento aguarda sincronização ou precisa de revisão.} other {# eventos aguardam sincronização ou precisam de revisão.}} Consulte <eventLink>Eventos offline</eventLink> para mais detalhes.",
+  "offline-events.stock-pending": "<strong>O stock disponível pode não estar correto.</strong> {count, plural, one {# evento aguarda sincronização ou precisa de revisão.} other {# eventos aguardam sincronização ou precisam de revisão.}} Consulte <eventLink>Eventos Offline</eventLink> para mais detalhes.",
   "offline-events.sync-complete": "Eventos Offline Sincronizados",
   "offline-events.sync-failed": "Sincronização Pausada",
   "offline-events.sync-failed-description": "Não foi possível preparar uma sincronização segura. Verifique sua conexão e tente novamente.",

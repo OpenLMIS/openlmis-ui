@@ -38,10 +38,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { fetchLotsByIds, fetchOrderablesByIds } from '@/features/reference-data/api/api';
 import { productName } from '@/features/reference-data/lib/product-name';
 import type { Orderable } from '@/features/reference-data/lib/types';
-import { stockCardSummariesOptions } from '@/features/stock-on-hand/api/queries';
+import {
+  stockCardSummariesOptions,
+  stockSummaryLookups,
+} from '@/features/stock-on-hand/api/queries';
 import {
   CLEARED_STOCK_FILTERS,
   type StockOnHandSearch,
@@ -49,11 +51,14 @@ import {
   toSummariesQuery,
 } from '@/features/stock-on-hand/lib/search';
 import { summaryIds, toStockGroups } from '@/features/stock-on-hand/lib/stock-groups';
-import type { StockCardRow, StockProductGroup } from '@/features/stock-on-hand/lib/types';
+import type {
+  DeviceStockOnHandReader,
+  StockCardRow,
+  StockProductGroup,
+} from '@/features/stock-on-hand/lib/types';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { orEmpty, tableValue } from '@/lib/empty-value';
-import { queryKeys } from '@/lib/key-factory';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
@@ -67,7 +72,7 @@ type StockOnHandResultsProps = {
   columns: ColumnVisibilityState;
   collapsedKey: string;
   onSearchChange: SearchChange<StockOnHandSearch>;
-  readOnDevice?: import('@/features/stock-on-hand/lib/types').DeviceStockOnHandReader;
+  readOnDevice?: DeviceStockOnHandReader;
 };
 
 const collapsedSchema = z.array(z.string());
@@ -92,28 +97,7 @@ export function StockOnHandResults({
   const { data: page } = useSuspenseQuery(stockCardSummariesOptions(query, readOnDevice));
   const ids = useMemo(() => summaryIds(page.content), [page]);
   const [orderables, lots] = useSuspenseQueries({
-    queries: [
-      {
-        queryKey: queryKeys.orderables.list({
-          ids: ids.orderableIds.toSorted(),
-          ...(page.device ? { deviceGeneration: page.device.generation } : {}),
-        }),
-        queryFn: () =>
-          page.device
-            ? Promise.resolve(page.device.products)
-            : fetchOrderablesByIds(ids.orderableIds),
-        staleTime: 5 * 60 * 1000,
-      },
-      {
-        queryKey: queryKeys.lots.list({
-          ids: ids.lotIds.toSorted(),
-          ...(page.device ? { deviceGeneration: page.device.generation } : {}),
-        }),
-        queryFn: () =>
-          page.device ? Promise.resolve(page.device.lots) : fetchLotsByIds(ids.lotIds),
-        staleTime: 5 * 60 * 1000,
-      },
-    ],
+    queries: stockSummaryLookups(ids, page.device),
   });
   const includeInactive = showsInactive(deferredSearch);
   const groups = useMemo(
@@ -204,10 +188,9 @@ export function StockOnHandResults({
   return (
     <>
       {page.device && (
-        <div className="flex flex-col gap-1">
-          <p className="text-muted-foreground text-sm">{t('stock-on-hand.offline-snapshot')}</p>
-          <DownloadedAt timestamp={page.device.fetchedAt} />
-        </div>
+        <DownloadedAt timestamp={page.device.fetchedAt}>
+          {t('stock-on-hand.offline-snapshot')}
+        </DownloadedAt>
       )}
       {page.device && pendingEvents}
       {cards ? (

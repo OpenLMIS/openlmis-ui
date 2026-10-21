@@ -46,7 +46,7 @@ import {
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
 import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
 import { offlineAccessQuery, withOfflineAccess } from '@/lib/offline-access';
-import { getConnectionGeneration, isOnline } from '@/lib/online';
+import { isOnline } from '@/lib/online';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
 const LOOKUP_STALE_TIME = 10 * 60 * 1000;
@@ -64,7 +64,7 @@ export const stockPickerFacilitiesOptions = (online = isOnline()) =>
       ...queryKeys.facilities.all,
       'minimal',
       'stock-picker',
-      online ? getConnectionGeneration() : 'device',
+      online ? 'server' : 'device',
     ] as const,
     queryFn: () =>
       withOfflineAccess(fetchMinimalFacilities, (saved) =>

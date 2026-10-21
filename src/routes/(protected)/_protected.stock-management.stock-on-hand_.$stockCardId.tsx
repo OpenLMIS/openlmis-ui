@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import {
   createFileRoute,
   type ErrorComponentProps,
@@ -39,6 +40,7 @@ import {
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { fetchStockCardReport } from '@/features/stock-card/api/api';
 import { stockCardOptions } from '@/features/stock-card/api/queries';
 import {
@@ -59,7 +61,7 @@ import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
-import { useOnline } from '@/lib/online';
+import { useOnline, useOnReconnect } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
@@ -99,6 +101,7 @@ export const Route = createFileRoute(
   },
   preload: false,
   loader: async ({ context: { queryClient }, params, cause }) => {
+    queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const userId = useLoginData.getState().referenceDataUserId;
     const options = stockCardOptions(params.stockCardId, readStockCardOnDevice);
     const state = queryClient.getQueryState(options.queryKey);
@@ -129,13 +132,22 @@ function StockCardPage() {
   const data = Route.useLoaderData();
   const search = Route.useSearch();
   const online = useOnline();
+  const { stockCardId } = Route.useParams();
+  const queryClient = useQueryClient();
   const wasOnline = useRef(online);
   const router = useRouter();
   useEffect(() => {
     if (wasOnline.current === online) return;
     wasOnline.current = online;
-    void router.invalidate();
+    if (!online) void router.invalidate();
   }, [online, router]);
+  useOnReconnect(() => {
+    void queryClient.invalidateQueries({
+      queryKey: stockCardOptions(stockCardId, readStockCardOnDevice).queryKey,
+      exact: true,
+    });
+    void router.invalidate();
+  });
   const eventSearch = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
     [search.mode, search.programId, search.facilityId],
@@ -170,16 +182,11 @@ function StockCardPage() {
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
           {data.card.downloadedAt !== undefined && (
-            <div className="flex flex-col gap-1">
-              <p className="text-muted-foreground text-sm">
-                {t(
-                  data.card.summaryOnly
-                    ? 'stock-card.offline-summary'
-                    : 'stock-card.offline-history',
-                )}
-              </p>
-              <DownloadedAt timestamp={data.card.downloadedAt} />
-            </div>
+            <DownloadedAt timestamp={data.card.downloadedAt}>
+              {t(
+                data.card.summaryOnly ? 'stock-card.offline-summary' : 'stock-card.offline-history',
+              )}
+            </DownloadedAt>
           )}
           <DataTableToolbar align="end">
             {canSwitch && (

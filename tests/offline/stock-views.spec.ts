@@ -79,10 +79,6 @@ for (const language of ['en', 'ar']) {
       await expect(page.locator('html')).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(page.getByText('Fixture Product', { exact: true }).first()).toBeVisible();
-      await page.screenshot({
-        path: `.offline/stock-on-hand-${language}-phone.png`,
-        fullPage: true,
-      });
       await page.setViewportSize({ width: 1440, height: 1000 });
       await page.goto('./stock-management/stock-on-hand/card');
       await expect(page.getByText('SAVED-HISTORY-1', { exact: true })).toBeVisible();
@@ -91,13 +87,8 @@ for (const language of ['en', 'ar']) {
       await expect(
         page.getByText(labels['stock-card.offline-history'], { exact: true }),
       ).toBeVisible();
-      await page.screenshot({
-        path: `.offline/stock-card-${language}-desktop.png`,
-        fullPage: true,
-      });
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(page.getByText('SAVED-HISTORY-1', { exact: true })).toBeVisible();
-      await page.screenshot({ path: `.offline/stock-card-${language}-phone.png`, fullPage: true });
       await page.goto('./stock-management/stock-on-hand/missing');
       await expect(
         page.getByText(labels['offline.notice-title'], { exact: true }).first(),

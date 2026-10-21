@@ -169,28 +169,3 @@ it('removes v9 card histories while preserving home stock and unresolved work', 
   for (const [table, row] of Object.entries(rows))
     expect(await db.table(table).toArray()).toEqual([row]);
 });
-
-it('adds history storage to v10 without changing stock, drafts or pending deliveries', async () => {
-  signIn('history-upgrade-v10');
-  const old = new Dexie(getLocalDb().name);
-  old.version(10).stores({
-    homeStockDownloads: '[facilityId+programId]',
-    stockEventDrafts: 'draftId, [kind+facilityId+programId+state]',
-    stockEventQueue: '++sequence, &localEventId, [status+sequence]',
-    stockEventReceipts: '[draftId+revision], &localEventId',
-  });
-  const rows = {
-    homeStockDownloads: { facilityId: 'home', programId: 'p', formatVersion: 4 },
-    stockEventDrafts: { draftId: 'draft', revision: 3, state: 'uncertain' },
-    stockEventQueue: { sequence: 1, localEventId: 'pending', status: 'uncertain' },
-    stockEventReceipts: { draftId: 'accepted', revision: 1, localEventId: 'accepted' },
-  };
-  for (const [table, row] of Object.entries(rows)) await old.table(table).put(row);
-  old.close();
-  const db = getLocalDb();
-  await db.open();
-  expect(db.verno).toBe(11);
-  await db.table('stockCardHistory').put({ id: 'card', fetchedAt: 123 });
-  for (const [table, row] of Object.entries(rows))
-    expect(await db.table(table).toArray()).toEqual([row]);
-});

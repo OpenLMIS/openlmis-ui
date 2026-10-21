@@ -20,7 +20,7 @@ export function PendingDeviceWork(
         ? event.kind === props.kind && isPendingDeviceEvent(event)
         : event.facilityId === props.facilityId &&
           event.programId === props.programId &&
-          ['queued', 'sending', 'uncertain'].includes(event.status),
+          isPendingDeviceEvent(event),
     ).length ?? 0;
   if (!count) return null;
   return (

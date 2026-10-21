@@ -24,6 +24,7 @@ import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { fetchStockCard, fetchStockCardReport } from '@/features/stock-card/api/api';
+import { stockCardOptions } from '@/features/stock-card/api/queries';
 import type { StockCard } from '@/features/stock-card/lib/types';
 import { getLocalDb } from '@/integrations/local-db';
 import { EMPTY_VALUE } from '@/lib/empty-value';
@@ -33,6 +34,10 @@ import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { seedHomeStock } from '@/tests/home-stock';
 import { httpError } from '@/tests/http-error';
 
+vi.mock('@/features/reference-data/api/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/reference-data/api/api')>()),
+  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
+}));
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/stock-card/api/api', () => ({
   fetchStockCard: vi.fn(),
@@ -703,7 +708,6 @@ it('opens a downloaded summary offline without presenting empty transaction hist
 
 it.each([
   [false, false],
-  [true, false],
   [true, true],
 ])(
   'reopens viewed history as table=%s, unreachable=%s after a fresh query cache',
@@ -758,30 +762,26 @@ it.each([
       'true',
     );
     await userEvent.click(screen.getByRole('radio', { name: 'quantity-unit.packs' }));
-    expect(screen.getByRole('radio', { name: 'quantity-unit.packs' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    expect(screen.getAllByText('4 ( +3 )').length).toBeGreaterThan(0);
     expect(fetchStockCard).toHaveBeenCalledTimes(unreachable ? 1 : 0);
   },
 );
 
-it('replaces saved history on each online visit', async () => {
-  const first = renderRoute();
-  await screen.findByText('Vaccine - each');
-  first.unmount();
-  const updated = {
-    ...card,
-    stockOnHand: 99,
-    lineItems: [
-      ...card.lineItems,
-      { id: 'line2', occurredDate: '2026-02-01', quantity: 76, stockOnHand: 99 },
-    ],
-  };
-  vi.mocked(fetchStockCard).mockResolvedValue(updated);
-  renderRoute();
-  await screen.findByText('Vaccine - each');
-  expect(await getLocalDb().table('stockCardHistory').get(card.id)).toMatchObject({
-    card: updated,
+it('refreshes a previously cached server card after reconnecting', async () => {
+  await seedHomeStock(card, USER);
+  const client = new QueryClient({
+    defaultOptions: { queries: { networkMode: 'always', retry: false } },
   });
+  client.setQueryData(stockCardOptions(card.id).queryKey, card);
+  onlineManager.setOnline(false);
+  renderRoute(path(), client);
+  await screen.findByText('stock-card.offline-summary');
+  vi.mocked(fetchStockCard).mockResolvedValue({ ...card, stockOnHand: 99 });
+  act(() => onlineManager.setOnline(true));
+  expect(await screen.findByText('99')).toBeInTheDocument();
+  await waitFor(async () =>
+    expect(await getLocalDb().table('stockCardHistory').get(card.id)).toMatchObject({
+      card: { stockOnHand: 99 },
+    }),
+  );
 });

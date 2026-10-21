@@ -6,6 +6,7 @@ import {
 import { registerNavRights } from '@/lib/nav-rights';
 import { registerOfflinePages } from '@/lib/offline-pages';
 
+registerOfflinePages(['/stock-management/stock-on-hand'], ['STOCK_CARDS_VIEW']);
 registerOfflinePages(
   OFFLINE_EVENT_KINDS.map((kind) => kind.listRoute),
   OFFLINE_EVENT_RIGHTS,

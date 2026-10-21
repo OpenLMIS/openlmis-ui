@@ -117,9 +117,6 @@ export async function readEventStockCards(
     if (!byVersion.has(key(identity.id, identity.versionNumber)))
       throw new Error('Stock card product version not found');
   const byId = new Map(unversioned.map((product) => [product.id, product]));
-  for (const identity of requested)
-    if (identity.versionNumber === undefined && !byId.has(identity.id))
-      throw new Error('Stock summary product not found');
   const byLot = new Map(lots.map((lot) => [lot.id, lot]));
   const hydrated = entries.map((card) => {
     const product =

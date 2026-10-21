@@ -48,3 +48,29 @@ export function prefetchStockOnHand(
     () => {},
   );
 }
+
+export function stockSummaryLookups(
+  ids: ReturnType<typeof summaryIds>,
+  device: StockOnHandPage['device'],
+) {
+  if (!device)
+    return [orderablesByIdsOptions(ids.orderableIds), lotsByIdsOptions(ids.lotIds)] as const;
+  return [
+    queryOptions({
+      queryKey: queryKeys.orderables.list({
+        ids: ids.orderableIds.toSorted(),
+        deviceGeneration: device.generation,
+      }),
+      queryFn: async () => device.products,
+      staleTime: Number.POSITIVE_INFINITY,
+    }),
+    queryOptions({
+      queryKey: queryKeys.lots.list({
+        ids: ids.lotIds.toSorted(),
+        deviceGeneration: device.generation,
+      }),
+      queryFn: async () => device.lots,
+      staleTime: Number.POSITIVE_INFINITY,
+    }),
+  ] as const;
+}

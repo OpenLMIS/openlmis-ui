@@ -602,7 +602,7 @@
   "offline-events.stock-card": "Tarjeta De Existencias: {product}",
   "offline-events.stock-changed": "Existencias Modificadas",
   "offline-events.stock-changed-description": "Las existencias cambiaron en la fecha del evento o después. El servidor rechazó todo el evento. Revise el original antes de corregirlo.",
-  "offline-events.stock-pending": "<strong>Las existencias disponibles pueden no ser exactas.</strong> {count, plural, one {# evento está pendiente de sincronización o necesita revisión.} other {# eventos están pendientes de sincronización o necesitan revisión.}} Consulte <eventLink>Eventos sin conexión</eventLink> para ver los detalles.",
+  "offline-events.stock-pending": "<strong>Las existencias disponibles pueden no ser exactas.</strong> {count, plural, one {# evento está pendiente de sincronización o necesita revisión.} other {# eventos están pendientes de sincronización o necesitan revisión.}} Consulte <eventLink>Eventos Sin Conexión</eventLink> para ver los detalles.",
   "offline-events.sync-complete": "Eventos Sin Conexión Sincronizados",
   "offline-events.sync-failed": "Sincronización En Pausa",
   "offline-events.sync-failed-description": "No se pudo preparar una sincronización segura. Compruebe su conexión e inténtelo de nuevo.",

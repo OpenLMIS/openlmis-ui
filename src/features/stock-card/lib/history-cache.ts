@@ -1,5 +1,9 @@
 import type { StockCard } from '@/features/stock-card/lib/types';
+import { LocalDataUnavailableError } from '@/lib/local-data';
+import { type OfflineAccess, readOfflineAccess } from '@/lib/offline-access';
+import { parsePermissions, programGrants } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { homeStockPrograms } from '@/lib/stock-programs';
 
 type SavedStockCard = {
   id: string;
@@ -9,10 +13,25 @@ type SavedStockCard = {
   formatVersion: 1;
 };
 
-const HISTORY_LIMIT = 50;
-
 export async function saveStockCardHistory(card: StockCard) {
   const scope = getSessionScope();
+  let access: OfflineAccess;
+  try {
+    access = await readOfflineAccess();
+  } catch (error) {
+    if (error instanceof LocalDataUnavailableError) return;
+    throw error;
+  }
+  assertSessionScope(scope);
+  if (
+    card.facility.id !== access.homeFacility?.id ||
+    !homeStockPrograms({
+      homeFacility: access.homeFacility,
+      programs: access.programs,
+      grants: programGrants(parsePermissions(access.permissionStrings), 'STOCK_CARDS_VIEW'),
+    }).some((program) => program.id === card.program.id)
+  )
+    return;
   const fetchedAt = Date.now();
   const { getLocalDb, getLocalDbUserId } = await import('@/integrations/local-db');
   assertSessionScope(scope);
@@ -22,10 +41,6 @@ export async function saveStockCardHistory(card: StockCard) {
   await db.transaction('rw', table, async () => {
     assertSessionScope(scope);
     await table.put({ id: card.id, userId, card, fetchedAt, formatVersion: 1 });
-    assertSessionScope(scope);
-    const obsolete = await table.orderBy('fetchedAt').reverse().offset(HISTORY_LIMIT).primaryKeys();
-    assertSessionScope(scope);
-    await table.bulkDelete(obsolete);
     assertSessionScope(scope);
   });
   assertSessionScope(scope);

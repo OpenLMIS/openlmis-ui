@@ -34,6 +34,7 @@ import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  deploymentTimeZoneOptions,
   stockPickerFacilitiesOptions,
   userProgramsOptions,
   userRecordOptions,
@@ -98,6 +99,7 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
   // The inactive box only filters the page shown, so it never reloads.
   loaderDeps: ({ search: { includeInactive: _includeInactive, ...search } }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
+    queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;

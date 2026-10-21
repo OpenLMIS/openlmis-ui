@@ -112,7 +112,7 @@ it('rejects other facilities, undownloaded programs and programs without the req
   );
   vi.mocked(readOfflineAccess).mockResolvedValue({
     ...access,
-    permissionStrings: ['STOCK_CARDS_VIEW|home|p'],
+    permissionStrings: ['STOCK_ADJUST|home|p'],
   } as never);
   await expect(readStockOnHandOnDevice(query)).rejects.toBeInstanceOf(LocalDataUnavailableError);
   await expect(readStockCardOnDevice('c')).rejects.toBeInstanceOf(LocalDataUnavailableError);
@@ -179,3 +179,36 @@ it('keeps cached history restricted to eligible home programs after access chang
   vi.mocked(readOfflineAccess).mockResolvedValue({ ...access, permissionStrings: [] } as never);
   await expect(readStockCardOnDevice('c')).rejects.toBeInstanceOf(LocalDataUnavailableError);
 });
+
+it('serves view-only home stock and histories without adjustment rights', async () => {
+  vi.mocked(readOfflineAccess).mockResolvedValue({
+    ...access,
+    permissionStrings: ['STOCK_CARDS_VIEW|home|p'],
+  } as never);
+  expect((await readStockOnHandOnDevice(query)).content).toEqual(bundle.summaries);
+  expect(await readStockCardOnDevice('c')).toMatchObject({ id: 'c' });
+});
+
+it.each([7, null])(
+  'totals only matching lots, including unknown balances (%s)',
+  async (balance) => {
+    const entry = bundle.summaries[0].canFulfillForMe[0];
+    vi.mocked(readHomeStockBundle).mockResolvedValue({
+      ...bundle,
+      summaries: [
+        {
+          ...bundle.summaries[0],
+          stockOnHand: 99,
+          canFulfillForMe: [
+            { ...entry, stockOnHand: balance },
+            { ...entry, lot: null, stockOnHand: 92 },
+          ],
+        },
+      ],
+    } as never);
+    expect((await readStockOnHandOnDevice(query)).content[0].stockOnHand).toBe(99);
+    const page = await readStockOnHandOnDevice({ ...query, lotCode: 'L1' });
+    expect(page.content[0].stockOnHand).toBe(balance);
+    expect(page.content[0].canFulfillForMe).toHaveLength(1);
+  },
+);

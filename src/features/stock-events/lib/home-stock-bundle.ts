@@ -115,6 +115,9 @@ async function fetchBundle(
     ),
   ]);
   check();
+  const productIds = new Set(products.map((product) => product.id));
+  if (summaries.some((summary) => !productIds.has(summary.orderable.id)))
+    throw new Error('Stock summary product not found');
   const hydrated: HomeStockCard[] = cards.map((card) => ({
     ...card,
     orderable: snapshotProduct(card.orderable),

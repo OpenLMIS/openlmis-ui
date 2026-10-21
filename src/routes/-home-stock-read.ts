@@ -47,7 +47,21 @@ export async function readStockOnHandOnDevice(
     const entries = summary.canFulfillForMe.filter((entry) =>
       matches(entry.lot ? byLot.get(entry.lot.id)?.lotCode : undefined, query.lotCode),
     );
-    return entries.length ? [{ ...summary, canFulfillForMe: entries }] : [];
+    const balances = entries.flatMap((entry) =>
+      entry.stockOnHand === null ? [] : [entry.stockOnHand],
+    );
+    const stockOnHand = balances.length
+      ? balances.reduce((total, value) => total + value, 0)
+      : null;
+    return entries.length
+      ? [
+          {
+            ...summary,
+            stockOnHand: query.lotCode ? stockOnHand : summary.stockOnHand,
+            canFulfillForMe: entries,
+          },
+        ]
+      : [];
   });
   return {
     content: summaries.slice(query.page * query.size, (query.page + 1) * query.size),
