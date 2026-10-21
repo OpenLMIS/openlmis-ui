@@ -7,6 +7,7 @@ import {
   InfoIcon,
   PaperclipIcon,
   Trash2Icon,
+  TriangleAlertIcon,
   UploadIcon,
   XIcon,
 } from 'lucide-react';
@@ -296,7 +297,7 @@ function FieldFrame({
   const stackedHeading = labelAction ? (
     <div className="flex items-center gap-1">
       {stackedLabel}
-      {labelAction}
+      <div className="-my-1 flex">{labelAction}</div>
     </div>
   ) : (
     stackedLabel
@@ -730,20 +731,35 @@ type SwitchFieldProps = Omit<FieldProps, 'required' | 'label'> &
   Pick<FieldFrameProps, 'action'> & { label: string };
 
 /** An info button that shows a field's description in a popover. */
-export function FieldAbout({ label, description }: { label: string; description: ReactNode }) {
+export function FieldAbout({
+  label,
+  title = label,
+  description,
+  tone = 'info',
+}: {
+  label: string;
+  title?: string;
+  description: ReactNode;
+  tone?: 'info' | 'warning';
+}) {
   const aboutLabel = useAboutLabel();
   return (
     <Popover>
       <PopoverTrigger
         render={
-          <Button aria-label={aboutLabel(label)} size="icon-xs" type="button" variant="ghost" />
+          <Button
+            aria-label={aboutLabel(label)}
+            size="icon-xs"
+            type="button"
+            variant={tone === 'warning' ? 'warning' : 'ghost'}
+          />
         }
       >
-        <InfoIcon />
+        {tone === 'warning' ? <TriangleAlertIcon /> : <InfoIcon />}
       </PopoverTrigger>
       <PopoverContent align="start">
         <PopoverHeader>
-          <PopoverTitle>{label}</PopoverTitle>
+          <PopoverTitle>{title}</PopoverTitle>
           <PopoverDescription>{description}</PopoverDescription>
         </PopoverHeader>
       </PopoverContent>

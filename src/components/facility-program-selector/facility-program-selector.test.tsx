@@ -21,7 +21,11 @@ const options = facilityProgramOptions({
   ],
 });
 
-function renderSelector(applied: FacilityProgramSelection = {}, pickerOptions = options) {
+function renderSelector(
+  applied: FacilityProgramSelection = {},
+  pickerOptions = options,
+  programUnavailable?: (programId: string) => string | undefined,
+) {
   const onSearch = vi.fn();
   const onDraftChange = vi.fn();
   const view = render(
@@ -30,6 +34,7 @@ function renderSelector(applied: FacilityProgramSelection = {}, pickerOptions = 
       onDraftChange={onDraftChange}
       onSearch={onSearch}
       options={pickerOptions}
+      programUnavailable={programUnavailable}
     />,
   );
   return { onSearch, onDraftChange, ...view };
@@ -91,6 +96,27 @@ describe('FacilityProgramSelector', () => {
     await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
 
     expect(onSearch).toHaveBeenCalledWith({ mode: 'my', programId: 'fp', facilityId: 'home' });
+  });
+
+  it('warns about an unavailable program only once one is picked', async () => {
+    const user = userEvent.setup();
+    const unavailable = (programId: string) => (programId === 'em' ? 'Not here' : undefined);
+    const { rerender } = renderSelector({}, options, () => 'Not here');
+
+    expect(screen.queryByRole('button', { name: /About/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Not here')).not.toBeInTheDocument();
+
+    rerender(
+      <FacilityProgramSelector
+        applied={{ mode: 'my', programId: 'em', facilityId: 'home' }}
+        onDraftChange={vi.fn()}
+        onSearch={vi.fn()}
+        options={options}
+        programUnavailable={unavailable}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'About facility-program.program' }));
+    expect(await screen.findByText('Not here')).toBeVisible();
   });
 
   it('asks for a program before searching, picking none of several itself', async () => {

@@ -727,8 +727,8 @@ features or i18next. Allowed variants: `DialogContent size/height/layout`, `Dial
 `DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `Field spacing/surface`,
 `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel/size`,
 `ComboboxChip removeLabel`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
-`Button align/width`, `PopoverContent width/padding`. Each `lg` size is a plain `h-9` className
-in the registry.
+`Button align/width/variant="warning"`, `PopoverContent width/padding`. Each `lg` size is a plain
+`h-9` className in the registry.
 The app Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet primitives
 import `@/components/page-visibility`; form-dialog and form-fields inherit this dependency.
 This is an accepted app dependency exception. The context defaults to false, keeping them

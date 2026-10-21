@@ -5,14 +5,18 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
-import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
+import { ClipboardListIcon, HistoryIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { ActionTooltip } from '@/components/action-tooltip';
-import { DataTableToolbar } from '@/components/data-table/data-table';
+import {
+  DataTableCard,
+  DataTableEmpty,
+  DataTableToolbar,
+} from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { DownloadedAt } from '@/components/downloaded-at';
 import { ErrorFallback } from '@/components/error-fallback';
+import { OfflineAlert } from '@/components/offline-alert';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import {
@@ -167,11 +171,17 @@ function StockCardPage() {
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
           {data.card.device !== undefined && (
-            <DownloadedAt snapshot={data.card.device}>
-              {t(
-                data.card.summaryOnly ? 'stock-card.offline-summary' : 'stock-card.offline-history',
-              )}
-            </DownloadedAt>
+            <OfflineAlert snapshot={data.card.device}>
+              <Trans
+                t={t}
+                i18nKey={
+                  data.card.summaryOnly
+                    ? 'stock-card.offline-summary'
+                    : 'stock-card.offline-history'
+                }
+                components={{ strong: <strong /> }}
+              />
+            </OfflineAlert>
           )}
           <DataTableToolbar align="end">
             {canSwitch && (
@@ -183,7 +193,15 @@ function StockCardPage() {
               <StockCardColumns columnView={columnView} canSwitch={canSwitch} layout={layout} />
             )}
           </DataTableToolbar>
-          {!data.card.summaryOnly && (
+          {data.card.summaryOnly ? (
+            <DataTableCard>
+              <DataTableEmpty
+                description={t('stock-card.offline-history-unavailable-description')}
+                icon={<HistoryIcon />}
+                title={t('stock-card.offline-history-unavailable-title')}
+              />
+            </DataTableCard>
+          ) : (
             <StockCardLines
               cards={cards}
               card={data.card}

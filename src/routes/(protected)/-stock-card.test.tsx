@@ -709,6 +709,7 @@ it('opens a downloaded summary offline without presenting empty transaction hist
   expect(screen.getByText('Vaccine - each')).toBeInTheDocument();
   expect(screen.getByText('LOT-A')).toBeInTheDocument();
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.getByText('stock-card.offline-history-unavailable-title')).toBeInTheDocument();
   expect(fetchStockCard).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'stock-card.print' })).toHaveAttribute(
     'aria-disabled',

@@ -9,6 +9,7 @@ import { login, stub } from './fixtures';
 const home = '11111111-1111-4111-8111-111111111111';
 const program = '22222222-2222-4222-8222-222222222222';
 const selection = `?mode=my&facilityId=${home}&programId=${program}`;
+const plain = (message: string) => message.replace(/<\/?strong>/g, '');
 const history = {
   id: 'card',
   facility: { id: home, code: 'HOME', name: 'Fixture Clinic' },
@@ -68,13 +69,12 @@ for (const language of ['en', 'ar']) {
       });
       await page.goto(`./stock-management/stock-on-hand${selection}`);
       await expect(page.getByText('Fixture Product', { exact: true }).first()).toBeVisible();
+      const snapshot = page
+        .getByRole('note')
+        .filter({ hasText: plain(labels['stock-on-hand.offline-snapshot']) });
+      await expect(snapshot).toBeVisible();
       await expect(
-        page.getByText(labels['stock-on-hand.offline-snapshot'], { exact: true }),
-      ).toBeVisible();
-      await expect(
-        page
-          .locator('p')
-          .filter({ hasText: language === 'ar' ? /^تم التنزيل في / : /^Downloaded / }),
+        snapshot.getByText(language === 'ar' ? /^تم التنزيل في / : /^Downloaded /),
       ).toBeVisible();
       await expect(page.locator('html')).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
       await page.setViewportSize({ width: 390, height: 844 });
@@ -85,7 +85,9 @@ for (const language of ['en', 'ar']) {
       await expect(page.getByText('Fixture Author', { exact: true })).toBeVisible();
       await expect(page.getByText('Fixture Warehouse', { exact: true })).toBeVisible();
       await expect(
-        page.getByText(labels['stock-card.offline-history'], { exact: true }),
+        page.getByRole('note').getByText(plain(labels['stock-card.offline-history']), {
+          exact: true,
+        }),
       ).toBeVisible();
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(page.getByText('SAVED-HISTORY-1', { exact: true })).toBeVisible();

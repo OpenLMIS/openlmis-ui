@@ -342,7 +342,9 @@ function StockOnHandBody({
   });
   const programUnavailable = useCallback(
     (programId: string) =>
-      !online && !downloaded.has(programId) ? t('stock-programs.offline-description') : undefined,
+      programId && !online && !downloaded.has(programId)
+        ? t('stock-programs.offline-description')
+        : undefined,
     [online, downloaded, t],
   );
   const applied = useMemo(

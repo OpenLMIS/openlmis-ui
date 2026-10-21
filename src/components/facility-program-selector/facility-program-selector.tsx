@@ -5,7 +5,7 @@ import { Children, memo, type ReactNode, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
-import { FieldLabelText } from '@/components/form/form-fields';
+import { FieldAbout, FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -94,6 +94,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
     form.setFieldValue('facilityId', values.facilityId);
   };
 
+  const unavailableProgram = programId ? programUnavailable?.(programId) : undefined;
   const programs = mode === 'my' ? options.myPrograms : options.supervisedPrograms;
   const programItems = programs.map((program) => ({
     value: program.id,
@@ -125,10 +126,18 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
         programItems.length > 0 ? (
           <field.ComboboxField
             clearLabel={t('facility-program.clear-program')}
-            description={programUnavailable?.(programId)}
             emptyMessage={t('facility-program.no-programs')}
             items={programItems}
             label={t('facility-program.program')}
+            labelAction={
+              unavailableProgram && (
+                <FieldAbout
+                  description={unavailableProgram}
+                  label={t('facility-program.program')}
+                  tone="warning"
+                />
+              )
+            }
             limit={-1}
             placeholder={t('facility-program.program-placeholder')}
             required

@@ -924,7 +924,9 @@ it('scopes the pending-work warning to the downloaded facility and program witho
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'facility-program.search' })).toBeDisabled(),
   );
-  expect(screen.getByText('stock-programs.offline-description')).toBeVisible();
+  expect(screen.queryByText('stock-programs.offline-description')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'About facility-program.program' }));
+  expect(await screen.findByText('stock-programs.offline-description')).toBeVisible();
   expect(fetchStockCardSummaries).not.toHaveBeenCalled();
   expect(fetchMinimalFacilities).not.toHaveBeenCalled();
   expect(fetchOrderablesByIds).not.toHaveBeenCalled();
