@@ -26,7 +26,7 @@ import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries
 import { fetchStockCard, fetchStockCardReport } from '@/features/stock-card/api/api';
 import { stockCardOptions } from '@/features/stock-card/api/queries';
 import type { StockCard } from '@/features/stock-card/lib/types';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId';
@@ -37,6 +37,21 @@ import { httpError } from '@/tests/http-error';
 vi.mock('@/features/reference-data/api/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/reference-data/api/api')>()),
   fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
+  fetchUserRecord: vi.fn(async () => ({
+    id: USER,
+    username: 'user',
+    firstName: '',
+    lastName: '',
+    active: true,
+    roleAssignments: [],
+    homeFacilityId: HOME,
+  })),
+  fetchUserPrograms: vi.fn(async () => [{ ...card.program, active: true }]),
+  fetchFacility: vi.fn(async () => ({
+    ...card.facility,
+    type: { id: 'type' },
+    supportedPrograms: [{ id: FP }],
+  })),
 }));
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/stock-card/api/api', () => ({
@@ -114,7 +129,7 @@ function renderRoute(
 beforeEach(async () => {
   vi.clearAllMocks();
   useLoginData.setState({ referenceDataUserId: USER });
-  await getLocalDb().table('stockCardHistory').clear();
+  await getLocalDb().table(LOCAL_TABLES.stockCardHistory).clear();
   vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
   vi.mocked(fetchStockCard).mockResolvedValue(card);
 });
@@ -734,10 +749,10 @@ it.each([
     await seedHomeStock(card, USER);
     const first = renderRoute();
     await screen.findByText('HISTORY-1');
-    const saved = await getLocalDb().table('stockCardHistory').get(card.id);
+    const saved = await getLocalDb().table(LOCAL_TABLES.stockCardHistory).get(card.id);
     expect(saved).toMatchObject({ userId: USER, card: viewed, fetchedAt: expect.any(Number) });
     first.unmount();
-    await getLocalDb().table('homeStockDownloads').clear();
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).clear();
     vi.mocked(fetchStockCard).mockClear();
     if (unreachable)
       vi.mocked(fetchStockCard).mockRejectedValue(
@@ -780,7 +795,7 @@ it('refreshes a previously cached server card after reconnecting', async () => {
   act(() => onlineManager.setOnline(true));
   expect(await screen.findByText('99')).toBeInTheDocument();
   await waitFor(async () =>
-    expect(await getLocalDb().table('stockCardHistory').get(card.id)).toMatchObject({
+    expect(await getLocalDb().table(LOCAL_TABLES.stockCardHistory).get(card.id)).toMatchObject({
       card: { stockOnHand: 99 },
     }),
   );

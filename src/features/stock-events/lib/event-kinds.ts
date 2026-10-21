@@ -5,6 +5,7 @@ import { reasonsOf } from '@/features/reference-data/lib/reasons-of';
 import type { Reason, ValidReasonAssignment } from '@/features/reference-data/lib/types';
 import { allEventCards, issuableCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
+import { RIGHTS } from '@/lib/rights';
 
 type EventProducts =
   | {
@@ -131,7 +132,7 @@ export type EventKindConfig = {
 
 export const EVENT_KINDS = {
   adjustment: {
-    right: 'STOCK_ADJUST',
+    right: RIGHTS.stockAdjust,
     listRoute: '/stock-management/adjustments',
     editorRoute: '/stock-management/adjustments/$programId',
     historyType: 'adjustment',
@@ -178,7 +179,7 @@ export const EVENT_KINDS = {
     formId: 'adjustment-form',
   },
   issue: {
-    right: 'STOCK_ADJUST',
+    right: RIGHTS.stockAdjust,
     listRoute: '/stock-management/issue',
     editorRoute: '/stock-management/issue/$programId',
     historyType: 'issue',
@@ -234,7 +235,7 @@ export const EVENT_KINDS = {
     formId: 'issue-form',
   },
   receive: {
-    right: 'STOCK_ADJUST',
+    right: RIGHTS.stockAdjust,
     listRoute: '/stock-management/receive',
     editorRoute: '/stock-management/receive/$programId',
     historyType: 'receive',
@@ -290,7 +291,7 @@ export const EVENT_KINDS = {
     formId: 'receive-form',
   },
   unpack: {
-    right: 'STOCK_ADJUST',
+    right: RIGHTS.stockAdjust,
     listRoute: '/stock-management/unpack',
     editorRoute: '/stock-management/unpack/$programId',
     historyType: 'adjustment',

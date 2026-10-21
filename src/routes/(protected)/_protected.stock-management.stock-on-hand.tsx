@@ -15,6 +15,7 @@ import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
 } from '@/components/facility-program-selector/facility-program-selector';
+import { ListError } from '@/components/list-error';
 import { OfflineNotice } from '@/components/offline-notice';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import {
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
 import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
+import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
 import {
   prefetchStockOnHand,
@@ -58,6 +60,7 @@ import {
 } from '@/features/stock-on-hand/lib/search';
 import type { StockCardSummariesQuery } from '@/features/stock-on-hand/lib/types';
 import { useCardView } from '@/hooks/use-card-view';
+import { useDownloadedScopes } from '@/hooks/use-downloaded-scopes';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
@@ -79,7 +82,6 @@ import { hasProgramGrant, type ProgramGrant, programGrants } from '@/lib/permiss
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
 import { readStockOnHandOnDevice } from '@/routes/-home-stock-read';
-import { StockReadError } from '@/routes/-stock-read-error';
 
 const stockPickerQueries = (userId: string, online = isOnline()) =>
   [
@@ -120,6 +122,7 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
         queryClient,
         toSummariesQuery(search, selection),
         readStockOnHandOnDevice,
+        isOnline(),
       );
     }
   },
@@ -265,7 +268,7 @@ function StockOnHandContent({ userId }: { userId: string }) {
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
           <QueryBoundary
             errorComponent={({ error, reset }) => (
-              <StockReadError
+              <ListError
                 description={t('facility-program.load-error-description')}
                 error={error}
                 reset={reset}
@@ -319,6 +322,18 @@ function StockOnHandBody({
       }),
     [user.data.homeFacilityId, programs.data, facilities.data, grants],
   );
+  const { t } = useTranslation();
+  const provider = useMemo(() => homeStockProvider(), []);
+  const scopes = useMemo(
+    () =>
+      options.myPrograms.map((program) => ({
+        id: program.id,
+        name: program.name ?? program.code,
+        key: [user.data.homeFacilityId ?? '', program.id],
+      })),
+    [options.myPrograms, user.data.homeFacilityId],
+  );
+  const downloaded = useDownloadedScopes(provider, scopes);
   const applied = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
     [search.mode, search.programId, search.facilityId],
@@ -347,6 +362,11 @@ function StockOnHandBody({
     <>
       <FacilityProgramSelector
         applied={applied}
+        programUnavailable={(programId) =>
+          !online && !downloaded.has(programId)
+            ? t('stock-programs.offline-description')
+            : undefined
+        }
         onDraftChange={setDraft}
         onSearch={onSearch}
         options={options}
@@ -402,7 +422,7 @@ function StockOnHandOutcome({
           reason="not-downloaded"
           onRetry={() => {
             void queryClient.invalidateQueries({
-              queryKey: stockPickerFacilitiesOptions().queryKey,
+              queryKey: stockPickerFacilitiesOptions(online).queryKey,
             });
           }}
         />
@@ -503,7 +523,7 @@ function StockOnHandList({
       />
       <QueryBoundary
         errorComponent={({ error, reset }) => (
-          <StockReadError
+          <ListError
             description={t('stock-on-hand.error-description')}
             error={error}
             reset={reset}
@@ -521,7 +541,15 @@ function StockOnHandList({
       >
         <StockOnHandResults
           pendingEvents={
-            <PendingDeviceWork facilityId={selection.facilityId} programId={selection.programId} />
+            <PendingDeviceWork
+              match={(event) =>
+                event.facilityId === selection.facilityId && event.programId === selection.programId
+              }
+              message={{
+                online: 'offline-events.stock-pending-online',
+                offline: 'offline-events.stock-pending-offline',
+              }}
+            />
           }
           readOnDevice={readStockOnHandOnDevice}
           cards={columnView.cards}
@@ -561,11 +589,12 @@ function StockOnHandPrintButton({
 }: PrintButtonProps) {
   const { t } = useTranslation();
   const { data: page } = useQuery({
-    ...stockCardSummariesOptions(query, readStockOnHandOnDevice),
+    ...stockCardSummariesOptions(query, readStockOnHandOnDevice, isOnline()),
     enabled: false,
   });
   const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
   const print = usePrintReport({
+    device: page?.device,
     userId,
     right: RIGHT,
     facilityId: selection.facilityId,
@@ -590,8 +619,8 @@ function StockOnHandPrintButton({
     errorDescription: t('stock-on-hand.print-error'),
     refusedDescription: t('stock-on-hand.print-refused'),
   });
-  const offline = print.offline || Boolean(page?.device);
-  const disabledReason = offline ? t('offline.print-description') : print.disabledReason;
+  const offline = print.offline;
+  const disabledReason = print.disabledReason;
   return (
     <ActionTooltip reason={disabledReason}>
       <Button

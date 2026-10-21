@@ -6,8 +6,9 @@ import {
   saveStockCardHistory,
 } from '@/features/stock-card/lib/history-cache';
 import type { StockCard } from '@/features/stock-card/lib/types';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { seedHomeStock } from '@/tests/home-stock';
+import { offlineAccessFixture } from '@/tests/offline-access';
 
 const card: StockCard = {
   id: 'card',
@@ -22,7 +23,7 @@ const card: StockCard = {
 
 beforeEach(async () => {
   useLoginData.setState({ referenceDataUserId: 'history-owner' });
-  await getLocalDb().table('stockCardHistory').clear();
+  await getLocalDb().table(LOCAL_TABLES.stockCardHistory).clear();
   await seedHomeStock(card, 'history-owner');
 });
 afterEach(() => {
@@ -55,10 +56,10 @@ it('keeps every viewed home card and replaces its history on a newer view', asyn
   await saveStockCardHistory({ ...card, id: 'card-0' });
   now += 1;
   await saveStockCardHistory({ ...card, id: 'card-50' });
-  expect(await getLocalDb().table('stockCardHistory').count()).toBe(51);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockCardHistory).count()).toBe(51);
   expect(await readStockCardHistory('card-1')).toMatchObject({ id: 'card-1' });
-  expect(await readStockCardHistory('card-0')).toMatchObject({ downloadedAt: now - 1 });
-  expect(await readStockCardHistory('card-50')).toMatchObject({ downloadedAt: now });
+  expect(await readStockCardHistory('card-0')).toMatchObject({ device: { fetchedAt: now - 1 } });
+  expect(await readStockCardHistory('card-50')).toMatchObject({ device: { fetchedAt: now } });
 });
 
 it('rejects a pending save after the identity changes, without writing to either owner', async () => {
@@ -82,8 +83,15 @@ it('does not save supervised cards or home programs without viewing rights', asy
     id: 'unsupported',
     program: { ...card.program, id: 'other' },
   });
-  const table = getLocalDb().table('offlineAccess');
+  const table = getLocalDb().table(LOCAL_TABLES.offlineAccess);
   await table.update('history-owner', { permissionStrings: ['STOCK_ADJUST|home|p'] });
   await saveStockCardHistory(card);
-  expect(await getLocalDb().table('stockCardHistory').count()).toBe(0);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockCardHistory).count()).toBe(0);
+});
+
+it('saves verified foreground home history before the first access download is published', async () => {
+  const access = offlineAccessFixture({ userId: 'history-owner' });
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).clear();
+  await saveStockCardHistory(card, access);
+  expect(await readStockCardHistory(card.id)).toMatchObject({ lineItems: card.lineItems });
 });

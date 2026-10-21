@@ -1,6 +1,13 @@
 import type { IndexableType } from 'dexie';
 import type { ParseKeys } from 'i18next';
+import {
+  getLocalDbUserId,
+  LOCAL_TABLES,
+  type LocalTableName,
+  localTable,
+} from '@/integrations/local-db';
 import type { OfflineAccess } from '@/lib/offline-access';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export type DownloadRecord = {
   userId: string;
@@ -21,14 +28,15 @@ export type DownloadTask = DownloadScope & {
 export type DownloadProvider = {
   id: string;
   label: ParseKeys;
-  table: string;
+  table: LocalTableName;
   tasks: (access: OfflineAccess) => DownloadTask[];
+  readScope: (scope: DownloadScope) => Promise<boolean>;
 };
 
 export function defineDownloadProvider<S extends DownloadScope, R extends DownloadRecord>(spec: {
   id: string;
   label: ParseKeys;
-  table: string;
+  table: LocalTableName;
   scopes: (access: OfflineAccess) => S[];
   fetch: (scope: S, signal: AbortSignal) => Promise<R>;
   isFresh: (record: R | undefined, access: OfflineAccess, scope: S) => boolean;
@@ -38,6 +46,20 @@ export function defineDownloadProvider<S extends DownloadScope, R extends Downlo
     id: spec.id,
     label: spec.label,
     table: spec.table,
+    async readScope(scope) {
+      const session = getSessionScope();
+      const userId = getLocalDbUserId();
+      const access = await localTable<OfflineAccess>(LOCAL_TABLES.offlineAccess).get(userId);
+      assertSessionScope(session);
+      if (!access || access.userId !== userId || access.formatVersion !== 1) return false;
+      const eligible = spec
+        .scopes(access)
+        .find((candidate) => JSON.stringify(candidate.key) === JSON.stringify(scope.key));
+      if (!eligible) return false;
+      const record = await localTable<R>(spec.table).get(scope.key);
+      assertSessionScope(session);
+      return !!record && record.userId === userId && spec.accepts(record, access, eligible);
+    },
     tasks: (access) =>
       spec.scopes(access).map((scope) => ({
         ...scope,

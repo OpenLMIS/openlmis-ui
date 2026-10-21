@@ -44,9 +44,14 @@ import {
   type ValidAssignmentsFilter,
 } from '@/features/reference-data/api/api';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
-import { queryKeys, userProgramsKey, userRecordKey } from '@/lib/key-factory';
-import { offlineAccessQuery, withOfflineAccess } from '@/lib/offline-access';
-import { isOnline } from '@/lib/online';
+import { deviceQuery } from '@/lib/device-query';
+import {
+  queryKeys,
+  stockPickerFacilitiesKey,
+  userProgramsKey,
+  userRecordKey,
+} from '@/lib/key-factory';
+import { offlineAccessQuery, readOfflineAccess, withOfflineAccess } from '@/lib/offline-access';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
 const LOOKUP_STALE_TIME = 10 * 60 * 1000;
@@ -58,21 +63,18 @@ export const minimalFacilitiesOptions = () =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const stockPickerFacilitiesOptions = (online = isOnline()) =>
-  queryOptions({
-    queryKey: [
-      ...queryKeys.facilities.all,
-      'minimal',
-      'stock-picker',
-      online ? 'server' : 'device',
-    ] as const,
-    queryFn: () =>
-      withOfflineAccess(fetchMinimalFacilities, (saved) =>
-        saved.homeFacility
-          ? [{ ...saved.homeFacility, name: saved.homeFacility.name ?? saved.homeFacility.code }]
-          : [],
-      ),
-    ...offlineAccessQuery(5 * 60 * 1000),
+export const stockPickerFacilitiesOptions = (online: boolean) =>
+  deviceQuery({
+    queryKey: stockPickerFacilitiesKey(),
+    online,
+    server: fetchMinimalFacilities,
+    device: async () => {
+      const saved = await readOfflineAccess();
+      return saved.homeFacility
+        ? [{ ...saved.homeFacility, name: saved.homeFacility.name ?? saved.homeFacility.code }]
+        : [];
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
 export const facilityOptions = (id: string) =>

@@ -7,11 +7,13 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
+import type { DeviceSnapshot } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
 import type { ReportDelivery } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 
 type PrintReportOptions = {
+  device?: DeviceSnapshot;
   userId: string;
   facilityId: string;
   programId: string;
@@ -42,13 +44,13 @@ export function usePrintReport(options: PrintReportOptions) {
     mutationFn: async (sent: PrintRequest) => {
       try {
         if (!sent.isCurrent()) throw new SessionEndedError();
-        if (!isOnline()) throw new Error(t('offline.print-description'));
+        if (sent.device || !isOnline()) throw new Error(t('offline.print-description'));
         const permissions = await queryClient.fetchQuery(permissionsOptions(sent.userId));
         if (!sent.isCurrent()) throw new SessionEndedError();
         if (!hasProgramGrant(permissions, sent.right, sent.facilityId, sent.programId)) {
           throw new ForbiddenError(sent.right);
         }
-        if (!isOnline()) throw new Error(t('offline.print-description'));
+        if (sent.device || !isOnline()) throw new Error(t('offline.print-description'));
         const report = await sent.request(sent.language);
         if (!sent.isCurrent()) throw new SessionEndedError();
         sent.delivery.deliver(report);
@@ -76,10 +78,11 @@ export function usePrintReport(options: PrintReportOptions) {
   });
   return {
     isPending: print.isPending,
-    offline: !online,
-    disabledReason: online ? undefined : t('offline.print-description'),
+    offline: !online || Boolean(options.device),
+    disabledReason: online && !options.device ? undefined : t('offline.print-description'),
     print: () => {
-      if (!isOnline() || print.isPending || !stillSignedIn(options.userId)) return;
+      if (options.device || !isOnline() || print.isPending || !stillSignedIn(options.userId))
+        return;
       const delivery = options.onReport();
       let cancelled = false;
       const unsubscribe = useLoginData.subscribe((state) => {

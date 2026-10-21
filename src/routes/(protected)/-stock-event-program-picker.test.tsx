@@ -14,9 +14,10 @@ import {
 } from '@/features/reference-data/api/queries';
 import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { parsePermissions } from '@/lib/permissions';
 import { StockEventProgramPicker } from '@/routes/(protected)/-stock-event-program-picker';
+import { offlineAccessFixture } from '@/tests/offline-access';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
@@ -35,7 +36,7 @@ it.each([true, false])(
     useLoginData
       .getState()
       .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
-    await getLocalDb().table('homeStockDownloads').clear();
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).clear();
     onlineManager.setOnline(online);
     const language = createInstance();
     await language.use(ICU).init({
@@ -66,12 +67,22 @@ it.each([true, false])(
       geographicZone: { id: 'z', code: 'Z', name: 'Zone', level: { name: 'District' } },
       supportedPrograms: [{ ...program, supportActive: true, supportLocallyFulfilled: false }],
     });
+    await getLocalDb()
+      .table(LOCAL_TABLES.offlineAccess)
+      .put(
+        offlineAccessFixture({
+          userId: 'u',
+          home: { id: 'f' },
+          programs: [program],
+          rights: ['STOCK_ADJUST|f|p', 'STOCK_CARDS_VIEW|f|p'],
+        }),
+      );
     client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
     renderPage(
       <I18nextProvider i18n={language}>
         <StockEventProgramPicker
           userId="u"
-          permissions={parsePermissions(['STOCK_ADJUST|f|p'])}
+          permissions={parsePermissions(['STOCK_ADJUST|f|p', 'STOCK_CARDS_VIEW|f|p'])}
           kind="adjustment"
           editorLink={() => <a href="/edit">Edit</a>}
         />
@@ -97,13 +108,15 @@ it.each([true, false])(
       expect(action).toHaveAccessibleDescription(en['stock-programs.offline-description']);
       await act(async () => {
         await getLocalDb()
-          .table('homeStockDownloads')
+          .table(LOCAL_TABLES.homeStockDownloads)
           .put({
             facilityId: 'f',
             facilityTypeId: 'type',
             programId: 'p',
             userId: 'u',
-            formatVersion: 4,
+            formatVersion: 5,
+            summaries: [],
+            products: [],
             generation: 'available',
             fetchedAt: Date.now(),
             scanning: false,

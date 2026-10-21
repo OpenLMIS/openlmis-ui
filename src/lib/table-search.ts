@@ -170,3 +170,13 @@ export function useTableSearchState<TSearch extends TableSearch>({
   );
   return state;
 }
+
+export function pageLocally<T>(items: readonly T[], page: number, size: number) {
+  return {
+    content: items.slice(page * size, (page + 1) * size),
+    totalElements: items.length,
+    totalPages: Math.ceil(items.length / size),
+    number: page,
+    size,
+  };
+}

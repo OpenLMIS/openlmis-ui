@@ -86,18 +86,18 @@ it('reuses server picker facilities across reconnects and isolates the offline h
   const online = onlineManager.isOnline();
   try {
     onlineManager.setOnline(true);
-    client.setQueryData(stockPickerFacilitiesOptions().queryKey, [
+    client.setQueryData(stockPickerFacilitiesOptions(onlineManager.isOnline()).queryKey, [
       { id: 'supervised', code: 'S', name: 'Supervised', active: true },
     ]);
     onlineManager.setOnline(false);
-    client.setQueryData(stockPickerFacilitiesOptions().queryKey, [
+    client.setQueryData(stockPickerFacilitiesOptions(onlineManager.isOnline()).queryKey, [
       { id: 'home', code: 'H', name: 'Home', active: true },
     ]);
     expect(client.getQueryData(minimalFacilitiesOptions().queryKey)).toBeUndefined();
     onlineManager.setOnline(true);
-    expect(client.getQueryData(stockPickerFacilitiesOptions().queryKey)).toEqual([
-      { id: 'supervised', code: 'S', name: 'Supervised', active: true },
-    ]);
+    expect(
+      client.getQueryData(stockPickerFacilitiesOptions(onlineManager.isOnline()).queryKey),
+    ).toEqual([{ id: 'supervised', code: 'S', name: 'Supervised', active: true }]);
   } finally {
     onlineManager.setOnline(online);
     client.clear();

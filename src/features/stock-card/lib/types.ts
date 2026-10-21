@@ -1,4 +1,5 @@
 import type { LotSummary } from '@/features/reference-data/lib/types';
+import type { DeviceSnapshot } from '@/lib/local-data';
 import type { StockReason } from '@/lib/stock-labels';
 
 export type CardReason = StockReason;
@@ -45,5 +46,5 @@ export type StockCard = {
   active: boolean;
   lineItems: StockCardLine[];
   summaryOnly?: boolean;
-  downloadedAt?: number;
+  device?: DeviceSnapshot;
 };

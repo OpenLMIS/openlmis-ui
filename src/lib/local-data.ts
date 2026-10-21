@@ -1,3 +1,5 @@
+export type DeviceSnapshot = { fetchedAt: number; generation: string };
+
 import { isAccessFallbackError } from '@/lib/http';
 import { getConnectionGeneration, isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';

@@ -13,7 +13,9 @@ import {
   readEventStockCards,
 } from '@/features/stock-events/api/stock-card-reader';
 import { retryDownloadRead } from '@/features/stock-events/lib/download-read';
+import { LOCAL_TABLES } from '@/integrations/local-db';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
+import { requireOwnedRecord } from '@/lib/local-records';
 import { isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -47,24 +49,17 @@ export type HomeStockBundle = HomeStockScope & {
 export async function readHomeStockBundle(
   filter: Pick<HomeStockScope, 'facilityId' | 'programId' | 'facilityTypeId'>,
 ) {
-  const scope = getSessionScope();
-  const userId = useLoginData.getState().referenceDataUserId;
-  const { getLocalDb } = await import('@/integrations/local-db');
-  assertSessionScope(scope);
-  const bundle = await getLocalDb()
-    .table<HomeStockBundle>('homeStockDownloads')
-    .get([filter.facilityId, filter.programId]);
-  assertSessionScope(scope);
-  if (
-    !bundle ||
-    bundle.userId !== userId ||
-    (bundle.formatVersion !== 4 && bundle.formatVersion !== 5) ||
-    bundle.facilityId !== filter.facilityId ||
-    bundle.programId !== filter.programId ||
-    bundle.facilityTypeId !== filter.facilityTypeId
-  )
-    throw new LocalDataUnavailableError();
-  return bundle;
+  return requireOwnedRecord<HomeStockBundle>(
+    LOCAL_TABLES.homeStockDownloads,
+    [filter.facilityId, filter.programId],
+    {
+      formats: [4, 5],
+      accept: (bundle) =>
+        bundle.facilityId === filter.facilityId &&
+        bundle.programId === filter.programId &&
+        bundle.facilityTypeId === filter.facilityTypeId,
+    },
+  );
 }
 
 function snapshotProduct(product: Orderable): Orderable {
@@ -116,7 +111,7 @@ async function fetchBundle(
   ]);
   check();
   const productIds = new Set(products.map((product) => product.id));
-  if (summaries.some((summary) => !productIds.has(summary.orderable.id)))
+  if (summaries.some((summary) => !summary.orderable?.id || !productIds.has(summary.orderable.id)))
     throw new Error('Stock summary product not found');
   const hydrated: HomeStockCard[] = cards.map((card) => ({
     ...card,

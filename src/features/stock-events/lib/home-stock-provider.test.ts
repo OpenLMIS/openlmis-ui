@@ -1,36 +1,12 @@
 import { expect, it } from 'vitest';
 import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
-import type { OfflineAccess } from '@/lib/offline-access';
+import { offlineAccessFixture } from '@/tests/offline-access';
 
 const program = { id: 'p', code: 'P', name: 'Program', active: true };
-const access = {
-  userId: 'owner',
-  permissionStrings: ['STOCK_CARDS_VIEW|home|p'],
-  programs: [program],
-  user: {
-    id: 'owner',
-    username: 'user',
-    firstName: '',
-    lastName: '',
-    active: true,
-    roleAssignments: [],
-    homeFacilityId: 'home',
-  },
-  homeFacility: {
-    id: 'home',
-    code: 'H',
-    name: 'Home',
-    active: true,
-    enabled: true,
-    type: { id: 'type', code: 'T', name: 'Type' },
-    geographicZone: { id: 'zone', code: 'Z', name: 'Zone', level: { name: 'District' } },
-    supportedPrograms: [{ ...program, supportActive: true, supportLocallyFulfilled: true }],
-  },
-  fetchedAt: 1,
-  generation: 'access',
-  formatVersion: 1,
-} satisfies OfflineAccess;
+const access = { ...offlineAccessFixture({ programs: [program] }), fetchedAt: 1 };
+const home = access.homeFacility;
+if (!home) throw new Error('Missing fixture home');
 const bundle: HomeStockBundle = {
   userId: 'owner',
   facilityId: 'home',
@@ -74,7 +50,7 @@ it('downloads both adjustment and view-only programs, excluding unsupported and 
       { ...program, id: 'supervised' },
     ],
     homeFacility: {
-      ...access.homeFacility,
+      ...home,
       supportedPrograms: [program, second].map((item) => ({
         ...item,
         supportActive: true,

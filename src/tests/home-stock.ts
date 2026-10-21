@@ -1,38 +1,19 @@
 import type { StockCard } from '@/features/stock-card/lib/types';
 import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
-import { getLocalDb } from '@/integrations/local-db';
-import type { OfflineAccess } from '@/lib/offline-access';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
+import { offlineAccessFixture } from '@/tests/offline-access';
 
 export async function seedHomeStock(card: StockCard, userId: string) {
   const program = { ...card.program, active: true };
-  const access: OfflineAccess = {
+  const access = offlineAccessFixture({
     userId,
-    permissionStrings: [
+    home: card.facility,
+    programs: [program],
+    rights: [
       `STOCK_ADJUST|${card.facility.id}|${program.id}`,
       `STOCK_CARDS_VIEW|${card.facility.id}|${program.id}`,
     ],
-    user: {
-      id: userId,
-      username: 'user',
-      firstName: '',
-      lastName: '',
-      active: true,
-      homeFacilityId: card.facility.id,
-      roleAssignments: [],
-    },
-    programs: [program],
-    homeFacility: {
-      ...card.facility,
-      active: true,
-      enabled: true,
-      type: { id: 'type', code: 'T', name: 'Type' },
-      geographicZone: { id: 'zone', code: 'Z', name: 'Zone', level: { name: 'District' } },
-      supportedPrograms: [{ ...program, supportActive: true, supportLocallyFulfilled: true }],
-    },
-    fetchedAt: Date.now(),
-    generation: 'access',
-    formatVersion: 1,
-  };
+  });
   const product = { ...card.orderable, description: null };
   const bundle: HomeStockBundle = {
     userId,
@@ -74,6 +55,6 @@ export async function seedHomeStock(card: StockCard, userId: string) {
     tradeItems: [],
     identities: [],
   };
-  await getLocalDb().table('offlineAccess').put(access);
-  await getLocalDb().table('homeStockDownloads').put(bundle);
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).put(access);
+  await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).put(bundle);
 }

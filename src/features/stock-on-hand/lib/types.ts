@@ -1,4 +1,5 @@
 import type { LotSummary, Orderable } from '@/features/reference-data/lib/types';
+import type { DeviceSnapshot } from '@/lib/local-data';
 import type { Page } from '@/lib/types';
 
 /** One stock card that can fill the product: the product itself, a lot of it, or a substitute. */
@@ -46,9 +47,7 @@ export type StockProductGroup = {
 };
 
 export type StockOnHandPage = Page<StockCardSummary> & {
-  device?: {
-    generation: string;
-    fetchedAt: number;
+  device?: DeviceSnapshot & {
     products: Orderable[];
     lots: LotSummary[];
   };

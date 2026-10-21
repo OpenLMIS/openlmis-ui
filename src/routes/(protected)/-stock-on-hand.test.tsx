@@ -34,13 +34,14 @@ import {
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { fetchStockCardSummaries, fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
 import type { StockCardSummary } from '@/features/stock-on-hand/lib/types';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { downloadFile } from '@/lib/download-file';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand';
 import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { seedHomeStock } from '@/tests/home-stock';
 import { httpError } from '@/tests/http-error';
+import { offlineAccessFixture } from '@/tests/offline-access';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
@@ -856,16 +857,15 @@ describe('stock on hand View', () => {
 
 async function seedStockPickerAccess() {
   const access = {
-    userId: USER,
-    permissionStrings: grants,
+    ...offlineAccessFixture({
+      userId: USER,
+      home: { id: HOME, code: 'HOME', name: 'Home', type: { id: 'type', code: 'T', name: 'Type' } },
+      programs: await fetchUserPrograms(USER),
+      rights: grants,
+    }),
     user: await fetchUserRecord(USER),
-    programs: await fetchUserPrograms(USER),
-    homeFacility: { id: HOME, code: 'HOME', name: 'Home', type: { id: 'type' } },
-    fetchedAt: Date.now(),
-    generation: 'access',
-    formatVersion: 1,
   };
-  await getLocalDb().table('offlineAccess').put(access);
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).put(access);
 }
 
 it('scopes the pending-work warning to the downloaded facility and program without polluting shared facilities', async () => {
@@ -886,7 +886,7 @@ it('scopes the pending-work warning to the downloaded facility and program witho
     },
     USER,
   );
-  const queue = getLocalDb().table('stockEventQueue');
+  const queue = getLocalDb().table(LOCAL_TABLES.stockEventQueue);
   await queue.clear();
   const id = await queue.add({
     localEventId: 'pending-stock',
@@ -902,19 +902,29 @@ it('scopes the pending-work warning to the downloaded facility and program witho
   renderRoute(appliedPath(), client);
   expect(await screen.findAllByText('Downloaded Medicine')).not.toHaveLength(0);
   expect(screen.getByText('stock-on-hand.offline-snapshot')).toBeInTheDocument();
-  expect(await screen.findByText('offline-events.stock-pending')).toBeVisible();
+  expect(await screen.findByText('offline-events.stock-pending-offline')).toBeVisible();
   await act(async () => {
     await queue.update(id, { programId: EM });
   });
   await waitFor(() =>
-    expect(screen.queryByText('offline-events.stock-pending')).not.toBeInTheDocument(),
+    expect(screen.queryByText('offline-events.stock-pending-offline')).not.toBeInTheDocument(),
   );
   await act(async () => {
     await queue.update(id, { facilityId: BALAKA, programId: FP });
   });
-  expect(screen.queryByText('offline-events.stock-pending')).not.toBeInTheDocument();
+  expect(screen.queryByText('offline-events.stock-pending-offline')).not.toBeInTheDocument();
   await queue.clear();
   expect(screen.getByText('OFF-LOT')).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'facility-program.search' })).toBeEnabled(),
+  );
+  await act(async () => {
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).clear();
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'facility-program.search' })).toBeDisabled(),
+  );
+  expect(screen.getByText('stock-programs.offline-description')).toBeVisible();
   expect(fetchStockCardSummaries).not.toHaveBeenCalled();
   expect(fetchMinimalFacilities).not.toHaveBeenCalled();
   expect(fetchOrderablesByIds).not.toHaveBeenCalled();

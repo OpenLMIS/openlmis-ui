@@ -1,22 +1,21 @@
-import { latestOrderableVersions } from '@/features/reference-data/lib/latest-orderable-versions';
 import { readStockCardHistory } from '@/features/stock-card/lib/history-cache';
+import { summaryStockCard } from '@/features/stock-card/lib/summary-stock-card';
 import type { StockCard } from '@/features/stock-card/lib/types';
 import {
   type HomeStockBundle,
   readHomeStockBundle,
 } from '@/features/stock-events/lib/home-stock-bundle';
-import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
+import { projectStockSummaries } from '@/features/stock-on-hand/lib/project-stock-summaries';
 import type { StockCardSummariesQuery, StockOnHandPage } from '@/features/stock-on-hand/lib/types';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { readOfflineAccess } from '@/lib/offline-access';
+import { homeStockScopes, isHomeStockScope } from '@/lib/stock-programs';
 
 async function eligibleScope(facilityId: string, programId: string) {
   const access = await readOfflineAccess();
-  const task = homeStockProvider()
-    .tasks(access)
-    .find((task) => task.id === programId && access.homeFacility?.id === facilityId);
   const home = access.homeFacility;
-  if (!task || !home) throw new LocalDataUnavailableError();
+  if (!home || !isHomeStockScope(access, facilityId, programId))
+    throw new LocalDataUnavailableError();
   return { access, home };
 }
 
@@ -31,50 +30,15 @@ export async function readStockOnHandOnDevice(
 ): Promise<StockOnHandPage> {
   const { bundle } = await downloadedScope(query.facilityId, query.programId);
   if (!bundle.summaries || !bundle.products) throw new LocalDataUnavailableError();
-  const latestProducts = latestOrderableVersions(bundle.products);
-  const products = new Map(latestProducts.map((product) => [product.id, product]));
-  const lots = bundle.cards.flatMap((card) => (card.lot ? [card.lot] : []));
-  const byLot = new Map(lots.map((lot) => [lot.id, lot]));
-  const matches = (value: string | null | undefined, filter: string | undefined) =>
-    !filter || (value ?? '').toLocaleLowerCase().includes(filter.toLocaleLowerCase());
-  const summaries = bundle.summaries.flatMap((summary) => {
-    const product = products.get(summary.orderable.id);
-    if (
-      !matches(product?.fullProductName, query.orderableName) ||
-      !matches(product?.productCode, query.orderableCode)
-    )
-      return [];
-    const entries = summary.canFulfillForMe.filter((entry) =>
-      matches(entry.lot ? byLot.get(entry.lot.id)?.lotCode : undefined, query.lotCode),
-    );
-    const balances = entries.flatMap((entry) =>
-      entry.stockOnHand === null ? [] : [entry.stockOnHand],
-    );
-    const stockOnHand = balances.length
-      ? balances.reduce((total, value) => total + value, 0)
-      : null;
-    return entries.length
-      ? [
-          {
-            ...summary,
-            stockOnHand: query.lotCode ? stockOnHand : summary.stockOnHand,
-            canFulfillForMe: entries,
-          },
-        ]
-      : [];
-  });
+  const { products, lots, ...page } = projectStockSummaries(
+    bundle.summaries,
+    bundle.products,
+    bundle.cards.flatMap((card) => (card.lot ? [card.lot] : [])),
+    query,
+  );
   return {
-    content: summaries.slice(query.page * query.size, (query.page + 1) * query.size),
-    totalElements: summaries.length,
-    totalPages: Math.ceil(summaries.length / query.size),
-    number: query.page,
-    size: query.size,
-    device: {
-      products: latestProducts,
-      lots,
-      fetchedAt: bundle.fetchedAt,
-      generation: bundle.generation,
-    },
+    ...page,
+    device: { products, lots, fetchedAt: bundle.fetchedAt, generation: bundle.generation },
   };
 }
 
@@ -82,12 +46,11 @@ export async function readStockCardOnDevice(id: string): Promise<StockCard> {
   const history = await readStockCardHistory(id);
   if (history) {
     await eligibleScope(history.facility.id, history.program.id);
-    return history;
   }
   const access = await readOfflineAccess();
   const home = access.homeFacility;
   if (!home) throw new LocalDataUnavailableError();
-  for (const task of homeStockProvider().tasks(access)) {
+  for (const task of homeStockScopes(access)) {
     let bundle: HomeStockBundle;
     try {
       bundle = await readHomeStockBundle({
@@ -103,21 +66,8 @@ export async function readStockCardOnDevice(id: string): Promise<StockCard> {
     if (!card) continue;
     const program = access.programs.find((program) => program.id === bundle.programId);
     if (!program) throw new LocalDataUnavailableError();
-    return {
-      id: card.id,
-      facility: { ...home, name: home.name ?? home.code },
-      program: { ...program, name: program.name ?? program.code },
-      orderable: {
-        ...card.orderable,
-        fullProductName: card.orderable.fullProductName ?? card.orderable.productCode,
-      },
-      lot: card.lot,
-      stockOnHand: card.stockOnHand,
-      active: card.active,
-      lineItems: [],
-      summaryOnly: true,
-      downloadedAt: bundle.fetchedAt,
-    };
+    return summaryStockCard(card, home, program, bundle, history);
   }
+  if (history) return history;
   throw new LocalDataUnavailableError();
 }

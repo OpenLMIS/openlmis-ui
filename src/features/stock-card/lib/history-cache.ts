@@ -1,9 +1,10 @@
 import type { StockCard } from '@/features/stock-card/lib/types';
+import { getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { LocalDataUnavailableError } from '@/lib/local-data';
-import { type OfflineAccess, readOfflineAccess } from '@/lib/offline-access';
-import { parsePermissions, programGrants } from '@/lib/permissions';
+import { putOwnedRecord, readOwnedRecord } from '@/lib/local-records';
+import { readOfflineAccess } from '@/lib/offline-access';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
-import { homeStockPrograms } from '@/lib/stock-programs';
+import { type HomeStockAccess, isHomeStockScope } from '@/lib/stock-programs';
 
 type SavedStockCard = {
   id: string;
@@ -13,47 +14,36 @@ type SavedStockCard = {
   formatVersion: 1;
 };
 
-export async function saveStockCardHistory(card: StockCard) {
+export async function saveStockCardHistory(card: StockCard, verifiedAccess?: HomeStockAccess) {
   const scope = getSessionScope();
-  let access: OfflineAccess;
+  let access: HomeStockAccess;
   try {
-    access = await readOfflineAccess();
+    access = verifiedAccess ?? (await readOfflineAccess());
   } catch (error) {
     if (error instanceof LocalDataUnavailableError) return;
     throw error;
   }
   assertSessionScope(scope);
-  if (
-    card.facility.id !== access.homeFacility?.id ||
-    !homeStockPrograms({
-      homeFacility: access.homeFacility,
-      programs: access.programs,
-      grants: programGrants(parsePermissions(access.permissionStrings), 'STOCK_CARDS_VIEW'),
-    }).some((program) => program.id === card.program.id)
-  )
-    return;
-  const fetchedAt = Date.now();
-  const { getLocalDb, getLocalDbUserId } = await import('@/integrations/local-db');
-  assertSessionScope(scope);
-  const userId = getLocalDbUserId();
-  const db = getLocalDb();
-  const table = db.table<SavedStockCard>('stockCardHistory');
-  await db.transaction('rw', table, async () => {
-    assertSessionScope(scope);
-    await table.put({ id: card.id, userId, card, fetchedAt, formatVersion: 1 });
-    assertSessionScope(scope);
+  if (!isHomeStockScope(access, card.facility.id, card.program.id)) return;
+  await putOwnedRecord(LOCAL_TABLES.stockCardHistory, {
+    id: card.id,
+    userId: getLocalDbUserId(),
+    card,
+    fetchedAt: Date.now(),
+    formatVersion: 1,
   });
   assertSessionScope(scope);
 }
 
 export async function readStockCardHistory(id: string): Promise<StockCard | undefined> {
-  const scope = getSessionScope();
-  const { getLocalDb, getLocalDbUserId } = await import('@/integrations/local-db');
-  assertSessionScope(scope);
-  const userId = getLocalDbUserId();
-  const saved = await getLocalDb().table<SavedStockCard>('stockCardHistory').get(id);
-  assertSessionScope(scope);
-  if (!saved || saved.userId !== userId || saved.formatVersion !== 1 || saved.card.id !== id)
-    return undefined;
-  return { ...saved.card, summaryOnly: false, downloadedAt: saved.fetchedAt };
+  const saved = await readOwnedRecord<SavedStockCard>(LOCAL_TABLES.stockCardHistory, id, {
+    formats: [1],
+    accept: (record) => record.card.id === id,
+  });
+  if (!saved) return undefined;
+  return {
+    ...saved.card,
+    summaryOnly: false,
+    device: { fetchedAt: saved.fetchedAt, generation: `history:${saved.fetchedAt}` },
+  };
 }

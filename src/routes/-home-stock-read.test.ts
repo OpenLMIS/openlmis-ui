@@ -4,6 +4,7 @@ import { readHomeStockBundle } from '@/features/stock-events/lib/home-stock-bund
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { readOfflineAccess } from '@/lib/offline-access';
 import { readStockCardOnDevice, readStockOnHandOnDevice } from '@/routes/-home-stock-read';
+import { offlineAccessFixture } from '@/tests/offline-access';
 
 vi.mock('@/features/stock-card/lib/history-cache', () => ({
   readStockCardHistory: vi.fn(async () => undefined),
@@ -13,20 +14,7 @@ vi.mock('@/features/stock-events/lib/home-stock-bundle', () => ({
   readHomeStockBundle: vi.fn(),
   fetchHomeStockBundle: vi.fn(),
 }));
-const access = {
-  userId: 'u',
-  permissionStrings: ['STOCK_ADJUST|home|p', 'STOCK_CARDS_VIEW|home|p'],
-  programs: [{ id: 'p', code: 'P', name: 'Program', active: true }],
-  homeFacility: {
-    id: 'home',
-    code: 'H',
-    name: 'Home',
-    active: true,
-    enabled: true,
-    type: { id: 'type' },
-    supportedPrograms: [{ id: 'p', supportActive: true, supportLocallyFulfilled: true }],
-  },
-};
+const access = offlineAccessFixture({ userId: 'u' });
 const product = { id: 'o', productCode: 'ABC', fullProductName: 'Medicine', description: null };
 const bundle = {
   userId: 'u',
@@ -76,20 +64,7 @@ beforeEach(() => {
   vi.mocked(readOfflineAccess).mockResolvedValue(access as never);
   vi.mocked(readHomeStockBundle).mockResolvedValue(bundle as never);
 });
-it('filters and pages downloaded summaries with names, lots and inactive metadata intact', async () => {
-  const page = await readStockOnHandOnDevice({ ...query, orderableName: 'med', lotCode: 'l1' });
-  expect(page.content).toEqual(bundle.summaries);
-  expect(page.device?.products).toEqual([product]);
-  expect(page.device?.fetchedAt).toBe(100);
-  expect(
-    (await readStockOnHandOnDevice({ ...query, orderableCode: 'missing' })).totalElements,
-  ).toBe(0);
-  expect(
-    (await readStockOnHandOnDevice({ ...query, orderableName: 'missing' })).totalElements,
-  ).toBe(0);
-  expect((await readStockOnHandOnDevice({ ...query, lotCode: 'missing' })).totalElements).toBe(0);
-  expect((await readStockOnHandOnDevice({ ...query, page: 1, size: 1 })).content).toEqual([]);
-});
+
 it('shows a downloaded Stock Card summary without inventing transaction history', async () => {
   expect(await readStockCardOnDevice('c')).toMatchObject({
     facility: { id: 'home' },
@@ -99,7 +74,7 @@ it('shows a downloaded Stock Card summary without inventing transaction history'
     active: false,
     lineItems: [],
     summaryOnly: true,
-    downloadedAt: 100,
+    device: { fetchedAt: 100, generation: 'g' },
   });
   await expect(readStockCardOnDevice('missing')).rejects.toBeInstanceOf(LocalDataUnavailableError);
 });
@@ -120,33 +95,6 @@ it('rejects other facilities, undownloaded programs and programs without the req
 it('keeps missing downloads unavailable rather than returning an empty stock list', async () => {
   vi.mocked(readHomeStockBundle).mockRejectedValue(new LocalDataUnavailableError());
   await expect(readStockOnHandOnDevice(query)).rejects.toBeInstanceOf(LocalDataUnavailableError);
-});
-
-it('uses the newest product version for filtering and displayed stock metadata regardless of order', async () => {
-  const latest = {
-    ...product,
-    fullProductName: 'Latest Medicine',
-    netContent: 20,
-    meta: { versionNumber: 3 },
-  };
-  const older = {
-    ...product,
-    fullProductName: 'Older Name',
-    netContent: 5,
-    meta: { versionNumber: 1 },
-  };
-  for (const products of [
-    [latest, older],
-    [older, latest],
-  ]) {
-    vi.mocked(readHomeStockBundle).mockResolvedValue({ ...bundle, products } as never);
-    const page = await readStockOnHandOnDevice({ ...query, orderableName: 'Latest' });
-    expect(page.content).toEqual(bundle.summaries);
-    expect(page.device?.products).toEqual([latest]);
-    expect(
-      (await readStockOnHandOnDevice({ ...query, orderableName: 'Older' })).totalElements,
-    ).toBe(0);
-  }
 });
 
 it('requires a new download for a v4 bundle without stock summary groups', async () => {
@@ -188,27 +136,3 @@ it('serves view-only home stock and histories without adjustment rights', async 
   expect((await readStockOnHandOnDevice(query)).content).toEqual(bundle.summaries);
   expect(await readStockCardOnDevice('c')).toMatchObject({ id: 'c' });
 });
-
-it.each([7, null])(
-  'totals only matching lots, including unknown balances (%s)',
-  async (balance) => {
-    const entry = bundle.summaries[0].canFulfillForMe[0];
-    vi.mocked(readHomeStockBundle).mockResolvedValue({
-      ...bundle,
-      summaries: [
-        {
-          ...bundle.summaries[0],
-          stockOnHand: 99,
-          canFulfillForMe: [
-            { ...entry, stockOnHand: balance },
-            { ...entry, lot: null, stockOnHand: 92 },
-          ],
-        },
-      ],
-    } as never);
-    expect((await readStockOnHandOnDevice(query)).content[0].stockOnHand).toBe(99);
-    const page = await readStockOnHandOnDevice({ ...query, lotCode: 'L1' });
-    expect(page.content[0].stockOnHand).toBe(balance);
-    expect(page.content[0].canFulfillForMe).toHaveLength(1);
-  },
-);

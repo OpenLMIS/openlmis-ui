@@ -57,7 +57,18 @@ export const userRecordKey = (userId: string) =>
 export const userProgramsKey = (userId?: string) =>
   [...queryKeys.users.all, 'programs', ...(userId ? [userId] : [])] as const;
 
+export const deviceQueryKey = (key: readonly unknown[]) => [...key, 'device'] as const;
+
+export const stockCardDeviceKey = (id: string) => deviceQueryKey(queryKeys.stockCards.detail(id));
+export const stockPickerFacilitiesKey = () =>
+  [...queryKeys.facilities.all, 'minimal', 'stock-picker'] as const;
+
 export const homeStockBundleKeys = {
+  summaries: (query: Record<string, unknown>) => queryKeys.stockCardSummaries.list(query),
+  products: (ids: string[], generation: string) =>
+    ['home-stock-bundle', generation, 'products', ids.toSorted()] as const,
+  lots: (ids: string[], generation: string) =>
+    ['home-stock-bundle', generation, 'lots', ids.toSorted()] as const,
   cards: (filter: Record<string, unknown>) =>
     [...queryKeys.stockEvents.list(filter), 'home-stock-bundle'] as const,
   reasons: (filter: Record<string, unknown>) =>

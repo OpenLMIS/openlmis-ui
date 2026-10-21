@@ -1220,6 +1220,7 @@ export function SelectField({
 }
 
 export type ComboboxFieldItem = {
+  disabled?: boolean;
   value: string;
   label: string;
   description?: string;
@@ -1304,7 +1305,7 @@ export function ComboboxField({
           <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
-              <ComboboxItem key={item.value} value={item}>
+              <ComboboxItem disabled={item.disabled} key={item.value} value={item}>
                 <span className="min-w-0 whitespace-normal break-words" dir="auto">
                   {item.label}
                 </span>
@@ -1397,7 +1398,7 @@ export function MultiComboboxField({
           <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
-              <ComboboxItem key={item.value} value={item}>
+              <ComboboxItem disabled={item.disabled} key={item.value} value={item}>
                 <span dir="auto">{item.label}</span>
               </ComboboxItem>
             )}

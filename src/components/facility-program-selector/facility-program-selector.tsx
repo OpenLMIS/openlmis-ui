@@ -48,6 +48,7 @@ const fromValues = (values: CompleteSelection): FacilityProgramSelection => ({
 
 type FacilityProgramSelectorProps = {
   options: FacilityProgramOptions;
+  programUnavailable?: (programId: string) => string | undefined;
   applied: FacilityProgramSelection;
   onSearch: (selection: CompleteSelection) => void;
   onDraftChange: (draft: FacilityProgramSelection) => void;
@@ -55,6 +56,7 @@ type FacilityProgramSelectorProps = {
 
 export const FacilityProgramSelector = memo(function FacilityProgramSelector({
   options,
+  programUnavailable,
   applied,
   onSearch,
   onDraftChange,
@@ -68,6 +70,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
     validators: { onDynamic: selectionSchema },
     listeners: { onChange: ({ formApi }) => onDraftChange(fromValues(formApi.state.values)) },
     onSubmit: ({ value, formApi }) => {
+      if (programUnavailable?.(value.programId)) return;
       onSearch(value);
       formApi.reset(value);
     },
@@ -94,6 +97,8 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
   const programs = mode === 'my' ? options.myPrograms : options.supervisedPrograms;
   const programItems = programs.map((program) => ({
     value: program.id,
+    disabled: Boolean(programUnavailable?.(program.id)),
+    description: programUnavailable?.(program.id),
     label: recordLabel(program),
   }));
   const facilityItems = programId
@@ -120,6 +125,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
         programItems.length > 0 ? (
           <field.ComboboxField
             clearLabel={t('facility-program.clear-program')}
+            description={programUnavailable?.(programId)}
             emptyMessage={t('facility-program.no-programs')}
             items={programItems}
             label={t('facility-program.program')}
@@ -221,7 +227,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
           </form.AppField>
         }
         search={
-          <Button size="lg" type="submit">
+          <Button disabled={Boolean(programUnavailable?.(programId))} size="lg" type="submit">
             <SearchIcon data-icon="inline-start" />
             {t('facility-program.search')}
           </Button>

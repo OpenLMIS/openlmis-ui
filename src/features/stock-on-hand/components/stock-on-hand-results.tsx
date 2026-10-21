@@ -59,6 +59,7 @@ import type {
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { orEmpty, tableValue } from '@/lib/empty-value';
+import { useOnline } from '@/lib/online';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
@@ -94,7 +95,8 @@ export function StockOnHandResults({
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const query = toSummariesQuery(deferredSearch, { facilityId, programId });
-  const { data: page } = useSuspenseQuery(stockCardSummariesOptions(query, readOnDevice));
+  const online = useOnline();
+  const { data: page } = useSuspenseQuery(stockCardSummariesOptions(query, readOnDevice, online));
   const ids = useMemo(() => summaryIds(page.content), [page]);
   const [orderables, lots] = useSuspenseQueries({
     queries: stockSummaryLookups(ids, page.device),
@@ -188,9 +190,7 @@ export function StockOnHandResults({
   return (
     <>
       {page.device && (
-        <DownloadedAt timestamp={page.device.fetchedAt}>
-          {t('stock-on-hand.offline-snapshot')}
-        </DownloadedAt>
+        <DownloadedAt snapshot={page.device}>{t('stock-on-hand.offline-snapshot')}</DownloadedAt>
       )}
       {page.device && pendingEvents}
       {cards ? (
