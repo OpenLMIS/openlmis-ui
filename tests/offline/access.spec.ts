@@ -15,7 +15,10 @@ test('signed-in access and home programs survive an offline reload', {
         access_token: 'fixture-token',
         expires_in: 1800,
       },
-      '/api/users/offline-user/permissionStrings': ['STOCK_ADJUST|home|program'],
+      '/api/users/offline-user/permissionStrings': [
+        'STOCK_ADJUST|home|program',
+        'STOCK_CARDS_VIEW|home|program',
+      ],
       '/api/users/offline-user': {
         id: 'offline-user',
         username: 'offline-user',
