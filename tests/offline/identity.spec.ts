@@ -47,7 +47,7 @@ test('offline navigation explains unavailable pages and blocks direct routes wit
   await stock.click();
   await expect(page).toHaveURL(/stock-management\/stock-on-hand/);
   await page.goto('./stock-management/stock-on-hand/card');
-  await expect(page.getByText('Connect to view its history.', { exact: false })).toBeVisible();
+  await expect(page.getByText('History Not Available Offline', { exact: true })).toBeVisible();
   await page.goto('./administration/users');
   await expect(page.getByRole('heading', { name: 'Connect To Open This Page' })).toBeVisible();
   expect(protectedRequests).toHaveLength(0);
