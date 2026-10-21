@@ -733,12 +733,10 @@ type SwitchFieldProps = Omit<FieldProps, 'required' | 'label'> &
 /** An info button that shows a field's description in a popover. */
 export function FieldAbout({
   label,
-  title = label,
   description,
   tone = 'info',
 }: {
   label: string;
-  title?: string;
   description: ReactNode;
   tone?: 'info' | 'warning';
 }) {
@@ -759,7 +757,7 @@ export function FieldAbout({
       </PopoverTrigger>
       <PopoverContent align="start">
         <PopoverHeader>
-          <PopoverTitle>{title}</PopoverTitle>
+          <PopoverTitle>{label}</PopoverTitle>
           <PopoverDescription>{description}</PopoverDescription>
         </PopoverHeader>
       </PopoverContent>
