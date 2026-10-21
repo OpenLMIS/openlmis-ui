@@ -3,7 +3,7 @@ import type {
   InventoryLine,
   InventoryScope,
 } from '@/features/stock-events/lib/physical-inventory-types';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { type DraftRevision, saveRevisionedDraft } from '@/lib/draft-store';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -19,7 +19,7 @@ export type InventoryLocalCopy = InventoryScope & {
 export async function readInventoryLocal(draftId: string) {
   const scope = getSessionScope();
   const result = await getLocalDb()
-    .table<InventoryLocalCopy>('physicalInventoryDrafts')
+    .table<InventoryLocalCopy>(LOCAL_TABLES.physicalInventoryDrafts)
     .get(draftId);
   assertSessionScope(scope);
   return result;
@@ -30,7 +30,7 @@ export async function writeInventoryLocal(
   scope = getSessionScope(),
   db: Dexie = getLocalDb(),
 ) {
-  const table = db.table<InventoryLocalCopy, string>('physicalInventoryDrafts');
+  const table = db.table<InventoryLocalCopy, string>(LOCAL_TABLES.physicalInventoryDrafts);
   const expected = copy.revision ? copy : undefined;
   return saveRevisionedDraft({
     db,
@@ -54,7 +54,7 @@ export async function clearInventoryLocal(
   db: Dexie = getLocalDb(),
 ) {
   assertSessionScope(scope);
-  const table = db.table<DraftRevision, string>('physicalInventoryDrafts');
+  const table = db.table<DraftRevision, string>(LOCAL_TABLES.physicalInventoryDrafts);
   const expected = revision === undefined ? await table.get(draftId) : { draftId, revision };
   assertSessionScope(scope);
   await saveRevisionedDraft({

@@ -12,7 +12,7 @@ import {
   waitForStockEventReceipt,
 } from '@/features/stock-events/lib/stock-event-delivery';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
 
 vi.mock('dexie', async (original) => {
@@ -40,12 +40,16 @@ beforeEach(async () => {
     .getState()
     .setLoginData({ referenceDataUserId: 'delivery', username: 'Ada', accessToken: 'token' });
   onlineManager.setOnline(true);
-  for (const table of ['stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts'])
+  for (const table of [
+    LOCAL_TABLES.stockEventQueue,
+    LOCAL_TABLES.stockEventSyncErrors,
+    LOCAL_TABLES.stockEventReceipts,
+  ])
     await getLocalDb().table(table).clear();
 });
 it('waits at most 65 seconds for a sending event even without a durable receipt', async () => {
   await getLocalDb()
-    .table('stockEventQueue')
+    .table(LOCAL_TABLES.stockEventQueue)
     .put({ ...event, status: 'sending' });
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
   let settled = false;
@@ -57,10 +61,12 @@ it('waits at most 65 seconds for a sending event even without a durable receipt'
   expect(settled).toBe(false);
   await vi.advanceTimersByTimeAsync(1);
   expect(await result).toEqual({ kind: 'uncertain' });
-  expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).status).toBe('sending');
+  expect((await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(event.sequence)).status).toBe(
+    'sending',
+  );
 });
 it('checks durable sending state at the start deadline when live notifications lag', async () => {
-  const queue = getLocalDb().table('stockEventQueue');
+  const queue = getLocalDb().table(LOCAL_TABLES.stockEventQueue);
   await queue.put(event);
   const unsubscribe = vi.fn();
   const delayed = dexie.liveQuery(async () => undefined);
@@ -88,12 +94,12 @@ it('reads a refusal after atomic queue removal instead of reporting queued', asy
     message: 'Stock changed',
     event,
   };
-  await getLocalDb().table('stockEventSyncErrors').put(error);
+  await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).put(error);
   expect(await waitForStockEventReceipt(event)).toEqual({ kind: 'refused', error });
 });
 it('identifies an earlier uncertain event as a barrier to this queued event', async () => {
   await getLocalDb()
-    .table('stockEventQueue')
+    .table(LOCAL_TABLES.stockEventQueue)
     .bulkPut([
       { ...event, sequence: 1, localEventId: 'earlier', status: 'uncertain' },
       { ...event, sequence: 2 },
@@ -104,13 +110,13 @@ it('identifies an earlier uncertain event as a barrier to this queued event', as
 for (const reason of ['access-changed', 'draft-changed'] as const)
   it(`reports its own ${reason} pause as held with the cause`, async () => {
     await getLocalDb()
-      .table('stockEventQueue')
+      .table(LOCAL_TABLES.stockEventQueue)
       .put({ ...event, pauseReason: reason });
     expect(await waitForStockEventReceipt(event)).toEqual({ kind: 'held', reason });
   });
 
 it('waits for its own access hold when an earlier event is access-paused', async () => {
-  const queue = getLocalDb().table('stockEventQueue');
+  const queue = getLocalDb().table(LOCAL_TABLES.stockEventQueue);
   const next = { ...event, sequence: 2 };
   await queue.bulkPut([{ ...event, localEventId: 'earlier', pauseReason: 'access-changed' }, next]);
   const filter = vi.spyOn(queue, 'filter');
@@ -122,12 +128,12 @@ it('waits for its own access hold when an earlier event is access-paused', async
 
 it('keeps a slow online submission in progress and invalidates stock before returning its receipt', async () => {
   const db = getLocalDb();
-  await db.table('stockEventQueue').put(event);
+  await db.table(LOCAL_TABLES.stockEventQueue).put(event);
   const client = new QueryClient();
   client.setQueryData(queryKeys.stockCardSummaries.all, ['old-stock']);
-  await db.table('stockEventQueue').update(event.sequence, { status: 'sending' });
+  await db.table(LOCAL_TABLES.stockEventQueue).update(event.sequence, { status: 'sending' });
   vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-  const observed = vi.spyOn(db.table('stockEventQueue'), 'get');
+  const observed = vi.spyOn(db.table(LOCAL_TABLES.stockEventQueue), 'get');
   let settled = false;
   const result = waitForStockEventReceipt(event, client).then((value) => {
     settled = true;
@@ -145,7 +151,7 @@ it('keeps a slow online submission in progress and invalidates stock before retu
     acceptedAt: Date.now(),
     source: 'server',
   };
-  await db.table('stockEventReceipts').put(receipt);
+  await db.table(LOCAL_TABLES.stockEventReceipts).put(receipt);
   await vi.advanceTimersByTimeAsync(0);
   expect(await result).toEqual({ kind: 'accepted', receipt });
   expect(client.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated).toBe(true);
@@ -153,7 +159,7 @@ it('keeps a slow online submission in progress and invalidates stock before retu
 });
 
 it('returns queued after 1.5 seconds when the online uploader never starts', async () => {
-  await getLocalDb().table('stockEventQueue').put(event);
+  await getLocalDb().table(LOCAL_TABLES.stockEventQueue).put(event);
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
   let settled = false;
   const result = waitForStockEventReceipt(event).then((value) => {
@@ -164,7 +170,9 @@ it('returns queued after 1.5 seconds when the online uploader never starts', asy
   expect(settled).toBe(false);
   await vi.advanceTimersByTimeAsync(1);
   expect(await result).toEqual({ kind: 'queued' });
-  expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).status).toBe('queued');
+  expect((await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(event.sequence)).status).toBe(
+    'queued',
+  );
 });
 
 it('updates foreground counts when the waiting tab closes without waiting for a saved deadline', async () => {
@@ -199,7 +207,7 @@ it('holds foreground ownership until its delivery wait ends', async () => {
   await holdForegroundStockEvent(event.localEventId);
   expect(locked).toBe(true);
   const error = { localEventId: event.localEventId, category: 'refused', event };
-  await getLocalDb().table('stockEventSyncErrors').put(error);
+  await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).put(error);
   expect(await waitForStockEventReceipt(event)).toEqual({ kind: 'refused', error });
   await waitFor(() => expect(locked).toBe(false));
   expect(foregroundStockEvents.has(event.localEventId)).toBe(false);

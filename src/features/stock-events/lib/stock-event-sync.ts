@@ -7,6 +7,7 @@ import {
   type StockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
+import { LOCAL_TABLES } from '@/integrations/local-db';
 import { assertSessionScope } from '@/lib/session-scope';
 
 type UploadResponse = { status: number; data: unknown };
@@ -99,10 +100,10 @@ export function classifyUpload(
 }
 function tables(db: Dexie) {
   return [
-    db.table('stockEventDrafts'),
-    db.table('stockEventQueue'),
-    db.table('stockEventSyncErrors'),
-    db.table('stockEventReceipts'),
+    db.table(LOCAL_TABLES.stockEventDrafts),
+    db.table(LOCAL_TABLES.stockEventQueue),
+    db.table(LOCAL_TABLES.stockEventSyncErrors),
+    db.table(LOCAL_TABLES.stockEventReceipts),
   ];
 }
 async function matching(
@@ -112,9 +113,11 @@ async function matching(
   check: () => void,
 ) {
   check();
-  const row = await db.table<QueuedStockEvent>('stockEventQueue').get(expected.sequence);
+  const row = await db.table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue).get(expected.sequence);
   check();
-  const draft = await db.table<StockEventDraft>('stockEventDrafts').get(expected.draftId);
+  const draft = await db
+    .table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts)
+    .get(expected.draftId);
   check();
   if (
     !row ||
@@ -170,7 +173,7 @@ export async function acceptStockEvent(
     );
     if (!matched) return false;
     const acceptedAt = Date.now();
-    await db.table<StockEventReceipt>('stockEventReceipts').put({
+    await db.table<StockEventReceipt>(LOCAL_TABLES.stockEventReceipts).put({
       draftId: event.draftId,
       revision: event.revision,
       localEventId: event.localEventId,
@@ -180,7 +183,7 @@ export async function acceptStockEvent(
       event,
     });
     check();
-    await db.table<StockEventDraft>('stockEventDrafts').put({
+    await db.table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts).put({
       ...matched.draft,
       state: 'accepted',
       acceptedRevision: event.revision,
@@ -193,9 +196,11 @@ export async function acceptStockEvent(
       ),
     });
     check();
-    await db.table('stockEventSyncErrors').update(event.localEventId, { resolvedAt: acceptedAt });
+    await db
+      .table(LOCAL_TABLES.stockEventSyncErrors)
+      .update(event.localEventId, { resolvedAt: acceptedAt });
     check();
-    await db.table('stockEventQueue').delete(event.sequence);
+    await db.table(LOCAL_TABLES.stockEventQueue).delete(event.sequence);
     check();
     return true;
   });
@@ -213,7 +218,7 @@ async function failEvent(
     const matched = await matching(db, event, 'sending', check);
     if (!matched) return false;
     const previous = await db
-      .table<StockEventSyncError>('stockEventSyncErrors')
+      .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
       .get(event.localEventId);
     check();
     let errorHistory = previous?.history ?? [];
@@ -232,7 +237,7 @@ async function failEvent(
         },
       ];
     }
-    await db.table<StockEventSyncError>('stockEventSyncErrors').put({
+    await db.table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors).put({
       ...failure,
       history: errorHistory,
       event,
@@ -243,7 +248,7 @@ async function failEvent(
     });
     check();
     const uncertain = failure.category === 'uncertain';
-    await db.table<StockEventDraft>('stockEventDrafts').put({
+    await db.table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts).put({
       ...matched.draft,
       state: uncertain ? 'uncertain' : 'refused',
       updatedAt: Date.now(),
@@ -252,16 +257,16 @@ async function failEvent(
     check();
     if (uncertain)
       await db
-        .table('stockEventQueue')
+        .table(LOCAL_TABLES.stockEventQueue)
         .put({ ...matched.row, status: 'uncertain', lastFailure: failure.message });
-    else await db.table('stockEventQueue').delete(event.sequence);
+    else await db.table(LOCAL_TABLES.stockEventQueue).delete(event.sequence);
     check();
     return true;
   });
 }
 export async function recoverSending(db: Dexie, userId: string, check: () => void) {
   const rows = await db
-    .table<QueuedStockEvent>('stockEventQueue')
+    .table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue)
     .where('status')
     .equals('sending')
     .toArray();
@@ -288,9 +293,9 @@ async function beginAttempt(db: Dexie, event: QueuedStockEvent, check: () => voi
       attemptId: crypto.randomUUID(),
       attemptStartedAt: Date.now(),
     };
-    await db.table('stockEventQueue').put(sending);
+    await db.table(LOCAL_TABLES.stockEventQueue).put(sending);
     check();
-    await db.table('stockEventDrafts').put({ ...matched.draft, state: 'queued' });
+    await db.table(LOCAL_TABLES.stockEventDrafts).put({ ...matched.draft, state: 'queued' });
     check();
     return sending;
   });
@@ -304,14 +309,14 @@ async function returnQueued(
   await db.transaction('rw', tables(db), async () => {
     const matched = await matching(db, event, 'sending', check);
     if (!matched) return;
-    await db.table('stockEventQueue').put({
+    await db.table(LOCAL_TABLES.stockEventQueue).put({
       ...matched.row,
       status: 'queued',
       attemptId: undefined,
       attemptStartedAt: undefined,
     });
     check();
-    await db.table('stockEventDrafts').put({
+    await db.table(LOCAL_TABLES.stockEventDrafts).put({
       ...matched.draft,
       state: 'queued',
       history: history(matched.draft, event, notSent ? 'not-sent' : 'not-committed'),
@@ -349,7 +354,10 @@ async function writeForOwner<T>(
 export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDependencies) {
   while (deps.canSend()) {
     deps.check();
-    const rows = await db.table<QueuedStockEvent>('stockEventQueue').orderBy('sequence').toArray();
+    const rows = await db
+      .table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue)
+      .orderBy('sequence')
+      .toArray();
     deps.check();
     const scopeKey = (row: QueuedStockEvent) => `${row.facilityId}:${row.programId}`;
     for (const row of rows) {
@@ -362,7 +370,7 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
       }
       const pauseReason = deps.permitted(row) ? undefined : 'access-changed';
       if (row.pauseReason !== pauseReason) {
-        await db.table('stockEventQueue').update(row.sequence, { pauseReason });
+        await db.table(LOCAL_TABLES.stockEventQueue).update(row.sequence, { pauseReason });
         deps.check();
         row.pauseReason = pauseReason;
       }
@@ -376,7 +384,9 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
     if (!next) return;
     const event = await beginAttempt(db, next, deps.check);
     if (!event) {
-      await db.table('stockEventQueue').update(next.sequence, { pauseReason: 'draft-changed' });
+      await db
+        .table(LOCAL_TABLES.stockEventQueue)
+        .update(next.sequence, { pauseReason: 'draft-changed' });
       deps.check();
       continue;
     }
@@ -473,16 +483,16 @@ export async function resolveUncertain(
   return context.db.transaction('rw', tables(context.db), async () => {
     const matched = await matching(context.db, event, 'uncertain', check);
     if (!matched) return false;
-    await context.db.table('stockEventDrafts').put({
+    await context.db.table(LOCAL_TABLES.stockEventDrafts).put({
       ...matched.draft,
       state: 'queued',
       history: history(matched.draft, event, 'uncertain', 'resend'),
     });
     check();
-    await context.db.table('stockEventQueue').put({ ...matched.row, status: 'queued' });
+    await context.db.table(LOCAL_TABLES.stockEventQueue).put({ ...matched.row, status: 'queued' });
     check();
     await context.db
-      .table('stockEventSyncErrors')
+      .table(LOCAL_TABLES.stockEventSyncErrors)
       .update(event.localEventId, { resolvedAt: Date.now() });
     check();
     return true;
@@ -492,7 +502,9 @@ export async function removeQueuedEvent(context: StockEventContext, event: Queue
   const check = ownerCheck(context, event.userId);
   return context.db.transaction('rw', tables(context.db), async () => {
     check();
-    const row = await context.db.table<QueuedStockEvent>('stockEventQueue').get(event.sequence);
+    const row = await context.db
+      .table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue)
+      .get(event.sequence);
     check();
     if (
       row?.status !== 'queued' ||
@@ -505,9 +517,11 @@ export async function removeQueuedEvent(context: StockEventContext, event: Queue
       row.programId !== event.programId
     )
       return false;
-    const draft = await context.db.table<StockEventDraft>('stockEventDrafts').get(row.draftId);
+    const draft = await context.db
+      .table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts)
+      .get(row.draftId);
     check();
-    await context.db.table('stockEventQueue').delete(row.sequence);
+    await context.db.table(LOCAL_TABLES.stockEventQueue).delete(row.sequence);
     check();
     if (
       draft?.userId === context.userId &&
@@ -517,7 +531,7 @@ export async function removeQueuedEvent(context: StockEventContext, event: Queue
       draft.facilityId === row.facilityId &&
       draft.programId === row.programId
     ) {
-      await context.db.table('stockEventDrafts').delete(row.draftId);
+      await context.db.table(LOCAL_TABLES.stockEventDrafts).delete(row.draftId);
       check();
     }
     return true;
@@ -530,7 +544,7 @@ export async function retryRefusedEvent(context: StockEventContext, error: Stock
   return context.db.transaction('rw', tables(context.db), async () => {
     check();
     const stored = await context.db
-      .table<StockEventSyncError>('stockEventSyncErrors')
+      .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
       .get(error.localEventId);
     check();
     if (
@@ -550,7 +564,9 @@ export async function retryRefusedEvent(context: StockEventContext, error: Stock
     )
       return false;
     const event = stored.event;
-    const draft = await context.db.table<StockEventDraft>('stockEventDrafts').get(event.draftId);
+    const draft = await context.db
+      .table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts)
+      .get(event.draftId);
     check();
     if (
       draft?.state !== 'refused' ||
@@ -563,13 +579,13 @@ export async function retryRefusedEvent(context: StockEventContext, error: Stock
     )
       return false;
     const existing = await context.db
-      .table<QueuedStockEvent>('stockEventQueue')
+      .table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue)
       .where('localEventId')
       .equals(event.localEventId)
       .first();
     check();
     if (existing) return false;
-    await context.db.table('stockEventQueue').add({
+    await context.db.table(LOCAL_TABLES.stockEventQueue).add({
       ...event,
       status: 'queued',
       pauseReason: undefined,
@@ -577,14 +593,14 @@ export async function retryRefusedEvent(context: StockEventContext, error: Stock
     });
     check();
     const now = Date.now();
-    await context.db.table('stockEventDrafts').put({
+    await context.db.table(LOCAL_TABLES.stockEventDrafts).put({
       ...draft,
       state: 'queued',
       updatedAt: now,
       history: history(draft, event, stored.category, 'retry'),
     });
     check();
-    await context.db.table('stockEventSyncErrors').update(error.localEventId, {
+    await context.db.table(LOCAL_TABLES.stockEventSyncErrors).update(error.localEventId, {
       resolvedAt: now,
       dismissedAt: now,
     });
@@ -597,11 +613,11 @@ export async function copyRefusedEvent(context: StockEventContext, error: StockE
   return context.db.transaction('rw', tables(context.db), async () => {
     check();
     const stored = await context.db
-      .table<StockEventSyncError>('stockEventSyncErrors')
+      .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
       .get(error.localEventId);
     check();
     const original = await context.db
-      .table<StockEventDraft>('stockEventDrafts')
+      .table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts)
       .get(error.event.draftId);
     check();
     if (
@@ -618,17 +634,17 @@ export async function copyRefusedEvent(context: StockEventContext, error: StockE
     const active = await readStockEventDraft(context);
     if (active) {
       await context.db
-        .table('stockEventDrafts')
+        .table(LOCAL_TABLES.stockEventDrafts)
         .put({ ...active, state: 'archived', updatedAt: Date.now() });
       check();
     }
     const copy = await archiveStockEventCopy(context, original.lines, original.downloadGeneration);
     check();
     const editing: StockEventDraft = { ...copy, state: 'editing' };
-    await context.db.table('stockEventDrafts').put(editing);
+    await context.db.table(LOCAL_TABLES.stockEventDrafts).put(editing);
     check();
     await context.db
-      .table('stockEventSyncErrors')
+      .table(LOCAL_TABLES.stockEventSyncErrors)
       .update(error.localEventId, { resolvedAt: Date.now() });
     check();
     return editing;
@@ -639,7 +655,7 @@ export async function dismissRefusedEvent(context: StockEventContext, error: Sto
   return context.db.transaction('rw', tables(context.db), async () => {
     check();
     const stored = await context.db
-      .table<StockEventSyncError>('stockEventSyncErrors')
+      .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
       .get(error.localEventId);
     check();
     if (
@@ -652,7 +668,7 @@ export async function dismissRefusedEvent(context: StockEventContext, error: Sto
       stored.event.attemptId !== error.event.attemptId
     )
       return false;
-    await context.db.table('stockEventSyncErrors').update(error.localEventId, {
+    await context.db.table(LOCAL_TABLES.stockEventSyncErrors).update(error.localEventId, {
       dismissedAt: Date.now(),
       resolvedAt: stored.resolvedAt ?? Date.now(),
     });
@@ -664,7 +680,7 @@ export async function hideAcceptedEvent(context: StockEventContext, event: Devic
   const check = ownerCheck(context, event.userId);
   return context.db.transaction('rw', tables(context.db), async () => {
     check();
-    const table = context.db.table<StockEventReceipt>('stockEventReceipts');
+    const table = context.db.table<StockEventReceipt>(LOCAL_TABLES.stockEventReceipts);
     const receipt = await table.get([event.draftId, event.revision]);
     check();
     if (
@@ -689,7 +705,9 @@ export async function hideAcceptedEvent(context: StockEventContext, event: Devic
       hiddenAt: Date.now(),
     });
     check();
-    const draft = await context.db.table<StockEventDraft>('stockEventDrafts').get(event.draftId);
+    const draft = await context.db
+      .table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts)
+      .get(event.draftId);
     check();
     if (
       draft?.state === 'accepted' &&
@@ -697,7 +715,7 @@ export async function hideAcceptedEvent(context: StockEventContext, event: Devic
       draft.localEventId === event.localEventId &&
       draft.revision === event.revision
     )
-      await context.db.table('stockEventDrafts').delete(event.draftId);
+      await context.db.table(LOCAL_TABLES.stockEventDrafts).delete(event.draftId);
     check();
     return true;
   });
@@ -708,12 +726,12 @@ export async function pruneStockEvents(db: Dexie, check: () => void) {
   await db.transaction('rw', tables(db), async () => {
     check();
     await db
-      .table<StockEventReceipt>('stockEventReceipts')
+      .table<StockEventReceipt>(LOCAL_TABLES.stockEventReceipts)
       .filter((row) => row.acceptedAt < cutoff)
       .delete();
     check();
     await db
-      .table<StockEventDraft>('stockEventDrafts')
+      .table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts)
       .filter((row) => row.state === 'accepted' && row.updatedAt < cutoff)
       .delete();
     check();

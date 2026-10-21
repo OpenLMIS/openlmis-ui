@@ -1,7 +1,7 @@
 import type Dexie from 'dexie';
 import type { EventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
-import { getLocalDb, getLocalDbUserId } from '@/integrations/local-db';
+import { getLocalDb, getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { assertDraftRevision, DraftConflictError, saveRevisionedDraft } from '@/lib/draft-store';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -53,7 +53,7 @@ const editingKey = (context: StockEventSelection) => [
 export async function readStockEventDraft(context: StockEventContext) {
   assertSessionScope(context.sessionScope);
   const result = await context.db
-    .table<StockEventDraft>('stockEventDrafts')
+    .table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts)
     .where('[kind+facilityId+programId+state]')
     .equals(editingKey(context))
     .first();
@@ -88,14 +88,14 @@ export async function saveStockEventDraft(
 ): Promise<StockEventDraft | undefined> {
   return saveRevisionedDraft({
     ...context,
-    table: context.db.table<StockEventDraft, string>('stockEventDrafts'),
-    tables: ['homeStockDownloads'],
+    table: context.db.table<StockEventDraft, string>(LOCAL_TABLES.stockEventDrafts),
+    tables: [LOCAL_TABLES.homeStockDownloads],
     expected,
     read: () => readStockEventDraft(context),
     async next(stored) {
       if (!lines.length) return undefined;
       const bundle = await context.db
-        .table('homeStockDownloads')
+        .table(LOCAL_TABLES.homeStockDownloads)
         .get([context.facilityId, context.programId]);
       assertSessionScope(context.sessionScope);
       return {
@@ -118,7 +118,7 @@ export async function archiveStockEventCopy(
   downloadGeneration?: string,
 ) {
   assertSessionScope(context.sessionScope);
-  const table = context.db.table<StockEventDraft>('stockEventDrafts');
+  const table = context.db.table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts);
   return context.db.transaction('rw', table, async () => {
     assertSessionScope(context.sessionScope);
     const copy = { ...record(context, lines, downloadGeneration), state: 'archived' as const };
@@ -131,7 +131,7 @@ export async function archiveStockEventCopy(
 export async function readArchivedStockEvents(context: StockEventContext) {
   assertSessionScope(context.sessionScope);
   const copies = await context.db
-    .table<StockEventDraft>('stockEventDrafts')
+    .table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts)
     .where('[kind+facilityId+programId+state]')
     .equals([context.kind, context.facilityId, context.programId, 'archived'])
     .toArray();
@@ -140,7 +140,9 @@ export async function readArchivedStockEvents(context: StockEventContext) {
 }
 
 async function checkedCopy(context: StockEventContext, copy: StockEventDraft) {
-  const stored = await context.db.table<StockEventDraft>('stockEventDrafts').get(copy.draftId);
+  const stored = await context.db
+    .table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts)
+    .get(copy.draftId);
   assertSessionScope(context.sessionScope);
   if (
     !stored ||
@@ -159,7 +161,7 @@ export async function restoreStockEventCopy(
   expected: StockEventDraft | undefined,
   copy: StockEventDraft,
 ) {
-  const table = context.db.table<StockEventDraft>('stockEventDrafts');
+  const table = context.db.table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts);
   return context.db.transaction('rw', table, async () => {
     const stored = await readStockEventDraft(context);
     assertDraftRevision(stored, expected);
@@ -178,7 +180,7 @@ export async function restoreStockEventCopy(
 }
 
 export async function deleteStockEventCopy(context: StockEventContext, copy: StockEventDraft) {
-  const table = context.db.table<StockEventDraft>('stockEventDrafts');
+  const table = context.db.table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts);
   await context.db.transaction('rw', table, async () => {
     await checkedCopy(context, copy);
     await table.delete(copy.draftId);

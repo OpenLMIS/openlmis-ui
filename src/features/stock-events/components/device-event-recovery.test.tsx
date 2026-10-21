@@ -26,7 +26,7 @@ import {
 } from '@/features/stock-events/lib/stock-event-sync';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { client } from '@/integrations/axios';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
@@ -60,10 +60,10 @@ beforeEach(async () => {
     .getState()
     .setLoginData({ referenceDataUserId: 'recovery', username: 'Ada', accessToken: 'token' });
   for (const table of [
-    'stockEventDrafts',
-    'stockEventQueue',
-    'stockEventReceipts',
-    'stockEventSyncErrors',
+    LOCAL_TABLES.stockEventDrafts,
+    LOCAL_TABLES.stockEventQueue,
+    LOCAL_TABLES.stockEventReceipts,
+    LOCAL_TABLES.stockEventSyncErrors,
   ])
     await getLocalDb().table(table).clear();
 });
@@ -93,10 +93,10 @@ async function open(
   if (status === 'queued') uncertain = event;
   else if (status === 'uncertain') {
     await getLocalDb()
-      .table('stockEventQueue')
+      .table(LOCAL_TABLES.stockEventQueue)
       .update(event.sequence, { status: 'sending', attemptId: 'a' });
     await recoverSending(getLocalDb(), event.userId, () => {});
-    uncertain = await getLocalDb().table('stockEventQueue').get(event.sequence);
+    uncertain = await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(event.sequence);
   } else {
     await syncStockEvents(getLocalDb(), event.userId, {
       check: () => {},
@@ -115,9 +115,11 @@ async function open(
       retryReceipt: async () => {},
       accepted: () => {},
     });
-    const error = await getLocalDb().table('stockEventSyncErrors').get(event.localEventId);
+    const error = await getLocalDb()
+      .table(LOCAL_TABLES.stockEventSyncErrors)
+      .get(event.localEventId);
     const receipt = await getLocalDb()
-      .table('stockEventReceipts')
+      .table(LOCAL_TABLES.stockEventReceipts)
       .get([event.draftId, event.revision]);
     uncertain = { ...event, status, error, receipt };
   }
@@ -145,9 +147,9 @@ it('no-view recovery calls no history, cancel keeps uncertainty, only confirmed 
   const warning = screen.getByRole('alertdialog');
   expect(warning).toHaveTextContent('offline-events.duplicate-warning');
   await userEvent.click(within(warning).getByRole('button', { name: 'offline-events.cancel' }));
-  expect((await getLocalDb().table('stockEventQueue').get(uncertain.sequence)).status).toBe(
-    'uncertain',
-  );
+  expect(
+    (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(uncertain.sequence)).status,
+  ).toBe('uncertain');
   expect(wakeStockEventSync).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: 'offline-events.send-again' }));
   await userEvent.click(
@@ -156,9 +158,9 @@ it('no-view recovery calls no history, cancel keeps uncertainty, only confirmed 
     }),
   );
   await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
-  expect((await getLocalDb().table('stockEventQueue').get(uncertain.sequence)).status).toBe(
-    'queued',
-  );
+  expect(
+    (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(uncertain.sequence)).status,
+  ).toBe('queued');
   expect(client.get).not.toHaveBeenCalled();
   expect(client.post).not.toHaveBeenCalled();
 });
@@ -167,11 +169,11 @@ it('It Was Recorded preserves uncertainty on cancel and records only after confi
   await userEvent.click(screen.getByRole('button', { name: 'offline-events.recorded' }));
   const warning = await screen.findByRole('alertdialog');
   expect(warning).toHaveTextContent('offline-events.recorded-warning');
-  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(0);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(0);
   await userEvent.click(within(warning).getByRole('button', { name: 'offline-events.cancel' }));
-  expect((await getLocalDb().table('stockEventQueue').get(uncertain.sequence)).status).toBe(
-    'uncertain',
-  );
+  expect(
+    (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(uncertain.sequence)).status,
+  ).toBe('uncertain');
   expect(onClose).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: 'offline-events.recorded' }));
   await userEvent.click(
@@ -181,10 +183,13 @@ it('It Was Recorded preserves uncertainty on cancel and records only after confi
   );
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   expect(
-    (await getLocalDb().table('stockEventReceipts').get([uncertain.draftId, uncertain.revision]))
-      .source,
+    (
+      await getLocalDb()
+        .table(LOCAL_TABLES.stockEventReceipts)
+        .get([uncertain.draftId, uncertain.revision])
+    ).source,
   ).toBe('user');
-  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
   expect(client.get).not.toHaveBeenCalled();
   expect(client.post).not.toHaveBeenCalled();
 });
@@ -192,7 +197,7 @@ it('It Was Recorded preserves uncertainty on cancel and records only after confi
 it('a stale recovery choice explains that the event changed without repeating it', async () => {
   const { uncertain, onClose } = await open();
   await getLocalDb()
-    .table('stockEventQueue')
+    .table(LOCAL_TABLES.stockEventQueue)
     .update(uncertain.sequence, { attemptId: 'new-attempt' });
   await userEvent.click(screen.getByRole('button', { name: 'offline-events.recorded' }));
   await userEvent.click(
@@ -206,10 +211,10 @@ it('a stale recovery choice explains that the event changed without repeating it
     }),
   );
   expect(onClose).toHaveBeenCalledOnce();
-  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(0);
-  expect((await getLocalDb().table('stockEventQueue').get(uncertain.sequence)).attemptId).toBe(
-    'new-attempt',
-  );
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(0);
+  expect(
+    (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(uncertain.sequence)).attemptId,
+  ).toBe('new-attempt');
 });
 
 it('keeps recorded recovery available after losing adjustment grants but blocks Send Again', async () => {
@@ -242,7 +247,8 @@ it('dismisses a refusal after confirmation and shows only a human message in det
   await userEvent.click(within(warning).getByRole('button', { name: 'offline-events.remove' }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(
-    (await getLocalDb().table('stockEventSyncErrors').get(uncertain.localEventId)).dismissedAt,
+    (await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).get(uncertain.localEventId))
+      .dismissedAt,
   ).toBeDefined();
   expect(client.post).not.toHaveBeenCalled();
   expect(announceDeviceSave).toHaveBeenCalledWith('offline-events.refused-removed');
@@ -340,12 +346,15 @@ it.each([
     await waitFor(() =>
       expect(document.activeElement).toHaveTextContent('offline-events.no-events-title'),
     );
-    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
     expect(announceDeviceSave).toHaveBeenCalledWith(
       status === 'accepted' ? 'offline-events.synced-removed' : 'offline-events.removed',
     );
     if (status === 'accepted') {
-      const receipt = await getLocalDb().table('stockEventReceipts').toCollection().first();
+      const receipt = await getLocalDb()
+        .table(LOCAL_TABLES.stockEventReceipts)
+        .toCollection()
+        .first();
       expect(receipt.hiddenAt).toBeDefined();
       expect(receipt.event).toBeUndefined();
     }
@@ -378,9 +387,9 @@ it('Retry requeues a refusal without confirmation, retains one visible event and
   await userEvent.click(screen.getByRole('button', { name: 'offline-events.retry-refused' }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-  expect((await getLocalDb().table('stockEventQueue').get(refused.sequence)).postBody).toBe(
-    refused.postBody,
-  );
+  expect(
+    (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(refused.sequence)).postBody,
+  ).toBe(refused.postBody);
   await waitFor(() =>
     expect(events.current.events?.map((event) => event.status)).toEqual(['queued']),
   );
@@ -413,7 +422,7 @@ it('keeps refused Retry disabled without sending rights and retains correction/r
   expect(retry).toHaveAttribute('aria-disabled', 'true');
   expect(retry).toHaveAccessibleDescription('offline-events.no-send');
   await userEvent.click(retry);
-  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
   expect(screen.getByRole('button', { name: 'offline-events.copy' })).toBeEnabled();
   expect(screen.getByRole('button', { name: 'offline-events.remove' })).toBeEnabled();
 });
@@ -442,7 +451,9 @@ it.each(['menu', 'cards'] as const)(
     });
     if (layout === 'menu') expect(screen.getAllByRole('menuitem')[0]).toBe(retry);
     await userEvent.click(retry);
-    await waitFor(async () => expect(await getLocalDb().table('stockEventQueue').count()).toBe(1));
+    await waitFor(async () =>
+      expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(1),
+    );
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   },
 );

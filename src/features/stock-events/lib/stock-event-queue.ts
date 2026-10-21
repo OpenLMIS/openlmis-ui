@@ -10,6 +10,7 @@ import type {
 } from '@/features/stock-events/lib/stock-event-local';
 import { readStockEventDraft } from '@/features/stock-events/lib/stock-event-local';
 import type { StockEvent } from '@/features/stock-events/lib/types';
+import { LOCAL_TABLES } from '@/integrations/local-db';
 import { DraftConflictError } from '@/lib/draft-store';
 import type { NamedRecord } from '@/lib/facility-program-selection';
 import { assertSessionScope } from '@/lib/session-scope';
@@ -46,9 +47,9 @@ export async function enqueueStockEvent(
   options: { foreground?: boolean } = {},
 ): Promise<QueuedStockEvent> {
   assertSessionScope(context.sessionScope);
-  const drafts = context.db.table<StockEventDraft>('stockEventDrafts');
+  const drafts = context.db.table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts);
   const queue = context.db.table<QueuedStockEvent, number, Omit<QueuedStockEvent, 'sequence'>>(
-    'stockEventQueue',
+    LOCAL_TABLES.stockEventQueue,
   );
   if (
     expected.userId !== context.userId ||

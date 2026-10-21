@@ -11,7 +11,7 @@ import {
   restoreStockEventCopy,
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { DraftConflictError } from '@/lib/draft-store';
 
 const selection = { kind: 'adjustment' as const, facilityId: 'facility', programId: 'program' };
@@ -30,7 +30,7 @@ beforeEach(async () => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'draft-user', username: 'user', accessToken: 'token' });
-  await getLocalDb().table('stockEventDrafts').clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).clear();
 });
 it('resumes exact typed values and snapshots and increments revisions', async () => {
   const context = createStockEventContext(selection);
@@ -80,7 +80,7 @@ it('keeps current conflict edits in a separate archived copy without changing th
 it('rolls back a write when identity changes after put, and retains existing drafts on sign-out', async () => {
   const context = createStockEventContext(selection);
   const first = await saveStockEventDraft(context, undefined, [line]);
-  const table = context.db.table('stockEventDrafts');
+  const table = context.db.table(LOCAL_TABLES.stockEventDrafts);
   const put = table.put.bind(table);
   vi.spyOn(table, 'put').mockImplementationOnce((...args) =>
     Dexie.Promise.resolve(

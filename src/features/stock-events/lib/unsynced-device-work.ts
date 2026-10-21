@@ -2,7 +2,7 @@ import type { InventoryLocalCopy } from '@/features/stock-events/lib/physical-in
 import type { StockEventDraft } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import type { StockEventSyncError } from '@/features/stock-events/lib/stock-event-sync';
-import { getLocalDb, getLocalDbUserId } from '@/integrations/local-db';
+import { getLocalDb, getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export async function countUnsyncedDeviceWork() {
@@ -15,12 +15,21 @@ export async function countUnsyncedDeviceWork() {
   const db = getLocalDb();
   return db.transaction(
     'r',
-    ['stockEventDrafts', 'stockEventQueue', 'stockEventSyncErrors', 'physicalInventoryDrafts'],
+    [
+      LOCAL_TABLES.stockEventDrafts,
+      LOCAL_TABLES.stockEventQueue,
+      LOCAL_TABLES.stockEventSyncErrors,
+      LOCAL_TABLES.physicalInventoryDrafts,
+    ],
     async () => {
-      const drafts = await db.table<StockEventDraft>('stockEventDrafts').toArray();
-      const queue = await db.table<QueuedStockEvent>('stockEventQueue').toArray();
-      const errors = await db.table<StockEventSyncError>('stockEventSyncErrors').toArray();
-      const inventories = await db.table<InventoryLocalCopy>('physicalInventoryDrafts').toArray();
+      const drafts = await db.table<StockEventDraft>(LOCAL_TABLES.stockEventDrafts).toArray();
+      const queue = await db.table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue).toArray();
+      const errors = await db
+        .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
+        .toArray();
+      const inventories = await db
+        .table<InventoryLocalCopy>(LOCAL_TABLES.physicalInventoryDrafts)
+        .toArray();
       assertSessionScope(scope);
       const events = new Set([
         ...queue.map((row) => row.localEventId),

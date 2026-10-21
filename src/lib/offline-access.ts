@@ -1,6 +1,8 @@
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { Facility, Program } from '@/features/reference-data/lib/types';
+import { getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { deviceDataGeneration, LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
+import { putOwnedRecord, requireOwnedRecord } from '@/lib/local-records';
 import { OFFLINE_FRESH_FOR } from '@/lib/offline-freshness';
 import { getConnectionGeneration } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -25,17 +27,15 @@ export type AccessReaders = {
 };
 
 export async function readOfflineAccess() {
-  const scope = getSessionScope();
-  const userId = useLoginData.getState().referenceDataUserId;
-  if (!userId) throw new LocalDataUnavailableError();
-  const { getLocalDb } = await import('@/integrations/local-db');
-  assertSessionScope(scope);
-  const saved = await getLocalDb().table<OfflineAccess>('offlineAccess').get(userId);
-  assertSessionScope(scope);
-  if (!saved || saved.userId !== userId || saved.formatVersion !== 1) {
+  let userId: string;
+  try {
+    userId = getLocalDbUserId();
+  } catch {
     throw new LocalDataUnavailableError();
   }
-  return saved;
+  return requireOwnedRecord<OfflineAccess>(LOCAL_TABLES.offlineAccess, userId, {
+    formats: [1],
+  });
 }
 
 const DEVICE_ACCESS_FRESH_FOR = 30_000;
@@ -153,16 +153,7 @@ export async function readAccessSnapshot(readers: AccessReaders, check: () => vo
 
 export async function refreshOfflineAccess(readers: AccessReaders, check: () => void) {
   const snapshot = await readAccessSnapshot(readers, check);
-  const { getLocalDb } = await import('@/integrations/local-db');
-  check();
-  const db = getLocalDb();
-  const table = db.table<OfflineAccess>('offlineAccess');
-  await db.transaction('rw', table, async () => {
-    check();
-    await table.put(snapshot);
-    check();
-  });
-  check();
+  await putOwnedRecord(LOCAL_TABLES.offlineAccess, snapshot, check);
   return snapshot;
 }
 

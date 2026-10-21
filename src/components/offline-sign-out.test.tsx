@@ -7,7 +7,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import * as deviceWork from '@/features/stock-events/lib/unsynced-device-work';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 
 vi.mock('@/components/device-work', () => ({
   useDeviceWork: () => ({ countUnsyncedWork: () => deviceWork.countUnsyncedDeviceWork() }),
@@ -106,10 +106,10 @@ it.each(['queued', 'refused', 'draft'])(
     const db = getLocalDb();
     const table =
       state === 'refused'
-        ? 'stockEventSyncErrors'
+        ? LOCAL_TABLES.stockEventSyncErrors
         : state === 'draft'
-          ? 'stockEventDrafts'
-          : 'stockEventQueue';
+          ? LOCAL_TABLES.stockEventDrafts
+          : LOCAL_TABLES.stockEventQueue;
     await db.table(table).put({
       localEventId: 'event',
       draftId: 'draft',
@@ -134,7 +134,7 @@ it('flushes before counting and gives one combined offline warning', async () =>
   function FlushDraft() {
     useLeaveGuard(true, (proceed) => {
       void getLocalDb()
-        .table('stockEventDrafts')
+        .table(LOCAL_TABLES.stockEventDrafts)
         .put({ draftId: 'flushed', state: 'editing', lines: [{}] })
         .then(proceed);
     });
@@ -174,21 +174,21 @@ it('does not sign out a new identity after an old confirmation', async () => {
 it('counts an uncertain event once across queue/errors and excludes resolved or accepted work', async () => {
   const db = getLocalDb();
   await db
-    .table('stockEventQueue')
+    .table(LOCAL_TABLES.stockEventQueue)
     .put({ localEventId: 'event', draftId: 'draft', status: 'uncertain' });
-  await db.table('stockEventSyncErrors').put({ localEventId: 'event' });
-  await db.table('stockEventDrafts').bulkPut([
+  await db.table(LOCAL_TABLES.stockEventSyncErrors).put({ localEventId: 'event' });
+  await db.table(LOCAL_TABLES.stockEventDrafts).bulkPut([
     { draftId: 'draft', state: 'uncertain', lines: [{}] },
     { draftId: 'accepted', state: 'accepted', lines: [{}] },
     { draftId: 'archived', state: 'archived', lines: [{}] },
   ]);
-  await db.table('physicalInventoryDrafts').bulkPut([
+  await db.table(LOCAL_TABLES.physicalInventoryDrafts).bulkPut([
     { draftId: 'modified', modified: true },
     { draftId: 'untouched', modified: false },
   ]);
   expect(await countUnsyncedDeviceWork()).toBe(3);
-  await db.table('stockEventQueue').clear();
-  await db.table('stockEventSyncErrors').update('event', { resolvedAt: Date.now() });
+  await db.table(LOCAL_TABLES.stockEventQueue).clear();
+  await db.table(LOCAL_TABLES.stockEventSyncErrors).update('event', { resolvedAt: Date.now() });
   expect(await countUnsyncedDeviceWork()).toBe(2);
 });
 

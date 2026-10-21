@@ -10,7 +10,7 @@ import {
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { DraftConflictError } from '@/lib/draft-store';
 
 vi.mock('@/features/stock-events/lib/device-event-status', () => ({
@@ -38,21 +38,21 @@ beforeEach(async () => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'queue-user', username: 'Ada', accessToken: 'token' });
-  await getLocalDb().table('stockEventDrafts').clear();
-  await getLocalDb().table('stockEventQueue').clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventQueue).clear();
 });
 it('rolls back both sides if the queue insert or draft freeze fails', async () => {
   const context = createStockEventContext(selection);
   const draft = await saveStockEventDraft(context, undefined, [line]);
   if (!draft) throw new Error('Missing draft');
   for (const [tableName, method] of [
-    ['stockEventQueue', 'add'],
-    ['stockEventDrafts', 'put'],
+    [LOCAL_TABLES.stockEventQueue, 'add'],
+    [LOCAL_TABLES.stockEventDrafts, 'put'],
   ] as const) {
     vi.spyOn(context.db.table(tableName), method).mockRejectedValueOnce(new Error('quota'));
     await expect(enqueueStockEvent(context, draft, payload(), display)).rejects.toThrow('quota');
     expect(await readStockEventDraft(context)).toEqual(draft);
-    expect(await context.db.table('stockEventQueue').count()).toBe(0);
+    expect(await context.db.table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
     expect(announceQueuedEvents).not.toHaveBeenCalled();
     vi.restoreAllMocks();
   }
@@ -68,14 +68,14 @@ it('duplicate confirmation freezes one exact revision and body; queued work cann
   ]);
   expect(first.localEventId).toBe(second.localEventId);
   expect(announceQueuedEvents).toHaveBeenCalledExactlyOnceWith(1);
-  expect(await context.db.table('stockEventQueue').count()).toBe(1);
+  expect(await context.db.table(LOCAL_TABLES.stockEventQueue).count()).toBe(1);
   expect(first.postBody).toBe(JSON.stringify(body));
   expect(first.payload).toEqual(body);
   expect(first.payload).not.toHaveProperty('documentNumber');
   body.signature = 'Mutated';
-  expect((await context.db.table('stockEventQueue').get(first.sequence)).payload.signature).toBe(
-    'Ada',
-  );
+  expect(
+    (await context.db.table(LOCAL_TABLES.stockEventQueue).get(first.sequence)).payload.signature,
+  ).toBe('Ada');
   expect(await readStockEventDraft(context)).toBeUndefined();
   await expect(saveStockEventDraft(context, draft, [line])).rejects.toBeInstanceOf(
     DraftConflictError,
@@ -83,7 +83,9 @@ it('duplicate confirmation freezes one exact revision and body; queued work cann
   await expect(saveStockEventDraft(context, draft, [])).rejects.toBeInstanceOf(DraftConflictError);
   const next = await saveStockEventDraft(context, undefined, [line]);
   expect(next?.draftId).not.toBe(draft.draftId);
-  expect((await context.db.table('stockEventDrafts').get(draft.draftId)).state).toBe('queued');
+  expect((await context.db.table(LOCAL_TABLES.stockEventDrafts).get(draft.draftId)).state).toBe(
+    'queued',
+  );
 });
 it('detects a stale revision rather than freezing another tab edits', async () => {
   const context = createStockEventContext(selection);
@@ -96,13 +98,13 @@ it('detects a stale revision rather than freezing another tab edits', async () =
     DraftConflictError,
   );
   expect(await readStockEventDraft(context)).toEqual(newer);
-  expect(await context.db.table('stockEventQueue').count()).toBe(0);
+  expect(await context.db.table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
 });
 it('rolls back enqueue after identity change and retains queued work on sign-out', async () => {
   const context = createStockEventContext(selection);
   const draft = await saveStockEventDraft(context, undefined, [line]);
   if (!draft) throw new Error('Missing draft');
-  const table = context.db.table('stockEventQueue');
+  const table = context.db.table(LOCAL_TABLES.stockEventQueue);
   const add = table.add.bind(table);
   vi.spyOn(table, 'add').mockImplementationOnce((...args) =>
     Dexie.Promise.resolve(
@@ -119,14 +121,16 @@ it('rolls back enqueue after identity change and retains queued work on sign-out
     .setLoginData({ referenceDataUserId: 'queue-user', username: 'Ada', accessToken: 'new' });
   const fresh = createStockEventContext(selection);
   expect(await readStockEventDraft(fresh)).toEqual(draft);
-  expect(await fresh.db.table('stockEventQueue').count()).toBe(0);
+  expect(await fresh.db.table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
   await expect(enqueueStockEvent(context, draft, payload(), display)).rejects.toThrow();
   const queued = await enqueueStockEvent(fresh, draft, payload(), display);
   useLoginData.getState().clearLoginData();
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'queue-user', username: 'Ada', accessToken: 'again' });
-  expect(await getLocalDb().table('stockEventQueue').get(queued.sequence)).toEqual(queued);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(queued.sequence)).toEqual(
+    queued,
+  );
 });
 
 it('announces only waiting work when earlier events have their own pause notice', async () => {
@@ -135,7 +139,7 @@ it('announces only waiting work when earlier events have their own pause notice'
   if (!draft) throw new Error('Missing draft');
   const first = await enqueueStockEvent(context, draft, payload(), display);
   await context.db
-    .table('stockEventQueue')
+    .table(LOCAL_TABLES.stockEventQueue)
     .update(first.sequence, { pauseReason: 'access-changed' });
   vi.mocked(announceQueuedEvents).mockClear();
   const next = await saveStockEventDraft(context, undefined, [line]);

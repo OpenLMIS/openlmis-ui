@@ -1,6 +1,6 @@
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import type { StockEventSyncError } from '@/features/stock-events/lib/stock-event-sync';
-import { getLocalDb, getLocalDbUserId } from '@/integrations/local-db';
+import { getLocalDb, getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export async function hasOwnDeviceEvents() {
@@ -14,11 +14,11 @@ export async function hasOwnDeviceEvents() {
   const db = getLocalDb();
   const counts = await Promise.all([
     db
-      .table<QueuedStockEvent>('stockEventQueue')
+      .table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue)
       .filter((event) => event.userId === userId)
       .count(),
     db
-      .table<StockEventSyncError>('stockEventSyncErrors')
+      .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
       .filter(
         (error) =>
           error.event.userId === userId &&

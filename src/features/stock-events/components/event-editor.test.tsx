@@ -70,7 +70,7 @@ import { syncStockEvents } from '@/features/stock-events/lib/stock-event-sync';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
@@ -183,10 +183,10 @@ beforeEach(async () => {
     .mockResolvedValue([{ id: 'assignment', reason, hidden: false }]);
   vi.mocked(fetchTradeItemByGtin).mockReset().mockResolvedValue({ id: 'trade' });
   useLoginData.setState({ referenceDataUserId: 'ada-id' });
-  await getLocalDb().table('stockEventDrafts').clear();
-  await getLocalDb().table('stockEventQueue').clear();
-  await getLocalDb().table('stockEventSyncErrors').clear();
-  await getLocalDb().table('stockEventReceipts').clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventQueue).clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).clear();
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -533,7 +533,7 @@ describe('EventEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(submitStockEvent).not.toHaveBeenCalled();
     expect(onSubmitted).not.toHaveBeenCalled();
-    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
   });
   it('blocks a retained Confirm after switching away and back to the draft owner', async () => {
     const { user, onSubmitted } = setup();
@@ -548,7 +548,7 @@ describe('EventEditor', () => {
     expect(submitStockEvent).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
     expect(onSubmitted).not.toHaveBeenCalled();
-    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
   });
   it.each(['success', 'failure'])(
     'ignores a submit %s that finishes after switching user',
@@ -826,7 +826,7 @@ describe('EventEditor', () => {
     await user.type(await screen.findByRole('textbox', { name: 'Signature' }), 'Ada');
     await user.dblClick(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledOnce());
-    const rows = await getLocalDb().table('stockEventQueue').toArray();
+    const rows = await getLocalDb().table(LOCAL_TABLES.stockEventQueue).toArray();
     expect(rows).toHaveLength(1);
     expect(rows[0].payload).toEqual({
       facilityId: 'facility',
@@ -926,7 +926,7 @@ describe('EventEditor', () => {
       });
       return {
         kind: 'refused',
-        error: await getLocalDb().table('stockEventSyncErrors').get(event.localEventId),
+        error: await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).get(event.localEventId),
       };
     });
     const { user, onSubmitted } = setup();
@@ -945,9 +945,9 @@ describe('EventEditor', () => {
     await user.click(within(failure).getByRole('button', { name: 'Copy For Correction' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled());
     expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
-    const drafts = await getLocalDb().table('stockEventDrafts').toArray();
+    const drafts = await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).toArray();
     expect(drafts.map((row) => row.state).sort()).toEqual(['editing', 'refused']);
-    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
     expect(onSubmitted).not.toHaveBeenCalled();
   });
   it('formats refusal detail times in the deployment zone while keeping transport fields out', async () => {
@@ -968,7 +968,7 @@ describe('EventEditor', () => {
       });
       return {
         kind: 'refused',
-        error: await getLocalDb().table('stockEventSyncErrors').get(event.localEventId),
+        error: await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).get(event.localEventId),
       };
     });
     const { user } = setup(true, (client) =>
@@ -987,7 +987,10 @@ describe('EventEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Copy For Correction' }));
     const details = await screen.findByRole('dialog');
     expect(details).toHaveTextContent(en['offline-events.refused-description']);
-    const error = await getLocalDb().table('stockEventSyncErrors').toCollection().first();
+    const error = await getLocalDb()
+      .table(LOCAL_TABLES.stockEventSyncErrors)
+      .toCollection()
+      .first();
     expect(details).toHaveTextContent(
       formatTimestamp(new Date(error.event.queuedAt).toISOString(), 'en', {
         time: true,
@@ -1001,7 +1004,7 @@ describe('EventEditor', () => {
     const { user, onSubmitted } = setup();
     await validLine(user);
     await user.click(screen.getByRole('button', { name: 'Submit' }));
-    vi.spyOn(getLocalDb().table('stockEventQueue'), 'add').mockRejectedValueOnce(
+    vi.spyOn(getLocalDb().table(LOCAL_TABLES.stockEventQueue), 'add').mockRejectedValueOnce(
       new Error('quota'),
     );
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
@@ -1011,8 +1014,8 @@ describe('EventEditor', () => {
     expect(toast.success).not.toHaveBeenCalled();
     expect(onSubmitted).not.toHaveBeenCalled();
     expect(submitStockEvent).not.toHaveBeenCalled();
-    expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
-    const drafts = await getLocalDb().table('stockEventDrafts').toArray();
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
+    const drafts = await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).toArray();
     expect(drafts).toHaveLength(1);
     expect(drafts[0].state).toBe('editing');
   });
@@ -1227,7 +1230,7 @@ it('allows leaving a queued Adjustment without retiring its frozen draft', async
   const unload = new Event('beforeunload', { cancelable: true });
   fireEvent(window, unload);
   expect(unload.defaultPrevented).toBe(false);
-  const [draft] = await getLocalDb().table('stockEventDrafts').toArray();
+  const [draft] = await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).toArray();
   expect(draft.state).toBe('queued');
   expect(refreshAfterStockEventAccepted).not.toHaveBeenCalled();
   router?.history.destroy();
@@ -2307,7 +2310,9 @@ it('shows failed local commits with Retry and leave protection until a successfu
   expect(toolbar).toContainElement(saved);
   const unit = screen.getByRole('radiogroup', { name: 'Show Quantities In' });
   expect(saved.compareDocumentPosition(unit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  vi.spyOn(getLocalDb().table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('quota'));
+  vi.spyOn(getLocalDb().table(LOCAL_TABLES.stockEventDrafts), 'put').mockRejectedValueOnce(
+    new Error('quota'),
+  );
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
   await screen.findByText('Could not save on this device. Your latest edits are not saved.');
   expect(screen.queryByText('Saved On This Device')).not.toBeInTheDocument();
@@ -2335,7 +2340,7 @@ it('flushes the final edit on unmount and restores exact quantities without a di
   });
   cleanup();
   await waitFor(async () => {
-    const [saved] = await getLocalDb().table('stockEventDrafts').toArray();
+    const [saved] = await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).toArray();
     expect(saved.lines[0].quantity.doses).toBe('0019');
   });
   setup();
@@ -2348,7 +2353,7 @@ it('keeps committed lines when signing out after a failed device save', async ()
   const { user } = setup();
   await add(user);
   await screen.findByText('Saved On This Device');
-  const table = getLocalDb().table('stockEventDrafts');
+  const table = getLocalDb().table(LOCAL_TABLES.stockEventDrafts);
   const before = await table.toArray();
   vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
@@ -2381,7 +2386,7 @@ it.each(['navigation', 'sign-out'])(
       await waitFor(() => expect(leave).toHaveBeenCalledOnce());
     }
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    const [stored] = await getLocalDb().table('stockEventDrafts').toArray();
+    const [stored] = await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).toArray();
     expect(stored.lines[0].quantity.doses).toBe('0018');
     if (destination === 'navigation') expect(router.state.location.pathname).toBe('/settings');
     router.history.destroy();
@@ -2392,7 +2397,9 @@ it('explains a failed device flush when Submit is clicked', async () => {
   const { user } = setup();
   await validLine(user);
   await screen.findByText('Saved On This Device');
-  vi.spyOn(getLocalDb().table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('quota'));
+  vi.spyOn(getLocalDb().table(LOCAL_TABLES.stockEventDrafts), 'put').mockRejectedValueOnce(
+    new Error('quota'),
+  );
   fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
     target: { value: '18' },
   });
@@ -2473,7 +2480,7 @@ it('restores an archived copy, retains the replaced draft, and requires confirma
       { ...active.lines[0], quantity: { doses: '0030', packs: '01', remainder: '14' } },
     ]);
     await context.db
-      .table('stockEventDrafts')
+      .table(LOCAL_TABLES.stockEventDrafts)
       .put({ ...copy, savedAt: Date.parse('2026-10-14T23:30:00Z') });
   });
   await user.click(await screen.findByRole('button', { name: 'Archived Copies' }));
@@ -2493,9 +2500,11 @@ it('restores an archived copy, retains the replaced draft, and requires confirma
   await user.click(within(dialog).getByRole('button', { name: /^Actions For Copy/ }));
   await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
   const confirmation = await screen.findByRole('alertdialog');
-  expect(await getLocalDb().table('stockEventDrafts').count()).toBe(2);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).count()).toBe(2);
   await user.click(within(confirmation).getByRole('button', { name: 'Delete' }));
-  await waitFor(async () => expect(await getLocalDb().table('stockEventDrafts').count()).toBe(1));
+  await waitFor(async () =>
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).count()).toBe(1),
+  );
   expect((await readStockEventDraft(context))?.lines[0].quantity.doses).toBe('0030');
 });
 
@@ -2543,9 +2552,11 @@ it.each(['no stock rights', 'failed read'])(
   'leaves Adjustments without a writer after %s',
   async (condition) => {
     if (condition === 'failed read') {
-      vi.spyOn(getLocalDb().table('stockEventDrafts'), 'where').mockImplementationOnce(() => {
-        throw new Error('Device read failed');
-      });
+      vi.spyOn(getLocalDb().table(LOCAL_TABLES.stockEventDrafts), 'where').mockImplementationOnce(
+        () => {
+          throw new Error('Device read failed');
+        },
+      );
     }
     window.history.replaceState(null, '', '/');
     const { router } = setup(condition !== 'no stock rights', undefined, { browserHistory: true });
@@ -2575,7 +2586,9 @@ it('allows a resumed expired-lot Adjustment to submit', async () => {
   expect(quantity.closest('tr')).not.toHaveAttribute('data-invalid', 'true');
   await next.user.click(screen.getByRole('button', { name: 'Submit' }));
   await next.user.click(await screen.findByRole('button', { name: 'Confirm' }));
-  await waitFor(async () => expect(await getLocalDb().table('stockEventQueue').count()).toBe(1));
+  await waitFor(async () =>
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(1),
+  );
   expect(submitStockEvent).not.toHaveBeenCalled();
 });
 
@@ -2599,7 +2612,7 @@ it('keeps delete failures out of Archived Copies and restore failures out of Del
   await user.click(actions());
   await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
   const deletion = await screen.findByRole('alertdialog');
-  vi.spyOn(context.db.table('stockEventDrafts'), 'delete').mockRejectedValueOnce(
+  vi.spyOn(context.db.table(LOCAL_TABLES.stockEventDrafts), 'delete').mockRejectedValueOnce(
     new Error('storage'),
   );
   await user.click(within(deletion).getByRole('button', { name: 'Delete' }));
@@ -2607,7 +2620,9 @@ it('keeps delete failures out of Archived Copies and restore failures out of Del
   expect(within(copies).queryByRole('alert')).not.toBeInTheDocument();
   await user.click(within(deletion).getByRole('button', { name: 'Cancel' }));
   await user.click(actions());
-  vi.spyOn(context.db.table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('storage'));
+  vi.spyOn(context.db.table(LOCAL_TABLES.stockEventDrafts), 'put').mockRejectedValueOnce(
+    new Error('storage'),
+  );
   await user.click(await screen.findByRole('menuitem', { name: 'Restore' }));
   await within(copies).findByRole('alert');
   await user.click(actions());
@@ -2645,5 +2660,5 @@ it('keeps an earlier unknown Issue outcome visible after a later definitive refu
     en['stock-events.unknown-outcome-description'],
   );
   expect(submitStockEvent).toHaveBeenCalledTimes(2);
-  expect(await getLocalDb().table('stockEventQueue').count()).toBe(0);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
 });

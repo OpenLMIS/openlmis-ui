@@ -2,7 +2,7 @@ import { onlineManager } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
 import { AxiosError, isAxiosError } from 'axios';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
 import { prepareDeploymentTimeZone, storedTimeZone } from '@/lib/deployment-time-zone';
 import type { DownloadProvider, DownloadRecord, DownloadTask } from '@/lib/download-provider';
@@ -121,7 +121,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
     const previousStatus = getDownloadStatus();
     channel.resetObservations();
     try {
-      const accessTable = db.table<OfflineAccess>('offlineAccess');
+      const accessTable = db.table<OfflineAccess>(LOCAL_TABLES.offlineAccess);
       const [initialAccess, initialRecords] = await wait(
         Promise.all([
           accessTable.get(userId),
