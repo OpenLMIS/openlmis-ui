@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -31,12 +31,15 @@ import {
   fetchUserPrograms,
   fetchUserRecord,
 } from '@/features/reference-data/api/api';
+import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { fetchStockCardSummaries, fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
 import type { StockCardSummary } from '@/features/stock-on-hand/lib/types';
+import { getLocalDb } from '@/integrations/local-db';
 import { downloadFile } from '@/lib/download-file';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand';
 import { expectRouteWarning } from '@/tests/expect-route-warning';
+import { seedHomeStock } from '@/tests/home-stock';
 import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
@@ -849,4 +852,111 @@ describe('stock on hand View', () => {
     }
     expect(screen.getAllByText('stock-on-hand.no-lot')).toHaveLength(2);
   });
+});
+
+async function seedStockPickerAccess() {
+  const access = {
+    userId: USER,
+    permissionStrings: grants,
+    user: await fetchUserRecord(USER),
+    programs: await fetchUserPrograms(USER),
+    homeFacility: { id: HOME, code: 'HOME', name: 'Home', type: { id: 'type' } },
+    fetchedAt: Date.now(),
+    generation: 'access',
+    formatVersion: 1,
+  };
+  await getLocalDb().table('offlineAccess').put(access);
+}
+
+it.each(['queued', 'sending', 'uncertain'])(
+  'warns about %s work when showing downloaded stock with a cold cache',
+  async (status) => {
+    await seedHomeStock(
+      {
+        id: 'downloaded-card',
+        facility: { id: HOME, code: 'HC01', name: 'Comfort Health Clinic' },
+        program: { id: FP, code: 'P', name: 'Family Planning' },
+        orderable: {
+          id: 'downloaded-product',
+          productCode: 'OFF',
+          fullProductName: 'Downloaded Medicine',
+        },
+        lot: { id: 'downloaded-lot', lotCode: 'OFF-LOT', expirationDate: null },
+        stockOnHand: 9,
+        active: true,
+        lineItems: [],
+      },
+      USER,
+    );
+    const queue = getLocalDb().table('stockEventQueue');
+    await queue.clear();
+    const id = await queue.add({
+      localEventId: 'pending-stock',
+      userId: USER,
+      facilityId: HOME,
+      programId: FP,
+      status,
+    });
+    onlineManager.setOnline(false);
+    const client = new QueryClient({
+      defaultOptions: { queries: { networkMode: 'always', retry: false } },
+    });
+    renderRoute(appliedPath(), client);
+    expect(await screen.findAllByText('Downloaded Medicine')).not.toHaveLength(0);
+    expect(screen.getByText('stock-on-hand.offline-snapshot')).toBeInTheDocument();
+    expect(await screen.findByText('offline-events.stock-pending')).toBeVisible();
+    await act(async () => {
+      await queue.update(id, { programId: EM });
+    });
+    await waitFor(() =>
+      expect(screen.queryByText('offline-events.stock-pending')).not.toBeInTheDocument(),
+    );
+    await act(async () => {
+      await queue.update(id, { facilityId: BALAKA, programId: FP });
+    });
+    expect(screen.queryByText('offline-events.stock-pending')).not.toBeInTheDocument();
+    await queue.clear();
+    expect(screen.getByText('OFF-LOT')).toBeInTheDocument();
+    expect(fetchStockCardSummaries).not.toHaveBeenCalled();
+    expect(fetchMinimalFacilities).not.toHaveBeenCalled();
+    expect(fetchOrderablesByIds).not.toHaveBeenCalled();
+    expect(fetchLotsByIds).not.toHaveBeenCalled();
+    await act(async () => {
+      onlineManager.setOnline(true);
+      expect(await client.fetchQuery(minimalFacilitiesOptions())).toHaveLength(2);
+    });
+    expect(fetchMinimalFacilities).toHaveBeenCalled();
+  },
+);
+
+it('replaces a previously viewed supervised list with Not Available Offline on disconnect', async () => {
+  await seedStockPickerAccess();
+  const client = new QueryClient({
+    defaultOptions: { queries: { networkMode: 'always', retry: false } },
+  });
+  const onCaughtError = vi.fn();
+  renderRoute(appliedPath(BALAKA, EM, 'supervised'), client, undefined, { onCaughtError });
+  expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
+  const reads = vi.mocked(fetchStockCardSummaries).mock.calls.length;
+  act(() => onlineManager.setOnline(false));
+  expect(await screen.findByText('offline.unavailable-title')).toBeInTheDocument();
+  expect(fetchStockCardSummaries).toHaveBeenCalledTimes(reads);
+  expect(screen.queryByText('Levonorgestrel')).not.toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toBeInTheDocument();
+  act(() => onlineManager.setOnline(true));
+  expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
+  expect(screen.queryByText('offline.unavailable-title')).not.toBeInTheDocument();
+});
+
+it('keeps the picker visible for an invalid offline selection and loads stock on reconnect', async () => {
+  await seedStockPickerAccess();
+  onlineManager.setOnline(false);
+  const client = new QueryClient({
+    defaultOptions: { queries: { networkMode: 'always', retry: false } },
+  });
+  renderRoute(appliedPath(BALAKA, EM, 'supervised'), client, undefined, { onCaughtError: vi.fn() });
+  expect(await screen.findByText('offline.unavailable-title')).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toBeInTheDocument();
+  act(() => onlineManager.setOnline(true));
+  expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
 });

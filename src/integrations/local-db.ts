@@ -44,6 +44,7 @@ export function getLocalDb(): Dexie {
     });
     database.version(9).stores({ stockCardHistory: 'id, fetchedAt' });
     database.version(10).stores({ stockCardHistory: null });
+    database.version(11).stores({ stockCardHistory: 'id, fetchedAt' });
   }
   return database;
 }

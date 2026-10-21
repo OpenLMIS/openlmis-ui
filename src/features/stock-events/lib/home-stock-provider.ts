@@ -56,7 +56,9 @@ export function homeStockProvider(fetch = fetchHomeStockBundle) {
       ),
     isFresh: (record, access, scope) =>
       !downloadIsStale(record) &&
-      record?.formatVersion === 4 &&
+      record?.formatVersion === 5 &&
+      Array.isArray(record.summaries) &&
+      Array.isArray(record.products) &&
       record.userId === access.userId &&
       record.facilityTypeId === scope.facilityTypeId &&
       (!scope.scanning || record.scanning),
@@ -64,6 +66,8 @@ export function homeStockProvider(fetch = fetchHomeStockBundle) {
       record.facilityId === scope.facilityId &&
       record.programId === scope.programId &&
       record.facilityTypeId === scope.facilityTypeId &&
-      record.formatVersion === 4,
+      record.formatVersion === 5 &&
+      Array.isArray(record.summaries) &&
+      Array.isArray(record.products),
   });
 }

@@ -1,8 +1,9 @@
 # Working Offline
 
 Adjustments can use downloaded data, save drafts and submit events without a connection.
-Home and Offline Events also open offline. Stock On Hand, Stock Card, Transaction History,
-other stock pages, administration, printing and PDF downloads need a connection.
+Home, Offline Events, downloaded home-facility Stock On Hand and saved Stock Cards also open
+offline. Transaction History, other stock pages, administration, printing and PDF downloads
+need a connection.
 
 ## Before You Disconnect
 
@@ -47,9 +48,15 @@ There is no offline print offer. If sending cannot start promptly, the app confi
 and returns to the Adjustments program list. Keep the app open for the queued event to sync.
 Other tabs recognize an upload in progress, so the same event is not sent twice.
 
-Opening Stock On Hand and Stock Card needs a connection, even if you viewed them earlier.
-Offline stock viewing and saved Stock Card histories are planned for a later update. Downloaded
-home stock is used by Adjustments; queued events do not change those downloaded balances.
+Stock On Hand shows downloaded home-facility stock and its download time. Search by product
+name, code or lot and open a Stock Card from its View action. Queued events do not change
+those balances until they sync and stock is downloaded again. Other facilities need a connection.
+
+View a Stock Card while connected to save its full history on this device. The app keeps the
+50 most recently fetched histories for your user. Offline, a card without saved history shows
+its downloaded balance and asks you to connect to view history. Saved history shows its own
+download time and may be older than the latest downloaded balance. Missing downloads show
+Connect To Download This Data. Reconnect to refresh stock and open histories you need.
 
 ## Reconnect And Review Offline Events
 

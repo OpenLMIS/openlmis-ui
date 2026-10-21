@@ -1,4 +1,5 @@
 import type { LotSummary, Orderable } from '@/features/reference-data/lib/types';
+import type { Page } from '@/lib/types';
 
 /** One stock card that can fill the product: the product itself, a lot of it, or a substitute. */
 export type StockCardSummaryEntry = {
@@ -43,3 +44,13 @@ export type StockProductGroup = {
   stockOnHand: number | null;
   cards: StockCardRow[];
 };
+
+export type StockOnHandPage = Page<StockCardSummary> & {
+  device?: {
+    generation: string;
+    fetchedAt: number;
+    products: Orderable[];
+    lots: LotSummary[];
+  };
+};
+export type DeviceStockOnHandReader = (query: StockCardSummariesQuery) => Promise<StockOnHandPage>;

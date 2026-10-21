@@ -10,7 +10,7 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
 type Identity = { id: string; versionNumber?: number; meta?: { versionNumber?: number } };
-type HomeStockSummary = {
+export type HomeStockSummary = {
   orderable: Identity;
   stockOnHand: number | null;
   canFulfillForMe: {
@@ -117,6 +117,9 @@ export async function readEventStockCards(
     if (!byVersion.has(key(identity.id, identity.versionNumber)))
       throw new Error('Stock card product version not found');
   const byId = new Map(unversioned.map((product) => [product.id, product]));
+  for (const identity of requested)
+    if (identity.versionNumber === undefined && !byId.has(identity.id))
+      throw new Error('Stock summary product not found');
   const byLot = new Map(lots.map((lot) => [lot.id, lot]));
   const hydrated = entries.map((card) => {
     const product =
@@ -134,5 +137,5 @@ export async function readEventStockCards(
       lot: lot ?? null,
     };
   });
-  return { cards: hydrated, identities };
+  return { cards: hydrated, identities, summaries, products: [...versioned, ...unversioned] };
 }

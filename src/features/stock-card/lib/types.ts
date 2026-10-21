@@ -44,4 +44,6 @@ export type StockCard = {
   stockOnHand: number | null;
   active: boolean;
   lineItems: StockCardLine[];
+  summaryOnly?: boolean;
+  downloadedAt?: number;
 };

@@ -7,12 +7,21 @@ import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kind
 import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';
 import { useOnline } from '@/lib/online';
 
-export function PendingDeviceWork({ kind }: { kind: ConfiguredEventKind }) {
+export function PendingDeviceWork(
+  props: { kind: ConfiguredEventKind } | { facilityId: string; programId: string },
+) {
+  const kind = 'kind' in props ? props.kind : undefined;
   const { t } = useTranslation();
   const { events } = useOfflineEvents();
   const online = useOnline();
   const count =
-    events?.filter((event) => event.kind === kind && isPendingDeviceEvent(event)).length ?? 0;
+    events?.filter((event) =>
+      'kind' in props
+        ? event.kind === props.kind && isPendingDeviceEvent(event)
+        : event.facilityId === props.facilityId &&
+          event.programId === props.programId &&
+          ['queued', 'sending', 'uncertain'].includes(event.status),
+    ).length ?? 0;
   if (!count) return null;
   return (
     <Alert role="note" variant="offline">
@@ -21,9 +30,11 @@ export function PendingDeviceWork({ kind }: { kind: ConfiguredEventKind }) {
         <Trans
           t={t}
           i18nKey={
-            online
-              ? 'offline-events.program-pending-online'
-              : 'offline-events.program-pending-offline'
+            !kind
+              ? 'offline-events.stock-pending'
+              : online
+                ? 'offline-events.program-pending-online'
+                : 'offline-events.program-pending-offline'
           }
           count={count}
           values={{ count, kind }}

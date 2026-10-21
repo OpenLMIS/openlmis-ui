@@ -120,6 +120,12 @@ it('coalesces foreground reads, retains both requested versions and every page, 
     getHomeStockBundle(filter),
   ]);
   expect(first).toBe(second);
+  expect(first.formatVersion).toBe(5);
+  expect(first.summaries?.map((group) => group.canFulfillForMe[0].stockCard.id)).toEqual([
+    'card-1',
+    'card-2',
+  ]);
+  expect(first.products?.map((product) => product.meta?.versionNumber)).toEqual([1, 2]);
   expect(first.cards.map((card) => card.orderable.meta?.versionNumber)).toEqual([1, 2]);
   expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(2);
   expect(requests.filter((path) => path.startsWith('/orderables/search'))).toHaveLength(2);
@@ -413,4 +419,43 @@ it('uses every page and exact product versions for online stock reads as well as
   expect(cards.map((card) => card.id)).toEqual(['card-1', 'card-2']);
   expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(2);
   expect(requests.some((path) => path.startsWith('/validReasons'))).toBe(false);
+});
+
+it('rejects an unresolved summary product even when its substitute card resolves', async () => {
+  const adapter = client.defaults.adapter as import('axios').AxiosAdapter;
+  client.defaults.adapter = async (config) => {
+    if (config.url === '/v2/stockCardSummaries')
+      return {
+        data: {
+          content: [
+            {
+              ...summary(1),
+              orderable: { id: 'missing-root' },
+              canFulfillForMe: [
+                {
+                  ...summary(1).canFulfillForMe[0],
+                  orderable: { id: 'product', versionNumber: 1 },
+                },
+              ],
+            },
+          ],
+          totalPages: 1,
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      };
+    if (config.url === '/orderables')
+      return {
+        data: { content: [], totalPages: 1 },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      };
+    return adapter(config);
+  };
+  await expect(fetchHomeStockBundle(filter)).rejects.toThrow('Stock summary product not found');
+  expect(await getLocalDb().table('homeStockDownloads').count()).toBe(0);
 });

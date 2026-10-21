@@ -985,8 +985,9 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   `LocalDataUnavailableError`, never a server 404. Preserve device markers and freshness bounds.
   Use `withOfflineAccess` when a read must select the saved access snapshot offline.
 - Home-stock downloads require supported home programs with STOCK_ADJUST and STOCK_CARDS_VIEW.
-  Keep downloaded balances separate from queued events. Stock On Hand and Stock Card remain
-  online-only; their device reads and history caching belong to the next PR.
+  Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home
+  stock; Stock Card caches the 50 most recently fetched full histories per owner. Check home
+  scope and exact grants separately from route capability; show local absence, never a 404.
 - Offline scans consult complete saved mappings. Absence means unavailable locally, never proof
   that a barcode is globally unregistered. Preserve exact product versions and typed values.
 - Flush drafts before guarded transitions and Log Out. Count owner-scoped work once, deduplicate

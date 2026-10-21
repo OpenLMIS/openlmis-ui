@@ -42,18 +42,12 @@ test('offline navigation explains unavailable pages and blocks direct routes wit
   await unavailable.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(issue).toBeFocused();
   await expect(page).toHaveURL(/adjustments$/);
-  const stock = page.getByRole('button', { name: 'Stock On Hand', exact: true });
-  await expect(stock).toHaveAttribute('data-unavailable');
-  await expect(stock.locator('svg.lucide-wifi-off')).toBeVisible();
+  const stock = page.getByRole('link', { name: 'Stock On Hand', exact: true });
+  await expect(stock).not.toHaveAttribute('data-unavailable');
   await stock.click();
-  await expect(unavailable).toContainText('Connect To Open This Page');
-  await unavailable.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(stock).toBeFocused();
-  await expect(page).toHaveURL(/adjustments$/);
-  for (const path of ['stock-management/stock-on-hand', 'stock-management/stock-on-hand/card']) {
-    await page.goto(`./${path}`);
-    await expect(page.getByRole('heading', { name: 'Connect To Open This Page' })).toBeVisible();
-  }
+  await expect(page).toHaveURL(/stock-management\/stock-on-hand/);
+  await page.goto('./stock-management/stock-on-hand/card');
+  await expect(page.getByText('Connect to view its history.', { exact: false })).toBeVisible();
   await page.goto('./administration/users');
   await expect(page.getByRole('heading', { name: 'Connect To Open This Page' })).toBeVisible();
   expect(protectedRequests).toHaveLength(0);

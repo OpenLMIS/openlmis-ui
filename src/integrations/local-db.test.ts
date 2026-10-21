@@ -39,7 +39,7 @@ describe('getLocalDb', () => {
 
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(11);
     if (version === 1) await db.table('physicalInventoryDrafts').put(draft);
     expect(await db.table('physicalInventoryDrafts').get(draft.draftId)).toEqual(draft);
     expect(db.table('offlineAccess').schema.primKey.keyPath).toBe('userId');
@@ -103,7 +103,7 @@ describe('getLocalDb', () => {
   });
 });
 
-it('opens an existing v6 database at v10 while preserving drafts, queues and receipts', async () => {
+it('opens an existing v6 database at v11 while preserving drafts, queues and receipts', async () => {
   signIn('queue-upgrade-v6');
   const old = new Dexie(getLocalDb().name);
   old.version(1).stores({});
@@ -131,14 +131,14 @@ it('opens an existing v6 database at v10 while preserving drafts, queues and rec
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(10);
+  expect(db.verno).toBe(11);
   for (const [table, row] of Object.entries(rows)) {
     if (table === 'adjustmentDownloads') continue;
     expect(await db.table(table).toArray()).toEqual([row]);
   }
   expect(db.tables.some((table) => table.name === 'adjustmentDownloads')).toBe(false);
   expect(await db.table('homeStockDownloads').count()).toBe(0);
-  expect(db.tables.some((table) => table.name === 'stockCardHistory')).toBe(false);
+  expect(await db.table('stockCardHistory').count()).toBe(0);
   for (const table of ['stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts'])
     expect(
       (db.table(table).schema.idxByName.localEventId ?? db.table(table).schema.primKey).unique,
@@ -164,8 +164,33 @@ it('removes v9 card histories while preserving home stock and unresolved work', 
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(10);
-  expect(db.tables.some((table) => table.name === 'stockCardHistory')).toBe(false);
+  expect(db.verno).toBe(11);
+  expect(await db.table('stockCardHistory').count()).toBe(0);
+  for (const [table, row] of Object.entries(rows))
+    expect(await db.table(table).toArray()).toEqual([row]);
+});
+
+it('adds history storage to v10 without changing stock, drafts or pending deliveries', async () => {
+  signIn('history-upgrade-v10');
+  const old = new Dexie(getLocalDb().name);
+  old.version(10).stores({
+    homeStockDownloads: '[facilityId+programId]',
+    stockEventDrafts: 'draftId, [kind+facilityId+programId+state]',
+    stockEventQueue: '++sequence, &localEventId, [status+sequence]',
+    stockEventReceipts: '[draftId+revision], &localEventId',
+  });
+  const rows = {
+    homeStockDownloads: { facilityId: 'home', programId: 'p', formatVersion: 4 },
+    stockEventDrafts: { draftId: 'draft', revision: 3, state: 'uncertain' },
+    stockEventQueue: { sequence: 1, localEventId: 'pending', status: 'uncertain' },
+    stockEventReceipts: { draftId: 'accepted', revision: 1, localEventId: 'accepted' },
+  };
+  for (const [table, row] of Object.entries(rows)) await old.table(table).put(row);
+  old.close();
+  const db = getLocalDb();
+  await db.open();
+  expect(db.verno).toBe(11);
+  await db.table('stockCardHistory').put({ id: 'card', fetchedAt: 123 });
   for (const [table, row] of Object.entries(rows))
     expect(await db.table(table).toArray()).toEqual([row]);
 });
