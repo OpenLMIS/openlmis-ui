@@ -55,6 +55,8 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchUserPrograms: vi.fn(),
   fetchValidReasons: vi.fn(),
   fetchValidAssignments: vi.fn(),
+  storedTimeZone: () => 'UTC',
+  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
 }));
 
 vi.mock('@/features/stock-events/api/api', () => ({
