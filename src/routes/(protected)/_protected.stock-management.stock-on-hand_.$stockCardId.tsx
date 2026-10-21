@@ -7,7 +7,7 @@ import {
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, HistoryIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useMemo } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { ActionTooltip } from '@/components/action-tooltip';
 import {
   DataTableCard,
@@ -16,7 +16,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { ErrorFallback } from '@/components/error-fallback';
-import { OfflineAlert } from '@/components/offline-alert';
+import { SnapshotAlert } from '@/components/offline-alert';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import {
@@ -171,17 +171,12 @@ function StockCardPage() {
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
           {data.card.device !== undefined && (
-            <OfflineAlert snapshot={data.card.device}>
-              <Trans
-                t={t}
-                i18nKey={
-                  data.card.summaryOnly
-                    ? 'stock-card.offline-summary'
-                    : 'stock-card.offline-history'
-                }
-                components={{ strong: <strong /> }}
-              />
-            </OfflineAlert>
+            <SnapshotAlert
+              snapshot={data.card.device}
+              message={
+                data.card.summaryOnly ? 'stock-card.offline-summary' : 'stock-card.offline-history'
+              }
+            />
           )}
           <DataTableToolbar align="end">
             {canSwitch && (

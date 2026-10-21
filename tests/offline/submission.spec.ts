@@ -40,7 +40,7 @@ test('offline Submit retains its committed event through persistent restart', {
     await page.getByRole('button', { name: 'Submit Offline', exact: true }).click();
     await page.getByRole('textbox', { name: 'Signature', exact: true }).fill('Fixture User');
     await page.getByRole('button', { name: 'Confirm', exact: true }).dblclick();
-    await expect(page).toHaveURL(/\/stock-management\/adjustments$/);
+    await expect(page).toHaveURL(/\/stock-management\/stock-on-hand\?/);
     await expect(
       page
         .getByRole('region', { name: 'Notifications alt+T' })

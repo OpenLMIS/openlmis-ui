@@ -771,7 +771,6 @@ it.each([
     expect(screen.getByText('Clinic Annex')).toBeInTheDocument();
     expect(screen.getByText('Stock Transfer')).toBeInTheDocument();
     expect(screen.getByText('stock-card.offline-history')).toBeInTheDocument();
-    expect(screen.getByText('offline.downloaded-at')).toBeInTheDocument();
     expect(screen.queryByText('stock-card.offline-summary')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'stock-card.print' })).toHaveAttribute(
       'aria-disabled',

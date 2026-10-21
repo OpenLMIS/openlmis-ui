@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, useTable } from '@tanstack/react-table';
 import { ChevronDownIcon, EyeIcon, PackageSearchIcon, SearchXIcon } from 'lucide-react';
 import { type ReactNode, type Ref, useDeferredValue, useEffect, useMemo } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { CardActions, CardActionsSkeleton } from '@/components/card-actions';
 import {
@@ -27,7 +27,7 @@ import {
 } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
-import { OfflineAlert } from '@/components/offline-alert';
+import { SnapshotAlert } from '@/components/offline-alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -190,13 +190,7 @@ export function StockOnHandResults({
   return (
     <>
       {page.device && (
-        <OfflineAlert snapshot={page.device}>
-          <Trans
-            t={t}
-            i18nKey="stock-on-hand.offline-snapshot"
-            components={{ strong: <strong /> }}
-          />
-        </OfflineAlert>
+        <SnapshotAlert snapshot={page.device} message="stock-on-hand.offline-snapshot" />
       )}
       {page.device && pendingEvents}
       {cards ? (

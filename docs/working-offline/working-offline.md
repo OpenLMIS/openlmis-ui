@@ -39,13 +39,14 @@ changed the draft, choose Load Saved Draft or Keep An Archived Copy. The app sto
 save so one tab cannot silently replace the other tab's work.
 
 Submit Offline validates the lines and asks for your signature. Confirmation saves a frozen
-event on the device. Event Queued confirms that it is stored, then the Adjustments program list
-opens. The downloaded stock has not changed yet. Further adjustments start a new draft.
+event on the device. Event Queued confirms that it is stored, then Stock On Hand opens for that
+facility and program. It shows the downloaded stock, which has not changed yet, and a note that
+the event is waiting to sync. Further adjustments start a new draft.
 
 While connected, Submit uses the same device queue. The success message appears only after
 the server accepts the event and the app records that result. Acceptance opens Stock On Hand.
 There is no offline print offer. If sending cannot start promptly, the app confirms Event Queued
-and returns to the Adjustments program list. Keep the app open for the queued event to sync.
+and opens Stock On Hand too. Keep the app open for the queued event to sync.
 Other tabs recognize an upload in progress, so the same event is not sent twice.
 
 Stock On Hand shows downloaded home-facility stock and its download time. Search by product
