@@ -19,7 +19,7 @@ import {
 import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { startStockEventUploader } from '@/features/stock-events/lib/stock-event-uploader';
 import { client } from '@/integrations/axios';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
 import { downloadSchedule } from '@/lib/download-schedule';
 import { userProgramsKey } from '@/lib/key-factory';
@@ -78,7 +78,9 @@ const bundle = (programId: string): HomeStockBundle => ({
   scanning: false,
   generation: crypto.randomUUID(),
   fetchedAt: Date.now(),
-  formatVersion: 4,
+  formatVersion: 5,
+  summaries: [],
+  products: [],
   cards: [],
   reasons: [],
   tradeItems: [],
@@ -104,8 +106,8 @@ beforeEach(async () => {
     .getState()
     .setLoginData({ referenceDataUserId: 'downloader', username: 'user', accessToken: 'token' });
   localStorage.removeItem(`${getLocalDb().name}:download-schedule`);
-  await getLocalDb().table('offlineAccess').clear();
-  await getLocalDb().table('homeStockDownloads').clear();
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).clear();
+  await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).clear();
   vi.stubGlobal('navigator', {
     locks: { request: vi.fn(async (_name, _options, run) => run({})) },
   });
@@ -180,7 +182,7 @@ it('refreshes aging data while remaining online without a navigation or reconnec
   begin();
   await finished();
   await vi.mocked(navigator.locks.request).mock.results.at(-1)?.value;
-  await getLocalDb().table('homeStockDownloads').toArray();
+  await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).toArray();
   const checkFreshness = scheduled.mock.calls.find(
     ([, delay]) => delay === 60_000,
   )?.[0] as () => void;
@@ -188,15 +190,17 @@ it('refreshes aging data while remaining online without a navigation or reconnec
   download.mockClear();
   clock.mockReturnValue(now + 29 * 60 * 1000);
   checkFreshness();
-  await getLocalDb().table('offlineAccess').get('downloader');
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader');
   expect(navigator.locks.request).toHaveBeenCalledTimes(1);
-  await getLocalDb().table('homeStockDownloads').toArray();
+  await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).toArray();
   expect(download).not.toHaveBeenCalled();
   clock.mockReturnValue(now + 30 * 60 * 1000);
   checkFreshness();
   await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
   await finished();
-  expect(await getLocalDb().table('homeStockDownloads').get(['home', 'p1'])).toMatchObject({
+  expect(
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1']),
+  ).toMatchObject({
     fetchedAt: Date.now(),
   });
 });
@@ -209,13 +213,13 @@ it('refreshes changed access while retaining still-eligible fresh programs', asy
   vi.mocked(raw.programs).mockResolvedValueOnce([programs[1]]);
   queryClient.setQueryData(userProgramsKey('downloader'), [programs[1]]);
   await waitFor(async () =>
-    expect(await getLocalDb().table('offlineAccess').get('downloader')).toMatchObject({
+    expect(await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader')).toMatchObject({
       programs: [programs[1]],
     }),
   );
   await finished();
   expect(download).not.toHaveBeenCalled();
-  expect(await getLocalDb().table('offlineAccess').get('downloader')).toMatchObject({
+  expect(await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader')).toMatchObject({
     programs: [programs[1]],
   });
 });
@@ -239,14 +243,16 @@ it('rechecks home facility type and scoped rights after authoritative reads', as
   queryClient.setQueryData(['facilities', 'home', 'home'], changed);
   await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
   await finished();
-  expect(await getLocalDb().table('homeStockDownloads').get(['home', 'p1'])).toMatchObject({
+  expect(
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1']),
+  ).toMatchObject({
     facilityTypeId: 'new-type',
   });
   download.mockClear();
   vi.mocked(raw.permissions).mockResolvedValueOnce([]);
   queryClient.setQueryData(['auth', 'rights', 'downloader'], parsePermissions([]));
   await waitFor(async () =>
-    expect(await getLocalDb().table('offlineAccess').get('downloader')).toMatchObject({
+    expect(await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader')).toMatchObject({
       permissionStrings: [],
     }),
   );
@@ -262,7 +268,7 @@ it('keeps downloaded data usable with UTC when locale settings are unavailable',
   begin();
   await finished();
   expect(localStorage.getItem('openlmis-ui.time-zone')).toBe('UTC');
-  expect(await getLocalDb().table('homeStockDownloads').count()).toBe(2);
+  expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).count()).toBe(2);
   expect(zoneRead).toHaveBeenCalledOnce();
 });
 
@@ -288,25 +294,33 @@ it('returns immediately with a held download, commits only complete programs and
         release = resolve;
       }),
   );
-  await getLocalDb().table('physicalInventoryDrafts').put({ draftId: 'retained-pi', counted: 4 });
+  await getLocalDb()
+    .table(LOCAL_TABLES.physicalInventoryDrafts)
+    .put({ draftId: 'retained-pi', counted: 4 });
   begin();
   await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
   expect(getDownloadStatus().phase).toBe('running');
-  expect(await getLocalDb().table('homeStockDownloads').get(['home', 'p1'])).toBeUndefined();
+  expect(
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1']),
+  ).toBeUndefined();
   release(bundle('p1'));
   await finished();
-  const old = await getLocalDb().table('homeStockDownloads').get(['home', 'p1']);
+  const old = await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1']);
   download.mockRejectedValueOnce(new AxiosError('Timed out', AxiosError.ECONNABORTED));
   onlineManager.setOnline(false);
   onlineManager.setOnline(true);
   await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
   expect(getDownloadStatus().reason).toBe('timeout');
   expect(getDownloadStatus().incomplete.map((program) => program.id)).toEqual(['p1']);
-  expect(await getLocalDb().table('homeStockDownloads').get(['home', 'p1'])).toEqual(old);
-  expect(await getLocalDb().table('physicalInventoryDrafts').get('retained-pi')).toEqual({
-    draftId: 'retained-pi',
-    counted: 4,
-  });
+  expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1'])).toEqual(
+    old,
+  );
+  expect(await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get('retained-pi')).toEqual(
+    {
+      draftId: 'retained-pi',
+      counted: 4,
+    },
+  );
   download.mockClear();
   retryOfflineDownload();
   await finished();
@@ -318,7 +332,7 @@ it('restored boot reuses young data and refreshes only missing or 30-minute-stal
   await finished();
   stop?.();
   download.mockClear();
-  const table = getLocalDb().table('homeStockDownloads');
+  const table = getLocalDb().table(LOCAL_TABLES.homeStockDownloads);
   await table.update(['home', 'p1'], { fetchedAt: Date.now() - 30 * 60 * 1000 });
   await table.update(['home', 'p2'], { fetchedAt: Date.now() - 29 * 60 * 1000 });
   begin();
@@ -386,7 +400,7 @@ it.each(['identity', 'expiry', 'offline'] as const)(
         username: 'user',
         accessToken: 'token',
       });
-    expect(await getLocalDb().table('homeStockDownloads').count()).toBe(0);
+    expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).count()).toBe(0);
   },
 );
 
@@ -440,7 +454,7 @@ it('stops unfinished scopes on a no-response connection failure even when the br
   await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
   expect(getDownloadStatus().reason).toBe('offline');
   expect(getDownloadStatus().incomplete.map((program) => program.id)).toEqual(['p1', 'p2']);
-  expect(await getLocalDb().table('homeStockDownloads').count()).toBe(0);
+  expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).count()).toBe(0);
   expect(onlineManager.isOnline()).toBe(true);
 });
 
@@ -459,7 +473,7 @@ it('keeps an entirely fresh boot idle without publishing download announcements'
   );
   begin();
   await waitFor(() => expect(navigator.locks.request).toHaveBeenCalledTimes(2));
-  await getLocalDb().table('homeStockDownloads').toArray();
+  await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).toArray();
   expect(download).not.toHaveBeenCalled();
   expect(messages.mock.calls.some(([message]) => message.type === 'status')).toBe(false);
   expect(getDownloadStatus().phase).toBe('idle');
@@ -475,7 +489,9 @@ it('excludes programs without stock viewing rights from downloads and Retry fail
   await finished();
   expect(download.mock.calls.map(([filter]) => filter.programId)).toEqual(['p2']);
   expect(getDownloadStatus().incomplete).toEqual([]);
-  expect(await getLocalDb().table('homeStockDownloads').get(['home', 'p1'])).toBeUndefined();
+  expect(
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1']),
+  ).toBeUndefined();
 });
 
 it.each([false, true])(
@@ -551,7 +567,7 @@ it('marks accepted online stock stale and refreshes only that program without wa
   await finished();
   expect(getDownloadStatus().trigger).toBe('boot');
   download.mockClear();
-  const previous = await getLocalDb().table('homeStockDownloads').get(['home', 'p1']);
+  const previous = await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1']);
   let release!: (value: HomeStockBundle) => void;
   download.mockImplementationOnce(
     () =>
@@ -563,13 +579,15 @@ it('marks accepted online stock stale and refreshes only that program without wa
   await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
   expect(getDownloadStatus()).toMatchObject({ phase: 'running', trigger: 'refresh' });
   expect(download.mock.calls[0][0].programId).toBe('p1');
-  const stale = await getLocalDb().table('homeStockDownloads').get(['home', 'p1']);
+  const stale = await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1']);
   expect(stale).toMatchObject({ stale: true, fetchedAt: previous.fetchedAt });
   expect(downloadIsStale(stale)).toBe(true);
   release(bundle('p1'));
   await finished();
   expect(getDownloadStatus().trigger).toBe('refresh');
-  expect((await getLocalDb().table('homeStockDownloads').get(['home', 'p1'])).stale).not.toBe(true);
+  expect(
+    (await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1'])).stale,
+  ).not.toBe(true);
 });
 
 it('keeps a queued user retry visible when a later accepted-event refresh joins the batch', async () => {
@@ -681,7 +699,7 @@ it('isolates provider failures and retries only the failed dataset when scope id
     defineDownloadProvider({
       id: 'first',
       label: 'offline.download.home-stock',
-      table: 'homeStockDownloads',
+      table: LOCAL_TABLES.homeStockDownloads,
       scopes: () => [{ id: 'same', name: 'Same', key: ['home', 'same'] }],
       fetch: first,
       accepts: () => true,
@@ -690,7 +708,7 @@ it('isolates provider failures and retries only the failed dataset when scope id
     defineDownloadProvider({
       id: 'second',
       label: 'offline.download.home-stock',
-      table: 'physicalInventoryDrafts',
+      table: LOCAL_TABLES.physicalInventoryDrafts,
       scopes: () => [{ id: 'same', name: 'Same', key: 'provider-record' }],
       fetch: second,
       accepts: () => true,
@@ -702,21 +720,25 @@ it('isolates provider failures and retries only the failed dataset when scope id
   expect(getDownloadStatus().incomplete).toEqual([
     { id: 'same', name: 'Same', dataset: 'first', datasetLabel: 'offline.download.home-stock' },
   ]);
-  expect(await getLocalDb().table('physicalInventoryDrafts').get('provider-record')).toMatchObject({
+  expect(
+    await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get('provider-record'),
+  ).toMatchObject({
     generation: 'second',
   });
   retryOfflineDownload();
   await finished();
   expect(first).toHaveBeenCalledTimes(2);
   expect(second).toHaveBeenCalledTimes(1);
-  expect(await getLocalDb().table('homeStockDownloads').get(['home', 'same'])).toMatchObject({
+  expect(
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'same']),
+  ).toMatchObject({
     generation: 'first',
   });
 });
 
 it('compares generations by the full storage key when another facility has the same program', async () => {
   await getLocalDb()
-    .table('homeStockDownloads')
+    .table(LOCAL_TABLES.homeStockDownloads)
     .bulkPut([
       { ...bundle('p1'), generation: 'home-generation', fetchedAt: 0 },
       { ...bundle('p1'), facilityId: 'z-away', generation: 'away-generation', fetchedAt: 0 },
@@ -724,7 +746,9 @@ it('compares generations by the full storage key when another facility has the s
   begin();
   await finished();
   expect(download.mock.calls.map(([scope]) => scope.programId)).toEqual(['p1', 'p2']);
-  expect(await getLocalDb().table('homeStockDownloads').get(['z-away', 'p1'])).toMatchObject({
+  expect(
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['z-away', 'p1']),
+  ).toMatchObject({
     generation: 'away-generation',
   });
 });
@@ -750,7 +774,7 @@ it('does not cancel or repeat downloads when access queries first populate an em
   queryClient.setQueryData(['facilities', 'home', 'home'], await raw.home('home'));
   release(bundle('p1'));
   await finished();
-  await getLocalDb().table('offlineAccess').get('downloader');
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader');
   expect(signal?.aborted).toBe(false);
   expect(download).toHaveBeenCalledTimes(2);
 });
@@ -783,11 +807,11 @@ it('shares freshness scheduling and exponential failure backoff across two coord
     const ticks = intervals.mock.calls
       .filter(([, delay]) => delay === 60_000)
       .map(([tick]) => tick as () => void);
-    const reads = vi.spyOn(getLocalDb().table('homeStockDownloads'), 'bulkGet');
+    const reads = vi.spyOn(getLocalDb().table(LOCAL_TABLES.homeStockDownloads), 'bulkGet');
     const locks = vi.mocked(navigator.locks.request).mock.calls.length;
     clock.mockReturnValue(now + 60_000);
     for (const tick of ticks) tick();
-    await getLocalDb().table('offlineAccess').get('downloader');
+    await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader');
     expect(reads).not.toHaveBeenCalled();
     expect(navigator.locks.request).toHaveBeenCalledTimes(locks);
     download.mockRejectedValue(new Error('Program down'));
@@ -803,13 +827,13 @@ it('shares freshness scheduling and exponential failure backoff across two coord
     await tail;
     clock.mockReturnValue(now + 32 * 60_000);
     for (const tick of ticks) tick();
-    await getLocalDb().table('offlineAccess').get('downloader');
+    await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader');
     await tail;
     expect(download.mock.calls.length + second.mock.calls.length).toBe(6);
     vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
     clock.mockReturnValue(now + 35 * 60_000);
     for (const tick of ticks) tick();
-    await getLocalDb().table('offlineAccess').get('downloader');
+    await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader');
     expect(download.mock.calls.length + second.mock.calls.length).toBe(6);
   } finally {
     secondStop();
@@ -826,7 +850,7 @@ it('coalesces rapid reconnect hints into one forced download', async () => {
   }
   await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
   await finished();
-  await getLocalDb().table('offlineAccess').get('downloader');
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader');
   expect(download).toHaveBeenCalledTimes(2);
 });
 
@@ -857,10 +881,10 @@ it('announces UTC fallback once while two tabs keep downloaded data ready withou
     clock.mockReturnValue(now + 2 * 60_000);
     for (const [tick, delay] of intervals.mock.calls)
       if (delay === 60_000 && typeof tick === 'function') tick();
-    await getLocalDb().table('offlineAccess').get('downloader');
+    await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader');
     expect(zoneRead).toHaveBeenCalledOnce();
     expect(note).toHaveBeenCalledOnce();
-    expect(await getLocalDb().table('homeStockDownloads').count()).toBe(2);
+    expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).count()).toBe(2);
   } finally {
     secondStop();
   }
@@ -879,7 +903,7 @@ it.each([undefined, 'Africa/Blantyre'])(
     expect(onlineManager.isOnline()).toBe(true);
     await finished();
     expect(localStorage.getItem('openlmis-ui.time-zone')).toBe(zone ?? 'UTC');
-    expect(await getLocalDb().table('homeStockDownloads').count()).toBe(2);
+    expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).count()).toBe(2);
   },
 );
 
@@ -912,7 +936,7 @@ it('backs off periodic access failures across tabs before reading bundles or req
     const ticks = intervals.mock.calls
       .filter(([, delay]) => delay === 60_000)
       .map(([tick]) => tick as () => void);
-    const reads = vi.spyOn(getLocalDb().table('homeStockDownloads'), 'bulkGet');
+    const reads = vi.spyOn(getLocalDb().table(LOCAL_TABLES.homeStockDownloads), 'bulkGet');
     clock.mockReturnValue(now + 30 * 60_000);
     for (const tick of ticks) tick();
     await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
@@ -925,7 +949,7 @@ it('backs off periodic access failures across tabs before reading bundles or req
     reads.mockClear();
     clock.mockReturnValue(now + 32 * 60_000);
     for (const tick of ticks) tick();
-    await getLocalDb().table('offlineAccess').get('downloader');
+    await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader');
     await tail;
     expect(reads).not.toHaveBeenCalled();
     expect(raw.permissions).toHaveBeenCalledTimes(2);
@@ -954,7 +978,7 @@ it('backs off periodic access failures across tabs before reading bundles or req
 it('refreshes upload access without waiting for a held download lock or publishing it', async () => {
   begin();
   await finished();
-  const saved = await getLocalDb().table('offlineAccess').get('downloader');
+  const saved = await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader');
   const held = Promise.withResolvers<void>();
   vi.mocked(navigator.locks.request).mockImplementation(async () => held.promise);
   vi.mocked(raw.permissions).mockClear();
@@ -962,7 +986,7 @@ it('refreshes upload access without waiting for a held download lock or publishi
   try {
     await waitFor(() => expect(raw.permissions).toHaveBeenCalled());
     expect((await result).userId).toBe('downloader');
-    expect(await getLocalDb().table('offlineAccess').get('downloader')).toEqual(saved);
+    expect(await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('downloader')).toEqual(saved);
   } finally {
     held.resolve();
     await result;

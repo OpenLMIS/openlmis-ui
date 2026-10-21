@@ -29,7 +29,7 @@ import {
 } from '@/features/stock-events/lib/stock-event-sync';
 import { client } from '@/integrations/axios';
 import i18n from '@/integrations/i18n';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
 import type { OfflineAccess } from '@/lib/offline-access';
 import { isOnline, reportConnectionFailure } from '@/lib/online';
@@ -102,7 +102,11 @@ export function startStockEventUploader(dependencies: {
           setSyncPhase(restingPhase());
           return;
         }
-        const count = await db.table('stockEventQueue').where('status').equals('queued').count();
+        const count = await db
+          .table(LOCAL_TABLES.stockEventQueue)
+          .where('status')
+          .equals('queued')
+          .count();
         check();
         if (!count) {
           if (getSyncPhase() !== 'complete') setSyncPhase('idle');
@@ -179,20 +183,20 @@ export function startStockEventUploader(dependencies: {
           });
         const { unfinished, refusedCount } = await db.transaction(
           'r',
-          ['stockEventQueue', 'stockEventSyncErrors'],
+          [LOCAL_TABLES.stockEventQueue, LOCAL_TABLES.stockEventSyncErrors],
           async () => {
             const queued = await db
-              .table<QueuedStockEvent>('stockEventQueue')
+              .table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue)
               .filter((event) => event.userId === userId)
               .count();
             const errors = await db
-              .table<StockEventSyncError>('stockEventSyncErrors')
+              .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
               .filter(
                 (error) => error.event.userId === userId && !error.resolvedAt && !error.dismissedAt,
               )
               .count();
             const refusedCount = await db
-              .table<StockEventSyncError>('stockEventSyncErrors')
+              .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
               .filter(
                 (error) =>
                   error.event.userId === userId &&
@@ -259,7 +263,7 @@ export function startStockEventUploader(dependencies: {
     const scope = getSessionScope();
     const db = getLocalDb();
     subscription = liveQuery(() =>
-      db.table<QueuedStockEvent>('stockEventQueue').toArray(),
+      db.table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue).toArray(),
     ).subscribe({
       next: (rows) => {
         if (scope !== getSessionScope()) return;

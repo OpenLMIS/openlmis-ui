@@ -12,7 +12,7 @@ import type {
   StockEventReceipt,
   StockEventSyncError,
 } from '@/features/stock-events/lib/stock-event-sync';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryClient as defaultQueryClient } from '@/integrations/tanstack-query';
 import { isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope, useSessionScope } from '@/lib/session-scope';
@@ -146,17 +146,23 @@ export async function waitForStockEventReceipt(
       assertSessionScope(scope);
       return db.transaction(
         'r',
-        ['stockEventReceipts', 'stockEventSyncErrors', 'stockEventQueue'],
+        [
+          LOCAL_TABLES.stockEventReceipts,
+          LOCAL_TABLES.stockEventSyncErrors,
+          LOCAL_TABLES.stockEventQueue,
+        ],
         async () => {
           const receipt = await db
-            .table<StockEventReceipt>('stockEventReceipts')
+            .table<StockEventReceipt>(LOCAL_TABLES.stockEventReceipts)
             .get([event.draftId, event.revision]);
           const error = await db
-            .table<StockEventSyncError>('stockEventSyncErrors')
+            .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
             .get(event.localEventId);
-          const row = await db.table<QueuedStockEvent>('stockEventQueue').get(event.sequence);
+          const row = await db
+            .table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue)
+            .get(event.sequence);
           const earlier = await db
-            .table<QueuedStockEvent>('stockEventQueue')
+            .table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue)
             .filter(
               (candidate) =>
                 candidate.facilityId === event.facilityId &&

@@ -13,13 +13,6 @@ it('skips online-only hover preloads offline before gates or loaders can log err
   const warn = vi.spyOn(console, 'warn');
   expect(await router.preloadRoute({ to: '/administration/users' })).toBeUndefined();
   expect(await router.preloadRoute({ to: '/stock-management/issue' })).toBeUndefined();
-  expect(await router.preloadRoute({ to: '/stock-management/stock-on-hand' })).toBeUndefined();
-  expect(
-    await router.preloadRoute({
-      to: '/stock-management/stock-on-hand/$stockCardId',
-      params: { stockCardId: 'card' },
-    }),
-  ).toBeUndefined();
   expect(error).not.toHaveBeenCalled();
   expect(warn).not.toHaveBeenCalled();
   vi.restoreAllMocks();

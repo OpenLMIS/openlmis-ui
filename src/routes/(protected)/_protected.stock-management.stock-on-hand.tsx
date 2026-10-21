@@ -15,6 +15,8 @@ import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
 } from '@/components/facility-program-selector/facility-program-selector';
+import { ListError } from '@/components/list-error';
+import { OfflineNotice } from '@/components/offline-notice';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,10 +35,16 @@ import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
-  minimalFacilitiesOptions,
+  deploymentTimeZoneOptions,
+  stockPickerFacilitiesOptions,
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
+import {
+  acceptsStockOnHandBundle,
+  homeStockProvider,
+} from '@/features/stock-events/lib/home-stock-provider';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
 import {
   prefetchStockOnHand,
@@ -55,6 +63,7 @@ import {
 } from '@/features/stock-on-hand/lib/search';
 import type { StockCardSummariesQuery } from '@/features/stock-on-hand/lib/types';
 import { useCardView } from '@/hooks/use-card-view';
+import { useDownloadedScopes } from '@/hooks/use-downloaded-scopes';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
@@ -71,13 +80,18 @@ import {
   validSelection,
 } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
+import { isOnline, useOnline } from '@/lib/online';
 import { hasProgramGrant, type ProgramGrant, programGrants } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
-import { StockReadError } from '@/routes/-stock-read-error';
+import { readStockOnHandOnDevice } from '@/routes/-home-stock-read';
 
-const stockPickerQueries = (userId: string) =>
-  [userRecordOptions(userId), userProgramsOptions(userId), minimalFacilitiesOptions()] as const;
+const stockPickerQueries = (userId: string, online = isOnline()) =>
+  [
+    userRecordOptions(userId),
+    userProgramsOptions(userId),
+    stockPickerFacilitiesOptions(online),
+  ] as const;
 
 const RIGHT = RIGHTS.stockCardsView;
 
@@ -90,6 +104,7 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
   // The inactive box only filters the page shown, so it never reloads.
   loaderDeps: ({ search: { includeInactive: _includeInactive, ...search } }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
+    queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
@@ -106,7 +121,12 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/s
       isCompleteSelection(selection) &&
       hasProgramGrant(permissions, RIGHT, selection.facilityId, selection.programId)
     ) {
-      prefetchStockOnHand(queryClient, toSummariesQuery(search, selection));
+      prefetchStockOnHand(
+        queryClient,
+        toSummariesQuery(search, selection),
+        readStockOnHandOnDevice,
+        isOnline(),
+      );
     }
   },
   pendingComponent: StockOnHandPending,
@@ -251,7 +271,7 @@ function StockOnHandContent({ userId }: { userId: string }) {
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
           <QueryBoundary
             errorComponent={({ error, reset }) => (
-              <StockReadError
+              <ListError
                 description={t('facility-program.load-error-description')}
                 error={error}
                 reset={reset}
@@ -291,8 +311,9 @@ function StockOnHandBody({
   onSearchChange,
 }: StockOnHandBodyProps) {
   const queryClient = useQueryClient();
+  const online = useOnline();
   const [user, programs, facilities] = useSuspenseQueries({
-    queries: stockPickerQueries(userId),
+    queries: stockPickerQueries(userId, online),
   });
   const options = useMemo(
     () =>
@@ -303,6 +324,28 @@ function StockOnHandBody({
         grants,
       }),
     [user.data.homeFacilityId, programs.data, facilities.data, grants],
+  );
+  const { t } = useTranslation();
+  const provider = useMemo(() => homeStockProvider(), []);
+  const scopes = useMemo(
+    () =>
+      options.myPrograms.map((program) => ({
+        id: program.id,
+        name: program.name ?? program.code,
+        key: [user.data.homeFacilityId ?? '', program.id],
+      })),
+    [options.myPrograms, user.data.homeFacilityId],
+  );
+  const downloaded = useDownloadedScopes(provider, scopes, {
+    enabled: !online,
+    accepts: acceptsStockOnHandBundle,
+  });
+  const programUnavailable = useCallback(
+    (programId: string) =>
+      programId && !online && !downloaded.has(programId)
+        ? t('stock-programs.offline-description')
+        : undefined,
+    [online, downloaded, t],
   );
   const applied = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
@@ -332,6 +375,7 @@ function StockOnHandBody({
     <>
       <FacilityProgramSelector
         applied={applied}
+        programUnavailable={programUnavailable}
         onDraftChange={setDraft}
         onSearch={onSearch}
         options={options}
@@ -368,6 +412,8 @@ function StockOnHandOutcome({
   pending,
 }: StockOnHandOutcomeProps) {
   const { t } = useTranslation();
+  const online = useOnline();
+  const queryClient = useQueryClient();
   const { unit } = useQuantityUnit();
   const filters = (
     <StockOnHandToolbar
@@ -379,6 +425,17 @@ function StockOnHandOutcome({
   );
 
   if (!valid) {
+    if (isCompleteSelection(applied) && !online)
+      return (
+        <OfflineNotice
+          reason="not-downloaded"
+          onRetry={() => {
+            void queryClient.invalidateQueries({
+              queryKey: stockPickerFacilitiesOptions(online).queryKey,
+            });
+          }}
+        />
+      );
     const refused = isCompleteSelection(applied);
     return (
       <div className="flex flex-col gap-4">
@@ -475,7 +532,7 @@ function StockOnHandList({
       />
       <QueryBoundary
         errorComponent={({ error, reset }) => (
-          <StockReadError
+          <ListError
             description={t('stock-on-hand.error-description')}
             error={error}
             reset={reset}
@@ -492,6 +549,18 @@ function StockOnHandList({
         resetKey={JSON.stringify(query)}
       >
         <StockOnHandResults
+          pendingEvents={
+            <PendingDeviceWork
+              match={(event) =>
+                event.facilityId === selection.facilityId && event.programId === selection.programId
+              }
+              message={{
+                online: 'offline-events.stock-pending-online',
+                offline: 'offline-events.stock-pending-offline',
+              }}
+            />
+          }
+          readOnDevice={readStockOnHandOnDevice}
           cards={columnView.cards}
           collapsedKey={collapsedKey}
           facilityId={selection.facilityId}
@@ -528,12 +597,14 @@ function StockOnHandPrintButton({
   query,
 }: PrintButtonProps) {
   const { t } = useTranslation();
+  const online = useOnline();
   const { data: page } = useQuery({
-    ...stockCardSummariesOptions(query),
+    ...stockCardSummariesOptions(query, readStockOnHandOnDevice, online),
     enabled: false,
   });
   const codes = [fileCode(facility), fileCode(program)].filter(Boolean).join('-');
   const print = usePrintReport({
+    device: page?.device,
     userId,
     right: RIGHT,
     facilityId: selection.facilityId,
@@ -558,13 +629,15 @@ function StockOnHandPrintButton({
     errorDescription: t('stock-on-hand.print-error'),
     refusedDescription: t('stock-on-hand.print-refused'),
   });
+  const offline = print.offline;
+  const disabledReason = print.disabledReason;
   return (
-    <ActionTooltip reason={print.disabledReason}>
+    <ActionTooltip reason={disabledReason}>
       <Button
-        disabled={print.offline || !page || page.totalElements === 0 || print.isPending}
+        disabled={offline || !page || page.totalElements === 0 || print.isPending}
         onClick={print.print}
-        focusableWhenDisabled={print.offline}
-        aria-description={print.disabledReason}
+        focusableWhenDisabled={offline}
+        aria-description={disabledReason}
         size="lg"
         width="full"
       >

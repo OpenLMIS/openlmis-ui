@@ -24,7 +24,7 @@ import {
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
 import type { Facility, Program } from '@/features/reference-data/lib/types';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { isOfflineError } from '@/lib/http';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { type AccessReaders, refreshOfflineAccess } from '@/lib/offline-access';
@@ -101,7 +101,7 @@ function saveAccess(readers: AccessReaders) {
 
 beforeEach(async () => {
   signIn('ada');
-  await getLocalDb().table('offlineAccess').clear();
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).clear();
   vi.stubGlobal('navigator', {
     locks: { request: vi.fn(async (_name, _options, run) => run({})) },
   });
@@ -245,12 +245,12 @@ describe('durable access', () => {
 
   it('keeps the previous complete generation when any snapshot part fails', async () => {
     await saveAccess(readers());
-    const previous = await getLocalDb().table('offlineAccess').get('ada');
+    const previous = await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('ada');
     const failing = readers();
     vi.mocked(failing.permissions).mockResolvedValue(['USERS_MANAGE']);
     vi.mocked(failing.home).mockRejectedValue(offline);
     await expect(saveAccess(failing)).rejects.toBe(offline);
-    expect(await getLocalDb().table('offlineAccess').get('ada')).toEqual(previous);
+    expect(await getLocalDb().table(LOCAL_TABLES.offlineAccess).get('ada')).toEqual(previous);
     expect(previous).not.toHaveProperty('user.extraData');
     expect(previous).not.toHaveProperty('homeFacility.extraData');
     expect(JSON.stringify(previous)).not.toContain('token');
@@ -275,9 +275,9 @@ describe('durable access', () => {
     signIn('alan');
     release(home);
     await expect(run).rejects.toBeInstanceOf(SessionEndedError);
-    expect(await getLocalDb().table('offlineAccess').count()).toBe(0);
+    expect(await getLocalDb().table(LOCAL_TABLES.offlineAccess).count()).toBe(0);
     signIn('ada');
-    expect(await getLocalDb().table('offlineAccess').count()).toBe(0);
+    expect(await getLocalDb().table(LOCAL_TABLES.offlineAccess).count()).toBe(0);
   });
 
   it('retains the owner snapshot on sign-out but never lends it to another user', async () => {
@@ -324,7 +324,7 @@ describe('durable access', () => {
       await client.fetchQuery(userRecordOptions('ada'));
       await client.fetchQuery(userProgramsOptions('ada'));
       await client.fetchQuery(homeFacilityOptions('home'));
-      expect(await getLocalDb().table('offlineAccess').count()).toBe(0);
+      expect(await getLocalDb().table(LOCAL_TABLES.offlineAccess).count()).toBe(0);
     },
   );
 });

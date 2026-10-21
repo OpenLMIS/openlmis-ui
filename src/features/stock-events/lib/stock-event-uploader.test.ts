@@ -30,10 +30,11 @@ import { enqueueStockEvent } from '@/features/stock-events/lib/stock-event-queue
 import { startStockEventUploader } from '@/features/stock-events/lib/stock-event-uploader';
 import { client } from '@/integrations/axios';
 import i18n from '@/integrations/i18n';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
 import { queryKeys } from '@/lib/key-factory';
 import type { OfflineAccess } from '@/lib/offline-access';
+import { offlineAccessFixture } from '@/tests/offline-access';
 
 vi.mock('@/features/stock-events/lib/event-kinds', async (original) => {
   const module = await original<typeof import('@/features/stock-events/lib/event-kinds')>();
@@ -57,12 +58,12 @@ const line = newEventLine(
   '2026-10-14',
   { kind: 'adjustment', productHasLots: false },
 );
-const snapshot = {
+const snapshot = offlineAccessFixture({
   userId: 'uploader',
-  permissionStrings: ['STOCK_ADJUST|home|one'],
-  homeFacility: { id: 'home' },
-  programs: [{ id: 'one' }],
-} as OfflineAccess;
+  home: { id: 'home' },
+  programs: [{ id: 'one', code: 'ONE', name: 'One', active: true }],
+  rights: ['STOCK_ADJUST|home|one'],
+});
 const accepted = { status: 201, data: '11111111-1111-4111-8111-111111111111' };
 const originalAdapter = client.defaults.adapter;
 let stops: (() => void)[] = [];
@@ -70,10 +71,10 @@ beforeEach(async () => {
   useLoginData.getState().setLoginData(owner);
   onlineManager.setOnline(false);
   for (const table of [
-    'stockEventDrafts',
-    'stockEventQueue',
-    'stockEventReceipts',
-    'stockEventSyncErrors',
+    LOCAL_TABLES.stockEventDrafts,
+    LOCAL_TABLES.stockEventQueue,
+    LOCAL_TABLES.stockEventReceipts,
+    LOCAL_TABLES.stockEventSyncErrors,
   ])
     await getLocalDb().table(table).clear();
   const tails = new Map<string, Promise<unknown>>();
@@ -143,11 +144,13 @@ it('waits for fresh access, orders enqueues, and two coordinators share one uplo
   releaseAccess(snapshot);
   await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
   expect(send.mock.calls[0][0].sequence).toBe(first.sequence);
-  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(0);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(0);
   releaseFirst(accepted);
   await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
   expect(send.mock.calls[1][0].sequence).toBe(second.sequence);
-  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(2));
+  await waitFor(async () =>
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(2),
+  );
   await waitFor(() => expect(getSyncPhase()).toBe('complete'));
   expect(toast.success).toHaveBeenCalledOnce();
   expect(translated).toHaveBeenCalledWith('offline-events.synced-count', { count: 2 });
@@ -163,11 +166,15 @@ it('a service 401 pauses until same-user renewal and fresh access, then resends 
   onlineManager.setOnline(true);
   await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
   await waitFor(async () =>
-    expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).status).toBe('queued'),
+    expect(
+      (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(event.sequence)).status,
+    ).toBe('queued'),
   );
-  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(0);
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(0);
   useLoginData.getState().setLoginData({ ...owner, accessToken: 'renewed' });
-  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
+  await waitFor(async () =>
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(1),
+  );
   expect(send).toHaveBeenCalledTimes(2);
   expect(access).toHaveBeenCalledTimes(2);
   expect(send.mock.calls[1][0].postBody).toBe(event.postBody);
@@ -191,18 +198,20 @@ it('missing fresh grants pause the queue without dispatch or fake refusals, then
   stops.push(startStockEventUploader({ access, send }));
   onlineManager.setOnline(true);
   await waitFor(async () =>
-    expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).pauseReason).toBe(
-      'access-changed',
-    ),
+    expect(
+      (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(event.sequence)).pauseReason,
+    ).toBe('access-changed'),
   );
   expect(send).not.toHaveBeenCalled();
-  expect(await getLocalDb().table('stockEventSyncErrors').count()).toBe(0);
-  expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).postBody).toBe(
-    event.postBody,
-  );
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).count()).toBe(0);
+  expect(
+    (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(event.sequence)).postBody,
+  ).toBe(event.postBody);
   access.mockResolvedValue(snapshot);
   wakeStockEventSync();
-  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
+  await waitFor(async () =>
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(1),
+  );
   expect(send).toHaveBeenCalledOnce();
 });
 
@@ -233,7 +242,7 @@ it('maps real transport refusals and saves a late acceptance in the original own
   onlineManager.setOnline(true);
   await waitFor(async () =>
     expect(
-      await getLocalDb().table('stockEventSyncErrors').get(refused.localEventId),
+      await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).get(refused.localEventId),
     ).toMatchObject({ category: 'stock-changed', httpStatus: 400 }),
   );
   const acceptedEvent = await enqueue();
@@ -250,12 +259,12 @@ it('maps real transport refusals and saves a late acceptance in the original own
     await waitFor(async () =>
       expect(
         await originalOwner
-          .table('stockEventReceipts')
+          .table(LOCAL_TABLES.stockEventReceipts)
           .get([acceptedEvent.draftId, acceptedEvent.revision]),
       ).toMatchObject({ serverEventId: accepted.data }),
     );
-    expect(await originalOwner.table('stockEventQueue').count()).toBe(0);
-    expect(await getLocalDb().table('stockEventReceipts').count()).toBe(0);
+    expect(await originalOwner.table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(0);
     expect(posts).toBe(2);
   } finally {
     originalOwner.close();
@@ -274,7 +283,9 @@ it('automatically retries preparation failures after its bounded delay without a
   access.mockResolvedValue(snapshot);
   const retry = timer.mock.calls.find(([, delay]) => delay === 1000)?.[0] as () => void;
   retry();
-  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
+  await waitFor(async () =>
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(1),
+  );
   expect(send).toHaveBeenCalledOnce();
 });
 
@@ -288,16 +299,18 @@ it('requests fresh grants when an access-paused queue is focused or explicitly r
   stops.push(startStockEventUploader({ access, send }));
   onlineManager.setOnline(true);
   await waitFor(async () =>
-    expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).pauseReason).toBe(
-      'access-changed',
-    ),
+    expect(
+      (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(event.sequence)).pauseReason,
+    ).toBe('access-changed'),
   );
   access.mockClear();
   window.dispatchEvent(new Event('focus'));
   await waitFor(() => expect(access).toHaveBeenCalledWith(true));
   access.mockResolvedValue(snapshot);
   wakeStockEventSync();
-  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
+  await waitFor(async () =>
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(1),
+  );
   expect(send).toHaveBeenCalledOnce();
 });
 
@@ -311,9 +324,9 @@ it('refreshes access-paused scopes every thirty seconds and cancels that interva
   stops.push(stop);
   onlineManager.setOnline(true);
   await waitFor(async () =>
-    expect((await getLocalDb().table('stockEventQueue').get(event.sequence)).pauseReason).toBe(
-      'access-changed',
-    ),
+    expect(
+      (await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(event.sequence)).pauseReason,
+    ).toBe('access-changed'),
   );
   await waitFor(() => expect(interval.mock.calls.some(([, delay]) => delay === 30000)).toBe(true));
   const timerIndex = interval.mock.calls.findIndex(([, delay]) => delay === 30000);
@@ -354,11 +367,13 @@ it('does not report completion when a run accepts an event but leaves refused an
   stops.push(startStockEventUploader({ access: async () => snapshot, send }));
   onlineManager.setOnline(true);
   await waitFor(async () =>
-    expect(await getLocalDb().table('stockEventSyncErrors').count()).toBe(2),
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).count()).toBe(2),
   );
   await waitFor(() => expect(getSyncPhase()).toBe('idle'));
-  expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1);
-  expect((await getLocalDb().table('stockEventQueue').toArray())[0].status).toBe('uncertain');
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(1);
+  expect((await getLocalDb().table(LOCAL_TABLES.stockEventQueue).toArray())[0].status).toBe(
+    'uncertain',
+  );
 });
 
 it('requires the queued kind right, even when another offline kind is allowed at the same scope', async () => {
@@ -369,7 +384,9 @@ it('requires the queued kind right, even when another offline kind is allowed at
   stops.push(startStockEventUploader({ access, send }));
   onlineManager.setOnline(true);
   await waitFor(async () =>
-    expect(await getLocalDb().table('stockEventQueue').get(event.sequence)).toMatchObject({
+    expect(
+      await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(event.sequence),
+    ).toMatchObject({
       pauseReason: 'access-changed',
     }),
   );
@@ -377,7 +394,9 @@ it('requires the queued kind right, even when another offline kind is allowed at
   permissionStrings = ['STOCK_ISSUE|home|one'];
   wakeStockEventSync();
   await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
-  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
+  await waitFor(async () =>
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(1),
+  );
 });
 
 it('keeps foreground acceptance out of offline sync phases and summary toasts', async () => {
@@ -391,7 +410,7 @@ it('keeps foreground acceptance out of offline sync phases and summary toasts', 
     stops.push(startStockEventUploader({ access: async () => snapshot, send }));
     onlineManager.setOnline(true);
     await waitFor(async () =>
-      expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1),
+      expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(1),
     );
     expect(getSyncPhase()).toBe('idle');
     expect(toast.success).not.toHaveBeenCalled();
@@ -496,7 +515,7 @@ it('invalidates multiple receiving clients without requesting a download in each
 it('sends an abandoned foreground row as background without waiting for its old deadline', async () => {
   const event = await enqueue();
   await getLocalDb()
-    .table('stockEventQueue')
+    .table(LOCAL_TABLES.stockEventQueue)
     .update(event.sequence, { foregroundUntil: Date.now() + 65_000 });
   Object.assign(navigator.locks, { query: vi.fn(async () => ({ held: [], pending: [] })) });
   const phases: string[] = [];
@@ -506,7 +525,9 @@ it('sends an abandoned foreground row as background without waiting for its old 
   });
   stops.push(startStockEventUploader({ access: async () => snapshot, send }));
   onlineManager.setOnline(true);
-  await waitFor(async () => expect(await getLocalDb().table('stockEventReceipts').count()).toBe(1));
+  await waitFor(async () =>
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(1),
+  );
   await waitFor(() => expect(toast.success).toHaveBeenCalledOnce());
   await waitFor(() => expect(getSyncPhase()).toBe('complete'));
   expect(phases).toEqual(['syncing']);
@@ -602,7 +623,7 @@ it('keeps foreground refusals out of the background summary toast', async () => 
     );
     onlineManager.setOnline(true);
     await waitFor(async () =>
-      expect(await getLocalDb().table('stockEventSyncErrors').count()).toBe(1),
+      expect(await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).count()).toBe(1),
     );
     expect(toast.error).not.toHaveBeenCalled();
   } finally {

@@ -5,13 +5,18 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
-import { ClipboardListIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
+import { ClipboardListIcon, HistoryIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActionTooltip } from '@/components/action-tooltip';
-import { DataTableToolbar } from '@/components/data-table/data-table';
+import {
+  DataTableCard,
+  DataTableEmpty,
+  DataTableToolbar,
+} from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { ErrorFallback } from '@/components/error-fallback';
+import { SnapshotAlert } from '@/components/offline-alert';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +42,7 @@ import {
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { fetchStockCardReport } from '@/features/stock-card/api/api';
 import { stockCardOptions } from '@/features/stock-card/api/queries';
 import {
@@ -55,12 +61,17 @@ import { useCardView } from '@/hooks/use-card-view';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useReloadForUser } from '@/hooks/use-reload-for-user';
+import { useReloadOnConnectivityChange } from '@/hooks/use-reload-on-connectivity-change';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
+import { queryKeys } from '@/lib/key-factory';
+import { isOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import { withShownReversals } from '@/lib/stock-labels';
+import { readStockCardOnDevice } from '@/routes/-home-stock-read';
+import { stockCardAccess } from '@/routes/-stock-card-access';
 
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: router types extend by interface merging.
@@ -95,8 +106,11 @@ export const Route = createFileRoute(
   },
   preload: false,
   loader: async ({ context: { queryClient }, params, cause }) => {
+    queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const userId = useLoginData.getState().referenceDataUserId;
-    const options = stockCardOptions(params.stockCardId);
+    const options = stockCardOptions(params.stockCardId, readStockCardOnDevice, isOnline(), () =>
+      stockCardAccess(queryClient),
+    );
     const state = queryClient.getQueryState(options.queryKey);
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
     const [permissions, card] =
@@ -124,6 +138,8 @@ function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
   const search = Route.useSearch();
+  const { stockCardId } = Route.useParams();
+  useReloadOnConnectivityChange(queryKeys.stockCards.detail(stockCardId));
   const eventSearch = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
     [search.mode, search.programId, search.facilityId],
@@ -131,10 +147,7 @@ function StockCardPage() {
   const { updateSearch } = useSearchNavigation<typeof search>(NO_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
   const { measure, columnView, cards, layout } = useCardLayout(data?.card.lineItems);
-  const userId = useReloadForUser(
-    data?.userId,
-    stockCardOptions(Route.useParams().stockCardId).queryKey,
-  );
+  const userId = useReloadForUser(data?.userId, queryKeys.stockCards.detail(stockCardId));
   if (!data || data.userId !== userId) return null;
   return (
     <Workspace>
@@ -157,23 +170,43 @@ function StockCardPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
+          {data.card.device !== undefined && (
+            <SnapshotAlert
+              snapshot={data.card.device}
+              message={
+                data.card.summaryOnly ? 'stock-card.offline-summary' : 'stock-card.offline-history'
+              }
+            />
+          )}
           <DataTableToolbar align="end">
             {canSwitch && (
               <div className="flex-1 @2xl/main:flex-none">
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
-            <StockCardColumns columnView={columnView} canSwitch={canSwitch} layout={layout} />
+            {!data.card.summaryOnly && (
+              <StockCardColumns columnView={columnView} canSwitch={canSwitch} layout={layout} />
+            )}
           </DataTableToolbar>
-          <StockCardLines
-            cards={cards}
-            card={data.card}
-            search={search}
-            onSearchChange={updateSearch}
-            unit={unit}
-            columnVisibility={columnView.visibility}
-            eventSearch={eventSearch}
-          />
+          {data.card.summaryOnly ? (
+            <DataTableCard>
+              <DataTableEmpty
+                description={t('stock-card.offline-history-unavailable-description')}
+                icon={<HistoryIcon />}
+                title={t('stock-card.offline-history-unavailable-title')}
+              />
+            </DataTableCard>
+          ) : (
+            <StockCardLines
+              cards={cards}
+              card={data.card}
+              search={search}
+              onSearchChange={updateSearch}
+              unit={unit}
+              columnVisibility={columnView.visibility}
+              eventSearch={eventSearch}
+            />
+          )}
         </div>
       </WorkspaceContent>
     </Workspace>
@@ -218,6 +251,7 @@ function StockCardPrint({
 }) {
   const { t } = useTranslation();
   const print = usePrintReport({
+    device: card.device,
     userId,
     right: RIGHT,
     facilityId: card.facility.id,
@@ -256,7 +290,7 @@ function StockCardPending() {
   const { canSwitch } = useQuantityUnit();
   useReloadForUser(
     useLoginData((state) => state.referenceDataUserId),
-    stockCardOptions(Route.useParams().stockCardId).queryKey,
+    queryKeys.stockCards.detail(Route.useParams().stockCardId),
   );
   const search = Route.useSearch();
   const hasLot = useRouterState({ select: (state) => state.location.state.cardHasLot ?? true });
@@ -318,7 +352,7 @@ function StockCardError(props: ErrorComponentProps) {
   const search = Route.useSearch();
   useReloadForUser(
     useLoginData((state) => state.referenceDataUserId),
-    stockCardOptions(Route.useParams().stockCardId).queryKey,
+    queryKeys.stockCards.detail(Route.useParams().stockCardId),
   );
   if (
     !isNotFound(props.error) &&

@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { DeviceWorkPublisher } from '@/components/device-work';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -71,4 +71,30 @@ it('publishes only changed device summaries after unrelated event writes', () =>
   state.events = [{ ...state.events[0], status: 'accepted' }];
   view.rerender(page());
   expect(publish).toHaveBeenCalledOnce();
+});
+
+it('publishes an empty work summary again when the signed-in owner changes', () => {
+  state.events = [];
+  state.hasDeviceEvents = false;
+  const login = (referenceDataUserId: string) =>
+    useLoginData.getState().setLoginData({
+      referenceDataUserId,
+      username: referenceDataUserId,
+      accessToken: 'token',
+    });
+  login('empty-first');
+  const publish = vi.fn();
+  const view = render(
+    <DeviceWorkPublisher value={publish}>
+      <DeviceWorkProvider initialTrigger="boot" />
+    </DeviceWorkPublisher>,
+  );
+  try {
+    publish.mockClear();
+    act(() => login('empty-second'));
+    expect(publish).toHaveBeenCalled();
+  } finally {
+    view.unmount();
+    useLoginData.getState().clearLoginData();
+  }
 });

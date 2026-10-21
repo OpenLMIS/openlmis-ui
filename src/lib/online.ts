@@ -152,3 +152,8 @@ export const dismissBackOnline = () => {
 };
 
 export const useBackOnline = () => useBackOnlineStore((state) => state.backOnline);
+
+export function useOnConnectivityChange(callback: (online: boolean) => void) {
+  const run = useEffectEvent(callback);
+  useEffect(() => onlineManager.subscribe((online) => run(online)), []);
+}

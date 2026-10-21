@@ -8,9 +8,14 @@ import type {
   TradeItem,
   ValidReasonAssignment,
 } from '@/features/reference-data/lib/types';
-import { readEventStockCards } from '@/features/stock-events/api/stock-card-reader';
+import {
+  type HomeStockSummary,
+  readEventStockCards,
+} from '@/features/stock-events/api/stock-card-reader';
 import { retryDownloadRead } from '@/features/stock-events/lib/download-read';
+import { LOCAL_TABLES } from '@/integrations/local-db';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
+import { requireOwnedRecord } from '@/lib/local-records';
 import { isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -32,9 +37,11 @@ export type HomeStockBundle = HomeStockScope & {
   userId: string;
   generation: string;
   fetchedAt: number;
-  formatVersion: 4;
+  formatVersion: 4 | 5;
   stale?: boolean;
   cards: HomeStockCard[];
+  summaries?: HomeStockSummary[];
+  products?: Orderable[];
   reasons: ValidReasonAssignment[];
   tradeItems: TradeItem[];
   identities: { id: string; versionNumber: number }[];
@@ -42,24 +49,17 @@ export type HomeStockBundle = HomeStockScope & {
 export async function readHomeStockBundle(
   filter: Pick<HomeStockScope, 'facilityId' | 'programId' | 'facilityTypeId'>,
 ) {
-  const scope = getSessionScope();
-  const userId = useLoginData.getState().referenceDataUserId;
-  const { getLocalDb } = await import('@/integrations/local-db');
-  assertSessionScope(scope);
-  const bundle = await getLocalDb()
-    .table<HomeStockBundle>('homeStockDownloads')
-    .get([filter.facilityId, filter.programId]);
-  assertSessionScope(scope);
-  if (
-    !bundle ||
-    bundle.userId !== userId ||
-    bundle.formatVersion !== 4 ||
-    bundle.facilityId !== filter.facilityId ||
-    bundle.programId !== filter.programId ||
-    bundle.facilityTypeId !== filter.facilityTypeId
-  )
-    throw new LocalDataUnavailableError();
-  return bundle;
+  return requireOwnedRecord<HomeStockBundle>(
+    LOCAL_TABLES.homeStockDownloads,
+    [filter.facilityId, filter.programId],
+    {
+      formats: [4, 5],
+      accept: (bundle) =>
+        bundle.facilityId === filter.facilityId &&
+        bundle.programId === filter.programId &&
+        bundle.facilityTypeId === filter.facilityTypeId,
+    },
+  );
 }
 
 function snapshotProduct(product: Orderable): Orderable {
@@ -103,13 +103,16 @@ async function fetchBundle(
       throw new AxiosError('Download stopped.', AxiosError.ERR_CANCELED);
   };
   const read = <T>(task: () => Promise<T>) => retryDownloadRead(task, check);
-  const [{ cards, identities }, reasons] = await Promise.all([
+  const [{ cards, identities, summaries, products }, reasons] = await Promise.all([
     readEventStockCards(filter, config, read),
     read(() =>
       fetchValidReasons({ program: filter.programId, facilityType: filter.facilityTypeId }, config),
     ),
   ]);
   check();
+  const productIds = new Set(products.map((product) => product.id));
+  if (summaries.some((summary) => !summary.orderable?.id || !productIds.has(summary.orderable.id)))
+    throw new Error('Stock summary product not found');
   const hydrated: HomeStockCard[] = cards.map((card) => ({
     ...card,
     orderable: snapshotProduct(card.orderable),
@@ -138,8 +141,21 @@ async function fetchBundle(
     userId,
     generation: crypto.randomUUID(),
     fetchedAt: Date.now(),
-    formatVersion: 4,
+    formatVersion: 5,
     cards: hydrated,
+    summaries: summaries.map((summary) => ({
+      orderable: { id: summary.orderable.id },
+      stockOnHand: summary.stockOnHand,
+      canFulfillForMe: summary.canFulfillForMe.map((card) => ({
+        stockCard: { id: card.stockCard.id },
+        orderable: { id: card.orderable.id },
+        lot: card.lot ? { id: card.lot.id } : null,
+        stockOnHand: card.stockOnHand,
+        active: card.active,
+        occurredDate: card.occurredDate,
+      })),
+    })),
+    products: products.map(snapshotProduct),
     identities,
     reasons: reasons.map(({ id, program, facilityType, hidden, reason }) => ({
       id,

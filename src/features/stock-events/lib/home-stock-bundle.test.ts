@@ -10,7 +10,7 @@ import {
 } from '@/features/stock-events/lib/home-stock-bundle';
 import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
 import { client } from '@/integrations/axios';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import type { AccessReaders } from '@/lib/offline-access';
 import { startOfflineCoordinator } from '@/lib/offline-coordinator';
@@ -50,7 +50,7 @@ beforeEach(async () => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'bundle-user', username: 'user', accessToken: 'token' });
-  await getLocalDb().table('homeStockDownloads').clear();
+  await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).clear();
   requests = [];
   client.defaults.adapter = async (config) => {
     requests.push(`${config.url}:${config.params?.page ?? 0}`);
@@ -120,6 +120,12 @@ it('coalesces foreground reads, retains both requested versions and every page, 
     getHomeStockBundle(filter),
   ]);
   expect(first).toBe(second);
+  expect(first.formatVersion).toBe(5);
+  expect(first.summaries?.map((group) => group.canFulfillForMe[0].stockCard.id)).toEqual([
+    'card-1',
+    'card-2',
+  ]);
+  expect(first.products?.map((product) => product.meta?.versionNumber)).toEqual([1, 2]);
   expect(first.cards.map((card) => card.orderable.meta?.versionNumber)).toEqual([1, 2]);
   expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(2);
   expect(requests.filter((path) => path.startsWith('/orderables/search'))).toHaveLength(2);
@@ -130,7 +136,7 @@ it('coalesces foreground reads, retains both requested versions and every page, 
   ]);
   expect(first.tradeItems).toEqual([]);
   expect(requests.filter((path) => path.startsWith('/tradeItems'))).toHaveLength(0);
-  expect(await getLocalDb().table('homeStockDownloads').count()).toBe(0);
+  expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).count()).toBe(0);
 });
 
 it('rejects unresolved identities rather than publishing a partial bundle', async () => {
@@ -157,7 +163,7 @@ it('runs offline and rejects a missing bundle with local-unavailable instead of 
 
 it('falls back on a timed-out read but never on service refusal or cancellation', async () => {
   const saved = await getHomeStockBundle(filter);
-  await getLocalDb().table('homeStockDownloads').put(saved);
+  await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).put(saved);
   client.defaults.adapter = async () => {
     throw new AxiosError('Timed out', AxiosError.ECONNABORTED);
   };
@@ -188,7 +194,7 @@ it('bounds timed-out background reads without declaring the browser offline', as
 
 it('rejects saved stock and reasons for a different facility type during device fallback', async () => {
   const saved = await getHomeStockBundle(filter);
-  await getLocalDb().table('homeStockDownloads').put(saved);
+  await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).put(saved);
   onlineManager.setOnline(false);
   await expect(getHomeStockBundle(filter)).resolves.toEqual(saved);
   await expect(
@@ -200,7 +206,7 @@ it('serves online editor reads without Web Locks and never persists them', async
   vi.stubGlobal('navigator', {});
   try {
     expect((await getHomeStockBundle(filter)).cards).toHaveLength(2);
-    expect(await getLocalDb().table('homeStockDownloads').count()).toBe(0);
+    expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).count()).toBe(0);
   } finally {
     vi.unstubAllGlobals();
   }
@@ -354,7 +360,7 @@ it('restarts its own read when coordinator trade items fail with 500', async () 
 
 it('rejects a missing lot and the coordinator retains the previous complete generation', async () => {
   const saved = await fetchHomeStockBundle({ ...filter, scanning: false });
-  await getLocalDb().table('homeStockDownloads').put(saved);
+  await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).put(saved);
   const adapter = client.defaults.adapter as import('axios').AxiosAdapter;
   client.defaults.adapter = async (config) =>
     config.url === '/lots'
@@ -399,7 +405,9 @@ it('rejects a missing lot and the coordinator retains the previous complete gene
     await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
     expect(download).toHaveBeenCalled();
     await expect(download.mock.results.at(-1)?.value).rejects.toThrow('lot not found');
-    expect(await getLocalDb().table('homeStockDownloads').get(['home', 'program'])).toEqual(saved);
+    expect(
+      await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'program']),
+    ).toEqual(saved);
   } finally {
     stop.stop();
     vi.unstubAllGlobals();
@@ -414,3 +422,45 @@ it('uses every page and exact product versions for online stock reads as well as
   expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(2);
   expect(requests.some((path) => path.startsWith('/validReasons'))).toBe(false);
 });
+
+it.each([{ id: 'missing-root' }, null, undefined])(
+  'rejects an unresolved summary product (%s) even when its substitute card resolves',
+  async (orderable) => {
+    const adapter = client.defaults.adapter as import('axios').AxiosAdapter;
+    client.defaults.adapter = async (config) => {
+      if (config.url === '/v2/stockCardSummaries')
+        return {
+          data: {
+            content: [
+              {
+                ...summary(1),
+                orderable,
+                canFulfillForMe: [
+                  {
+                    ...summary(1).canFulfillForMe[0],
+                    orderable: { id: 'product', versionNumber: 1 },
+                  },
+                ],
+              },
+            ],
+            totalPages: 1,
+          },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        };
+      if (config.url === '/orderables')
+        return {
+          data: { content: [], totalPages: 1 },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        };
+      return adapter(config);
+    };
+    await expect(fetchHomeStockBundle(filter)).rejects.toThrow('Stock summary product not found');
+    expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).count()).toBe(0);
+  },
+);

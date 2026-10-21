@@ -54,7 +54,7 @@ describe('prefetchStockOnHand', () => {
   it('asks for the names of the stock once it arrives', async () => {
     vi.mocked(fetchStockCardSummaries).mockResolvedValue(stock);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    prefetchStockOnHand(queryClient, query);
+    prefetchStockOnHand(queryClient, query, undefined, true);
 
     await waitFor(() => expect(fetchOrderablesByIds).toHaveBeenCalledWith(['o1']));
     expect(fetchLotsByIds).toHaveBeenCalledWith(['l1']);
@@ -65,9 +65,9 @@ describe('prefetchStockOnHand', () => {
   it('asks for no names once the cache was cleared, as on signing out', async () => {
     vi.clearAllMocks();
     const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } });
-    queryClient.setQueryData(stockCardSummariesOptions(query).queryKey, stock);
+    queryClient.setQueryData(stockCardSummariesOptions(query, undefined, true).queryKey, stock);
     const fetch = vi.spyOn(queryClient, 'fetchQuery');
-    prefetchStockOnHand(queryClient, query);
+    prefetchStockOnHand(queryClient, query, undefined, true);
 
     queryClient.clear();
     await fetch.mock.results[0].value;

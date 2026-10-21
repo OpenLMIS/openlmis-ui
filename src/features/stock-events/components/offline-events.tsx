@@ -58,6 +58,7 @@ import { usePageStart } from '@/hooks/use-page-start';
 import { orEmpty, tableValue } from '@/lib/empty-value';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { hasProgramGrant, type Permissions } from '@/lib/permissions';
+import { RIGHTS } from '@/lib/rights';
 import {
   type SearchChange,
   searchSort,
@@ -527,7 +528,7 @@ function OfflineEventsTable({
           event={selected}
           canView={hasProgramGrant(
             currentPermissions,
-            'STOCK_CARDS_VIEW',
+            RIGHTS.stockCardsView,
             selected.facilityId,
             selected.programId,
           )}

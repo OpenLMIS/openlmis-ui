@@ -7,7 +7,7 @@ import {
   type InventoryLocalCopy,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { DraftConflictError } from '@/lib/draft-store';
 
 const noCopy = () => null;
@@ -25,7 +25,7 @@ async function runConflict(changedAgain: boolean) {
     username: 'Ada',
     accessToken: 'token',
   });
-  await getLocalDb().table('physicalInventoryDrafts').clear();
+  await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).clear();
   const copy: InventoryLocalCopy = {
     draftId: 'draft',
     facilityId: 'home',
@@ -55,12 +55,16 @@ async function runConflict(changedAgain: boolean) {
         DraftConflictError,
       );
     });
-    expect(await getLocalDb().table('physicalInventoryDrafts').get(copy.draftId)).toEqual(newer);
+    expect(
+      await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get(copy.draftId),
+    ).toEqual(newer);
     return;
   }
   await act(async () => {
     await view.result.current.clear(copy.draftId);
   });
-  expect(await getLocalDb().table('physicalInventoryDrafts').get(copy.draftId)).toBeUndefined();
+  expect(
+    await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get(copy.draftId),
+  ).toBeUndefined();
   expect(view.result.current.status).toBe('saved');
 }

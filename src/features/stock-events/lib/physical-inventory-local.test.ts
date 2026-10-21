@@ -5,7 +5,7 @@ import {
   readInventoryLocal,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { getSessionScope } from '@/lib/session-scope';
 
 const signIn = (id: string) =>
@@ -37,7 +37,7 @@ it('never reads another user copy and drops a stale write', async () => {
   expect(await readInventoryLocal('d')).toBeUndefined();
 });
 it('surfaces storage failure', async () => {
-  vi.spyOn(getLocalDb().table('physicalInventoryDrafts'), 'put').mockRejectedValueOnce(
+  vi.spyOn(getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts), 'put').mockRejectedValueOnce(
     new Error('Full'),
   );
   await expect(writeInventoryLocal(copy)).rejects.toThrow('Full');

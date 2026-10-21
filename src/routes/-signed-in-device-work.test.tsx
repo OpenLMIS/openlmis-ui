@@ -1,13 +1,15 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useDeviceSync } from '@/components/device-work';
+import { useOfflineSignOut } from '@/components/offline-sign-out';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   announceQueuedEvents,
   setSyncPhase,
 } from '@/features/stock-events/lib/device-event-status';
 import { announceDeviceSave } from '@/features/stock-events/lib/device-save-announcement';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { SignedInDeviceWork } from '@/routes/__root';
 
 const chunk = vi.hoisted(() => Promise.withResolvers<void>());
@@ -31,20 +33,53 @@ const login = () =>
     accessToken: 'token',
   });
 beforeEach(() => useLoginData.getState().clearLoginData());
-it('renders signed-in routes while the device-work chunk is still loading', async () => {
+it('signs out using owned work while the device-work chunk is still loading', async () => {
   login();
+  const onSignOut = vi.fn();
+  function SignOut() {
+    const { confirm, dialog } = useOfflineSignOut();
+    return (
+      <>
+        <button type="button" onClick={() => confirm(onSignOut)}>
+          Log Out
+        </button>
+        {dialog}
+      </>
+    );
+  }
+  const db = getLocalDb();
+  await db.table(LOCAL_TABLES.stockEventQueue).put({ localEventId: 'retained' });
+  act(() =>
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'other-device-owner',
+      username: 'Other',
+      accessToken: 'other',
+    }),
+  );
   render(
     <SignedInDeviceWork>
       <p>Routed content</p>
+      <SignOut />
     </SignedInDeviceWork>,
   );
   try {
     expect(screen.getByText('Routed content')).toBeVisible();
     expect(screen.queryByTestId('device-work')).not.toBeInTheDocument();
+    act(() => screen.getByRole('button', { name: 'Log Out' }).click());
+    await waitFor(() => expect(onSignOut).toHaveBeenCalledOnce());
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('device-work')).not.toBeInTheDocument();
+    await getLocalDb().delete();
+    act(login);
+    act(() => screen.getByRole('button', { name: 'Log Out' }).click());
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('sign-out-device.description');
+    expect(onSignOut).toHaveBeenCalledOnce();
+    expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(1);
   } finally {
     await act(async () => chunk.resolve());
   }
   expect(await screen.findByTestId('device-work')).toBeInTheDocument();
+  await getLocalDb().delete();
 });
 
 it('boots a restored session and forces downloads after logout and login', async () => {

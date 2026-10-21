@@ -10,7 +10,7 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
 type Identity = { id: string; versionNumber?: number; meta?: { versionNumber?: number } };
-type HomeStockSummary = {
+export type HomeStockSummary = {
   orderable: Identity;
   stockOnHand: number | null;
   canFulfillForMe: {
@@ -134,5 +134,5 @@ export async function readEventStockCards(
       lot: lot ?? null,
     };
   });
-  return { cards: hydrated, identities };
+  return { cards: hydrated, identities, summaries, products: [...versioned, ...unversioned] };
 }

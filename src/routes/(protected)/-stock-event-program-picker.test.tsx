@@ -14,9 +14,10 @@ import {
 } from '@/features/reference-data/api/queries';
 import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { parsePermissions } from '@/lib/permissions';
 import { StockEventProgramPicker } from '@/routes/(protected)/-stock-event-program-picker';
+import { offlineAccessFixture } from '@/tests/offline-access';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
@@ -29,13 +30,17 @@ vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
     ] as DeviceEvent[],
   }),
 }));
-it.each([true, false])(
-  'shows pending work for this kind with connection-specific copy (online=%s)',
-  async (online) => {
+it.each([
+  { online: true, view: true },
+  { online: false, view: true },
+  { online: false, view: false },
+])(
+  'shows pending work for this kind with connection-specific copy (%o)',
+  async ({ online, view }) => {
     useLoginData
       .getState()
       .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
-    await getLocalDb().table('homeStockDownloads').clear();
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).clear();
     onlineManager.setOnline(online);
     const language = createInstance();
     await language.use(ICU).init({
@@ -45,6 +50,7 @@ it.each([true, false])(
       resources: { en: { translation: en } },
     });
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    const permissions = ['STOCK_ADJUST|f|p', ...(view ? ['STOCK_CARDS_VIEW|f|p'] : [])];
     const program = { id: 'p', code: 'P', name: 'Medicines', active: true };
     client.setQueryData(userRecordOptions('u').queryKey, {
       id: 'u',
@@ -66,12 +72,22 @@ it.each([true, false])(
       geographicZone: { id: 'z', code: 'Z', name: 'Zone', level: { name: 'District' } },
       supportedPrograms: [{ ...program, supportActive: true, supportLocallyFulfilled: false }],
     });
+    await getLocalDb()
+      .table(LOCAL_TABLES.offlineAccess)
+      .put(
+        offlineAccessFixture({
+          userId: 'u',
+          home: { id: 'f' },
+          programs: [program],
+          rights: permissions,
+        }),
+      );
     client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
     renderPage(
       <I18nextProvider i18n={language}>
         <StockEventProgramPicker
           userId="u"
-          permissions={parsePermissions(['STOCK_ADJUST|f|p'])}
+          permissions={parsePermissions(permissions)}
           kind="adjustment"
           editorLink={() => <a href="/edit">Edit</a>}
         />
@@ -95,9 +111,10 @@ it.each([true, false])(
     } else {
       expect(action).toHaveAttribute('aria-disabled', 'true');
       expect(action).toHaveAccessibleDescription(en['stock-programs.offline-description']);
+      if (!view) return;
       await act(async () => {
         await getLocalDb()
-          .table('homeStockDownloads')
+          .table(LOCAL_TABLES.homeStockDownloads)
           .put({
             facilityId: 'f',
             facilityTypeId: 'type',

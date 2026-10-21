@@ -727,8 +727,8 @@ features or i18next. Allowed variants: `DialogContent size/height/layout`, `Dial
 `DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `Field spacing/surface`,
 `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel/size`,
 `ComboboxChip removeLabel`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
-`Button align/width`, `PopoverContent width/padding`. Each `lg` size is a plain `h-9` className
-in the registry.
+`Button align/width/variant="warning"`, `PopoverContent width/padding`. Each `lg` size is a plain
+`h-9` className in the registry.
 The app Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet primitives
 import `@/components/page-visibility`; form-dialog and form-fields inherit this dependency.
 This is an accepted app dependency exception. The context defaults to false, keeping them
@@ -975,18 +975,23 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 ### Data, session and identity
 
 - `getLocalDb()` opens one database per deployment/user. Close on identity change without
-  deleting records. Version persisted changes and preserve released data during upgrades.
+  deleting records. Use `LOCAL_TABLES` and `localTable`; use `local-records.ts` for owned records.
+  Add one new schema version per PR, never reuse a number, and rebase before merge. Preserve
+  released data during upgrades.
 - Capture owner/session scope before async work; check after awaits and inside write transactions.
   Late upload outcomes may persist only for their original owner, never update another user's UI.
 - Access snapshots whitelist fields and preserve raw permission strings, never credentials.
   Refresh grants after reconnect/renewal. Local access availability never authorizes an upload.
-- Use `onlineOrDevice` for unreachable reads, timeouts or non-JSON gateway failures. Definitive
-  service errors and cancellations never fall back. Missing local data raises
+- Use `deviceQuery` with explicit connection state for server-or-device queries; use
+  `onlineOrDevice` within dataset readers for unreachable reads, timeouts or non-JSON gateway
+  failures. Definitive service errors and cancellations never fall back. Missing local data raises
   `LocalDataUnavailableError`, never a server 404. Preserve device markers and freshness bounds.
   Use `withOfflineAccess` when a read must select the saved access snapshot offline.
-- Home-stock downloads require supported home programs with STOCK_ADJUST and STOCK_CARDS_VIEW.
-  Keep downloaded balances separate from queued events. Stock On Hand and Stock Card remain
-  online-only; their device reads and history caching belong to the next PR.
+- Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `homeStockPrograms`
+  with event grants for event pickers. `useDownloadedScopes` applies caller acceptance offline.
+  Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home
+  stock; Stock Card keeps viewed home histories per owner until replaced by a newer view. Check home
+  scope and exact grants separately from route capability; show local absence, never a 404.
 - Offline scans consult complete saved mappings. Absence means unavailable locally, never proof
   that a barcode is globally unregistered. Preserve exact product versions and typed values.
 - Flush drafts before guarded transitions and Log Out. Count owner-scoped work once, deduplicate
@@ -1061,9 +1066,11 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 ### Add an offline screen
 
 - Declare event right, dataset, drafts, routes and label in EVENT_KINDS; register read-only
-  routes in shared shell capability policy. Check actual download readiness separately.
+  routes in shared shell capability policy. Check readiness with `useDownloadedScopes` separately.
 - Keep endpoint readers, snapshots, scope/freshness checks and upload policy in the owning
-  feature. Register its download provider through route composition with complete typed scopes.
+  feature. Register its download provider through route composition with complete typed scopes;
+  use `RIGHTS`, owned-record helpers, `DeviceSnapshot`, `usePrintReport`,
+  `useReloadOnConnectivityChange` and `ListError`.
 - Reuse coordinator, session checks, draft store/writer, queue and locks. Stock editors use
   useDeviceSubmission/useDeviceDrafts; other editors supply revision-aware persistence callbacks.
 - Add schema versions for persisted changes. Preserve typed fields, display lookups and exact

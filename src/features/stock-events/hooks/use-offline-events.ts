@@ -7,7 +7,7 @@ import type {
   StockEventReceipt,
   StockEventSyncError,
 } from '@/features/stock-events/lib/stock-event-sync';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import type { OfflineAccess } from '@/lib/offline-access';
 import { type Permissions, parsePermissions } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope, useSessionScope } from '@/lib/session-scope';
@@ -34,15 +34,27 @@ export function useOfflineEvents(enabled = true, onlyIfPresent = false) {
       const db = getLocalDb();
       const events = await db.transaction(
         'r',
-        ['stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts', 'offlineAccess'],
+        [
+          LOCAL_TABLES.stockEventQueue,
+          LOCAL_TABLES.stockEventSyncErrors,
+          LOCAL_TABLES.stockEventReceipts,
+          LOCAL_TABLES.offlineAccess,
+        ],
         async () => {
           const queue = await db
-            .table<QueuedStockEvent>('stockEventQueue')
+            .table<QueuedStockEvent>(LOCAL_TABLES.stockEventQueue)
             .orderBy('sequence')
             .toArray();
-          const errors = await db.table<StockEventSyncError>('stockEventSyncErrors').toArray();
-          const receipts = await db.table<StockEventReceipt>('stockEventReceipts').toArray();
-          const access = await db.table<OfflineAccess>('offlineAccess').toCollection().first();
+          const errors = await db
+            .table<StockEventSyncError>(LOCAL_TABLES.stockEventSyncErrors)
+            .toArray();
+          const receipts = await db
+            .table<StockEventReceipt>(LOCAL_TABLES.stockEventReceipts)
+            .toArray();
+          const access = await db
+            .table<OfflineAccess>(LOCAL_TABLES.offlineAccess)
+            .toCollection()
+            .first();
           return {
             permissionsFetchedAt: access?.fetchedAt,
             permissions: access ? parsePermissions(access.permissionStrings) : undefined,

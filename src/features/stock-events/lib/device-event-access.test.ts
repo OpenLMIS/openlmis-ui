@@ -4,7 +4,7 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { hasOwnDeviceEvents } from '@/features/stock-events/lib/device-event-access';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { parsePermissions } from '@/lib/permissions';
 import { Route } from '@/routes/(protected)/_protected.offline-events';
 
@@ -12,7 +12,11 @@ beforeEach(async () => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'device-owner', username: 'owner', accessToken: 'token' });
-  for (const table of ['stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts'])
+  for (const table of [
+    LOCAL_TABLES.stockEventQueue,
+    LOCAL_TABLES.stockEventSyncErrors,
+    LOCAL_TABLES.stockEventReceipts,
+  ])
     await getLocalDb().table(table).clear();
 });
 it('opens the local recovery route without adjustment rights only for the owning pending work', async () => {
@@ -24,19 +28,21 @@ it('opens the local recovery route without adjustment rights only for the owning
   const loader = Route.options.loader as (input: unknown) => Promise<void>;
   await expect(loader({ context: { queryClient: client } })).rejects.toThrow('Missing right');
   await getLocalDb()
-    .table('stockEventQueue')
+    .table(LOCAL_TABLES.stockEventQueue)
     .put({ localEventId: 'own', userId: 'device-owner', status: 'queued' });
   await expect(loader({ context: { queryClient: client } })).resolves.toBeUndefined();
-  await getLocalDb().table('stockEventQueue').clear();
-  await getLocalDb().table('stockEventReceipts').put({ draftId: 'accepted', revision: 1 });
+  await getLocalDb().table(LOCAL_TABLES.stockEventQueue).clear();
   await getLocalDb()
-    .table('stockEventSyncErrors')
+    .table(LOCAL_TABLES.stockEventReceipts)
+    .put({ draftId: 'accepted', revision: 1 });
+  await getLocalDb()
+    .table(LOCAL_TABLES.stockEventSyncErrors)
     .put({ localEventId: 'dismissed', dismissedAt: 1, event: { userId: 'device-owner' } });
   await getLocalDb()
-    .table('stockEventQueue')
+    .table(LOCAL_TABLES.stockEventQueue)
     .put({ localEventId: 'other', userId: 'someone-else' });
   await getLocalDb()
-    .table('stockEventSyncErrors')
+    .table(LOCAL_TABLES.stockEventSyncErrors)
     .put({
       localEventId: 'accepted-after-review',
       category: 'uncertain',
@@ -48,7 +54,7 @@ it('opens the local recovery route without adjustment rights only for the owning
 });
 
 it('opens empty Offline Events on an offline reload before any access download completes', async () => {
-  await getLocalDb().table('offlineAccess').clear();
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).clear();
   onlineManager.setOnline(false);
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, networkMode: 'always' } },

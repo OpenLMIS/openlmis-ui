@@ -8,7 +8,7 @@ import {
   readStockEventDraft,
   saveStockEventDraft,
 } from '@/features/stock-events/lib/stock-event-local';
-import { getLocalDb } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 
 const selection = { kind: 'adjustment' as const, facilityId: 'facility', programId: 'program' };
 const line = newEventLine(
@@ -25,14 +25,14 @@ beforeEach(async () => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'writer-user', username: 'user', accessToken: 'token' });
-  await getLocalDb().table('stockEventDrafts').clear();
-  await getLocalDb().table('stockEventQueue').clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventQueue).clear();
   localStorage.clear();
 });
 it('serializes edits during a commit, coalesces them, and advances the expected revision', async () => {
   const context = createStockEventContext(selection);
   const status = vi.fn();
-  const table = context.db.table('stockEventDrafts');
+  const table = context.db.table(LOCAL_TABLES.stockEventDrafts);
   const put = table.put.bind(table);
   let edit!: () => void;
   vi.spyOn(table, 'put').mockImplementationOnce((...args) =>
@@ -63,7 +63,9 @@ it('serializes edits during a commit, coalesces them, and advances the expected 
 it('never reports saved after a failed transaction and Retry commits retained edits', async () => {
   const context = createStockEventContext(selection);
   const status = vi.fn();
-  vi.spyOn(context.db.table('stockEventDrafts'), 'put').mockRejectedValueOnce(new Error('quota'));
+  vi.spyOn(context.db.table(LOCAL_TABLES.stockEventDrafts), 'put').mockRejectedValueOnce(
+    new Error('quota'),
+  );
   const writer = createStockEventWriter(context, undefined, status);
   writer.enqueue([line]);
   await writer.flush();
@@ -89,7 +91,7 @@ it('stops on conflict, loads stored edits on request, or archives current edits 
   const loaded = await writer.resolve('copy');
   expect(loaded?.lines[0].reasonFreeText).toBe('other tab');
   const archived = await context.db
-    .table('stockEventDrafts')
+    .table(LOCAL_TABLES.stockEventDrafts)
     .filter((draft) => draft.state === 'archived')
     .toArray();
   expect(archived[0].lines[0].reasonFreeText).toBe('latest unsaved edits');
@@ -97,7 +99,7 @@ it('stops on conflict, loads stored edits on request, or archives current edits 
   writer.enqueue([line]);
   await writer.flush();
   expect((await writer.resolve('load'))?.lines[0].reasonFreeText).toBe('third tab');
-  expect(await context.db.table('stockEventDrafts').count()).toBe(2);
+  expect(await context.db.table(LOCAL_TABLES.stockEventDrafts).count()).toBe(2);
 });
 
 it('stale confirmed Clear preserves current lines for the conflict copy choice', async () => {
@@ -108,7 +110,7 @@ it('stale confirmed Clear preserves current lines for the conflict copy choice',
   expect(await writer.replace([])).toBe(false);
   await writer.resolve('copy');
   const archived = await context.db
-    .table('stockEventDrafts')
+    .table(LOCAL_TABLES.stockEventDrafts)
     .filter((draft) => draft.state === 'archived')
     .first();
   expect(archived.lines).toEqual([line]);
@@ -126,7 +128,7 @@ it('rejects stale navigation Discard and leaves the stored and current edits ava
   expect(status.mock.lastCall?.[0].status).toBe('conflict');
   await writer.resolve('copy');
   const archived = await context.db
-    .table('stockEventDrafts')
+    .table(LOCAL_TABLES.stockEventDrafts)
     .filter((draft) => draft.state === 'archived')
     .first();
   expect(archived.lines[0].reasonFreeText).toBe('my edits');
@@ -138,7 +140,7 @@ it('Retry after a failed confirmed Clear saves the lines still displayed by the 
   const original = await saveStockEventDraft(context, undefined, [line]);
   const status = vi.fn();
   const writer = createStockEventWriter(context, original, status);
-  vi.spyOn(context.db.table('stockEventDrafts'), 'delete').mockRejectedValueOnce(
+  vi.spyOn(context.db.table(LOCAL_TABLES.stockEventDrafts), 'delete').mockRejectedValueOnce(
     new Error('quota'),
   );
   expect(await writer.replace([])).toBe(false);
@@ -167,7 +169,8 @@ it('freezes the writer after durable submit and does not autosave late edits int
   expect(await writer.replace([])).toBe(false);
   expect(await writer.discard()).toBe(false);
   expect(
-    (await context.db.table('stockEventDrafts').get(queued.draftId)).lines[0].reasonFreeText,
+    (await context.db.table(LOCAL_TABLES.stockEventDrafts).get(queued.draftId)).lines[0]
+      .reasonFreeText,
   ).toBe('');
   expect(await readStockEventDraft(context)).toBeUndefined();
 });
@@ -182,14 +185,16 @@ it('Retry after a failed queue commit recovers the saved state and permits one l
     facility: { id: 'facility', code: 'F', name: null },
     program: { id: 'program', code: 'P', name: null },
   };
-  vi.spyOn(context.db.table('stockEventQueue'), 'add').mockRejectedValueOnce(new Error('quota'));
+  vi.spyOn(context.db.table(LOCAL_TABLES.stockEventQueue), 'add').mockRejectedValueOnce(
+    new Error('quota'),
+  );
   await expect(writer.submit(payload, display)).rejects.toThrow('quota');
   expect(status.mock.lastCall?.[0].status).toBe('failed');
   writer.retry();
   await writer.flush();
   expect(status.mock.lastCall?.[0].status).toBe('saved');
   await writer.submit(payload, display);
-  expect(await context.db.table('stockEventQueue').count()).toBe(1);
+  expect(await context.db.table(LOCAL_TABLES.stockEventQueue).count()).toBe(1);
 });
 
 it('Submit after a conflict cannot make Retry overwrite another tab', async () => {

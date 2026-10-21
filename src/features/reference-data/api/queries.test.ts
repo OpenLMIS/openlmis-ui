@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { fetchOrderables } from '@/features/reference-data/api/api';
 import {
@@ -7,6 +7,7 @@ import {
   orderablesByIdsOptions,
   orderablesByTradeItemsOptions,
   orderablesSearchOptions,
+  stockPickerFacilitiesOptions,
   validDestinationsOptions,
   validSourcesOptions,
 } from '@/features/reference-data/api/queries';
@@ -79,3 +80,26 @@ it.each([
     expect(queryClient.getQueryState(options.queryKey)?.isInvalidated).toBe(true);
   },
 );
+
+it('reuses server picker facilities across reconnects and isolates the offline home list', () => {
+  const client = new QueryClient();
+  const online = onlineManager.isOnline();
+  try {
+    onlineManager.setOnline(true);
+    client.setQueryData(stockPickerFacilitiesOptions(onlineManager.isOnline()).queryKey, [
+      { id: 'supervised', code: 'S', name: 'Supervised', active: true },
+    ]);
+    onlineManager.setOnline(false);
+    client.setQueryData(stockPickerFacilitiesOptions(onlineManager.isOnline()).queryKey, [
+      { id: 'home', code: 'H', name: 'Home', active: true },
+    ]);
+    expect(client.getQueryData(minimalFacilitiesOptions().queryKey)).toBeUndefined();
+    onlineManager.setOnline(true);
+    expect(
+      client.getQueryData(stockPickerFacilitiesOptions(onlineManager.isOnline()).queryKey),
+    ).toEqual([{ id: 'supervised', code: 'S', name: 'Supervised', active: true }]);
+  } finally {
+    onlineManager.setOnline(online);
+    client.clear();
+  }
+});

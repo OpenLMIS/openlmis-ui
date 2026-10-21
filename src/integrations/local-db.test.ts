@@ -1,7 +1,7 @@
 import Dexie from 'dexie';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { getLocalDb, localDatabaseName } from '@/integrations/local-db';
+import { getLocalDb, LOCAL_TABLES, localDatabaseName } from '@/integrations/local-db';
 
 const signIn = (referenceDataUserId: string) =>
   useLoginData
@@ -31,7 +31,7 @@ describe('getLocalDb', () => {
     const draft = { draftId: 'existing-count', lines: [{ quantity: '12' }], savedAt: 123 };
     if (version === 2) {
       old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
-      await old.table('physicalInventoryDrafts').put(draft);
+      await old.table(LOCAL_TABLES.physicalInventoryDrafts).put(draft);
     } else {
       await old.open();
     }
@@ -39,11 +39,11 @@ describe('getLocalDb', () => {
 
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(10);
-    if (version === 1) await db.table('physicalInventoryDrafts').put(draft);
-    expect(await db.table('physicalInventoryDrafts').get(draft.draftId)).toEqual(draft);
-    expect(db.table('offlineAccess').schema.primKey.keyPath).toBe('userId');
-    expect(db.table('homeStockDownloads').schema.primKey.keyPath).toEqual([
+    expect(db.verno).toBe(11);
+    if (version === 1) await db.table(LOCAL_TABLES.physicalInventoryDrafts).put(draft);
+    expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId)).toEqual(draft);
+    expect(db.table(LOCAL_TABLES.offlineAccess).schema.primKey.keyPath).toBe('userId');
+    expect(db.table(LOCAL_TABLES.homeStockDownloads).schema.primKey.keyPath).toEqual([
       'facilityId',
       'programId',
     ]);
@@ -83,13 +83,17 @@ describe('getLocalDb', () => {
   it('never shows one user what another user stored', async () => {
     signIn('ada');
     const draft = { draftId: 'identity-probe', lines: [] };
-    await getLocalDb().table('physicalInventoryDrafts').put(draft);
+    await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).put(draft);
 
     signIn('alan');
-    expect(await getLocalDb().table('physicalInventoryDrafts').get(draft.draftId)).toBeUndefined();
+    expect(
+      await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId),
+    ).toBeUndefined();
 
     signIn('ada');
-    expect(await getLocalDb().table('physicalInventoryDrafts').get(draft.draftId)).toEqual(draft);
+    expect(
+      await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId),
+    ).toEqual(draft);
   });
 
   it('closes the database on sign-out', async () => {
@@ -103,7 +107,7 @@ describe('getLocalDb', () => {
   });
 });
 
-it('opens an existing v6 database at v10 while preserving drafts, queues and receipts', async () => {
+it('opens an existing v6 database at v11 while preserving drafts, queues and receipts', async () => {
   signIn('queue-upgrade-v6');
   const old = new Dexie(getLocalDb().name);
   old.version(1).stores({});
@@ -131,15 +135,19 @@ it('opens an existing v6 database at v10 while preserving drafts, queues and rec
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(10);
+  expect(db.verno).toBe(11);
   for (const [table, row] of Object.entries(rows)) {
     if (table === 'adjustmentDownloads') continue;
     expect(await db.table(table).toArray()).toEqual([row]);
   }
   expect(db.tables.some((table) => table.name === 'adjustmentDownloads')).toBe(false);
-  expect(await db.table('homeStockDownloads').count()).toBe(0);
-  expect(db.tables.some((table) => table.name === 'stockCardHistory')).toBe(false);
-  for (const table of ['stockEventQueue', 'stockEventSyncErrors', 'stockEventReceipts'])
+  expect(await db.table(LOCAL_TABLES.homeStockDownloads).count()).toBe(0);
+  expect(await db.table(LOCAL_TABLES.stockCardHistory).count()).toBe(0);
+  for (const table of [
+    LOCAL_TABLES.stockEventQueue,
+    LOCAL_TABLES.stockEventSyncErrors,
+    LOCAL_TABLES.stockEventReceipts,
+  ])
     expect(
       (db.table(table).schema.idxByName.localEventId ?? db.table(table).schema.primKey).unique,
     ).toBe(true);
@@ -160,12 +168,14 @@ it('removes v9 card histories while preserving home stock and unresolved work', 
     stockEventQueue: { sequence: 1, localEventId: 'pending', status: 'uncertain' },
   };
   for (const [table, row] of Object.entries(rows)) await old.table(table).put(row);
-  await old.table('stockCardHistory').put({ id: 'card', fetchedAt: 123, card: { id: 'card' } });
+  await old
+    .table(LOCAL_TABLES.stockCardHistory)
+    .put({ id: 'card', fetchedAt: 123, card: { id: 'card' } });
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(10);
-  expect(db.tables.some((table) => table.name === 'stockCardHistory')).toBe(false);
+  expect(db.verno).toBe(11);
+  expect(await db.table(LOCAL_TABLES.stockCardHistory).count()).toBe(0);
   for (const [table, row] of Object.entries(rows))
     expect(await db.table(table).toArray()).toEqual([row]);
 });

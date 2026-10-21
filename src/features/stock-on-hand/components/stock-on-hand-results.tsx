@@ -27,6 +27,7 @@ import {
 } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
+import { SnapshotAlert } from '@/components/offline-alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -37,10 +38,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { lotsByIdsOptions, orderablesByIdsOptions } from '@/features/reference-data/api/queries';
 import { productName } from '@/features/reference-data/lib/product-name';
 import type { Orderable } from '@/features/reference-data/lib/types';
-import { stockCardSummariesOptions } from '@/features/stock-on-hand/api/queries';
+import {
+  stockCardSummariesOptions,
+  stockSummaryLookups,
+} from '@/features/stock-on-hand/api/queries';
 import {
   CLEARED_STOCK_FILTERS,
   type StockOnHandSearch,
@@ -48,14 +51,20 @@ import {
   toSummariesQuery,
 } from '@/features/stock-on-hand/lib/search';
 import { summaryIds, toStockGroups } from '@/features/stock-on-hand/lib/stock-groups';
-import type { StockCardRow, StockProductGroup } from '@/features/stock-on-hand/lib/types';
+import type {
+  DeviceStockOnHandReader,
+  StockCardRow,
+  StockProductGroup,
+} from '@/features/stock-on-hand/lib/types';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { orEmpty, tableValue } from '@/lib/empty-value';
+import { useOnline } from '@/lib/online';
 import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 type StockOnHandResultsProps = {
+  pendingEvents?: ReactNode;
   cards: boolean;
   search: StockOnHandSearch;
   facilityId: string;
@@ -64,6 +73,7 @@ type StockOnHandResultsProps = {
   columns: ColumnVisibilityState;
   collapsedKey: string;
   onSearchChange: SearchChange<StockOnHandSearch>;
+  readOnDevice?: DeviceStockOnHandReader;
 };
 
 const collapsedSchema = z.array(z.string());
@@ -71,6 +81,7 @@ const collapsedSchema = z.array(z.string());
 const NO_SORT = { id: 'productCode', desc: false };
 
 export function StockOnHandResults({
+  pendingEvents,
   cards,
   search,
   facilityId,
@@ -79,14 +90,16 @@ export function StockOnHandResults({
   columns,
   collapsedKey,
   onSearchChange,
+  readOnDevice,
 }: StockOnHandResultsProps) {
   const { t } = useTranslation();
   const deferredSearch = useDeferredValue(search);
   const query = toSummariesQuery(deferredSearch, { facilityId, programId });
-  const { data: page } = useSuspenseQuery(stockCardSummariesOptions(query));
+  const online = useOnline();
+  const { data: page } = useSuspenseQuery(stockCardSummariesOptions(query, readOnDevice, online));
   const ids = useMemo(() => summaryIds(page.content), [page]);
   const [orderables, lots] = useSuspenseQueries({
-    queries: [orderablesByIdsOptions(ids.orderableIds), lotsByIdsOptions(ids.lotIds)],
+    queries: stockSummaryLookups(ids, page.device),
   });
   const includeInactive = showsInactive(deferredSearch);
   const groups = useMemo(
@@ -174,10 +187,18 @@ export function StockOnHandResults({
     isStale,
   };
 
-  return cards ? (
-    <GroupedCards {...view} columns={columns} listRef={pageStart.ref} />
-  ) : (
-    <GroupedTable {...view} columns={columns} />
+  return (
+    <>
+      {page.device && (
+        <SnapshotAlert snapshot={page.device} message="stock-on-hand.offline-snapshot" />
+      )}
+      {page.device && pendingEvents}
+      {cards ? (
+        <GroupedCards {...view} columns={columns} listRef={pageStart.ref} />
+      ) : (
+        <GroupedTable {...view} columns={columns} />
+      )}
+    </>
   );
 }
 

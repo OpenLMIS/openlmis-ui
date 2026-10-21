@@ -5,7 +5,7 @@ import { Children, memo, type ReactNode, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
-import { FieldLabelText } from '@/components/form/form-fields';
+import { FieldAbout, FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -48,6 +48,7 @@ const fromValues = (values: CompleteSelection): FacilityProgramSelection => ({
 
 type FacilityProgramSelectorProps = {
   options: FacilityProgramOptions;
+  programUnavailable?: (programId: string) => string | undefined;
   applied: FacilityProgramSelection;
   onSearch: (selection: CompleteSelection) => void;
   onDraftChange: (draft: FacilityProgramSelection) => void;
@@ -55,6 +56,7 @@ type FacilityProgramSelectorProps = {
 
 export const FacilityProgramSelector = memo(function FacilityProgramSelector({
   options,
+  programUnavailable,
   applied,
   onSearch,
   onDraftChange,
@@ -68,6 +70,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
     validators: { onDynamic: selectionSchema },
     listeners: { onChange: ({ formApi }) => onDraftChange(fromValues(formApi.state.values)) },
     onSubmit: ({ value, formApi }) => {
+      if (programUnavailable?.(value.programId)) return;
       onSearch(value);
       formApi.reset(value);
     },
@@ -91,9 +94,12 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
     form.setFieldValue('facilityId', values.facilityId);
   };
 
+  const unavailableProgram = programId ? programUnavailable?.(programId) : undefined;
   const programs = mode === 'my' ? options.myPrograms : options.supervisedPrograms;
   const programItems = programs.map((program) => ({
     value: program.id,
+    disabled: Boolean(programUnavailable?.(program.id)),
+    description: programUnavailable?.(program.id),
     label: recordLabel(program),
   }));
   const facilityItems = programId
@@ -123,6 +129,15 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
             emptyMessage={t('facility-program.no-programs')}
             items={programItems}
             label={t('facility-program.program')}
+            labelAction={
+              unavailableProgram && (
+                <FieldAbout
+                  description={unavailableProgram}
+                  label={t('facility-program.program')}
+                  tone="warning"
+                />
+              )
+            }
             limit={-1}
             placeholder={t('facility-program.program-placeholder')}
             required
@@ -221,7 +236,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
           </form.AppField>
         }
         search={
-          <Button size="lg" type="submit">
+          <Button disabled={Boolean(programUnavailable?.(programId))} size="lg" type="submit">
             <SearchIcon data-icon="inline-start" />
             {t('facility-program.search')}
           </Button>

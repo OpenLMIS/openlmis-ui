@@ -1,10 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import type { ErrorComponentProps } from '@tanstack/react-router';
-import { liveQuery } from 'dexie';
 import type { ParseKeys } from 'i18next';
 import { ClipboardPenLineIcon } from 'lucide-react';
-import { type ReactElement, type ReactNode, useEffect, useState } from 'react';
+import { type ReactElement, type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LoadError } from '@/components/load-error';
 import { NoAccess } from '@/components/no-access-page';
@@ -32,12 +31,14 @@ import {
 } from '@/features/reference-data/api/queries';
 import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
-import { readHomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
-import { getLocalDb } from '@/integrations/local-db';
+import {
+  acceptsAdjustmentBundle,
+  homeStockProvider,
+} from '@/features/stock-events/lib/home-stock-provider';
+import { useDownloadedScopes } from '@/hooks/use-downloaded-scopes';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
-import { useSessionScope } from '@/lib/session-scope';
 import { homeStockPrograms } from '@/lib/stock-programs';
 
 export async function loadStockEventPrograms(
@@ -133,7 +134,16 @@ export function StockEventProgramPicker(props: PickerProps) {
     <Workspace width="narrow">
       <ProgramsHeader userId={userId} copy={copy} />
       <WorkspaceContent>
-        {'kind' in props && <PendingDeviceWork kind={props.kind} />}
+        {'kind' in props && (
+          <PendingDeviceWork
+            match={(event) => event.kind === props.kind}
+            message={{
+              online: 'offline-events.program-pending-online',
+              offline: 'offline-events.program-pending-offline',
+              values: { kind: props.kind },
+            }}
+          />
+        )}
         <QueryBoundary
           errorComponent={ProgramsError}
           pendingFallback={
@@ -215,7 +225,6 @@ function ProgramsTable({
   editorLink,
   kind,
   facilityId,
-  facilityTypeId,
 }: ProgramsTableProps & {
   kind: ConfiguredEventKind;
   action: PickerCopy['action'];
@@ -223,44 +232,20 @@ function ProgramsTable({
 }) {
   const { t } = useTranslation();
   const online = useOnline();
-  const scope = useSessionScope();
-  const key = JSON.stringify([
-    scope,
-    facilityId,
-    facilityTypeId,
-    programs.map((program) => program.id),
-  ]);
-  const [downloaded, setDownloaded] = useState({ key: '', ids: new Set<string>() });
-  useEffect(() => {
-    if (online || EVENT_KINDS[kind].download !== 'home-stock' || !facilityId || !facilityTypeId)
-      return;
-    let active = true;
-    const subscription = liveQuery(() =>
-      getLocalDb().table('homeStockDownloads').where('facilityId').equals(facilityId).toArray(),
-    ).subscribe({
-      next: () => {
-        void Promise.all(
-          programs.map(async (program) => {
-            try {
-              await readHomeStockBundle({ facilityId, facilityTypeId, programId: program.id });
-              return program.id;
-            } catch {
-              return null;
-            }
-          }),
-        ).then((ids) => {
-          if (active) setDownloaded({ key, ids: new Set(ids.filter((id) => id !== null)) });
-        });
-      },
-      error: () => {
-        if (active) setDownloaded({ key, ids: new Set() });
-      },
-    });
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, [online, kind, programs, facilityId, facilityTypeId, key]);
+  const provider = useMemo(() => homeStockProvider(), []);
+  const scopes = useMemo(
+    () =>
+      programs.map((program) => ({
+        id: program.id,
+        name: recordLabel(program),
+        key: [facilityId ?? '', program.id],
+      })),
+    [programs, facilityId],
+  );
+  const downloaded = useDownloadedScopes(provider, scopes, {
+    enabled: !online,
+    accepts: acceptsAdjustmentBundle,
+  });
   return (
     <StockProgramPicker
       actionLabel={t(action)}
@@ -270,13 +255,9 @@ function ProgramsTable({
         id: program.id,
         label: recordLabel(program),
         disabled:
-          !online &&
-          EVENT_KINDS[kind].download === 'home-stock' &&
-          (downloaded.key !== key || !downloaded.ids.has(program.id)),
+          !online && EVENT_KINDS[kind].download === 'home-stock' && !downloaded.has(program.id),
         disabledReason:
-          !online &&
-          EVENT_KINDS[kind].download === 'home-stock' &&
-          (downloaded.key !== key || !downloaded.ids.has(program.id))
+          !online && EVENT_KINDS[kind].download === 'home-stock' && !downloaded.has(program.id)
             ? t('offline.unavailable-title')
             : undefined,
         disabledDescription: t('stock-programs.offline-description'),

@@ -1,4 +1,4 @@
-import Dexie from 'dexie';
+import Dexie, { type Table } from 'dexie';
 import { useLoginData } from '@/features/auth/store/login-data';
 
 type DatabaseOwner = {
@@ -44,6 +44,7 @@ export function getLocalDb(): Dexie {
     });
     database.version(9).stores({ stockCardHistory: 'id, fetchedAt' });
     database.version(10).stores({ stockCardHistory: null });
+    database.version(11).stores({ stockCardHistory: 'id' });
   }
   return database;
 }
@@ -53,3 +54,18 @@ useLoginData.subscribe((state, previous) => {
   database?.close();
   database = null;
 });
+
+export const LOCAL_TABLES = {
+  offlineAccess: 'offlineAccess',
+  homeStockDownloads: 'homeStockDownloads',
+  stockCardHistory: 'stockCardHistory',
+  physicalInventoryDrafts: 'physicalInventoryDrafts',
+  stockEventDrafts: 'stockEventDrafts',
+  stockEventQueue: 'stockEventQueue',
+  stockEventSyncErrors: 'stockEventSyncErrors',
+  stockEventReceipts: 'stockEventReceipts',
+} as const;
+
+export type LocalTableName = (typeof LOCAL_TABLES)[keyof typeof LOCAL_TABLES];
+export const localTable = <T = unknown>(name: LocalTableName): Table<T> =>
+  getLocalDb().table<T>(name);
