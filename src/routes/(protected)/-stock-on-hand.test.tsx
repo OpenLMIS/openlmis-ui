@@ -944,3 +944,16 @@ it('replaces a previously viewed supervised list with Not Available Offline on d
   expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
   expect(screen.queryByText('offline.unavailable-title')).not.toBeInTheDocument();
 });
+
+it('keeps the picker visible for an invalid offline selection and loads stock on reconnect', async () => {
+  await seedStockPickerAccess();
+  onlineManager.setOnline(false);
+  const client = new QueryClient({
+    defaultOptions: { queries: { networkMode: 'always', retry: false } },
+  });
+  renderRoute(appliedPath(BALAKA, EM, 'supervised'), client, undefined, { onCaughtError: vi.fn() });
+  expect(await screen.findByText('offline.unavailable-title')).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toBeInTheDocument();
+  act(() => onlineManager.setOnline(true));
+  expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
+});
