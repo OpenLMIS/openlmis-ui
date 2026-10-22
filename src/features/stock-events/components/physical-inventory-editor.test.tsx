@@ -64,7 +64,9 @@ vi.mock('react-i18next', () => ({
         : key,
   }),
 }));
-vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
+vi.mock('@/features/stock-events/lib/physical-inventory-local', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/physical-inventory-local')>()),
+  reconcileInventoryCopies: vi.fn(),
   readInventoryLocal: vi.fn(),
   clearInventoryLocal: vi.fn(),
   writeInventoryLocal: vi.fn(),
@@ -316,7 +318,7 @@ it('writes removal of the last locally added line so it cannot return on reopen'
   );
 });
 
-it('always confirms Save, sends hidden members, and clears the local copy only on success', async () => {
+it('always confirms Save, sends hidden members, and retains an unmodified device copy', async () => {
   const user = userEvent.setup();
   setup();
   await screen.findByRole('textbox', { name: 'stock-events.field-of' });
@@ -336,14 +338,15 @@ it('always confirms Save, sends hidden members, and clears the local copy only o
     ),
   );
   await waitFor(() =>
-    expect(clearInventoryLocal).toHaveBeenCalledWith(
-      'd',
-      expect.any(Number),
+    expect(writeInventoryLocal).toHaveBeenCalledWith(
+      expect.objectContaining({ draftId: 'd', modified: false, baselineKeys: expect.any(Array) }),
       expect.any(Number),
       expect.anything(),
     ),
   );
+  expect(clearInventoryLocal).not.toHaveBeenCalled();
 });
+
 async function submitAndReturnToInvalidPage(
   user: ReturnType<typeof userEvent.setup>,
   view: ReturnType<typeof setup>,
@@ -798,7 +801,7 @@ it('updates the phone card unaccounted error and summary when reasons change wit
   );
 });
 
-it('allows Delete to leave immediately after a failed device save', async () => {
+it('blocks Delete after a failed device save and keeps the counts', async () => {
   vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
   const actual = await vi.importActual<typeof import('@/hooks/use-discard-guard')>(
     '@/hooks/use-discard-guard',
@@ -820,10 +823,14 @@ it('allows Delete to leave immediately after a failed device save', async () => 
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.delete' }),
   );
-  expect(await screen.findByText('Inventory list')).toBeInTheDocument();
-  expect(view.router.state.location.pathname).toBe('/stock-management/physical-inventory');
-  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await screen.findByRole('alertdialog');
+  expect(view.router.state.location.pathname).not.toBe('/stock-management/physical-inventory');
+  expect(deletePhysicalInventory).not.toHaveBeenCalled();
+  expect(clearInventoryLocal).not.toHaveBeenCalled();
+  await user.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
+  );
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
 });
 
 it('allows Delete when eligibility fails while keeping Save and Submit disabled', async () => {
@@ -905,7 +912,11 @@ it('retains saved session counts when the stock refresh fails and saves them aga
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
   }
-  expect(clearInventoryLocal).toHaveBeenCalled();
+  expect(writeInventoryLocal).toHaveBeenCalledWith(
+    expect.objectContaining({ modified: false }),
+    expect.any(Number),
+    expect.anything(),
+  );
   expect(savePhysicalInventory).toHaveBeenLastCalledWith(
     expect.objectContaining({
       lineItems: expect.arrayContaining([
