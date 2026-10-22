@@ -71,7 +71,10 @@ beforeEach(() => {
 });
 function setup(overrides: Partial<ComponentProps<typeof InventoryActions>> = {}) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity },
+      mutations: { networkMode: 'always' },
+    },
   });
   client.setQueryData(eligibleInventoryProductsOptions(draft).queryKey, [stock]);
   const fetch = vi.spyOn(client, 'fetchQuery');
@@ -447,8 +450,45 @@ it('stops Save when the connection is lost while eligible products are resolving
   await waitFor(() => expect(fetchEligibleInventoryProducts).toHaveBeenCalled());
   act(() => onlineManager.setOnline(false));
   await act(async () => pending.resolve([stock]));
-  await screen.findByRole('alertdialog');
+  await waitFor(() =>
+    expect(toast.error).toHaveBeenCalledWith('physical-inventory.save-error-title', {
+      description: 'offline.action-description',
+    }),
+  );
   expect(savePhysicalInventory).not.toHaveBeenCalled();
   expect(submitPhysicalInventory).not.toHaveBeenCalled();
   expect(createPhysicalInventoryLot).not.toHaveBeenCalled();
 });
+
+it.each(['save', 'delete', 'submit'] as const)(
+  'explains lost connection when confirming an already open %s dialog',
+  async (action) => {
+    setup();
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole('button', {
+        name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
+      }),
+    );
+    act(() => onlineManager.setOnline(false));
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
+      }),
+    );
+    if (action === 'submit') {
+      expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+        'physical-inventory.submit-offline-description',
+      );
+    } else {
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith(`physical-inventory.${action}-error-title`, {
+          description: 'offline.action-description',
+        }),
+      );
+    }
+    expect(savePhysicalInventory).not.toHaveBeenCalled();
+    expect(deletePhysicalInventory).not.toHaveBeenCalled();
+    expect(submitPhysicalInventory).not.toHaveBeenCalled();
+  },
+);

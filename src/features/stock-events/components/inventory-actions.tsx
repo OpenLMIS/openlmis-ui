@@ -271,6 +271,24 @@ export function InventoryActions(props: Props) {
       next = await mutation.mutateAsync(action);
     } catch (error) {
       if (!mutation.isCurrent()) return;
+      if (
+        !(error instanceof UnknownSubmit) &&
+        (error instanceof LocalDataUnavailableError || !isOnline())
+      ) {
+        if (action.type === 'submit')
+          showFailure({
+            title: t('physical-inventory.submit-offline-title'),
+            description: t('physical-inventory.submit-offline-description'),
+          });
+        else
+          toast.error(t(ACTION_KEYS[action.type].errorTitle), {
+            description: t('offline.action-description'),
+          });
+        setDialog(null);
+        props.onBusy(false);
+        posting.current = false;
+        return;
+      }
       let description = serverMessage(error) ?? t(ACTION_KEYS[action.type].errorDescription);
       if (error instanceof InventoryLotError)
         description =
