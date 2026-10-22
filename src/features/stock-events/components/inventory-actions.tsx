@@ -64,13 +64,17 @@ import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { DraftConflictError } from '@/lib/draft-store';
 import { queryKeys } from '@/lib/key-factory';
-import { LocalDataUnavailableError } from '@/lib/local-data';
+import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 class UnknownSubmit extends Error {}
+function reportUnlessConflict(error: unknown) {
+  if (error instanceof DraftConflictError) throw error;
+  reportCaughtError(error, {});
+}
 type Action =
   | { type: 'save' }
   | { type: 'delete' }
@@ -105,7 +109,6 @@ const ACTION_KEYS = {
     errorDescription: 'physical-inventory.save-error-description',
     successTitle: 'physical-inventory.saved-title',
     successDescription: 'physical-inventory.saved-description',
-    localClearError: 'physical-inventory.save-local-clear-error',
   },
   delete: {
     errorTitle: 'physical-inventory.delete-error-title',
@@ -136,6 +139,11 @@ export function InventoryActions(props: Props) {
     setFailure(next);
     setFailureCopy(next);
   };
+  const showOffline = () =>
+    showFailure({
+      title: t('physical-inventory.submit-offline-title'),
+      description: t('physical-inventory.submit-offline-description'),
+    });
   const invalidLines = useRef<readonly InventoryLine[] | null>(null);
   const submitButton = useRef<HTMLButtonElement>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
@@ -161,14 +169,13 @@ export function InventoryActions(props: Props) {
       const scope = getSessionScope();
       const check = () => {
         assertSessionScope(scope);
-        if (!isOnline()) throw new LocalDataUnavailableError();
+        requireOnline();
       };
       check();
       try {
         await props.flush();
       } catch (error) {
-        if (error instanceof DraftConflictError) throw error;
-        reportCaughtError(error, {});
+        reportUnlessConflict(error);
       }
       assertSessionScope(scope);
       try {
@@ -177,8 +184,7 @@ export function InventoryActions(props: Props) {
         if (local?.orphaned) throw new DraftConflictError(local);
       } catch (error) {
         assertSessionScope(scope);
-        if (error instanceof DraftConflictError) throw error;
-        reportCaughtError(error, {});
+        reportUnlessConflict(error);
       }
       check();
       if (action.type === 'delete') {
@@ -205,8 +211,7 @@ export function InventoryActions(props: Props) {
           try {
             await props.writeLocal(inventoryLocalCopy(props.draft, next, props.baseline));
           } catch (error) {
-            if (error instanceof DraftConflictError) throw error;
-            reportCaughtError(error, {});
+            reportUnlessConflict(error);
           }
           assertSessionScope(scope);
         },
@@ -256,10 +261,7 @@ export function InventoryActions(props: Props) {
         description: t('physical-inventory.invalid-description'),
       });
     } else if (!isOnline()) {
-      showFailure({
-        title: t('physical-inventory.submit-offline-title'),
-        description: t('physical-inventory.submit-offline-description'),
-      });
+      showOffline();
     } else setDialog('submit');
   };
   const confirm = async (action: Action) => {
@@ -275,11 +277,7 @@ export function InventoryActions(props: Props) {
         !(error instanceof UnknownSubmit) &&
         (error instanceof LocalDataUnavailableError || !isOnline())
       ) {
-        if (action.type === 'submit')
-          showFailure({
-            title: t('physical-inventory.submit-offline-title'),
-            description: t('physical-inventory.submit-offline-description'),
-          });
+        if (action.type === 'submit') showOffline();
         else
           toast.error(t(ACTION_KEYS[action.type].errorTitle), {
             description: t('offline.action-description'),

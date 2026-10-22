@@ -66,6 +66,8 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  storedTimeZone: vi.fn().mockReturnValue('UTC'),
+  fetchDeploymentTimeZone: vi.fn().mockResolvedValue('UTC'),
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),
@@ -715,4 +717,21 @@ it('uses stored counts when the draft GET loses connection after the online chec
   expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ deviceCopy: copy });
   expect(fetchPhysicalInventoryDraft).toHaveBeenCalled();
   expect(fetchInventoryStockLines).not.toHaveBeenCalled();
+});
+
+it('shows failed offline program reads and retries every failed program', async () => {
+  const local = await import('@/features/stock-events/lib/physical-inventory-local');
+  await seedDeviceEditor();
+  const read = vi
+    .spyOn(local, 'readInventoryLocalByScope')
+    .mockRejectedValue(new Error('Device read failed'));
+  onlineManager.setOnline(false);
+  const user = userEvent.setup();
+  renderRoute();
+  await screen.findByText('physical-inventory.load-error-description');
+  expect(screen.getAllByText('physical-inventory.status-error')).toHaveLength(2);
+  read.mockClear();
+  await user.click(screen.getByRole('button', { name: 'Try Again' }));
+  await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+  read.mockRestore();
 });

@@ -738,7 +738,6 @@
   "physical-inventory.save-confirm": "Warning: Saving will make all newly added lots unmodifiable, but removing physical inventory row will still be possible.",
   "physical-inventory.save-error-description": "The draft could not be saved. Your counts are kept on this device.",
   "physical-inventory.save-error-title": "Draft Not Saved",
-  "physical-inventory.save-local-clear-error": "The physical inventory was saved on the server, but its device copy could not be updated.",
   "physical-inventory.saved-description": "Save is successful.",
   "physical-inventory.saved-local": "Saved On This Device",
   "physical-inventory.saved-title": "Draft Saved",

@@ -1,8 +1,14 @@
 import { useStore } from '@tanstack/react-form';
-import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  queryOptions,
+  type UseQueryOptions,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
-import { ClipboardListIcon } from 'lucide-react';
+import { ClipboardListIcon, TriangleAlertIcon } from 'lucide-react';
 import {
   type ReactNode,
   useCallback,
@@ -36,16 +42,16 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
 import { OfflineAlert, SnapshotAlert } from '@/components/offline-alert';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { validReasonsOptions } from '@/features/reference-data/api/queries';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { deactivateInventoryStockCard } from '@/features/stock-events/api/physical-inventory-api';
 import {
   eligibleInventoryProductsOptions,
   inventoryDeviceOptions,
-  inventoryReasonsOptions,
   inventoryRefreshFilters,
   inventoryStockLinesOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
@@ -92,6 +98,7 @@ import {
 } from '@/features/stock-events/lib/physical-inventory-local';
 import {
   canDeactivateInventoryLine,
+  type InventoryReasonAssignment,
   inventoryOptionalColumns,
   inventoryReasons,
 } from '@/features/stock-events/lib/physical-inventory-products';
@@ -113,7 +120,7 @@ import { useStoredState } from '@/hooks/use-stored-state';
 import { useFlag } from '@/lib/feature-flags';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import { LocalDataUnavailableError } from '@/lib/local-data';
+import { requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
 import { reportCaughtError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
@@ -265,7 +272,6 @@ function InventoryRows(props: RowsProps) {
       queryFn: async () => props.deviceCopy ?? (await readInventoryLocal(props.draft.id)) ?? null,
       staleTime: Infinity,
       gcTime: 0,
-      networkMode: 'always',
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
@@ -293,6 +299,7 @@ function InventoryRows(props: RowsProps) {
         }
         localModified={Boolean(currentCopy?.modified)}
         localRevision={currentCopy?.revision}
+        initialCopy={currentCopy ?? undefined}
       />
     </>
   );
@@ -313,6 +320,7 @@ function InventoryDraftRows({
   localRemoved,
   localModified,
   localRevision,
+  initialCopy,
   onAdopt,
   quantityUnit,
   addOpen,
@@ -333,6 +341,7 @@ function InventoryDraftRows({
   localRemoved: string[];
   localModified: boolean;
   localRevision?: number;
+  initialCopy?: InventoryLocalCopy;
   onAdopt: (copy: InventoryLocalCopy | undefined) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -353,7 +362,10 @@ function InventoryDraftRows({
     deviceCopy
       ? inventoryDeviceOptions(deviceCopy).reasons
       : {
-          ...inventoryReasonsOptions({ program: draft.programId, facilityType: facilityTypeId }),
+          ...(validReasonsOptions({
+            program: draft.programId,
+            facilityType: facilityTypeId,
+          }) as UseQueryOptions<InventoryReasonAssignment[]>),
           enabled: online,
           refetchOnWindowFocus: false,
           refetchOnReconnect: false,
@@ -429,20 +441,22 @@ function InventoryDraftRows({
   useEffect(() => {
     if (dirty) setModified(true);
   }, [dirty]);
-  const copy = useCallback(
-    () =>
-      !busy && !submitted && (modified || form.state.isDirty)
-        ? inventoryLocalCopy(
-            draft,
-            withDisplayedMembership(Object.values(form.state.values.lines)),
-            baseline,
-            modified || form.state.isDirty,
-            snapshot,
-          )
-        : null,
-    [busy, submitted, modified, form, draft, baseline, withDisplayedMembership, snapshot],
+  const currentCopy = useCallback(
+    (changed = modified || form.state.isDirty) =>
+      inventoryLocalCopy(
+        draft,
+        withDisplayedMembership(Object.values(form.state.values.lines)),
+        baseline,
+        changed,
+        snapshot,
+      ),
+    [draft, form, baseline, modified, snapshot, withDisplayedMembership],
   );
-  const autosave = usePhysicalInventoryAutosave(copy, form, localRevision, onAdopt, deviceCopy);
+  const copy = useCallback(
+    () => (!busy && !submitted && (modified || form.state.isDirty) ? currentCopy() : null),
+    [busy, submitted, modified, form, currentCopy],
+  );
+  const autosave = usePhysicalInventoryAutosave(copy, form, localRevision, onAdopt, initialCopy);
   const snapshotWritten = useRef(false);
   useEffect(() => {
     if (
@@ -458,15 +472,9 @@ function InventoryDraftRows({
     )
       return;
     snapshotWritten.current = true;
-    const value = inventoryLocalCopy(
-      draft,
-      withDisplayedMembership(Object.values(form.state.values.lines)),
-      baseline,
-      modified || form.state.isDirty,
-      snapshot,
-    );
+    const value = currentCopy();
     void autosave
-      .write(value, inventoryReference({ ...value, ...snapshot }, eligible.data, reasons))
+      .write(value, inventoryReference(value, eligible.data, reasons))
       .then(() => setReadFailed(false))
       .catch((error) => reportCaughtError(error, {}));
   }, [
@@ -480,12 +488,7 @@ function InventoryDraftRows({
     reasons,
     busy,
     submitted,
-    draft,
-    form,
-    baseline,
-    modified,
-    snapshot,
-    withDisplayedMembership,
+    currentCopy,
     autosave.write,
   ]);
   const status = readFailed && !modified && !form.state.isDirty ? 'failed' : autosave.status;
@@ -514,7 +517,7 @@ function InventoryDraftRows({
   const mutation = useSessionMutation({
     retry: false,
     mutationFn: (id: string) => {
-      if (!isOnline()) throw new LocalDataUnavailableError();
+      requireOnline();
       return deactivateInventoryStockCard(id);
     },
     onSuccess: () => {
@@ -673,6 +676,30 @@ function InventoryDraftRows({
       onRemove,
     ],
   );
+  const [resolving, setResolving] = useState(false);
+  const resolveConflict = async (choice: 'load' | 'keep') => {
+    if (resolving) return;
+    setResolving(true);
+    try {
+      if (choice === 'load') await autosave.loadLatest();
+      else {
+        const value = currentCopy(true);
+        await autosave.keepCounts(
+          value,
+          eligible.data && reasonsQuery.isSuccess
+            ? inventoryReference(value, eligible.data, reasons)
+            : undefined,
+        );
+      }
+    } catch (error) {
+      reportCaughtError(error, {});
+      toast.error(t('physical-inventory.copy-error-title'), {
+        description: t('physical-inventory.copy-error-description'),
+      });
+    } finally {
+      setResolving(false);
+    }
+  };
   return (
     <div ref={region} tabIndex={-1} className="flex flex-col gap-4" aria-busy={search !== deferred}>
       {usingSnapshot && (
@@ -685,48 +712,20 @@ function InventoryDraftRows({
       {progressSlot &&
         createPortal(<InventoryCompletion form={form} lines={filtered} />, progressSlot)}
       {status === 'conflict' && (
-        <Alert variant="warning">
+        <Alert variant="warning" role="note">
+          <TriangleAlertIcon />
+          <AlertTitle>{t('stock-events.draft-conflict-title')}</AlertTitle>
           <AlertDescription>
             <p>{t('stock-events.draft-conflict')}</p>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="warning"
-                onClick={() => {
-                  void autosave.loadLatest().catch((error) => {
-                    reportCaughtError(error, {});
-                    toast.error(t('physical-inventory.copy-error-title'), {
-                      description: t('physical-inventory.copy-error-description'),
-                    });
-                  });
-                }}
+                disabled={resolving}
+                onClick={() => void resolveConflict('load')}
               >
                 {t('physical-inventory.load-latest')}
               </Button>
-              <Button
-                variant="warning"
-                onClick={() => {
-                  const value = inventoryLocalCopy(
-                    draft,
-                    withDisplayedMembership(Object.values(form.state.values.lines)),
-                    baseline,
-                    true,
-                    snapshot,
-                  );
-                  void autosave
-                    .keepCounts(
-                      value,
-                      eligible.data && reasonsQuery.isSuccess
-                        ? inventoryReference({ ...value, ...snapshot }, eligible.data, reasons)
-                        : undefined,
-                    )
-                    .catch((error) => {
-                      reportCaughtError(error, {});
-                      toast.error(t('physical-inventory.copy-error-title'), {
-                        description: t('physical-inventory.copy-error-description'),
-                      });
-                    });
-                }}
-              >
+              <Button disabled={resolving} onClick={() => void resolveConflict('keep')}>
                 {t('physical-inventory.keep-counts')}
               </Button>
             </div>

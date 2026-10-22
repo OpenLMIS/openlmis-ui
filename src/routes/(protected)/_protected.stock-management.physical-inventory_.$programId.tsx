@@ -20,6 +20,7 @@ import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  deploymentTimeZoneOptions,
   homeFacilityOptions,
   userRecordOptions,
   validReasonsOptions,
@@ -57,6 +58,7 @@ export const Route = createFileRoute(
   loader: {
     staleReloadMode: 'blocking',
     handler: async ({ context: { queryClient }, params: { programId }, cause }) => {
+      queryClient.prefetchQuery(deploymentTimeZoneOptions());
       const eligibleUpdatedAfter = cause === 'enter' ? Date.now() : 0;
       const session = getSessionScope();
       const userId = useLoginData.getState().referenceDataUserId;

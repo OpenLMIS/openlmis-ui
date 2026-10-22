@@ -16,6 +16,10 @@ export function createInventoryWriter<T>(
     },
     true,
   );
+  const resolve = () => {
+    conflict = undefined;
+    serial.reset();
+  };
   return {
     enqueue: serial.enqueue,
     wait: serial.wait,
@@ -28,13 +32,9 @@ export function createInventoryWriter<T>(
       serial.clear();
       await serial.wait();
       await remove(conflict);
-      conflict = undefined;
-      serial.reset();
+      resolve();
     },
-    resolve() {
-      conflict = undefined;
-      serial.reset();
-    },
+    resolve,
     reset() {
       if (conflict instanceof DraftConflictError) return;
       serial.reset();
