@@ -70,6 +70,16 @@ export function buildInventoryLines(
   return [...lines.values()].filter(isInventoryMember);
 }
 
+export function inventoryBaseline(
+  stock: readonly InventoryStockLine[],
+  server: readonly InventoryDraftItem[],
+  deviceCopy?: InventoryLocalCopy,
+): Pick<InventoryLine, 'key'>[] {
+  return deviceCopy
+    ? (deviceCopy.baselineKeys ?? []).map((key) => ({ key }))
+    : buildInventoryLines(stock, server);
+}
+
 export function filterInventoryLines(
   lines: readonly InventoryLine[],
   { keyword = '', includeInactive = false }: { keyword?: string; includeInactive?: boolean },
@@ -172,7 +182,7 @@ export function inventoryPageOf(
 export function inventoryLocalCopy(
   draft: { id: string; programId: string; facilityId: string },
   lines: readonly InventoryLine[],
-  baseline?: readonly InventoryLine[],
+  baseline?: readonly Pick<InventoryLine, 'key'>[],
   modified = true,
   snapshot?: DeviceSnapshot & { baselineKeys?: string[] },
 ): InventoryLocalCopy {

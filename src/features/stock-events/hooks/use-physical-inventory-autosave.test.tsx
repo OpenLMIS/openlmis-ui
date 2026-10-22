@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { usePhysicalInventoryAutosave } from '@/features/stock-events/hooks/use-physical-inventory-autosave';
@@ -303,4 +303,64 @@ it('rewrites the reference after keeping counts over another generation', async 
     await view.result.current.keepCounts(opened, reference);
   });
   expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[3]).toEqual(reference);
+});
+
+it('does not keep orphan recovery enabled after a failed Keep My Counts write', async () => {
+  vi.mocked(writeInventoryLocal)
+    .mockRejectedValueOnce(new DraftConflictError({ ...copy, revision: 2, orphaned: true }))
+    .mockRejectedValueOnce(new Error('Full'));
+  const view = renderHook(() =>
+    usePhysicalInventoryAutosave(noCopy, usePhysicalInventoryForm([], false), 1),
+  );
+  await act(async () => {
+    await expect(view.result.current.write(copy)).rejects.toThrow();
+  });
+  await act(async () => {
+    await expect(view.result.current.keepCounts(copy)).rejects.toThrow();
+  });
+  await act(async () => {
+    await view.result.current.write(copy);
+  });
+  expect(vi.mocked(writeInventoryLocal).mock.lastCall).toHaveLength(3);
+});
+it('stages changed modified copies before layout effects observe leave protection', () => {
+  const observed = vi.fn();
+  vi.mocked(writeInventoryLocal).mockReturnValue(new Promise(() => {}));
+  const view = renderHook(
+    ({ value }) => {
+      const form = usePhysicalInventoryForm([], false);
+      const getCopy = useCallback(() => value, [value]);
+      const result = usePhysicalInventoryAutosave(getCopy, form);
+      useLayoutEffect(() => {
+        observed(result.status);
+      });
+      return result;
+    },
+    { initialProps: { value: null as InventoryLocalCopy | null } },
+  );
+  observed.mockClear();
+  view.rerender({ value: copy });
+  expect(observed.mock.calls.every(([status]) => status === 'saving')).toBe(true);
+});
+
+it('keeps the stored snapshot identity when an offline-opened draft is saved after reconnect', async () => {
+  const opened = { ...copy, fetchedAt: 123, generation: 'device', revision: 3 };
+  const view = renderHook(() =>
+    usePhysicalInventoryAutosave(
+      noCopy,
+      usePhysicalInventoryForm([], false),
+      opened.revision,
+      undefined,
+      opened,
+    ),
+  );
+  await act(async () => {
+    await view.result.current.write({ ...copy, modified: false });
+  });
+  expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[0]).toMatchObject({
+    fetchedAt: 123,
+    generation: 'device',
+    revision: 3,
+    modified: false,
+  });
 });

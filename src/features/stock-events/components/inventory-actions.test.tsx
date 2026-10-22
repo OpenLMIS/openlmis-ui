@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
@@ -143,7 +143,9 @@ it.each(['save', 'delete', 'submit'] as const)(
     await waitFor(() => expect(action === 'delete' ? onDeleted : onSaved).toHaveBeenCalled());
     if (action === 'save') {
       expect(toast.error).not.toHaveBeenCalled();
-      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith('physical-inventory.saved-title', {
+        description: 'physical-inventory.saved-description',
+      });
       return;
     }
     expect(toast.error).toHaveBeenCalledWith('physical-inventory.local-clear-error-title', {
@@ -397,3 +399,56 @@ it.each(['save', 'delete', 'submit'] as const)(
     await waitFor(() => expect(action === 'delete' ? onDeleted : onSaved).toHaveBeenCalled());
   },
 );
+
+it.each([false, true])(
+  'validates offline counts before asking for a connection: complete=%s',
+  async (complete) => {
+    onlineManager.setOnline(false);
+    const onInvalid = vi.fn();
+    const local = complete
+      ? lines
+      : lines.map((line) => ({ ...line, quantity: quantityValue('', 1) }));
+    setup({ getLines: () => local, displayed: local, onInvalid });
+    const user = userEvent.setup();
+    expect(screen.getByRole('button', { name: 'physical-inventory.save' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'physical-inventory.delete' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+    const dialog = screen.getByRole('alertdialog');
+    expect(
+      within(dialog).getByText(
+        complete ? 'physical-inventory.submit-offline-title' : 'physical-inventory.invalid-title',
+      ),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+    if (!complete) await waitFor(() => expect(onInvalid).toHaveBeenCalledWith(local));
+    expect(savePhysicalInventory).not.toHaveBeenCalled();
+    expect(submitPhysicalInventory).not.toHaveBeenCalled();
+    expect(createPhysicalInventoryLot).not.toHaveBeenCalled();
+    expect(fetchEligibleInventoryProducts).not.toHaveBeenCalled();
+  },
+);
+
+it('stops Save when the connection is lost while eligible products are resolving', async () => {
+  const pending = Promise.withResolvers<(typeof stock)[]>();
+  const { client } = setup();
+  client.removeQueries({ queryKey: eligibleInventoryProductsOptions(draft).queryKey });
+  vi.mocked(fetchEligibleInventoryProducts).mockReturnValueOnce(pending.promise);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  await waitFor(() => expect(fetchEligibleInventoryProducts).toHaveBeenCalled());
+  act(() => onlineManager.setOnline(false));
+  await act(async () => pending.resolve([stock]));
+  await screen.findByRole('alertdialog');
+  expect(savePhysicalInventory).not.toHaveBeenCalled();
+  expect(submitPhysicalInventory).not.toHaveBeenCalled();
+  expect(createPhysicalInventoryLot).not.toHaveBeenCalled();
+});
