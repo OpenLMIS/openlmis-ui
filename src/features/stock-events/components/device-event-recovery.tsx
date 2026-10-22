@@ -123,10 +123,15 @@ export function DeviceEventRecovery({
     },
     retry: false,
   });
-  const retry = useRefusedEventRetry(event, canSend, () => {
-    onRemoved?.();
-    onClose();
-  });
+  const retry = useRefusedEventRetry(
+    event,
+    canSend,
+    () => {
+      onRemoved?.();
+      onClose();
+    },
+    onClose,
+  );
   const pending = operation.isPending || retry.pending;
   const act = async (confirmation: RecoveryConfirmation) => {
     const { choice, event } = confirmation;

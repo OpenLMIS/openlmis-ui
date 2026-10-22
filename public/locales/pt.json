@@ -646,7 +646,6 @@
   "offline-events.tab-synced": "Sincronizados ({count})",
   "offline-events.tabs-label": "Separadores De Eventos Offline",
   "offline-events.title": "Eventos Offline",
-  "offline-events.type": "Tipo De Evento",
   "offline-events.type-all": "Todos",
   "offline-events.uncertain-description": "Não foi possível confirmar se este evento foi registrado. Verifique os cartões de estoque e o histórico de transações antes de escolher. Outros eventos desta unidade e deste programa estão aguardando.",
   "offline-events.waiting": "{count, plural, one {# Evento Aguardando Sincronização} other {# Eventos Aguardando Sincronização}}",

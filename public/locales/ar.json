@@ -646,7 +646,6 @@
   "offline-events.tab-synced": "تمت المزامنة ({count})",
   "offline-events.tabs-label": "علامات تبويب الأحداث دون اتصال",
   "offline-events.title": "الأحداث دون اتصال",
-  "offline-events.type": "نوع الحدث",
   "offline-events.type-all": "الكل",
   "offline-events.uncertain-description": "لم نتمكن من تأكيد ما إذا تم تسجيل هذا الحدث. تحقق من بطاقات المخزون وسجل المعاملات قبل الاختيار. الأحداث الأخرى لهذا المرفق والبرنامج قيد الانتظار.",
   "offline-events.waiting": "{count, plural, zero {لا توجد أحداث تنتظر المزامنة} one {حدث واحد ينتظر المزامنة} two {حدثان ينتظران المزامنة} few {# أحداث تنتظر المزامنة} many {# حدثًا ينتظر المزامنة} other {# حدث ينتظر المزامنة}}",

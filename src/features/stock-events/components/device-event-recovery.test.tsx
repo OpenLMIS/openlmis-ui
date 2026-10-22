@@ -428,6 +428,57 @@ it('Retry requeues a refusal without confirmation, retains one visible event and
     expect(events.current.events?.map((event) => event.status)).toEqual(['accepted']),
   );
 });
+it('stale Retry leaves row focus alone and still closes the recovery dialog', async () => {
+  const { uncertain: event } = await open(true, 'refused', 'adjustment', false);
+  const onRemoved = vi.fn();
+  const onClose = vi.fn();
+  await getLocalDb()
+    .table(LOCAL_TABLES.stockEventSyncErrors)
+    .update(event.localEventId, { resolvedAt: Date.now() });
+  renderPage(
+    <DeviceEventActions
+      event={event}
+      canSend
+      label="View event"
+      removeLabel="Dismiss event"
+      onOpen={vi.fn()}
+      onRemoved={onRemoved}
+    />,
+    { queryClient: new QueryClient() },
+  );
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'offline-events.actions-label' }),
+  );
+  await userEvent.click(
+    await screen.findByRole('menuitem', { name: 'offline-events.retry-refused' }),
+  );
+  await waitFor(() =>
+    expect(toast.warning).toHaveBeenCalledWith('offline-events.changed-title', {
+      description: 'offline-events.changed-description',
+    }),
+  );
+  expect(onRemoved).not.toHaveBeenCalled();
+  renderPage(
+    <DeviceEventRecovery
+      event={event}
+      canView={false}
+      canSend
+      onClose={onClose}
+      onRemoved={onRemoved}
+    />,
+    { queryClient: new QueryClient() },
+  );
+  await userEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', {
+      name: 'offline-events.retry-refused',
+    }),
+  );
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  expect(onRemoved).not.toHaveBeenCalled();
+  expect(announceDeviceSave).not.toHaveBeenCalled();
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
+});
+
 it.each(['uncertain', 'accepted', 'queued'] as const)(
   'does not offer Retry for %s events',
   async (status) => {

@@ -646,7 +646,6 @@
   "offline-events.tab-synced": "Sincronizados ({count})",
   "offline-events.tabs-label": "Pestañas De Eventos Sin Conexión",
   "offline-events.title": "Eventos Sin Conexión",
-  "offline-events.type": "Tipo De Evento",
   "offline-events.type-all": "Todos",
   "offline-events.uncertain-description": "No pudimos confirmar si este evento fue registrado. Revise las tarjetas de existencias y el historial de transacciones antes de elegir. Los demás eventos de este establecimiento y programa están en espera.",
   "offline-events.waiting": "{count, plural, one {# Evento Pendiente De Sincronización} other {# Eventos Pendientes De Sincronización}}",

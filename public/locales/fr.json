@@ -646,7 +646,6 @@
   "offline-events.tab-synced": "Synchronisés ({count})",
   "offline-events.tabs-label": "Onglets Des Événements Hors Ligne",
   "offline-events.title": "Événements Hors Ligne",
-  "offline-events.type": "Type D’Événement",
   "offline-events.type-all": "Tous",
   "offline-events.uncertain-description": "Nous n'avons pas pu confirmer si cet événement a été enregistré. Vérifiez les fiches de stock et l'historique des transactions avant de choisir. Les autres événements de cet établissement et de ce programme sont en attente.",
   "offline-events.waiting": "{count, plural, one {# Événement En Attente De Synchronisation} other {# Événements En Attente De Synchronisation}}",

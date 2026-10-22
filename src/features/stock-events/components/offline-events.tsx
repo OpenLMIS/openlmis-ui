@@ -144,7 +144,7 @@ const occurredDate = (event: DeviceEvent) =>
   [...new Set(event.payload.lineItems.map((line) => line.occurredDate).filter(Boolean))].sort();
 
 const sortValue = {
-  occurredDate: (event: DeviceEvent) => Number(occurredDate(event)[0]?.replaceAll('-', '') ?? 0),
+  occurredDate: (event: DeviceEvent) => occurredDate(event).join(),
   queuedAt: (event: DeviceEvent) => event.queuedAt,
   failedAt: (event: DeviceEvent) => event.error?.failedAt ?? 0,
   acceptedAt: (event: DeviceEvent) => event.receipt?.acceptedAt ?? 0,
@@ -558,7 +558,12 @@ function OfflineEventsTable({
             )),
       )
       .sort((a, b) => {
-        const diff = sortValue[field](a) - sortValue[field](b);
+        const aValue = sortValue[field](a);
+        const bValue = sortValue[field](b);
+        const diff =
+          typeof aValue === 'string' && typeof bValue === 'string'
+            ? aValue.localeCompare(bValue)
+            : Number(aValue) - Number(bValue);
         return diff * dir || a.sequence - b.sequence;
       });
   }, [local.events, deferred]);

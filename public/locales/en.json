@@ -646,7 +646,6 @@
   "offline-events.tab-synced": "Synced ({count})",
   "offline-events.tabs-label": "Offline Event Tabs",
   "offline-events.title": "Offline Events",
-  "offline-events.type": "Event Type",
   "offline-events.type-all": "All",
   "offline-events.uncertain-description": "We could not confirm whether this event was recorded. Check Stock Cards and Transaction History before choosing. Other events for this facility and program are waiting.",
   "offline-events.waiting": "{count, plural, one {# Event Waiting To Sync} other {# Events Waiting To Sync}}",
