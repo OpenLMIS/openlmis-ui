@@ -3,6 +3,7 @@ import { quantityValue } from '@/components/form/quantity-value';
 import {
   buildInventoryLines,
   filterInventoryLines,
+  inventoryBaseline,
   inventoryFirstInvalid,
   inventoryLineKey,
   inventoryLocalCopy,
@@ -230,4 +231,27 @@ it('does not mark a saved inactive zero-stock line as displayed on opening', () 
   const hidden = { ...stock, active: false, stockOnHand: 0 };
   expect(buildInventoryLines([hidden], server)[0].isAdded).toBe(false);
   expect(buildInventoryLines([hidden], [{ orderableId: 'p', quantity: 3 }])[0].isAdded).toBe(false);
+});
+
+it('preserves the stored offline baseline when removed lines are absent from the copy', () => {
+  const current = lines();
+  const baselineKeys = [current[0].key, 'removed|none'];
+  const result = inventoryLocalCopy(
+    { id: 'draft', programId: 'program', facilityId: 'home' },
+    current,
+    inventoryBaseline([stock], server, {
+      draftId: 'draft',
+      programId: 'program',
+      facilityId: 'home',
+      lines: current,
+      baselineKeys,
+      removedKeys: ['removed|none'],
+      modified: true,
+      savedAt: 123,
+    }),
+    true,
+    { fetchedAt: 123, generation: 'offline' },
+  );
+  expect(result.baselineKeys).toEqual(baselineKeys);
+  expect(result.removedKeys).toEqual(['removed|none']);
 });

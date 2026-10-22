@@ -2,6 +2,7 @@ import { quantityValue } from '@/components/form/quantity-value';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { pageOf } from '@/features/stock-events/lib/line-filter';
 import type { InventoryLocalCopy } from '@/features/stock-events/lib/physical-inventory-local';
+import { INVENTORY_FORMAT_VERSION } from '@/features/stock-events/lib/physical-inventory-local';
 import type {
   InventoryCategoryBand,
   InventoryDraftItem,
@@ -9,6 +10,7 @@ import type {
   InventoryProductGroup,
   InventoryStockLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import type { DeviceSnapshot } from '@/lib/local-data';
 
 export const inventoryLineKey = (orderableId: string, lotId?: string | null, clientId?: string) =>
   `${orderableId}|${clientId ? `new:${clientId}` : lotId || 'none'}`;
@@ -66,6 +68,16 @@ export function buildInventoryLines(
   }
   for (const key of removedKeys) lines.delete(key);
   return [...lines.values()].filter(isInventoryMember);
+}
+
+export function inventoryBaseline(
+  stock: readonly InventoryStockLine[],
+  server: readonly InventoryDraftItem[],
+  deviceCopy?: InventoryLocalCopy,
+): Pick<InventoryLine, 'key'>[] {
+  return deviceCopy
+    ? (deviceCopy.baselineKeys ?? []).map((key) => ({ key }))
+    : buildInventoryLines(stock, server);
 }
 
 export function filterInventoryLines(
@@ -170,16 +182,22 @@ export function inventoryPageOf(
 export function inventoryLocalCopy(
   draft: { id: string; programId: string; facilityId: string },
   lines: readonly InventoryLine[],
-  baseline?: readonly InventoryLine[],
+  baseline?: readonly Pick<InventoryLine, 'key'>[],
+  modified = true,
+  snapshot?: DeviceSnapshot & { baselineKeys?: string[] },
 ): InventoryLocalCopy {
   const keys = new Set(lines.map((line) => line.key));
+  const baselineKeys = baseline?.map((line) => line.key) ?? snapshot?.baselineKeys ?? [];
   return {
+    ...snapshot,
+    formatVersion: INVENTORY_FORMAT_VERSION,
+    baselineKeys,
     draftId: draft.id,
     programId: draft.programId,
     facilityId: draft.facilityId,
     lines: [...lines],
-    removedKeys: baseline?.filter((line) => !keys.has(line.key)).map((line) => line.key) ?? [],
-    modified: true,
+    removedKeys: baselineKeys.filter((key) => !keys.has(key)),
+    modified,
     savedAt: Date.now(),
   };
 }

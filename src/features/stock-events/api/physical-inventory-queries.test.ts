@@ -1,9 +1,10 @@
-import { QueryClient, QueryObserver } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryObserver } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
 import {
   fetchEligibleInventoryProducts,
   fetchInventoryStockLines,
   fetchInventorySummaries,
+  fetchPhysicalInventoryDraft,
 } from '@/features/stock-events/api/physical-inventory-api';
 import {
   eligibleInventoryProductsOptions,
@@ -12,8 +13,10 @@ import {
   inventorySummariesOptions,
   physicalInventoryDraftOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
+import { DraftConflictError } from '@/lib/draft-store';
 
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
+  fetchPhysicalInventoryDraft: vi.fn(),
   fetchInventorySummaries: vi.fn().mockResolvedValue([]),
   fetchInventoryStockLines: vi.fn().mockResolvedValue([]),
   fetchEligibleInventoryProducts: vi.fn().mockResolvedValue([]),
@@ -138,5 +141,39 @@ it('shares normalized versioned orderable reads under the existing orderables li
   const queryFn = vi.fn().mockResolvedValue([]);
   await Promise.all([client.fetchQuery({ ...a, queryFn }), client.fetchQuery({ ...b, queryFn })]);
   expect(queryFn).toHaveBeenCalledTimes(1);
+  client.clear();
+});
+
+vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
+  reconcileInventoryCopies: vi.fn(),
+}));
+it.each([new Error('IndexedDB unavailable'), new DraftConflictError(undefined)])(
+  'returns the server draft despite failed reconciliation: %s',
+  async (error) => {
+    const { reconcileInventoryCopies } = await import(
+      '@/features/stock-events/lib/physical-inventory-local'
+    );
+    vi.mocked(reconcileInventoryCopies).mockRejectedValueOnce(error);
+    const draft = { id: 'd', facilityId: 'f', programId: 'p', lineItems: [] };
+    vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(draft);
+    await expect(
+      new QueryClient().fetchQuery(physicalInventoryDraftOptions(draft)),
+    ).resolves.toEqual(draft);
+  },
+);
+
+it('does not expand eligible products after summaries finish while disconnected', async () => {
+  const summaries = Promise.withResolvers<[]>();
+  vi.mocked(fetchInventorySummaries).mockReturnValueOnce(summaries.promise);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const eligibleCalls = vi.mocked(fetchEligibleInventoryProducts).mock.calls.length;
+  const pending = client.fetchQuery(
+    eligibleInventoryProductsOptions({ facilityId: 'f', programId: 'p' }),
+  );
+  const assertion = expect(pending).rejects.toHaveProperty('name', 'LocalDataUnavailableError');
+  onlineManager.setOnline(false);
+  summaries.resolve([]);
+  await assertion;
+  expect(fetchEligibleInventoryProducts).toHaveBeenCalledTimes(eligibleCalls);
   client.clear();
 });

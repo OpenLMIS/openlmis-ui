@@ -1,8 +1,14 @@
 import { useStore } from '@tanstack/react-form';
-import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  queryOptions,
+  type UseQueryOptions,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
-import { ClipboardListIcon } from 'lucide-react';
+import { ClipboardListIcon, TriangleAlertIcon } from 'lucide-react';
 import {
   type ReactNode,
   useCallback,
@@ -34,7 +40,9 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
+import { OfflineAlert, SnapshotAlert } from '@/components/offline-alert';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,6 +51,7 @@ import { productName } from '@/features/reference-data/lib/product-name';
 import { deactivateInventoryStockCard } from '@/features/stock-events/api/physical-inventory-api';
 import {
   eligibleInventoryProductsOptions,
+  inventoryDeviceOptions,
   inventoryRefreshFilters,
   inventoryStockLinesOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
@@ -73,6 +82,7 @@ import {
   eligibleInventoryLines,
   filterInventoryLines,
   INVENTORY_PAGE_SIZE,
+  inventoryBaseline,
   inventoryFirstInvalid,
   inventoryGroups,
   inventoryLocalCopy,
@@ -81,9 +91,14 @@ import {
   inventoryProgress,
   inventoryStructureEqual,
 } from '@/features/stock-events/lib/physical-inventory-lines';
-import { readInventoryLocal } from '@/features/stock-events/lib/physical-inventory-local';
+import {
+  type InventoryLocalCopy,
+  inventoryReference,
+  readInventoryLocal,
+} from '@/features/stock-events/lib/physical-inventory-local';
 import {
   canDeactivateInventoryLine,
+  type InventoryReasonAssignment,
   inventoryOptionalColumns,
   inventoryReasons,
 } from '@/features/stock-events/lib/physical-inventory-products';
@@ -105,7 +120,9 @@ import { useStoredState } from '@/hooks/use-stored-state';
 import { useFlag } from '@/lib/feature-flags';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import { useOnline } from '@/lib/online';
+import { requireOnline } from '@/lib/local-data';
+import { isOnline, useOnline } from '@/lib/online';
+import { reportCaughtError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 
@@ -122,12 +139,14 @@ type Props = {
   facilityTypeId: string;
   canManageLots: boolean;
   draft: PhysicalInventoryDraft;
+  deviceCopy?: InventoryLocalCopy;
   eligibleUpdatedAfter?: number;
   search: InventorySearch;
   onSearchChange: SearchChange<InventorySearch>;
 };
 
 export function PhysicalInventoryEditor(props: Props) {
+  const [deviceCopy] = useState(props.deviceCopy);
   const { i18n } = useTranslation();
   const quantityUnit = useQuantityUnit();
   const [addOpen, setAddOpen] = useState(false);
@@ -183,6 +202,7 @@ export function PhysicalInventoryEditor(props: Props) {
       >
         <InventoryRows
           {...props}
+          deviceCopy={deviceCopy}
           toolbar={
             <InventoryToolbar
               search={props.search}
@@ -228,7 +248,13 @@ type RowsProps = Props &
   };
 function InventoryRows(props: RowsProps) {
   const stockQuery = useSuspenseQuery(
-    inventoryStockLinesOptions(props.draft, props.eligibleUpdatedAfter),
+    props.deviceCopy
+      ? inventoryDeviceOptions(props.deviceCopy).stock
+      : {
+          ...inventoryStockLinesOptions(props.draft, props.eligibleUpdatedAfter),
+          refetchOnWindowFocus: false,
+          refetchOnReconnect: false,
+        },
   );
   if (
     stockQuery.isError &&
@@ -238,29 +264,42 @@ function InventoryRows(props: RowsProps) {
     throw stockQuery.error;
   const { data: stock } = stockQuery;
   const opening = useOpening();
+  const [loaded, setLoaded] = useState<InventoryLocalCopy | null>();
+  const [loadKey, setLoadKey] = useState(0);
   const local = useQuery(
     queryOptions({
       queryKey: [...queryKeys.physicalInventories.detail(props.draft.id), 'local', opening],
-      queryFn: async () => (await readInventoryLocal(props.draft.id)) ?? null,
+      queryFn: async () => props.deviceCopy ?? (await readInventoryLocal(props.draft.id)) ?? null,
       staleTime: Infinity,
       gcTime: 0,
+      refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
     }),
   );
   if (local.isPending || stockQuery.dataUpdatedAt < (props.eligibleUpdatedAfter ?? 0))
     return props.pendingBody;
+  const currentCopy = loaded === undefined ? local.data : loaded;
   return (
     <>
       {props.toolbar}
       <InventoryDraftRows
         {...props}
+        key={loadKey}
+        deviceCopy={props.deviceCopy ? (currentCopy ?? props.deviceCopy) : undefined}
+        onAdopt={(copy) => {
+          setLoaded(copy ?? null);
+          setLoadKey((key) => key + 1);
+        }}
         stock={stock}
-        localLines={local.data?.modified ? local.data.lines : undefined}
+        localLines={props.deviceCopy || currentCopy?.modified ? currentCopy?.lines : undefined}
         localFailed={local.isError}
-        localRemoved={local.data?.modified ? (local.data.removedKeys ?? []) : []}
-        localModified={Boolean(local.data?.modified)}
-        localRevision={local.data?.revision}
+        localRemoved={
+          props.deviceCopy || currentCopy?.modified ? (currentCopy?.removedKeys ?? []) : []
+        }
+        localModified={Boolean(currentCopy?.modified)}
+        localRevision={currentCopy?.revision}
+        initialCopy={currentCopy ?? undefined}
       />
     </>
   );
@@ -281,6 +320,8 @@ function InventoryDraftRows({
   localRemoved,
   localModified,
   localRevision,
+  initialCopy,
+  onAdopt,
   quantityUnit,
   addOpen,
   onAddClose,
@@ -292,6 +333,7 @@ function InventoryDraftRows({
   onDeleted,
   onSubmitted,
   eligibleUpdatedAfter,
+  deviceCopy,
 }: RowsProps & {
   stock: InventoryStockLine[];
   localLines?: InventoryLine[];
@@ -299,16 +341,40 @@ function InventoryDraftRows({
   localRemoved: string[];
   localModified: boolean;
   localRevision?: number;
+  initialCopy?: InventoryLocalCopy;
+  onAdopt: (copy: InventoryLocalCopy | undefined) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [entryUpdatedAfter] = useState(eligibleUpdatedAfter);
   const scanning = useFlag('GS1_SCANNING');
-  const eligible = useQuery(eligibleInventoryProductsOptions(draft, entryUpdatedAfter));
+  const online = useOnline();
+  const [usingSnapshot, setUsingSnapshot] = useState(Boolean(deviceCopy));
+  if (!online && !usingSnapshot) setUsingSnapshot(true);
+  const eligible = useQuery(
+    deviceCopy
+      ? inventoryDeviceOptions(deviceCopy).eligible
+      : {
+          ...eligibleInventoryProductsOptions(draft, entryUpdatedAfter),
+          enabled: online,
+        },
+  );
   const reasonsQuery = useQuery(
-    validReasonsOptions({ program: draft.programId, facilityType: facilityTypeId }),
+    deviceCopy
+      ? inventoryDeviceOptions(deviceCopy).reasons
+      : {
+          ...(validReasonsOptions({
+            program: draft.programId,
+            facilityType: facilityTypeId,
+          }) as UseQueryOptions<InventoryReasonAssignment[]>),
+          enabled: online,
+          refetchOnWindowFocus: false,
+          refetchOnReconnect: false,
+        },
   );
   const reasons = useMemo(() => inventoryReasons(reasonsQuery.data ?? []), [reasonsQuery.data]);
-  const [baseline, setBaseline] = useState(() => buildInventoryLines(stock, draft.lineItems));
+  const [baseline, setBaseline] = useState<readonly Pick<InventoryLine, 'key'>[]>(() =>
+    inventoryBaseline(stock, draft.lineItems, deviceCopy),
+  );
   const [busy, setBusy] = useState(false);
   const [actionDialog, setActionDialog] = useState(false);
   const [readFailed, setReadFailed] = useState(localFailed);
@@ -329,7 +395,9 @@ function InventoryDraftRows({
   const region = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const [formLines, setFormLines] = useState(() =>
-    buildInventoryLines(stock, draft.lineItems, localLines, localRemoved),
+    deviceCopy
+      ? (localLines ?? deviceCopy.lines)
+      : buildInventoryLines(stock, draft.lineItems, localLines, localRemoved),
   );
   const form = usePhysicalInventoryForm(formLines, validationAttempted);
   const deferred = useDeferredValue(search);
@@ -364,27 +432,71 @@ function InventoryDraftRows({
       ),
     [form, eligible.data, withDisplayedMembership],
   );
+  const [snapshot] = useState(() => ({
+    fetchedAt: deviceCopy?.fetchedAt ?? Date.now(),
+    generation: deviceCopy?.generation ?? crypto.randomUUID(),
+  }));
   const [modified, setModified] = useState(localModified);
   const dirty = useStore(form.store, (state) => state.isDirty);
   useEffect(() => {
     if (dirty) setModified(true);
   }, [dirty]);
-  const copy = useCallback(
-    () =>
-      !busy && !submitted && (modified || form.state.isDirty)
-        ? inventoryLocalCopy(
-            draft,
-            withDisplayedMembership(Object.values(form.state.values.lines)),
-            baseline,
-          )
-        : null,
-    [busy, submitted, modified, form, draft, baseline, withDisplayedMembership],
+  const currentCopy = useCallback(
+    (changed = modified || form.state.isDirty) =>
+      inventoryLocalCopy(
+        draft,
+        withDisplayedMembership(Object.values(form.state.values.lines)),
+        baseline,
+        changed,
+        snapshot,
+      ),
+    [draft, form, baseline, modified, snapshot, withDisplayedMembership],
   );
-  const autosave = usePhysicalInventoryAutosave(copy, form, localRevision);
+  const copy = useCallback(
+    () => (!busy && !submitted && (modified || form.state.isDirty) ? currentCopy() : null),
+    [busy, submitted, modified, form, currentCopy],
+  );
+  const autosave = usePhysicalInventoryAutosave(copy, form, localRevision, onAdopt, initialCopy);
+  const snapshotWritten = useRef(false);
+  useEffect(() => {
+    if (
+      deviceCopy ||
+      !isOnline() ||
+      snapshotWritten.current ||
+      !eligible.isSuccess ||
+      eligible.isFetching ||
+      eligible.dataUpdatedAt < (entryUpdatedAfter ?? 0) ||
+      !reasonsQuery.isSuccess ||
+      busy ||
+      submitted
+    )
+      return;
+    snapshotWritten.current = true;
+    const value = currentCopy();
+    void autosave
+      .write(value, inventoryReference(value, eligible.data, reasons))
+      .then(() => setReadFailed(false))
+      .catch((error) => reportCaughtError(error, {}));
+  }, [
+    deviceCopy,
+    eligible.isSuccess,
+    eligible.isFetching,
+    eligible.dataUpdatedAt,
+    entryUpdatedAfter,
+    eligible.data,
+    reasonsQuery.isSuccess,
+    reasons,
+    busy,
+    submitted,
+    currentCopy,
+    autosave.write,
+  ]);
   const status = readFailed && !modified && !form.state.isDirty ? 'failed' : autosave.status;
   const allowLeave = useRef(false);
   const guard = useDiscardGuard(
-    !submitted && (status === 'saving' || status === 'failed' || status === 'conflict'),
+    !submitted &&
+      (modified || dirty) &&
+      (status === 'saving' || status === 'failed' || status === 'conflict'),
     {
       allowLeave: () => allowLeave.current,
     },
@@ -402,10 +514,12 @@ function InventoryDraftRows({
   const dialogLine = useStore(form.store, (state) =>
     shownDialog ? (state.values.lines[shownDialog.line.key] ?? shownDialog.line) : undefined,
   );
-  const online = useOnline();
   const mutation = useSessionMutation({
     retry: false,
-    mutationFn: deactivateInventoryStockCard,
+    mutationFn: (id: string) => {
+      requireOnline();
+      return deactivateInventoryStockCard(id);
+    },
     onSuccess: () => {
       const line = dialogLine && form.state.values.lines[dialogLine.key];
       if (line) {
@@ -562,11 +676,66 @@ function InventoryDraftRows({
       onRemove,
     ],
   );
+  const [resolving, setResolving] = useState(false);
+  const resolveConflict = async (choice: 'load' | 'keep') => {
+    if (resolving) return;
+    setResolving(true);
+    try {
+      if (choice === 'load') await autosave.loadLatest();
+      else {
+        const value = currentCopy(true);
+        await autosave.keepCounts(
+          value,
+          eligible.data && reasonsQuery.isSuccess
+            ? inventoryReference(value, eligible.data, reasons)
+            : undefined,
+        );
+      }
+    } catch (error) {
+      reportCaughtError(error, {});
+      toast.error(t('physical-inventory.copy-error-title'), {
+        description: t('physical-inventory.copy-error-description'),
+      });
+    } finally {
+      setResolving(false);
+    }
+  };
   return (
     <div ref={region} tabIndex={-1} className="flex flex-col gap-4" aria-busy={search !== deferred}>
+      {usingSnapshot && (
+        <SnapshotAlert snapshot={snapshot} message="physical-inventory.offline-snapshot" />
+      )}
+      {scanning && !online && (
+        <OfflineAlert>{t('physical-inventory.scanning-offline')}</OfflineAlert>
+      )}
       {saveSlot && createPortal(<InventorySaveIndicator status={status} />, saveSlot)}
       {progressSlot &&
         createPortal(<InventoryCompletion form={form} lines={filtered} />, progressSlot)}
+      {status === 'conflict' && (
+        <Alert variant="warning" role="note">
+          <TriangleAlertIcon />
+          <AlertTitle>{t('stock-events.draft-conflict-title')}</AlertTitle>
+          <AlertDescription>
+            <p>{t('stock-events.draft-conflict')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="warning"
+                disabled={resolving}
+                onClick={() => void resolveConflict('load')}
+              >
+                {t('physical-inventory.load-latest')}
+              </Button>
+              <Button
+                variant="warning"
+                disabled={resolving}
+                onClick={() => void resolveConflict('keep')}
+              >
+                {t('physical-inventory.keep-counts')}
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       {eligible.isError ? (
         <LoadError
           error={eligible.error}
@@ -624,7 +793,7 @@ function InventoryDraftRows({
           }
         />
       )}
-      {scanning && eligible.data && (
+      {scanning && online && eligible.data && (
         <InventoryScan
           eligible={eligible.data}
           getLines={() => Object.values(form.state.values.lines)}
@@ -669,11 +838,11 @@ function InventoryDraftRows({
           form.setFieldValue('lines', Object.fromEntries(next.map((line) => [line.key, line])))
         }
         onDialogChange={setActionDialog}
-        onSaved={(next, terminal) => {
+        onSaved={(next, terminal, localSaved) => {
           allowLeave.current = terminal;
           setSubmitted(terminal);
           setReadFailed(false);
-          autosave.reset();
+          if (terminal || localSaved) autosave.reset();
           setFormLines(next);
           setBaseline(next);
           setModified(false);

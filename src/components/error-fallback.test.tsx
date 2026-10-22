@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { httpError, networkError } from '@/tests/http-error';
 
 vi.mock('@/components/no-access-page', () => ({ NoAccessPage: () => <p>no-access</p> }));
@@ -114,6 +115,7 @@ it('reseeds connection on retry after Continue Offline', async () => {
 describe('a page that fails while offline', () => {
   it.each([
     ['a part of the app this device lacks', missingChunk()],
+    ['data not stored on this device', new LocalDataUnavailableError()],
     ['any other failure', new TypeError('Cannot read properties of undefined')],
   ])('says it is not available offline for %s, and retries on reconnect', (_, error) => {
     onlineManager.setOnline(false);

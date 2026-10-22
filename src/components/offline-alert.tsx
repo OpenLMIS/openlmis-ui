@@ -16,6 +16,7 @@ export function OfflineAlert({ children }: { children: ReactNode }) {
 }
 
 type SnapshotMessage =
+  | 'physical-inventory.offline-snapshot'
   | 'stock-on-hand.offline-snapshot'
   | 'stock-card.offline-history'
   | 'stock-card.offline-summary';

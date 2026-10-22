@@ -64,7 +64,9 @@ vi.mock('react-i18next', () => ({
         : key,
   }),
 }));
-vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
+vi.mock('@/features/stock-events/lib/physical-inventory-local', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/physical-inventory-local')>()),
+  reconcileInventoryCopies: vi.fn().mockResolvedValue(undefined),
   readInventoryLocal: vi.fn(),
   clearInventoryLocal: vi.fn(),
   writeInventoryLocal: vi.fn(),
@@ -271,9 +273,7 @@ it('confirms deactivation before making the request', async () => {
   expect(deactivateInventoryStockCard).not.toHaveBeenCalled();
   const dialog = screen.getByRole('dialog');
   await user.click(within(dialog).getByRole('button', { name: 'physical-inventory.deactivate' }));
-  await waitFor(() =>
-    expect(deactivateInventoryStockCard).toHaveBeenCalledWith('A', expect.anything()),
-  );
+  await waitFor(() => expect(deactivateInventoryStockCard).toHaveBeenCalledWith('A'));
 });
 it('writes removal of the last locally added line so it cannot return on reopen', async () => {
   const local = {
@@ -312,11 +312,13 @@ it('writes removal of the last locally added line so it cannot return on reopen'
       }),
       expect.any(Number),
       expect.anything(),
+      undefined,
+      undefined,
     ),
   );
 });
 
-it('always confirms Save, sends hidden members, and clears the local copy only on success', async () => {
+it('always confirms Save, sends hidden members, and retains an unmodified device copy', async () => {
   const user = userEvent.setup();
   setup();
   await screen.findByRole('textbox', { name: 'stock-events.field-of' });
@@ -336,14 +338,35 @@ it('always confirms Save, sends hidden members, and clears the local copy only o
     ),
   );
   await waitFor(() =>
-    expect(clearInventoryLocal).toHaveBeenCalledWith(
-      'd',
-      expect.any(Number),
+    expect(writeInventoryLocal).toHaveBeenCalledWith(
+      expect.objectContaining({ draftId: 'd', modified: false, baselineKeys: expect.any(Array) }),
       expect.any(Number),
       expect.anything(),
+      undefined,
+      undefined,
+    ),
+  );
+  expect(clearInventoryLocal).not.toHaveBeenCalled();
+});
+
+it('stores an unmodified copy with its products on an online open', async () => {
+  setup();
+  await waitFor(() =>
+    expect(writeInventoryLocal).toHaveBeenCalledWith(
+      expect.objectContaining({ draftId: 'd', modified: false }),
+      expect.any(Number),
+      expect.anything(),
+      expect.objectContaining({
+        draftId: 'd',
+        eligible: stock.map(({ orderable }) =>
+          expect.objectContaining({ orderable: expect.objectContaining({ id: orderable.id }) }),
+        ),
+      }),
+      undefined,
     ),
   );
 });
+
 async function submitAndReturnToInvalidPage(
   user: ReturnType<typeof userEvent.setup>,
   view: ReturnType<typeof setup>,
@@ -549,6 +572,8 @@ it('keeps Delete on an added row after Save replaces its editable lot with the s
     }),
     expect.any(Number),
     expect.anything(),
+    undefined,
+    undefined,
   );
   expect(savePhysicalInventory).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -761,6 +786,8 @@ it('keeps sorting and paging stable during count entry while progress and saved 
       }),
       expect.any(Number),
       expect.anything(),
+      undefined,
+      undefined,
     ),
   );
 });
@@ -798,32 +825,25 @@ it('updates the phone card unaccounted error and summary when reasons change wit
   );
 });
 
-it('allows Delete to leave immediately after a failed device save', async () => {
+it('deletes after a persistence failure without prompting to discard saved server work', async () => {
   vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
-  const actual = await vi.importActual<typeof import('@/hooks/use-discard-guard')>(
-    '@/hooks/use-discard-guard',
-  );
-  vi.mocked(useDiscardGuard).mockImplementation(actual.useDiscardGuard);
   const user = userEvent.setup();
-  const view = setup(
-    undefined,
-    () => {
-      void view.router.navigate({ to: '/stock-management/physical-inventory' });
-    },
-    undefined,
-    undefined,
-    true,
-  );
+  const onDeleted = vi.fn();
+  setup(undefined, onDeleted);
   await user.type(await screen.findByRole('textbox', { name: 'stock-events.field-of' }), '5');
   await screen.findAllByText('physical-inventory.not-saved-local');
   await user.click(screen.getByRole('button', { name: 'physical-inventory.delete' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.delete' }),
   );
-  expect(await screen.findByText('Inventory list')).toBeInTheDocument();
-  expect(view.router.state.location.pathname).toBe('/stock-management/physical-inventory');
-  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await waitFor(() => expect(onDeleted).toHaveBeenCalled());
+  expect(deletePhysicalInventory).toHaveBeenCalledWith('d');
+});
+it('does not guard an untouched draft when its opening snapshot fails', async () => {
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
+  setup();
+  await screen.findAllByText('physical-inventory.not-saved-local');
+  expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false);
 });
 
 it('allows Delete when eligibility fails while keeping Save and Submit disabled', async () => {
@@ -905,7 +925,13 @@ it('retains saved session counts when the stock refresh fails and saves them aga
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
   }
-  expect(clearInventoryLocal).toHaveBeenCalled();
+  expect(writeInventoryLocal).toHaveBeenCalledWith(
+    expect.objectContaining({ modified: false }),
+    expect.any(Number),
+    expect.anything(),
+    undefined,
+    undefined,
+  );
   expect(savePhysicalInventory).toHaveBeenLastCalledWith(
     expect.objectContaining({
       lineItems: expect.arrayContaining([
@@ -1118,4 +1144,53 @@ it('keeps phone detail choices and scrolls on paging while filters stay put', as
   } finally {
     localStorage.removeItem('physical-inventory.columns');
   }
+});
+
+it('keeps the device failure visible after server Save resets the saved form baseline', async () => {
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
+  const user = userEvent.setup();
+  setup();
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.type(input, '5');
+  await screen.findAllByText('physical-inventory.not-saved-local');
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(savePhysicalInventory).toHaveBeenCalledWith(
+    expect.objectContaining({
+      lineItems: expect.arrayContaining([
+        expect.objectContaining({ orderableId: 'A', quantity: 5 }),
+      ]),
+    }),
+  );
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
+  expect(screen.getAllByText('physical-inventory.not-saved-local').length).toBeGreaterThan(0);
+  await waitFor(() => expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false));
+});
+
+it('disables both conflict choices while Load Latest is reading the device', async () => {
+  const { DraftConflictError } = await import('@/lib/draft-store');
+  const stored = {
+    draftId: 'd',
+    facilityId: 'f',
+    programId: 'p',
+    lines: [],
+    modified: true,
+    savedAt: 1,
+    revision: 2,
+  };
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new DraftConflictError(stored));
+  const user = userEvent.setup();
+  setup();
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.type(input, '7');
+  const load = await screen.findByRole('button', { name: 'physical-inventory.load-latest' });
+  const reading = Promise.withResolvers<typeof stored>();
+  vi.mocked(readInventoryLocal).mockReturnValue(reading.promise);
+  await user.click(load);
+  expect(load).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'physical-inventory.keep-counts' })).toBeDisabled();
+  reading.resolve(stored);
 });

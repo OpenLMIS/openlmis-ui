@@ -48,7 +48,10 @@ import {
   eligibleInventoryLines,
   inventoryLocalCopy,
 } from '@/features/stock-events/lib/physical-inventory-lines';
-import type { writeInventoryLocal } from '@/features/stock-events/lib/physical-inventory-local';
+import {
+  readInventoryLocal,
+  type writeInventoryLocal,
+} from '@/features/stock-events/lib/physical-inventory-local';
 import {
   createInventoryLots,
   InventoryLotError,
@@ -59,11 +62,19 @@ import type {
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { DraftConflictError } from '@/lib/draft-store';
 import { queryKeys } from '@/lib/key-factory';
+import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
+import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
+import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 class UnknownSubmit extends Error {}
+function reportUnlessConflict(error: unknown) {
+  if (error instanceof DraftConflictError) throw error;
+  reportCaughtError(error, {});
+}
 type Action =
   | { type: 'save' }
   | { type: 'delete' }
@@ -71,7 +82,7 @@ type Action =
 type Props = {
   draft: PhysicalInventoryDraft;
   eligibleUpdatedAfter?: number;
-  baseline: readonly InventoryLine[];
+  baseline: readonly Pick<InventoryLine, 'key'>[];
   right: string;
   getLines: () => InventoryLine[];
   displayed: readonly InventoryLine[];
@@ -86,7 +97,7 @@ type Props = {
   writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<unknown>;
   onBusy: (busy: boolean) => void;
   onLots: (lines: InventoryLine[]) => void;
-  onSaved: (lines: InventoryLine[], terminal: boolean) => void;
+  onSaved: (lines: InventoryLine[], terminal: boolean, localSaved: boolean) => void;
   onDialogChange: (open: boolean) => void;
   onInvalid: (lines: readonly InventoryLine[]) => void;
   onDeleted: () => void | Promise<void>;
@@ -98,7 +109,6 @@ const ACTION_KEYS = {
     errorDescription: 'physical-inventory.save-error-description',
     successTitle: 'physical-inventory.saved-title',
     successDescription: 'physical-inventory.saved-description',
-    localClearError: 'physical-inventory.save-local-clear-error',
   },
   delete: {
     errorTitle: 'physical-inventory.delete-error-title',
@@ -118,6 +128,8 @@ const ACTION_KEYS = {
 export function InventoryActions(props: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const online = useOnline();
+  const offlineReason = !online ? t('offline.action-description') : undefined;
   const eligibleOptions = eligibleInventoryProductsOptions(props.draft, props.eligibleUpdatedAfter);
   const eligibleFetching = useIsFetching({ queryKey: eligibleOptions.queryKey }) > 0;
   const [dialog, setDialog] = useState<'save' | 'delete' | 'submit' | 'print' | null>(null);
@@ -127,6 +139,11 @@ export function InventoryActions(props: Props) {
     setFailure(next);
     setFailureCopy(next);
   };
+  const showOffline = () =>
+    showFailure({
+      title: t('physical-inventory.submit-offline-title'),
+      description: t('physical-inventory.submit-offline-description'),
+    });
   const invalidLines = useRef<readonly InventoryLine[] | null>(null);
   const submitButton = useRef<HTMLButtonElement>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
@@ -150,14 +167,32 @@ export function InventoryActions(props: Props) {
     retry: false,
     mutationFn: async (action: Action) => {
       const scope = getSessionScope();
+      const check = () => {
+        assertSessionScope(scope);
+        requireOnline();
+      };
+      check();
+      try {
+        await props.flush();
+      } catch (error) {
+        reportUnlessConflict(error);
+      }
+      assertSessionScope(scope);
+      try {
+        const local = await readInventoryLocal(props.draft.id);
+        assertSessionScope(scope);
+        if (local?.orphaned) throw new DraftConflictError(local);
+      } catch (error) {
+        assertSessionScope(scope);
+        reportUnlessConflict(error);
+      }
+      check();
       if (action.type === 'delete') {
         await deletePhysicalInventory(props.draft.id);
         return [];
       }
-      await props.flush();
-      assertSessionScope(scope);
       const eligible = await queryClient.fetchQuery(eligibleOptions);
-      assertSessionScope(scope);
+      check();
       const lines = eligibleInventoryLines(props.getLines(), eligible);
       if (
         action.type === 'submit' &&
@@ -166,15 +201,22 @@ export function InventoryActions(props: Props) {
         throw new Error(t('physical-inventory.invalid-description'));
       const prepared = await createInventoryLots(
         lines,
-        createPhysicalInventoryLot,
+        (body) => {
+          check();
+          return createPhysicalInventoryLot(body);
+        },
         async (next) => {
           assertSessionScope(scope);
           props.onLots(next);
-          await props.writeLocal(inventoryLocalCopy(props.draft, next, props.baseline));
+          try {
+            await props.writeLocal(inventoryLocalCopy(props.draft, next, props.baseline));
+          } catch (error) {
+            reportUnlessConflict(error);
+          }
           assertSessionScope(scope);
         },
       );
-      assertSessionScope(scope);
+      check();
       if (action.type === 'save')
         await savePhysicalInventory(inventorySavePayload(props.draft, prepared, eligible));
       else {
@@ -218,6 +260,8 @@ export function InventoryActions(props: Props) {
         title: t('physical-inventory.invalid-title'),
         description: t('physical-inventory.invalid-description'),
       });
+    } else if (!isOnline()) {
+      showOffline();
     } else setDialog('submit');
   };
   const confirm = async (action: Action) => {
@@ -229,6 +273,20 @@ export function InventoryActions(props: Props) {
       next = await mutation.mutateAsync(action);
     } catch (error) {
       if (!mutation.isCurrent()) return;
+      if (
+        !(error instanceof UnknownSubmit) &&
+        (error instanceof LocalDataUnavailableError || !isOnline())
+      ) {
+        if (action.type === 'submit') showOffline();
+        else
+          toast.error(t(ACTION_KEYS[action.type].errorTitle), {
+            description: t('offline.action-description'),
+          });
+        setDialog(null);
+        props.onBusy(false);
+        posting.current = false;
+        return;
+      }
       let description = serverMessage(error) ?? t(ACTION_KEYS[action.type].errorDescription);
       if (error instanceof InventoryLotError)
         description =
@@ -259,16 +317,21 @@ export function InventoryActions(props: Props) {
     }
     if (!mutation.isCurrent()) return;
     if (action.type !== 'save') finished.current = true;
+    let localSaved = true;
     try {
-      await props.clearLocal(props.draft.id);
-    } catch {
-      if (mutation.isCurrent())
+      if (action.type === 'save')
+        await props.writeLocal(inventoryLocalCopy(props.draft, next, next, false));
+      else await props.clearLocal(props.draft.id);
+    } catch (error) {
+      localSaved = false;
+      reportCaughtError(error, {});
+      if (mutation.isCurrent() && action.type !== 'save')
         toast.error(t('physical-inventory.local-clear-error-title'), {
           description: t(ACTION_KEYS[action.type].localClearError),
         });
     }
     if (!mutation.isCurrent()) return;
-    if (action.type !== 'delete') props.onSaved(next, action.type !== 'save');
+    if (action.type !== 'delete') props.onSaved(next, action.type !== 'save', localSaved);
     const filters =
       action.type === 'submit'
         ? [
@@ -283,7 +346,7 @@ export function InventoryActions(props: Props) {
       description: t(ACTION_KEYS[action.type].successDescription),
     });
     setDialog(action.type === 'submit' ? 'print' : null);
-    if (action.type === 'save') {
+    if (action.type === 'save' && isOnline()) {
       try {
         await queryClient.fetchQuery({
           ...physicalInventoryDraftOptions({
@@ -292,7 +355,9 @@ export function InventoryActions(props: Props) {
           }),
           staleTime: 0,
         });
-      } catch {}
+      } catch (error) {
+        reportCaughtError(error, {});
+      }
       if (!mutation.isCurrent()) return;
     }
     props.onBusy(false);
@@ -309,24 +374,32 @@ export function InventoryActions(props: Props) {
         />
       )}
       <WorkspaceFooterPortal width="wide">
-        <Button
-          size="lg"
-          variant="destructive"
-          disabled={disabled}
-          onClick={() => openConfirm('delete')}
-        >
-          {t('physical-inventory.delete')}
-        </Button>
-        <div className="flex flex-wrap justify-end gap-2">
+        <ActionTooltip reason={offlineReason}>
           <Button
-            ref={saveButton}
             size="lg"
-            variant="outline"
-            disabled={disabled || props.writeDisabled || eligibleFetching}
-            onClick={() => openConfirm('save')}
+            variant="destructive"
+            disabled={disabled || !online}
+            focusableWhenDisabled={!online}
+            aria-description={offlineReason}
+            onClick={() => openConfirm('delete')}
           >
-            {t('physical-inventory.save')}
+            {t('physical-inventory.delete')}
           </Button>
+        </ActionTooltip>
+        <div className="flex flex-wrap justify-end gap-2">
+          <ActionTooltip reason={offlineReason}>
+            <Button
+              ref={saveButton}
+              size="lg"
+              variant="outline"
+              disabled={disabled || props.writeDisabled || eligibleFetching || !online}
+              focusableWhenDisabled={!online}
+              aria-description={offlineReason}
+              onClick={() => openConfirm('save')}
+            >
+              {t('physical-inventory.save')}
+            </Button>
+          </ActionTooltip>
           <Button
             ref={submitButton}
             size="lg"

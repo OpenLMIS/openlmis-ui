@@ -94,7 +94,7 @@ for (const language of ['en', 'ar']) {
       await expect(page.getByText('SAVED-HISTORY-1', { exact: true })).toBeVisible();
       await page.goto('./stock-management/stock-on-hand/missing');
       await expect(
-        page.getByText(labels['offline.notice-title'], { exact: true }).first(),
+        page.getByRole('heading', { name: labels['offline.unavailable-title'], exact: true }),
       ).toBeVisible();
       await page.goto(
         `./stock-management/stock-on-hand?mode=my&facilityId=${home}&programId=33333333-3333-4333-8333-333333333333`,

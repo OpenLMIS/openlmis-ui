@@ -26,6 +26,7 @@ import type {
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { client } from '@/integrations/axios';
 import { fetchReport } from '@/lib/fetch-report';
+import { requireOnline } from '@/lib/local-data';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
@@ -148,6 +149,7 @@ export async function fetchEligibleInventoryProducts(
   ];
   const known = new Set(knownIds);
   const remainingIds = ids.filter((id) => !known.has(id));
+  requireOnline();
   const extraProducts = remainingIds.length ? await fetchOrderablesByIds(remainingIds) : [];
   assertSessionScope(session);
   const productMap = new Map(
@@ -164,6 +166,7 @@ export async function fetchEligibleInventoryProducts(
         .filter((id): id is string => Boolean(id)),
     ),
   ];
+  requireOnline();
   const lots = await fetchLotsByTradeItems(tradeItems);
   assertSessionScope(session);
   return buildEligibleProducts(summaries, fulfills, products, lots);

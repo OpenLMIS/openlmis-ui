@@ -1,14 +1,19 @@
 import { z } from 'zod';
 import { parseDateValue } from '@/components/form/date-value';
 import type { QuantityValue } from '@/components/form/quantity-value';
-import type { ValidReasonAssignment } from '@/features/reference-data/lib/types';
+import type { Reason } from '@/features/reference-data/lib/types';
 import { inventoryLineKey } from '@/features/stock-events/lib/physical-inventory-lines';
 import type {
   InventoryLine,
   InventoryStockLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
 
-export const inventoryReasons = (assignments: readonly ValidReasonAssignment[]) =>
+export type InventoryReasonAssignment = {
+  hidden: boolean;
+  reason: Pick<Reason, 'id' | 'name' | 'reasonType'>;
+};
+
+export const inventoryReasons = (assignments: readonly InventoryReasonAssignment[]) =>
   assignments
     .filter((item) => !item.hidden && ['CREDIT', 'DEBIT'].includes(item.reason.reasonType))
     .map((item) => item.reason);
