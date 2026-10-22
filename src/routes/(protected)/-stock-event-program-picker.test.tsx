@@ -112,15 +112,14 @@ it.each([
       expect(screen.queryByText('Not Available Offline')).not.toBeInTheDocument();
     } else {
       expect(action).toHaveAttribute('aria-disabled', 'true');
-      await waitFor(() =>
-        expect(action).toHaveAccessibleDescription(
-          en[
-            view
-              ? 'stock-programs.offline-description'
-              : 'stock-programs.no-stock-card-right-description'
-          ],
-        ),
-      );
+      const reason =
+        en[
+          view
+            ? 'stock-programs.offline-description'
+            : 'stock-programs.no-stock-card-right-description'
+        ];
+      await waitFor(() => expect(action).toHaveAccessibleDescription(reason));
+      expect(screen.getByText(reason)).not.toHaveClass('sr-only');
       expect(screen.getByText('Not Downloaded')).toBeInTheDocument();
       if (!view) return;
       await act(async () => {

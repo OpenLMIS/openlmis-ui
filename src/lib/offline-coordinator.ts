@@ -31,7 +31,7 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { uploadAccessEpoch } from '@/lib/upload-access';
 
 type Dependencies = {
-  initialTrigger?: 'boot' | 'sign-in';
+  initialTrigger?: InitialTrigger;
   onTimeZoneFallback?: () => void;
   access: (
     config: AxiosRequestConfig,
@@ -40,7 +40,8 @@ type Dependencies = {
   ) => AccessReaders;
   providers: readonly DownloadProvider[];
 };
-type Trigger = 'sign-in' | 'boot' | 'force' | 'retry' | 'refresh' | 'access';
+type Trigger = NonNullable<DownloadStatus['trigger']>;
+export type InitialTrigger = Extract<Trigger, 'boot' | 'sign-in'>;
 const triggerPriority: Record<Trigger, number> = {
   refresh: 0,
   boot: 1,

@@ -11,6 +11,7 @@ it.each([
   ['missing', false, null, 'checking', undefined],
   ['outdated', true, null, 'not-downloaded', 'older-download'],
   ['missing', true, null, 'not-downloaded', 'not-downloaded'],
+  [undefined, true, null, 'not-downloaded', 'not-downloaded'],
   ['ready', true, 'p', 'ready', undefined],
 ] as const)(
   'resolves state %s loaded=%s downloading=%s',

@@ -39,7 +39,10 @@ import {
   HOME_STOCK_ACCEPTANCE,
   homeStockProvider,
 } from '@/features/stock-events/lib/home-stock-provider';
-import { programReadiness } from '@/features/stock-events/lib/program-readiness';
+import {
+  type ProgramReadiness,
+  programReadiness,
+} from '@/features/stock-events/lib/program-readiness';
 import { useDownloadedScopes } from '@/hooks/use-downloaded-scopes';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { useDownloadStatus } from '@/lib/offline-download-status';
@@ -267,34 +270,40 @@ function ProgramsTable({
           states: { 'home-stock': downloaded },
           status,
         });
-        const disabled = !online && datasets.length > 0 && readiness.state !== 'ready';
+        const disabled = !online && readiness.state !== 'ready';
+        const unavailable = disabled ? unavailableCopy(readiness) : undefined;
         return {
           id: program.id,
           label: recordLabel(program),
           disabled,
-          disabledReason:
-            disabled && readiness.state === 'downloading'
-              ? t('stock-programs.downloading')
-              : disabled && readiness.state === 'not-downloaded'
-                ? t('stock-programs.not-downloaded')
-                : undefined,
-          disabledDescription:
-            disabled && readiness.state === 'downloading'
-              ? t('stock-programs.downloading-description')
-              : disabled && readiness.state === 'not-downloaded'
-                ? t(
-                    readiness.reason === 'no-stock-card-right'
-                      ? 'stock-programs.no-stock-card-right-description'
-                      : readiness.reason === 'older-download'
-                        ? 'stock-programs.older-download-description'
-                        : 'stock-programs.offline-description',
-                  )
-                : undefined,
+          disabledReason: unavailable && t(unavailable.reason),
+          disabledDescription: unavailable && t(unavailable.description),
         };
       })}
     />
   );
 }
+
+function unavailableCopy(
+  readiness: ProgramReadiness,
+): { reason: ParseKeys; description: ParseKeys } | undefined {
+  if (readiness.state === 'downloading')
+    return {
+      reason: 'stock-programs.downloading',
+      description: 'stock-programs.downloading-description',
+    };
+  if (readiness.state !== 'not-downloaded') return undefined;
+  return {
+    reason: 'stock-programs.not-downloaded',
+    description: NOT_DOWNLOADED_DESCRIPTIONS[readiness.reason],
+  };
+}
+
+const NOT_DOWNLOADED_DESCRIPTIONS = {
+  'no-stock-card-right': 'stock-programs.no-stock-card-right-description',
+  'older-download': 'stock-programs.older-download-description',
+  'not-downloaded': 'stock-programs.offline-description',
+} satisfies Record<Extract<ProgramReadiness, { state: 'not-downloaded' }>['reason'], ParseKeys>;
 
 function ProgramsError({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();

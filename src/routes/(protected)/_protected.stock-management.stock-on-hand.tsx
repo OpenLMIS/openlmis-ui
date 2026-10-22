@@ -42,7 +42,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
 import {
-  acceptsStockOnHandBundle,
+  HOME_STOCK_ACCEPTANCE,
   homeStockProvider,
 } from '@/features/stock-events/lib/home-stock-provider';
 import { fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
@@ -338,7 +338,7 @@ function StockOnHandBody({
   );
   const downloaded = useDownloadedScopes(provider, scopes, {
     enabled: !online,
-    accepts: acceptsStockOnHandBundle,
+    accepts: HOME_STOCK_ACCEPTANCE[5],
   });
   const programUnavailable = useCallback(
     (programId: string) =>

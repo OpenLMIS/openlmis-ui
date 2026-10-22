@@ -500,9 +500,13 @@ it('downloads deduplicated whitelisted counterparties in format 6', async () => 
 });
 
 it.each([4, 5, 6] as const)(
-  'reads format %s while counterparties require 6',
+  'reads format %s while counterparties require saved lists',
   async (formatVersion) => {
-    const saved = { ...(await fetchHomeStockBundle(filter)), formatVersion };
+    const saved = {
+      ...(await fetchHomeStockBundle(filter)),
+      formatVersion,
+      ...(formatVersion < 6 ? { destinations: undefined, sources: undefined } : {}),
+    };
     await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).put(saved);
     await expect(readHomeStockBundle(filter)).resolves.toEqual(saved);
     if (formatVersion === 6) {
@@ -512,9 +516,13 @@ it.each([4, 5, 6] as const)(
       await expect(readHomeStockCounterparties(filter, 'validSources')).resolves.toEqual(
         saved.sources,
       );
-    } else
+    } else {
       await expect(readHomeStockCounterparties(filter, 'validDestinations')).rejects.toBeInstanceOf(
         LocalDataUnavailableError,
       );
+      await expect(readHomeStockCounterparties(filter, 'validSources')).rejects.toBeInstanceOf(
+        LocalDataUnavailableError,
+      );
+    }
   },
 );

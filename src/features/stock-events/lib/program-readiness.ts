@@ -43,7 +43,7 @@ export function programReadiness(input: {
   if (entries.some(({ loaded }) => !loaded)) return { state: 'checking' };
   if (entries.some(({ state }) => state === 'outdated'))
     return { state: 'not-downloaded', reason: 'older-download' };
-  if (entries.some(({ state }) => state === 'missing'))
+  if (entries.some(({ state }) => state === 'missing' || state === undefined))
     return { state: 'not-downloaded', reason: 'not-downloaded' };
   return { state: 'ready' };
 }

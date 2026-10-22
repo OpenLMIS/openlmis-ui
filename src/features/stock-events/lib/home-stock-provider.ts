@@ -34,8 +34,6 @@ export const HOME_STOCK_ACCEPTANCE: Record<
   5: acceptsMinimum(5),
   6: acceptsMinimum(6),
 };
-export const acceptsAdjustmentBundle = HOME_STOCK_ACCEPTANCE[4];
-export const acceptsStockOnHandBundle = HOME_STOCK_ACCEPTANCE[5];
 
 export function homeStockProvider(fetch = fetchHomeStockBundle) {
   return defineDownloadProvider<DownloadScope & HomeStockScope, HomeStockBundle>({

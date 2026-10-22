@@ -58,13 +58,12 @@ export type HomeStockBundle = HomeStockScope & {
 };
 export async function readHomeStockBundle(
   filter: Pick<HomeStockScope, 'facilityId' | 'programId' | 'facilityTypeId'>,
-  formats: readonly HomeStockFormat[] = HOME_STOCK_FORMATS,
 ) {
   return requireOwnedRecord<HomeStockBundle>(
     LOCAL_TABLES.homeStockDownloads,
     [filter.facilityId, filter.programId],
     {
-      formats,
+      formats: HOME_STOCK_FORMATS,
       accept: (bundle) =>
         bundle.facilityId === filter.facilityId &&
         bundle.programId === filter.programId &&
@@ -77,7 +76,7 @@ export async function readHomeStockCounterparties(
   filter: Pick<HomeStockScope, 'facilityId' | 'programId' | 'facilityTypeId'>,
   resource: 'validDestinations' | 'validSources',
 ): Promise<ValidAssignment[]> {
-  const bundle = await readHomeStockBundle(filter, [6]);
+  const bundle = await readHomeStockBundle(filter);
   const assignments = resource === 'validDestinations' ? bundle.destinations : bundle.sources;
   if (!assignments) throw new LocalDataUnavailableError();
   return assignments;
@@ -139,6 +138,16 @@ async function fetchBundle(
       throw new AxiosError('Download stopped.', AxiosError.ERR_CANCELED);
   };
   const read = <T>(task: () => Promise<T>) => retryDownloadRead(task, check);
+  const assignments = (resource: 'validDestinations' | 'validSources') =>
+    counterparties
+      ? read(() =>
+          fetchValidAssignments(
+            resource,
+            { programId: filter.programId, facilityId: filter.facilityId },
+            config,
+          ),
+        )
+      : [];
   const [{ cards, identities, summaries, products }, reasons, destinations, sources] =
     await Promise.all([
       readEventStockCards(filter, config, read),
@@ -148,24 +157,8 @@ async function fetchBundle(
           config,
         ),
       ),
-      counterparties
-        ? read(() =>
-            fetchValidAssignments(
-              'validDestinations',
-              { programId: filter.programId, facilityId: filter.facilityId },
-              config,
-            ),
-          )
-        : [],
-      counterparties
-        ? read(() =>
-            fetchValidAssignments(
-              'validSources',
-              { programId: filter.programId, facilityId: filter.facilityId },
-              config,
-            ),
-          )
-        : [],
+      assignments('validDestinations'),
+      assignments('validSources'),
     ]);
   check();
   const productIds = new Set(products.map((product) => product.id));
