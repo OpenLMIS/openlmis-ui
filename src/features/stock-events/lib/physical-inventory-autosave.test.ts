@@ -24,7 +24,7 @@ it('reports failure and retries the next change', async () => {
   const status = vi.fn();
   const writer = createInventoryWriter(write, status);
   writer.enqueue(1);
-  await writer.flush();
+  await expect(writer.flush()).rejects.toThrow();
   expect(status).toHaveBeenLastCalledWith('failed');
   writer.enqueue(2);
   await writer.flush();
