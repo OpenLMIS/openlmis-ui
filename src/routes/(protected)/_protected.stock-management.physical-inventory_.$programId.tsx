@@ -29,6 +29,7 @@ import {
   inventorySummariesOptions,
   physicalInventoryDraftOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
+import { InventoryOrphans } from '@/features/stock-events/components/inventory-orphans';
 import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
 import { PhysicalInventoryPendingBody } from '@/features/stock-events/components/physical-inventory-pending';
 import {
@@ -140,6 +141,7 @@ function InventoryPage() {
       <Workspace width="wide">
         <EditorHeader home={homeFacility} program={program} />
         <WorkspaceContent>
+          <InventoryOrphans scope={{ facilityId: homeFacility.id, programId: program.id }} />
           {draft ? (
             canViewStock ? (
               <PhysicalInventoryEditor

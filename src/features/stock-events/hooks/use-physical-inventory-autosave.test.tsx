@@ -6,12 +6,16 @@ import { usePhysicalInventoryAutosave } from '@/features/stock-events/hooks/use-
 import { usePhysicalInventoryForm } from '@/features/stock-events/hooks/use-physical-inventory-form';
 import {
   type InventoryLocalCopy,
+  readInventoryLocal,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
+import { DraftConflictError } from '@/lib/draft-store';
 
 vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   writeInventoryLocal: vi.fn(),
+  readInventoryLocal: vi.fn(),
 }));
+const noCopy = () => null;
 const signIn = (id: string) =>
   useLoginData
     .getState()
@@ -100,5 +104,138 @@ it('can reset a failed indicator after a successful server action', async () => 
   await waitFor(() => expect(view.result.current.status).toBe('failed'));
   view.rerender({ value: null });
   act(() => view.result.current.reset());
+  expect(view.result.current.status).toBe('saved');
+});
+
+it('reports a failed commit to callers so server actions cannot proceed', async () => {
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('full'));
+  const view = renderHook(() => {
+    const form = usePhysicalInventoryForm([], false);
+    return usePhysicalInventoryAutosave(noCopy, form);
+  });
+  await act(async () => {
+    await expect(view.result.current.write(copy)).rejects.toThrow();
+  });
+  expect(view.result.current.status).toBe('failed');
+  await expect(view.result.current.flush()).rejects.toThrow();
+});
+
+it('shares one revision chain between the open snapshot, edits and a saved baseline', async () => {
+  const commit = Promise.withResolvers<void>();
+  vi.mocked(writeInventoryLocal)
+    .mockImplementation(async (value) => ({
+      ...value,
+      revision: (value.revision ?? 0) + 1,
+    }))
+    .mockImplementationOnce(async (value) => {
+      await commit.promise;
+      return { ...value, revision: 1 };
+    });
+  const view = renderHook(() => {
+    const form = usePhysicalInventoryForm([], false);
+    return usePhysicalInventoryAutosave(noCopy, form);
+  });
+  const opened = {
+    ...copy,
+    modified: false,
+    fetchedAt: 12,
+    generation: 'open',
+    baselineKeys: ['one'],
+  };
+  const reference = {
+    ...opened,
+    userId: 'autosave-user',
+    formatVersion: 1,
+    eligible: [],
+    reasons: [],
+  };
+  let opening!: Promise<void>;
+  let editing!: Promise<void>;
+  act(() => {
+    opening = view.result.current.write(opened, reference);
+  });
+  expect(view.result.current.status).toBe('saved');
+  act(() => {
+    editing = view.result.current.write({ ...opened, modified: true });
+  });
+  expect(view.result.current.status).toBe('saving');
+  expect(writeInventoryLocal).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    commit.resolve();
+    await Promise.all([opening, editing]);
+  });
+  await act(async () => {
+    await view.result.current.write({ ...copy, modified: false, baselineKeys: ['saved'] });
+  });
+  expect(vi.mocked(writeInventoryLocal).mock.calls.map(([value]) => value.revision)).toEqual([
+    undefined,
+    1,
+    2,
+  ]);
+  expect(vi.mocked(writeInventoryLocal).mock.calls[0][3]).toBe(reference);
+  expect(vi.mocked(writeInventoryLocal).mock.calls[1]).toHaveLength(3);
+  expect(vi.mocked(writeInventoryLocal).mock.calls[2][0]).toMatchObject({
+    modified: false,
+    baselineKeys: ['saved'],
+    fetchedAt: 12,
+    generation: 'open',
+  });
+});
+
+it('silently adopts a newer revision in an untouched tab, then writes from that revision', async () => {
+  const newer = { ...copy, revision: 4 };
+  vi.mocked(writeInventoryLocal)
+    .mockRejectedValueOnce(new DraftConflictError(newer))
+    .mockImplementation(async (value) => ({ ...value, revision: (value.revision ?? 0) + 1 }));
+  const adopt = vi.fn();
+  const view = renderHook(() => {
+    const form = usePhysicalInventoryForm([], false);
+    return usePhysicalInventoryAutosave(noCopy, form, 1, adopt);
+  });
+  await act(async () => {
+    await view.result.current.write({ ...copy, modified: false });
+  });
+  expect(adopt).toHaveBeenCalledWith(newer);
+  expect(view.result.current.status).toBe('saved');
+  await act(async () => {
+    await view.result.current.write(copy);
+  });
+  expect(vi.mocked(writeInventoryLocal).mock.calls[1][0].revision).toBe(4);
+});
+
+it('checks the observed revision for Load Latest and Keep My Counts', async () => {
+  const newer = { ...copy, revision: 4 };
+  const changedAgain = { ...copy, revision: 5 };
+  vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new DraftConflictError(newer));
+  vi.mocked(readInventoryLocal)
+    .mockResolvedValueOnce(changedAgain)
+    .mockResolvedValueOnce(changedAgain);
+  const adopt = vi.fn();
+  const view = renderHook(() => {
+    const form = usePhysicalInventoryForm([], false);
+    return usePhysicalInventoryAutosave(noCopy, form, 1, adopt);
+  });
+  await act(async () => {
+    await expect(view.result.current.write(copy)).rejects.toBeInstanceOf(DraftConflictError);
+  });
+  await act(async () => {
+    await expect(view.result.current.loadLatest()).rejects.toBeInstanceOf(DraftConflictError);
+  });
+  expect(adopt).not.toHaveBeenCalled();
+  await act(async () => {
+    await view.result.current.loadLatest();
+  });
+  expect(adopt).toHaveBeenCalledWith(changedAgain);
+  vi.mocked(writeInventoryLocal).mockImplementation(async (value) => ({
+    ...value,
+    revision: (value.revision ?? 0) + 1,
+  }));
+  await act(async () => {
+    await view.result.current.keepCounts(copy);
+  });
+  expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[0]).toMatchObject({
+    modified: true,
+    revision: 5,
+  });
   expect(view.result.current.status).toBe('saved');
 });

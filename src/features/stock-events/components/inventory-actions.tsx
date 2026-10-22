@@ -48,7 +48,10 @@ import {
   eligibleInventoryLines,
   inventoryLocalCopy,
 } from '@/features/stock-events/lib/physical-inventory-lines';
-import type { writeInventoryLocal } from '@/features/stock-events/lib/physical-inventory-local';
+import {
+  readInventoryLocal,
+  type writeInventoryLocal,
+} from '@/features/stock-events/lib/physical-inventory-local';
 import {
   createInventoryLots,
   InventoryLotError,
@@ -150,12 +153,15 @@ export function InventoryActions(props: Props) {
     retry: false,
     mutationFn: async (action: Action) => {
       const scope = getSessionScope();
+      await props.flush();
+      assertSessionScope(scope);
+      const local = await readInventoryLocal(props.draft.id);
+      assertSessionScope(scope);
+      if (local?.orphaned) throw new Error('This inventory draft is no longer current');
       if (action.type === 'delete') {
         await deletePhysicalInventory(props.draft.id);
         return [];
       }
-      await props.flush();
-      assertSessionScope(scope);
       const eligible = await queryClient.fetchQuery(eligibleOptions);
       assertSessionScope(scope);
       const lines = eligibleInventoryLines(props.getLines(), eligible);
@@ -259,16 +265,28 @@ export function InventoryActions(props: Props) {
     }
     if (!mutation.isCurrent()) return;
     if (action.type !== 'save') finished.current = true;
+    let localSaved = true;
     try {
-      await props.clearLocal(props.draft.id);
+      if (action.type === 'save')
+        await props.writeLocal(inventoryLocalCopy(props.draft, next, next, false));
+      else await props.clearLocal(props.draft.id);
     } catch {
+      localSaved = false;
       if (mutation.isCurrent())
-        toast.error(t('physical-inventory.local-clear-error-title'), {
-          description: t(ACTION_KEYS[action.type].localClearError),
-        });
+        toast.error(
+          t(
+            action.type === 'save'
+              ? 'physical-inventory.not-saved-local'
+              : 'physical-inventory.local-clear-error-title',
+          ),
+          {
+            description: t(ACTION_KEYS[action.type].localClearError),
+          },
+        );
     }
     if (!mutation.isCurrent()) return;
-    if (action.type !== 'delete') props.onSaved(next, action.type !== 'save');
+    if (action.type !== 'delete' && (action.type !== 'save' || localSaved))
+      props.onSaved(next, action.type !== 'save');
     const filters =
       action.type === 'submit'
         ? [

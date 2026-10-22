@@ -6,6 +6,7 @@ import {
   fetchInventorySummaries,
   fetchPhysicalInventoryDraft,
 } from '@/features/stock-events/api/physical-inventory-api';
+import { reconcileInventoryCopies } from '@/features/stock-events/lib/physical-inventory-local';
 import type {
   InventoryScope,
   InventoryStockLine,
@@ -18,7 +19,13 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 export const physicalInventoryDraftOptions = (scope: InventoryScope) =>
   queryOptions({
     queryKey: queryKeys.physicalInventories.list(scope),
-    queryFn: () => fetchPhysicalInventoryDraft(scope),
+    queryFn: async () => {
+      const session = getSessionScope();
+      const draft = await fetchPhysicalInventoryDraft(scope);
+      assertSessionScope(session);
+      await reconcileInventoryCopies(scope, draft?.id);
+      return draft;
+    },
   });
 
 export const inventorySummariesOptions = (

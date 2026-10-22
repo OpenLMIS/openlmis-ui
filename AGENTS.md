@@ -983,6 +983,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   deleting records. Use `LOCAL_TABLES` and `localTable`; use `local-records.ts` for owned records.
   Add one new schema version per PR, never reuse a number, and rebase before merge. Preserve
   released data during upgrades.
+- Physical Inventory references are draft-owned snapshots captured on online open, outside
+  dataset generations. Commit them with the copy under its revision and matching generation.
 - Capture owner/session scope before async work; check after awaits and inside write transactions.
   Late upload outcomes may persist only for their original owner, never update another user's UI.
 - Access snapshots whitelist fields and preserve raw permission strings, never credentials.

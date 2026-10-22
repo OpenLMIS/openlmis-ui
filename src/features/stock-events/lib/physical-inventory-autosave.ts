@@ -18,14 +18,20 @@ export function createInventoryWriter<T>(
   );
   return {
     enqueue: serial.enqueue,
+    wait: serial.wait,
     async flush() {
-      await serial.flush();
+      const saved = await serial.flush();
       if (conflict) throw conflict;
+      if (!saved) throw new Error('Physical Inventory was not saved on this device');
     },
     async clear(remove: (conflict: unknown) => Promise<void>) {
       serial.clear();
       await serial.wait();
       await remove(conflict);
+      conflict = undefined;
+      serial.reset();
+    },
+    resolve() {
       conflict = undefined;
       serial.reset();
     },

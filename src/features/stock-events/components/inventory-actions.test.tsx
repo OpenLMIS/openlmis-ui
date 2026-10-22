@@ -38,7 +38,10 @@ vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
   fetchEligibleInventoryProducts: vi.fn().mockResolvedValue([]),
   fetchInventorySummaries: vi.fn().mockResolvedValue([]),
 }));
-vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
+vi.mock('@/features/stock-events/lib/physical-inventory-local', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/physical-inventory-local')>()),
+  reconcileInventoryCopies: vi.fn(),
+  readInventoryLocal: vi.fn(),
   clearInventoryLocal: vi.fn(),
   writeInventoryLocal: vi.fn(),
 }));
@@ -59,6 +62,7 @@ beforeEach(() => {
     .getState()
     .setLoginData({ referenceDataUserId: 'user', username: 'user', accessToken: 'token' });
   vi.mocked(clearInventoryLocal).mockResolvedValue(undefined);
+  vi.mocked(writeInventoryLocal).mockResolvedValue(undefined);
   vi.mocked(savePhysicalInventory).mockResolvedValue(undefined);
   vi.mocked(deletePhysicalInventory).mockResolvedValue(undefined);
   vi.mocked(submitPhysicalInventory).mockResolvedValue(undefined);
@@ -121,7 +125,8 @@ it.each(['save', 'delete', 'submit'] as const)(
   'reports a successful server %s separately from device cleanup failure',
   async (action) => {
     const user = userEvent.setup();
-    vi.mocked(clearInventoryLocal).mockRejectedValue(new Error('Full'));
+    if (action === 'save') vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new Error('Full'));
+    else vi.mocked(clearInventoryLocal).mockRejectedValueOnce(new Error('Full'));
     const { onSaved, onDeleted } = setup();
     await user.click(
       screen.getByRole('button', {
@@ -133,10 +138,17 @@ it.each(['save', 'delete', 'submit'] as const)(
         name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
       }),
     );
-    await waitFor(() => expect(action === 'delete' ? onDeleted : onSaved).toHaveBeenCalled());
-    expect(toast.error).toHaveBeenCalledWith('physical-inventory.local-clear-error-title', {
-      description: `physical-inventory.${action}-local-clear-error`,
-    });
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    if (action === 'save') expect(onSaved).not.toHaveBeenCalled();
+    else expect(action === 'delete' ? onDeleted : onSaved).toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      action === 'save'
+        ? 'physical-inventory.not-saved-local'
+        : 'physical-inventory.local-clear-error-title',
+      {
+        description: `physical-inventory.${action}-local-clear-error`,
+      },
+    );
   },
 );
 it('uses inventory wording for an unknown submit outcome and prevents a retry', async () => {
@@ -348,15 +360,28 @@ it('retains a created lot after device persistence fails so Save can retry witho
   );
 });
 
-it('deletes a conflicted draft without flushing stale edits', async () => {
-  const user = userEvent.setup();
-  const flush = vi.fn().mockRejectedValue(new Error('Draft conflict'));
-  const { onDeleted } = setup({ flush, writeDisabled: true });
-  await user.click(screen.getByRole('button', { name: 'physical-inventory.delete' }));
-  await user.click(
-    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.delete' }),
-  );
-  await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
-  expect(deletePhysicalInventory).toHaveBeenCalledWith('d');
-  expect(flush).not.toHaveBeenCalled();
-});
+it.each(['save', 'delete', 'submit'] as const)(
+  'keeps counts and stops %s when the local flush fails',
+  async (action) => {
+    const user = userEvent.setup();
+    const flush = vi.fn().mockRejectedValue(new Error('Draft conflict'));
+    const { onDeleted } = setup({ flush });
+    await user.click(
+      screen.getByRole('button', {
+        name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
+      }),
+    );
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
+      }),
+    );
+    await screen.findByRole('alertdialog');
+    expect(onDeleted).not.toHaveBeenCalled();
+    expect(deletePhysicalInventory).not.toHaveBeenCalled();
+    expect(savePhysicalInventory).not.toHaveBeenCalled();
+    expect(submitPhysicalInventory).not.toHaveBeenCalled();
+    expect(clearInventoryLocal).not.toHaveBeenCalled();
+    expect(flush).toHaveBeenCalledOnce();
+  },
+);

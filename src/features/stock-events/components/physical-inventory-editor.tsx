@@ -34,6 +34,7 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -80,7 +81,11 @@ import {
   inventoryProgress,
   inventoryStructureEqual,
 } from '@/features/stock-events/lib/physical-inventory-lines';
-import { readInventoryLocal } from '@/features/stock-events/lib/physical-inventory-local';
+import {
+  type InventoryLocalCopy,
+  inventoryReference,
+  readInventoryLocal,
+} from '@/features/stock-events/lib/physical-inventory-local';
 import {
   canDeactivateInventoryLine,
   inventoryOptionalColumns,
@@ -236,6 +241,8 @@ function InventoryRows(props: RowsProps) {
     throw stockQuery.error;
   const { data: stock } = stockQuery;
   const opening = useOpening();
+  const [loaded, setLoaded] = useState<InventoryLocalCopy>();
+  const [loadKey, setLoadKey] = useState(0);
   const local = useQuery(
     queryOptions({
       queryKey: [...queryKeys.physicalInventories.detail(props.draft.id), 'local', opening],
@@ -253,12 +260,19 @@ function InventoryRows(props: RowsProps) {
       {props.toolbar}
       <InventoryDraftRows
         {...props}
+        key={loadKey}
+        onAdopt={(copy) => {
+          setLoaded(copy);
+          setLoadKey((key) => key + 1);
+        }}
         stock={stock}
-        localLines={local.data?.modified ? local.data.lines : undefined}
+        localLines={(loaded ?? local.data)?.modified ? (loaded ?? local.data)?.lines : undefined}
         localFailed={local.isError}
-        localRemoved={local.data?.modified ? (local.data.removedKeys ?? []) : []}
-        localModified={Boolean(local.data?.modified)}
-        localRevision={local.data?.revision}
+        localRemoved={
+          (loaded ?? local.data)?.modified ? ((loaded ?? local.data)?.removedKeys ?? []) : []
+        }
+        localModified={Boolean((loaded ?? local.data)?.modified)}
+        localRevision={(loaded ?? local.data)?.revision}
       />
     </>
   );
@@ -279,6 +293,7 @@ function InventoryDraftRows({
   localRemoved,
   localModified,
   localRevision,
+  onAdopt,
   quantityUnit,
   addOpen,
   onAddClose,
@@ -297,6 +312,7 @@ function InventoryDraftRows({
   localRemoved: string[];
   localModified: boolean;
   localRevision?: number;
+  onAdopt: (copy: InventoryLocalCopy) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [entryUpdatedAfter] = useState(eligibleUpdatedAfter);
@@ -362,6 +378,7 @@ function InventoryDraftRows({
       ),
     [form, eligible.data, withDisplayedMembership],
   );
+  const [snapshot] = useState(() => ({ fetchedAt: Date.now(), generation: crypto.randomUUID() }));
   const [modified, setModified] = useState(localModified);
   const dirty = useStore(form.store, (state) => state.isDirty);
   useEffect(() => {
@@ -374,11 +391,55 @@ function InventoryDraftRows({
             draft,
             withDisplayedMembership(Object.values(form.state.values.lines)),
             baseline,
+            modified || form.state.isDirty,
+            snapshot,
           )
         : null,
-    [busy, submitted, modified, form, draft, baseline, withDisplayedMembership],
+    [busy, submitted, modified, form, draft, baseline, withDisplayedMembership, snapshot],
   );
-  const autosave = usePhysicalInventoryAutosave(copy, form, localRevision);
+  const autosave = usePhysicalInventoryAutosave(copy, form, localRevision, onAdopt);
+  const snapshotWritten = useRef(false);
+  useEffect(() => {
+    if (
+      snapshotWritten.current ||
+      !eligible.isSuccess ||
+      eligible.isFetching ||
+      eligible.dataUpdatedAt < (entryUpdatedAfter ?? 0) ||
+      !reasonsQuery.isSuccess ||
+      busy ||
+      submitted
+    )
+      return;
+    snapshotWritten.current = true;
+    const value = inventoryLocalCopy(
+      draft,
+      withDisplayedMembership(Object.values(form.state.values.lines)),
+      baseline,
+      modified || form.state.isDirty,
+      snapshot,
+    );
+    void autosave
+      .write(value, inventoryReference({ ...value, ...snapshot }, eligible.data, reasons))
+      .then(() => setReadFailed(false))
+      .catch(() => {});
+  }, [
+    eligible.isSuccess,
+    eligible.isFetching,
+    eligible.dataUpdatedAt,
+    entryUpdatedAfter,
+    eligible.data,
+    reasonsQuery.isSuccess,
+    reasons,
+    busy,
+    submitted,
+    draft,
+    form,
+    baseline,
+    modified,
+    snapshot,
+    withDisplayedMembership,
+    autosave.write,
+  ]);
   const status = readFailed && !modified && !form.state.isDirty ? 'failed' : autosave.status;
   const allowLeave = useRef(false);
   const guard = useDiscardGuard(
@@ -565,6 +626,45 @@ function InventoryDraftRows({
       {saveSlot && createPortal(<InventorySaveIndicator status={status} />, saveSlot)}
       {progressSlot &&
         createPortal(<InventoryCompletion form={form} lines={filtered} />, progressSlot)}
+      {status === 'conflict' && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <p>{t('stock-events.draft-conflict')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="warning"
+                onClick={() => {
+                  void autosave.loadLatest().catch(() => {});
+                }}
+              >
+                {t('physical-inventory.load-latest')}
+              </Button>
+              <Button
+                variant="warning"
+                onClick={() => {
+                  const value = inventoryLocalCopy(
+                    draft,
+                    withDisplayedMembership(Object.values(form.state.values.lines)),
+                    baseline,
+                    true,
+                    snapshot,
+                  );
+                  void autosave
+                    .keepCounts(
+                      value,
+                      eligible.data && reasonsQuery.isSuccess
+                        ? inventoryReference({ ...value, ...snapshot }, eligible.data, reasons)
+                        : undefined,
+                    )
+                    .catch(() => {});
+                }}
+              >
+                {t('physical-inventory.keep-counts')}
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       {eligible.isError ? (
         <LoadError
           error={eligible.error}
