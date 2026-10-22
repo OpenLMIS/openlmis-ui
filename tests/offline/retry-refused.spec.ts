@@ -13,20 +13,29 @@ for (const language of ['en', 'ar']) {
     if (language === 'ar') await page.setViewportSize({ width: 390, height: 844 });
     await stub(context, async () => 'finish');
     const bodies: string[] = [];
+    let accept: (() => Promise<void>) | undefined;
     await context.route('**/api/stockEvents{,/**,?*}', async (route) => {
       expect(route.request().method()).toBe('POST');
       bodies.push(route.request().postData() ?? '');
-      await route.fulfill(
-        bodies.length < 3
-          ? {
-              status: 400,
-              json: {
-                messageKey: 'stockmanagement.error.event.invalid',
-                message: `Refusal ${bodies.length}`,
-              },
-            }
-          : { status: 201, json: { id: '11111111-1111-4111-8111-111111111111' } },
-      );
+      if (bodies.length < 3) {
+        await route.fulfill({
+          status: 400,
+          json: {
+            messageKey: 'stockmanagement.error.event.invalid',
+            message: `Refusal ${bodies.length}`,
+          },
+        });
+      } else {
+        await new Promise<void>((resolve) => {
+          accept = async () => {
+            await route.fulfill({
+              status: 201,
+              json: { id: '11111111-1111-4111-8111-111111111111' },
+            });
+            resolve();
+          };
+        });
+      }
     });
     await login(page);
     await expect.poll(() => generation(page)).not.toBeNull();
@@ -38,8 +47,10 @@ for (const language of ['en', 'ar']) {
       .poll(async () => (await records(page, 'stockEventSyncErrors'))[0]?.message)
       .toBe('Refusal 1');
     await page.evaluate((language) => localStorage.setItem('i18nextLng', language), language);
-    await page.goto('./offline-events');
+    await page.goto('./offline-events?tab=errors');
     await expect(page.locator('html')).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
+    await expect(page.getByText('Refusal 1', { exact: false })).toBeVisible();
+    await context.setOffline(true);
     if (language === 'en') {
       await page.locator('tbody button[aria-haspopup=menu]').click();
       await page
@@ -52,6 +63,21 @@ for (const language of ['en', 'ar']) {
         .click();
     }
     await expect(page.getByRole('alertdialog')).not.toBeVisible();
+    await expect(
+      page.getByText(labels['offline-events.no-errors-title'], { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole('tab', { name: `${labels['offline-events.tab-pending']} (1)`, exact: true })
+      .click();
+    await expect
+      .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
+      .toBe('queued');
+    await expect(page.getByText('Fixture Product', { exact: false })).toBeVisible();
+    expect(bodies).toEqual([frozen]);
+    await page
+      .getByRole('tab', { name: `${labels['offline-events.tab-errors']} (0)`, exact: true })
+      .click();
+    await context.setOffline(false);
     await expect
       .poll(async () => (await records(page, 'stockEventSyncErrors'))[0]?.message)
       .toBe('Refusal 2');
@@ -75,12 +101,28 @@ for (const language of ['en', 'ar']) {
       .getByRole('button', { name: labels['offline-events.retry-refused'], exact: true })
       .click();
     await expect(page.getByRole('alertdialog')).not.toBeVisible();
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(
+      page.getByText(labels['offline-events.no-errors-title'], { exact: true }),
+    ).toBeVisible();
+    await expect.poll(() => bodies.length).toBe(3);
+    await page
+      .getByRole('tab', { name: `${labels['offline-events.tab-pending']} (1)`, exact: true })
+      .click();
+    await expect(page.getByText('Fixture Product', { exact: false })).toBeVisible();
+    if (!accept) throw new Error('No retry awaiting acceptance');
+    await accept();
     await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(1);
     expect(bodies).toEqual([frozen, frozen, frozen]);
     await expect(page.getByRole('dialog')).not.toBeVisible();
     await expect(
-      page.getByText(labels['offline-events.status-accepted'], { exact: true }).first(),
+      page.getByText(labels['offline-events.no-events-title'], { exact: true }),
     ).toBeVisible();
+    await page
+      .getByRole('tab', { name: `${labels['offline-events.tab-synced']} (1)`, exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/offline-events\?tab=synced$/);
+    await expect(page.getByText('Fixture Product', { exact: false })).toBeVisible();
     expect(await records(page, 'stockEventQueue')).toEqual([]);
     expect((await records(page, 'stockEventDrafts'))[0].state).toBe('accepted');
   });
