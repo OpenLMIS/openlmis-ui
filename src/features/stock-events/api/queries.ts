@@ -104,7 +104,7 @@ export const eventStockOnHandOptions = (filter: EventStockOnHandFilter) =>
     staleTime: 0,
   });
 
-const APPROVED_PRODUCTS_PAGE_SIZE = 50;
+const APPROVED_PRODUCTS_PAGE_SIZE = 100;
 
 export const eventApprovedProductsOptions = (
   filter: EventStockCardsFilter,
