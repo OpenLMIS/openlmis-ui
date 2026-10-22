@@ -351,6 +351,22 @@ async function writeForOwner<T>(
     if (owned !== db) owned.close();
   }
 }
+export function scopeKey(row: Pick<QueuedStockEvent, 'facilityId' | 'programId'>) {
+  return `${row.facilityId}:${row.programId}`;
+}
+
+export function blockedScopes(rows: readonly DeviceEvent[]): Set<string> {
+  return new Set(
+    rows
+      .filter(
+        (row) =>
+          row.status === 'sending' ||
+          row.status === 'uncertain' ||
+          (row.status === 'queued' && row.pauseReason),
+      )
+      .map(scopeKey),
+  );
+}
 export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDependencies) {
   while (deps.canSend()) {
     deps.check();
@@ -359,7 +375,6 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
       .orderBy('sequence')
       .toArray();
     deps.check();
-    const scopeKey = (row: QueuedStockEvent) => `${row.facilityId}:${row.programId}`;
     for (const row of rows) {
       if (row.userId !== userId || row.status !== 'queued') continue;
       if (row.pauseReason === 'draft-changed') {
@@ -375,9 +390,7 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
         row.pauseReason = pauseReason;
       }
     }
-    const blocked = new Set(
-      rows.filter((row) => row.status !== 'queued' || row.pauseReason).map(scopeKey),
-    );
+    const blocked = blockedScopes(rows);
     const next = rows.find(
       (row) => row.userId === userId && row.status === 'queued' && !blocked.has(scopeKey(row)),
     );

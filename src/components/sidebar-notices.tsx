@@ -70,9 +70,11 @@ function useNotices(): Notice[] {
   const { waiting } = device;
   const { phase: ownPhase, countdown: syncCountdown, wake } = useDeviceSync();
   const phase = ownPhase === 'idle' && device.sending ? 'syncing' : ownPhase;
+  const needsAction = device.refused + device.uncertain;
   const review = {
     label: t('offline-events.review'),
-    onClick: () => void navigate({ to: '/offline-events' }),
+    onClick: () =>
+      void navigate({ to: '/offline-events', search: needsAction ? { tab: 'errors' } : {} }),
   };
   const online = useOnline();
   const offlineSession = useOfflineSession();
@@ -220,7 +222,6 @@ function useNotices(): Notice[] {
         closesSidebar: true,
       });
   }
-  const needsAction = device.refused + device.uncertain;
   if (needsAction)
     notices.unshift({
       id: 'device-events-action-needed',
