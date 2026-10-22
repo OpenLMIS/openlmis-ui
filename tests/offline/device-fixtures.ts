@@ -46,11 +46,7 @@ export async function enqueue(
           const lines = [
             {
               key: crypto.randomUUID(),
-              orderable: {
-                id: 'product',
-                productCode: 'MED',
-                fullProductName: 'Fixture Product',
-              },
+              orderable: { id: 'product', productCode: 'MED', fullProductName: 'Fixture Product' },
               lot: null,
               stockOnHand: 20,
               productHasLots: false,

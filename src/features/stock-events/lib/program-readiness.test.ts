@@ -3,17 +3,18 @@ import { programReadiness } from '@/features/stock-events/lib/program-readiness'
 import type { DownloadScopeState } from '@/lib/download-provider';
 
 it.each([
-  ['ineligible', false, true, 'not-downloaded', 'no-stock-card-right'],
-  ['missing', true, true, 'downloading', undefined],
-  ['outdated', true, true, 'downloading', undefined],
-  [undefined, false, true, 'downloading', undefined],
-  ['missing', false, false, 'checking', undefined],
-  ['outdated', true, false, 'not-downloaded', 'older-download'],
-  ['missing', true, false, 'not-downloaded', 'not-downloaded'],
-  ['ready', true, true, 'ready', undefined],
+  ['ineligible', false, 'p', 'not-downloaded', 'no-stock-card-right'],
+  ['missing', true, 'p', 'downloading', undefined],
+  ['outdated', true, 'p', 'downloading', undefined],
+  [undefined, false, 'p', 'downloading', undefined],
+  ['missing', true, 'other', 'not-downloaded', 'not-downloaded'],
+  ['missing', false, null, 'checking', undefined],
+  ['outdated', true, null, 'not-downloaded', 'older-download'],
+  ['missing', true, null, 'not-downloaded', 'not-downloaded'],
+  ['ready', true, 'p', 'ready', undefined],
 ] as const)(
-  'resolves state %s loaded=%s running=%s',
-  (state, loaded, running, expected, reason) => {
+  'resolves state %s loaded=%s downloading=%s',
+  (state, loaded, downloading, expected, reason) => {
     const result = programReadiness({
       programId: 'p',
       datasets: [{ dataset: 'home-stock', minimumFormat: 4 }],
@@ -24,10 +25,10 @@ it.each([
         },
       },
       status: {
-        phase: running ? 'running' : 'idle',
+        phase: downloading ? 'running' : 'idle',
         incomplete: [
           {
-            id: 'p',
+            id: downloading ?? 'p',
             name: 'Program',
             dataset: 'home-stock',
             datasetLabel: 'offline.download.home-stock',

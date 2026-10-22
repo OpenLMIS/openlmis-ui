@@ -904,3 +904,35 @@ it('returns to the available program list when connection drops before print Ski
   await userEvent.click(screen.getByRole('button', { name: 'stock-receive.print-skip' }));
   await waitFor(() => expect(router.state.location.pathname).toBe('/stock-management/receive'));
 });
+
+it('lands an offline queued Issue on its Stock On Hand without offering print', async () => {
+  function QueuedIssue() {
+    const print = useStockEventPrint({
+      kind: 'issue',
+      copy: EVENT_KINDS.issue.print,
+      userId: USER,
+      facilityId: HOME,
+      programId: FP,
+    });
+    return (
+      <>
+        <button type="button" onClick={() => print.onSubmitted('event', false)}>
+          Queued
+        </button>
+        {print.dialog}
+      </>
+    );
+  }
+  onlineManager.setOnline(false);
+  const router = renderPage(<QueuedIssue />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Queued' }));
+  await waitFor(() =>
+    expect(router.state.location.pathname).toBe('/stock-management/stock-on-hand'),
+  );
+  expect(router.state.location.search).toMatchObject({
+    mode: 'my',
+    facilityId: HOME,
+    programId: FP,
+  });
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+});

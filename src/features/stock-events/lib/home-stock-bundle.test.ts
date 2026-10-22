@@ -92,7 +92,7 @@ beforeEach(async () => {
         data = {
           content: [1, 2].map(() => ({
             id: 'assignment',
-            name: 'Ward',
+            name: config.url === '/validSources' ? 'Supplier' : 'Ward',
             programId: 'program',
             facilityTypeId: 'type',
             isFreeTextAllowed: false,
@@ -486,7 +486,7 @@ it('downloads deduplicated whitelisted counterparties in format 6', async () => 
   const saved = await fetchHomeStockBundle(filter);
   expect(saved.formatVersion).toBe(6);
   expect(saved.destinations).toHaveLength(1);
-  expect(saved.sources).toEqual(saved.destinations);
+  expect(saved.sources).toEqual([{ ...saved.destinations?.[0], name: 'Supplier' }]);
   expect(saved.destinations?.[0]).toEqual({
     id: 'assignment',
     name: 'Ward',
@@ -505,11 +505,14 @@ it.each([4, 5, 6] as const)(
     const saved = { ...(await fetchHomeStockBundle(filter)), formatVersion };
     await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).put(saved);
     await expect(readHomeStockBundle(filter)).resolves.toEqual(saved);
-    if (formatVersion === 6)
+    if (formatVersion === 6) {
       await expect(readHomeStockCounterparties(filter, 'validDestinations')).resolves.toEqual(
         saved.destinations,
       );
-    else
+      await expect(readHomeStockCounterparties(filter, 'validSources')).resolves.toEqual(
+        saved.sources,
+      );
+    } else
       await expect(readHomeStockCounterparties(filter, 'validDestinations')).rejects.toBeInstanceOf(
         LocalDataUnavailableError,
       );

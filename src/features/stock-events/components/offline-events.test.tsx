@@ -391,9 +391,9 @@ it('validates event type and calendar dates from links', () => {
   ).toMatchObject({ eventType: 'adjustment', startDate: '2026-10-12', endDate: '2026-10-13' });
   expect(
     offlineEventsSearchSchema.parse({
-      eventType: 'issue',
+      eventType: 'receive',
       startDate: '2026-02-30',
       endDate: 'invalid',
     }),
-  ).toEqual({ eventType: 'issue', startDate: undefined, endDate: undefined });
+  ).toEqual({ eventType: undefined, startDate: undefined, endDate: undefined });
 });
