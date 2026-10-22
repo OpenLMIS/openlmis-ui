@@ -1,7 +1,7 @@
 import { EyeIcon, RotateCwIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type CardAction, CardActions, RowActions, useInCards } from '@/components/card-actions';
+import { type CardAction, RowActions, useInCards } from '@/components/card-actions';
 import {
   canRemoveDeviceEvent,
   DeviceEventRemoval,
@@ -16,9 +16,7 @@ export function DeviceEventActions({
   removeLabel,
   onOpen,
   onRemoved,
-  layout = 'menu',
 }: {
-  layout?: 'menu' | 'cards';
   event: DeviceEvent;
   canSend: boolean;
   label: string;
@@ -27,7 +25,7 @@ export function DeviceEventActions({
   onRemoved: () => void;
 }) {
   const { t } = useTranslation();
-  const inCards = useInCards() || layout === 'cards';
+  const inCards = useInCards();
   const [removing, setRemoving] = useState(false);
   const retry = useRefusedEventRetry(event, canSend);
   const actions: CardAction[] = [
@@ -68,10 +66,9 @@ export function DeviceEventActions({
         ]
       : []),
   ];
-  const Actions = layout === 'cards' ? CardActions : RowActions;
   return (
     <>
-      <Actions actions={actions} label={t('offline-events.actions-label', { event: label })} />
+      <RowActions actions={actions} label={t('offline-events.actions-label', { event: label })} />
       {removing && (
         <DeviceEventRemoval
           event={event}

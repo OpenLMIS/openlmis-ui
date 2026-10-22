@@ -41,7 +41,6 @@ export function OfflineEventPendingState({
 export function OfflineEventErrorMessage({ event }: { event: DeviceEvent }) {
   const { t } = useTranslation();
   const state = errorState(event);
-  const hasMessage = event.error?.message?.trim() && event.error.message !== event.error.messageKey;
   return (
     <div className="flex flex-col items-start gap-2 whitespace-normal wrap-anywhere">
       <Badge variant={state === 'uncertain' || state === 'copied' ? 'warning' : 'destructive'}>
@@ -56,15 +55,17 @@ export function OfflineEventErrorMessage({ event }: { event: DeviceEvent }) {
         )}
       </Badge>
       <p>
-        {state === 'uncertain' ? (
-          t('offline-events.error-uncertain')
-        ) : hasMessage ? (
-          <>
-            {t('offline-events.could-not-perform')} {refusalMessage(event.error, t)}
-          </>
-        ) : (
-          t('offline-events.no-error-details')
-        )}
+        {state === 'uncertain'
+          ? t('offline-events.error-uncertain')
+          : t('offline-events.could-not-perform', {
+              message: refusalMessage(
+                event.error,
+                t,
+                state === 'copied'
+                  ? 'offline-events.no-refusal-details'
+                  : 'offline-events.no-error-details',
+              ),
+            })}
       </p>
     </div>
   );

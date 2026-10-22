@@ -1,5 +1,5 @@
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
-import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
+import { type DeviceEvent, scopeKey } from '@/features/stock-events/lib/stock-event-sync';
 
 export type OfflineEventTab = 'pending' | 'errors' | 'synced';
 export type PendingEventState =
@@ -22,7 +22,7 @@ export function tabOf(event: DeviceEvent): OfflineEventTab {
 export function pendingState(event: DeviceEvent, blocked: ReadonlySet<string>): PendingEventState {
   if (event.status === 'sending') return { state: 'sending' };
   if (event.pauseReason) return { state: 'held', pauseReason: event.pauseReason };
-  if (blocked.has(`${event.facilityId}:${event.programId}`)) return { state: 'waiting' };
+  if (blocked.has(scopeKey(event))) return { state: 'waiting' };
   return { state: 'queued' };
 }
 

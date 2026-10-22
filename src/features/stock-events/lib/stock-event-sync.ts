@@ -351,12 +351,12 @@ async function writeForOwner<T>(
     if (owned !== db) owned.close();
   }
 }
+export function scopeKey(row: Pick<QueuedStockEvent, 'facilityId' | 'programId'>) {
+  return `${row.facilityId}:${row.programId}`;
+}
+
 export function blockedScopes(rows: readonly QueuedStockEvent[]): Set<string> {
-  return new Set(
-    rows
-      .filter((row) => row.status !== 'queued' || row.pauseReason)
-      .map((row) => `${row.facilityId}:${row.programId}`),
-  );
+  return new Set(rows.filter((row) => row.status !== 'queued' || row.pauseReason).map(scopeKey));
 }
 export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDependencies) {
   while (deps.canSend()) {
@@ -366,7 +366,6 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
       .orderBy('sequence')
       .toArray();
     deps.check();
-    const scopeKey = (row: QueuedStockEvent) => `${row.facilityId}:${row.programId}`;
     for (const row of rows) {
       if (row.userId !== userId || row.status !== 'queued') continue;
       if (row.pauseReason === 'draft-changed') {

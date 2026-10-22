@@ -38,11 +38,9 @@ export function OfflineEventDetails({ event }: { event: DeviceEvent }) {
     <div className="flex min-w-0 flex-col gap-2 whitespace-normal wrap-anywhere">
       <div>
         <p>
-          {t('facility-program.facility')}: <bdi>{orEmpty(recordLabel(event.facility))}</bdi>
+          {t('offline-events.detail-facility', { value: orEmpty(recordLabel(event.facility)) })}
         </p>
-        <p>
-          {t('facility-program.program')}: <bdi>{orEmpty(recordLabel(event.program))}</bdi>
-        </p>
+        <p>{t('offline-events.detail-program', { value: orEmpty(recordLabel(event.program)) })}</p>
       </div>
       {(expanded ? lines : lines.slice(0, 3)).map((line, index) => (
         <p key={line.key}>
@@ -51,15 +49,17 @@ export function OfflineEventDetails({ event }: { event: DeviceEvent }) {
               {event.lines[index] ? productLabel(event.lines[index].orderable) : line.product}
             </bdi>
           </strong>
-          {'; '}
-          {line.values[0] || t('offline-events.no-lots')}
+          {t('offline-events.detail-separator')}
+          {t('offline-events.detail-lot', {
+            value: line.values[0] || t('offline-events.no-lots'),
+          })}
           {context && (
             <>
-              {'; '}
+              {t('offline-events.detail-separator')}
               {t(contextLabel, { value: orEmpty(line.values[2]) })}
             </>
           )}
-          {'; '}
+          {t('offline-events.detail-separator')}
           {t('offline-events.detail-quantity', { value: line.values[1] })}
         </p>
       ))}

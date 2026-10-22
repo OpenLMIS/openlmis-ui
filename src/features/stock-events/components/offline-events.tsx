@@ -177,8 +177,9 @@ export function OfflineEventsPage({
             <TabsList size="lg" wrap="column" aria-label={t('offline-events.title')}>
               {tabs.map((value) => (
                 <TabsTrigger key={value} value={value}>
-                  {t(`offline-events.tab-${value}`)} (
-                  {local.events?.filter((event) => tabOf(event) === value).length ?? 0})
+                  {t(`offline-events.tab-${value}`, {
+                    count: local.events?.filter((event) => tabOf(event) === value).length ?? 0,
+                  })}
                 </TabsTrigger>
               ))}
             </TabsList>

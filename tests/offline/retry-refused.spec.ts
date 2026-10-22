@@ -67,7 +67,10 @@ for (const language of ['en', 'ar']) {
       page.getByText(labels['offline-events.no-errors-title'], { exact: true }),
     ).toBeVisible();
     await page
-      .getByRole('tab', { name: `${labels['offline-events.tab-pending']} (1)`, exact: true })
+      .getByRole('tab', {
+        name: labels['offline-events.tab-pending'].replace('{count}', '1'),
+        exact: true,
+      })
       .click();
     await expect
       .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
@@ -75,13 +78,17 @@ for (const language of ['en', 'ar']) {
     await expect(page.getByText('Fixture Product', { exact: false })).toBeVisible();
     expect(bodies).toEqual([frozen]);
     await page
-      .getByRole('tab', { name: `${labels['offline-events.tab-errors']} (0)`, exact: true })
+      .getByRole('tab', {
+        name: labels['offline-events.tab-errors'].replace('{count}', '0'),
+        exact: true,
+      })
       .click();
     await context.setOffline(false);
     await expect
       .poll(async () => (await records(page, 'stockEventSyncErrors'))[0]?.message)
       .toBe('Refusal 2');
     expect(bodies).toEqual([frozen, frozen]);
+    await expect(page.getByText('Refusal 2', { exact: false })).toBeVisible();
     if (language === 'en') {
       await page.locator('tbody button[aria-haspopup=menu]').click();
       await page
@@ -107,7 +114,10 @@ for (const language of ['en', 'ar']) {
     ).toBeVisible();
     await expect.poll(() => bodies.length).toBe(3);
     await page
-      .getByRole('tab', { name: `${labels['offline-events.tab-pending']} (1)`, exact: true })
+      .getByRole('tab', {
+        name: labels['offline-events.tab-pending'].replace('{count}', '1'),
+        exact: true,
+      })
       .click();
     await expect(page.getByText('Fixture Product', { exact: false })).toBeVisible();
     if (!accept) throw new Error('No retry awaiting acceptance');
@@ -119,7 +129,10 @@ for (const language of ['en', 'ar']) {
       page.getByText(labels['offline-events.no-events-title'], { exact: true }),
     ).toBeVisible();
     await page
-      .getByRole('tab', { name: `${labels['offline-events.tab-synced']} (1)`, exact: true })
+      .getByRole('tab', {
+        name: labels['offline-events.tab-synced'].replace('{count}', '1'),
+        exact: true,
+      })
       .click();
     await expect(page).toHaveURL(/\/offline-events\?tab=synced$/);
     await expect(page.getByText('Fixture Product', { exact: false })).toBeVisible();

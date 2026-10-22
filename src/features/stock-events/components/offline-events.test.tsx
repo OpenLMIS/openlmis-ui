@@ -2,9 +2,12 @@ import { QueryClient } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
 import { act, render as renderCell, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
 import { useState } from 'react';
+import { getI18n, I18nextProvider } from 'react-i18next';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
+import { OfflineEventDetails } from '@/features/stock-events/components/offline-event-details';
 import { OfflineEventErrorMessage } from '@/features/stock-events/components/offline-event-state';
 import { OfflineEventsPage } from '@/features/stock-events/components/offline-events';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
@@ -15,8 +18,11 @@ import {
 } from '@/features/stock-events/lib/offline-events-search';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { IsolatingICU } from '@/lib/isolate-values';
 import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
+import ar from '../../../../public/locales/ar.json';
+import en from '../../../../public/locales/en.json';
 
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 const local = vi.hoisted(() => ({ events: [] as DeviceEvent[], width: 1440 }));
@@ -253,6 +259,10 @@ it('opens a directly linked event, replaces search on close, and explains a miss
 });
 
 beforeEach(() => {
+  getI18n().addResources('en', 'translation', {
+    'offline-events.detail-facility': '{{value}}',
+    'offline-events.detail-program': '{{value}}',
+  });
   localStorage.clear();
 });
 
@@ -488,7 +498,20 @@ it('preserves filters and controls through tabs and Back, clamps live removals, 
   ).not.toBeInTheDocument();
 });
 
-it('shows human refusal details and a fallback, while hiding uncertain transport text', () => {
+it('isolates refusal details in Arabic and uses a neutral fallback for copied refusals', async () => {
+  const i18n = createInstance().use(IsolatingICU);
+  await i18n.init({
+    lng: 'ar',
+    keySeparator: false,
+    nsSeparator: false,
+    resources: { ar: { translation: ar } },
+  });
+  const renderMessage = (event: DeviceEvent) =>
+    renderCell(
+      <I18nextProvider i18n={i18n}>
+        <OfflineEventErrorMessage event={event} />
+      </I18nextProvider>,
+    );
   const refused = fixture('Refused', 'refused', 1, 10);
   const uncertain = fixture('Uncertain', 'uncertain', 2, 20);
   if (!refused.error || !uncertain.error) throw new Error('Missing fixture errors');
@@ -499,22 +522,69 @@ it('shows human refusal details and a fallback, while hiding uncertain transport
     response: 'Secret response',
   };
   uncertain.lastFailure = 'Stored last failure';
-  const { unmount } = renderCell(<OfflineEventErrorMessage event={refused} />);
-  expect(screen.getByText(/Human refusal/)).toHaveTextContent('offline-events.could-not-perform');
+  const { unmount } = renderMessage(refused);
+  expect(screen.getByText(/Human refusal/)).toHaveTextContent(
+    'تعذر علينا تنفيذ هذا الحدث. \u2068Human refusal\u2069',
+  );
   unmount();
   refused.error.message = '';
-  const fallback = renderCell(<OfflineEventErrorMessage event={refused} />);
-  expect(screen.getByText('offline-events.no-error-details')).toBeVisible();
+  const fallback = renderMessage(refused);
+  expect(screen.getByText(/لا تتوفر تفاصيل، حاول إعادة إرسال الحدث/)).toBeVisible();
   fallback.unmount();
   refused.error.message = 'server.key';
-  const keyFallback = renderCell(<OfflineEventErrorMessage event={refused} />);
-  expect(screen.getByText('offline-events.no-error-details')).toBeVisible();
+  const keyFallback = renderMessage(refused);
+  expect(screen.getByText(/لا تتوفر تفاصيل، حاول إعادة إرسال الحدث/)).toBeVisible();
   expect(screen.queryByText('server.key')).not.toBeInTheDocument();
   keyFallback.unmount();
-  renderCell(<OfflineEventErrorMessage event={uncertain} />);
-  expect(screen.getByText('offline-events.error-uncertain')).toBeVisible();
+  refused.error.resolvedAt = 100;
+  const copied = renderMessage(refused);
+  expect(screen.getByText(/لا تتوفر تفاصيل\./)).toBeVisible();
+  expect(screen.queryByText(/حاول إعادة إرسال/)).not.toBeInTheDocument();
+  copied.unmount();
+  renderMessage(uncertain);
+  expect(screen.getByText(ar['offline-events.error-uncertain'])).toBeVisible();
   expect(screen.queryByText(/Stored|Secret response/)).not.toBeInTheDocument();
 });
+
+it.each([
+  ['en', en, 'And 1 More Line'],
+  ['ar', ar, 'وسطر آخر'],
+] as const)(
+  'expands a fourth detail line with localized punctuation in %s',
+  async (lng, catalog, more) => {
+    const i18n = createInstance().use(IsolatingICU);
+    await i18n.init({
+      lng,
+      keySeparator: false,
+      nsSeparator: false,
+      resources: { [lng]: { translation: catalog } },
+    });
+    const event = fixture('Facility', 'queued', 1, 10);
+    const line = event.lines[0];
+    const item = event.payload.lineItems[0];
+    event.lines = Array.from({ length: 4 }, (_, index) => ({ ...line, key: `line-${index}` }));
+    event.payload.lineItems = event.lines.map(() => ({ ...item, reasonId: 'damaged' }));
+    event.reasons = [{ id: 'damaged', name: 'Damaged' }];
+    renderCell(
+      <I18nextProvider i18n={i18n}>
+        <OfflineEventDetails event={event} />
+      </I18nextProvider>,
+    );
+    const expand = screen.getByRole('button', { name: more });
+    expect(expand).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getAllByText(/Damaged/)).toHaveLength(3);
+    if (lng === 'ar') {
+      expect(screen.getByText(/المنشأة:/)).toHaveTextContent('المنشأة: \u2068Facility\u2069');
+      expect(screen.getAllByText(/Damaged/)[0]).toHaveTextContent('؛ السبب: \u2068Damaged\u2069؛');
+    }
+    await userEvent.click(expand);
+    expect(screen.getAllByText(/Damaged/)).toHaveLength(4);
+    const collapse = screen.getByRole('button', { name: catalog['offline-events.fewer-lines'] });
+    expect(collapse).toHaveAttribute('aria-expanded', 'true');
+    await userEvent.click(collapse);
+    expect(screen.getAllByText(/Damaged/)).toHaveLength(3);
+  },
+);
 
 it('validates event type and calendar dates from links', () => {
   expect(

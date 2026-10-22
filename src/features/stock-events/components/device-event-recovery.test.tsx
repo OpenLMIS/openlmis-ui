@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { InCardContext } from '@/components/card-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { DeviceEventActions } from '@/features/stock-events/components/device-event-actions';
@@ -456,15 +457,16 @@ it.each(['menu', 'cards'] as const)(
   async (layout) => {
     const { uncertain: event } = await open(true, 'refused', 'adjustment', false);
     renderPage(
-      <DeviceEventActions
-        event={event}
-        canSend
-        label="View event"
-        removeLabel="Dismiss event"
-        onOpen={vi.fn()}
-        onRemoved={vi.fn()}
-        layout={layout}
-      />,
+      <InCardContext value={layout === 'cards'}>
+        <DeviceEventActions
+          event={event}
+          canSend
+          label="View event"
+          removeLabel="Dismiss event"
+          onOpen={vi.fn()}
+          onRemoved={vi.fn()}
+        />
+      </InCardContext>,
     );
     if (layout === 'menu')
       await userEvent.click(

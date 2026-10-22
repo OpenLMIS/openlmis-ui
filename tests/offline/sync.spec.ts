@@ -43,7 +43,7 @@ test('interrupted upload becomes uncertain after restart and is never automatica
     await expect
       .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
       .toBe('sending');
-    expect(posts).toEqual(['Unknown']);
+    await expect.poll(() => posts).toEqual(['Unknown']);
     await context.close();
     context = await persistentContext(directory);
     await attach();
@@ -53,7 +53,10 @@ test('interrupted upload becomes uncertain after restart and is never automatica
       .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
       .toBe('uncertain');
     await page
-      .getByRole('tab', { name: `${catalog['offline-events.tab-errors']} (1)`, exact: true })
+      .getByRole('tab', {
+        name: catalog['offline-events.tab-errors'].replace('{count}', '1'),
+        exact: true,
+      })
       .click();
     await expect(page.getByRole('table')).toContainText(catalog['offline-events.status-uncertain']);
     expect(posts).toEqual(['Unknown']);
@@ -96,7 +99,10 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   await page.reload();
   await expect(page.locator('tbody tr')).toHaveCount(2);
   await page
-    .getByRole('tab', { name: `${catalog['offline-events.tab-errors']} (0)`, exact: true })
+    .getByRole('tab', {
+      name: catalog['offline-events.tab-errors'].replace('{count}', '0'),
+      exact: true,
+    })
     .click();
   await expect(page).toHaveURL(/\/offline-events\?tab=errors$/);
   await expect(
@@ -106,7 +112,10 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
     page.getByRole('heading', { name: catalog['offline.page-title'], exact: true }),
   ).not.toBeVisible();
   await page
-    .getByRole('tab', { name: `${catalog['offline-events.tab-pending']} (2)`, exact: true })
+    .getByRole('tab', {
+      name: catalog['offline-events.tab-pending'].replace('{count}', '2'),
+      exact: true,
+    })
     .click();
   await expect(page.locator('tbody tr')).toHaveCount(2);
   await context.setOffline(false);
@@ -128,13 +137,19 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   expect(await records(page, 'stockEventReceipts')).toHaveLength(1);
   await expect(page.locator('tbody tr')).toHaveCount(1);
   await page
-    .getByRole('tab', { name: `${catalog['offline-events.tab-synced']} (1)`, exact: true })
+    .getByRole('tab', {
+      name: catalog['offline-events.tab-synced'].replace('{count}', '1'),
+      exact: true,
+    })
     .click();
   await expect(page).toHaveURL(/\/offline-events\?tab=synced$/);
   await expect(page.locator('tbody tr')).toHaveCount(1);
   await expect(page.getByRole('table')).toContainText('Fixture Product');
   await page
-    .getByRole('tab', { name: `${catalog['offline-events.tab-pending']} (1)`, exact: true })
+    .getByRole('tab', {
+      name: catalog['offline-events.tab-pending'].replace('{count}', '1'),
+      exact: true,
+    })
     .click();
   await releases[1]();
   await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(2);
@@ -142,7 +157,10 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
     page.getByText(catalog['offline-events.no-events-title'], { exact: true }),
   ).toBeVisible();
   await page
-    .getByRole('tab', { name: `${catalog['offline-events.tab-synced']} (2)`, exact: true })
+    .getByRole('tab', {
+      name: catalog['offline-events.tab-synced'].replace('{count}', '2'),
+      exact: true,
+    })
     .click();
   await expect(page.locator('tbody tr')).toHaveCount(2);
   await expect
@@ -193,7 +211,10 @@ test('closing the uploading tab leaves uncertainty in the surviving tab without 
     .poll(async () => (await records(survivor, 'stockEventQueue'))[0]?.status)
     .toBe('uncertain');
   await survivor
-    .getByRole('tab', { name: `${catalog['offline-events.tab-errors']} (1)`, exact: true })
+    .getByRole('tab', {
+      name: catalog['offline-events.tab-errors'].replace('{count}', '1'),
+      exact: true,
+    })
     .click();
   await expect(survivor.getByRole('table')).toContainText(
     catalog['offline-events.status-uncertain'],
