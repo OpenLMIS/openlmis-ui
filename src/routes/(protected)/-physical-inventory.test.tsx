@@ -700,3 +700,19 @@ it.each(['absent', 'older format'])(
     warning();
   },
 );
+
+it('uses stored counts when the draft GET loses connection after the online check', async () => {
+  const copy = await seedDeviceEditor();
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    ...grants,
+    `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+  ]);
+  vi.mocked(fetchPhysicalInventoryDraft).mockRejectedValueOnce(new AxiosError('Network Error'));
+  const { router } = renderRoute(`${PICKER}/${FP}`, (client) =>
+    client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true }),
+  );
+  expect(await screen.findByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('7');
+  expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ deviceCopy: copy });
+  expect(fetchPhysicalInventoryDraft).toHaveBeenCalled();
+  expect(fetchInventoryStockLines).not.toHaveBeenCalled();
+});

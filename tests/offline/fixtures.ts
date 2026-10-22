@@ -3,12 +3,32 @@ import type { BrowserContext, Page } from '@playwright/test';
 export async function stub(
   context: BrowserContext,
   stock: () => Promise<'finish' | 'fail'>,
-  ids: { home: string; program: string; programName?: string } = {
+  ids: { home: string; program: string; programName?: string; inventory?: boolean } = {
     home: 'home',
     program: 'program',
   },
   userId = 'download-user',
 ) {
+  const products = [
+    {
+      id: 'product',
+      productCode: 'MED',
+      fullProductName: 'Fixture Product',
+      description: null,
+      netContent: 10,
+      meta: { versionNumber: 1 },
+      identifiers: { tradeItem: 'trade' },
+    },
+    {
+      id: 'second',
+      productCode: 'SECOND',
+      fullProductName: 'Second Product',
+      description: null,
+      netContent: 1,
+      meta: { versionNumber: 1 },
+      identifiers: { tradeItem: 'second-trade' },
+    },
+  ];
   const programs = [ids.program, 'never'].map((id) => ({
     id,
     code: id,
@@ -24,10 +44,14 @@ export async function stub(
         access_token: 'fixture-token',
         expires_in: 1800,
       },
-      [`/api/users/${userId}/permissionStrings`]: programs.flatMap(({ id }) => [
-        `STOCK_ADJUST|${ids.home}|${id}`,
-        `STOCK_CARDS_VIEW|${ids.home}|${id}`,
-      ]),
+      [`/api/users/${userId}/permissionStrings`]: [
+        ...programs.flatMap(({ id }) => [
+          `STOCK_ADJUST|${ids.home}|${id}`,
+          `STOCK_CARDS_VIEW|${ids.home}|${id}`,
+          ...(ids.inventory ? [`STOCK_INVENTORIES_EDIT|${ids.home}|${id}`] : []),
+        ]),
+        ...(ids.inventory ? ['LOTS_MANAGE'] : []),
+      ],
       [`/api/users/${userId}`]: {
         id: userId,
         username: userId,
@@ -85,6 +109,63 @@ export async function stub(
         },
       ],
     };
+    if (ids.inventory) {
+      if (url.pathname === '/api/physicalInventories')
+        return route.fulfill({
+          json:
+            url.searchParams.get('program') === ids.program
+              ? [
+                  {
+                    id: 'inventory',
+                    facilityId: ids.home,
+                    programId: ids.program,
+                    lineItems: [
+                      { orderableId: 'product', quantity: 20 },
+                      { orderableId: 'second', lotId: 'existing', quantity: null },
+                    ],
+                  },
+                ]
+              : [],
+        });
+      if (['/api/orderables', '/api/orderables/search'].includes(url.pathname))
+        return route.fulfill({ json: { content: products, totalPages: 1 } });
+      if (url.pathname === '/api/orderableFulfills')
+        return route.fulfill({
+          json: { product: { canFulfillForMe: [] }, second: { canFulfillForMe: [] } },
+        });
+      if (url.pathname === '/api/lots')
+        return route.fulfill({
+          json: {
+            content: [
+              {
+                id: 'existing',
+                lotCode: 'EXISTING',
+                tradeItemId: 'second-trade',
+                expirationDate: '2030-01-01',
+              },
+            ],
+            totalPages: 1,
+          },
+        });
+      if (url.pathname === '/api/v2/stockCardSummaries' && !url.searchParams.has('nonEmptyOnly'))
+        return route.fulfill({
+          json: {
+            content: products.map((product) => ({
+              orderable: { id: product.id, versionNumber: 1 },
+              canFulfillForMe: [
+                {
+                  stockCard: { id: `card-${product.id}` },
+                  orderable: { id: product.id, versionNumber: 1 },
+                  lot: product.id === 'second' ? { id: 'existing' } : null,
+                  stockOnHand: product.id === 'product' ? 12 : 20,
+                  active: true,
+                },
+              ],
+            })),
+            totalPages: 1,
+          },
+        });
+    }
     if (url.pathname === '/api/v2/stockCardSummaries') {
       if (url.searchParams.get('programId') === 'never')
         return route.fulfill({ status: 503, json: { message: 'Unavailable program' } });
@@ -125,12 +206,13 @@ export async function login(
   page: Page,
   username = 'download-user',
   programName = 'Fixture Medicines',
+  target = '/stock-management/adjustments',
 ) {
-  await page.goto('./login?redirect=%2Fstock-management%2Fadjustments');
+  await page.goto(`./login?redirect=${encodeURIComponent(target)}`);
   await page.getByRole('textbox', { name: 'Username', exact: true }).fill(username);
   await page.getByLabel('Password', { exact: true }).fill('fixture-password');
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
-  await page.waitForURL(/\/stock-management\/adjustments$/);
+  await page.waitForURL((url) => url.pathname.endsWith(target));
   await page.getByText(programName, { exact: true }).first().waitFor();
 }
 export async function generation(page: Page) {

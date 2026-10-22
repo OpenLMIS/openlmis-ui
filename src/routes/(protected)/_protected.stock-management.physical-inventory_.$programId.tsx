@@ -43,7 +43,7 @@ import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
-import { LocalDataUnavailableError } from '@/lib/local-data';
+import { deviceDataGeneration, LocalDataUnavailableError } from '@/lib/local-data';
 import { isOnline } from '@/lib/online';
 import { hasProgramGrant } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -75,7 +75,7 @@ export const Route = createFileRoute(
       if (!program) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
       const selection = { facilityId: homeId, programId };
       const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
-      if (!isOnline()) {
+      const fromDevice = async () => {
         const deviceCopy = await readInventoryLocalByScope(selection);
         assertSessionScope(session);
         if (!deviceCopy) throw new LocalDataUnavailableError();
@@ -89,7 +89,8 @@ export const Route = createFileRoute(
           deviceCopy,
           draft: { id: deviceCopy.draftId, ...selection, lineItems: [] },
         };
-      }
+      };
+      if (!isOnline()) return fromDevice();
       if (canViewStock) {
         void queryClient
           .prefetchQuery({
@@ -117,6 +118,7 @@ export const Route = createFileRoute(
           ? await queryClient.fetchQuery({ ...options, staleTime: 0 })
           : await queryClient.ensureQueryData(options);
       assertSessionScope(session);
+      if (deviceDataGeneration(draft) !== undefined || !isOnline()) return fromDevice();
       if (draft && canViewStock) {
         queryClient.prefetchQuery({
           ...inventoryStockLinesOptions(draft, eligibleUpdatedAfter),
