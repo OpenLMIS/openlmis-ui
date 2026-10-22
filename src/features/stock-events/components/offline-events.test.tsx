@@ -369,7 +369,10 @@ it.each([1440, 390])(
     await user.click(type);
     expect(
       screen.queryByRole('option', { name: 'nav.stock-management.issue' }),
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
+    await user.click(await screen.findByRole('option', { name: 'nav.stock-management.issue' }));
+    await waitFor(() => expect(order()).toEqual(['Third']));
+    await user.click(type);
     await user.click(
       await screen.findByRole('option', { name: 'nav.stock-management.adjustments' }),
     );
@@ -392,5 +395,5 @@ it('validates event type and calendar dates from links', () => {
       startDate: '2026-02-30',
       endDate: 'invalid',
     }),
-  ).toEqual({ eventType: undefined, startDate: undefined, endDate: undefined });
+  ).toEqual({ eventType: 'issue', startDate: undefined, endDate: undefined });
 });

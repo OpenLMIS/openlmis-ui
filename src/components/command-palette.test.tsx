@@ -106,21 +106,21 @@ it('lets keyboard users reach an offline item and hear its reason without leavin
   renderPalette(['STOCK_ADJUST']);
   await userEvent.keyboard('{Control>}k{/Control}');
   const input = await screen.findByRole('combobox');
-  await userEvent.type(input, 'nav.stock-management.issue');
+  await userEvent.type(input, 'nav.stock-management.receive');
   await userEvent.keyboard('{ArrowDown}');
-  const issue = screen.getByRole('option', { name: /nav.stock-management.issue/ });
-  expect(issue).toHaveTextContent('offline.connection-required');
-  expect(issue).toHaveAccessibleName('nav.stock-management.issue');
-  expect(issue).toHaveAccessibleDescription('offline.connection-required');
-  expect(issue).toHaveAttribute('data-unavailable');
-  expect(issue).not.toHaveAttribute('aria-disabled', 'true');
-  await waitFor(() => expect(issue).toHaveAttribute('data-selected', 'true'));
+  const receive = screen.getByRole('option', { name: /nav.stock-management.receive/ });
+  expect(receive).toHaveTextContent('offline.connection-required');
+  expect(receive).toHaveAccessibleName('nav.stock-management.receive');
+  expect(receive).toHaveAccessibleDescription('offline.connection-required');
+  expect(receive).toHaveAttribute('data-unavailable');
+  expect(receive).not.toHaveAttribute('aria-disabled', 'true');
+  await waitFor(() => expect(receive).toHaveAttribute('data-selected', 'true'));
   await userEvent.keyboard('{Enter}');
-  expect(issue).toHaveAttribute('aria-describedby');
+  expect(receive).toHaveAttribute('aria-describedby');
   expect(await screen.findByRole('alertdialog')).toHaveTextContent(
     'offline.navigation-unavailable',
   );
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
   await waitFor(() => expect(input).toHaveFocus());
-  expect(issue).toHaveAttribute('data-selected', 'true');
+  expect(receive).toHaveAttribute('data-selected', 'true');
 });

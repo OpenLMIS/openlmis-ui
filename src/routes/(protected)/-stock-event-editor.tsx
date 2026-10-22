@@ -94,11 +94,11 @@ export async function loadStockEventEditor(
   if (canViewStock) {
     const { counterparty, products } = EVENT_KINDS[kind];
     const filter = { facilityId: homeId, programId };
-    if (counterparty !== 'none')
-      queryClient.prefetchQuery(counterpartyOptions(counterparty, filter));
     const bundleScope = homeStockDataset(EVENT_KINDS[kind])
       ? homeStockScope(filter, homeFacility.type.id)
       : undefined;
+    if (counterparty !== 'none')
+      queryClient.prefetchQuery(counterpartyOptions(counterparty, filter, bundleScope));
     if (products.from === 'stock-cards')
       queryClient.prefetchQuery(eventStockCardsOptions(filter, bundleScope));
     if (products.from === 'approved-products') {
@@ -269,7 +269,7 @@ export function useStockEventPrint({
   const navigate = useNavigate();
   const [eventId, setEventId] = useState<string | null>(null);
   const landing = () =>
-    !isOnline()
+    !homeStockDataset(EVENT_KINDS[kind]) && !isOnline()
       ? navigate({ to: EVENT_KINDS[kind].listRoute })
       : navigate({
           to: '/stock-management/stock-on-hand',
@@ -289,7 +289,8 @@ export function useStockEventPrint({
     refusedDescription: t(copy.refused),
   });
   return {
-    onSubmitted: setEventId,
+    onSubmitted: (eventId: string, synced?: boolean) =>
+      synced === false ? void landing() : setEventId(eventId),
     dialog: (
       <PrintEventDialog
         copy={copy}

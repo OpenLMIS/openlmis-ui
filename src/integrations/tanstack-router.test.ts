@@ -12,7 +12,7 @@ it('skips online-only hover preloads offline before gates or loaders can log err
   const error = vi.spyOn(console, 'error');
   const warn = vi.spyOn(console, 'warn');
   expect(await router.preloadRoute({ to: '/administration/users' })).toBeUndefined();
-  expect(await router.preloadRoute({ to: '/stock-management/issue' })).toBeUndefined();
+  expect(await router.preloadRoute({ to: '/stock-management/receive' })).toBeUndefined();
   expect(error).not.toHaveBeenCalled();
   expect(warn).not.toHaveBeenCalled();
   vi.restoreAllMocks();

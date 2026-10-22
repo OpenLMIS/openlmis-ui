@@ -1,11 +1,19 @@
 import type { ParseKeys } from 'i18next';
-import type { ValidAssignmentsFilter } from '@/features/reference-data/api/api';
+import {
+  fetchValidAssignments,
+  type ValidAssignmentsFilter,
+} from '@/features/reference-data/api/api';
 import { validAssignmentsOptions } from '@/features/reference-data/api/queries';
 import { reasonsOf } from '@/features/reference-data/lib/reasons-of';
 import type { Reason, ValidReasonAssignment } from '@/features/reference-data/lib/types';
-import type { HomeStockFormat } from '@/features/stock-events/lib/home-stock-bundle';
+import {
+  type HomeStockFormat,
+  type HomeStockScope,
+  readHomeStockCounterparties,
+} from '@/features/stock-events/lib/home-stock-bundle';
 import { allEventCards, issuableCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
+import { onlineOrDevice } from '@/lib/local-data';
 import { RIGHTS } from '@/lib/rights';
 
 type EventProducts =
@@ -54,8 +62,24 @@ export const COUNTERPARTY = {
   >
 >;
 
-export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignmentsFilter) {
-  return validAssignmentsOptions(COUNTERPARTY[side].resource, filter);
+export function counterpartyOptions(
+  side: CounterpartySide,
+  filter: ValidAssignmentsFilter,
+  bundle?: HomeStockScope,
+) {
+  const resource = COUNTERPARTY[side].resource;
+  const options = validAssignmentsOptions(resource, filter);
+  return bundle
+    ? {
+        ...options,
+        queryFn: () =>
+          onlineOrDevice(
+            () => fetchValidAssignments(resource, filter),
+            () => readHomeStockCounterparties(bundle, resource),
+          ),
+        networkMode: 'always' as const,
+      }
+    : options;
 }
 
 export type EventKindConfig = {
@@ -184,8 +208,8 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/issue',
     editorRoute: '/stock-management/issue/$programId',
     historyType: 'issue',
-    download: [],
-    drafts: null,
+    download: [{ dataset: 'home-stock', minimumFormat: 6 }],
+    drafts: 'device',
     eventOrigin: 'ISSUE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },

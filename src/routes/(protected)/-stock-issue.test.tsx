@@ -31,7 +31,9 @@ import {
   fetchStockEventReport,
   submitStockEvent,
 } from '@/features/stock-events/api/api';
+import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
 import { fetchStockCardSummaries } from '@/features/stock-on-hand/api/api';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.issue';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.issue_.$programId';
@@ -63,6 +65,29 @@ vi.mock('@/features/stock-events/api/api', () => ({
   fetchEventStockCards: vi.fn(),
   submitStockEvent: vi.fn(),
   fetchStockEventReport: vi.fn(),
+}));
+
+vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>()),
+  getHomeStockBundle: async (filter: {
+    facilityId: string;
+    programId: string;
+    facilityTypeId: string;
+  }) => ({
+    cards: await fetchEventStockCards({
+      facilityId: filter.facilityId,
+      programId: filter.programId,
+    }),
+    reasons: await fetchValidReasons({
+      program: filter.programId,
+      facilityType: filter.facilityTypeId,
+    }),
+    tradeItems: [],
+  }),
+}));
+vi.mock('@/features/stock-events/lib/stock-event-delivery', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/stock-event-delivery')>()),
+  waitForStockEventReceipt: vi.fn(),
 }));
 
 vi.mock('@/features/stock-on-hand/api/api', () => ({
@@ -161,6 +186,22 @@ function renderRoute(path = PICKER) {
 }
 
 beforeEach(async () => {
+  for (const route of [ProtectedRoute, PickerRoute, EditorRoute, StockRoute]) {
+    await route.options.component?.preload?.();
+    await route.options.pendingComponent?.preload?.();
+  }
+  vi.mocked(waitForStockEventReceipt).mockImplementation(async (event) => ({
+    kind: 'accepted',
+    receipt: {
+      draftId: event.draftId,
+      revision: event.revision,
+      localEventId: event.localEventId,
+      acceptedAt: Date.now(),
+      source: 'server',
+      serverEventId: 'event-id',
+      event,
+    },
+  }));
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   await i18n.changeLanguage('en');
   vi.stubGlobal(
@@ -188,6 +229,8 @@ beforeEach(async () => {
     username: 'administrator',
     accessToken: 'token',
   });
+  await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventQueue).clear();
   vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
   vi.mocked(fetchUserRecord).mockResolvedValue({
     id: USER,
@@ -222,8 +265,11 @@ describe('Issue report after submit', () => {
     ['stock-issue.print-skip', 'en'],
     ['stock-event.print', 'en'],
     ['stock-event.print', 'fr'],
+    ['queued', 'en'],
   ])('lands on Stock On Hand after %s in %s', async (answer, lang) => {
     await i18n.changeLanguage(lang);
+    if (answer === 'queued')
+      vi.mocked(waitForStockEventReceipt).mockResolvedValue({ kind: 'queued' });
     vi.mocked(fetchPermissionStrings).mockResolvedValue([
       ...grants,
       `STOCK_CARDS_VIEW|${HOME}|${FP}`,
@@ -235,7 +281,6 @@ describe('Issue report after submit', () => {
         lot: null,
       },
     ]);
-    vi.mocked(submitStockEvent).mockResolvedValue('event-id');
     vi.mocked(fetchStockEventReport).mockResolvedValue(new Blob(['report']));
     const user = userEvent.setup();
     const { router } = renderRoute(`${PICKER}/${FP}`);
@@ -252,12 +297,14 @@ describe('Issue report after submit', () => {
     );
     await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
     await user.click(await screen.findByRole('button', { name: 'stock-events.confirm' }));
-    expect(await screen.findByText('stock-issue.print-title')).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe(`${PICKER}/${FP}`);
-    const reload = new Event('beforeunload', { cancelable: true });
-    window.dispatchEvent(reload);
-    expect(reload.defaultPrevented).toBe(false);
-    await user.click(screen.getByRole('button', { name: answer }));
+    if (answer !== 'queued') {
+      expect(await screen.findByText('stock-issue.print-title')).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe(`${PICKER}/${FP}`);
+      const reload = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(reload);
+      expect(reload.defaultPrevented).toBe(false);
+      await user.click(screen.getByRole('button', { name: answer }));
+    }
     expect(await screen.findByRole('heading', { name: 'stock-on-hand.title' })).toBeInTheDocument();
     expect(await screen.findByRole('combobox', { name: 'facility-program.program' })).toHaveValue(
       'Family Planning',
@@ -280,6 +327,8 @@ describe('Issue report after submit', () => {
       facilityId: HOME,
       programId: FP,
     });
+    expect(screen.queryByText('stock-issue.print-title')).not.toBeInTheDocument();
+    expect(submitStockEvent).not.toHaveBeenCalled();
     if (answer === 'stock-event.print') {
       await waitFor(() =>
         expect(fetchStockEventReport).toHaveBeenCalledWith('event-id', { showInDoses: true, lang }),

@@ -223,8 +223,13 @@ export function EventEditor({
   const kitReasons = unpackReasons(kitReasonsQuery.data, kitUnpackReasonIds ?? {});
   const side = config.counterparty;
   const needsCounterparty = side !== 'none';
+  const assignmentOptions = counterpartyOptions(
+    needsCounterparty ? side : 'destination',
+    { programId, facilityId },
+    bundleScope,
+  );
   const counterpartyQuery = useQuery({
-    ...counterpartyOptions(needsCounterparty ? side : 'destination', { programId, facilityId }),
+    ...assignmentOptions,
     enabled: canViewStock && needsCounterparty,
   });
   const assignments = counterpartyQuery.data ?? EMPTY_LOOKUP;
@@ -899,6 +904,7 @@ export function EventEditor({
                         side={needsCounterparty ? side : null}
                         facilityId={facilityId}
                         programId={programId}
+                        options={assignmentOptions}
                       >
                         <EventLineTable
                           cards={cards}
@@ -1159,12 +1165,14 @@ function CounterpartyReady({
   side,
   facilityId,
   programId,
+  options,
   children,
 }: {
   pendingFallback: ReactNode;
   side: CounterpartySide | null;
   facilityId: string;
   programId: string;
+  options: ReturnType<typeof counterpartyOptions>;
   children: ReactNode;
 }) {
   if (!side) return children;
@@ -1174,7 +1182,7 @@ function CounterpartyReady({
       pendingFallback={pendingFallback}
       errorComponent={COUNTERPARTY_ERRORS[side]}
     >
-      <CounterpartyLookup side={side} facilityId={facilityId} programId={programId}>
+      <CounterpartyLookup side={side} options={options}>
         {children}
       </CounterpartyLookup>
     </QueryBoundary>
@@ -1183,17 +1191,15 @@ function CounterpartyReady({
 
 function CounterpartyLookup({
   side,
-  facilityId,
-  programId,
+  options,
   children,
 }: {
   side: CounterpartySide;
-  facilityId: string;
-  programId: string;
+  options: ReturnType<typeof counterpartyOptions>;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
-  const { data } = useSuspenseQuery(counterpartyOptions(side, { facilityId, programId }));
+  const { data } = useSuspenseQuery(options);
   if (!data.length)
     return (
       <DataTableEmpty
