@@ -614,7 +614,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
           programId: FP,
           name: '',
           page: 0,
-          size: 50,
+          size: 100,
         });
         expect(fetchFacilityOrderableFulfills).toHaveBeenCalledWith({
           facilityId: HOME,

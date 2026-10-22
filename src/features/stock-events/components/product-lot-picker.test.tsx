@@ -219,9 +219,9 @@ const existingLot = {
 const approvedPage = (orderables: Orderable[], totalElements = orderables.length) => ({
   content: orderables.map((orderable) => ({ id: `approved-${orderable.id}`, orderable })),
   totalElements,
-  totalPages: Math.ceil(totalElements / 50),
+  totalPages: Math.ceil(totalElements / 100),
   number: 0,
-  size: 50,
+  size: 100,
 });
 
 function deferred<T>() {
@@ -321,7 +321,7 @@ describe('ProductLotPicker with approved products', () => {
         programId: 'program',
         name: 'ibu',
         page: 0,
-        size: 50,
+        size: 100,
       }),
     );
     expect(await screen.findByRole('option', { name: 'Ibuprofen' })).toBeInTheDocument();
