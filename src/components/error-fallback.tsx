@@ -18,6 +18,7 @@ import { isForbidden } from '@/features/auth/lib/access';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
 import { isOfflineError } from '@/lib/http';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { isOnline, seedOnline } from '@/lib/online';
 
@@ -61,7 +62,7 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
         reason={
           error instanceof OfflinePageUnavailableError
             ? 'online-only'
-            : staleApp || !isOfflineError(error)
+            : error instanceof LocalDataUnavailableError || staleApp || !isOfflineError(error)
               ? 'not-downloaded'
               : undefined
         }

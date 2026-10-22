@@ -273,9 +273,7 @@ it('confirms deactivation before making the request', async () => {
   expect(deactivateInventoryStockCard).not.toHaveBeenCalled();
   const dialog = screen.getByRole('dialog');
   await user.click(within(dialog).getByRole('button', { name: 'physical-inventory.deactivate' }));
-  await waitFor(() =>
-    expect(deactivateInventoryStockCard).toHaveBeenCalledWith('A', expect.anything()),
-  );
+  await waitFor(() => expect(deactivateInventoryStockCard).toHaveBeenCalledWith('A'));
 });
 it('writes removal of the last locally added line so it cannot return on reopen', async () => {
   const local = {

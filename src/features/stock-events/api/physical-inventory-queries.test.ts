@@ -1,4 +1,4 @@
-import { QueryClient, QueryObserver } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryObserver } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
 import {
   fetchEligibleInventoryProducts,
@@ -161,3 +161,19 @@ it.each([new Error('IndexedDB unavailable'), new DraftConflictError(undefined)])
     ).resolves.toEqual(draft);
   },
 );
+
+it('does not expand eligible products after summaries finish while disconnected', async () => {
+  const summaries = Promise.withResolvers<[]>();
+  vi.mocked(fetchInventorySummaries).mockReturnValueOnce(summaries.promise);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const eligibleCalls = vi.mocked(fetchEligibleInventoryProducts).mock.calls.length;
+  const pending = client.fetchQuery(
+    eligibleInventoryProductsOptions({ facilityId: 'f', programId: 'p' }),
+  );
+  const assertion = expect(pending).rejects.toHaveProperty('name', 'LocalDataUnavailableError');
+  onlineManager.setOnline(false);
+  summaries.resolve([]);
+  await assertion;
+  expect(fetchEligibleInventoryProducts).toHaveBeenCalledTimes(eligibleCalls);
+  client.clear();
+});

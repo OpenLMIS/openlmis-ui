@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { ClipboardListIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DataTableEmpty } from '@/components/data-table/data-table';
+import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -32,6 +33,7 @@ import {
 import { InventoryOrphans } from '@/features/stock-events/components/inventory-orphans';
 import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
 import { PhysicalInventoryPendingBody } from '@/features/stock-events/components/physical-inventory-pending';
+import { readInventoryLocalByScope } from '@/features/stock-events/lib/physical-inventory-local';
 import {
   type InventorySearch,
   inventorySearchSchema,
@@ -41,6 +43,8 @@ import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
+import { LocalDataUnavailableError } from '@/lib/local-data';
+import { isOnline } from '@/lib/online';
 import { hasProgramGrant } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -71,6 +75,21 @@ export const Route = createFileRoute(
       if (!program) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
       const selection = { facilityId: homeId, programId };
       const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
+      if (!isOnline()) {
+        const deviceCopy = await readInventoryLocalByScope(selection);
+        assertSessionScope(session);
+        if (!deviceCopy) throw new LocalDataUnavailableError();
+        return {
+          eligibleUpdatedAfter: 0,
+          userId,
+          homeFacility,
+          program,
+          canViewStock,
+          canManageLots: permissions.rights.has(RIGHTS.lotsManage),
+          deviceCopy,
+          draft: { id: deviceCopy.draftId, ...selection, lineItems: [] },
+        };
+      }
       if (canViewStock) {
         void queryClient
           .prefetchQuery({
@@ -105,6 +124,7 @@ export const Route = createFileRoute(
         });
       }
       return {
+        deviceCopy: undefined,
         eligibleUpdatedAfter,
         userId,
         homeFacility,
@@ -115,6 +135,7 @@ export const Route = createFileRoute(
       };
     },
   },
+  errorComponent: ErrorFallback,
   pendingComponent: InventoryPending,
   component: InventoryPage,
 });
@@ -129,6 +150,7 @@ function InventoryPage() {
     canViewStock,
     canManageLots,
     eligibleUpdatedAfter,
+    deviceCopy,
   } = Route.useLoaderData();
   const currentUser = useReloadForUser(userId, queryKeys.physicalInventories.all);
   const search = Route.useSearch();
@@ -147,6 +169,7 @@ function InventoryPage() {
               <PhysicalInventoryEditor
                 key={draft.id}
                 draft={draft}
+                deviceCopy={deviceCopy}
                 eligibleUpdatedAfter={eligibleUpdatedAfter}
                 right={RIGHTS.stockInventoriesEdit}
                 userId={userId}

@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -18,6 +18,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
+import { createContext } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
 import { canOpen } from '@/components/nav-access';
@@ -30,6 +31,7 @@ import {
   fetchUserRecord,
   fetchValidReasons,
 } from '@/features/reference-data/api/api';
+import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
 import {
   fetchEligibleInventoryProducts,
@@ -42,14 +44,20 @@ import {
   inventoryStockLinesOptions,
   physicalInventoryDraftOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
-import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
+import {
+  buildInventoryLines,
+  inventoryLocalCopy,
+} from '@/features/stock-events/lib/physical-inventory-lines';
+import { inventoryReference } from '@/features/stock-events/lib/physical-inventory-local';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory_.$programId';
-
 import { expectRouteWarning } from '@/tests/expect-route-warning';
+import { offlineAccessFixture } from '@/tests/offline-access';
 
 vi.mock('@/components/app-shell', () => ({
+  AppShellContext: createContext(false),
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock('@/components/app-shell-skeleton', () => ({
@@ -104,7 +112,7 @@ function renderRoute(
   renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
 ) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+    defaultOptions: { queries: { staleTime: Infinity, retry: false, networkMode: 'always' } },
   });
   seed?.(queryClient);
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
@@ -560,3 +568,135 @@ it('does not start deferred eligibility for another user after summaries resolve
   await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   expect(fetchEligibleInventoryProducts).not.toHaveBeenCalled();
 });
+
+it('lists only exactly granted home programs with a device draft offline and never offers Start', async () => {
+  const extra = { id: 'without-copy', code: 'NC', name: 'No Copy', active: true };
+  const allPrograms = [...programs, extra];
+  const access = offlineAccessFixture({
+    userId: USER,
+    home: {
+      ...homeFacility,
+      supportedPrograms: allPrograms.map((program) => ({
+        ...program,
+        supportActive: true,
+        supportLocallyFulfilled: false,
+      })),
+    },
+    programs: allPrograms,
+    rights: [
+      grants[0],
+      `STOCK_INVENTORIES_EDIT|${HOME}|${extra.id}`,
+      `STOCK_INVENTORIES_EDIT|other|${EM}`,
+    ],
+  });
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).put(access);
+  await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).clear();
+  for (const program of programs) {
+    await getLocalDb()
+      .table(LOCAL_TABLES.physicalInventoryDrafts)
+      .put(
+        inventoryLocalCopy(
+          { id: program.id, facilityId: HOME, programId: program.id },
+          [],
+          [],
+          false,
+          { fetchedAt: 123, generation: 'device' },
+        ),
+      );
+  }
+  onlineManager.setOnline(false);
+  renderRoute();
+  expect(await screen.findByRole('button', { name: 'physical-inventory.continue' })).toBeEnabled();
+  expect(screen.getByText('Family Planning')).toBeInTheDocument();
+  expect(screen.queryByText('Essential Meds')).not.toBeInTheDocument();
+  expect(screen.queryByText('No Copy')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'physical-inventory.start' }),
+  ).not.toBeInTheDocument();
+  expect(fetchPermissionStrings).not.toHaveBeenCalled();
+  expect(fetchPhysicalInventoryDraft).not.toHaveBeenCalled();
+  expect(startPhysicalInventory).not.toHaveBeenCalled();
+});
+
+async function seedDeviceEditor(formatVersion = 1) {
+  const access = offlineAccessFixture({
+    userId: USER,
+    home: homeFacility,
+    programs,
+    rights: [...grants, `STOCK_CARDS_VIEW|${HOME}|${FP}`],
+  });
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).put(access);
+  await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).clear();
+  const stock = [
+    {
+      orderable: {
+        id: 'p',
+        productCode: 'P',
+        fullProductName: 'Stored Product',
+        description: null,
+      },
+      lot: null,
+      stockOnHand: 5,
+      stockCardId: 'card',
+      active: true,
+    },
+  ];
+  const lines = buildInventoryLines(stock, [{ orderableId: 'p', quantity: 7 }]);
+  const snapshot = { fetchedAt: 123, generation: 'device' };
+  const copy = {
+    ...inventoryLocalCopy(
+      { id: 'device', facilityId: HOME, programId: FP },
+      lines,
+      lines,
+      false,
+      snapshot,
+    ),
+    ...snapshot,
+    formatVersion,
+  };
+  await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).put(copy);
+  await getLocalDb()
+    .table(LOCAL_TABLES.physicalInventoryReference)
+    .put(inventoryReference(copy, stock, []));
+  return copy;
+}
+it('opens unmodified device lines offline and keeps their counts and source on reconnect', async () => {
+  await seedDeviceEditor();
+  onlineManager.setOnline(false);
+  renderRoute(`${PICKER}/${FP}`, (client) =>
+    client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true }),
+  );
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  expect(input).toHaveValue('7');
+  expect(screen.getByText('physical-inventory.offline-snapshot')).toBeInTheDocument();
+  act(() => onlineManager.setOnline(true));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'physical-inventory.save' })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    ),
+  );
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toBe(input);
+  expect(input).toHaveValue('7');
+  expect(screen.getByText('physical-inventory.offline-snapshot')).toBeInTheDocument();
+  expect(fetchPhysicalInventoryDraft).not.toHaveBeenCalled();
+  expect(fetchInventoryStockLines).not.toHaveBeenCalled();
+  expect(fetchEligibleInventoryProducts).not.toHaveBeenCalled();
+  expect(fetchValidReasons).not.toHaveBeenCalled();
+});
+it.each(['absent', 'older format'])(
+  'shows Not Available Offline for an %s copy without sending a server read',
+  async (kind) => {
+    await seedDeviceEditor(0);
+    if (kind === 'absent') await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).clear();
+    onlineManager.setOnline(false);
+    const warning = expectRouteWarning(
+      `/(protected)/_protected/stock-management/physical-inventory_/$programId${PICKER}/${FP}`,
+    );
+    renderRoute(`${PICKER}/${FP}`, undefined, { onCaughtError: () => {} });
+    await screen.findByRole('heading', { name: 'offline.unavailable-title' });
+    expect(fetchPhysicalInventoryDraft).not.toHaveBeenCalled();
+    expect(fetchInventoryStockLines).not.toHaveBeenCalled();
+    warning();
+  },
+);

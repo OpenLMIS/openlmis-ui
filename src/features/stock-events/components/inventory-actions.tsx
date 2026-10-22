@@ -64,6 +64,8 @@ import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { DraftConflictError } from '@/lib/draft-store';
 import { queryKeys } from '@/lib/key-factory';
+import { LocalDataUnavailableError } from '@/lib/local-data';
+import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -76,7 +78,7 @@ type Action =
 type Props = {
   draft: PhysicalInventoryDraft;
   eligibleUpdatedAfter?: number;
-  baseline: readonly InventoryLine[];
+  baseline: readonly Pick<InventoryLine, 'key'>[];
   right: string;
   getLines: () => InventoryLine[];
   displayed: readonly InventoryLine[];
@@ -123,6 +125,8 @@ const ACTION_KEYS = {
 export function InventoryActions(props: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const online = useOnline();
+  const offlineReason = !online ? t('offline.action-description') : undefined;
   const eligibleOptions = eligibleInventoryProductsOptions(props.draft, props.eligibleUpdatedAfter);
   const eligibleFetching = useIsFetching({ queryKey: eligibleOptions.queryKey }) > 0;
   const [dialog, setDialog] = useState<'save' | 'delete' | 'submit' | 'print' | null>(null);
@@ -155,6 +159,11 @@ export function InventoryActions(props: Props) {
     retry: false,
     mutationFn: async (action: Action) => {
       const scope = getSessionScope();
+      const check = () => {
+        assertSessionScope(scope);
+        if (!isOnline()) throw new LocalDataUnavailableError();
+      };
+      check();
       try {
         await props.flush();
       } catch (error) {
@@ -171,12 +180,13 @@ export function InventoryActions(props: Props) {
         if (error instanceof DraftConflictError) throw error;
         reportCaughtError(error, {});
       }
+      check();
       if (action.type === 'delete') {
         await deletePhysicalInventory(props.draft.id);
         return [];
       }
       const eligible = await queryClient.fetchQuery(eligibleOptions);
-      assertSessionScope(scope);
+      check();
       const lines = eligibleInventoryLines(props.getLines(), eligible);
       if (
         action.type === 'submit' &&
@@ -185,7 +195,10 @@ export function InventoryActions(props: Props) {
         throw new Error(t('physical-inventory.invalid-description'));
       const prepared = await createInventoryLots(
         lines,
-        createPhysicalInventoryLot,
+        (body) => {
+          check();
+          return createPhysicalInventoryLot(body);
+        },
         async (next) => {
           assertSessionScope(scope);
           props.onLots(next);
@@ -198,7 +211,7 @@ export function InventoryActions(props: Props) {
           assertSessionScope(scope);
         },
       );
-      assertSessionScope(scope);
+      check();
       if (action.type === 'save')
         await savePhysicalInventory(inventorySavePayload(props.draft, prepared, eligible));
       else {
@@ -241,6 +254,11 @@ export function InventoryActions(props: Props) {
       showFailure({
         title: t('physical-inventory.invalid-title'),
         description: t('physical-inventory.invalid-description'),
+      });
+    } else if (!isOnline()) {
+      showFailure({
+        title: t('physical-inventory.submit-offline-title'),
+        description: t('physical-inventory.submit-offline-description'),
       });
     } else setDialog('submit');
   };
@@ -308,12 +326,11 @@ export function InventoryActions(props: Props) {
           ].map((queryKey) => ({ queryKey }))
         : inventoryRefreshFilters(props.draft);
     for (const filter of filters) void queryClient.invalidateQueries(filter);
-    if (action.type !== 'save' || localSaved)
-      toast.success(t(ACTION_KEYS[action.type].successTitle), {
-        description: t(ACTION_KEYS[action.type].successDescription),
-      });
+    toast.success(t(ACTION_KEYS[action.type].successTitle), {
+      description: t(ACTION_KEYS[action.type].successDescription),
+    });
     setDialog(action.type === 'submit' ? 'print' : null);
-    if (action.type === 'save') {
+    if (action.type === 'save' && isOnline()) {
       try {
         await queryClient.fetchQuery({
           ...physicalInventoryDraftOptions({
@@ -341,24 +358,32 @@ export function InventoryActions(props: Props) {
         />
       )}
       <WorkspaceFooterPortal width="wide">
-        <Button
-          size="lg"
-          variant="destructive"
-          disabled={disabled}
-          onClick={() => openConfirm('delete')}
-        >
-          {t('physical-inventory.delete')}
-        </Button>
-        <div className="flex flex-wrap justify-end gap-2">
+        <ActionTooltip reason={offlineReason}>
           <Button
-            ref={saveButton}
             size="lg"
-            variant="outline"
-            disabled={disabled || props.writeDisabled || eligibleFetching}
-            onClick={() => openConfirm('save')}
+            variant="destructive"
+            disabled={disabled || !online}
+            focusableWhenDisabled={!online}
+            aria-description={offlineReason}
+            onClick={() => openConfirm('delete')}
           >
-            {t('physical-inventory.save')}
+            {t('physical-inventory.delete')}
           </Button>
+        </ActionTooltip>
+        <div className="flex flex-wrap justify-end gap-2">
+          <ActionTooltip reason={offlineReason}>
+            <Button
+              ref={saveButton}
+              size="lg"
+              variant="outline"
+              disabled={disabled || props.writeDisabled || eligibleFetching || !online}
+              focusableWhenDisabled={!online}
+              aria-description={offlineReason}
+              onClick={() => openConfirm('save')}
+            >
+              {t('physical-inventory.save')}
+            </Button>
+          </ActionTooltip>
           <Button
             ref={submitButton}
             size="lg"

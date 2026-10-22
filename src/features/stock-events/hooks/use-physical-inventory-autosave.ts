@@ -20,6 +20,7 @@ export function usePhysicalInventoryAutosave(
   form: PhysicalInventoryForm,
   initialRevision?: number,
   onAdopt?: (copy: InventoryLocalCopy | undefined) => void,
+  initialCopy?: InventoryLocalCopy,
 ) {
   const adopt = useRef(onAdopt);
   adopt.current = onAdopt;
@@ -31,7 +32,7 @@ export function usePhysicalInventoryAutosave(
     const db = getLocalDb();
     let revision = initialRevision;
     let pendingReference: InventoryReference | undefined;
-    let metadata: InventoryLocalCopy | undefined;
+    let metadata = initialCopy;
     let quiet = false;
     let resolving = false;
     let draftId: string | undefined;
@@ -63,7 +64,6 @@ export function usePhysicalInventoryAutosave(
             : referenceToWrite
               ? await writeInventoryLocal(next, scope, db, referenceToWrite)
               : await writeInventoryLocal(next, scope, db);
-          resolving = false;
           revision = saved?.revision;
           metadata = saved;
           if (pendingReference === reference) pendingReference = undefined;
@@ -80,6 +80,8 @@ export function usePhysicalInventoryAutosave(
             setConflict(error);
           }
           throw error;
+        } finally {
+          resolving = false;
         }
       },
       (next) => {
@@ -141,13 +143,16 @@ export function usePhysicalInventoryAutosave(
       },
     };
   });
+  const [staged, setStaged] = useState<InventoryLocalCopy | null>(null);
+  if (copy !== queued) {
+    setQueued(() => copy);
+    const value = copy();
+    setStaged(value);
+    if (value?.modified && status === 'saved') setStatus('saving');
+  }
   useEffect(() => {
-    if (copy !== queued) {
-      setQueued(() => copy);
-      const value = copy();
-      if (value) writer.enqueue(value);
-    }
-  }, [copy, queued, writer]);
+    if (staged) writer.enqueue(staged);
+  }, [staged, writer]);
   useEffect(() => {
     let previous = form.state.values.lines;
     const subscription = form.store.subscribe((state) => {
