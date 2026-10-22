@@ -54,7 +54,7 @@ import {
 import { offlineAccessQuery, readOfflineAccess, withOfflineAccess } from '@/lib/offline-access';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
-const LOOKUP_STALE_TIME = 10 * 60 * 1000;
+export const LOOKUP_STALE_TIME = 10 * 60 * 1000;
 
 export const minimalFacilitiesOptions = () =>
   queryOptions({

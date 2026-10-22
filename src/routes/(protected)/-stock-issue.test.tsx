@@ -186,10 +186,6 @@ function renderRoute(path = PICKER) {
 }
 
 beforeEach(async () => {
-  for (const route of [ProtectedRoute, PickerRoute, EditorRoute, StockRoute]) {
-    await route.options.component?.preload?.();
-    await route.options.pendingComponent?.preload?.();
-  }
   vi.mocked(waitForStockEventReceipt).mockImplementation(async (event) => ({
     kind: 'accepted',
     receipt: {

@@ -1891,6 +1891,9 @@ describe('Receive editor', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('receive-event'));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.lots.all });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockEvents.all });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockCards.all });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockCardSummaries.all });
   });
 
   describe('scanning', () => {

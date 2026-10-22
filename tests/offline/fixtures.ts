@@ -88,13 +88,13 @@ export async function stub(
       '/api/validSources': {
         content: [
           {
-            id: 'destination',
-            name: 'Fixture Ward',
+            id: 'source',
+            name: 'Fixture Supplier',
             programId: ids.program,
             facilityTypeId: 'type',
             isFreeTextAllowed: false,
             geoLevelAffinityId: null,
-            node: { id: 'ward-node', referenceId: 'ward', refDataFacility: false },
+            node: { id: 'supplier-node', referenceId: 'supplier', refDataFacility: false },
           },
         ],
         totalPages: 1,

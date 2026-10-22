@@ -3,7 +3,7 @@ import {
   fetchValidAssignments,
   type ValidAssignmentsFilter,
 } from '@/features/reference-data/api/api';
-import { validAssignmentsOptions } from '@/features/reference-data/api/queries';
+import { LOOKUP_STALE_TIME, validAssignmentsOptions } from '@/features/reference-data/api/queries';
 import { reasonsOf } from '@/features/reference-data/lib/reasons-of';
 import type { Reason, ValidReasonAssignment } from '@/features/reference-data/lib/types';
 import {
@@ -14,6 +14,7 @@ import {
 import { allEventCards, issuableCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 import { onlineOrDevice } from '@/lib/local-data';
+import { offlineAccessQuery } from '@/lib/offline-access';
 import { RIGHTS } from '@/lib/rights';
 
 type EventProducts =
@@ -72,6 +73,7 @@ export function counterpartyOptions(
   return bundle
     ? {
         ...options,
+        ...offlineAccessQuery(LOOKUP_STALE_TIME),
         queryFn: () =>
           onlineOrDevice(
             () => fetchValidAssignments(resource, filter),

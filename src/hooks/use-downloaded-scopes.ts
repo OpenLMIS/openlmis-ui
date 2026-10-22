@@ -1,5 +1,5 @@
 import { liveQuery } from 'dexie';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import type {
   DownloadAcceptance,
@@ -45,8 +45,9 @@ export function useDownloadedScopes<R extends DownloadRecord, S extends Download
     });
     return () => subscription.unsubscribe();
   }, [key, provider, scopes, enabled, accepts, session]);
-  return {
-    loaded: enabled && ready.key === key,
-    states: enabled && ready.key === key ? ready.states : EMPTY_SCOPES,
-  };
+  const loaded = enabled && ready.key === key;
+  return useMemo(
+    () => ({ loaded, states: loaded ? ready.states : EMPTY_SCOPES }),
+    [loaded, ready.states],
+  );
 }
