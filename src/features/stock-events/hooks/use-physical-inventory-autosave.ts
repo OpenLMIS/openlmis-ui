@@ -19,7 +19,7 @@ export function usePhysicalInventoryAutosave(
   copy: () => InventoryLocalCopy | null,
   form: PhysicalInventoryForm,
   initialRevision?: number,
-  onAdopt?: (copy: InventoryLocalCopy) => void,
+  onAdopt?: (copy: InventoryLocalCopy | undefined) => void,
 ) {
   const adopt = useRef(onAdopt);
   adopt.current = onAdopt;
@@ -33,6 +33,8 @@ export function usePhysicalInventoryAutosave(
     let pendingReference: InventoryReference | undefined;
     let metadata: InventoryLocalCopy | undefined;
     let quiet = false;
+    let resolving = false;
+    let draftId: string | undefined;
     let observed: DraftConflictError<InventoryLocalCopy> | undefined;
     const serial = createInventoryWriter<{
       copy: InventoryLocalCopy;
@@ -40,18 +42,28 @@ export function usePhysicalInventoryAutosave(
     }>(
       async ({ copy: value, reference }) => {
         if (getSessionScope() !== scope) return;
+        draftId = value.draftId;
         const next = {
           ...value,
-          fetchedAt: reference?.fetchedAt ?? value.fetchedAt ?? metadata?.fetchedAt,
-          generation: reference?.generation ?? value.generation ?? metadata?.generation,
+          fetchedAt: reference?.fetchedAt ?? metadata?.fetchedAt ?? value.fetchedAt,
+          generation: reference?.generation ?? metadata?.generation ?? value.generation,
           revision,
         };
         try {
           const referenceToWrite =
-            reference?.generation === metadata?.generation ? undefined : reference;
-          const saved = referenceToWrite
-            ? await writeInventoryLocal(next, scope, db, referenceToWrite)
-            : await writeInventoryLocal(next, scope, db);
+            reference?.generation === metadata?.generation && !resolving ? undefined : reference;
+          const saved = resolving
+            ? await writeInventoryLocal(
+                { ...next, orphaned: false },
+                scope,
+                db,
+                referenceToWrite,
+                true,
+              )
+            : referenceToWrite
+              ? await writeInventoryLocal(next, scope, db, referenceToWrite)
+              : await writeInventoryLocal(next, scope, db);
+          resolving = false;
           revision = saved?.revision;
           metadata = saved;
           if (pendingReference === reference) pendingReference = undefined;
@@ -61,6 +73,7 @@ export function usePhysicalInventoryAutosave(
             if (!value.modified && !form.state.isDirty && error.stored && !error.stored.orphaned) {
               revision = error.stored.revision;
               metadata = error.stored;
+              pendingReference = undefined;
               adopt.current?.(error.stored);
               return;
             }
@@ -83,10 +96,10 @@ export function usePhysicalInventoryAutosave(
       enqueue,
       reset: serial.reset,
       async loadLatest() {
-        if (!observed?.stored) throw new Error('No current inventory copy');
-        const latest = await readInventoryLocal(observed.stored.draftId);
+        const latest = draftId ? await readInventoryLocal(draftId) : undefined;
+        if (getSessionScope() !== scope) return;
         try {
-          assertDraftRevision(latest, observed.stored);
+          if (latest) assertDraftRevision(latest, observed?.stored);
         } catch (error) {
           if (error instanceof DraftConflictError) {
             observed = error;
@@ -94,14 +107,20 @@ export function usePhysicalInventoryAutosave(
           }
           throw error;
         }
-        if (!latest || latest.orphaned) throw new Error('No current inventory copy');
+        if (latest?.orphaned) throw new Error('This inventory copy is no longer current');
+        revision = latest?.revision ?? 0;
+        metadata = latest;
+        pendingReference = undefined;
+        serial.resolve();
+        setConflict(undefined);
         adopt.current?.(latest);
       },
       async keepCounts(value: InventoryLocalCopy, reference?: InventoryReference) {
-        if (!observed?.stored || observed.stored.orphaned)
-          throw new Error('No current inventory copy');
         await serial.wait();
-        revision = observed.stored.revision;
+        if (getSessionScope() !== scope) return;
+        revision = observed?.stored?.revision ?? 0;
+        metadata = observed?.stored;
+        resolving = true;
         serial.resolve();
         setConflict(undefined);
         enqueue(value, reference);
@@ -140,7 +159,7 @@ export function usePhysicalInventoryAutosave(
     return () => subscription.unsubscribe();
   }, [copy, form, writer]);
   return {
-    status: copy !== queued && copy()?.modified ? ('saving' as const) : status,
+    status,
     conflict,
     loadLatest: writer.loadLatest,
     keepCounts: writer.keepCounts,

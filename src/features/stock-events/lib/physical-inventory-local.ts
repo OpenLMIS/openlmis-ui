@@ -134,6 +134,7 @@ export async function writeInventoryLocal(
   scope = getSessionScope(),
   db: Dexie = getLocalDb(),
   reference?: InventoryReference,
+  allowOrphan = false,
 ) {
   const table = db.table<InventoryLocalCopy, string>(LOCAL_TABLES.physicalInventoryDrafts);
   const expected = copy.revision ? copy : undefined;
@@ -146,7 +147,7 @@ export async function writeInventoryLocal(
     async read() {
       const stored = await table.get(copy.draftId);
       assertSessionScope(scope);
-      if (stored?.orphaned && !copy.orphaned) throw new DraftConflictError(stored);
+      if (stored?.orphaned && !copy.orphaned && !allowOrphan) throw new DraftConflictError(stored);
       if (stored && !stored.revision && !copy.revision) return undefined;
       return stored;
     },
@@ -196,12 +197,21 @@ export async function clearInventoryLocal(
   });
 }
 
-export async function reconcileInventoryCopies(scope: InventoryScope, serverId?: string) {
+export async function reconcileInventoryCopies(
+  scope: InventoryScope,
+  serverId?: string,
+  requestedAt = Date.now(),
+) {
   const session = getSessionScope();
   const db = getLocalDb();
   const copies = await readInventoryScope(scope);
   for (const copy of copies) {
-    if (copy.draftId === serverId || copy.orphaned) continue;
+    if (copy.draftId === serverId) {
+      if (copy.orphaned)
+        await writeInventoryLocal({ ...copy, orphaned: false }, session, db, undefined, true);
+      continue;
+    }
+    if (copy.orphaned || Math.max(copy.savedAt, copy.fetchedAt ?? 0) >= requestedAt) continue;
     if (!copy.modified) await clearInventoryLocal(copy.draftId, copy.revision ?? 0, session, db);
     else await writeInventoryLocal({ ...copy, orphaned: true }, session, db);
   }

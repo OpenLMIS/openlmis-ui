@@ -111,6 +111,7 @@ import { useFlag } from '@/lib/feature-flags';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { useOnline } from '@/lib/online';
+import { reportCaughtError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 
@@ -243,7 +244,7 @@ function InventoryRows(props: RowsProps) {
     throw stockQuery.error;
   const { data: stock } = stockQuery;
   const opening = useOpening();
-  const [loaded, setLoaded] = useState<InventoryLocalCopy>();
+  const [loaded, setLoaded] = useState<InventoryLocalCopy | null>();
   const [loadKey, setLoadKey] = useState(0);
   const local = useQuery(
     queryOptions({
@@ -257,6 +258,7 @@ function InventoryRows(props: RowsProps) {
   );
   if (local.isPending || stockQuery.dataUpdatedAt < (props.eligibleUpdatedAfter ?? 0))
     return props.pendingBody;
+  const currentCopy = loaded === undefined ? local.data : loaded;
   return (
     <>
       {props.toolbar}
@@ -264,17 +266,15 @@ function InventoryRows(props: RowsProps) {
         {...props}
         key={loadKey}
         onAdopt={(copy) => {
-          setLoaded(copy);
+          setLoaded(copy ?? null);
           setLoadKey((key) => key + 1);
         }}
         stock={stock}
-        localLines={(loaded ?? local.data)?.modified ? (loaded ?? local.data)?.lines : undefined}
+        localLines={currentCopy?.modified ? currentCopy.lines : undefined}
         localFailed={local.isError}
-        localRemoved={
-          (loaded ?? local.data)?.modified ? ((loaded ?? local.data)?.removedKeys ?? []) : []
-        }
-        localModified={Boolean((loaded ?? local.data)?.modified)}
-        localRevision={(loaded ?? local.data)?.revision}
+        localRemoved={currentCopy?.modified ? (currentCopy.removedKeys ?? []) : []}
+        localModified={Boolean(currentCopy?.modified)}
+        localRevision={currentCopy?.revision}
       />
     </>
   );
@@ -314,7 +314,7 @@ function InventoryDraftRows({
   localRemoved: string[];
   localModified: boolean;
   localRevision?: number;
-  onAdopt: (copy: InventoryLocalCopy) => void;
+  onAdopt: (copy: InventoryLocalCopy | undefined) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [entryUpdatedAfter] = useState(eligibleUpdatedAfter);
@@ -423,7 +423,7 @@ function InventoryDraftRows({
     void autosave
       .write(value, inventoryReference({ ...value, ...snapshot }, eligible.data, reasons))
       .then(() => setReadFailed(false))
-      .catch(() => {});
+      .catch((error) => reportCaughtError(error, {}));
   }, [
     eligible.isSuccess,
     eligible.isFetching,
@@ -445,7 +445,9 @@ function InventoryDraftRows({
   const status = readFailed && !modified && !form.state.isDirty ? 'failed' : autosave.status;
   const allowLeave = useRef(false);
   const guard = useDiscardGuard(
-    !submitted && (status === 'saving' || status === 'failed' || status === 'conflict'),
+    !submitted &&
+      (modified || dirty) &&
+      (status === 'saving' || status === 'failed' || status === 'conflict'),
     {
       allowLeave: () => allowLeave.current,
     },
@@ -636,7 +638,12 @@ function InventoryDraftRows({
               <Button
                 variant="warning"
                 onClick={() => {
-                  void autosave.loadLatest().catch(() => {});
+                  void autosave.loadLatest().catch((error) => {
+                    reportCaughtError(error, {});
+                    toast.error(t('physical-inventory.copy-error-title'), {
+                      description: t('physical-inventory.copy-error-description'),
+                    });
+                  });
                 }}
               >
                 {t('physical-inventory.load-latest')}
@@ -658,7 +665,12 @@ function InventoryDraftRows({
                         ? inventoryReference({ ...value, ...snapshot }, eligible.data, reasons)
                         : undefined,
                     )
-                    .catch(() => {});
+                    .catch((error) => {
+                      reportCaughtError(error, {});
+                      toast.error(t('physical-inventory.copy-error-title'), {
+                        description: t('physical-inventory.copy-error-description'),
+                      });
+                    });
                 }}
               >
                 {t('physical-inventory.keep-counts')}
@@ -769,11 +781,11 @@ function InventoryDraftRows({
           form.setFieldValue('lines', Object.fromEntries(next.map((line) => [line.key, line])))
         }
         onDialogChange={setActionDialog}
-        onSaved={(next, terminal) => {
+        onSaved={(next, terminal, localSaved) => {
           allowLeave.current = terminal;
           setSubmitted(terminal);
           setReadFailed(false);
-          autosave.reset();
+          if (terminal || localSaved) autosave.reset();
           setFormLines(next);
           setBaseline(next);
           setModified(false);

@@ -14,16 +14,27 @@ import type {
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { queryKeys } from '@/lib/key-factory';
+import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const physicalInventoryDraftOptions = (scope: InventoryScope) =>
   queryOptions({
     queryKey: queryKeys.physicalInventories.list(scope),
-    queryFn: async () => {
+    queryFn: async ({ client }) => {
+      const requestedAt = Date.now();
       const session = getSessionScope();
       const draft = await fetchPhysicalInventoryDraft(scope);
       assertSessionScope(session);
-      await reconcileInventoryCopies(scope, draft?.id);
+      void reconcileInventoryCopies(scope, draft?.id, requestedAt)
+        .catch((error) => reportCaughtError(error, {}))
+        .then(() => {
+          assertSessionScope(session);
+          return client.invalidateQueries({
+            queryKey: [...queryKeys.physicalInventories.list(scope), 'orphans'],
+            exact: true,
+          });
+        })
+        .catch((error) => reportCaughtError(error, {}));
       return draft;
     },
   });

@@ -153,3 +153,19 @@ it('selects current B beside orphan A and still warns about unsynced A until dis
   await clearInventoryLocal('d', orphan?.revision);
   expect(await countUnsyncedDeviceWork()).toBe(0);
 });
+
+it.each([true, false])(
+  'preserves a copy created after a stale request started (modified: %s)',
+  async (modified) => {
+    const recent = { ...snapshot(), modified, savedAt: 250, fetchedAt: 210 };
+    await writeInventoryLocal(recent);
+    await reconcileInventoryCopies(copy, undefined, 200);
+    expect(await readInventoryLocal('d')).toMatchObject({ savedAt: 250 });
+    expect((await readInventoryLocal('d'))?.orphaned).toBeFalsy();
+  },
+);
+it('clears an orphan marker when the server confirms the current draft', async () => {
+  await writeInventoryLocal({ ...copy, orphaned: true });
+  await reconcileInventoryCopies(copy, 'd', 200);
+  expect((await readInventoryLocal('d'))?.orphaned).toBe(false);
+});

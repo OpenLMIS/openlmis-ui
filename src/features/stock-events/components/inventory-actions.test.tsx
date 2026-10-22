@@ -24,9 +24,11 @@ import { InventoryActions } from '@/features/stock-events/components/inventory-a
 import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
 import {
   clearInventoryLocal,
+  readInventoryLocal,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { addedInventoryLine } from '@/features/stock-events/lib/physical-inventory-products';
+import { DraftConflictError } from '@/lib/draft-store';
 
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
   savePhysicalInventory: vi.fn(),
@@ -138,17 +140,15 @@ it.each(['save', 'delete', 'submit'] as const)(
         name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
       }),
     );
-    await waitFor(() => expect(toast.error).toHaveBeenCalled());
-    if (action === 'save') expect(onSaved).not.toHaveBeenCalled();
-    else expect(action === 'delete' ? onDeleted : onSaved).toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(
-      action === 'save'
-        ? 'physical-inventory.not-saved-local'
-        : 'physical-inventory.local-clear-error-title',
-      {
-        description: `physical-inventory.${action}-local-clear-error`,
-      },
-    );
+    await waitFor(() => expect(action === 'delete' ? onDeleted : onSaved).toHaveBeenCalled());
+    if (action === 'save') {
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(toast.success).not.toHaveBeenCalled();
+      return;
+    }
+    expect(toast.error).toHaveBeenCalledWith('physical-inventory.local-clear-error-title', {
+      description: `physical-inventory.${action}-local-clear-error`,
+    });
   },
 );
 it('uses inventory wording for an unknown submit outcome and prevents a retry', async () => {
@@ -315,7 +315,7 @@ it.each(['save', 'delete', 'submit'] as const)(
   },
 );
 
-it('retains a created lot after device persistence fails so Save can retry without recreating it', async () => {
+it('saves with created lot ids even when their device write fails', async () => {
   const user = userEvent.setup();
   let live = [
     addedInventoryLine(stock, quantityValue('0'), {
@@ -341,17 +341,9 @@ it('retains a created lot after device persistence fails so Save can retry witho
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
   );
-  const failure = await screen.findByRole('alertdialog');
-  expect(createPhysicalInventoryLot).toHaveBeenCalledOnce();
-  expect(savePhysicalInventory).not.toHaveBeenCalled();
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
   expect(live[0].lot).toEqual(created);
   expect(live[0].newLot).toBeUndefined();
-  await user.click(within(failure).getByRole('button', { name: 'dialog.close' }));
-  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
-  await user.click(
-    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
-  );
-  await waitFor(() => expect(onSaved).toHaveBeenCalled());
   expect(createPhysicalInventoryLot).toHaveBeenCalledOnce();
   expect(savePhysicalInventory).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -361,10 +353,10 @@ it('retains a created lot after device persistence fails so Save can retry witho
 });
 
 it.each(['save', 'delete', 'submit'] as const)(
-  'keeps counts and stops %s when the local flush fails',
+  'keeps counts and stops %s when the local flush detects a revision conflict',
   async (action) => {
     const user = userEvent.setup();
-    const flush = vi.fn().mockRejectedValue(new Error('Draft conflict'));
+    const flush = vi.fn().mockRejectedValue(new DraftConflictError(undefined));
     const { onDeleted } = setup({ flush });
     await user.click(
       screen.getByRole('button', {
@@ -383,5 +375,25 @@ it.each(['save', 'delete', 'submit'] as const)(
     expect(submitPhysicalInventory).not.toHaveBeenCalled();
     expect(clearInventoryLocal).not.toHaveBeenCalled();
     expect(flush).toHaveBeenCalledOnce();
+  },
+);
+
+it.each(['save', 'delete', 'submit'] as const)(
+  'allows server %s despite a persistence failure or unreadable device copy',
+  async (action) => {
+    const user = userEvent.setup();
+    vi.mocked(readInventoryLocal).mockRejectedValueOnce(new Error('IndexedDB unavailable'));
+    const { onSaved, onDeleted } = setup({ flush: vi.fn().mockRejectedValue(new Error('Quota')) });
+    await user.click(
+      screen.getByRole('button', {
+        name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
+      }),
+    );
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
+      }),
+    );
+    await waitFor(() => expect(action === 'delete' ? onDeleted : onSaved).toHaveBeenCalled());
   },
 );
