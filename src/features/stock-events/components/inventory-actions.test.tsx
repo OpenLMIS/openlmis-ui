@@ -357,31 +357,44 @@ it('saves with created lot ids even when their device write fails', async () => 
   );
 });
 
-it.each(['save', 'delete', 'submit'] as const)(
-  'keeps counts and stops %s when the local flush detects a revision conflict',
-  async (action) => {
-    const user = userEvent.setup();
-    const flush = vi.fn().mockRejectedValue(new DraftConflictError(undefined));
-    const { onDeleted } = setup({ flush });
-    await user.click(
-      screen.getByRole('button', {
-        name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
-      }),
-    );
-    await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
-        name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
-      }),
-    );
-    await screen.findByRole('alertdialog');
-    expect(onDeleted).not.toHaveBeenCalled();
-    expect(deletePhysicalInventory).not.toHaveBeenCalled();
-    expect(savePhysicalInventory).not.toHaveBeenCalled();
-    expect(submitPhysicalInventory).not.toHaveBeenCalled();
-    expect(clearInventoryLocal).not.toHaveBeenCalled();
-    expect(flush).toHaveBeenCalledOnce();
-  },
-);
+it.each([
+  ...(['save', 'delete', 'submit'] as const).map((action) => [action, 'conflicted'] as const),
+  ...(['save', 'delete', 'submit'] as const).map((action) => [action, 'orphaned'] as const),
+])('keeps counts and stops %s when the device copy is %s', async (action, cause) => {
+  const user = userEvent.setup();
+  const flush =
+    cause === 'conflicted'
+      ? vi.fn().mockRejectedValue(new DraftConflictError(undefined))
+      : vi.fn().mockResolvedValue(undefined);
+  if (cause === 'orphaned')
+    vi.mocked(readInventoryLocal).mockResolvedValueOnce({
+      draftId: 'd',
+      programId: 'p',
+      facilityId: 'f',
+      lines: [],
+      modified: true,
+      orphaned: true,
+      savedAt: 1,
+    });
+  const { onDeleted } = setup({ flush });
+  await user.click(
+    screen.getByRole('button', {
+      name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
+    }),
+  );
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', {
+      name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
+    }),
+  );
+  await screen.findByRole('alertdialog');
+  expect(onDeleted).not.toHaveBeenCalled();
+  expect(deletePhysicalInventory).not.toHaveBeenCalled();
+  expect(savePhysicalInventory).not.toHaveBeenCalled();
+  expect(submitPhysicalInventory).not.toHaveBeenCalled();
+  expect(clearInventoryLocal).not.toHaveBeenCalled();
+  expect(flush).toHaveBeenCalledOnce();
+});
 
 it.each(['save', 'delete', 'submit'] as const)(
   'allows server %s despite a persistence failure or unreadable device copy',

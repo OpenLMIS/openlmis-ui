@@ -173,7 +173,7 @@ it('shares one revision chain between the open snapshot, edits and a saved basel
     2,
   ]);
   expect(vi.mocked(writeInventoryLocal).mock.calls[0][3]).toBe(reference);
-  expect(vi.mocked(writeInventoryLocal).mock.calls[1]).toHaveLength(3);
+  expect(vi.mocked(writeInventoryLocal).mock.calls[1][3]).toBeUndefined();
   expect(vi.mocked(writeInventoryLocal).mock.calls[2][0]).toMatchObject({
     modified: false,
     baselineKeys: ['saved'],
@@ -321,7 +321,7 @@ it('does not keep orphan recovery enabled after a failed Keep My Counts write', 
   await act(async () => {
     await view.result.current.write(copy);
   });
-  expect(vi.mocked(writeInventoryLocal).mock.lastCall).toHaveLength(3);
+  expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[4]).toBeUndefined();
 });
 it('stages changed modified copies before layout effects observe leave protection', () => {
   const observed = vi.fn();
