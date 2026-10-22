@@ -8,12 +8,7 @@ import {
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { vvmItems } from '@/features/stock-events/lib/vvm-items';
 
-export function deviceEventLineValues(
-  event: DeviceEvent,
-  language: string,
-  t: TFunction,
-  headers: readonly ParseKeys[],
-) {
+export function deviceEventLineValues(event: DeviceEvent, language: string, t: TFunction) {
   const config: EventKindConfig = EVENT_KINDS[event.kind];
   const counterparty = config.counterparty === 'none' ? null : COUNTERPARTY[config.counterparty];
   return event.payload.lineItems.map((item, index) => {
@@ -40,7 +35,7 @@ export function deviceEventLineValues(
     return {
       key: line?.key ?? index,
       product: line?.orderable.fullProductName || item.orderableId,
-      values: headers.map((header) => values[header]),
+      values,
     };
   });
 }

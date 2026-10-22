@@ -1,6 +1,16 @@
 import { type ColumnDef, useTable } from '@tanstack/react-table';
 import { ListChecksIcon } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  use,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
@@ -37,6 +47,7 @@ import {
 } from '@/components/workspace';
 import { DeviceEventActions } from '@/features/stock-events/components/device-event-actions';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
+import { removeKey } from '@/features/stock-events/components/device-event-removal';
 import { OfflineEventDetails } from '@/features/stock-events/components/offline-event-details';
 import {
   OfflineEventErrorMessage,
@@ -44,19 +55,13 @@ import {
 } from '@/features/stock-events/components/offline-event-state';
 import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
 import { EVENT_KINDS, OFFLINE_EVENT_TYPES } from '@/features/stock-events/lib/event-kinds';
-import {
-  compareErrorEvents,
-  comparePendingEvents,
-  compareSyncedEvents,
-  tabOf,
-} from '@/features/stock-events/lib/offline-event-tabs';
+import { tabOf } from '@/features/stock-events/lib/offline-event-tabs';
 import {
   activeEventFilters,
   CLEARED_EVENT_FILTERS,
   type OfflineEventsSearch,
   offlineEventTab,
 } from '@/features/stock-events/lib/offline-events-search';
-import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { blockedScopes } from '@/features/stock-events/lib/stock-event-sync';
 import { useCardLayout } from '@/hooks/use-card-view';
@@ -79,24 +84,76 @@ const hideableByTab = {
   synced: [{ id: 'acceptedAt', labelKey: 'offline-events.synced-at' }],
 } as const;
 const defaultSortByTab = {
-  pending: { id: 'queuedAt', desc: false },
-  errors: { id: 'failedAt', desc: false },
-  synced: { id: 'acceptedAt', desc: true },
-};
-const compareByTab = {
-  pending: comparePendingEvents,
-  errors: compareErrorEvents,
-  synced: compareSyncedEvents,
-};
+  pending: { id: 'queuedAt', desc: false, labelKey: 'offline-events.queued-at' },
+  errors: { id: 'failedAt', desc: false, labelKey: 'offline-events.failed-at' },
+  synced: { id: 'acceptedAt', desc: true, labelKey: 'offline-events.synced-at' },
+} as const;
+const emptyByTab = {
+  pending: {
+    title: 'offline-events.no-events-title',
+    description: 'offline-events.no-events-description',
+  },
+  errors: {
+    title: 'offline-events.no-errors-title',
+    description: 'offline-events.no-errors-description',
+  },
+  synced: {
+    title: 'offline-events.no-synced-title',
+    description: 'offline-events.no-synced-description',
+  },
+} as const;
+
+const EventCellsContext = createContext<{
+  blocked: ReadonlySet<string>;
+  canSend: (event: DeviceEvent) => boolean;
+  reviewLabel: (
+    event: DeviceEvent,
+    key?:
+      | 'offline-events.review-event-label'
+      | 'offline-events.remove-event-label'
+      | 'offline-events.dismiss-event-label',
+  ) => string;
+  onOpenEvent: (id: string) => void;
+  onRemoved: (id: string) => void;
+} | null>(null);
+
+function PendingStateCell({ event }: { event: DeviceEvent }) {
+  const context = use(EventCellsContext);
+  return context && <OfflineEventPendingState event={event} blocked={context.blocked} />;
+}
+
+function ActionsCell({ event }: { event: DeviceEvent }) {
+  const context = use(EventCellsContext);
+  return (
+    context && (
+      <DeviceEventActions
+        event={event}
+        canSend={context.canSend(event)}
+        label={context.reviewLabel(event)}
+        removeLabel={context.reviewLabel(event, `${removeKey(event)}-event-label`)}
+        onOpen={() => context.onOpenEvent(event.localEventId)}
+        onRemoved={() => context.onRemoved(event.localEventId)}
+      />
+    )
+  );
+}
+
 const choicesSchema = z.record(z.string(), z.boolean());
 
 const occurredDate = (event: DeviceEvent) =>
   [...new Set(event.payload.lineItems.map((line) => line.occurredDate).filter(Boolean))].sort();
 
+const sortValue = {
+  occurredDate: (event: DeviceEvent) => Number(occurredDate(event)[0]?.replaceAll('-', '') ?? 0),
+  queuedAt: (event: DeviceEvent) => event.queuedAt,
+  failedAt: (event: DeviceEvent) => event.error?.failedAt ?? 0,
+  acceptedAt: (event: DeviceEvent) => event.receipt?.acceptedAt ?? 0,
+};
+
 function EventDate({ event }: { event: DeviceEvent }) {
   const { i18n } = useTranslation();
   return occurredDate(event).map((date) => (
-    <time className="block" dateTime={date} key={date}>
+    <time className="block whitespace-nowrap" dateTime={date} key={date}>
       {formatDateValue(date, i18n.language)}
     </time>
   ));
@@ -120,6 +177,7 @@ export function OfflineEventsPage({
   onCloseEvent: () => void;
 }) {
   const { t } = useTranslation();
+  const panelId = useId();
   const tab = offlineEventTab(search);
   const hideable = hideableByTab[tab];
   const defaultSort = defaultSortByTab[tab];
@@ -162,11 +220,11 @@ export function OfflineEventsPage({
       <WorkspaceContent>
         <div className="flex min-w-0 flex-col gap-4 @lg/main:gap-6" ref={measure}>
           <Tabs
+            spacing="page"
             value={tab}
             onValueChange={(next) =>
               onSearchChange({
                 tab: next === 'pending' ? undefined : (next as OfflineEventsSearch['tab']),
-                status: undefined,
                 page: undefined,
                 sort: undefined,
                 dir: undefined,
@@ -174,138 +232,146 @@ export function OfflineEventsPage({
               })
             }
           >
-            <TabsList size="lg" wrap="column" aria-label={t('offline-events.title')}>
+            <TabsList size="lg" wrap="column" aria-label={t('offline-events.tabs-label')}>
               {tabs.map((value) => (
-                <TabsTrigger key={value} value={value}>
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  id={`${panelId}-${value}`}
+                  aria-controls={panelId}
+                >
                   {t(`offline-events.tab-${value}`, {
                     count: local.events?.filter((event) => tabOf(event) === value).length ?? 0,
                   })}
                 </TabsTrigger>
               ))}
             </TabsList>
-          </Tabs>
-          <DataTableToolbar>
-            <div className="flex-1 @2xl/main:flex-none">
-              <DataTableFilters
-                size="lg"
-                activeCount={activeEventFilters(search)}
-                onClear={() => onSearchChange(CLEARED_EVENT_FILTERS, true)}
+            <div
+              role="tabpanel"
+              id={panelId}
+              aria-labelledby={`${panelId}-${tab}`}
+              className="flex min-w-0 flex-col gap-4 @lg/main:gap-6"
+            >
+              <DataTableToolbar>
+                <div className="flex-1 @2xl/main:flex-none">
+                  <DataTableFilters
+                    size="lg"
+                    activeCount={activeEventFilters(search)}
+                    onClear={() => onSearchChange(CLEARED_EVENT_FILTERS, true)}
+                  >
+                    <DataTableSelectFilter
+                      allLabel={t('offline-events.type-all')}
+                      label={t('offline-events.pending-event')}
+                      value={search.eventType ?? ''}
+                      options={OFFLINE_EVENT_TYPES.map((kind) => ({
+                        value: kind,
+                        label: t(EVENT_KINDS[kind].copy.eventLabel),
+                      }))}
+                      onValueChange={(eventType) =>
+                        onSearchChange(
+                          {
+                            eventType: (eventType as OfflineEventsSearch['eventType']) || undefined,
+                            page: undefined,
+                            event: undefined,
+                          },
+                          true,
+                        )
+                      }
+                    />
+                    <DatePicker
+                      id="offline-events-start-date"
+                      label={t('offline-events.start-date')}
+                      placeholder={t('offline-events.start-date')}
+                      value={search.startDate ?? ''}
+                      latest={search.endDate}
+                      clearLabel={t('data-table.clear-filter', {
+                        label: t('offline-events.start-date'),
+                      })}
+                      onValueChange={(startDate) =>
+                        onSearchChange(
+                          { startDate: startDate || undefined, page: undefined, event: undefined },
+                          true,
+                        )
+                      }
+                    />
+                    <DatePicker
+                      id="offline-events-end-date"
+                      label={t('offline-events.end-date')}
+                      placeholder={t('offline-events.end-date')}
+                      value={search.endDate ?? ''}
+                      earliest={search.startDate}
+                      clearLabel={t('data-table.clear-filter', {
+                        label: t('offline-events.end-date'),
+                      })}
+                      onValueChange={(endDate) =>
+                        onSearchChange(
+                          { endDate: endDate || undefined, page: undefined, event: undefined },
+                          true,
+                        )
+                      }
+                    />
+                  </DataTableFilters>
+                </div>
+                <div className="@2xl/main:ms-auto">
+                  <DataTableViewOptions
+                    size="lg"
+                    sort={{
+                      columns: [
+                        { id: 'occurredDate', label: t('offline-events.date') },
+                        {
+                          id: defaultSort.id,
+                          label: t(defaultSort.labelKey),
+                        },
+                      ],
+                      ...searchSort(search, defaultSort, onSearchChange),
+                    }}
+                    {...view}
+                    layout={layout}
+                    columns={hideable.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
+                  />
+                </div>
+              </DataTableToolbar>
+              <QueryBoundary
+                resetKey="offline-events"
+                pendingFallback={
+                  <OfflineEventsTable
+                    local={local}
+                    refreshOfflineDownload={refreshOfflineDownload}
+                    permissions={permissions}
+                    permissionsUpdatedAt={permissionsUpdatedAt}
+                    search={search}
+                    onSearchChange={onSearchChange}
+                    onOpenEvent={onOpenEvent}
+                    onCloseEvent={onCloseEvent}
+                    columnVisibility={view.visibility}
+                    cards={cards}
+                    loading
+                  />
+                }
+                errorComponent={({ error, reset }) => (
+                  <ListError
+                    error={error}
+                    reset={reset}
+                    title={t('offline-events.error-title')}
+                    description={t('offline-events.error-description')}
+                  />
+                )}
               >
-                <DataTableSelectFilter
-                  allLabel={t('offline-events.type-all')}
-                  label={t('offline-events.type')}
-                  value={search.eventType ?? ''}
-                  options={OFFLINE_EVENT_TYPES.map((kind) => ({
-                    value: kind,
-                    label: t(EVENT_KINDS[kind].copy.label),
-                  }))}
-                  onValueChange={(eventType) =>
-                    onSearchChange(
-                      {
-                        eventType: (eventType as OfflineEventsSearch['eventType']) || undefined,
-                        page: undefined,
-                        event: undefined,
-                      },
-                      true,
-                    )
-                  }
+                <OfflineEventsReady
+                  local={local}
+                  refreshOfflineDownload={refreshOfflineDownload}
+                  permissions={permissions}
+                  permissionsUpdatedAt={permissionsUpdatedAt}
+                  search={search}
+                  onSearchChange={onSearchChange}
+                  onOpenEvent={onOpenEvent}
+                  onCloseEvent={onCloseEvent}
+                  columnVisibility={view.visibility}
+                  cards={cards}
                 />
-                <DatePicker
-                  id="offline-events-start-date"
-                  label={t('offline-events.start-date')}
-                  placeholder={t('offline-events.start-date')}
-                  value={search.startDate ?? ''}
-                  latest={search.endDate}
-                  clearLabel={t('data-table.clear-filter', {
-                    label: t('offline-events.start-date'),
-                  })}
-                  onValueChange={(startDate) =>
-                    onSearchChange(
-                      { startDate: startDate || undefined, page: undefined, event: undefined },
-                      true,
-                    )
-                  }
-                />
-                <DatePicker
-                  id="offline-events-end-date"
-                  label={t('offline-events.end-date')}
-                  placeholder={t('offline-events.end-date')}
-                  value={search.endDate ?? ''}
-                  earliest={search.startDate}
-                  clearLabel={t('data-table.clear-filter', { label: t('offline-events.end-date') })}
-                  onValueChange={(endDate) =>
-                    onSearchChange(
-                      { endDate: endDate || undefined, page: undefined, event: undefined },
-                      true,
-                    )
-                  }
-                />
-              </DataTableFilters>
+              </QueryBoundary>
             </div>
-            <div className="@2xl/main:ms-auto">
-              <DataTableViewOptions
-                size="lg"
-                sort={{
-                  columns: [
-                    { id: 'occurredDate', label: t('offline-events.date') },
-                    {
-                      id: defaultSort.id,
-                      label: t(
-                        tab === 'pending'
-                          ? 'offline-events.queued-at'
-                          : tab === 'errors'
-                            ? 'offline-events.failed-at'
-                            : 'offline-events.synced-at',
-                      ),
-                    },
-                  ],
-                  ...searchSort(search, defaultSort, onSearchChange),
-                }}
-                {...view}
-                layout={layout}
-                columns={hideable.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
-              />
-            </div>
-          </DataTableToolbar>
-          <QueryBoundary
-            resetKey="offline-events"
-            pendingFallback={
-              <OfflineEventsTable
-                local={local}
-                refreshOfflineDownload={refreshOfflineDownload}
-                permissions={permissions}
-                permissionsUpdatedAt={permissionsUpdatedAt}
-                search={search}
-                onSearchChange={onSearchChange}
-                onOpenEvent={onOpenEvent}
-                onCloseEvent={onCloseEvent}
-                columnVisibility={view.visibility}
-                cards={cards}
-                loading
-              />
-            }
-            errorComponent={({ error, reset }) => (
-              <ListError
-                error={error}
-                reset={reset}
-                title={t('offline-events.error-title')}
-                description={t('offline-events.error-description')}
-              />
-            )}
-          >
-            <OfflineEventsReady
-              local={local}
-              refreshOfflineDownload={refreshOfflineDownload}
-              permissions={permissions}
-              permissionsUpdatedAt={permissionsUpdatedAt}
-              search={search}
-              onSearchChange={onSearchChange}
-              onOpenEvent={onOpenEvent}
-              onCloseEvent={onCloseEvent}
-              columnVisibility={view.visibility}
-              cards={cards}
-            />
-          </QueryBoundary>
+          </Tabs>
         </div>
       </WorkspaceContent>
     </Workspace>
@@ -345,16 +411,7 @@ function OfflineEventsTable({
   const { t, i18n } = useTranslation();
   const tab = offlineEventTab(search);
   const defaultSort = defaultSortByTab[tab];
-  const blocked = useMemo(
-    () =>
-      blockedScopes(
-        (local.events ?? []).filter(
-          (event): event is QueuedStockEvent =>
-            event.status === 'queued' || event.status === 'sending' || event.status === 'uncertain',
-        ),
-      ),
-    [local.events],
-  );
+  const blocked = useMemo(() => blockedScopes(local.events ?? []), [local.events]);
 
   const listRef = useRef<HTMLDivElement>(null);
   const [removedId, setRemovedId] = useState<string>();
@@ -362,12 +419,13 @@ function OfflineEventsTable({
     if (
       removedId &&
       local.events &&
-      !local.events.some((event) => event.localEventId === removedId)
+      !search.event &&
+      !local.events.some((event) => event.localEventId === removedId && tabOf(event) === tab)
     ) {
       listRef.current?.focus();
       setRemovedId(undefined);
     }
-  }, [removedId, local.events]);
+  }, [removedId, local.events, search.event, tab]);
   const matched = local.events?.find((event) => event.localEventId === search.event);
   const [lastMatched, setLastMatched] = useState(matched);
   const selected =
@@ -383,7 +441,7 @@ function OfflineEventsTable({
         | 'offline-events.dismiss-event-label' = 'offline-events.review-event-label',
     ) =>
       t(key, {
-        type: t(EVENT_KINDS[event.kind].copy.label),
+        type: t(EVENT_KINDS[event.kind].copy.eventLabel),
         date: formatTimestamp(new Date(event.queuedAt).toISOString(), i18n.language, {
           time: true,
           timeZone,
@@ -411,14 +469,14 @@ function OfflineEventsTable({
       {
         accessorKey: 'kind',
         header: t('offline-events.pending-event'),
-        cell: ({ row }) => t(EVENT_KINDS[row.original.kind].copy.label),
+        cell: ({ row }) => t(EVENT_KINDS[row.original.kind].copy.eventLabel),
         meta: { className: 'w-32', label: t('offline-events.pending-event') },
       },
       {
         id: 'details',
         header: t('offline-events.details-column'),
         cell: ({ row }) => <OfflineEventDetails event={row.original} />,
-        meta: { label: t('offline-events.details-column') },
+        meta: { className: '@2xl/main:w-2/5', label: t('offline-events.details-column') },
       },
       ...(tab === 'errors'
         ? [
@@ -426,7 +484,7 @@ function OfflineEventsTable({
               id: 'error',
               header: t('offline-events.error-message'),
               cell: ({ row }) => <OfflineEventErrorMessage event={row.original} />,
-              meta: { label: t('offline-events.error-message') },
+              meta: { className: '@2xl/main:w-1/4', label: t('offline-events.error-message') },
             } satisfies ColumnDef<DataTableFeatures, DeviceEvent>,
           ]
         : []),
@@ -444,9 +502,7 @@ function OfflineEventsTable({
             {
               accessorKey: 'status',
               header: t('offline-events.status'),
-              cell: ({ row }) => (
-                <OfflineEventPendingState event={row.original} blocked={blocked} />
-              ),
+              cell: ({ row }) => <PendingStateCell event={row.original} />,
               meta: { className: 'w-36', label: t('offline-events.status') },
             } satisfies ColumnDef<DataTableFeatures, DeviceEvent>,
           ]
@@ -456,91 +512,56 @@ function OfflineEventsTable({
               accessorFn: (event) =>
                 tab === 'errors' ? event.error?.failedAt : event.receipt?.acceptedAt,
               header: ({ column }) => (
-                <DataTableColumnHeader
-                  column={column}
-                  title={t(
-                    tab === 'errors' ? 'offline-events.failed-at' : 'offline-events.synced-at',
-                  )}
-                />
+                <DataTableColumnHeader column={column} title={t(defaultSort.labelKey)} />
               ),
-              cell: ({ row }) => {
-                const value =
-                  tab === 'errors'
-                    ? row.original.error?.failedAt
-                    : row.original.receipt?.acceptedAt;
-                return value === undefined
-                  ? null
-                  : formatTimestamp(new Date(value).toISOString(), i18n.language, {
+              cell: ({ getValue }) => {
+                const value = getValue<number | undefined>();
+                return value === undefined ? null : (
+                  <span className="whitespace-nowrap">
+                    {formatTimestamp(new Date(value).toISOString(), i18n.language, {
                       time: true,
                       timeZone,
-                    });
+                    })}
+                  </span>
+                );
               },
               meta: {
                 className: 'w-36',
-                label: t(
-                  tab === 'errors' ? 'offline-events.failed-at' : 'offline-events.synced-at',
-                ),
+                label: t(defaultSort.labelKey),
               },
             } satisfies ColumnDef<DataTableFeatures, DeviceEvent>,
           ]),
       {
         id: 'actions',
         header: '',
-        cell: ({ row }) => (
-          <DeviceEventActions
-            canSend={canSend(row.original)}
-            event={row.original}
-            label={reviewLabel(row.original)}
-            removeLabel={reviewLabel(
-              row.original,
-              row.original.status === 'refused'
-                ? 'offline-events.dismiss-event-label'
-                : 'offline-events.remove-event-label',
-            )}
-            onOpen={() => onOpenEvent(row.original.localEventId)}
-            onRemoved={() => setRemovedId(row.original.localEventId)}
-          />
-        ),
+        cell: ({ row }) => <ActionsCell event={row.original} />,
         meta: { className: 'w-12', skeleton: 'control' },
       },
     ],
-    [t, reviewLabel, onOpenEvent, canSend, tab, defaultSort.id, blocked, i18n.language, timeZone],
+    [t, tab, defaultSort, i18n.language, timeZone],
   );
-  const sorted = useMemo(
-    () =>
-      [...(local.events ?? [])]
-        .filter(
-          (event) =>
-            tabOf(event) === offlineEventTab(deferred) &&
-            (!deferred.eventType || event.kind === deferred.eventType) &&
-            ((!deferred.startDate && !deferred.endDate) ||
-              occurredDate(event).some(
-                (date) =>
-                  (!deferred.startDate || date >= deferred.startDate) &&
-                  (!deferred.endDate || date <= deferred.endDate),
-              )),
-        )
-        .sort((a, b) => {
-          const currentTab = offlineEventTab(deferred);
-          if (!deferred.sort && !deferred.dir) return compareByTab[currentTab](a, b);
-          const field = deferred.sort ?? defaultSortByTab[currentTab].id;
-          const value =
-            field === 'occurredDate'
-              ? occurredDate(a).join().localeCompare(occurredDate(b).join())
-              : field === 'failedAt'
-                ? (a.error?.failedAt ?? 0) - (b.error?.failedAt ?? 0)
-                : field === 'acceptedAt'
-                  ? (a.receipt?.acceptedAt ?? 0) - (b.receipt?.acceptedAt ?? 0)
-                  : a.queuedAt - b.queuedAt;
-          return (
-            value *
-              ((deferred.dir ? deferred.dir === 'desc' : defaultSortByTab[currentTab].desc)
-                ? -1
-                : 1) || compareByTab[currentTab](a, b)
-          );
-        }),
-    [local.events, deferred],
-  );
+  const sorted = useMemo(() => {
+    const currentTab = offlineEventTab(deferred);
+    const defaultSort = defaultSortByTab[currentTab];
+    const field = deferred.sort ?? defaultSort.id;
+    const dir = (deferred.dir ? deferred.dir === 'desc' : defaultSort.desc) ? -1 : 1;
+    return [...(local.events ?? [])]
+      .filter(
+        (event) =>
+          tabOf(event) === currentTab &&
+          (!deferred.eventType || event.kind === deferred.eventType) &&
+          ((!deferred.startDate && !deferred.endDate) ||
+            occurredDate(event).some(
+              (date) =>
+                (!deferred.startDate || date >= deferred.startDate) &&
+                (!deferred.endDate || date <= deferred.endDate),
+            )),
+      )
+      .sort((a, b) => {
+        const diff = sortValue[field](a) - sortValue[field](b);
+        return diff * dir || a.sequence - b.sequence;
+      });
+  }, [local.events, deferred]);
   const pagination = toPaginationState(deferred);
   const data = useMemo(
     () =>
@@ -597,30 +618,17 @@ function OfflineEventsTable({
     ) : (
       <DataTableSkeleton table={table} rowCount={pagination.pageSize} />
     );
+  const filtered = activeEventFilters(search) > 0;
   const empty =
     sorted.length === 0 ? (
       <DataTableEmpty
         icon={<ListChecksIcon />}
-        title={t(
-          activeEventFilters(search)
-            ? 'offline-events.no-matches-title'
-            : tab === 'errors'
-              ? 'offline-events.no-errors-title'
-              : tab === 'synced'
-                ? 'offline-events.no-synced-title'
-                : 'offline-events.no-events-title',
-        )}
+        title={t(filtered ? 'offline-events.no-matches-title' : emptyByTab[tab].title)}
         description={t(
-          activeEventFilters(search)
-            ? 'offline-events.no-matches-description'
-            : tab === 'errors'
-              ? 'offline-events.no-errors-description'
-              : tab === 'synced'
-                ? 'offline-events.no-synced-description'
-                : 'offline-events.no-events-description',
+          filtered ? 'offline-events.no-matches-description' : emptyByTab[tab].description,
         )}
         action={
-          activeEventFilters(search) ? (
+          filtered ? (
             <Button
               variant="destructive"
               onClick={() => onSearchChange(CLEARED_EVENT_FILTERS, true)}
@@ -632,7 +640,9 @@ function OfflineEventsTable({
       />
     ) : undefined;
   return (
-    <>
+    <EventCellsContext
+      value={{ blocked, canSend, reviewLabel, onOpenEvent, onRemoved: setRemovedId }}
+    >
       {search.event && !selected && (
         <FormDialog
           open
@@ -682,6 +692,6 @@ function OfflineEventsTable({
           />
         )}
       </div>
-    </>
+    </EventCellsContext>
   );
 }

@@ -30,6 +30,7 @@ import { DeviceEventLines } from '@/features/stock-events/components/device-even
 import {
   canRemoveDeviceEvent,
   DeviceEventRemoval,
+  removeKey,
 } from '@/features/stock-events/components/device-event-removal';
 import { EventStatus } from '@/features/stock-events/components/event-status';
 import { useRefusedEventRetry } from '@/features/stock-events/hooks/use-refused-event-retry';
@@ -122,7 +123,10 @@ export function DeviceEventRecovery({
     },
     retry: false,
   });
-  const retry = useRefusedEventRetry(event, canSend, onClose);
+  const retry = useRefusedEventRetry(event, canSend, () => {
+    onRemoved?.();
+    onClose();
+  });
   const pending = operation.isPending || retry.pending;
   const act = async (confirmation: RecoveryConfirmation) => {
     const { choice, event } = confirmation;
@@ -143,7 +147,10 @@ export function DeviceEventRecovery({
             params: { programId: event.programId },
             replace: true,
           });
-        else onClose();
+        else {
+          onRemoved?.();
+          onClose();
+        }
       } else {
         toast.warning(t('offline-events.changed-title'), {
           description: t('offline-events.changed-description'),
@@ -178,7 +185,7 @@ export function DeviceEventRecovery({
           <DialogHeader>
             <DialogTitle>{t('offline-events.details')}</DialogTitle>
             <p className="sr-only" id={descriptionId}>
-              {t(EVENT_KINDS[event.kind].copy.label)}.{' '}
+              {t(EVENT_KINDS[event.kind].copy.eventLabel)}.{' '}
               {t(
                 event.receipt?.source === 'user'
                   ? 'offline-events.recorded-by-you'
@@ -188,9 +195,9 @@ export function DeviceEventRecovery({
           </DialogHeader>
           <div className="shrink-0 min-w-0">
             <SettingsList density="compact">
-              <SettingsItem label={t('offline-events.type')}>
+              <SettingsItem label={t('offline-events.pending-event')}>
                 <span className="inline-flex flex-wrap items-center justify-end gap-2">
-                  <span>{t(EVENT_KINDS[event.kind].copy.label)}</span>
+                  <span>{t(EVENT_KINDS[event.kind].copy.eventLabel)}</span>
                   <EventStatus event={event} />
                 </span>
               </SettingsItem>
@@ -394,7 +401,7 @@ export function DeviceEventRecovery({
             {canRemoveDeviceEvent(event) && (
               <Button variant="destructive" disabled={pending} onClick={() => setRemoving(true)}>
                 <Trash2Icon data-icon="inline-start" />
-                {t(event.status === 'refused' ? 'offline-events.dismiss' : 'offline-events.remove')}
+                {t(removeKey(event))}
               </Button>
             )}
             <Button ref={closeRef} disabled={pending} onClick={onClose}>

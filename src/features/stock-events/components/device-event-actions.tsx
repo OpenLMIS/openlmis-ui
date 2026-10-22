@@ -5,6 +5,7 @@ import { type CardAction, RowActions, useInCards } from '@/components/card-actio
 import {
   canRemoveDeviceEvent,
   DeviceEventRemoval,
+  removeKey,
 } from '@/features/stock-events/components/device-event-removal';
 import { useRefusedEventRetry } from '@/features/stock-events/hooks/use-refused-event-retry';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
@@ -27,7 +28,7 @@ export function DeviceEventActions({
   const { t } = useTranslation();
   const inCards = useInCards();
   const [removing, setRemoving] = useState(false);
-  const retry = useRefusedEventRetry(event, canSend);
+  const retry = useRefusedEventRetry(event, canSend, onRemoved);
   const actions: CardAction[] = [
     ...(retry.available
       ? [
@@ -55,9 +56,7 @@ export function DeviceEventActions({
           {
             id: 'remove',
             icon: <Trash2Icon />,
-            label: t(
-              event.status === 'refused' ? 'offline-events.dismiss' : 'offline-events.remove',
-            ),
+            label: t(removeKey(event)),
             name: inCards ? removeLabel : undefined,
             destructive: true,
             disabled: retry.pending,

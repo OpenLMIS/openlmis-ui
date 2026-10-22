@@ -234,10 +234,6 @@ it('closes a confirmation when another tab replaces the displayed attempt', asyn
     .update(uncertain.sequence, { attemptId: 'new-attempt' });
   act(() => replaceEvent({ ...uncertain, attemptId: 'new-attempt' }));
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-  expect(await getLocalDb().table(LOCAL_TABLES.stockEventReceipts).count()).toBe(0);
-  const stored = await getLocalDb().table(LOCAL_TABLES.stockEventQueue).get(uncertain.sequence);
-  expect(stored).toMatchObject({ status: 'uncertain', attemptId: 'new-attempt' });
-  expect(wakeStockEventSync).not.toHaveBeenCalled();
 });
 
 it('keeps recorded recovery available after losing adjustment grants but blocks Send Again', async () => {

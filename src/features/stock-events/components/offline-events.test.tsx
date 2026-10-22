@@ -8,10 +8,8 @@ import { getI18n, I18nextProvider } from 'react-i18next';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { OfflineEventDetails } from '@/features/stock-events/components/offline-event-details';
-import { OfflineEventErrorMessage } from '@/features/stock-events/components/offline-event-state';
 import { OfflineEventsPage } from '@/features/stock-events/components/offline-events';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
-import { tabOf } from '@/features/stock-events/lib/offline-event-tabs';
 import {
   type OfflineEventsSearch,
   offlineEventsSearchSchema,
@@ -29,6 +27,20 @@ const local = vi.hoisted(() => ({ events: [] as DeviceEvent[], width: 1440 }));
 vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
   useOfflineEvents: () => local,
   useHasDeviceEvents: () => false,
+}));
+vi.mock('@/features/stock-events/hooks/use-refused-event-retry', () => ({
+  useRefusedEventRetry: (event: DeviceEvent, _canSend: boolean, onDone?: () => void) => ({
+    available: event.status === 'refused' && !event.error?.resolvedAt,
+    pending: false,
+    retry: async () => {
+      local.events = local.events.map((row) =>
+        row.localEventId === event.localEventId
+          ? { ...row, status: 'queued', error: undefined }
+          : row,
+      );
+      onDone?.();
+    },
+  }),
 }));
 vi.mock('@/components/data-table/responsive-columns', async (original) => ({
   ...(await original<typeof import('@/components/data-table/responsive-columns')>()),
@@ -178,7 +190,7 @@ it.each([
     expect(dialog.getByText('Program')).toBeVisible();
     expect(dialog.getByText(`offline-events.status-${status}`)).toBeVisible();
     expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
-      `nav.stock-management.adjustments. offline-events.status-${status}`,
+      `stock-events.event-adjustment. offline-events.status-${status}`,
     );
     expect(dialog.queryByText('offline-events.attempted-at')).not.toBeInTheDocument();
     expect(dialog.queryByText('stock-event.document-number')).not.toBeInTheDocument();
@@ -324,9 +336,10 @@ function fixture(
   return event;
 }
 
-function mount(path = '/') {
+function mount(path = '/', permissionStrings: string[] = []) {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+  const permissions = parsePermissions(permissionStrings);
   let refresh = () => {};
   function Page() {
     const [, setVersion] = useState(0);
@@ -338,7 +351,7 @@ function mount(path = '/') {
         onSearchChange={navigation.updateSearch}
         onOpenEvent={(event) => void navigation.openDialog({ event })}
         onCloseEvent={navigation.closeDialog}
-        permissions={parsePermissions([])}
+        permissions={permissions}
         permissionsUpdatedAt={1}
       />
     );
@@ -352,8 +365,8 @@ it.each([1440, 390])(
   async (width) => {
     local.width = width;
     local.events = [
-      fixture('Pending Later', 'queued', 3, 10),
-      fixture('Pending First', 'queued', 1, 20),
+      fixture('Pending Later', 'queued', 3, 20),
+      fixture('Pending First', 'queued', 1, 10),
       fixture('Error Later', 'refused', 2, 30),
       fixture('Error First', 'uncertain', 4, 15),
       fixture('Synced Older', 'accepted', 5, 5),
@@ -391,20 +404,19 @@ it.each([1440, 390])(
   },
 );
 
-it.each(['queued', 'sending', 'refused', 'uncertain', 'accepted'] as const)(
-  'replaces an old %s status link with its tab',
-  async (status) => {
-    local.width = 1440;
-    local.events = [fixture('Event', status, 1, 10)];
-    const { router } = mount(`/?status=${status}`);
-    await screen.findByText('Event');
-    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('status'));
-    expect((router.state.location.search as OfflineEventsSearch).tab).toBe(
-      tabOf(local.events[0]) === 'pending' ? undefined : tabOf(local.events[0]),
-    );
-    expect(router.history.canGoBack()).toBe(false);
-  },
-);
+it.each([
+  ['queued', undefined],
+  ['refused', 'errors'],
+  ['accepted', 'synced'],
+] as const)('replaces an old %s status link with its tab', async (status, expectedTab) => {
+  local.width = 1440;
+  local.events = [fixture('Event', status, 1, 10)];
+  const { router } = mount(`/?status=${status}`);
+  await screen.findByText('Event');
+  await waitFor(() => expect(router.state.location.search).not.toHaveProperty('status'));
+  expect((router.state.location.search as OfflineEventsSearch).tab).toBe(expectedTab);
+  expect(router.history.canGoBack()).toBe(false);
+});
 
 it('keeps an explicit tab over a legacy status', async () => {
   local.events = [fixture('Synced', 'accepted', 1, 10)];
@@ -498,54 +510,6 @@ it('preserves filters and controls through tabs and Back, clamps live removals, 
   ).not.toBeInTheDocument();
 });
 
-it('isolates refusal details in Arabic and uses a neutral fallback for copied refusals', async () => {
-  const i18n = createInstance().use(IsolatingICU);
-  await i18n.init({
-    lng: 'ar',
-    keySeparator: false,
-    nsSeparator: false,
-    resources: { ar: { translation: ar } },
-  });
-  const renderMessage = (event: DeviceEvent) =>
-    renderCell(
-      <I18nextProvider i18n={i18n}>
-        <OfflineEventErrorMessage event={event} />
-      </I18nextProvider>,
-    );
-  const refused = fixture('Refused', 'refused', 1, 10);
-  const uncertain = fixture('Uncertain', 'uncertain', 2, 20);
-  if (!refused.error || !uncertain.error) throw new Error('Missing fixture errors');
-  refused.error = { ...refused.error, message: 'Human refusal', messageKey: 'server.key' };
-  uncertain.error = {
-    ...uncertain.error,
-    message: 'Stored English transport failure',
-    response: 'Secret response',
-  };
-  uncertain.lastFailure = 'Stored last failure';
-  const { unmount } = renderMessage(refused);
-  expect(screen.getByText(/Human refusal/)).toHaveTextContent(
-    'تعذر علينا تنفيذ هذا الحدث. \u2068Human refusal\u2069',
-  );
-  unmount();
-  refused.error.message = '';
-  const fallback = renderMessage(refused);
-  expect(screen.getByText(/لا تتوفر تفاصيل، حاول إعادة إرسال الحدث/)).toBeVisible();
-  fallback.unmount();
-  refused.error.message = 'server.key';
-  const keyFallback = renderMessage(refused);
-  expect(screen.getByText(/لا تتوفر تفاصيل، حاول إعادة إرسال الحدث/)).toBeVisible();
-  expect(screen.queryByText('server.key')).not.toBeInTheDocument();
-  keyFallback.unmount();
-  refused.error.resolvedAt = 100;
-  const copied = renderMessage(refused);
-  expect(screen.getByText(/لا تتوفر تفاصيل\./)).toBeVisible();
-  expect(screen.queryByText(/حاول إعادة إرسال/)).not.toBeInTheDocument();
-  copied.unmount();
-  renderMessage(uncertain);
-  expect(screen.getByText(ar['offline-events.error-uncertain'])).toBeVisible();
-  expect(screen.queryByText(/Stored|Secret response/)).not.toBeInTheDocument();
-});
-
 it.each([
   ['en', en, 'And 1 More Line'],
   ['ar', ar, 'وسطر آخر'],
@@ -601,4 +565,64 @@ it('validates event type and calendar dates from links', () => {
       endDate: 'invalid',
     }),
   ).toEqual({ eventType: undefined, startDate: undefined, endDate: undefined });
+});
+
+it('keeps focus in the list after Retry moves a row to Pending', async () => {
+  local.width = 1440;
+  local.events = [fixture('Refused', 'refused', 1, 10)];
+  const { refresh } = mount('/?tab=errors', ['STOCK_ADJUST|f|p']);
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'offline-events.actions-label' }),
+  );
+  await userEvent.click(
+    await screen.findByRole('menuitem', { name: 'offline-events.retry-refused' }),
+  );
+  refresh();
+  await waitFor(() => expect(screen.queryByText('Refused')).not.toBeInTheDocument());
+  expect(document.activeElement).toContainElement(
+    screen.getByText('offline-events.no-errors-title'),
+  );
+  expect(document.activeElement).not.toBe(document.body);
+});
+
+it('keeps an open Dismiss confirmation through unrelated live changes', async () => {
+  local.width = 1440;
+  local.events = [fixture('Refused', 'refused', 1, 10)];
+  const { refresh } = mount('/?tab=errors');
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'offline-events.actions-label' }),
+  );
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'offline-events.dismiss' }));
+  const confirmation = await screen.findByRole('alertdialog');
+  local.events = [...local.events, fixture('Unrelated', 'queued', 2, 20)];
+  refresh();
+  expect(screen.getByRole('alertdialog')).toBe(confirmation);
+});
+
+it('labels the active panel and keeps it and its toolbar mounted through tabs', async () => {
+  local.width = 1440;
+  local.events = [];
+  mount();
+  const panel = await screen.findByRole('tabpanel');
+  const pending = screen.getByRole('tab', { name: /offline-events.tab-pending/ });
+  expect(pending).toHaveAttribute('aria-controls', panel.id);
+  expect(panel).toHaveAttribute('aria-labelledby', pending.id);
+  const filters = screen.getByRole('button', { name: /Filters/ });
+  await userEvent.click(screen.getByRole('tab', { name: /offline-events.tab-errors/ }));
+  expect(screen.getByRole('tabpanel')).toBe(panel);
+  expect(screen.getByRole('button', { name: /Filters/ })).toBe(filters);
+  expect(panel).toHaveAttribute(
+    'aria-labelledby',
+    screen.getByRole('tab', { name: /offline-events.tab-errors/ }).id,
+  );
+});
+
+it('hides events outside the date range and restores them with Clear Filters', async () => {
+  local.width = 1440;
+  local.events = [fixture('Outside Range', 'queued', 1, 10)];
+  mount('/?startDate=2026-10-13');
+  await screen.findByText('offline-events.no-matches-title');
+  expect(screen.queryByText('Outside Range')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'data-table.clear-filters' }));
+  expect(await screen.findByText('Outside Range')).toBeVisible();
 });

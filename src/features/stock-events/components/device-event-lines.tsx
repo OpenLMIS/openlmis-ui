@@ -34,18 +34,16 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
     'offline-events.occurred-date',
     'stock-events.vvm-status',
   ];
-  const lines = deviceEventLineValues(event, i18n.language, t, headers);
-  const visibleHeaders = headers
-    .map((header, index) => ({ header, index }))
-    .filter(
-      ({ header, index }) =>
-        ![
-          'stock-events.reason-comments',
-          'stock-events.vvm-status',
-          ...(counterparty ? [counterparty.comments] : []),
-        ].includes(header) ||
-        lines.some((line) => line.values[index] != null && line.values[index] !== ''),
-    );
+  const lines = deviceEventLineValues(event, i18n.language, t);
+  const visibleHeaders = headers.filter(
+    (header) =>
+      ![
+        'stock-events.reason-comments',
+        'stock-events.vvm-status',
+        ...(counterparty ? [counterparty.comments] : []),
+      ].includes(header) ||
+      lines.some((line) => line.values[header] != null && line.values[header] !== ''),
+  );
   return (
     <div className="min-w-0 shrink-0" ref={measure}>
       {cards ? (
@@ -56,13 +54,13 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
                 <span dir="auto">{line.product}</span>
               </CardBand>
               <CardRows>
-                {visibleHeaders.map(({ header, index }) => (
+                {visibleHeaders.map((header) => (
                   <SettingsItem key={header} label={t(header)}>
                     <span
                       className={header === 'offline-events.lot' ? 'break-all' : undefined}
                       dir="auto"
                     >
-                      {orEmpty(line.values[index])}
+                      {orEmpty(line.values[header])}
                     </span>
                   </SettingsItem>
                 ))}
@@ -75,9 +73,7 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
           <Table layout="auto" density="compact">
             <TableHeader>
               <TableRow>
-                {(
-                  ['offline-events.product', ...visibleHeaders.map(({ header }) => header)] as const
-                ).map((header) => (
+                {(['offline-events.product', ...visibleHeaders] as const).map((header) => (
                   <TableHead key={header}>
                     <DataTableHeaderLabel>{t(header)}</DataTableHeaderLabel>
                   </TableHead>
@@ -90,7 +86,7 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
                   <TableCell>
                     <span dir="auto">{line.product}</span>
                   </TableCell>
-                  {visibleHeaders.map(({ header, index }) => (
+                  {visibleHeaders.map((header) => (
                     <TableCell key={header}>
                       <span
                         className={
@@ -100,7 +96,7 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
                         }
                         dir="auto"
                       >
-                        {tableValue(line.values[index])}
+                        {tableValue(line.values[header])}
                       </span>
                     </TableCell>
                   ))}

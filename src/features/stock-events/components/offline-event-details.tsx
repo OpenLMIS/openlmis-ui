@@ -1,6 +1,6 @@
 import type { ParseKeys } from 'i18next';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { deviceEventLineValues } from '@/features/stock-events/lib/device-event-line-values';
 import {
@@ -23,17 +23,12 @@ export function OfflineEventDetails({ event }: { event: DeviceEvent }) {
     : config.reasons
       ? 'offline-events.reason'
       : undefined;
-  const contextLabel: ParseKeys = counterparty
-    ? config.counterparty === 'destination'
-      ? 'offline-events.detail-issue-to'
-      : 'offline-events.detail-received-from'
-    : 'offline-events.detail-reason';
-  const headers: ParseKeys[] = [
-    'offline-events.lot',
-    'offline-events.quantity',
-    ...(context ? [context] : []),
-  ];
-  const lines = deviceEventLineValues(event, i18n.language, t, headers);
+  const contextLabel = {
+    destination: 'offline-events.detail-issue-to',
+    source: 'offline-events.detail-received-from',
+    none: 'offline-events.detail-reason',
+  } as const;
+  const lines = deviceEventLineValues(event, i18n.language, t);
   return (
     <div className="flex min-w-0 flex-col gap-2 whitespace-normal wrap-anywhere">
       <div>
@@ -51,16 +46,24 @@ export function OfflineEventDetails({ event }: { event: DeviceEvent }) {
           </strong>
           {t('offline-events.detail-separator')}
           {t('offline-events.detail-lot', {
-            value: line.values[0] || t('offline-events.no-lots'),
+            value: line.values['offline-events.lot'] || t('offline-events.no-lots'),
           })}
           {context && (
             <>
               {t('offline-events.detail-separator')}
-              {t(contextLabel, { value: orEmpty(line.values[2]) })}
+              <Trans
+                i18nKey={contextLabel[config.counterparty]}
+                values={{ value: orEmpty(line.values[context]) }}
+                components={{ b: <strong /> }}
+              />
             </>
           )}
           {t('offline-events.detail-separator')}
-          {t('offline-events.detail-quantity', { value: line.values[1] })}
+          <Trans
+            i18nKey="offline-events.detail-quantity"
+            values={{ value: line.values['offline-events.quantity'] }}
+            components={{ b: <strong /> }}
+          />
         </p>
       ))}
       {lines.length > 3 && (

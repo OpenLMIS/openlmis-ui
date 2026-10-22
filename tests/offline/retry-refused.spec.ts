@@ -66,6 +66,11 @@ for (const language of ['en', 'ar']) {
     await expect(
       page.getByText(labels['offline-events.no-errors-title'], { exact: true }),
     ).toBeVisible();
+    await expect(
+      page.locator('div[tabindex="-1"]').filter({
+        has: page.getByText(labels['offline-events.no-errors-title'], { exact: true }),
+      }),
+    ).toBeFocused();
     await page
       .getByRole('tab', {
         name: labels['offline-events.tab-pending'].replace('{count}', '1'),
@@ -112,6 +117,11 @@ for (const language of ['en', 'ar']) {
     await expect(
       page.getByText(labels['offline-events.no-errors-title'], { exact: true }),
     ).toBeVisible();
+    await expect(
+      page.locator('div[tabindex="-1"]').filter({
+        has: page.getByText(labels['offline-events.no-errors-title'], { exact: true }),
+      }),
+    ).toBeFocused();
     await expect.poll(() => bodies.length).toBe(3);
     await page
       .getByRole('tab', {

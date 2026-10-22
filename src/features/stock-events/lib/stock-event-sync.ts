@@ -355,8 +355,17 @@ export function scopeKey(row: Pick<QueuedStockEvent, 'facilityId' | 'programId'>
   return `${row.facilityId}:${row.programId}`;
 }
 
-export function blockedScopes(rows: readonly QueuedStockEvent[]): Set<string> {
-  return new Set(rows.filter((row) => row.status !== 'queued' || row.pauseReason).map(scopeKey));
+export function blockedScopes(rows: readonly DeviceEvent[]): Set<string> {
+  return new Set(
+    rows
+      .filter(
+        (row) =>
+          row.status === 'sending' ||
+          row.status === 'uncertain' ||
+          (row.status === 'queued' && row.pauseReason),
+      )
+      .map(scopeKey),
+  );
 }
 export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDependencies) {
   while (deps.canSend()) {

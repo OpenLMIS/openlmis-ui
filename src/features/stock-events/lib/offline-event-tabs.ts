@@ -1,10 +1,7 @@
-import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { type DeviceEvent, scopeKey } from '@/features/stock-events/lib/stock-event-sync';
 
 export type OfflineEventTab = 'pending' | 'errors' | 'synced';
-export type PendingEventState =
-  | { state: 'sending' | 'waiting' | 'queued' }
-  | { state: 'held'; pauseReason: NonNullable<QueuedStockEvent['pauseReason']> };
+export type PendingEventState = 'sending' | 'waiting' | 'queued' | 'held';
 
 export function tabOf(event: DeviceEvent): OfflineEventTab {
   switch (event.status) {
@@ -20,10 +17,10 @@ export function tabOf(event: DeviceEvent): OfflineEventTab {
 }
 
 export function pendingState(event: DeviceEvent, blocked: ReadonlySet<string>): PendingEventState {
-  if (event.status === 'sending') return { state: 'sending' };
-  if (event.pauseReason) return { state: 'held', pauseReason: event.pauseReason };
-  if (blocked.has(scopeKey(event))) return { state: 'waiting' };
-  return { state: 'queued' };
+  if (event.status === 'sending') return 'sending';
+  if (event.pauseReason) return 'held';
+  if (blocked.has(scopeKey(event))) return 'waiting';
+  return 'queued';
 }
 
 export function errorState(
@@ -32,16 +29,4 @@ export function errorState(
   if (event.status === 'refused' && event.error?.resolvedAt) return 'copied';
   if (event.status === 'uncertain') return 'uncertain';
   return event.error?.category === 'stock-changed' ? 'stock-changed' : 'refused';
-}
-
-export function comparePendingEvents(a: DeviceEvent, b: DeviceEvent): number {
-  return a.sequence - b.sequence;
-}
-
-export function compareErrorEvents(a: DeviceEvent, b: DeviceEvent): number {
-  return (a.error?.failedAt ?? 0) - (b.error?.failedAt ?? 0);
-}
-
-export function compareSyncedEvents(a: DeviceEvent, b: DeviceEvent): number {
-  return (b.receipt?.acceptedAt ?? 0) - (a.receipt?.acceptedAt ?? 0);
 }

@@ -106,6 +106,7 @@ export type EventKindConfig = {
   newLots: 'none' | 'manual-and-scan';
   copy: Record<
     | 'label'
+    | 'eventLabel'
     | 'pickerTitle'
     | 'make'
     | 'pageDescription'
@@ -156,6 +157,7 @@ export const EVENT_KINDS = {
     newLots: 'none',
     copy: {
       label: 'nav.stock-management.adjustments',
+      eventLabel: 'stock-events.event-adjustment',
       pickerTitle: 'stock-adjustment.title',
       make: 'stock-adjustment.make',
       pageDescription: 'stock-adjustment.page-description',
@@ -212,6 +214,7 @@ export const EVENT_KINDS = {
     newLots: 'none',
     copy: {
       label: 'nav.stock-management.issue',
+      eventLabel: 'stock-events.event-issue',
       pickerTitle: 'stock-issue.title',
       make: 'stock-issue.make',
       pageDescription: 'stock-issue.page-description',
@@ -268,6 +271,7 @@ export const EVENT_KINDS = {
     newLots: 'manual-and-scan',
     copy: {
       label: 'nav.stock-management.receive',
+      eventLabel: 'stock-events.event-receive',
       pickerTitle: 'stock-receive.title',
       make: 'stock-receive.make',
       pageDescription: 'stock-receive.page-description',
@@ -330,6 +334,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'always',
     copy: {
       label: 'nav.stock-management.unpack',
+      eventLabel: 'stock-events.event-unpack',
       pickerTitle: 'stock-unpack.title',
       make: 'stock-unpack.make',
       pageDescription: 'stock-unpack.page-description',

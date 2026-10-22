@@ -31,7 +31,7 @@ export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: 'boot' 
   const reviewRefused = useCallback(() => {
     void navigate({ to: '/offline-events', search: { tab: 'errors' } });
   }, [navigate]);
-  const { events, hasDeviceEvents } = useOfflineEvents(true, true);
+  const { events, hasDeviceEvents } = useOfflineEvents(true);
   const foreground = useForegroundStockEventIds(
     events?.some((event) => event.status === 'queued' || event.status === 'sending') ?? false,
   );

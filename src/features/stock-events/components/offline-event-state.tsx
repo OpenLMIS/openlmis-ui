@@ -4,6 +4,19 @@ import { errorState, pendingState } from '@/features/stock-events/lib/offline-ev
 import { refusalMessage } from '@/features/stock-events/lib/refusal-message';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 
+const pendingKeys = {
+  held: 'offline-events.state-held',
+  waiting: 'offline-events.state-waiting',
+  queued: 'offline-events.status-queued',
+  sending: 'offline-events.status-sending',
+} as const;
+const errorKeys = {
+  copied: 'offline-events.copied',
+  uncertain: 'offline-events.status-uncertain',
+  'stock-changed': 'offline-events.stock-changed',
+  refused: 'offline-events.status-refused',
+} as const;
+
 export function OfflineEventPendingState({
   event,
   blocked,
@@ -15,25 +28,19 @@ export function OfflineEventPendingState({
   const state = pendingState(event, blocked);
   return (
     <div className="flex flex-col items-start gap-1 whitespace-normal">
-      <Badge variant={state.state === 'held' || state.state === 'waiting' ? 'warning' : 'info'}>
-        {t(
-          state.state === 'held'
-            ? 'offline-events.state-held'
-            : state.state === 'waiting'
-              ? 'offline-events.state-waiting'
-              : `offline-events.status-${state.state}`,
-        )}
+      <Badge variant={state === 'held' || state === 'waiting' ? 'warning' : 'info'}>
+        {t(pendingKeys[state])}
       </Badge>
-      {state.state === 'held' && (
+      {state === 'held' && (
         <p>
           {t(
-            state.pauseReason === 'access-changed'
+            event.pauseReason === 'access-changed'
               ? 'offline-events.access-changed-held-description'
               : 'offline-events.draft-changed-held-description',
           )}
         </p>
       )}
-      {state.state === 'waiting' && <p>{t('offline-events.waiting-description')}</p>}
+      {state === 'waiting' && <p>{t('offline-events.waiting-description')}</p>}
     </div>
   );
 }
@@ -44,15 +51,7 @@ export function OfflineEventErrorMessage({ event }: { event: DeviceEvent }) {
   return (
     <div className="flex flex-col items-start gap-2 whitespace-normal wrap-anywhere">
       <Badge variant={state === 'uncertain' || state === 'copied' ? 'warning' : 'destructive'}>
-        {t(
-          state === 'copied'
-            ? 'offline-events.copied'
-            : state === 'uncertain'
-              ? 'offline-events.status-uncertain'
-              : state === 'stock-changed'
-                ? 'offline-events.stock-changed'
-                : 'offline-events.status-refused',
-        )}
+        {t(errorKeys[state])}
       </Badge>
       <p>
         {state === 'uncertain'
