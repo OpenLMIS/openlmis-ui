@@ -345,6 +345,23 @@ it('always confirms Save, sends hidden members, and retains an unmodified device
   expect(clearInventoryLocal).not.toHaveBeenCalled();
 });
 
+it('stores an unmodified copy with its products on an online open', async () => {
+  setup();
+  await waitFor(() =>
+    expect(writeInventoryLocal).toHaveBeenCalledWith(
+      expect.objectContaining({ draftId: 'd', modified: false }),
+      expect.any(Number),
+      expect.anything(),
+      expect.objectContaining({
+        draftId: 'd',
+        eligible: stock.map(({ orderable }) =>
+          expect.objectContaining({ orderable: expect.objectContaining({ id: orderable.id }) }),
+        ),
+      }),
+    ),
+  );
+});
+
 async function submitAndReturnToInvalidPage(
   user: ReturnType<typeof userEvent.setup>,
   view: ReturnType<typeof setup>,

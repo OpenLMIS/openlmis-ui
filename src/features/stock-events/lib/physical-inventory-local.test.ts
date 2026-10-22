@@ -169,3 +169,18 @@ it('clears an orphan marker when the server confirms the current draft', async (
   await reconcileInventoryCopies(copy, 'd', 200);
   expect((await readInventoryLocal('d'))?.orphaned).toBe(false);
 });
+
+it('offers the newest current copy offline, never an orphan, and ordinary writes keep orphans', async () => {
+  for (const [draftId, fetchedAt, orphaned] of [
+    ['older', 1, false],
+    ['newer', 2, false],
+    ['orphan', 3, true],
+  ] as const)
+    await writeInventoryLocal({ ...snapshot(), draftId, fetchedAt, orphaned });
+  expect((await readInventoryLocalByScope(copy))?.draftId).toBe('newer');
+  const orphan = await readInventoryLocal('orphan');
+  await expect(
+    writeInventoryLocal({ ...snapshot(), draftId: 'orphan', revision: orphan?.revision }),
+  ).rejects.toBeInstanceOf(DraftConflictError);
+  expect((await readInventoryLocal('orphan'))?.orphaned).toBe(true);
+});
