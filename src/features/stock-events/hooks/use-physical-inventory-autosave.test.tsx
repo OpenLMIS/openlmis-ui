@@ -107,7 +107,7 @@ it('can reset a failed indicator after a successful server action', async () => 
   expect(view.result.current.status).toBe('saved');
 });
 
-it('reports a failed commit to callers so server actions cannot proceed', async () => {
+it('reports a failed commit to callers while retaining the device failure status', async () => {
   vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('full'));
   const view = renderHook(() => {
     const form = usePhysicalInventoryForm([], false);
@@ -183,7 +183,7 @@ it('shares one revision chain between the open snapshot, edits and a saved basel
 });
 
 it('silently adopts a newer revision in an untouched tab, then writes from that revision', async () => {
-  const newer = { ...copy, revision: 4 };
+  const newer = { ...copy, revision: 4, generation: 'G2', fetchedAt: 2 };
   vi.mocked(writeInventoryLocal)
     .mockRejectedValueOnce(new DraftConflictError(newer))
     .mockImplementation(async (value) => ({ ...value, revision: (value.revision ?? 0) + 1 }));
@@ -200,7 +200,11 @@ it('silently adopts a newer revision in an untouched tab, then writes from that 
   await act(async () => {
     await view.result.current.write(copy);
   });
-  expect(vi.mocked(writeInventoryLocal).mock.calls[1][0].revision).toBe(4);
+  expect(vi.mocked(writeInventoryLocal).mock.calls[1][0]).toMatchObject({
+    revision: 4,
+    generation: 'G2',
+    fetchedAt: 2,
+  });
 });
 
 it('checks the observed revision for Load Latest and Keep My Counts', async () => {
@@ -238,4 +242,65 @@ it('checks the observed revision for Load Latest and Keep My Counts', async () =
     revision: 5,
   });
   expect(view.result.current.status).toBe('saved');
+});
+
+it.each([undefined, { ...copy, revision: 4, orphaned: true }])(
+  'can keep counts after the stored copy is removed or orphaned: %s',
+  async (stored) => {
+    vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new DraftConflictError(stored));
+    const view = renderHook(() =>
+      usePhysicalInventoryAutosave(noCopy, usePhysicalInventoryForm([], false), 1),
+    );
+    await act(async () => {
+      await expect(view.result.current.write(copy)).rejects.toBeInstanceOf(DraftConflictError);
+    });
+    await act(async () => {
+      await view.result.current.keepCounts(copy);
+    });
+    expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[0].revision).toBe(stored?.revision ?? 0);
+    expect(view.result.current.status).toBe('saved');
+  },
+);
+it.each([undefined, { ...copy, revision: 4 }])(
+  'loads the server baseline when the conflicting device copy was deleted: %s',
+  async (stored) => {
+    vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new DraftConflictError(stored));
+    const adopt = vi.fn();
+    const view = renderHook(() =>
+      usePhysicalInventoryAutosave(noCopy, usePhysicalInventoryForm([], false), 1, adopt),
+    );
+    await act(async () => {
+      await expect(view.result.current.write(copy)).rejects.toThrow();
+    });
+    await act(async () => {
+      await view.result.current.loadLatest();
+    });
+    expect(adopt).toHaveBeenCalledWith(undefined);
+  },
+);
+it('rewrites the reference after keeping counts over another generation', async () => {
+  const opened = { ...copy, fetchedAt: 12, generation: 'G' };
+  const reference = {
+    ...opened,
+    userId: 'autosave-user',
+    formatVersion: 1,
+    eligible: [],
+    reasons: [],
+  };
+  vi.mocked(writeInventoryLocal)
+    .mockResolvedValueOnce({ ...opened, revision: 1 })
+    .mockRejectedValueOnce(new DraftConflictError({ ...opened, generation: 'G2', revision: 2 }));
+  const view = renderHook(() =>
+    usePhysicalInventoryAutosave(noCopy, usePhysicalInventoryForm([], false)),
+  );
+  await act(async () => {
+    await view.result.current.write(opened, reference);
+  });
+  await act(async () => {
+    await expect(view.result.current.write(opened)).rejects.toThrow();
+  });
+  await act(async () => {
+    await view.result.current.keepCounts(opened, reference);
+  });
+  expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[3]).toEqual(reference);
 });

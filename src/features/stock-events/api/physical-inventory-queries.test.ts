@@ -4,6 +4,7 @@ import {
   fetchEligibleInventoryProducts,
   fetchInventoryStockLines,
   fetchInventorySummaries,
+  fetchPhysicalInventoryDraft,
 } from '@/features/stock-events/api/physical-inventory-api';
 import {
   eligibleInventoryProductsOptions,
@@ -12,8 +13,10 @@ import {
   inventorySummariesOptions,
   physicalInventoryDraftOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
+import { DraftConflictError } from '@/lib/draft-store';
 
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
+  fetchPhysicalInventoryDraft: vi.fn(),
   fetchInventorySummaries: vi.fn().mockResolvedValue([]),
   fetchInventoryStockLines: vi.fn().mockResolvedValue([]),
   fetchEligibleInventoryProducts: vi.fn().mockResolvedValue([]),
@@ -140,3 +143,21 @@ it('shares normalized versioned orderable reads under the existing orderables li
   expect(queryFn).toHaveBeenCalledTimes(1);
   client.clear();
 });
+
+vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
+  reconcileInventoryCopies: vi.fn(),
+}));
+it.each([new Error('IndexedDB unavailable'), new DraftConflictError(undefined)])(
+  'returns the server draft despite failed reconciliation: %s',
+  async (error) => {
+    const { reconcileInventoryCopies } = await import(
+      '@/features/stock-events/lib/physical-inventory-local'
+    );
+    vi.mocked(reconcileInventoryCopies).mockRejectedValueOnce(error);
+    const draft = { id: 'd', facilityId: 'f', programId: 'p', lineItems: [] };
+    vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(draft);
+    await expect(
+      new QueryClient().fetchQuery(physicalInventoryDraftOptions(draft)),
+    ).resolves.toEqual(draft);
+  },
+);

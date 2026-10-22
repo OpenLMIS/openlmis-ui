@@ -801,36 +801,25 @@ it('updates the phone card unaccounted error and summary when reasons change wit
   );
 });
 
-it('blocks Delete after a failed device save and keeps the counts', async () => {
+it('deletes after a persistence failure without prompting to discard saved server work', async () => {
   vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
-  const actual = await vi.importActual<typeof import('@/hooks/use-discard-guard')>(
-    '@/hooks/use-discard-guard',
-  );
-  vi.mocked(useDiscardGuard).mockImplementation(actual.useDiscardGuard);
   const user = userEvent.setup();
-  const view = setup(
-    undefined,
-    () => {
-      void view.router.navigate({ to: '/stock-management/physical-inventory' });
-    },
-    undefined,
-    undefined,
-    true,
-  );
+  const onDeleted = vi.fn();
+  setup(undefined, onDeleted);
   await user.type(await screen.findByRole('textbox', { name: 'stock-events.field-of' }), '5');
   await screen.findAllByText('physical-inventory.not-saved-local');
   await user.click(screen.getByRole('button', { name: 'physical-inventory.delete' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.delete' }),
   );
-  await screen.findByRole('alertdialog');
-  expect(view.router.state.location.pathname).not.toBe('/stock-management/physical-inventory');
-  expect(deletePhysicalInventory).not.toHaveBeenCalled();
-  expect(clearInventoryLocal).not.toHaveBeenCalled();
-  await user.click(
-    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
-  );
-  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
+  await waitFor(() => expect(onDeleted).toHaveBeenCalled());
+  expect(deletePhysicalInventory).toHaveBeenCalledWith('d');
+});
+it('does not guard an untouched draft when its opening snapshot fails', async () => {
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
+  setup();
+  await screen.findAllByText('physical-inventory.not-saved-local');
+  expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false);
 });
 
 it('allows Delete when eligibility fails while keeping Save and Submit disabled', async () => {
@@ -1129,4 +1118,28 @@ it('keeps phone detail choices and scrolls on paging while filters stay put', as
   } finally {
     localStorage.removeItem('physical-inventory.columns');
   }
+});
+
+it('keeps the device failure visible after server Save resets the saved form baseline', async () => {
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
+  const user = userEvent.setup();
+  setup();
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.type(input, '5');
+  await screen.findAllByText('physical-inventory.not-saved-local');
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(savePhysicalInventory).toHaveBeenCalledWith(
+    expect.objectContaining({
+      lineItems: expect.arrayContaining([
+        expect.objectContaining({ orderableId: 'A', quantity: 5 }),
+      ]),
+    }),
+  );
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
+  expect(screen.getAllByText('physical-inventory.not-saved-local').length).toBeGreaterThan(0);
+  await waitFor(() => expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false));
 });

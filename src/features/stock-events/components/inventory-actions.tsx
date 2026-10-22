@@ -62,8 +62,10 @@ import type {
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { DraftConflictError } from '@/lib/draft-store';
 import { queryKeys } from '@/lib/key-factory';
 import { openReport } from '@/lib/open-report';
+import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 class UnknownSubmit extends Error {}
@@ -89,7 +91,7 @@ type Props = {
   writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<unknown>;
   onBusy: (busy: boolean) => void;
   onLots: (lines: InventoryLine[]) => void;
-  onSaved: (lines: InventoryLine[], terminal: boolean) => void;
+  onSaved: (lines: InventoryLine[], terminal: boolean, localSaved: boolean) => void;
   onDialogChange: (open: boolean) => void;
   onInvalid: (lines: readonly InventoryLine[]) => void;
   onDeleted: () => void | Promise<void>;
@@ -153,11 +155,22 @@ export function InventoryActions(props: Props) {
     retry: false,
     mutationFn: async (action: Action) => {
       const scope = getSessionScope();
-      await props.flush();
+      try {
+        await props.flush();
+      } catch (error) {
+        if (error instanceof DraftConflictError) throw error;
+        reportCaughtError(error, {});
+      }
       assertSessionScope(scope);
-      const local = await readInventoryLocal(props.draft.id);
-      assertSessionScope(scope);
-      if (local?.orphaned) throw new Error('This inventory draft is no longer current');
+      try {
+        const local = await readInventoryLocal(props.draft.id);
+        assertSessionScope(scope);
+        if (local?.orphaned) throw new DraftConflictError(local);
+      } catch (error) {
+        assertSessionScope(scope);
+        if (error instanceof DraftConflictError) throw error;
+        reportCaughtError(error, {});
+      }
       if (action.type === 'delete') {
         await deletePhysicalInventory(props.draft.id);
         return [];
@@ -176,7 +189,12 @@ export function InventoryActions(props: Props) {
         async (next) => {
           assertSessionScope(scope);
           props.onLots(next);
-          await props.writeLocal(inventoryLocalCopy(props.draft, next, props.baseline));
+          try {
+            await props.writeLocal(inventoryLocalCopy(props.draft, next, props.baseline));
+          } catch (error) {
+            if (error instanceof DraftConflictError) throw error;
+            reportCaughtError(error, {});
+          }
           assertSessionScope(scope);
         },
       );
@@ -270,23 +288,16 @@ export function InventoryActions(props: Props) {
       if (action.type === 'save')
         await props.writeLocal(inventoryLocalCopy(props.draft, next, next, false));
       else await props.clearLocal(props.draft.id);
-    } catch {
+    } catch (error) {
       localSaved = false;
-      if (mutation.isCurrent())
-        toast.error(
-          t(
-            action.type === 'save'
-              ? 'physical-inventory.not-saved-local'
-              : 'physical-inventory.local-clear-error-title',
-          ),
-          {
-            description: t(ACTION_KEYS[action.type].localClearError),
-          },
-        );
+      reportCaughtError(error, {});
+      if (mutation.isCurrent() && action.type !== 'save')
+        toast.error(t('physical-inventory.local-clear-error-title'), {
+          description: t(ACTION_KEYS[action.type].localClearError),
+        });
     }
     if (!mutation.isCurrent()) return;
-    if (action.type !== 'delete' && (action.type !== 'save' || localSaved))
-      props.onSaved(next, action.type !== 'save');
+    if (action.type !== 'delete') props.onSaved(next, action.type !== 'save', localSaved);
     const filters =
       action.type === 'submit'
         ? [
@@ -297,9 +308,10 @@ export function InventoryActions(props: Props) {
           ].map((queryKey) => ({ queryKey }))
         : inventoryRefreshFilters(props.draft);
     for (const filter of filters) void queryClient.invalidateQueries(filter);
-    toast.success(t(ACTION_KEYS[action.type].successTitle), {
-      description: t(ACTION_KEYS[action.type].successDescription),
-    });
+    if (action.type !== 'save' || localSaved)
+      toast.success(t(ACTION_KEYS[action.type].successTitle), {
+        description: t(ACTION_KEYS[action.type].successDescription),
+      });
     setDialog(action.type === 'submit' ? 'print' : null);
     if (action.type === 'save') {
       try {
@@ -310,7 +322,9 @@ export function InventoryActions(props: Props) {
           }),
           staleTime: 0,
         });
-      } catch {}
+      } catch (error) {
+        reportCaughtError(error, {});
+      }
       if (!mutation.isCurrent()) return;
     }
     props.onBusy(false);
