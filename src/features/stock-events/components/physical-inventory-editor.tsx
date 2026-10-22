@@ -727,7 +727,11 @@ function InventoryDraftRows({
               >
                 {t('physical-inventory.load-latest')}
               </Button>
-              <Button disabled={resolving} onClick={() => void resolveConflict('keep')}>
+              <Button
+                variant="warning"
+                disabled={resolving}
+                onClick={() => void resolveConflict('keep')}
+              >
                 {t('physical-inventory.keep-counts')}
               </Button>
             </div>

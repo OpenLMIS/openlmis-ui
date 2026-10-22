@@ -103,7 +103,8 @@ your counts; reopening the draft online refreshes its stock balances.
 
 An earlier-draft alert means this device has edited counts for a draft that is no longer the
 current server draft. Those counts are kept separately and are not sent to the server or offered
-in the offline draft list. Discard asks for confirmation and removes that earlier device copy.
+in the offline draft list. Discard Earlier Counts asks for confirmation and removes that
+earlier device copy.
 It does not delete the current server draft.
 
 ## Reconnect And Review Offline Events
