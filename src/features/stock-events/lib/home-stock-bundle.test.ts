@@ -7,6 +7,7 @@ import {
   fetchHomeStockBundle,
   getHomeStockBundle,
   readHomeStockBundle,
+  readHomeStockCounterparties,
 } from '@/features/stock-events/lib/home-stock-bundle';
 import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
 import { client } from '@/integrations/axios';
@@ -86,6 +87,22 @@ beforeEach(async () => {
           totalPages: 2,
         };
         break;
+      case '/validDestinations':
+      case '/validSources':
+        data = {
+          content: [1, 2].map(() => ({
+            id: 'assignment',
+            name: 'Ward',
+            programId: 'program',
+            facilityTypeId: 'type',
+            isFreeTextAllowed: false,
+            geoLevelAffinityId: null,
+            secret: 'discard',
+            node: { id: 'node', referenceId: 'ward', refDataFacility: false, secret: 'discard' },
+          })),
+          totalPages: 1,
+        };
+        break;
       case '/validReasons':
         data = [
           {
@@ -120,7 +137,7 @@ it('coalesces foreground reads, retains both requested versions and every page, 
     getHomeStockBundle(filter),
   ]);
   expect(first).toBe(second);
-  expect(first.formatVersion).toBe(5);
+  expect(first.formatVersion).toBe(6);
   expect(first.summaries?.map((group) => group.canFulfillForMe[0].stockCard.id)).toEqual([
     'card-1',
     'card-2',
@@ -188,7 +205,7 @@ it('bounds timed-out background reads without declaring the browser offline', as
   await expect(fetchHomeStockBundle(filter)).rejects.toMatchObject({
     code: AxiosError.ECONNABORTED,
   });
-  expect(adapter).toHaveBeenCalledTimes(4);
+  expect(adapter).toHaveBeenCalledTimes(8);
   expect(onlineManager.isOnline()).toBe(true);
 });
 
@@ -302,7 +319,7 @@ it.each(['foreground', 'coordinator'] as const)(
       accessToken: 'renewed',
     });
     expect((await result).cards).toHaveLength(2);
-    expect(refused).toHaveBeenCalledTimes(2);
+    expect(refused).toHaveBeenCalledTimes(source === 'coordinator' ? 4 : 2);
     await background;
   },
 );
@@ -462,5 +479,39 @@ it.each([{ id: 'missing-root' }, null, undefined])(
     };
     await expect(fetchHomeStockBundle(filter)).rejects.toThrow('Stock summary product not found');
     expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).count()).toBe(0);
+  },
+);
+
+it('downloads deduplicated whitelisted counterparties in format 6', async () => {
+  const saved = await fetchHomeStockBundle(filter);
+  expect(saved.formatVersion).toBe(6);
+  expect(saved.destinations).toHaveLength(1);
+  expect(saved.sources).toEqual(saved.destinations);
+  expect(saved.destinations?.[0]).toEqual({
+    id: 'assignment',
+    name: 'Ward',
+    programId: 'program',
+    facilityTypeId: 'type',
+    isFreeTextAllowed: false,
+    geoLevelAffinityId: null,
+    node: { id: 'node', referenceId: 'ward', refDataFacility: false },
+  });
+  expect(JSON.stringify(saved)).not.toContain('discard');
+});
+
+it.each([4, 5, 6] as const)(
+  'reads format %s while counterparties require 6',
+  async (formatVersion) => {
+    const saved = { ...(await fetchHomeStockBundle(filter)), formatVersion };
+    await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).put(saved);
+    await expect(readHomeStockBundle(filter)).resolves.toEqual(saved);
+    if (formatVersion === 6)
+      await expect(readHomeStockCounterparties(filter, 'validDestinations')).resolves.toEqual(
+        saved.destinations,
+      );
+    else
+      await expect(readHomeStockCounterparties(filter, 'validDestinations')).rejects.toBeInstanceOf(
+        LocalDataUnavailableError,
+      );
   },
 );

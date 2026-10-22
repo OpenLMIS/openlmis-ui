@@ -71,6 +71,34 @@ export async function stub(
         ],
         totalPages: 1,
       },
+      '/api/validDestinations': {
+        content: [
+          {
+            id: 'destination',
+            name: 'Fixture Ward',
+            programId: ids.program,
+            facilityTypeId: 'type',
+            isFreeTextAllowed: false,
+            geoLevelAffinityId: null,
+            node: { id: 'ward-node', referenceId: 'ward', refDataFacility: false },
+          },
+        ],
+        totalPages: 1,
+      },
+      '/api/validSources': {
+        content: [
+          {
+            id: 'destination',
+            name: 'Fixture Ward',
+            programId: ids.program,
+            facilityTypeId: 'type',
+            isFreeTextAllowed: false,
+            geoLevelAffinityId: null,
+            node: { id: 'ward-node', referenceId: 'ward', refDataFacility: false },
+          },
+        ],
+        totalPages: 1,
+      },
       '/api/validReasons': [
         {
           hidden: false,

@@ -350,12 +350,14 @@ export type ValidAssignmentsFilter = { programId: string; facilityId: string };
 export async function fetchValidAssignments(
   resource: 'validSources' | 'validDestinations',
   filter: ValidAssignmentsFilter,
+  config?: AxiosRequestConfig,
 ): Promise<ValidAssignment[]> {
-  const scope = getSessionScope();
+  const scope = config?.sessionScope ?? getSessionScope();
   const assignments: ValidAssignment[] = [];
   for (let page = 0; ; page += 1) {
     assertSessionScope(scope);
     const { data } = await client.get<Page<ValidAssignment>>(`/${resource}`, {
+      ...config,
       params: { ...filter, page, size: 100 },
     });
     assertSessionScope(scope);

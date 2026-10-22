@@ -6,17 +6,18 @@ import type {
   DownloadProvider,
   DownloadRecord,
   DownloadScope,
+  DownloadScopeState,
 } from '@/lib/download-provider';
 import { reportCaughtError } from '@/lib/report-error';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
 
-const EMPTY_SCOPES = new Set<string>();
+const EMPTY_SCOPES = new Map<string, DownloadScopeState>();
 
 export function useDownloadedScopes<R extends DownloadRecord, S extends DownloadScope>(
   provider: DownloadProvider<R, S>,
   scopes: readonly DownloadScope[],
   { enabled, accepts }: { enabled: boolean; accepts: DownloadAcceptance<R, S> },
-) {
+): { loaded: boolean; states: ReadonlyMap<string, DownloadScopeState> } {
   const session = useSessionScope();
   const key = JSON.stringify([
     session,
@@ -24,23 +25,28 @@ export function useDownloadedScopes<R extends DownloadRecord, S extends Download
     provider.id,
     scopes.map((scope) => [scope.id, scope.key]),
   ]);
-  const [ready, setReady] = useState({ key: '', ids: EMPTY_SCOPES });
+  const [ready, setReady] = useState({ key: '', states: EMPTY_SCOPES });
   useEffect(() => {
     if (!enabled) return;
     const subscription = liveQuery(async () => {
       const results = await Promise.all(
-        scopes.map(async (scope) => ((await provider.readScope(scope, accepts)) ? scope.id : null)),
+        scopes.map(
+          async (scope) => [scope.id, await provider.readScopeState(scope, accepts)] as const,
+        ),
       );
-      return new Set(results.filter((id) => id !== null));
+      return new Map(results);
     }).subscribe({
-      next: (ids) => setReady({ key, ids }),
+      next: (states) => setReady({ key, states }),
       error: (error) => {
         if (error instanceof SessionEndedError || session !== getSessionScope()) return;
         reportCaughtError(error, {});
-        setReady({ key, ids: EMPTY_SCOPES });
+        setReady({ key, states: EMPTY_SCOPES });
       },
     });
     return () => subscription.unsubscribe();
   }, [key, provider, scopes, enabled, accepts, session]);
-  return enabled && ready.key === key ? ready.ids : EMPTY_SCOPES;
+  return {
+    loaded: enabled && ready.key === key,
+    states: enabled && ready.key === key ? ready.states : EMPTY_SCOPES,
+  };
 }

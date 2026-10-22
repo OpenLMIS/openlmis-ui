@@ -54,6 +54,7 @@ import {
   counterpartyOptions,
   EVENT_KINDS,
   type EventPrintCopy,
+  homeStockDataset,
 } from '@/features/stock-events/lib/event-kinds';
 import { useCardView } from '@/hooks/use-card-view';
 import { usePrintReport } from '@/hooks/use-print-report';
@@ -95,7 +96,7 @@ export async function loadStockEventEditor(
     const filter = { facilityId: homeId, programId };
     if (counterparty !== 'none')
       queryClient.prefetchQuery(counterpartyOptions(counterparty, filter));
-    const bundleScope = EVENT_KINDS[kind].download
+    const bundleScope = homeStockDataset(EVENT_KINDS[kind])
       ? homeStockScope(filter, homeFacility.type.id)
       : undefined;
     if (products.from === 'stock-cards')

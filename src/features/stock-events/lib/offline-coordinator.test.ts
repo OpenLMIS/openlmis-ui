@@ -78,7 +78,9 @@ const bundle = (programId: string): HomeStockBundle => ({
   scanning: false,
   generation: crypto.randomUUID(),
   fetchedAt: Date.now(),
-  formatVersion: 5,
+  formatVersion: 6,
+  destinations: [],
+  sources: [],
   summaries: [],
   products: [],
   cards: [],
@@ -354,7 +356,7 @@ it('forces fresh sign-in downloads even when saved bundles are young', async () 
   stop = startCoordinator({
     access: () => raw,
     providers: [homeStockProvider(download)],
-    initialTrigger: 'force',
+    initialTrigger: 'sign-in',
   });
   await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
   await finished();
@@ -697,6 +699,7 @@ it('isolates provider failures and retries only the failed dataset when scope id
   }));
   const providers = [
     defineDownloadProvider({
+      refreshOn: ['sign-in', 'periodic', 'force', 'accepted'],
       id: 'first',
       label: 'offline.download.home-stock',
       table: LOCAL_TABLES.homeStockDownloads,
@@ -706,6 +709,7 @@ it('isolates provider failures and retries only the failed dataset when scope id
       isFresh: () => false,
     }),
     defineDownloadProvider({
+      refreshOn: ['sign-in', 'periodic', 'force', 'accepted'],
       id: 'second',
       label: 'offline.download.home-stock',
       table: LOCAL_TABLES.physicalInventoryDrafts,
@@ -1043,4 +1047,45 @@ it('accepts an online foreground event while a download owns its lock', async ()
     stopUploader();
     await downloadLock;
   }
+});
+
+it('reuses a sign-in-only dataset on reconnect and targeted home stock refresh', async () => {
+  const { defineDownloadProvider } = await import('@/lib/download-provider');
+  await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).clear();
+  const fetch = vi.fn(async () => ({
+    userId: 'downloader',
+    generation: 'catalog',
+    fetchedAt: Date.now(),
+    draftId: 'catalog',
+  }));
+  const provider = defineDownloadProvider({
+    id: 'catalog',
+    label: 'offline.download.home-stock',
+    table: LOCAL_TABLES.physicalInventoryDrafts,
+    refreshOn: ['sign-in'],
+    scopes: () => [{ id: 'p1', name: 'Program', key: 'catalog', refreshKey: 'home:p1' }],
+    fetch,
+    accepts: () => true,
+    isFresh: () => false,
+  });
+  stop = startCoordinator({
+    initialTrigger: 'sign-in',
+    access: () => raw,
+    providers: [homeStockProvider(download), provider],
+  });
+  await finished();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(download).toHaveBeenCalledTimes(2);
+  onlineManager.setOnline(false);
+  onlineManager.setOnline(true);
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(4));
+  await finished();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  refreshOfflineDownload('home:p1');
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(5));
+  await finished();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(
+    await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get('catalog'),
+  ).not.toHaveProperty('stale');
 });

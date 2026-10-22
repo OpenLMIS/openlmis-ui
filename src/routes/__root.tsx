@@ -50,10 +50,10 @@ export function SignedInDeviceWork({ children }: { children: ReactNode }) {
     }),
     [authenticated, work, scope],
   );
-  const [initialTrigger, setInitialTrigger] = useState<'boot' | 'force'>(
-    authenticated ? 'boot' : 'force',
+  const [initialTrigger, setInitialTrigger] = useState<'boot' | 'sign-in'>(
+    authenticated ? 'boot' : 'sign-in',
   );
-  if (!authenticated && initialTrigger !== 'force') setInitialTrigger('force');
+  if (!authenticated && initialTrigger !== 'sign-in') setInitialTrigger('sign-in');
   return (
     <DeviceWorkContext value={value}>
       <DeviceWorkPublisher value={publish}>

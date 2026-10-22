@@ -1,7 +1,12 @@
 import { AxiosError, type AxiosRequestConfig } from 'axios';
+import type { ValidAssignment } from '@/components/valid-assignments/types';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { fetchTradeItemsByIds, fetchValidReasons } from '@/features/reference-data/api/api';
+import {
+  fetchTradeItemsByIds,
+  fetchValidAssignments,
+  fetchValidReasons,
+} from '@/features/reference-data/api/api';
 import type {
   LotSummary,
   Orderable,
@@ -18,6 +23,9 @@ import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { requireOwnedRecord } from '@/lib/local-records';
 import { isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+
+export const HOME_STOCK_FORMATS = [4, 5, 6] as const;
+export type HomeStockFormat = (typeof HOME_STOCK_FORMATS)[number];
 
 export type HomeStockScope = {
   facilityId: string;
@@ -37,7 +45,9 @@ export type HomeStockBundle = HomeStockScope & {
   userId: string;
   generation: string;
   fetchedAt: number;
-  formatVersion: 4 | 5;
+  formatVersion: HomeStockFormat;
+  destinations?: ValidAssignment[];
+  sources?: ValidAssignment[];
   stale?: boolean;
   cards: HomeStockCard[];
   summaries?: HomeStockSummary[];
@@ -48,17 +58,42 @@ export type HomeStockBundle = HomeStockScope & {
 };
 export async function readHomeStockBundle(
   filter: Pick<HomeStockScope, 'facilityId' | 'programId' | 'facilityTypeId'>,
+  formats: readonly HomeStockFormat[] = HOME_STOCK_FORMATS,
 ) {
   return requireOwnedRecord<HomeStockBundle>(
     LOCAL_TABLES.homeStockDownloads,
     [filter.facilityId, filter.programId],
     {
-      formats: [4, 5],
+      formats,
       accept: (bundle) =>
         bundle.facilityId === filter.facilityId &&
         bundle.programId === filter.programId &&
         bundle.facilityTypeId === filter.facilityTypeId,
     },
+  );
+}
+
+export async function readHomeStockCounterparties(
+  filter: Pick<HomeStockScope, 'facilityId' | 'programId' | 'facilityTypeId'>,
+  resource: 'validDestinations' | 'validSources',
+): Promise<ValidAssignment[]> {
+  const bundle = await readHomeStockBundle(filter, [6]);
+  const assignments = resource === 'validDestinations' ? bundle.destinations : bundle.sources;
+  if (!assignments) throw new LocalDataUnavailableError();
+  return assignments;
+}
+
+function snapshotAssignments(assignments: ValidAssignment[]): ValidAssignment[] {
+  return [...new Map(assignments.map((item) => [item.id, item])).values()].map(
+    ({ id, programId, facilityTypeId, name, isFreeTextAllowed, geoLevelAffinityId, node }) => ({
+      id,
+      programId,
+      facilityTypeId,
+      name,
+      isFreeTextAllowed,
+      geoLevelAffinityId,
+      node: { id: node.id, referenceId: node.referenceId, refDataFacility: node.refDataFacility },
+    }),
   );
 }
 
@@ -92,6 +127,7 @@ function snapshotProduct(product: Orderable): Orderable {
 async function fetchBundle(
   filter: HomeStockScope,
   config: AxiosRequestConfig & { signal?: AbortSignal },
+  counterparties: boolean,
 ): Promise<HomeStockBundle> {
   const sessionScope = config.sessionScope ?? getSessionScope();
   const userId = useLoginData.getState().referenceDataUserId;
@@ -103,12 +139,34 @@ async function fetchBundle(
       throw new AxiosError('Download stopped.', AxiosError.ERR_CANCELED);
   };
   const read = <T>(task: () => Promise<T>) => retryDownloadRead(task, check);
-  const [{ cards, identities, summaries, products }, reasons] = await Promise.all([
-    readEventStockCards(filter, config, read),
-    read(() =>
-      fetchValidReasons({ program: filter.programId, facilityType: filter.facilityTypeId }, config),
-    ),
-  ]);
+  const [{ cards, identities, summaries, products }, reasons, destinations, sources] =
+    await Promise.all([
+      readEventStockCards(filter, config, read),
+      read(() =>
+        fetchValidReasons(
+          { program: filter.programId, facilityType: filter.facilityTypeId },
+          config,
+        ),
+      ),
+      counterparties
+        ? read(() =>
+            fetchValidAssignments(
+              'validDestinations',
+              { programId: filter.programId, facilityId: filter.facilityId },
+              config,
+            ),
+          )
+        : [],
+      counterparties
+        ? read(() =>
+            fetchValidAssignments(
+              'validSources',
+              { programId: filter.programId, facilityId: filter.facilityId },
+              config,
+            ),
+          )
+        : [],
+    ]);
   check();
   const productIds = new Set(products.map((product) => product.id));
   if (summaries.some((summary) => !summary.orderable?.id || !productIds.has(summary.orderable.id)))
@@ -141,7 +199,10 @@ async function fetchBundle(
     userId,
     generation: crypto.randomUUID(),
     fetchedAt: Date.now(),
-    formatVersion: 5,
+    formatVersion: 6,
+    ...(counterparties
+      ? { destinations: snapshotAssignments(destinations), sources: snapshotAssignments(sources) }
+      : {}),
     cards: hydrated,
     summaries: summaries.map((summary) => ({
       orderable: { id: summary.orderable.id },
@@ -191,12 +252,16 @@ const requestKeyFor = (filter: HomeStockScope) =>
 
 export function fetchHomeStockBundle(filter: HomeStockScope, signal?: AbortSignal) {
   const requestKey = requestKeyFor(filter);
-  const pending = fetchBundle(filter, {
-    session: false,
-    backgroundRead: true,
-    signal,
-    sessionScope: getSessionScope(),
-  }).finally(() => {
+  const pending = fetchBundle(
+    filter,
+    {
+      session: false,
+      backgroundRead: true,
+      signal,
+      sessionScope: getSessionScope(),
+    },
+    true,
+  ).finally(() => {
     if (downloads.get(requestKey) === pending) downloads.delete(requestKey);
   });
   downloads.set(requestKey, pending);
@@ -208,7 +273,7 @@ function fetchForegroundBundle(filter: HomeStockScope) {
   const existing = inFlight.get(requestKey);
   if (existing) return existing;
   const scope = getSessionScope();
-  const fetch = () => fetchBundle({ ...filter, scanning: false }, { sessionScope: scope });
+  const fetch = () => fetchBundle({ ...filter, scanning: false }, { sessionScope: scope }, false);
   const download = downloads.get(requestKey);
   const pending = (
     download

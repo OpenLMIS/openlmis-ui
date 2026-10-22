@@ -99,6 +99,7 @@ import {
   counterpartyOptions,
   EVENT_KINDS,
   type EventKindConfig,
+  homeStockDataset,
 } from '@/features/stock-events/lib/event-kinds';
 import {
   type KitUnpackReasonIds,
@@ -197,7 +198,7 @@ export function EventEditor({
       products.from === 'stock-cards' ? products.cardFilter(cards, today) : [],
     [products, today],
   );
-  const bundleScope = config.download
+  const bundleScope = homeStockDataset(config)
     ? homeStockScope({ facilityId, programId }, facilityTypeId)
     : undefined;
   const stockOptions = eventStockCardsOptions({ facilityId, programId }, bundleScope);

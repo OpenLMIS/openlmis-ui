@@ -3,6 +3,7 @@ import type { ValidAssignmentsFilter } from '@/features/reference-data/api/api';
 import { validAssignmentsOptions } from '@/features/reference-data/api/queries';
 import { reasonsOf } from '@/features/reference-data/lib/reasons-of';
 import type { Reason, ValidReasonAssignment } from '@/features/reference-data/lib/types';
+import type { HomeStockFormat } from '@/features/stock-events/lib/home-stock-bundle';
 import { allEventCards, issuableCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 import { RIGHTS } from '@/lib/rights';
@@ -91,7 +92,7 @@ export type EventKindConfig = {
     | { type: 'signature' }
     | { type: 'confirm'; title: ParseKeys; description: ParseKeys };
   scanning: boolean;
-  download: 'home-stock' | null;
+  download: readonly EventDataset[];
   drafts: 'device' | null;
   width: 'default' | 'wide';
   columnFit: 'thresholds' | 'measured';
@@ -136,7 +137,7 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/adjustments',
     editorRoute: '/stock-management/adjustments/$programId',
     historyType: 'adjustment',
-    download: 'home-stock',
+    download: [{ dataset: 'home-stock', minimumFormat: 4 }],
     drafts: 'device',
     eventOrigin: 'ADJUSTMENT',
     contents: { type: 'none' },
@@ -183,7 +184,7 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/issue',
     editorRoute: '/stock-management/issue/$programId',
     historyType: 'issue',
-    download: null,
+    download: [],
     drafts: null,
     eventOrigin: 'ISSUE',
     contents: { type: 'none' },
@@ -239,7 +240,7 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/receive',
     editorRoute: '/stock-management/receive/$programId',
     historyType: 'receive',
-    download: null,
+    download: [],
     drafts: null,
     eventOrigin: 'RECEIVE',
     contents: { type: 'none' },
@@ -295,7 +296,7 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/unpack',
     editorRoute: '/stock-management/unpack/$programId',
     historyType: 'adjustment',
-    download: null,
+    download: [],
     drafts: null,
     eventOrigin: null,
     contents: {
@@ -357,7 +358,11 @@ export const EVENT_KINDS = {
 export type ConfiguredEventKind = keyof typeof EVENT_KINDS;
 
 export const OFFLINE_EVENT_TYPES = (Object.keys(EVENT_KINDS) as ConfiguredEventKind[]).filter(
-  (kind) => EVENT_KINDS[kind].download !== null && EVENT_KINDS[kind].drafts === 'device',
+  (kind) => EVENT_KINDS[kind].download.length > 0 && EVENT_KINDS[kind].drafts === 'device',
 );
 export const OFFLINE_EVENT_KINDS = OFFLINE_EVENT_TYPES.map((kind) => EVENT_KINDS[kind]);
 export const OFFLINE_EVENT_RIGHTS = [...new Set(OFFLINE_EVENT_KINDS.map((kind) => kind.right))];
+
+export type EventDataset = { dataset: 'home-stock'; minimumFormat: HomeStockFormat };
+export const homeStockDataset = (config: EventKindConfig) =>
+  config.download.find((item) => item.dataset === 'home-stock');

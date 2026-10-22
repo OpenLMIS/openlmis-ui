@@ -110,7 +110,16 @@ it.each([
       expect(screen.queryByText('Not Available Offline')).not.toBeInTheDocument();
     } else {
       expect(action).toHaveAttribute('aria-disabled', 'true');
-      expect(action).toHaveAccessibleDescription(en['stock-programs.offline-description']);
+      await waitFor(() =>
+        expect(action).toHaveAccessibleDescription(
+          en[
+            view
+              ? 'stock-programs.offline-description'
+              : 'stock-programs.no-stock-card-right-description'
+          ],
+        ),
+      );
+      expect(screen.getByText('Not Downloaded')).toBeInTheDocument();
       if (!view) return;
       await act(async () => {
         await getLocalDb()

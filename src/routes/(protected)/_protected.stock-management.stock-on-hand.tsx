@@ -342,7 +342,7 @@ function StockOnHandBody({
   });
   const programUnavailable = useCallback(
     (programId: string) =>
-      programId && !online && !downloaded.has(programId)
+      programId && !online && downloaded.states.get(programId) !== 'ready'
         ? t('stock-programs.offline-description')
         : undefined,
     [online, downloaded, t],

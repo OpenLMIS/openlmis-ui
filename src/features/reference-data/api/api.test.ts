@@ -408,6 +408,17 @@ describe('fetchValidAssignments', () => {
       });
     },
   );
+  it('passes background config and scope to every page', async () => {
+    const config = { session: false, signal: new AbortController().signal, sessionScope: 7 };
+    get.mockResolvedValue({ data: { content: [], totalPages: 2 } });
+    await fetchValidAssignments('validSources', { programId: 'p', facilityId: 'f' }, config);
+    for (const page of [0, 1])
+      expect(get).toHaveBeenNthCalledWith(page + 1, '/validSources', {
+        ...config,
+        params: { programId: 'p', facilityId: 'f', page, size: 100 },
+      });
+    expect(assertSessionScope).toHaveBeenCalledWith(7);
+  });
   it('stops on an empty page and rejects a later failure without a partial list', async () => {
     const filter = { programId: 'p1', facilityId: 'f1' };
     get.mockResolvedValueOnce({ data: { content: [], totalPages: 0 } });

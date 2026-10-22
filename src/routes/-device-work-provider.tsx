@@ -25,7 +25,7 @@ import { isOnline } from '@/lib/online';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
 import { DeviceStatusProvider } from '@/routes/-device-status-provider';
 
-export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: 'boot' | 'force' }) {
+export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: 'boot' | 'sign-in' }) {
   const scope = useSessionScope();
   const navigate = useNavigate();
   const reviewRefused = useCallback(() => {
@@ -133,7 +133,7 @@ const loadDeviceWorkServices = () =>
   ]);
 
 export function startDeviceWorkServices(
-  initialTrigger: 'boot' | 'force',
+  initialTrigger: 'boot' | 'sign-in',
   load: typeof loadDeviceWorkServices = loadDeviceWorkServices,
   onReady?: (
     services: ReturnType<typeof import('@/lib/offline-coordinator').startOfflineCoordinator>,
