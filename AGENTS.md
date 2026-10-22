@@ -958,9 +958,11 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - `src/lib/` owns generic providers, coordinator, locks, access, connectivity, session scoping,
   draft storage and the serial writer. Features own datasets, endpoint readers and policies;
   routes compose features and register services. Preserve the feature import boundary.
-- Providers declare a unique id, translated label, table, scopes, fetch, freshness and acceptance
-  checks through `defineDownloadProvider`. Scopes carry a complete key, display id/name and
-  optional facility/program refresh key. Empty scopes are valid; reject mismatched records.
+- Providers declare a unique id, translated label, table, scopes, fetch, freshness, acceptance
+  checks and `refreshOn` triggers (`sign-in`, `periodic`, `force`, `accepted`) through
+  `defineDownloadProvider`. Sign-in has its own top-priority trigger. Scopes carry a complete
+  key, display id/name and optional facility/program refresh key. Empty scopes are valid; reject
+  mismatched records.
 - Keep offline route capability in shared shell policy, separate from dataset eligibility and
   downloaded readiness. Do not put route declarations or a second eligibility policy on providers.
 - Only the coordinator publishes complete owner-scoped access/dataset generations under the
@@ -989,6 +991,10 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   Use `withOfflineAccess` when a read must select the saved access snapshot offline.
 - Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `homeStockPrograms`
   with event grants for event pickers. `useDownloadedScopes` applies caller acceptance offline.
+  A kind's `download` lists datasets with acceptance: home stock takes a minimum format through
+  `HOME_STOCK_ACCEPTANCE` (Adjustments 4+, Stock On Hand 5+, Issue 6). Pickers derive readiness
+  with `programReadiness` from `readScopeState` states (ready, ineligible, missing, outdated) and
+  show the reason visibly.
   Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home
   stock; Stock Card keeps viewed home histories per owner until replaced by a newer view. Check home
   scope and exact grants separately from route capability; show local absence, never a 404.
@@ -1065,7 +1071,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 
 ### Add an offline screen
 
-- Declare event right, dataset, drafts, routes and label in EVENT_KINDS; register read-only
+- Declare event right, `download` datasets with acceptance, drafts, routes and label in
+  EVENT_KINDS; register read-only
   routes in shared shell capability policy. Check readiness with `useDownloadedScopes` separately.
 - Keep endpoint readers, snapshots, scope/freshness checks and upload policy in the owning
   feature. Register its download provider through route composition with complete typed scopes;

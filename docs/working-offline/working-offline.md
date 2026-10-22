@@ -1,9 +1,10 @@
 # Working Offline
 
-Adjustments can use downloaded data, save drafts and submit events without a connection.
-Home, Offline Events, downloaded home-facility Stock On Hand and saved Stock Cards also open
-offline. Transaction History, other stock pages, administration, printing and PDF downloads
-need a connection.
+Adjustments and Issue can use downloaded data, save drafts and submit events without a
+connection. Home, Offline Events, downloaded home-facility Stock On Hand and saved Stock Cards
+also open offline. Receive is next to work offline. Unpack needs a connection, as in the old
+UI, and Physical Inventory follows later. Transaction History, other stock pages,
+administration, printing and PDF downloads need a connection.
 
 ## Before You Disconnect
 
@@ -18,18 +19,23 @@ Event times use your deployment's time zone. If the app cannot load that setting
 keeps the last known zone. Without a saved zone, it shows a notice and uses UTC until the
 setting is available again.
 
-The app downloads only your home-facility programs where you have both permission to make
-Adjustments and permission to view Stock Cards. Programs at other facilities and programs
-without both permissions are not downloaded. A downloaded program is a snapshot of stock
+The app downloads only your home-facility programs where you have permission to view Stock
+Cards. Each download holds the stock and the places Issue can send stock to. Adjustments and
+Issue then work offline for those programs where you also have permission to make that event.
+Programs at other facilities are not downloaded. A downloaded program is a snapshot of stock
 at download time. The app cannot download new data while
 disconnected. Wait for downloads to finish and check the sidebar for failures before leaving.
+
+Offline, the Adjustments and Issue program lists mark programs you cannot use as Not
+Downloaded and explain why: you lack permission to view Stock Cards, the device holds
+an older download, or the program has not been downloaded yet. Reconnect to download it.
 
 A disconnected icon marks pages that need a connection. Selecting one while offline opens
 Connect To Open This Page; Close returns to the item you selected.
 
 ## Drafts And Submit Offline
 
-Open Adjustments and choose a program. Edits save automatically. Wait for Saved On This Device
+Open Adjustments or Issue and choose a program. Edits save automatically. Wait for Saved On This Device
 before closing the browser. If saving fails, keep the page open and use Retry. A failed save
 is not confirmation that your latest edits are stored.
 
@@ -41,7 +47,9 @@ save so one tab cannot silently replace the other tab's work.
 Submit Offline validates the lines and asks for your signature. Confirmation saves a frozen
 event on the device. Event Queued confirms that it is stored, then Stock On Hand opens for that
 facility and program. It shows the downloaded stock, which has not changed yet, and a note that
-the event is waiting to sync. Further adjustments start a new draft.
+the event is waiting to sync. Issue does not offer printing for a queued event. Further events
+start a new draft. Quantities are checked against the downloaded stock only; queued events do
+not reduce it, so the server may refuse an issue that would leave too little stock.
 
 While connected, Submit uses the same device queue. The success message appears only after
 the server accepts the event and the app records that result. Acceptance opens Stock On Hand.
@@ -68,7 +76,7 @@ keeps your downloaded data, drafts and events available for local work.
 
 Open Offline Events directly below Home in the sidebar. Its badge counts queued events,
 uploads in progress, unknown results and unresolved refusals, including held work. The
-Adjustments program list also links there when its events are waiting or need review.
+Adjustments and Issue program lists also link there when its events are waiting or need review.
 
 The page shows each event's type, facility, program, occurred dates and sync status.
 On phones, each event has its own card. Choose View Details in the row menu or card to see
