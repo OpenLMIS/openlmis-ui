@@ -762,7 +762,6 @@
   "physical-inventory.save-confirm": "Attention : Enregistrer rendra tous les lots nouvellement ajoutés non modifiables, mais il sera toujours possible de supprimer une ligne de l’inventaire physique.",
   "physical-inventory.save-error-description": "Le brouillon n’a pas pu être enregistré. Vos quantités comptées sont conservées sur cet appareil.",
   "physical-inventory.save-error-title": "Brouillon Non Enregistré",
-  "physical-inventory.save-local-clear-error": "L’inventaire physique a été enregistré sur le serveur, mais sa copie sur cet appareil n’a pas pu être mise à jour.",
   "physical-inventory.saved-description": "L’enregistrement a réussi.",
   "physical-inventory.saved-local": "Enregistré Sur Cet Appareil",
   "physical-inventory.saved-title": "Brouillon Enregistré",

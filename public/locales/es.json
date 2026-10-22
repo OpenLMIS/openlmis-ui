@@ -762,7 +762,6 @@
   "physical-inventory.save-confirm": "Advertencia: Al guardar, todos los lotes recién añadidos dejarán de ser modificables, pero seguirá siendo posible eliminar la fila del inventario físico.",
   "physical-inventory.save-error-description": "No se pudo guardar el borrador. Sus cantidades contadas se conservan en este dispositivo.",
   "physical-inventory.save-error-title": "Borrador No Guardado",
-  "physical-inventory.save-local-clear-error": "El inventario físico se guardó en el servidor, pero no se pudo actualizar su copia en este dispositivo.",
   "physical-inventory.saved-description": "Se ha guardado correctamente.",
   "physical-inventory.saved-local": "Guardado En Este Dispositivo",
   "physical-inventory.saved-title": "Borrador Guardado",

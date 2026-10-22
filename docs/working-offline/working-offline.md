@@ -1,10 +1,10 @@
 # Working Offline
 
 Adjustments, Issue and Receive can use downloaded data, save drafts and submit events without a
-connection. Home, Offline Events, downloaded home-facility Stock On Hand and saved Stock Cards
-also open offline. Unpack needs a connection, as in the old UI, and Physical Inventory follows
-later. Transaction History, other stock pages, administration, printing and PDF downloads need a
-connection.
+connection. Home, Offline Events, downloaded home-facility Stock On Hand, saved Stock Cards and
+Physical Inventory drafts opened online on this device also open offline. Unpack needs a
+connection, as in the old UI. Transaction History, other stock pages, administration, printing and
+PDF downloads need a connection.
 
 ## Before You Disconnect
 
@@ -85,6 +85,26 @@ without saved history shows its downloaded balance and asks you to connect to vi
 Saved history shows its own download time. A newer stock download supplies the balance without
 older history lines, even when the balance and active state still agree. Missing downloads show
 Not Available Offline. Reconnect to refresh stock and open histories you need.
+
+## Physical Inventory
+
+Before disconnecting, open the draft online in the browser and device you will use for counting.
+Wait for its products and reasons to finish loading. Only drafts opened online on this device
+are available offline; you cannot start a new draft without a connection.
+
+Offline, you can enter counts and reasons, use Add Products and add new lots if you have
+permission to manage lots. Scanning is off. Edits save automatically on this device. Wait for
+Saved On This Device before closing the browser. Counts remain on the device after sign-out
+and are available when the same user signs in again.
+
+Save and Delete need a connection. Submit checks the counts first, then asks you to connect
+before submitting. Nothing is sent automatically when the connection returns. The page keeps
+your counts; reopening the draft online refreshes its stock balances.
+
+An earlier-draft alert means this device has edited counts for a draft that is no longer the
+current server draft. Those counts are kept separately and are not sent to the server or offered
+in the offline draft list. Discard asks for confirmation and removes that earlier device copy.
+It does not delete the current server draft.
 
 ## Reconnect And Review Offline Events
 

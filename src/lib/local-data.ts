@@ -15,6 +15,10 @@ export class LocalDataUnavailableError extends Error {
   }
 }
 
+export function requireOnline() {
+  if (!isOnline()) throw new LocalDataUnavailableError();
+}
+
 export async function onlineOrDevice<T>(
   online: () => Promise<T>,
   device: () => Promise<T>,

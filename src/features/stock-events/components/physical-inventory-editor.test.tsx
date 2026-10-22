@@ -66,7 +66,7 @@ vi.mock('react-i18next', () => ({
 }));
 vi.mock('@/features/stock-events/lib/physical-inventory-local', async (original) => ({
   ...(await original<typeof import('@/features/stock-events/lib/physical-inventory-local')>()),
-  reconcileInventoryCopies: vi.fn(),
+  reconcileInventoryCopies: vi.fn().mockResolvedValue(undefined),
   readInventoryLocal: vi.fn(),
   clearInventoryLocal: vi.fn(),
   writeInventoryLocal: vi.fn(),
@@ -312,6 +312,8 @@ it('writes removal of the last locally added line so it cannot return on reopen'
       }),
       expect.any(Number),
       expect.anything(),
+      undefined,
+      undefined,
     ),
   );
 });
@@ -340,6 +342,8 @@ it('always confirms Save, sends hidden members, and retains an unmodified device
       expect.objectContaining({ draftId: 'd', modified: false, baselineKeys: expect.any(Array) }),
       expect.any(Number),
       expect.anything(),
+      undefined,
+      undefined,
     ),
   );
   expect(clearInventoryLocal).not.toHaveBeenCalled();
@@ -358,6 +362,7 @@ it('stores an unmodified copy with its products on an online open', async () => 
           expect.objectContaining({ orderable: expect.objectContaining({ id: orderable.id }) }),
         ),
       }),
+      undefined,
     ),
   );
 });
@@ -567,6 +572,8 @@ it('keeps Delete on an added row after Save replaces its editable lot with the s
     }),
     expect.any(Number),
     expect.anything(),
+    undefined,
+    undefined,
   );
   expect(savePhysicalInventory).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -779,6 +786,8 @@ it('keeps sorting and paging stable during count entry while progress and saved 
       }),
       expect.any(Number),
       expect.anything(),
+      undefined,
+      undefined,
     ),
   );
 });
@@ -920,6 +929,8 @@ it('retains saved session counts when the stock refresh fails and saves them aga
     expect.objectContaining({ modified: false }),
     expect.any(Number),
     expect.anything(),
+    undefined,
+    undefined,
   );
   expect(savePhysicalInventory).toHaveBeenLastCalledWith(
     expect.objectContaining({
@@ -1157,4 +1168,29 @@ it('keeps the device failure visible after server Save resets the saved form bas
   expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
   expect(screen.getAllByText('physical-inventory.not-saved-local').length).toBeGreaterThan(0);
   await waitFor(() => expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false));
+});
+
+it('disables both conflict choices while Load Latest is reading the device', async () => {
+  const { DraftConflictError } = await import('@/lib/draft-store');
+  const stored = {
+    draftId: 'd',
+    facilityId: 'f',
+    programId: 'p',
+    lines: [],
+    modified: true,
+    savedAt: 1,
+    revision: 2,
+  };
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new DraftConflictError(stored));
+  const user = userEvent.setup();
+  setup();
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.type(input, '7');
+  const load = await screen.findByRole('button', { name: 'physical-inventory.load-latest' });
+  const reading = Promise.withResolvers<typeof stored>();
+  vi.mocked(readInventoryLocal).mockReturnValue(reading.promise);
+  await user.click(load);
+  expect(load).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'physical-inventory.keep-counts' })).toBeDisabled();
+  reading.resolve(stored);
 });

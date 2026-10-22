@@ -13,13 +13,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import {
-  clearInventoryLocal,
-  readInventoryScope,
-} from '@/features/stock-events/lib/physical-inventory-local';
+import { inventoryOrphansOptions } from '@/features/stock-events/api/physical-inventory-queries';
+import { clearInventoryLocal } from '@/features/stock-events/lib/physical-inventory-local';
 import type { InventoryScope } from '@/features/stock-events/lib/physical-inventory-types';
 import { getLocalDb } from '@/integrations/local-db';
-import { queryKeys } from '@/lib/key-factory';
 import { reportCaughtError } from '@/lib/report-error';
 import { getSessionScope } from '@/lib/session-scope';
 
@@ -27,10 +24,7 @@ export function InventoryOrphans({ scope }: { scope: InventoryScope }) {
   const { t } = useTranslation();
   const [confirm, setConfirm] = useState(false);
   const [pending, setPending] = useState(false);
-  const copies = useQuery({
-    queryKey: [...queryKeys.physicalInventories.list(scope), 'orphans'],
-    queryFn: async () => (await readInventoryScope(scope)).filter((copy) => copy.orphaned),
-  });
+  const copies = useQuery(inventoryOrphansOptions(scope));
   if (!copies.data?.length) return null;
   const discard = async () => {
     const session = getSessionScope();
@@ -55,7 +49,7 @@ export function InventoryOrphans({ scope }: { scope: InventoryScope }) {
   };
   return (
     <>
-      <Alert variant="warning">
+      <Alert variant="warning" role="note">
         <AlertDescription>
           <p>{t('physical-inventory.orphaned-counts')}</p>
           <Button variant="warning" disabled={pending} onClick={() => setConfirm(true)}>

@@ -762,7 +762,6 @@
   "physical-inventory.save-confirm": "Aviso: Ao guardar, todos os lotes recentemente adicionados deixarão de ser modificáveis, mas continuará a ser possível remover a linha do inventário físico.",
   "physical-inventory.save-error-description": "Não foi possível guardar o rascunho. As quantidades contadas são mantidas neste dispositivo.",
   "physical-inventory.save-error-title": "Rascunho Não Guardado",
-  "physical-inventory.save-local-clear-error": "O inventário físico foi guardado no servidor, mas não foi possível atualizar a sua cópia neste dispositivo.",
   "physical-inventory.saved-description": "Guardado com sucesso.",
   "physical-inventory.saved-local": "Guardado Neste Dispositivo",
   "physical-inventory.saved-title": "Rascunho Guardado",

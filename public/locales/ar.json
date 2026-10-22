@@ -762,7 +762,6 @@
   "physical-inventory.save-confirm": "تحذير: سيجعل الحفظ جميع التشغيلات المضافة حديثًا غير قابلة للتعديل، ولكن سيظل حذف صف الجرد الفعلي ممكنًا.",
   "physical-inventory.save-error-description": "تعذر حفظ المسودة. تم الاحتفاظ بالكميات المعدودة على هذا الجهاز.",
   "physical-inventory.save-error-title": "لم تُحفظ المسودة",
-  "physical-inventory.save-local-clear-error": "تم حفظ الجرد الفعلي على الخادم، لكن تعذر تحديث نسخته على هذا الجهاز.",
   "physical-inventory.saved-description": "تم الحفظ بنجاح.",
   "physical-inventory.saved-local": "تم الحفظ على هذا الجهاز",
   "physical-inventory.saved-title": "تم حفظ المسودة",

@@ -17,8 +17,8 @@ import { useReloadOnConnectivityChange } from '@/hooks/use-reload-on-connectivit
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
-import { LocalDataUnavailableError } from '@/lib/local-data';
-import { isOnline, useOnline } from '@/lib/online';
+import { requireOnline } from '@/lib/local-data';
+import { useOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import {
   loadStockEventPrograms,
@@ -75,7 +75,7 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
     mutationFn: async (programId: string) => {
       const scope = getSessionScope();
       const selection = { programId, facilityId };
-      if (!isOnline()) throw new LocalDataUnavailableError();
+      requireOnline();
       try {
         return await startPhysicalInventory(selection);
       } catch (error) {
@@ -112,7 +112,7 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
   });
   const rows = programs.flatMap((program, index) => {
     const result = drafts[index];
-    if (!online && !result.data) return [];
+    if (!online && !result.isError && !result.data) return [];
     return [
       {
         id: program.id,
@@ -146,18 +146,6 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
           actionsLabel={t('physical-inventory.actions')}
         />
       );
-    const error = drafts.find((draft) => draft.isError);
-    if (error)
-      return (
-        <ListError
-          title={t('physical-inventory.load-error-title')}
-          description={t('physical-inventory.load-error-description')}
-          error={error.error}
-          reset={() => {
-            void error.refetch();
-          }}
-        />
-      );
     return (
       <DataTableCard>
         <DataTableEmpty
@@ -167,25 +155,38 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
       </DataTableCard>
     );
   }
+  const failed = drafts.filter((draft) => draft.isError);
   return (
-    <StockProgramPicker
-      rows={rows}
-      hasHomeFacility={hasHomeFacility}
-      statusLabel={t('physical-inventory.status')}
-      actionsLabel={t('physical-inventory.actions')}
-      onAction={(row) => {
-        const result = drafts[programs.findIndex((program) => program.id === row.id)];
-        if (result.isError) {
-          void result.refetch();
-          return;
-        }
-        if (result.data)
-          void navigate({
-            to: '/stock-management/physical-inventory/$programId',
-            params: { programId: row.id },
-          });
-        else mutation.mutate(row.id);
-      }}
-    />
+    <>
+      {failed.length > 0 && (
+        <ListError
+          title={t('physical-inventory.load-error-title')}
+          description={t('physical-inventory.load-error-description')}
+          error={failed[0].error}
+          reset={() => {
+            for (const result of failed) void result.refetch();
+          }}
+        />
+      )}
+      <StockProgramPicker
+        rows={rows}
+        hasHomeFacility={hasHomeFacility}
+        statusLabel={t('physical-inventory.status')}
+        actionsLabel={t('physical-inventory.actions')}
+        onAction={(row) => {
+          const result = drafts[programs.findIndex((program) => program.id === row.id)];
+          if (result.isError) {
+            void result.refetch();
+            return;
+          }
+          if (result.data)
+            void navigate({
+              to: '/stock-management/physical-inventory/$programId',
+              params: { programId: row.id },
+            });
+          else mutation.mutate(row.id);
+        }}
+      />
+    </>
   );
 }

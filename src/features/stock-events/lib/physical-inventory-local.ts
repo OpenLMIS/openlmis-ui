@@ -8,7 +8,7 @@ import type {
 import { getLocalDb, getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { DraftConflictError, type DraftRevision, saveRevisionedDraft } from '@/lib/draft-store';
 import type { DeviceSnapshot } from '@/lib/local-data';
-import { putOwnedRecord, readOwnedRecord } from '@/lib/local-records';
+import { putOwnedRecord, readOwnedRecord, requireOwnedRecord } from '@/lib/local-records';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export type InventoryLocalCopy = InventoryScope &
@@ -35,10 +35,12 @@ export type InventoryReference = InventoryScope &
   };
 
 export function inventoryReference(
-  copy: InventoryLocalCopy & DeviceSnapshot,
+  copy: InventoryLocalCopy,
   eligible: readonly InventoryStockLine[],
   reasons: readonly Pick<Reason, 'id' | 'name' | 'reasonType'>[],
 ): InventoryReference {
+  if (copy.fetchedAt === undefined || !copy.generation)
+    throw new Error('Missing inventory snapshot');
   return {
     userId: getLocalDbUserId(),
     formatVersion: INVENTORY_FORMAT_VERSION,
@@ -102,21 +104,36 @@ export async function readInventoryLocalByScope(scope: InventoryScope) {
     .sort((a, b) => (b.fetchedAt ?? 0) - (a.fetchedAt ?? 0))[0];
 }
 
+function matchesCopy(reference: InventoryReference, copy: InventoryLocalCopy) {
+  return (
+    copy.formatVersion === INVENTORY_FORMAT_VERSION &&
+    !!copy.generation &&
+    reference.draftId === copy.draftId &&
+    reference.facilityId === copy.facilityId &&
+    reference.programId === copy.programId &&
+    reference.generation === copy.generation &&
+    reference.fetchedAt === copy.fetchedAt
+  );
+}
+
+const referenceReadOptions = (copy: InventoryLocalCopy) => ({
+  formats: [INVENTORY_FORMAT_VERSION],
+  accept: (reference: InventoryReference) => matchesCopy(reference, copy),
+});
+
 export function readInventoryReference(copy: InventoryLocalCopy) {
   return readOwnedRecord<InventoryReference>(
     LOCAL_TABLES.physicalInventoryReference,
     copy.draftId,
-    {
-      formats: [INVENTORY_FORMAT_VERSION],
-      accept: (ref) =>
-        copy.formatVersion === INVENTORY_FORMAT_VERSION &&
-        !!copy.generation &&
-        ref.draftId === copy.draftId &&
-        ref.facilityId === copy.facilityId &&
-        ref.programId === copy.programId &&
-        ref.generation === copy.generation &&
-        ref.fetchedAt === copy.fetchedAt,
-    },
+    referenceReadOptions(copy),
+  );
+}
+
+export function requireInventoryReference(copy: InventoryLocalCopy) {
+  return requireOwnedRecord<InventoryReference>(
+    LOCAL_TABLES.physicalInventoryReference,
+    copy.draftId,
+    referenceReadOptions(copy),
   );
 }
 
@@ -153,14 +170,7 @@ export async function writeInventoryLocal(
     },
     next: async () => {
       if (reference) {
-        if (
-          reference.draftId !== copy.draftId ||
-          reference.facilityId !== copy.facilityId ||
-          reference.programId !== copy.programId ||
-          reference.generation !== copy.generation ||
-          reference.fetchedAt !== copy.fetchedAt
-        )
-          throw new Error('Mismatched inventory reference');
+        if (!matchesCopy(reference, copy)) throw new Error('Mismatched inventory reference');
         await putOwnedRecord(LOCAL_TABLES.physicalInventoryReference, reference, () =>
           assertSessionScope(scope),
         );

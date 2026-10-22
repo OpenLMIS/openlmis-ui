@@ -364,3 +364,56 @@ it('keeps the stored snapshot identity when an offline-opened draft is saved aft
     modified: false,
   });
 });
+
+it.each([false, true])(
+  'persists the visit reference after an early edit (previous copy: %s)',
+  async (previous) => {
+    const local = await vi.importActual<
+      typeof import('@/features/stock-events/lib/physical-inventory-local')
+    >('@/features/stock-events/lib/physical-inventory-local');
+    vi.mocked(writeInventoryLocal).mockImplementation(local.writeInventoryLocal);
+    vi.mocked(readInventoryLocal).mockImplementation(local.readInventoryLocal);
+    const old = {
+      ...copy,
+      draftId: crypto.randomUUID(),
+      formatVersion: 1,
+      baselineKeys: [],
+      fetchedAt: 10,
+      generation: 'G1',
+    };
+    const initial = previous
+      ? await local.writeInventoryLocal(
+          old,
+          undefined,
+          undefined,
+          local.inventoryReference(old, [], []),
+        )
+      : undefined;
+    const next = { ...old, fetchedAt: 20, generation: 'G2' };
+    const view = renderHook(
+      ({ value }) => {
+        const form = usePhysicalInventoryForm([], false);
+        const getCopy = useCallback(() => value, [value]);
+        return usePhysicalInventoryAutosave(getCopy, form, initial?.revision, undefined, initial);
+      },
+      { initialProps: { value: null as InventoryLocalCopy | null } },
+    );
+    view.rerender({ value: next });
+    await act(async () => {
+      await view.result.current.flush();
+    });
+    if (initial) {
+      const early = await local.readInventoryLocal(old.draftId);
+      expect(early).toMatchObject({ generation: 'G1', fetchedAt: 10 });
+      if (!early) throw new Error('Missing earlier copy');
+      expect(await local.readInventoryReference(early)).toBeDefined();
+    }
+    await act(async () => {
+      await view.result.current.write(next, local.inventoryReference(next, [], []));
+    });
+    const stored = await local.readInventoryLocal(old.draftId);
+    expect(stored).toMatchObject({ generation: 'G2', fetchedAt: 20 });
+    if (!stored) throw new Error('Missing stored copy');
+    expect(await local.readInventoryReference(stored)).toBeDefined();
+  },
+);
