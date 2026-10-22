@@ -2,7 +2,6 @@ import type { ParseKeys } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
-import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import {
   Table,
@@ -12,13 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { deviceEventLineValues } from '@/features/stock-events/lib/device-event-line-values';
 import {
   COUNTERPARTY,
   EVENT_KINDS,
   type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
-import { vvmItems } from '@/features/stock-events/lib/vvm-items';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { orEmpty, tableValue } from '@/lib/empty-value';
 
@@ -35,33 +34,7 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
     'offline-events.occurred-date',
     'stock-events.vvm-status',
   ];
-  const lines = event.payload.lineItems.map((item, index) => {
-    const line = event.lines[index];
-    const values: Partial<Record<ParseKeys, string | null | undefined>> = {
-      'offline-events.lot': line?.lot?.lotCode,
-      'offline-events.quantity': new Intl.NumberFormat(i18n.language).format(item.quantity),
-      'offline-events.reason': event.reasons?.find((reason) => reason.id === item.reasonId)?.name,
-      'stock-events.reason-comments': item.reasonFreeText,
-      'offline-events.occurred-date': item.occurredDate
-        ? formatDateValue(item.occurredDate, i18n.language)
-        : undefined,
-      'stock-events.vvm-status': item.extraData?.vvmStatus
-        ? vvmItems(t).find((entry) => entry.value === item.extraData?.vvmStatus)?.label
-        : undefined,
-    };
-    if (counterparty) {
-      const destination = config.counterparty === 'destination';
-      values[counterparty.column] = (destination ? event.destinations : event.sources)?.find(
-        (entry) => entry.id === (destination ? item.destinationId : item.sourceId),
-      )?.name;
-      values[counterparty.comments] = destination ? item.destinationFreeText : item.sourceFreeText;
-    }
-    return {
-      key: line?.key ?? index,
-      product: line?.orderable.fullProductName || item.orderableId,
-      values: headers.map((header) => values[header]),
-    };
-  });
+  const lines = deviceEventLineValues(event, i18n.language, t, headers);
   const visibleHeaders = headers
     .map((header, index) => ({ header, index }))
     .filter(

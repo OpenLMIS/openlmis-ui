@@ -31,12 +31,12 @@ test('copying a refusal replaces its dialog entry and Back returns to the device
   await enqueue(page, [{ signature: 'Correction navigation' }]);
   await context.setOffline(false);
   await expect.poll(async () => (await records(page, 'stockEventSyncErrors')).length).toBe(1);
-  await page.goto('./offline-events');
+  await page.goto('./offline-events?tab=errors');
   await page.locator('tbody button[aria-haspopup=menu]').click();
   await page
     .getByRole('menuitem', { name: catalog['offline-events.review-event'], exact: true })
     .click();
-  await expect(page).toHaveURL(/offline-events\?event=/);
+  await expect(page).toHaveURL(/offline-events\?tab=errors&event=/);
   await expect(page.getByRole('dialog')).toContainText('Fixture refusal');
   await expect(page.getByRole('dialog')).not.toContainText('secret-debug-value');
   await page.getByRole('dialog').getByRole('button', { name: 'Copy For Correction' }).click();
@@ -44,7 +44,7 @@ test('copying a refusal replaces its dialog entry and Back returns to the device
   await expect(page).toHaveURL(/\/stock-management\/adjustments\/program$/);
   await expect(page.getByRole('button', { name: 'Submit', exact: true })).toBeEnabled();
   await page.goBack();
-  await expect(page).toHaveURL(/\/offline-events$/);
+  await expect(page).toHaveURL(/\/offline-events\?tab=errors$/);
   await expect(
     page.getByRole('heading', { name: catalog['offline-events.title'], exact: true }),
   ).toBeVisible();

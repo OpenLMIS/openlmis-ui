@@ -351,6 +351,13 @@ async function writeForOwner<T>(
     if (owned !== db) owned.close();
   }
 }
+export function blockedScopes(rows: readonly QueuedStockEvent[]): Set<string> {
+  return new Set(
+    rows
+      .filter((row) => row.status !== 'queued' || row.pauseReason)
+      .map((row) => `${row.facilityId}:${row.programId}`),
+  );
+}
 export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDependencies) {
   while (deps.canSend()) {
     deps.check();
@@ -375,9 +382,7 @@ export async function syncStockEvents(db: Dexie, userId: string, deps: SyncDepen
         row.pauseReason = pauseReason;
       }
     }
-    const blocked = new Set(
-      rows.filter((row) => row.status !== 'queued' || row.pauseReason).map(scopeKey),
-    );
+    const blocked = blockedScopes(rows);
     const next = rows.find(
       (row) => row.userId === userId && row.status === 'queued' && !blocked.has(scopeKey(row)),
     );

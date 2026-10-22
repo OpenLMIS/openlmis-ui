@@ -64,6 +64,11 @@ const pauseCopy = {
   },
 } as const;
 
+type RecoveryConfirmation = {
+  choice: keyof typeof confirmationCopy;
+  event: DeviceEvent;
+};
+
 export function DeviceEventRecovery({
   event,
   canView,
@@ -94,13 +99,21 @@ export function DeviceEventRecovery({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [removing, setRemoving] = useState(false);
-  const [confirmation, setConfirmation] = useState<'recorded' | 'resend' | 'copy' | null>(null);
+  const [confirmation, setConfirmation] = useState<RecoveryConfirmation | null>(null);
+  if (
+    confirmation &&
+    (confirmation.event.localEventId !== event.localEventId ||
+      confirmation.event.status !== event.status ||
+      confirmation.event.revision !== event.revision ||
+      confirmation.event.attemptId !== event.attemptId)
+  )
+    setConfirmation(null);
   const confirmationTarget = useDialogTarget(confirmation ?? undefined, () =>
     setConfirmation(null),
   );
   const confirmationShown = confirmationTarget.shown;
   const operation = useSessionMutation({
-    mutationFn: async (choice: 'recorded' | 'resend' | 'copy') => {
+    mutationFn: async ({ choice, event }: RecoveryConfirmation) => {
       const context = createStockEventContext(event);
       if (choice === 'resend' && !canSend) return false;
       if (choice === 'copy')
@@ -111,9 +124,10 @@ export function DeviceEventRecovery({
   });
   const retry = useRefusedEventRetry(event, canSend, onClose);
   const pending = operation.isPending || retry.pending;
-  const act = async (choice: 'recorded' | 'resend' | 'copy') => {
+  const act = async (confirmation: RecoveryConfirmation) => {
+    const { choice, event } = confirmation;
     try {
-      const changed = await operation.mutateAsync(choice);
+      const changed = await operation.mutateAsync(confirmation);
       if (!operation.isCurrent()) return;
       setConfirmation(null);
       if (changed) {
@@ -351,7 +365,7 @@ export function DeviceEventRecovery({
                 <Button
                   disabled={pending}
                   variant="outline"
-                  onClick={() => setConfirmation('recorded')}
+                  onClick={() => setConfirmation({ choice: 'recorded', event })}
                 >
                   {t('offline-events.recorded')}
                 </Button>
@@ -360,7 +374,7 @@ export function DeviceEventRecovery({
                   disabled={pending || !canSend}
                   focusableWhenDisabled
                   aria-describedby={!canSend ? sendReasonId : undefined}
-                  onClick={() => setConfirmation('resend')}
+                  onClick={() => setConfirmation({ choice: 'resend', event })}
                 >
                   {t('offline-events.send-again')}
                 </Button>
@@ -372,7 +386,7 @@ export function DeviceEventRecovery({
                 disabled={pending || !!event.error?.resolvedAt}
                 focusableWhenDisabled
                 aria-describedby={event.error?.resolvedAt ? copyReasonId : undefined}
-                onClick={() => setConfirmation('copy')}
+                onClick={() => setConfirmation({ choice: 'copy', event })}
               >
                 {t('offline-events.copy')}
               </Button>
@@ -380,7 +394,7 @@ export function DeviceEventRecovery({
             {canRemoveDeviceEvent(event) && (
               <Button variant="destructive" disabled={pending} onClick={() => setRemoving(true)}>
                 <Trash2Icon data-icon="inline-start" />
-                {t('offline-events.remove')}
+                {t(event.status === 'refused' ? 'offline-events.dismiss' : 'offline-events.remove')}
               </Button>
             )}
             <Button ref={closeRef} disabled={pending} onClick={onClose}>
@@ -402,22 +416,22 @@ export function DeviceEventRecovery({
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
-                {t(confirmationCopy[confirmationShown ?? 'resend'].title)}
+                {t(confirmationCopy[confirmationShown?.choice ?? 'resend'].title)}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                {t(confirmationCopy[confirmationShown ?? 'resend'].warning)}
+                {t(confirmationCopy[confirmationShown?.choice ?? 'resend'].warning)}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={pending}>{t('offline-events.cancel')}</AlertDialogCancel>
               <Button
                 disabled={pending}
-                variant={confirmationShown === 'resend' ? 'destructive' : 'default'}
+                variant={confirmationShown?.choice === 'resend' ? 'destructive' : 'default'}
                 onClick={() => {
                   if (confirmation) void act(confirmation);
                 }}
               >
-                {t(confirmationCopy[confirmationShown ?? 'resend'].title)}
+                {t(confirmationCopy[confirmationShown?.choice ?? 'resend'].title)}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

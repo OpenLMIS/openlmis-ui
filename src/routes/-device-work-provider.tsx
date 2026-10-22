@@ -29,7 +29,7 @@ export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: 'boot' 
   const scope = useSessionScope();
   const navigate = useNavigate();
   const reviewRefused = useCallback(() => {
-    void navigate({ to: '/offline-events', search: { status: 'refused' } });
+    void navigate({ to: '/offline-events', search: { tab: 'errors' } });
   }, [navigate]);
   const { events, hasDeviceEvents } = useOfflineEvents(true, true);
   const foreground = useForegroundStockEventIds(
