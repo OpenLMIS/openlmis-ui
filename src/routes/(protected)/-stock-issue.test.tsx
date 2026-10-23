@@ -273,11 +273,12 @@ it('adds lines without rerunning the editor loader', async () => {
   const loader = vi.spyOn(options, 'loader');
   const user = userEvent.setup();
   renderRoute(`${PICKER}/${FP}`);
-  const add = await screen.findByRole('button', { name: 'stock-events.add' });
-  await waitFor(() => expect(add).toBeEnabled());
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.add' })).toBeEnabled(),
+  );
   expect(loader).toHaveBeenCalledTimes(1);
-  await user.click(add);
-  await user.click(add);
+  await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
+  await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
   await waitFor(() =>
     expect(document.querySelectorAll('[name$=".quantity.doses"]')).toHaveLength(2),
   );
