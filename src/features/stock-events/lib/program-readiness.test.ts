@@ -30,7 +30,7 @@ it('needs no download for kinds without datasets', () => {
 
 it.each([
   ['ready', 'ready', true, { state: 'ready' }],
-  ['ready', 'missing', true, { state: 'not-downloaded', reason: 'not-downloaded' }],
+  ['ready', 'missing', true, { state: 'not-downloaded', reason: 'catalog-missing' }],
   ['ready', undefined, false, { state: 'checking' }],
   ['outdated', 'ready', true, { state: 'not-downloaded', reason: 'older-download' }],
 ] as const)('requires both Receive downloads (%s, %s)', (stock, catalog, loaded, expected) => {

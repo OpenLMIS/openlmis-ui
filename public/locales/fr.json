@@ -2074,6 +2074,7 @@
   "stock-on-hand.view": "Voir",
   "stock-on-hand.view-card": "Voir la fiche de stock de {product}, {lot}",
   "stock-programs.action": "Action",
+  "stock-programs.catalog-missing-description": "Les produits à recevoir pour ce programme ne sont pas téléchargés sur cet appareil. Reconnectez-vous pour les télécharger.",
   "stock-programs.load-error": "Les programmes n’ont pas pu être chargés. Veuillez réessayer.",
   "stock-programs.load-error-title": "Impossible De Charger Les Programmes",
   "stock-programs.no-home-title": "Aucun Établissement Principal",

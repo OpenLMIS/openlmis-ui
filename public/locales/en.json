@@ -2074,6 +2074,7 @@
   "stock-on-hand.view": "View",
   "stock-on-hand.view-card": "View Stock Card for {product}, {lot}",
   "stock-programs.action": "Action",
+  "stock-programs.catalog-missing-description": "Products to receive for this program are not downloaded on this device. Reconnect to download them.",
   "stock-programs.load-error": "The programs could not be loaded. Please try again.",
   "stock-programs.load-error-title": "Could Not Load Programs",
   "stock-programs.no-home-title": "No Home Facility",

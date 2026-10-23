@@ -2074,6 +2074,7 @@
   "stock-on-hand.view": "Ver",
   "stock-on-hand.view-card": "Ver ficha de stock de {product}, {lot}",
   "stock-programs.action": "Ação",
+  "stock-programs.catalog-missing-description": "Os produtos a receber deste programa não estão transferidos para este dispositivo. Restabeleça a ligação para os transferir.",
   "stock-programs.load-error": "Não foi possível carregar os programas. Tente novamente.",
   "stock-programs.load-error-title": "Não Foi Possível Carregar Os Programas",
   "stock-programs.no-home-title": "Sem Unidade Principal",

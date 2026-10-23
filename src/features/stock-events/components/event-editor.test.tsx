@@ -2048,7 +2048,13 @@ describe('Receive editor', () => {
     it('resolves an offline scan from the downloaded catalog without server lookups', async () => {
       onlineManager.setOnline(false);
       try {
+        const catalogTime = Date.parse('2026-10-22T09:00:00Z');
+        const stockTime = Date.parse('2026-10-23T12:30:00Z');
         const { queryClient } = receiveSetup();
+        queryClient.setQueryData(editorStockOptions('receive').queryKey, {
+          cards: [],
+          device: { fetchedAt: stockTime, generation: 'stock' },
+        });
         queryClient.setQueryData(
           receiveCatalogOptions(
             receiveDevice({ facilityId: 'facility', programId: 'program' }, 'type', false),
@@ -2060,7 +2066,7 @@ describe('Receive editor', () => {
               facilityTypeId: 'type',
               userId: 'ada-id',
               generation: 'catalog',
-              fetchedAt: 1,
+              fetchedAt: catalogTime,
               formatVersion: 1,
               scanning: true,
               approved: [{ id: aspirin.id, versionNumber: null }],
@@ -2077,7 +2083,7 @@ describe('Receive editor', () => {
               facilityTypeId: 'type',
               userId: 'ada-id',
               generation: 'stock',
-              fetchedAt: 1,
+              fetchedAt: stockTime,
               formatVersion: 6,
               scanning: true,
               cards: [],
@@ -2093,6 +2099,14 @@ describe('Receive editor', () => {
         expect(
           await screen.findByRole('textbox', { name: /^Quantity, Aspirin Box LOT-1/ }),
         ).toBeInTheDocument();
+        const time = formatTimestamp(new Date(catalogTime).toISOString(), 'en', {
+          time: true,
+          timeZone: 'UTC',
+        });
+        expect(await screen.findByText(time)).toBeInTheDocument();
+        expect(screen.getByText(time).closest('[role="note"]')).toHaveTextContent(
+          en['stock-events.offline-snapshot'].replace(/<\/?strong>/g, '').replace('{time}', time),
+        );
         expect(fetchTradeItemByGtin).not.toHaveBeenCalled();
         expect(fetchOrderablesByTradeItems).not.toHaveBeenCalled();
       } finally {

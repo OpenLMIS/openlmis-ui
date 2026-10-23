@@ -57,6 +57,8 @@ import {
   fetchHomeStockTradeItem,
   fetchReceiveTradeItem,
   homeStockScope,
+  type ReceiveDevice,
+  receiveCatalogOptions,
   receiveDevice,
 } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
@@ -141,6 +143,7 @@ import { useFlag } from '@/lib/feature-flags';
 import type { Gs1Result } from '@/lib/gs1/parse-gs1';
 import { isOfflineError, isRefused } from '@/lib/http';
 import { formatIsolatedList } from '@/lib/isolate-values';
+import type { DeviceSnapshot } from '@/lib/local-data';
 import { useOnline } from '@/lib/online';
 import { revealField } from '@/lib/reveal-field';
 import {
@@ -779,10 +782,14 @@ export function EventEditor({
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
             {cardsQuery.data?.device && !cardsQuery.isFetching && (
               <Suspense fallback={null}>
-                <SnapshotAlert
-                  snapshot={cardsQuery.data.device}
-                  message="stock-events.offline-snapshot"
-                />
+                {device ? (
+                  <CatalogSnapshotAlert snapshot={cardsQuery.data.device} device={device} />
+                ) : (
+                  <SnapshotAlert
+                    snapshot={cardsQuery.data.device}
+                    message="stock-events.offline-snapshot"
+                  />
+                )}
               </Suspense>
             )}
             {refusal && (
@@ -1280,4 +1287,20 @@ function LookupError({
 function RefusalRecovery(props: ComponentProps<typeof DeviceEventRecovery>) {
   const timeZone = useDeploymentTimeZone();
   return <DeviceEventRecovery {...props} timeZone={timeZone} />;
+}
+
+function CatalogSnapshotAlert({
+  snapshot,
+  device,
+}: {
+  snapshot: DeviceSnapshot;
+  device: ReceiveDevice;
+}) {
+  const { data: catalog } = useSuspenseQuery(receiveCatalogOptions(device));
+  return (
+    <SnapshotAlert
+      snapshot={{ ...snapshot, fetchedAt: Math.min(snapshot.fetchedAt, catalog.fetchedAt) }}
+      message="stock-events.offline-snapshot"
+    />
+  );
 }

@@ -293,6 +293,7 @@ function ProgramsTable({
 }
 
 const NOT_DOWNLOADED_DESCRIPTIONS = {
+  'catalog-missing': 'stock-programs.catalog-missing-description',
   'no-stock-card-right': 'stock-programs.no-stock-card-right-description',
   'older-download': 'stock-programs.older-download-description',
   'not-downloaded': 'stock-programs.offline-description',

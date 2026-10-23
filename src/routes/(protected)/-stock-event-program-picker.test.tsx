@@ -163,7 +163,9 @@ it.each([
       }
       if (kind === 'receive') {
         await waitFor(() =>
-          expect(action).toHaveAccessibleDescription(en['stock-programs.offline-description']),
+          expect(action).toHaveAccessibleDescription(
+            en['stock-programs.catalog-missing-description'],
+          ),
         );
         expect(action).toHaveAttribute('aria-disabled', 'true');
         await act(async () => {
