@@ -43,8 +43,13 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
     reset();
   };
   const retry = () => {
-    if (staleApp && canReloadIntoWorker()) return whenLeaveAllowed(reloadPage);
+    if (staleApp && canReloadIntoWorker()) {
+      whenLeaveAllowed(reloadPage);
+      return true;
+    }
+    const wasOnline = isOnline();
     seedOnline();
+    if (!wasOnline && isOnline() && offline) return;
     if (offline && !isOnline()) return;
     if (staleApp) whenLeaveAllowed(() => reloadOnce(reloadPage) || rerun());
     else rerun();

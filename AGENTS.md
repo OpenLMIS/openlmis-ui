@@ -1070,7 +1070,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Apply updates only to the requesting tab through the leave guard. Call allowUnload just before
   reload; retain protection if reload never happens. Verify using a production build.
 - Chunk-load recovery reloads once online through the guard. Offline route/chunk failures show
-  Not Available Offline and retry on reconnect, without reload loops.
+  Not Available Offline and retry on reconnect, without reload loops. Try Again reloads into
+  our active worker.
 
 ### Add an offline screen
 

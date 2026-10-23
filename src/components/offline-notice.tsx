@@ -21,7 +21,7 @@ export function OfflineNotice({
   reason,
   headingLevel = 2,
 }: {
-  onRetry: () => void;
+  onRetry: (() => boolean) | (() => void);
   reason?: 'online-only' | 'not-downloaded';
   headingLevel?: 1 | 2;
 }) {
@@ -57,8 +57,8 @@ export function OfflineNotice({
       </EmptyHeader>
       <Button
         onClick={() => {
-          onRetry();
-          if (!isOnline())
+          const recovering = onRetry();
+          if (!recovering && !isOnline())
             toast.info(t('offline.title'), { description: t('offline.retry-unavailable') });
         }}
         size="lg"

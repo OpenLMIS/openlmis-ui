@@ -15,7 +15,8 @@ let reloadPage = () => window.location.reload();
 let updateReady = false;
 let activeWorker: ServiceWorker | null = null;
 
-export const canReloadIntoWorker = () => isOurs(activeWorker);
+export const canReloadIntoWorker = () =>
+  isOurs(activeWorker) && activeWorker?.state !== 'redundant';
 const listeners = new Set<() => void>();
 
 function markUpdateReady() {

@@ -57,7 +57,6 @@ import {
   eventValidReasonsOptions,
   fetchHomeStockTradeItem,
   homeStockScope,
-  homeStockSnapshotOptions,
 } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
@@ -104,7 +103,6 @@ import {
   type EventKindConfig,
   homeStockDataset,
 } from '@/features/stock-events/lib/event-kinds';
-import type { HomeStockScope } from '@/features/stock-events/lib/home-stock-bundle';
 import {
   type KitUnpackReasonIds,
   refreshKitContents,
@@ -246,7 +244,7 @@ export function EventEditor({
     enabled: canViewStock && fromCards,
   });
   const offeredCards = useMemo(
-    () => filterCards(cardsQuery.data ?? []),
+    () => filterCards(cardsQuery.data?.cards ?? []),
     [cardsQuery.data, filterCards],
   );
   const reasonRequired = eventReasonRequired(kind, reasons, defaultReasonId);
@@ -355,7 +353,7 @@ export function EventEditor({
     programId,
     canViewStock,
     form,
-    cards: cardsQuery.data,
+    cards: cardsQuery.data?.cards,
     today,
     stockOptions,
     deviceDisplay,
@@ -380,7 +378,10 @@ export function EventEditor({
   const { pending, ready } = drafts;
   const locked = pending || submitted || !!refusal;
   const hasLots =
-    !fromCards || offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
+    !fromCards ||
+    cardsQuery.data === undefined ||
+    offeredCards.some((card) => !!card.lot) ||
+    lines.some((line) => !!line.lot);
   const hasVVM =
     offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true') ||
     lines.some((line) => line.useVVM);
@@ -643,7 +644,7 @@ export function EventEditor({
     if (products.from === 'stock-cards') {
       const cards = queryClient.getQueryData(stockOptions.queryKey);
       if (!cards) return { key: 'scan.not-resolved' };
-      const offered = filterCards(cards);
+      const offered = filterCards(cards.cards);
       scanProducts = eventProductOptions(offered);
       hasLotsOf = (orderableId) => productHasLots(offered, orderableId);
     } else {
@@ -759,9 +760,12 @@ export function EventEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
-            {bundleScope && !online && (
+            {cardsQuery.data?.device && !online && (
               <Suspense fallback={null}>
-                <EventSnapshotNotice scope={bundleScope} />
+                <SnapshotAlert
+                  snapshot={cardsQuery.data.device}
+                  message="stock-events.offline-snapshot"
+                />
               </Suspense>
             )}
             {refusal && (
@@ -1258,9 +1262,4 @@ function LookupError({
 function RefusalRecovery(props: ComponentProps<typeof DeviceEventRecovery>) {
   const timeZone = useDeploymentTimeZone();
   return <DeviceEventRecovery {...props} timeZone={timeZone} />;
-}
-
-function EventSnapshotNotice({ scope }: { scope: HomeStockScope }) {
-  const { data } = useQuery(homeStockSnapshotOptions(scope));
-  return data ? <SnapshotAlert snapshot={data} message="stock-events.offline-snapshot" /> : null;
 }

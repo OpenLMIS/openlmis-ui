@@ -127,9 +127,9 @@ function StockCardLotPicker({
   const lotLabel = useLotLabel();
   const copy = EVENT_KINDS[kind].copy;
   const id = useId();
-  const { data: cards } = useSuspenseQuery(
-    eventStockCardsOptions({ facilityId, programId }, bundleScope),
-  );
+  const {
+    data: { cards },
+  } = useSuspenseQuery(eventStockCardsOptions({ facilityId, programId }, bundleScope));
   const products = useMemo(() => eventProductOptions(cardFilter(cards)), [cards, cardFilter]);
   const [productId, setProductId] = useState<string | null>(null);
   const [lotId, setLotId] = useState<string | null>(null);

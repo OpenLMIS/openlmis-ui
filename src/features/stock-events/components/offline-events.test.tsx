@@ -172,7 +172,7 @@ it.each([
     expect(dialog.getByText('Program')).toBeVisible();
     expect(dialog.getByText(`offline-events.status-${status}`)).toBeVisible();
     expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
-      `nav.stock-management.adjustments. offline-events.status-${status}`,
+      `stock-events.type-adjustment. offline-events.status-${status}`,
     );
     expect(dialog.queryByText('offline-events.attempted-at')).not.toBeInTheDocument();
     expect(dialog.queryByText('stock-event.document-number')).not.toBeInTheDocument();
@@ -346,7 +346,7 @@ it.each([1440, 390])(
     );
     await waitFor(() => expect(order()).toEqual(['Second']));
     const type = screen.getByRole('combobox', { name: 'offline-events.type' });
-    expect(type).toHaveTextContent('nav.stock-management.adjustments');
+    expect(type).toHaveTextContent('stock-events.type-adjustment');
     expect(screen.getByRole('button', { name: /offline-events.start-date/ })).toBeVisible();
     expect(screen.getByRole('button', { name: /offline-events.end-date/ })).toBeVisible();
     await user.click(screen.getByRole('button', { name: /offline-events.start-date/ }));
@@ -367,15 +367,11 @@ it.each([1440, 390])(
     expect(router.state.location.search).not.toHaveProperty('endDate');
     expect(router.state.location.search).not.toHaveProperty('eventType');
     await user.click(type);
-    expect(
-      screen.queryByRole('option', { name: 'nav.stock-management.issue' }),
-    ).toBeInTheDocument();
-    await user.click(await screen.findByRole('option', { name: 'nav.stock-management.issue' }));
+    expect(screen.queryByRole('option', { name: 'stock-events.type-issue' })).toBeInTheDocument();
+    await user.click(await screen.findByRole('option', { name: 'stock-events.type-issue' }));
     await waitFor(() => expect(order()).toEqual(['Third']));
     await user.click(type);
-    await user.click(
-      await screen.findByRole('option', { name: 'nav.stock-management.adjustments' }),
-    );
+    await user.click(await screen.findByRole('option', { name: 'stock-events.type-adjustment' }));
     await waitFor(() => expect(order()).toEqual(['First', 'Second']));
     expect(router.state.location.search).toMatchObject({ eventType: 'adjustment' });
   },

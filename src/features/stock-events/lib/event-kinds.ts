@@ -132,7 +132,7 @@ export type EventKindConfig = {
   stockOnHandCap: 'debit-reason' | 'always' | 'never';
   newLots: 'none' | 'manual-and-scan';
   copy: Record<
-    | 'label'
+    | 'eventType'
     | 'pickerTitle'
     | 'make'
     | 'pageDescription'
@@ -182,7 +182,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'debit-reason',
     newLots: 'none',
     copy: {
-      label: 'nav.stock-management.adjustments',
+      eventType: 'stock-events.type-adjustment',
       pickerTitle: 'stock-adjustment.title',
       make: 'stock-adjustment.make',
       pageDescription: 'stock-adjustment.page-description',
@@ -238,7 +238,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'always',
     newLots: 'none',
     copy: {
-      label: 'nav.stock-management.issue',
+      eventType: 'stock-events.type-issue',
       pickerTitle: 'stock-issue.title',
       make: 'stock-issue.make',
       pageDescription: 'stock-issue.page-description',
@@ -294,7 +294,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'never',
     newLots: 'manual-and-scan',
     copy: {
-      label: 'nav.stock-management.receive',
+      eventType: 'stock-events.type-receive',
       pickerTitle: 'stock-receive.title',
       make: 'stock-receive.make',
       pageDescription: 'stock-receive.page-description',
@@ -356,7 +356,7 @@ export const EVENT_KINDS = {
     reasons: null,
     stockOnHandCap: 'always',
     copy: {
-      label: 'nav.stock-management.unpack',
+      eventType: 'stock-events.type-unpack',
       pickerTitle: 'stock-unpack.title',
       make: 'stock-unpack.make',
       pageDescription: 'stock-unpack.page-description',

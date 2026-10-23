@@ -164,7 +164,7 @@ export function DeviceEventRecovery({
           <DialogHeader>
             <DialogTitle>{t('offline-events.details')}</DialogTitle>
             <p className="sr-only" id={descriptionId}>
-              {t(EVENT_KINDS[event.kind].copy.label)}.{' '}
+              {t(EVENT_KINDS[event.kind].copy.eventType)}.{' '}
               {t(
                 event.receipt?.source === 'user'
                   ? 'offline-events.recorded-by-you'
@@ -176,7 +176,7 @@ export function DeviceEventRecovery({
             <SettingsList density="compact">
               <SettingsItem label={t('offline-events.type')}>
                 <span className="inline-flex flex-wrap items-center justify-end gap-2">
-                  <span>{t(EVENT_KINDS[event.kind].copy.label)}</span>
+                  <span>{t(EVENT_KINDS[event.kind].copy.eventType)}</span>
                   <EventStatus event={event} />
                 </span>
               </SettingsItem>

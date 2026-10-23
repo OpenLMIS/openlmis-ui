@@ -2,11 +2,14 @@ import { onlineManager } from '@tanstack/react-query';
 import { createRootRoute, createRouter, RouterContextProvider } from '@tanstack/react-router';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { httpError, networkError } from '@/tests/http-error';
+
+vi.mock('sonner', () => ({ toast: { info: vi.fn() } }));
 
 vi.mock('@/components/no-access-page', () => ({ NoAccessPage: () => <p>no-access</p> }));
 
@@ -121,6 +124,8 @@ it('reseeds connection on retry after Continue Offline', async () => {
   renderFallback(networkError());
   await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
   expect(onlineManager.isOnline()).toBe(true);
+  expect(invalidate).toHaveBeenCalledOnce();
+  expect(reset).toHaveBeenCalledOnce();
 });
 
 it('keeps offline chunk failures unavailable and retries on reconnect', () => {
@@ -154,6 +159,7 @@ it('reloads an offline missing chunk into an active worker on Try Again', async 
   renderFallback(missingChunk());
   await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
   expect(reload).toHaveBeenCalledOnce();
+  expect(toast.info).not.toHaveBeenCalled();
   expect(invalidate).not.toHaveBeenCalled();
 });
 

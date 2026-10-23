@@ -154,7 +154,7 @@ export function OfflineEventsPage({
                   value={search.eventType ?? ''}
                   options={OFFLINE_EVENT_TYPES.map((kind) => ({
                     value: kind,
-                    label: t(EVENT_KINDS[kind].copy.label),
+                    label: t(EVENT_KINDS[kind].copy.eventType),
                   }))}
                   onValueChange={(eventType) =>
                     onSearchChange(
@@ -314,7 +314,7 @@ function OfflineEventsTable({
         | 'offline-events.remove-event-label' = 'offline-events.review-event-label',
     ) =>
       t(key, {
-        type: t(EVENT_KINDS[event.kind].copy.label),
+        type: t(EVENT_KINDS[event.kind].copy.eventType),
         date: formatTimestamp(new Date(event.queuedAt).toISOString(), i18n.language, {
           time: true,
           timeZone,
@@ -342,7 +342,7 @@ function OfflineEventsTable({
       {
         accessorKey: 'kind',
         header: t('offline-events.type'),
-        cell: ({ row }) => t(EVENT_KINDS[row.original.kind].copy.label),
+        cell: ({ row }) => t(EVENT_KINDS[row.original.kind].copy.eventType),
         meta: { className: 'w-32' },
       },
       {
@@ -549,7 +549,7 @@ function OfflineEventsTable({
             {data.map((event) => (
               <CardListItem key={event.localEventId}>
                 <CardBand>
-                  <span>{t(EVENT_KINDS[event.kind].copy.label)}</span>
+                  <span>{t(EVENT_KINDS[event.kind].copy.eventType)}</span>
                   <DeviceEventActions
                     layout="cards"
                     canSend={canSend(event)}

@@ -81,6 +81,8 @@ describe('registerServiceWorker', () => {
     expect(canReloadIntoWorker()).toBe(false);
     for (const handler of handlers.activated) handler({ sw: ours });
     expect(canReloadIntoWorker()).toBe(true);
+    for (const handler of handlers.activated) handler({ sw: { ...ours, state: 'redundant' } });
+    expect(canReloadIntoWorker()).toBe(false);
   });
 
   it('recognizes our already active registration without a page controller', async () => {

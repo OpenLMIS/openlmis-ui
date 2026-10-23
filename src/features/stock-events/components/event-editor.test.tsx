@@ -77,6 +77,7 @@ import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
+import { onlineOrDevice } from '@/lib/local-data';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
@@ -94,24 +95,35 @@ vi.mock('@/features/stock-events/lib/refresh-after-stock-event-accepted', async 
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
-vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => ({
-  ...(await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>()),
-  getHomeStockBundle: async (filter: {
-    facilityId: string;
-    programId: string;
-    facilityTypeId: string;
-  }) => ({
-    cards: await fetchEventStockCards({
-      facilityId: filter.facilityId,
-      programId: filter.programId,
-    }),
-    reasons: await fetchValidReasons({
-      program: filter.programId,
-      facilityType: filter.facilityTypeId,
-    }),
-    tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
-  }),
-}));
+vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => {
+  const actual = await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>();
+  return {
+    ...actual,
+    getHomeStockBundle: async (filter: {
+      facilityId: string;
+      programId: string;
+      facilityTypeId: string;
+    }) =>
+      onlineOrDevice<{
+        cards: EventStockCard[];
+        reasons: HomeStockBundle['reasons'];
+        tradeItems: HomeStockBundle['tradeItems'];
+      }>(
+        async () => ({
+          cards: await fetchEventStockCards({
+            facilityId: filter.facilityId,
+            programId: filter.programId,
+          }),
+          reasons: await fetchValidReasons({
+            program: filter.programId,
+            facilityType: filter.facilityTypeId,
+          }),
+          tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
+        }),
+        () => actual.readHomeStockBundle(filter),
+      ),
+  };
+});
 
 vi.mock('@/features/stock-events/api/api', () => ({
   submitStockEvent: vi.fn(),
@@ -266,7 +278,10 @@ function setup(
       mutations: { retry: false, networkMode: 'always' },
     },
   });
-  queryClient.setQueryData(editorStockOptions(kind).queryKey, [card, other]);
+  queryClient.setQueryData(editorStockOptions(kind).queryKey, {
+    cards: [card, other],
+    device: undefined,
+  });
   queryClient.setQueryData(editorReasonsOptions(kind).queryKey, [
     { id: 'assignment', reason, hidden: false },
   ]);
@@ -465,7 +480,10 @@ describe('EventEditor', () => {
     'refreshes cached no-lot matches for a %s keyword on language changes',
     async (language) => {
       const { user } = setup(true, (client) =>
-        client.setQueryData(editorStockOptions().queryKey, [card, { ...other, lot: null }]),
+        client.setQueryData(editorStockOptions().queryKey, {
+          cards: [card, { ...other, lot: null }],
+          device: undefined,
+        }),
       );
       await add(user, 'No Lot Defined');
       await filter(user, i18n.getFixedT(language)('stock-events.no-lot-defined'));
@@ -1241,14 +1259,17 @@ it.each([true, false])(
   async (enabled) => {
     localStorage.setItem('adjustment-columns', JSON.stringify({ expiry: true }));
     const { user } = setup(true, (client) =>
-      client.setQueryData(editorStockOptions().queryKey, [
-        { ...card, lot: null },
-        {
-          ...other,
-          lot: enabled ? other.lot : null,
-          orderable: { ...other.orderable, extraData: { useVVM: enabled ? 'true' : 'false' } },
-        },
-      ]),
+      client.setQueryData(editorStockOptions().queryKey, {
+        cards: [
+          { ...card, lot: null },
+          {
+            ...other,
+            lot: enabled ? other.lot : null,
+            orderable: { ...other.orderable, extraData: { useVVM: enabled ? 'true' : 'false' } },
+          },
+        ],
+        device: undefined,
+      }),
     );
     await add(user, enabled ? 'No Lot Defined' : 'Product Has No Lots');
     for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
@@ -1286,11 +1307,14 @@ it('uses Issue stock eligibility for both the picker and scan resolver and prese
   const { user } = setup(
     true,
     (client) => {
-      client.setQueryData(editorStockOptions('issue').queryKey, [
-        { ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } },
-        zero,
-        other,
-      ]);
+      client.setQueryData(editorStockOptions('issue').queryKey, {
+        cards: [
+          { ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } },
+          zero,
+          other,
+        ],
+        device: undefined,
+      });
       client.setQueryData(editorReasonsOptions('issue').queryKey, [
         { reason: { ...reason, reasonCategory: 'TRANSFER' }, hidden: false },
       ]);
@@ -1329,7 +1353,10 @@ describe('Issue editor', () => {
     setup(
       true,
       (client) => {
-        client.setQueryData(editorStockOptions('issue').queryKey, [other]);
+        client.setQueryData(editorStockOptions('issue').queryKey, {
+          cards: [other],
+          device: undefined,
+        });
         client.setQueryData(editorReasonsOptions('issue').queryKey, [
           {
             id: 'transfer',
@@ -1549,7 +1576,7 @@ describe('readiness after a failed background refetch', () => {
         (client) =>
           client.setQueryData(
             editorStockOptions(lookup === 'destinations' ? 'issue' : 'adjustment').queryKey,
-            [other],
+            { cards: [other], device: undefined },
           ),
         { kind: lookup === 'destinations' ? 'issue' : 'adjustment' },
       );
@@ -1579,16 +1606,20 @@ describe('readiness after a failed background refetch', () => {
 it('retains draft lot and VVM columns when refreshed stock no longer offers them', async () => {
   localStorage.setItem('adjustment-columns', JSON.stringify({ expiry: true }));
   const { user, queryClient } = setup(true, (client) =>
-    client.setQueryData(editorStockOptions().queryKey, [
-      { ...other, orderable: { ...other.orderable, extraData: { useVVM: 'true' } } },
-    ]),
+    client.setQueryData(editorStockOptions().queryKey, {
+      cards: [{ ...other, orderable: { ...other.orderable, extraData: { useVVM: 'true' } } }],
+      device: undefined,
+    }),
   );
   await add(user, 'OTHER');
   for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
     expect(screen.getByRole('columnheader', { name })).toBeInTheDocument();
   }
   act(() => {
-    queryClient.setQueryData(editorStockOptions().queryKey, [{ ...card, lot: null }]);
+    queryClient.setQueryData(editorStockOptions().queryKey, {
+      cards: [{ ...card, lot: null }],
+      device: undefined,
+    });
   });
   await waitFor(() => expect(screen.queryByRole('combobox', { name: 'Lot Code' })).toBeNull());
   for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
@@ -2054,7 +2085,10 @@ describe('Unpack editor', () => {
         mutations: { retry: false },
       },
     });
-    queryClient.setQueryData(editorStockOptions('unpack').queryKey, [{ ...card, orderable }]);
+    queryClient.setQueryData(editorStockOptions('unpack').queryKey, {
+      cards: [{ ...card, orderable }],
+      device: undefined,
+    });
     queryClient.setQueryData(reasonsOptions().queryKey, kitReasons);
     queryClient.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
     configure?.(queryClient);
@@ -2447,7 +2481,10 @@ it('refreshes resumed stock and product snapshots while keeping typed values and
     lot: { id: 'lot', lotCode: 'FRESH', expirationDate: '2099-01-30' },
   };
   const next = setup(true, (client) =>
-    client.setQueryData(editorStockOptions().queryKey, [fresh, other]),
+    client.setQueryData(editorStockOptions().queryKey, {
+      cards: [fresh, other],
+      device: undefined,
+    }),
   );
   expect(
     await screen.findByRole('textbox', { name: /^Quantity, Fresh Aspirin FRESH/ }),
@@ -2476,7 +2513,9 @@ it('refreshes resumed stock and product snapshots while keeping typed values and
 
 it('keeps a resumed missing stock line highlighted and explains why it cannot submit', async () => {
   await seedAdjustmentDraft();
-  const next = setup(true, (client) => client.setQueryData(editorStockOptions().queryKey, [other]));
+  const next = setup(true, (client) =>
+    client.setQueryData(editorStockOptions().queryKey, { cards: [other], device: undefined }),
+  );
   expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
   expect(
     screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }).closest('tr'),
@@ -2606,10 +2645,10 @@ it.each(['no stock rights', 'failed read'])(
 it('allows a resumed expired-lot Adjustment to submit', async () => {
   await seedAdjustmentDraft();
   const next = setup(true, (client) =>
-    client.setQueryData(editorStockOptions().queryKey, [
-      { ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } },
-      other,
-    ]),
+    client.setQueryData(editorStockOptions().queryKey, {
+      cards: [{ ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } }, other],
+      device: undefined,
+    }),
   );
   const quantity = await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
   expect(quantity).toHaveValue('17');
@@ -2728,6 +2767,7 @@ it('queues an offline Issue using the destination node from the downloaded bundl
   const { user, onSubmitted } = setup(
     true,
     (client) => {
+      client.removeQueries({ queryKey: editorStockOptions('issue').queryKey });
       client.removeQueries({
         queryKey: validDestinationsOptions({ facilityId: 'facility', programId: 'program' })
           .queryKey,
@@ -2761,4 +2801,44 @@ it('queues an offline Issue using the destination node from the downloaded bundl
   expect(submitStockEvent).not.toHaveBeenCalled();
   act(() => onlineManager.setOnline(true));
   expect(screen.queryByText(time)).not.toBeInTheDocument();
+});
+
+it('does not describe live cards as downloaded data after going offline', async () => {
+  await getLocalDb()
+    .table(LOCAL_TABLES.homeStockDownloads)
+    .put({
+      ...testBundleScope,
+      userId: 'ada-id',
+      formatVersion: 6,
+      generation: 'older-download',
+      fetchedAt: Date.parse('2026-10-23T12:30:00Z'),
+      cards: [],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      destinations: [],
+      sources: [],
+    } satisfies HomeStockBundle);
+  const { queryClient } = setup(
+    true,
+    (client) => client.removeQueries({ queryKey: editorStockOptions('issue').queryKey }),
+    { kind: 'issue' },
+  );
+  await waitFor(() =>
+    expect(queryClient.getQueryData(editorStockOptions('issue').queryKey)?.cards).toEqual([
+      card,
+      other,
+    ]),
+  );
+  act(() => onlineManager.setOnline(false));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Submit Offline' })).toBeInTheDocument(),
+  );
+
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(
+    screen.queryByText(
+      formatTimestamp('2026-10-23T12:30:00Z', 'en', { time: true, timeZone: 'UTC' }),
+    ),
+  ).not.toBeInTheDocument();
 });
