@@ -66,6 +66,35 @@ describe('registerServiceWorker', () => {
     expect(register).not.toHaveBeenCalled();
   });
 
+  it('allows reload only after our worker is active, including activation after registration', async () => {
+    vi.useFakeTimers();
+    stubServiceWorker({});
+    const registration = Object.assign(new EventTarget(), {
+      active: { scriptURL: `${location.origin}/legacy-worker.js`, state: 'activated' },
+      update: vi.fn(),
+    });
+    register.mockResolvedValue(registration);
+    const { registerServiceWorker, canReloadIntoWorker } = await load();
+    expect(canReloadIntoWorker()).toBe(false);
+    registerServiceWorker({ enabled: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(canReloadIntoWorker()).toBe(false);
+    registration.active = { ...ours, state: 'activated' };
+    expect(canReloadIntoWorker()).toBe(true);
+    registration.active.state = 'redundant';
+    expect(canReloadIntoWorker()).toBe(false);
+  });
+
+  it('recognizes our already active registration without a page controller', async () => {
+    vi.useFakeTimers();
+    stubServiceWorker({});
+    register.mockResolvedValue(Object.assign(new EventTarget(), { active: ours, update: vi.fn() }));
+    const { registerServiceWorker, canReloadIntoWorker } = await load();
+    registerServiceWorker({ enabled: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(canReloadIntoWorker()).toBe(true);
+  });
+
   it('registers once, however often it is called', async () => {
     stubServiceWorker({});
     const { registerServiceWorker } = await load();

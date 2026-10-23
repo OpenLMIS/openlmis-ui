@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createBrowserHistory,
   createRootRoute,
@@ -57,7 +57,12 @@ import {
 } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
-import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
+import {
+  type ConfiguredEventKind,
+  EVENT_KINDS,
+  homeStockDataset,
+} from '@/features/stock-events/lib/event-kinds';
+import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
 import {
@@ -72,6 +77,7 @@ import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
+import { onlineOrDevice } from '@/lib/local-data';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
 
@@ -89,24 +95,35 @@ vi.mock('@/features/stock-events/lib/refresh-after-stock-event-accepted', async 
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
-vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => ({
-  ...(await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>()),
-  getHomeStockBundle: async (filter: {
-    facilityId: string;
-    programId: string;
-    facilityTypeId: string;
-  }) => ({
-    cards: await fetchEventStockCards({
-      facilityId: filter.facilityId,
-      programId: filter.programId,
-    }),
-    reasons: await fetchValidReasons({
-      program: filter.programId,
-      facilityType: filter.facilityTypeId,
-    }),
-    tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
-  }),
-}));
+vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => {
+  const actual = await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>();
+  return {
+    ...actual,
+    getHomeStockBundle: async (filter: {
+      facilityId: string;
+      programId: string;
+      facilityTypeId: string;
+    }) =>
+      onlineOrDevice<{
+        cards: EventStockCard[];
+        reasons: HomeStockBundle['reasons'];
+        tradeItems: HomeStockBundle['tradeItems'];
+      }>(
+        async () => ({
+          cards: await fetchEventStockCards({
+            facilityId: filter.facilityId,
+            programId: filter.programId,
+          }),
+          reasons: await fetchValidReasons({
+            program: filter.programId,
+            facilityType: filter.facilityTypeId,
+          }),
+          tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
+        }),
+        () => actual.readHomeStockBundle(filter),
+      ),
+  };
+});
 
 vi.mock('@/features/stock-events/api/api', () => ({
   submitStockEvent: vi.fn(),
@@ -175,6 +192,7 @@ beforeEach(async () => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   await i18n.changeLanguage('en');
   vi.clearAllMocks();
+  vi.mocked(submitStockEvent).mockReset();
   vi.mocked(waitForStockEventReceipt).mockReset().mockResolvedValue({ kind: 'queued' });
   scanningEnabled = false;
   vi.mocked(fetchEventStockCards).mockReset().mockResolvedValue([card, other]);
@@ -230,12 +248,12 @@ const testBundleScope = {
 const editorStockOptions = (kind: ConfiguredEventKind = 'adjustment') =>
   eventStockCardsOptions(
     { facilityId: 'facility', programId: 'program' },
-    kind === 'adjustment' ? testBundleScope : undefined,
+    homeStockDataset(EVENT_KINDS[kind]) ? testBundleScope : undefined,
   );
 const editorReasonsOptions = (kind: ConfiguredEventKind = 'adjustment') =>
   eventValidReasonsOptions(
     { program: 'program', facilityType: 'type' },
-    kind === 'adjustment' ? testBundleScope : undefined,
+    homeStockDataset(EVENT_KINDS[kind]) ? testBundleScope : undefined,
   );
 function setup(
   canViewStock = true,
@@ -255,9 +273,15 @@ function setup(
   } = {},
 ) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity },
+      mutations: { retry: false, networkMode: 'always' },
+    },
   });
-  queryClient.setQueryData(editorStockOptions(kind).queryKey, [card, other]);
+  queryClient.setQueryData(editorStockOptions(kind).queryKey, {
+    cards: [card, other],
+    device: undefined,
+  });
   queryClient.setQueryData(editorReasonsOptions(kind).queryKey, [
     { id: 'assignment', reason, hidden: false },
   ]);
@@ -359,11 +383,37 @@ async function validLine(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
 }
 
-async function validIssueLine(user: ReturnType<typeof userEvent.setup>) {
+async function validReceiveLine(user: ReturnType<typeof userEvent.setup>) {
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toBeEnabled());
   await add(user);
-  await user.click(screen.getByRole('combobox', { name: /^Issue To,/ }));
+  await user.click(screen.getByRole('combobox', { name: /^Received From,/ }));
   await user.click(await screen.findByRole('option', { name: 'Hospital' }));
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
+}
+
+function onlineReceiveSetup() {
+  vi.mocked(fetchApprovedProducts).mockResolvedValue({
+    content: [{ id: 'approved', orderable: { ...card.orderable, description: null } }],
+    totalElements: 1,
+    totalPages: 1,
+    number: 0,
+    size: 50,
+  });
+  vi.mocked(fetchFacilityOrderableFulfills).mockResolvedValue({});
+  vi.mocked(fetchLotsByTradeItems).mockResolvedValue([
+    { id: 'lot', lotCode: 'LOT', expirationDate: '2099-01-30', tradeItemId: 'trade' },
+  ]);
+  vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
+  return setup(
+    true,
+    (client) => {
+      client.setQueryData(
+        validSourcesOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+        destinations,
+      );
+    },
+    { kind: 'receive' },
+  );
 }
 
 async function seedAdjustmentDraft() {
@@ -430,7 +480,10 @@ describe('EventEditor', () => {
     'refreshes cached no-lot matches for a %s keyword on language changes',
     async (language) => {
       const { user } = setup(true, (client) =>
-        client.setQueryData(editorStockOptions().queryKey, [card, { ...other, lot: null }]),
+        client.setQueryData(editorStockOptions().queryKey, {
+          cards: [card, { ...other, lot: null }],
+          device: undefined,
+        }),
       );
       await add(user, 'No Lot Defined');
       await filter(user, i18n.getFixedT(language)('stock-events.no-lot-defined'));
@@ -560,9 +613,9 @@ describe('EventEditor', () => {
             finish = () => (outcome === 'success' ? resolve('event') : reject(httpError(400)));
           }),
       );
-      const { user, onSubmitted, queryClient } = setup(true, undefined, { kind: 'issue' });
+      const { user, onSubmitted, queryClient } = onlineReceiveSetup();
       const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
-      await validIssueLine(user);
+      await validReceiveLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
@@ -1023,8 +1076,8 @@ describe('EventEditor', () => {
     'keeps lines after submit failure without retrying',
     async (error) => {
       vi.mocked(submitStockEvent).mockRejectedValueOnce(error);
-      const { user, onSubmitted } = setup(true, undefined, { kind: 'issue' });
-      await validIssueLine(user);
+      const { user, onSubmitted } = onlineReceiveSetup();
+      await validReceiveLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -1206,14 +1259,17 @@ it.each([true, false])(
   async (enabled) => {
     localStorage.setItem('adjustment-columns', JSON.stringify({ expiry: true }));
     const { user } = setup(true, (client) =>
-      client.setQueryData(editorStockOptions().queryKey, [
-        { ...card, lot: null },
-        {
-          ...other,
-          lot: enabled ? other.lot : null,
-          orderable: { ...other.orderable, extraData: { useVVM: enabled ? 'true' : 'false' } },
-        },
-      ]),
+      client.setQueryData(editorStockOptions().queryKey, {
+        cards: [
+          { ...card, lot: null },
+          {
+            ...other,
+            lot: enabled ? other.lot : null,
+            orderable: { ...other.orderable, extraData: { useVVM: enabled ? 'true' : 'false' } },
+          },
+        ],
+        device: undefined,
+      }),
     );
     await add(user, enabled ? 'No Lot Defined' : 'Product Has No Lots');
     for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
@@ -1251,11 +1307,14 @@ it('uses Issue stock eligibility for both the picker and scan resolver and prese
   const { user } = setup(
     true,
     (client) => {
-      client.setQueryData(editorStockOptions('issue').queryKey, [
-        { ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } },
-        zero,
-        other,
-      ]);
+      client.setQueryData(editorStockOptions('issue').queryKey, {
+        cards: [
+          { ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } },
+          zero,
+          other,
+        ],
+        device: undefined,
+      });
       client.setQueryData(editorReasonsOptions('issue').queryKey, [
         { reason: { ...reason, reasonCategory: 'TRANSFER' }, hidden: false },
       ]);
@@ -1294,7 +1353,10 @@ describe('Issue editor', () => {
     setup(
       true,
       (client) => {
-        client.setQueryData(editorStockOptions('issue').queryKey, [other]);
+        client.setQueryData(editorStockOptions('issue').queryKey, {
+          cards: [other],
+          device: undefined,
+        });
         client.setQueryData(editorReasonsOptions('issue').queryKey, [
           {
             id: 'transfer',
@@ -1406,9 +1468,7 @@ describe('Issue editor', () => {
   });
 
   it('copies the destination comments, filters the destination name and submits its node id', async () => {
-    vi.mocked(submitStockEvent).mockResolvedValue('issue-event');
-    const { user, onSubmitted, queryClient } = issueSetup();
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const { user, onSubmitted } = issueSetup();
     await add(user, 'OTHER');
     await user.click(screen.getByRole('combobox', { name: /^Issue To, Aspirin OTHER/ }));
     await user.click(await screen.findByRole('option', { name: 'CHW' }));
@@ -1426,21 +1486,15 @@ describe('Issue editor', () => {
     expect(screen.getAllByRole('textbox', { name: /^Quantity, Aspirin OTHER/ })).toHaveLength(2);
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
-    await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('issue-event'));
-    for (const queryKey of [
-      queryKeys.stockEvents.all,
-      queryKeys.stockCards.all,
-      queryKeys.stockCardSummaries.all,
-    ])
-      expect(invalidate).toHaveBeenCalledWith({ queryKey });
-    expect(submitStockEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventOrigin: 'ISSUE',
-        lineItems: expect.arrayContaining([
-          expect.objectContaining({ destinationId: 'node', destinationFreeText: 'Courier' }),
-        ]),
-      }),
-    );
+    await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith(expect.any(String), false));
+    const [event] = await getLocalDb().table(LOCAL_TABLES.stockEventQueue).toArray();
+    expect(event.payload).toMatchObject({
+      eventOrigin: 'ISSUE',
+      lineItems: expect.arrayContaining([
+        expect.objectContaining({ destinationId: 'node', destinationFreeText: 'Courier' }),
+      ]),
+    });
+    expect(submitStockEvent).not.toHaveBeenCalled();
   });
 
   it('shows no destinations and prevents additions and submission', async () => {
@@ -1522,7 +1576,7 @@ describe('readiness after a failed background refetch', () => {
         (client) =>
           client.setQueryData(
             editorStockOptions(lookup === 'destinations' ? 'issue' : 'adjustment').queryKey,
-            [other],
+            { cards: [other], device: undefined },
           ),
         { kind: lookup === 'destinations' ? 'issue' : 'adjustment' },
       );
@@ -1552,16 +1606,22 @@ describe('readiness after a failed background refetch', () => {
 it('retains draft lot and VVM columns when refreshed stock no longer offers them', async () => {
   localStorage.setItem('adjustment-columns', JSON.stringify({ expiry: true }));
   const { user, queryClient } = setup(true, (client) =>
-    client.setQueryData(editorStockOptions().queryKey, [
-      { ...other, orderable: { ...other.orderable, extraData: { useVVM: 'true' } } },
-    ]),
+    client.setQueryData(editorStockOptions().queryKey, {
+      cards: [
+        { ...other, id: 'other', orderable: { ...other.orderable, extraData: { useVVM: 'true' } } },
+      ],
+      device: undefined,
+    }),
   );
   await add(user, 'OTHER');
   for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
     expect(screen.getByRole('columnheader', { name })).toBeInTheDocument();
   }
   act(() => {
-    queryClient.setQueryData(editorStockOptions().queryKey, [{ ...card, lot: null }]);
+    queryClient.setQueryData(editorStockOptions().queryKey, {
+      cards: [{ ...card, lot: null }],
+      device: undefined,
+    });
   });
   await waitFor(() => expect(screen.queryByRole('combobox', { name: 'Lot Code' })).toBeNull());
   for (const name of ['Lot Code', 'Expiry Date', 'VVM Status']) {
@@ -1864,6 +1924,9 @@ describe('Receive editor', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('receive-event'));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.lots.all });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockEvents.all });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockCards.all });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockCardSummaries.all });
   });
 
   describe('scanning', () => {
@@ -2024,7 +2087,10 @@ describe('Unpack editor', () => {
         mutations: { retry: false },
       },
     });
-    queryClient.setQueryData(editorStockOptions('unpack').queryKey, [{ ...card, orderable }]);
+    queryClient.setQueryData(editorStockOptions('unpack').queryKey, {
+      cards: [{ ...card, orderable }],
+      device: undefined,
+    });
     queryClient.setQueryData(reasonsOptions().queryKey, kitReasons);
     queryClient.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
     configure?.(queryClient);
@@ -2417,7 +2483,10 @@ it('refreshes resumed stock and product snapshots while keeping typed values and
     lot: { id: 'lot', lotCode: 'FRESH', expirationDate: '2099-01-30' },
   };
   const next = setup(true, (client) =>
-    client.setQueryData(editorStockOptions().queryKey, [fresh, other]),
+    client.setQueryData(editorStockOptions().queryKey, {
+      cards: [fresh, other],
+      device: undefined,
+    }),
   );
   expect(
     await screen.findByRole('textbox', { name: /^Quantity, Fresh Aspirin FRESH/ }),
@@ -2446,7 +2515,9 @@ it('refreshes resumed stock and product snapshots while keeping typed values and
 
 it('keeps a resumed missing stock line highlighted and explains why it cannot submit', async () => {
   await seedAdjustmentDraft();
-  const next = setup(true, (client) => client.setQueryData(editorStockOptions().queryKey, [other]));
+  const next = setup(true, (client) =>
+    client.setQueryData(editorStockOptions().queryKey, { cards: [other], device: undefined }),
+  );
   expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
   expect(
     screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }).closest('tr'),
@@ -2576,10 +2647,10 @@ it.each(['no stock rights', 'failed read'])(
 it('allows a resumed expired-lot Adjustment to submit', async () => {
   await seedAdjustmentDraft();
   const next = setup(true, (client) =>
-    client.setQueryData(editorStockOptions().queryKey, [
-      { ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } },
-      other,
-    ]),
+    client.setQueryData(editorStockOptions().queryKey, {
+      cards: [{ ...card, lot: { id: 'lot', lotCode: 'LOT', expirationDate: '2019-01-30' } }, other],
+      device: undefined,
+    }),
   );
   const quantity = await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
   expect(quantity).toHaveValue('17');
@@ -2644,12 +2715,12 @@ it('keeps the editor usable while the deployment time zone suspends', async () =
   expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
 });
 
-it('keeps an earlier unknown Issue outcome visible after a later definitive refusal', async () => {
+it('keeps an earlier unknown Receive outcome visible after a later definitive refusal', async () => {
   vi.mocked(submitStockEvent)
     .mockRejectedValueOnce(networkError())
     .mockRejectedValueOnce(httpError(400));
-  const { user } = setup(true, undefined, { kind: 'issue' });
-  await validIssueLine(user);
+  const { user } = onlineReceiveSetup();
+  await validReceiveLine(user);
   for (let attempt = 0; attempt < 2; attempt++) {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
@@ -2662,3 +2733,186 @@ it('keeps an earlier unknown Issue outcome visible after a later definitive refu
   expect(submitStockEvent).toHaveBeenCalledTimes(2);
   expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
 });
+
+it('queues an offline Issue using the destination node from the downloaded bundle', async () => {
+  const fetchedAt = Date.parse('2026-10-23T12:30:00Z');
+  await getLocalDb()
+    .table(LOCAL_TABLES.homeStockDownloads)
+    .put({
+      ...testBundleScope,
+      userId: 'ada-id',
+      formatVersion: 6,
+      generation: 'issue-download',
+      fetchedAt,
+      cards: [
+        {
+          ...other,
+          id: 'other',
+          orderable: { ...other.orderable, description: null },
+          active: true,
+          occurredDate: null,
+        },
+      ],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      destinations: [
+        {
+          ...destinations[0],
+          name: 'Downloaded Ward',
+          node: { ...destinations[0].node, id: 'downloaded-node' },
+        },
+      ],
+      sources: [],
+    } satisfies HomeStockBundle);
+  onlineManager.setOnline(false);
+  const { user, onSubmitted } = setup(
+    true,
+    (client) => {
+      client.removeQueries({ queryKey: editorStockOptions('issue').queryKey });
+      client.removeQueries({
+        queryKey: validDestinationsOptions({ facilityId: 'facility', programId: 'program' })
+          .queryKey,
+      });
+    },
+    { kind: 'issue' },
+  );
+  const time = formatTimestamp(new Date(fetchedAt).toISOString(), 'en', {
+    time: true,
+    timeZone: 'UTC',
+  });
+  expect(await screen.findByText(time)).toBeInTheDocument();
+  expect(screen.getByText(time).closest('[role="note"]')).toHaveTextContent(
+    en['stock-events.offline-snapshot'].replace(/<\/?strong>/g, '').replace('{time}', time),
+  );
+  await add(user, 'OTHER');
+  await user.click(screen.getByRole('combobox', { name: /^Issue To,/ }));
+  await user.click(await screen.findByRole('option', { name: 'Downloaded Ward' }));
+  await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin OTHER/ }), '5');
+  await user.click(screen.getByRole('button', { name: 'Submit Offline' }));
+  await user.type(await screen.findByRole('textbox', { name: 'Signature' }), 'Ada');
+  await user.click(screen.getByRole('button', { name: 'Confirm' }));
+  await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith(expect.any(String), false));
+  const [event] = await getLocalDb().table(LOCAL_TABLES.stockEventQueue).toArray();
+  expect(event.payload).toMatchObject({
+    eventOrigin: 'ISSUE',
+    lineItems: [{ destinationId: 'downloaded-node', quantity: 5 }],
+  });
+  expect(event.payload).not.toHaveProperty('documentNumber');
+  expect(fetchValidAssignments).not.toHaveBeenCalled();
+  expect(submitStockEvent).not.toHaveBeenCalled();
+  vi.mocked(fetchValidAssignments).mockResolvedValue(destinations);
+  let finish!: (cards: EventStockCard[]) => void;
+  vi.mocked(fetchEventStockCards).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  act(() => onlineManager.setOnline(true));
+  await waitFor(() => expect(finish).toBeTypeOf('function'));
+  expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+  expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
+  await act(async () => finish([card, other]));
+  await waitFor(() => expect(screen.queryByText(time)).not.toBeInTheDocument());
+  expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+});
+
+it('does not describe live cards as downloaded data after going offline', async () => {
+  await getLocalDb()
+    .table(LOCAL_TABLES.homeStockDownloads)
+    .put({
+      ...testBundleScope,
+      userId: 'ada-id',
+      formatVersion: 6,
+      generation: 'older-download',
+      fetchedAt: Date.parse('2026-10-23T12:30:00Z'),
+      cards: [],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      destinations: [],
+      sources: [],
+    } satisfies HomeStockBundle);
+  const { queryClient } = setup(
+    true,
+    (client) => client.removeQueries({ queryKey: editorStockOptions('issue').queryKey }),
+    { kind: 'issue' },
+  );
+  await waitFor(() =>
+    expect(queryClient.getQueryData(editorStockOptions('issue').queryKey)?.cards).toEqual([
+      card,
+      other,
+    ]),
+  );
+  act(() => onlineManager.setOnline(false));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Submit Offline' })).toBeInTheDocument(),
+  );
+
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(
+    screen.queryByText(
+      formatTimestamp('2026-10-23T12:30:00Z', 'en', { time: true, timeZone: 'UTC' }),
+    ),
+  ).not.toBeInTheDocument();
+});
+
+it.each([502, 503, 504])(
+  'shows downloaded stock honestly after gateway %s while online',
+  async (status) => {
+    const fetchedAt = Date.parse('2026-10-23T12:30:00Z');
+    await getLocalDb()
+      .table(LOCAL_TABLES.homeStockDownloads)
+      .put({
+        ...testBundleScope,
+        userId: 'ada-id',
+        formatVersion: 6,
+        generation: 'gateway-download',
+        fetchedAt,
+        cards: [
+          {
+            ...other,
+            id: 'other',
+            orderable: { ...other.orderable, description: null },
+            active: true,
+            occurredDate: null,
+          },
+        ],
+        reasons: [],
+        tradeItems: [],
+        identities: [],
+        destinations,
+        sources: [],
+      } satisfies HomeStockBundle);
+    onlineManager.setOnline(true);
+    vi.mocked(fetchEventStockCards).mockRejectedValue(
+      httpError(status, '<html>Bad Gateway</html>'),
+    );
+    const { queryClient } = setup(
+      true,
+      (client) => {
+        client.removeQueries({ queryKey: editorStockOptions('issue').queryKey });
+      },
+      { kind: 'issue' },
+    );
+    expect(await screen.findByText("Can't reach the server.")).toBeInTheDocument();
+    expect(onlineManager.isOnline()).toBe(true);
+    let finish!: (cards: EventStockCard[]) => void;
+    vi.mocked(fetchEventStockCards).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    act(() => onlineManager.setOnline(false));
+    await screen.findByText("You're offline.");
+    act(() => onlineManager.setOnline(true));
+    await waitFor(() => expect(finish).toBeTypeOf('function'));
+    expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+    await act(async () => finish([card, other]));
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+    expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
+  },
+);

@@ -49,6 +49,30 @@ type StockProgramPickerProps = {
   | { onAction: (row: StockProgramRow) => void; linkFor?: never }
 );
 
+const unavailableId = (row: StockProgramRow) => `program-unavailable-${row.id}`;
+
+function UnavailableLabel({ row }: { row: StockProgramRow }) {
+  return (
+    <span
+      className="font-medium text-muted-foreground text-xs"
+      id={row.disabledDescription ? undefined : unavailableId(row)}
+    >
+      {row.disabledReason}
+    </span>
+  );
+}
+
+function UnavailableDescription({ row }: { row: StockProgramRow }) {
+  return (
+    <p
+      className="text-pretty break-words whitespace-normal text-muted-foreground text-xs"
+      id={unavailableId(row)}
+    >
+      {row.disabledDescription}
+    </p>
+  );
+}
+
 function ProgramTable({
   children,
   statusLabel,
@@ -134,7 +158,7 @@ function ProgramPickerContent({
       role={onAction ? undefined : 'link'}
       disabled={row.disabled}
       focusableWhenDisabled={!!row.disabledReason}
-      aria-describedby={row.disabledReason ? `program-unavailable-${row.id}` : undefined}
+      aria-describedby={row.disabledReason ? unavailableId(row) : undefined}
       onClick={onAction ? () => onAction(row) : undefined}
       size={cards ? 'sm' : 'xl'}
       width="shrink"
@@ -155,21 +179,21 @@ function ProgramPickerContent({
               </span>
               <div className="flex flex-col items-end gap-1">
                 {action(row)}
-                {row.disabledReason && (
-                  <span className="text-xs text-muted-foreground">
-                    {row.disabledReason}
-                    <span id={`program-unavailable-${row.id}`} className="sr-only">
-                      {row.disabledDescription ?? row.disabledReason}
-                    </span>
-                  </span>
-                )}
+                {row.disabledReason && <UnavailableLabel row={row} />}
               </div>
             </CardBand>
-            {statusLabel ? (
+            {(row.disabledReason && row.disabledDescription) || statusLabel ? (
               <CardRows>
-                <SettingsItem label={statusLabel}>
-                  <bdi>{orEmpty(row.status)}</bdi>
-                </SettingsItem>
+                {row.disabledReason && row.disabledDescription ? (
+                  <div className="flex min-h-8 items-center">
+                    <UnavailableDescription row={row} />
+                  </div>
+                ) : null}
+                {statusLabel ? (
+                  <SettingsItem label={statusLabel}>
+                    <bdi>{orEmpty(row.status)}</bdi>
+                  </SettingsItem>
+                ) : null}
               </CardRows>
             ) : null}
           </CardListItem>
@@ -194,12 +218,14 @@ function ProgramPickerContent({
               <div className="flex flex-col items-end gap-1">
                 {action(row)}
                 {row.disabledReason && (
-                  <span className="text-xs text-muted-foreground">
-                    {row.disabledReason}
-                    <span id={`program-unavailable-${row.id}`} className="sr-only">
-                      {row.disabledDescription ?? row.disabledReason}
-                    </span>
-                  </span>
+                  <>
+                    <UnavailableLabel row={row} />
+                    {row.disabledDescription ? (
+                      <div className="max-w-xs text-end">
+                        <UnavailableDescription row={row} />
+                      </div>
+                    ) : null}
+                  </>
                 )}
               </div>
             </TableCell>

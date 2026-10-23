@@ -30,11 +30,19 @@ import {
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
 import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
-import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import {
-  acceptsAdjustmentBundle,
+  type ConfiguredEventKind,
+  EVENT_KINDS,
+  homeStockDataset,
+} from '@/features/stock-events/lib/event-kinds';
+import {
+  HOME_STOCK_ACCEPTANCE,
   homeStockProvider,
 } from '@/features/stock-events/lib/home-stock-provider';
+import {
+  type ProgramReadiness,
+  programReadiness,
+} from '@/features/stock-events/lib/program-readiness';
 import { useDownloadedScopes } from '@/hooks/use-downloaded-scopes';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
@@ -242,29 +250,43 @@ function ProgramsTable({
       })),
     [programs, facilityId],
   );
+  const datasets = EVENT_KINDS[kind].download;
+  const homeStock = homeStockDataset(EVENT_KINDS[kind]);
   const downloaded = useDownloadedScopes(provider, scopes, {
-    enabled: !online,
-    accepts: acceptsAdjustmentBundle,
+    enabled: !online && !!homeStock,
+    accepts: HOME_STOCK_ACCEPTANCE[homeStock?.minimumFormat ?? 4],
   });
   return (
     <StockProgramPicker
       actionLabel={t(action)}
       hasHomeFacility={hasHomeFacility}
       linkFor={(row) => editorLink(row.id)}
-      rows={programs.map((program) => ({
-        id: program.id,
-        label: recordLabel(program),
-        disabled:
-          !online && EVENT_KINDS[kind].download === 'home-stock' && !downloaded.has(program.id),
-        disabledReason:
-          !online && EVENT_KINDS[kind].download === 'home-stock' && !downloaded.has(program.id)
-            ? t('offline.unavailable-title')
-            : undefined,
-        disabledDescription: t('stock-programs.offline-description'),
-      }))}
+      rows={programs.map((program) => {
+        const readiness = programReadiness({
+          programId: program.id,
+          datasets,
+          states: { 'home-stock': downloaded },
+        });
+        const disabled = !online && readiness.state !== 'ready';
+        const missing =
+          !online && readiness.state === 'not-downloaded' ? readiness.reason : undefined;
+        return {
+          id: program.id,
+          label: recordLabel(program),
+          disabled,
+          disabledReason: missing && t('stock-programs.not-downloaded'),
+          disabledDescription: missing && t(NOT_DOWNLOADED_DESCRIPTIONS[missing]),
+        };
+      })}
     />
   );
 }
+
+const NOT_DOWNLOADED_DESCRIPTIONS = {
+  'no-stock-card-right': 'stock-programs.no-stock-card-right-description',
+  'older-download': 'stock-programs.older-download-description',
+  'not-downloaded': 'stock-programs.offline-description',
+} satisfies Record<Extract<ProgramReadiness, { state: 'not-downloaded' }>['reason'], ParseKeys>;
 
 function ProgramsError({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();

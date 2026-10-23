@@ -31,7 +31,7 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { uploadAccessEpoch } from '@/lib/upload-access';
 
 type Dependencies = {
-  initialTrigger?: 'boot' | 'force';
+  initialTrigger?: InitialTrigger;
   onTimeZoneFallback?: () => void;
   access: (
     config: AxiosRequestConfig,
@@ -40,13 +40,15 @@ type Dependencies = {
   ) => AccessReaders;
   providers: readonly DownloadProvider[];
 };
-type Trigger = 'boot' | 'force' | 'retry' | 'refresh' | 'access';
+type Trigger = NonNullable<DownloadStatus['trigger']>;
+export type InitialTrigger = Extract<Trigger, 'boot' | 'sign-in'>;
 const triggerPriority: Record<Trigger, number> = {
   refresh: 0,
   boot: 1,
   access: 2,
   retry: 3,
   force: 4,
+  'sign-in': 5,
 };
 const FRESHNESS_CHECK_MS = 60_000;
 
@@ -210,9 +212,15 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
             const retryAt = periodic ? schedule.retryAt(workKey) : 0;
             const record = await table.get(task.key);
             check();
-            const requested = !!task.refreshKey && requestedKeys.has(task.refreshKey);
+            const requested =
+              !!task.refreshKey &&
+              requestedKeys.has(task.refreshKey) &&
+              provider.refreshOn.includes('accepted');
             const decision = downloadDecision({
               trigger,
+              periodic,
+              refreshOn: provider.refreshOn,
+              complete: task.isComplete(record),
               requested,
               retryAt,
               now: Date.now(),

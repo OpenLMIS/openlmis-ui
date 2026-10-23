@@ -9,6 +9,17 @@
       if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
         document.querySelector('meta[name="viewport"]').content += ', maximum-scale=1';
       }
+      addEventListener('error', (event) => {
+        if (!(event.target instanceof HTMLScriptElement) || event.target.type !== 'module') return;
+        try {
+          const last = Number(sessionStorage.getItem('openlmis-ui.boot-retry')) || 0;
+          if (Date.now() - last < 10000) return;
+          sessionStorage.setItem('openlmis-ui.boot-retry', String(Date.now()));
+        } catch {
+          return;
+        }
+        location.reload();
+      }, true);
     </script>
     <link href="/src/globals.css" rel="stylesheet" />
     <title id="app-title">OpenLMIS UI</title>

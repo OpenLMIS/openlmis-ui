@@ -1,44 +1,44 @@
 import { downloadIsStale } from '@/features/stock-events/lib/download-read';
 import {
   fetchHomeStockBundle,
+  HOME_STOCK_FORMATS,
   type HomeStockBundle,
+  type HomeStockFormat,
   type HomeStockScope,
 } from '@/features/stock-events/lib/home-stock-bundle';
 import { LOCAL_TABLES } from '@/integrations/local-db';
-import { type DownloadScope, defineDownloadProvider } from '@/lib/download-provider';
+import {
+  type DownloadAcceptance,
+  type DownloadScope,
+  defineDownloadProvider,
+} from '@/lib/download-provider';
 import { getFlag } from '@/lib/feature-flags';
-import type { OfflineAccess } from '@/lib/offline-access';
 import { homeStockScopes } from '@/lib/stock-programs';
 
-export function acceptsAdjustmentBundle(
-  record: HomeStockBundle,
-  _access: OfflineAccess,
-  scope: HomeStockScope,
-) {
-  return (
+const acceptsMinimum =
+  (minimum: HomeStockFormat): DownloadAcceptance<HomeStockBundle, HomeStockScope> =>
+  (record, _access, scope) =>
     record.facilityId === scope.facilityId &&
     record.programId === scope.programId &&
     record.facilityTypeId === scope.facilityTypeId &&
-    (record.formatVersion === 4 || record.formatVersion === 5)
-  );
-}
+    HOME_STOCK_FORMATS.includes(record.formatVersion) &&
+    record.formatVersion >= minimum &&
+    (minimum < 5 || (Array.isArray(record.summaries) && Array.isArray(record.products))) &&
+    (minimum < 6 || (Array.isArray(record.destinations) && Array.isArray(record.sources)));
 
-export function acceptsStockOnHandBundle(
-  record: HomeStockBundle,
-  access: OfflineAccess,
-  scope: HomeStockScope,
-) {
-  return (
-    acceptsAdjustmentBundle(record, access, scope) &&
-    record.formatVersion === 5 &&
-    Array.isArray(record.summaries) &&
-    Array.isArray(record.products)
-  );
-}
+export const HOME_STOCK_ACCEPTANCE: Record<
+  HomeStockFormat,
+  DownloadAcceptance<HomeStockBundle, HomeStockScope>
+> = {
+  4: acceptsMinimum(4),
+  5: acceptsMinimum(5),
+  6: acceptsMinimum(6),
+};
 
 export function homeStockProvider(fetch = fetchHomeStockBundle) {
   return defineDownloadProvider<DownloadScope & HomeStockScope, HomeStockBundle>({
     id: 'home-stock',
+    refreshOn: ['sign-in', 'periodic', 'force', 'accepted'],
     label: 'offline.download.home-stock',
     table: LOCAL_TABLES.homeStockDownloads,
     scopes: (access) =>
@@ -58,12 +58,10 @@ export function homeStockProvider(fetch = fetchHomeStockBundle) {
       ),
     isFresh: (record, access, scope) =>
       !downloadIsStale(record) &&
-      record?.formatVersion === 5 &&
-      Array.isArray(record.summaries) &&
-      Array.isArray(record.products) &&
+      !!record &&
       record.userId === access.userId &&
-      record.facilityTypeId === scope.facilityTypeId &&
+      HOME_STOCK_ACCEPTANCE[6](record, access, scope) &&
       (!scope.scanning || record.scanning),
-    accepts: acceptsStockOnHandBundle,
+    accepts: HOME_STOCK_ACCEPTANCE[6],
   });
 }

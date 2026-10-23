@@ -11,6 +11,7 @@ import { CircleAlertIcon, Loader2Icon, ShieldAlertIcon } from 'lucide-react';
 import {
   type ComponentProps,
   type ReactNode,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -20,7 +21,6 @@ import {
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { z } from 'zod';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -28,6 +28,7 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
 import { LoadError } from '@/components/load-error';
+import { SnapshotAlert } from '@/components/offline-alert';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
 import { ScanStatus } from '@/components/scan-status';
@@ -99,6 +100,7 @@ import {
   counterpartyOptions,
   EVENT_KINDS,
   type EventKindConfig,
+  homeStockDataset,
 } from '@/features/stock-events/lib/event-kinds';
 import {
   type KitUnpackReasonIds,
@@ -125,7 +127,7 @@ import {
 } from '@/features/stock-events/lib/stock-event-sync';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
-import { useCardLayout } from '@/hooks/use-card-view';
+import { columnChoicesSchema, useCardLayout } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
@@ -166,7 +168,6 @@ type Props = {
   deviceDisplay: StockEventDisplay;
   onSubmitted: (eventId: string, synced?: boolean) => void | Promise<void>;
 };
-const columnChoicesSchema = z.record(z.string(), z.boolean());
 const EMPTY_LOOKUP: never[] = [];
 
 export function EventEditor({
@@ -197,7 +198,7 @@ export function EventEditor({
       products.from === 'stock-cards' ? products.cardFilter(cards, today) : [],
     [products, today],
   );
-  const bundleScope = config.download
+  const bundleScope = homeStockDataset(config)
     ? homeStockScope({ facilityId, programId }, facilityTypeId)
     : undefined;
   const stockOptions = eventStockCardsOptions({ facilityId, programId }, bundleScope);
@@ -222,8 +223,13 @@ export function EventEditor({
   const kitReasons = unpackReasons(kitReasonsQuery.data, kitUnpackReasonIds ?? {});
   const side = config.counterparty;
   const needsCounterparty = side !== 'none';
+  const assignmentOptions = counterpartyOptions(
+    needsCounterparty ? side : 'destination',
+    { programId, facilityId },
+    bundleScope,
+  );
   const counterpartyQuery = useQuery({
-    ...counterpartyOptions(needsCounterparty ? side : 'destination', { programId, facilityId }),
+    ...assignmentOptions,
     enabled: canViewStock && needsCounterparty,
   });
   const assignments = counterpartyQuery.data ?? EMPTY_LOOKUP;
@@ -236,7 +242,7 @@ export function EventEditor({
     enabled: canViewStock && fromCards,
   });
   const offeredCards = useMemo(
-    () => filterCards(cardsQuery.data ?? []),
+    () => filterCards(cardsQuery.data?.cards ?? []),
     [cardsQuery.data, filterCards],
   );
   const reasonRequired = eventReasonRequired(kind, reasons, defaultReasonId);
@@ -345,7 +351,7 @@ export function EventEditor({
     programId,
     canViewStock,
     form,
-    cards: cardsQuery.data,
+    cards: cardsQuery.data?.cards,
     today,
     stockOptions,
     deviceDisplay,
@@ -370,7 +376,10 @@ export function EventEditor({
   const { pending, ready } = drafts;
   const locked = pending || submitted || !!refusal;
   const hasLots =
-    !fromCards || offeredCards.some((card) => !!card.lot) || lines.some((line) => !!line.lot);
+    !fromCards ||
+    cardsQuery.data === undefined ||
+    offeredCards.some((card) => !!card.lot) ||
+    lines.some((line) => !!line.lot);
   const hasVVM =
     offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true') ||
     lines.some((line) => line.useVVM);
@@ -633,7 +642,7 @@ export function EventEditor({
     if (products.from === 'stock-cards') {
       const cards = queryClient.getQueryData(stockOptions.queryKey);
       if (!cards) return { key: 'scan.not-resolved' };
-      const offered = filterCards(cards);
+      const offered = filterCards(cards.cards);
       scanProducts = eventProductOptions(offered);
       hasLotsOf = (orderableId) => productHasLots(offered, orderableId);
     } else {
@@ -749,6 +758,14 @@ export function EventEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
+            {cardsQuery.data?.device && !cardsQuery.isFetching && (
+              <Suspense fallback={null}>
+                <SnapshotAlert
+                  snapshot={cardsQuery.data.device}
+                  message="stock-events.offline-snapshot"
+                />
+              </Suspense>
+            )}
             {refusal && (
               <Alert variant="destructive" role="note">
                 <AlertTitle>{t(config.copy.submitErrorTitle)}</AlertTitle>
@@ -898,6 +915,7 @@ export function EventEditor({
                         side={needsCounterparty ? side : null}
                         facilityId={facilityId}
                         programId={programId}
+                        options={assignmentOptions}
                       >
                         <EventLineTable
                           cards={cards}
@@ -1158,12 +1176,14 @@ function CounterpartyReady({
   side,
   facilityId,
   programId,
+  options,
   children,
 }: {
   pendingFallback: ReactNode;
   side: CounterpartySide | null;
   facilityId: string;
   programId: string;
+  options: ReturnType<typeof counterpartyOptions>;
   children: ReactNode;
 }) {
   if (!side) return children;
@@ -1173,7 +1193,7 @@ function CounterpartyReady({
       pendingFallback={pendingFallback}
       errorComponent={COUNTERPARTY_ERRORS[side]}
     >
-      <CounterpartyLookup side={side} facilityId={facilityId} programId={programId}>
+      <CounterpartyLookup side={side} options={options}>
         {children}
       </CounterpartyLookup>
     </QueryBoundary>
@@ -1182,17 +1202,15 @@ function CounterpartyReady({
 
 function CounterpartyLookup({
   side,
-  facilityId,
-  programId,
+  options,
   children,
 }: {
   side: CounterpartySide;
-  facilityId: string;
-  programId: string;
+  options: ReturnType<typeof counterpartyOptions>;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
-  const { data } = useSuspenseQuery(counterpartyOptions(side, { facilityId, programId }));
+  const { data } = useSuspenseQuery(options);
   if (!data.length)
     return (
       <DataTableEmpty

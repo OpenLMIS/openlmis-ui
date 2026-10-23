@@ -36,7 +36,7 @@ it('recovers a failed service import on reconnect and stops both services on unm
       { startStockEventUploader: uploader },
       { homeStockProvider },
     ]);
-  stop = startDeviceWorkServices('force', load, undefined, reviewRefused);
+  stop = startDeviceWorkServices('sign-in', load, undefined, reviewRefused);
   await waitFor(() => expect(load).toHaveBeenCalledOnce());
   expect(reloadOnce).not.toHaveBeenCalled();
   onlineManager.setOnline(true);

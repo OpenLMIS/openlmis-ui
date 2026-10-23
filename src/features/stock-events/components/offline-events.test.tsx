@@ -115,8 +115,9 @@ it.each([
       expect(rows).toHaveLength(2);
       expect(rows[1]).toHaveTextContent('Facility');
       expect(rows[1]).toHaveTextContent('Program');
-      expect(screen.queryByText('Product')).not.toBeInTheDocument();
-      expect(screen.queryByText('Damaged')).not.toBeInTheDocument();
+      expect(rows[1]).toHaveTextContent(
+        /Product.*stock-events\.product-has-no-lots.*Damaged.*12.*Product.*Lost.*7/,
+      );
       expect(
         screen.getByRole('columnheader', { name: 'offline-events.occurred-date' }),
       ).toBeInTheDocument();
@@ -145,8 +146,9 @@ it.each([
         await screen.findByRole('menuitem', { name: 'offline-events.review-event' }),
       );
     } else {
-      await screen.findByText('Facility');
-      expect(screen.queryByText('Product')).not.toBeInTheDocument();
+      const card = (await screen.findByText('Facility')).closest('li') as HTMLElement;
+      expect(within(card).getByText('offline-events.line-details')).toBeVisible();
+      expect(card).toHaveTextContent(/Product.*Damaged.*12.*Product.*Lost.*7/);
       expect(screen.queryByRole('table')).not.toBeInTheDocument();
       if (status === 'refused') {
         const remove = screen.getByRole('button', { name: 'offline-events.remove-event-label' });
@@ -172,7 +174,7 @@ it.each([
     expect(dialog.getByText('Program')).toBeVisible();
     expect(dialog.getByText(`offline-events.status-${status}`)).toBeVisible();
     expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
-      `nav.stock-management.adjustments. offline-events.status-${status}`,
+      `transaction-history.type-adjustment. offline-events.status-${status}`,
     );
     expect(dialog.queryByText('offline-events.attempted-at')).not.toBeInTheDocument();
     expect(dialog.queryByText('stock-event.document-number')).not.toBeInTheDocument();
@@ -286,7 +288,7 @@ it.each([1440, 390])(
       status,
       queuedAt,
       sequence,
-      lines: [{ ...line, orderable: { ...line.orderable, fullProductName: name } }],
+      lines: [line],
       postBody: '',
       payload: {
         facilityId: 'f',
@@ -346,7 +348,7 @@ it.each([1440, 390])(
     );
     await waitFor(() => expect(order()).toEqual(['Second']));
     const type = screen.getByRole('combobox', { name: 'offline-events.type' });
-    expect(type).toHaveTextContent('nav.stock-management.adjustments');
+    expect(type).toHaveTextContent('transaction-history.type-adjustment');
     expect(screen.getByRole('button', { name: /offline-events.start-date/ })).toBeVisible();
     expect(screen.getByRole('button', { name: /offline-events.end-date/ })).toBeVisible();
     await user.click(screen.getByRole('button', { name: /offline-events.start-date/ }));
@@ -368,10 +370,13 @@ it.each([1440, 390])(
     expect(router.state.location.search).not.toHaveProperty('eventType');
     await user.click(type);
     expect(
-      screen.queryByRole('option', { name: 'nav.stock-management.issue' }),
-    ).not.toBeInTheDocument();
+      screen.queryByRole('option', { name: 'transaction-history.type-issue' }),
+    ).toBeInTheDocument();
+    await user.click(await screen.findByRole('option', { name: 'transaction-history.type-issue' }));
+    await waitFor(() => expect(order()).toEqual(['Third']));
+    await user.click(type);
     await user.click(
-      await screen.findByRole('option', { name: 'nav.stock-management.adjustments' }),
+      await screen.findByRole('option', { name: 'transaction-history.type-adjustment' }),
     );
     await waitFor(() => expect(order()).toEqual(['First', 'Second']));
     expect(router.state.location.search).toMatchObject({ eventType: 'adjustment' });
@@ -388,7 +393,7 @@ it('validates event type and calendar dates from links', () => {
   ).toMatchObject({ eventType: 'adjustment', startDate: '2026-10-12', endDate: '2026-10-13' });
   expect(
     offlineEventsSearchSchema.parse({
-      eventType: 'issue',
+      eventType: 'receive',
       startDate: '2026-02-30',
       endDate: 'invalid',
     }),

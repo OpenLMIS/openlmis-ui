@@ -14,7 +14,7 @@ import {
 } from '@/features/stock-events/lib/home-stock-bundle';
 import { kitCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
-import { LocalDataUnavailableError } from '@/lib/local-data';
+import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 
 vi.mock('@/features/reference-data/api/api', () => ({ fetchTradeItemByGtin: vi.fn() }));
 vi.mock('@/features/stock-events/api/api', () => ({ fetchEventStockCards: vi.fn() }));
@@ -70,7 +70,7 @@ it('still lists Unpack kits after Adjustments caches stripped products for the s
   vi.mocked(fetchEventStockCards).mockResolvedValue([kit]);
   await client.fetchQuery(eventStockCardsOptions(filter, scope));
   const unpack = await client.fetchQuery(eventStockCardsOptions(filter));
-  expect(kitCards(unpack)).toEqual([kit]);
+  expect(kitCards(unpack.cards)).toEqual([kit]);
   expect(fetchEventStockCards).toHaveBeenCalledTimes(1);
 });
 
@@ -135,4 +135,26 @@ it('does not send offline GTIN requests and requires a scan-enabled saved bundle
     LocalDataUnavailableError,
   );
   expect(fetchTradeItemByGtin).not.toHaveBeenCalled();
+});
+
+it('carries snapshot metadata only for cards actually read from the device', async () => {
+  const client = queryClient();
+  onlineManager.setOnline(false);
+  const device = await onlineOrDevice(
+    async () => saved,
+    async () => ({ ...saved }),
+  );
+  vi.mocked(getHomeStockBundle).mockResolvedValue(device);
+  const options = eventStockCardsOptions(filter, scope);
+  await expect(client.fetchQuery(options)).resolves.toEqual({
+    cards: saved.cards,
+    device: { fetchedAt: saved.fetchedAt, generation: saved.generation },
+  });
+  onlineManager.setOnline(true);
+  vi.mocked(getHomeStockBundle).mockResolvedValue({ ...saved });
+  await client.invalidateQueries({ queryKey: options.queryKey });
+  await expect(client.fetchQuery(options)).resolves.toEqual({
+    cards: saved.cards,
+    device: undefined,
+  });
 });

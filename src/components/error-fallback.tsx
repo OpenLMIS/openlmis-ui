@@ -1,7 +1,8 @@
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { Link, useRouter } from '@tanstack/react-router';
 import { HouseIcon, RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { NoAccessPage } from '@/components/no-access-page';
 import { OfflineNotice, useOfflineFailure } from '@/components/offline-notice';
@@ -17,9 +18,11 @@ import {
 import { isForbidden } from '@/features/auth/lib/access';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
-import { isOfflineError } from '@/lib/http';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { isOnline, seedOnline } from '@/lib/online';
+import { canReloadIntoWorker } from '@/lib/service-worker';
+
+const retryHeadings = new WeakMap<object, HTMLHeadingElement>();
 
 const reloadPage = () => {
   allowUnload();
@@ -35,19 +38,33 @@ type ErrorFallbackProps = ErrorComponentProps & {
 export function ErrorFallback({ error, reset, title, description, back }: ErrorFallbackProps) {
   const { t } = useTranslation();
   const router = useRouter();
+  const headingRef = useCallback(
+    (heading: HTMLHeadingElement | null) => {
+      if (heading) retryHeadings.set(router, heading);
+      else retryHeadings.delete(router);
+    },
+    [router],
+  );
   const staleApp = isChunkLoadError(error);
   const [failedOffline] = useState(() => !isOnline());
   const rerun = () => {
-    void router.invalidate();
-    reset();
+    void Promise.resolve(router.invalidate()).then(() => {
+      flushSync(reset);
+      retryHeadings.get(router)?.focus();
+    });
   };
   const retry = () => {
+    if (staleApp && canReloadIntoWorker()) {
+      whenLeaveAllowed(reloadPage);
+      return true;
+    }
+    const wasOnline = isOnline();
     seedOnline();
-    if (!isOnline()) return;
+    if (offline && !(wasOnline && isOnline())) return;
     if (staleApp) whenLeaveAllowed(() => reloadOnce(reloadPage) || rerun());
     else rerun();
   };
-  const offline = useOfflineFailure(error, retry, failedOffline && !isForbidden(error));
+  const offline = useOfflineFailure(error, retry, failedOffline && staleApp);
   useEffect(() => {
     if (staleApp && isOnline()) whenLeaveAllowed(() => reloadOnce(reloadPage));
   }, [staleApp]);
@@ -57,11 +74,12 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
     return (
       <OfflineNotice
         headingLevel={1}
+        headingRef={headingRef}
         onRetry={retry}
         reason={
           error instanceof OfflinePageUnavailableError
             ? 'online-only'
-            : staleApp || !isOfflineError(error)
+            : staleApp
               ? 'not-downloaded'
               : undefined
         }
@@ -79,7 +97,9 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
           {t('error.eyebrow')}
         </p>
         <EmptyTitle size="lg">
-          <h1>{title ?? t('error.title')}</h1>
+          <h1 ref={headingRef} tabIndex={-1}>
+            {title ?? t('error.title')}
+          </h1>
         </EmptyTitle>
         <EmptyDescription size="lg">{description ?? t('error.description')}</EmptyDescription>
       </EmptyHeader>

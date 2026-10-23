@@ -89,7 +89,7 @@ it('boots a restored session and forces downloads after logout and login', async
   act(() => useLoginData.getState().clearLoginData());
   expect(screen.queryByTestId('device-work')).not.toBeInTheDocument();
   act(login);
-  expect(await screen.findByTestId('device-work')).toHaveAttribute('data-trigger', 'force');
+  expect(await screen.findByTestId('device-work')).toHaveAttribute('data-trigger', 'sign-in');
 });
 
 it('keeps routed children mounted and visible while signing in', async () => {

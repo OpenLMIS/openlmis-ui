@@ -8,7 +8,7 @@ export type DownloadStatus = {
   incomplete: DownloadEntry[];
   reason?: 'timeout' | 'offline' | 'session' | 'read';
   accessFailed?: boolean;
-  trigger?: 'boot' | 'force' | 'retry' | 'refresh' | 'access';
+  trigger?: 'sign-in' | 'boot' | 'force' | 'retry' | 'refresh' | 'access';
 };
 const idle: DownloadStatus = { phase: 'idle', incomplete: [] };
 const useStatus = create(() => ({ status: idle }));

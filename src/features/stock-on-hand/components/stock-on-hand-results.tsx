@@ -96,7 +96,9 @@ export function StockOnHandResults({
   const deferredSearch = useDeferredValue(search);
   const query = toSummariesQuery(deferredSearch, { facilityId, programId });
   const online = useOnline();
-  const { data: page } = useSuspenseQuery(stockCardSummariesOptions(query, readOnDevice, online));
+  const { data: page, isFetching } = useSuspenseQuery(
+    stockCardSummariesOptions(query, readOnDevice, online),
+  );
   const ids = useMemo(() => summaryIds(page.content), [page]);
   const [orderables, lots] = useSuspenseQueries({
     queries: stockSummaryLookups(ids, page.device),
@@ -189,7 +191,7 @@ export function StockOnHandResults({
 
   return (
     <>
-      {page.device && (
+      {page.device && !isFetching && (
         <SnapshotAlert snapshot={page.device} message="stock-on-hand.offline-snapshot" />
       )}
       {page.device && pendingEvents}

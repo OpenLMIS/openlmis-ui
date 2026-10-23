@@ -22,6 +22,7 @@ import { DialogCloseLabelProvider } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
+import type { InitialTrigger } from '@/lib/offline-coordinator';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
 
 const DeviceWorkProvider = lazy(() =>
@@ -50,10 +51,10 @@ export function SignedInDeviceWork({ children }: { children: ReactNode }) {
     }),
     [authenticated, work, scope],
   );
-  const [initialTrigger, setInitialTrigger] = useState<'boot' | 'force'>(
-    authenticated ? 'boot' : 'force',
+  const [initialTrigger, setInitialTrigger] = useState<InitialTrigger>(
+    authenticated ? 'boot' : 'sign-in',
   );
-  if (!authenticated && initialTrigger !== 'force') setInitialTrigger('force');
+  if (!authenticated && initialTrigger !== 'sign-in') setInitialTrigger('sign-in');
   return (
     <DeviceWorkContext value={value}>
       <DeviceWorkPublisher value={publish}>

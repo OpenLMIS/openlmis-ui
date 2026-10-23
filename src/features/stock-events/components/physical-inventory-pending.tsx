@@ -3,7 +3,6 @@ import type { ColumnVisibilityState } from '@tanstack/react-table';
 import { PlusIcon } from 'lucide-react';
 import { type ReactNode, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
@@ -27,12 +26,11 @@ import { buildInventoryLines } from '@/features/stock-events/lib/physical-invent
 import { inventoryOptionalColumns } from '@/features/stock-events/lib/physical-inventory-products';
 import type { InventorySearch } from '@/features/stock-events/lib/physical-inventory-search';
 import type { PhysicalInventoryDraft } from '@/features/stock-events/lib/physical-inventory-types';
-import { useCardLayout } from '@/hooks/use-card-view';
+import { columnChoicesSchema, useCardLayout } from '@/hooks/use-card-view';
 import type { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useStoredState } from '@/hooks/use-stored-state';
 import type { SearchChange } from '@/lib/table-search';
 
-const choicesSchema = z.record(z.string(), z.boolean());
 type QuantityUnitState = ReturnType<typeof useQuantityUnit>;
 type ToolbarProps = {
   search: InventorySearch;
@@ -159,7 +157,7 @@ export function PhysicalInventoryPendingBody({
   const showVvm = providedVvm ?? optionalColumns.showVvm;
   const showActions = providedActions ?? optionalColumns.showActions;
   const { measure, width, cards } = useCardLayout<HTMLDivElement>();
-  const choices = useStoredState('physical-inventory.columns', choicesSchema, {});
+  const choices = useStoredState('physical-inventory.columns', columnChoicesSchema, {});
   const view = useColumnVisibility(
     inventoryHideableColumns({ showVvm, showActions, unit: quantityUnit.unit }, choices[0]),
     choices,

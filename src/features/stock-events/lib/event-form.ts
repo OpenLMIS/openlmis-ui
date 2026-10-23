@@ -330,7 +330,7 @@ export function refreshStockEventLines(
   const key = (id: string, lotId?: string) => JSON.stringify([id, lotId ?? null]);
   const byProductLot = new Map(cards.map((card) => [key(card.orderable.id, card.lot?.id), card]));
   const productsWithLots = new Set(
-    cards.filter((card) => card.lot).map((card) => card.orderable.id),
+    [...allowed].filter((card) => card.lot).map((card) => card.orderable.id),
   );
   let changed = false;
   const refreshed = lines.map((line) => {

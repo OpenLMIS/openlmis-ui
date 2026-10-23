@@ -3,6 +3,7 @@ import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanst
 import type { ParseKeys } from 'i18next';
 import { CalendarIcon, CircleAlertIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
 import {
+  type CSSProperties,
   memo,
   useCallback,
   useEffect,
@@ -854,7 +855,14 @@ export function EventLineTable({
           isRowInvalid={(line) => !!line.stockProblem}
           density="compact"
           layout="auto"
-          empty={empty}
+          empty={
+            <div
+              className="sticky start-0 -mx-1.5 w-(--empty-width)"
+              style={{ '--empty-width': '100cqi' } as CSSProperties}
+            >
+              {empty}
+            </div>
+          }
           footer={footer}
         />
       )}

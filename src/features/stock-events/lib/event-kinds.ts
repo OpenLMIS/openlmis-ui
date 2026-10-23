@@ -1,10 +1,20 @@
 import type { ParseKeys } from 'i18next';
-import type { ValidAssignmentsFilter } from '@/features/reference-data/api/api';
-import { validAssignmentsOptions } from '@/features/reference-data/api/queries';
+import {
+  fetchValidAssignments,
+  type ValidAssignmentsFilter,
+} from '@/features/reference-data/api/api';
+import { LOOKUP_STALE_TIME, validAssignmentsOptions } from '@/features/reference-data/api/queries';
 import { reasonsOf } from '@/features/reference-data/lib/reasons-of';
 import type { Reason, ValidReasonAssignment } from '@/features/reference-data/lib/types';
+import {
+  type HomeStockFormat,
+  type HomeStockScope,
+  readHomeStockCounterparties,
+} from '@/features/stock-events/lib/home-stock-bundle';
 import { allEventCards, issuableCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
+import { onlineOrDevice } from '@/lib/local-data';
+import { offlineAccessQuery } from '@/lib/offline-access';
 import { RIGHTS } from '@/lib/rights';
 
 type EventProducts =
@@ -53,8 +63,25 @@ export const COUNTERPARTY = {
   >
 >;
 
-export function counterpartyOptions(side: CounterpartySide, filter: ValidAssignmentsFilter) {
-  return validAssignmentsOptions(COUNTERPARTY[side].resource, filter);
+export function counterpartyOptions(
+  side: CounterpartySide,
+  filter: ValidAssignmentsFilter,
+  bundle?: HomeStockScope,
+) {
+  const resource = COUNTERPARTY[side].resource;
+  const options = validAssignmentsOptions(resource, filter);
+  return bundle
+    ? {
+        ...options,
+        ...offlineAccessQuery(LOOKUP_STALE_TIME),
+        queryFn: () =>
+          onlineOrDevice(
+            () => fetchValidAssignments(resource, filter),
+            () => readHomeStockCounterparties(bundle, resource),
+          ),
+        networkMode: 'always' as const,
+      }
+    : options;
 }
 
 export type EventKindConfig = {
@@ -91,7 +118,7 @@ export type EventKindConfig = {
     | { type: 'signature' }
     | { type: 'confirm'; title: ParseKeys; description: ParseKeys };
   scanning: boolean;
-  download: 'home-stock' | null;
+  download: readonly EventDataset[];
   drafts: 'device' | null;
   width: 'default' | 'wide';
   columnFit: 'thresholds' | 'measured';
@@ -105,7 +132,7 @@ export type EventKindConfig = {
   stockOnHandCap: 'debit-reason' | 'always' | 'never';
   newLots: 'none' | 'manual-and-scan';
   copy: Record<
-    | 'label'
+    | 'eventType'
     | 'pickerTitle'
     | 'make'
     | 'pageDescription'
@@ -136,7 +163,7 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/adjustments',
     editorRoute: '/stock-management/adjustments/$programId',
     historyType: 'adjustment',
-    download: 'home-stock',
+    download: [{ dataset: 'home-stock', minimumFormat: 4 }],
     drafts: 'device',
     eventOrigin: 'ADJUSTMENT',
     contents: { type: 'none' },
@@ -155,7 +182,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'debit-reason',
     newLots: 'none',
     copy: {
-      label: 'nav.stock-management.adjustments',
+      eventType: 'transaction-history.type-adjustment',
       pickerTitle: 'stock-adjustment.title',
       make: 'stock-adjustment.make',
       pageDescription: 'stock-adjustment.page-description',
@@ -183,8 +210,8 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/issue',
     editorRoute: '/stock-management/issue/$programId',
     historyType: 'issue',
-    download: null,
-    drafts: null,
+    download: [{ dataset: 'home-stock', minimumFormat: 6 }],
+    drafts: 'device',
     eventOrigin: 'ISSUE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -211,7 +238,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'always',
     newLots: 'none',
     copy: {
-      label: 'nav.stock-management.issue',
+      eventType: 'transaction-history.type-issue',
       pickerTitle: 'stock-issue.title',
       make: 'stock-issue.make',
       pageDescription: 'stock-issue.page-description',
@@ -239,7 +266,7 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/receive',
     editorRoute: '/stock-management/receive/$programId',
     historyType: 'receive',
-    download: null,
+    download: [],
     drafts: null,
     eventOrigin: 'RECEIVE',
     contents: { type: 'none' },
@@ -267,7 +294,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'never',
     newLots: 'manual-and-scan',
     copy: {
-      label: 'nav.stock-management.receive',
+      eventType: 'transaction-history.type-receive',
       pickerTitle: 'stock-receive.title',
       make: 'stock-receive.make',
       pageDescription: 'stock-receive.page-description',
@@ -295,7 +322,7 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/unpack',
     editorRoute: '/stock-management/unpack/$programId',
     historyType: 'adjustment',
-    download: null,
+    download: [],
     drafts: null,
     eventOrigin: null,
     contents: {
@@ -329,7 +356,7 @@ export const EVENT_KINDS = {
     reasons: null,
     stockOnHandCap: 'always',
     copy: {
-      label: 'nav.stock-management.unpack',
+      eventType: 'stock-events.type-unpack',
       pickerTitle: 'stock-unpack.title',
       make: 'stock-unpack.make',
       pageDescription: 'stock-unpack.page-description',
@@ -357,7 +384,11 @@ export const EVENT_KINDS = {
 export type ConfiguredEventKind = keyof typeof EVENT_KINDS;
 
 export const OFFLINE_EVENT_TYPES = (Object.keys(EVENT_KINDS) as ConfiguredEventKind[]).filter(
-  (kind) => EVENT_KINDS[kind].download !== null && EVENT_KINDS[kind].drafts === 'device',
+  (kind) => EVENT_KINDS[kind].download.length > 0 && EVENT_KINDS[kind].drafts === 'device',
 );
 export const OFFLINE_EVENT_KINDS = OFFLINE_EVENT_TYPES.map((kind) => EVENT_KINDS[kind]);
 export const OFFLINE_EVENT_RIGHTS = [...new Set(OFFLINE_EVENT_KINDS.map((kind) => kind.right))];
+
+export type EventDataset = { dataset: 'home-stock'; minimumFormat: HomeStockFormat };
+export const homeStockDataset = (config: EventKindConfig) =>
+  config.download.find((item) => item.dataset === 'home-stock');

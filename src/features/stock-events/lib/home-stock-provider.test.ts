@@ -2,8 +2,7 @@ import { expect, it } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import {
-  acceptsAdjustmentBundle,
-  acceptsStockOnHandBundle,
+  HOME_STOCK_ACCEPTANCE,
   homeStockProvider,
 } from '@/features/stock-events/lib/home-stock-provider';
 import { LOCAL_TABLES, localTable } from '@/integrations/local-db';
@@ -20,7 +19,9 @@ const bundle: HomeStockBundle = {
   facilityTypeId: 'type',
   fetchedAt: Date.now(),
   generation: 'stock',
-  formatVersion: 5,
+  formatVersion: 6,
+  destinations: [],
+  sources: [],
   scanning: true,
   summaries: [],
   products: [],
@@ -29,21 +30,6 @@ const bundle: HomeStockBundle = {
   tradeItems: [],
   identities: [],
 };
-
-it('refreshes and rejects v4 data without summaries/products but accepts complete v5 data', async () => {
-  const older: HomeStockBundle = {
-    ...bundle,
-    formatVersion: 4,
-    summaries: undefined,
-    products: undefined,
-  };
-  const [oldTask] = homeStockProvider(async () => older).tasks(access);
-  expect(oldTask.isFresh(older)).toBe(false);
-  await expect(oldTask.fetch(new AbortController().signal)).rejects.toThrow('scope mismatch');
-  const [task] = homeStockProvider(async () => bundle).tasks(access);
-  expect(task.isFresh(bundle)).toBe(true);
-  expect(await task.fetch(new AbortController().signal)).toBe(bundle);
-});
 
 it('downloads both adjustment and view-only programs, excluding unsupported and supervised scopes', () => {
   const second = { ...program, id: 'b', code: 'B' };
@@ -74,27 +60,32 @@ it('downloads both adjustment and view-only programs, excluding unsupported and 
   expect(tasks.map((task) => task.id).sort()).toEqual(['b', 'p']);
 });
 
-it('keeps Adjustments enabled for a format 4 download while Stock On Hand needs format 5', async () => {
-  useLoginData.getState().setLoginData({
-    referenceDataUserId: 'owner',
-    username: 'owner',
-    accessToken: 'token',
-  });
-  try {
-    await localTable(LOCAL_TABLES.offlineAccess).put(access);
-    await localTable(LOCAL_TABLES.homeStockDownloads).put({
-      ...bundle,
-      formatVersion: 4,
-      summaries: undefined,
-      products: undefined,
-    });
-    const provider = homeStockProvider();
-    const [scope] = provider.tasks(access);
-    expect(await provider.readScope(scope, acceptsAdjustmentBundle)).toBe(true);
-    expect(await provider.readScope(scope, acceptsStockOnHandBundle)).toBe(false);
-  } finally {
-    await localTable(LOCAL_TABLES.homeStockDownloads).clear();
-    await localTable(LOCAL_TABLES.offlineAccess).clear();
-    useLoginData.getState().clearLoginData();
-  }
-});
+it.each([4, 5, 6] as const)(
+  'checks format %s against each consumer and provider freshness',
+  async (formatVersion) => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'owner', username: 'owner', accessToken: 'token' });
+    try {
+      const record = { ...bundle, formatVersion };
+      await localTable(LOCAL_TABLES.offlineAccess).put(access);
+      await localTable(LOCAL_TABLES.homeStockDownloads).put(record);
+      const provider = homeStockProvider(async () => record);
+      const [scope] = provider.tasks(access);
+      for (const minimum of [4, 5, 6] as const) {
+        expect(await provider.readScopeState(scope, HOME_STOCK_ACCEPTANCE[minimum])).toBe(
+          formatVersion >= minimum ? 'ready' : 'outdated',
+        );
+      }
+      expect(scope.isFresh(record)).toBe(formatVersion === 6);
+      if (formatVersion === 6)
+        await expect(scope.fetch(new AbortController().signal)).resolves.toBe(record);
+      else
+        await expect(scope.fetch(new AbortController().signal)).rejects.toThrow('scope mismatch');
+    } finally {
+      await localTable(LOCAL_TABLES.homeStockDownloads).clear();
+      await localTable(LOCAL_TABLES.offlineAccess).clear();
+      useLoginData.getState().clearLoginData();
+    }
+  },
+);

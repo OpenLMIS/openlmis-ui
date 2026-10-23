@@ -21,11 +21,12 @@ import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-de
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import i18n from '@/integrations/i18n';
 import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
+import type { InitialTrigger } from '@/lib/offline-coordinator';
 import { isOnline } from '@/lib/online';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
 import { DeviceStatusProvider } from '@/routes/-device-status-provider';
 
-export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: 'boot' | 'force' }) {
+export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: InitialTrigger }) {
   const scope = useSessionScope();
   const navigate = useNavigate();
   const reviewRefused = useCallback(() => {
@@ -133,7 +134,7 @@ const loadDeviceWorkServices = () =>
   ]);
 
 export function startDeviceWorkServices(
-  initialTrigger: 'boot' | 'force',
+  initialTrigger: InitialTrigger,
   load: typeof loadDeviceWorkServices = loadDeviceWorkServices,
   onReady?: (
     services: ReturnType<typeof import('@/lib/offline-coordinator').startOfflineCoordinator>,

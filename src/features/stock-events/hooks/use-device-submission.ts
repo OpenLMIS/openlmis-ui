@@ -69,7 +69,7 @@ export function useDeviceSubmission({
           body,
           {
             ...deviceDisplay,
-            stockCards: (queryClient.getQueryData(stockOptions.queryKey) ?? [])
+            stockCards: (queryClient.getQueryData(stockOptions.queryKey)?.cards ?? [])
               .filter((card) =>
                 body.lineItems.some(
                   (item) =>

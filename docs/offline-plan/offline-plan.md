@@ -1,24 +1,36 @@
 # Offline Plan
 
-Adjustments is the first complete offline workflow. It proves downloading, draft recovery,
-submission, ordered sync and failure recovery before the same approach is added to other pages.
+Adjustments was the first complete offline workflow. It proved downloading, draft recovery,
+submission, ordered sync and failure recovery; Issue now uses the same approach, and other
+pages follow.
 See [Working Offline](../working-offline/working-offline.md) for day-to-day instructions.
 
 ## Available Behavior
 
-The app's files and all language catalogs are saved after an online visit. Home, Adjustments,
+The app's files and all language catalogs are saved after an online visit. Home, Adjustments, Issue,
 Offline Events, Stock On Hand and Stock Card summaries can then reopen offline, including after
 a browser restart. Transaction history, other pages and print/PDF actions need a connection.
 
-At sign-in, the app downloads supported home-facility programs where the user can both make
-Adjustments and view Stock Cards. Downloads run in the background.
+At sign-in, the app downloads home-facility programs where the user can view Stock Cards.
+Downloads run in the background. Offline, the Adjustments and Issue program lists show Not
+Downloaded with its reason: no permission to view Stock Cards, an older download on the device,
+or no download yet.
 Each program becomes ready only when its complete bundle is stored. The sidebar reports progress
 and failures. Reconnect and same-user renewal refresh access and bundles; connected boot reuses
 complete data younger than 30 minutes. Older complete copies remain usable offline.
-A failed refresh keeps the previous complete copy.
+A failed refresh keeps the previous complete copy. When stock on Stock On Hand, a Stock Card or
+an event editor comes from the device, a notice shows when it was downloaded. It says You're
+offline, or Can't reach the server when the device is connected but the server does not answer.
 
-This workflow permits a new local Adjustment, not just editing an existing server draft. Issue,
-Receive and Physical Inventory still need their offline passes in FM-166. Stock Card history
+Only pages that cannot load offline show Not Available Offline. If part of the app was not saved
+on the device, Try Again reloads the app from the device. Other errors show the normal error page,
+offline too. Offline Events lists each event's details: product, lot, destination, source or
+reason, and quantity.
+
+These workflows permit a new local Adjustment or Issue, not just editing an existing server
+draft. An offline Issue is queued and synced in order like an Adjustment, offers no printing
+and opens Stock On Hand. Receive comes next in FM-166 and Physical Inventory later. Unpack stays
+online only, as in the old UI. Stock Card history
 is deliberately excluded from current downloads. Full pending-events and sync-error pages remain
 FM-168 and FM-169; Offline Events already provides the recovery decisions needed by the spike.
 
@@ -29,10 +41,10 @@ each deployment and user. The browser saves app files, runtime configuration and
 never API responses or tokens.
 
 Background downloads save complete access and program copies. Opening an online page does not
-make a partial download available offline. Adjustments downloads include last-known rights,
-home/program context, stock summaries with referenced product versions and lots, valid reasons
-and referenced barcode mappings when scanning is enabled. Full stock-card history and the full
-Receive catalog are separate datasets and are not implied by Adjustments readiness.
+make a partial download available offline. Stock downloads include last-known rights,
+home/program context, stock summaries with referenced product versions and lots, valid reasons,
+valid destinations and sources, and referenced barcode mappings when scanning is enabled. Full stock-card history and the full
+Receive catalog are separate datasets and are not implied by Adjustments or Issue readiness.
 
 Autosave saves editable drafts before showing Saved On This Device. Checks on the saved version
 stop one tab from overwriting another. Signed submission saves a fixed copy and adds it to the

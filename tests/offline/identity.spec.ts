@@ -33,14 +33,14 @@ test('offline navigation explains unavailable pages and blocks direct routes wit
     )
       protectedRequests.push(request.url());
   });
-  const issue = page.getByRole('button', { name: 'Issue', exact: true });
-  await expect(issue).toHaveAttribute('data-unavailable');
-  await expect(issue).toBeEnabled();
-  await issue.click();
+  const receive = page.getByRole('button', { name: 'Receive', exact: true });
+  await expect(receive).toHaveAttribute('data-unavailable');
+  await expect(receive).toBeEnabled();
+  await receive.click();
   const unavailable = page.getByRole('alertdialog');
   await expect(unavailable).toContainText("This page can't be loaded while offline.");
   await unavailable.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(issue).toBeFocused();
+  await expect(receive).toBeFocused();
   await expect(page).toHaveURL(/adjustments$/);
   const stock = page.getByRole('link', { name: 'Stock On Hand', exact: true });
   await expect(stock).not.toHaveAttribute('data-unavailable');
@@ -108,7 +108,9 @@ test('offline expiry keeps editor drafts usable through reload and resumes only 
   await expect(
     page.getByRole('heading', { name: 'HOME - Fixture Clinic - Fixture Medicines' }),
   ).toBeVisible();
-  await expect(page.getByRole('note').filter({ hasText: "You're Offline" })).toBeVisible();
+  await expect(
+    page.getByRole('note').filter({ has: page.getByText("You're Offline", { exact: true }) }),
+  ).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Product', exact: true })).toHaveValue(
     'Fixture Product',
   );

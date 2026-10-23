@@ -12,6 +12,7 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
 import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
@@ -31,12 +32,13 @@ vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
   }),
 }));
 it.each([
-  { online: true, view: true },
-  { online: false, view: true },
-  { online: false, view: false },
-])(
+  { kind: 'adjustment', online: true, view: true },
+  { kind: 'adjustment', online: false, view: true },
+  { kind: 'adjustment', online: false, view: false },
+  { kind: 'issue', online: false, view: true },
+] satisfies { kind: ConfiguredEventKind; online: boolean; view: boolean }[])(
   'shows pending work for this kind with connection-specific copy (%o)',
-  async ({ online, view }) => {
+  async ({ kind, online, view }) => {
     useLoginData
       .getState()
       .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
@@ -88,7 +90,7 @@ it.each([
         <StockEventProgramPicker
           userId="u"
           permissions={parsePermissions(permissions)}
-          kind="adjustment"
+          kind={kind}
           editorLink={() => <a href="/edit">Edit</a>}
         />
       </I18nextProvider>,
@@ -96,8 +98,8 @@ it.each([
     );
     expect(await screen.findByRole('note')).toHaveTextContent(
       online
-        ? '1 adjustment is waiting to sync or needs review.'
-        : "You're offline. 1 adjustment is waiting to sync.",
+        ? `1 ${kind} is waiting to sync or needs review.`
+        : `You're offline. 1 ${kind} is waiting to sync.`,
     );
     if (!online) expect(screen.getByText("You're offline.").tagName).toBe('STRONG');
     expect(screen.getByRole('link', { name: 'Offline Events' })).toHaveAttribute(
@@ -110,7 +112,15 @@ it.each([
       expect(screen.queryByText('Not Available Offline')).not.toBeInTheDocument();
     } else {
       expect(action).toHaveAttribute('aria-disabled', 'true');
-      expect(action).toHaveAccessibleDescription(en['stock-programs.offline-description']);
+      const reason =
+        en[
+          view
+            ? 'stock-programs.offline-description'
+            : 'stock-programs.no-stock-card-right-description'
+        ];
+      await waitFor(() => expect(action).toHaveAccessibleDescription(reason));
+      expect(screen.getByText(reason)).not.toHaveClass('sr-only');
+      expect(screen.getByText('Not Downloaded')).toBeInTheDocument();
       if (!view) return;
       await act(async () => {
         await getLocalDb()
@@ -120,7 +130,9 @@ it.each([
             facilityTypeId: 'type',
             programId: 'p',
             userId: 'u',
-            formatVersion: 4,
+            formatVersion: kind === 'issue' ? 5 : 4,
+            summaries: [],
+            products: [],
             generation: 'available',
             fetchedAt: Date.now(),
             scanning: false,
@@ -130,6 +142,21 @@ it.each([
             identities: [],
           } satisfies HomeStockBundle);
       });
+      if (kind === 'issue') {
+        await waitFor(() =>
+          expect(action).toHaveAccessibleDescription(
+            en['stock-programs.older-download-description'],
+          ),
+        );
+        expect(action).toHaveAttribute('aria-disabled', 'true');
+        await act(async () => {
+          await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).update(['f', 'p'], {
+            formatVersion: 6,
+            destinations: [],
+            sources: [],
+          });
+        });
+      }
       await waitFor(() =>
         expect(screen.getByRole('link', { name: 'Edit' })).not.toHaveAttribute(
           'aria-disabled',

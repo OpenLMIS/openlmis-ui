@@ -25,7 +25,12 @@ import type {
 } from '@/features/stock-events/lib/types';
 import { getFlag } from '@/lib/feature-flags';
 import { homeStockBundleKeys, queryKeys } from '@/lib/key-factory';
-import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
+import {
+  type DeviceSnapshot,
+  deviceDataGeneration,
+  LocalDataUnavailableError,
+  onlineOrDevice,
+} from '@/lib/local-data';
 
 export const homeStockScope = (
   filter: EventStockCardsFilter,
@@ -35,9 +40,18 @@ export const homeStockScope = (
 export const eventStockCardsOptions = (filter: EventStockCardsFilter, bundle?: HomeStockScope) =>
   queryOptions({
     queryKey: bundle ? homeStockBundleKeys.cards(bundle) : queryKeys.stockEvents.list(filter),
-    queryFn: async () =>
-      bundle ? (await getHomeStockBundle(bundle)).cards : fetchEventStockCards(filter),
+    queryFn: async () => {
+      if (!bundle) return { cards: await fetchEventStockCards(filter), device: undefined };
+      const result = await getHomeStockBundle(bundle);
+      const device: DeviceSnapshot | undefined =
+        deviceDataGeneration(result) !== undefined
+          ? { fetchedAt: result.fetchedAt, generation: result.generation }
+          : undefined;
+      return { cards: result.cards, device };
+    },
     networkMode: 'always',
+    staleTime: (query) => (query.state.data?.device ? 0 : 30_000),
+    refetchOnReconnect: true,
   });
 
 export const eventValidReasonsOptions = (

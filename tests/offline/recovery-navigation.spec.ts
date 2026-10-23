@@ -75,13 +75,13 @@ test('Arabic phone navigation keeps /v2 and palette focus after the offline dial
   await expect(page).toHaveURL(/\/v2\/offline-events$/);
   await page.keyboard.press('Control+k');
   const input = page.getByRole('combobox');
-  await input.fill(labels['nav.stock-management.issue']);
+  await input.fill(labels['nav.stock-management.receive']);
   await page.keyboard.press('ArrowDown');
-  const issue = page.getByRole('option', {
-    name: labels['nav.stock-management.issue'],
+  const receive = page.getByRole('option', {
+    name: labels['nav.stock-management.receive'],
     exact: true,
   });
-  await expect(issue).toHaveAttribute('aria-describedby');
+  await expect(receive).toHaveAttribute('aria-describedby');
   await page.keyboard.press('Enter');
   await page
     .getByRole('alertdialog')

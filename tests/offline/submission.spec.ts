@@ -60,7 +60,7 @@ test('offline Submit retains its committed event through persistent restart', {
     await expect(
       page.getByRole('heading', { name: catalog['offline-events.title'], exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole('table')).toContainText('Fixture Clinic');
+    await expect(page.getByRole('table')).toContainText('Fixture Medicines');
     await expect(page.getByRole('table')).toContainText(catalog['offline-events.status-queued']);
     await expect(page.locator('[data-slot=sidebar-menu-badge]')).toHaveText('1');
     expect(posts).toBe(0);

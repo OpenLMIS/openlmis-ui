@@ -1,4 +1,5 @@
 import { RotateCcwIcon, WifiOffIcon } from 'lucide-react';
+import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useHasOfflineCapability } from '@/components/nav-access';
@@ -20,10 +21,12 @@ export function OfflineNotice({
   onRetry,
   reason,
   headingLevel = 2,
+  headingRef,
 }: {
-  onRetry: () => void;
+  onRetry: () => unknown;
   reason?: 'online-only' | 'not-downloaded';
   headingLevel?: 1 | 2;
+  headingRef?: Ref<HTMLHeadingElement>;
 }) {
   const { t } = useTranslation();
   const Heading = headingLevel === 1 ? 'h1' : 'h2';
@@ -41,7 +44,9 @@ export function OfflineNotice({
           <WifiOffIcon />
         </EmptyMedia>
         <EmptyTitle size={headingLevel === 1 ? 'lg' : 'default'}>
-          <Heading tabIndex={headingLevel === 1 ? -1 : undefined}>{t(title)}</Heading>
+          <Heading ref={headingRef} tabIndex={headingLevel === 1 ? -1 : undefined}>
+            {t(title)}
+          </Heading>
         </EmptyTitle>
         <EmptyDescription size={headingLevel === 1 ? 'lg' : 'default'}>
           {reason === 'online-only' ? (
@@ -57,8 +62,8 @@ export function OfflineNotice({
       </EmptyHeader>
       <Button
         onClick={() => {
-          onRetry();
-          if (!isOnline())
+          const recovering = onRetry();
+          if (!recovering && !isOnline())
             toast.info(t('offline.title'), { description: t('offline.retry-unavailable') });
         }}
         size="lg"

@@ -66,20 +66,23 @@ describe('ProductLotPicker', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     queryClient.setQueryData(
       eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-      [
-        card,
-        {
-          ...card,
-          id: 'ibuprofen',
-          lot: null,
-          orderable: { ...card.orderable, id: 'ibuprofen', fullProductName: 'Ibuprofen' },
-        },
-        {
-          ...card,
-          id: 'other',
-          lot: noLot ? null : { id: 'other-lot', lotCode: 'OTHER', expirationDate: null },
-        },
-      ],
+      {
+        cards: [
+          card,
+          {
+            ...card,
+            id: 'ibuprofen',
+            lot: null,
+            orderable: { ...card.orderable, id: 'ibuprofen', fullProductName: 'Ibuprofen' },
+          },
+          {
+            ...card,
+            id: 'other',
+            lot: noLot ? null : { id: 'other-lot', lotCode: 'OTHER', expirationDate: null },
+          },
+        ],
+        device: undefined,
+      },
     );
     const onAdd = vi.fn();
     const user = userEvent.setup();
@@ -129,10 +132,13 @@ it.each([true, false])(
     const offered = { ...card, lot: noLot ? null : card.lot };
     queryClient.setQueryData(
       eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-      [
-        offered,
-        { ...card, orderable: { ...card.orderable, id: 'hidden', fullProductName: 'Hidden' } },
-      ],
+      {
+        cards: [
+          offered,
+          { ...card, orderable: { ...card.orderable, id: 'hidden', fullProductName: 'Hidden' } },
+        ],
+        device: undefined,
+      },
     );
     const onAdd = vi.fn();
     const user = userEvent.setup();
@@ -166,7 +172,7 @@ it('keeps an automatically picked lot when a refresh adds another option', async
     facilityId: 'facility',
     programId: 'program',
   }).queryKey;
-  queryClient.setQueryData(queryKey, [card]);
+  queryClient.setQueryData(queryKey, { cards: [card], device: undefined });
   const onAdd = vi.fn();
   const user = userEvent.setup();
   renderPage(
@@ -185,10 +191,10 @@ it('keeps an automatically picked lot when a refresh adds another option', async
   expect(await screen.findByRole('combobox', { name: 'Product' })).toHaveValue('Aspirin');
   expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
   await act(async () =>
-    queryClient.setQueryData(queryKey, [
-      card,
-      { ...card, lot: { id: 'other', lotCode: 'OTHER', expirationDate: null } },
-    ]),
+    queryClient.setQueryData(queryKey, {
+      cards: [card, { ...card, lot: { id: 'other', lotCode: 'OTHER', expirationDate: null } }],
+      device: undefined,
+    }),
   );
   await user.click(screen.getByRole('button', { name: 'Add' }));
   expect(onAdd).toHaveBeenCalledWith(card, true);
@@ -597,7 +603,7 @@ it('distinguishes an empty kit list from a search with no matching kits', async 
     facilityId: 'facility',
     programId: 'program',
   }).queryKey;
-  queryClient.setQueryData(queryKey, [card]);
+  queryClient.setQueryData(queryKey, { cards: [card], device: undefined });
   const user = userEvent.setup();
   renderPage(
     <I18nextProvider i18n={i18n}>
@@ -617,13 +623,16 @@ it('distinguishes an empty kit list from a search with no matching kits', async 
   expect(await screen.findByText('No kits with stock in this program.')).toBeVisible();
   expect(screen.queryByText(en['stock-events.no-matches-title'])).not.toBeInTheDocument();
   await act(async () =>
-    queryClient.setQueryData(queryKey, [
-      {
-        ...card,
-        lot: null,
-        orderable: { ...card.orderable, children: [{ orderable: { id: 'child' }, quantity: 1 }] },
-      },
-    ]),
+    queryClient.setQueryData(queryKey, {
+      cards: [
+        {
+          ...card,
+          lot: null,
+          orderable: { ...card.orderable, children: [{ orderable: { id: 'child' }, quantity: 1 }] },
+        },
+      ],
+      device: undefined,
+    }),
   );
   await user.clear(picker);
   await user.type(picker, 'missing kit');

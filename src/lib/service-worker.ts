@@ -13,6 +13,10 @@ type Options = {
 let workbox: Workbox | undefined;
 let reloadPage = () => window.location.reload();
 let updateReady = false;
+let registration: ServiceWorkerRegistration | undefined;
+
+export const canReloadIntoWorker = () =>
+  isOurs(registration?.active ?? null) && registration?.active?.state !== 'redundant';
 const listeners = new Set<() => void>();
 
 function markUpdateReady() {
@@ -47,10 +51,11 @@ export function registerServiceWorker({ enabled = import.meta.env.PROD, reload }
   const base = import.meta.env.BASE_URL;
   workbox = new Workbox(`${base}sw.js`, { scope: base });
   workbox.addEventListener('waiting', () => markUpdateReady());
-  void workbox.register().then((registration) => {
-    if (!registration) return;
-    watchForUpdates(registration);
-    setInterval(() => void registration.update(), UPDATE_CHECK_MS);
+  void workbox.register().then((registered) => {
+    registration = registered;
+    if (!registered) return;
+    watchForUpdates(registered);
+    setInterval(() => void registered.update(), UPDATE_CHECK_MS);
   });
   warmOfflineFiles();
   navigator.serviceWorker.addEventListener('controllerchange', warmOfflineFiles);

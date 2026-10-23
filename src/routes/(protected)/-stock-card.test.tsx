@@ -770,7 +770,11 @@ it.each([
     expect(screen.getByText('District Warehouse')).toBeInTheDocument();
     expect(screen.getByText('Clinic Annex')).toBeInTheDocument();
     expect(screen.getByText('Stock Transfer')).toBeInTheDocument();
-    expect(screen.getByText('stock-card.offline-history')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        unreachable ? 'stock-card.unreachable-history' : 'stock-card.offline-history',
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText('stock-card.offline-summary')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'stock-card.print' })).toHaveAttribute(
       'aria-disabled',
