@@ -2068,8 +2068,6 @@
   "stock-on-hand.view": "عرض",
   "stock-on-hand.view-card": "عرض بطاقة المخزون للمنتج {product}، {lot}",
   "stock-programs.action": "الإجراء",
-  "stock-programs.downloading": "جارٍ التنزيل",
-  "stock-programs.downloading-description": "لا يزال تنزيل بيانات هذا البرنامج إلى هذا الجهاز جاريًا.",
   "stock-programs.load-error": "تعذر تحميل البرامج. يرجى المحاولة مرة أخرى.",
   "stock-programs.load-error-title": "تعذر تحميل البرامج",
   "stock-programs.no-home-title": "لا يوجد مرفق رئيسي",

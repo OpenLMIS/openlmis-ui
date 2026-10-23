@@ -2068,8 +2068,6 @@
   "stock-on-hand.view": "Ver",
   "stock-on-hand.view-card": "Ver ficha de stock de {product}, {lot}",
   "stock-programs.action": "Ação",
-  "stock-programs.downloading": "A Transferir",
-  "stock-programs.downloading-description": "Os dados deste programa ainda estão a ser transferidos para este dispositivo.",
   "stock-programs.load-error": "Não foi possível carregar os programas. Tente novamente.",
   "stock-programs.load-error-title": "Não Foi Possível Carregar Os Programas",
   "stock-programs.no-home-title": "Sem Unidade Principal",

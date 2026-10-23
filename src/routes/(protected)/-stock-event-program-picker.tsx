@@ -45,7 +45,6 @@ import {
 } from '@/features/stock-events/lib/program-readiness';
 import { useDownloadedScopes } from '@/hooks/use-downloaded-scopes';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
-import { useDownloadStatus } from '@/lib/offline-download-status';
 import { useOnline } from '@/lib/online';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
 import { homeStockPrograms } from '@/lib/stock-programs';
@@ -253,7 +252,6 @@ function ProgramsTable({
   );
   const datasets = EVENT_KINDS[kind].download;
   const homeStock = homeStockDataset(EVENT_KINDS[kind]);
-  const status = useDownloadStatus();
   const downloaded = useDownloadedScopes(provider, scopes, {
     enabled: !online && !!homeStock,
     accepts: HOME_STOCK_ACCEPTANCE[homeStock?.minimumFormat ?? 4],
@@ -268,7 +266,6 @@ function ProgramsTable({
           programId: program.id,
           datasets,
           states: { 'home-stock': downloaded },
-          status,
         });
         const disabled = !online && readiness.state !== 'ready';
         const unavailable = disabled ? unavailableCopy(readiness) : undefined;
@@ -287,11 +284,6 @@ function ProgramsTable({
 function unavailableCopy(
   readiness: ProgramReadiness,
 ): { reason: ParseKeys; description: ParseKeys } | undefined {
-  if (readiness.state === 'downloading')
-    return {
-      reason: 'stock-programs.downloading',
-      description: 'stock-programs.downloading-description',
-    };
   if (readiness.state !== 'not-downloaded') return undefined;
   return {
     reason: 'stock-programs.not-downloaded',

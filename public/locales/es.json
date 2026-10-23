@@ -2068,8 +2068,6 @@
   "stock-on-hand.view": "Ver",
   "stock-on-hand.view-card": "Ver tarjeta de existencias de {product}, {lot}",
   "stock-programs.action": "Acción",
-  "stock-programs.downloading": "Descargando",
-  "stock-programs.downloading-description": "Los datos de este programa aún se están descargando en este dispositivo.",
   "stock-programs.load-error": "No se pudieron cargar los programas. Inténtelo de nuevo.",
   "stock-programs.load-error-title": "No Se Pudieron Cargar Los Programas",
   "stock-programs.no-home-title": "Sin Establecimiento Principal",

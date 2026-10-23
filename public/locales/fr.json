@@ -2068,8 +2068,6 @@
   "stock-on-hand.view": "Voir",
   "stock-on-hand.view-card": "Voir la fiche de stock de {product}, {lot}",
   "stock-programs.action": "Action",
-  "stock-programs.downloading": "Téléchargement En Cours",
-  "stock-programs.downloading-description": "Les données de ce programme sont encore en cours de téléchargement sur cet appareil.",
   "stock-programs.load-error": "Les programmes n’ont pas pu être chargés. Veuillez réessayer.",
   "stock-programs.load-error-title": "Impossible De Charger Les Programmes",
   "stock-programs.no-home-title": "Aucun Établissement Principal",

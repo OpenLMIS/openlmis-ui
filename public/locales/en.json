@@ -2068,8 +2068,6 @@
   "stock-on-hand.view": "View",
   "stock-on-hand.view-card": "View Stock Card for {product}, {lot}",
   "stock-programs.action": "Action",
-  "stock-programs.downloading": "Downloading",
-  "stock-programs.downloading-description": "Data for this program is still downloading to this device.",
   "stock-programs.load-error": "The programs could not be loaded. Please try again.",
   "stock-programs.load-error-title": "Could Not Load Programs",
   "stock-programs.no-home-title": "No Home Facility",
