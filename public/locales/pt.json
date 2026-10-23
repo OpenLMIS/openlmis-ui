@@ -1951,6 +1951,7 @@
   "stock-events.no-stock-view-description": "Precisa de permissão para ver as fichas de stock desta unidade e programa antes de adicionar produtos.",
   "stock-events.no-stock-view-title": "É necessária permissão para ver o stock",
   "stock-events.number-too-large": "Este número é demasiado grande",
+  "stock-events.offline-snapshot": "<strong>Está offline.</strong> A mostrar o stock transferido em <strong>{time}</strong>.",
   "stock-events.pack-size": "Tamanho da embalagem",
   "stock-events.pick-date": "Escolher Uma Data",
   "stock-events.positive-number": "Deve introduzir um número positivo",

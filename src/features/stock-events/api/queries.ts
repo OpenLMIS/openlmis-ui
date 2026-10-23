@@ -32,6 +32,16 @@ export const homeStockScope = (
   facilityTypeId: string,
 ): HomeStockScope => ({ ...filter, facilityTypeId, scanning: getFlag('GS1_SCANNING') });
 
+export const homeStockSnapshotOptions = (scope: HomeStockScope) =>
+  queryOptions({
+    queryKey: [...homeStockBundleKeys.cards(scope), 'snapshot'],
+    queryFn: async () => {
+      const { fetchedAt, generation } = await readHomeStockBundle(scope);
+      return { fetchedAt, generation };
+    },
+    networkMode: 'always',
+  });
+
 export const eventStockCardsOptions = (filter: EventStockCardsFilter, bundle?: HomeStockScope) =>
   queryOptions({
     queryKey: bundle ? homeStockBundleKeys.cards(bundle) : queryKeys.stockEvents.list(filter),

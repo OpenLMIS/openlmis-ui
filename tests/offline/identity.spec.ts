@@ -108,7 +108,9 @@ test('offline expiry keeps editor drafts usable through reload and resumes only 
   await expect(
     page.getByRole('heading', { name: 'HOME - Fixture Clinic - Fixture Medicines' }),
   ).toBeVisible();
-  await expect(page.getByRole('note').filter({ hasText: "You're Offline" })).toBeVisible();
+  await expect(
+    page.getByRole('note').filter({ has: page.getByText("You're Offline", { exact: true }) }),
+  ).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Product', exact: true })).toHaveValue(
     'Fixture Product',
   );

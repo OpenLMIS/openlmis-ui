@@ -1951,6 +1951,7 @@
   "stock-events.no-stock-view-description": "You need permission to view stock cards for this facility and program before you can add products.",
   "stock-events.no-stock-view-title": "Stock View Permission Required",
   "stock-events.number-too-large": "This number is too large",
+  "stock-events.offline-snapshot": "<strong>You're offline.</strong> Showing stock downloaded <strong>{time}</strong>.",
   "stock-events.pack-size": "Pack Size",
   "stock-events.pick-date": "Pick A Date",
   "stock-events.positive-number": "You must input a positive number",

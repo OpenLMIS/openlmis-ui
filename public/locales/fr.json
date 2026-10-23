@@ -1951,6 +1951,7 @@
   "stock-events.no-stock-view-description": "Vous devez pouvoir consulter les fiches de stock de cet établissement et de ce programme avant d’ajouter des produits.",
   "stock-events.no-stock-view-title": "Autorisation de consultation du stock requise",
   "stock-events.number-too-large": "Ce nombre est trop grand",
+  "stock-events.offline-snapshot": "<strong>Vous êtes hors ligne.</strong> Affichage du stock téléchargé le <strong>{time}</strong>.",
   "stock-events.pack-size": "Taille du conditionnement",
   "stock-events.pick-date": "Choisir une date",
   "stock-events.positive-number": "Vous devez saisir un nombre positif",

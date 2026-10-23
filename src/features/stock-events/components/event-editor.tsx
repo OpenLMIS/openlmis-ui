@@ -11,6 +11,7 @@ import { CircleAlertIcon, Loader2Icon, ShieldAlertIcon } from 'lucide-react';
 import {
   type ComponentProps,
   type ReactNode,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -28,6 +29,7 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
 import { LoadError } from '@/components/load-error';
+import { SnapshotAlert } from '@/components/offline-alert';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
 import { ScanStatus } from '@/components/scan-status';
@@ -55,6 +57,7 @@ import {
   eventValidReasonsOptions,
   fetchHomeStockTradeItem,
   homeStockScope,
+  homeStockSnapshotOptions,
 } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
@@ -101,6 +104,7 @@ import {
   type EventKindConfig,
   homeStockDataset,
 } from '@/features/stock-events/lib/event-kinds';
+import type { HomeStockScope } from '@/features/stock-events/lib/home-stock-bundle';
 import {
   type KitUnpackReasonIds,
   refreshKitContents,
@@ -755,6 +759,11 @@ export function EventEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
+            {bundleScope && !online && (
+              <Suspense fallback={null}>
+                <EventSnapshotNotice scope={bundleScope} />
+              </Suspense>
+            )}
             {refusal && (
               <Alert variant="destructive" role="note">
                 <AlertTitle>{t(config.copy.submitErrorTitle)}</AlertTitle>
@@ -1249,4 +1258,9 @@ function LookupError({
 function RefusalRecovery(props: ComponentProps<typeof DeviceEventRecovery>) {
   const timeZone = useDeploymentTimeZone();
   return <DeviceEventRecovery {...props} timeZone={timeZone} />;
+}
+
+function EventSnapshotNotice({ scope }: { scope: HomeStockScope }) {
+  const { data } = useQuery(homeStockSnapshotOptions(scope));
+  return data ? <SnapshotAlert snapshot={data} message="stock-events.offline-snapshot" /> : null;
 }

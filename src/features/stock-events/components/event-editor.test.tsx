@@ -2694,6 +2694,7 @@ it('keeps an earlier unknown Receive outcome visible after a later definitive re
 });
 
 it('queues an offline Issue using the destination node from the downloaded bundle', async () => {
+  const fetchedAt = Date.parse('2026-10-23T12:30:00Z');
   await getLocalDb()
     .table(LOCAL_TABLES.homeStockDownloads)
     .put({
@@ -2701,7 +2702,7 @@ it('queues an offline Issue using the destination node from the downloaded bundl
       userId: 'ada-id',
       formatVersion: 6,
       generation: 'issue-download',
-      fetchedAt: Date.now(),
+      fetchedAt,
       cards: [
         {
           ...other,
@@ -2733,6 +2734,14 @@ it('queues an offline Issue using the destination node from the downloaded bundl
       });
     },
     { kind: 'issue' },
+  );
+  const time = formatTimestamp(new Date(fetchedAt).toISOString(), 'en', {
+    time: true,
+    timeZone: 'UTC',
+  });
+  expect(await screen.findByText(time)).toBeInTheDocument();
+  expect(screen.getByText(time).closest('[role="note"]')).toHaveTextContent(
+    en['stock-events.offline-snapshot'].replace(/<\/?strong>/g, '').replace('{time}', time),
   );
   await add(user, 'OTHER');
   await user.click(screen.getByRole('combobox', { name: /^Issue To,/ }));

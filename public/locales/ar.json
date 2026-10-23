@@ -1951,6 +1951,7 @@
   "stock-events.no-stock-view-description": "تحتاج إلى إذن لعرض بطاقات المخزون لهذه المنشأة والبرنامج قبل إضافة المنتجات.",
   "stock-events.no-stock-view-title": "يلزم إذن عرض المخزون",
   "stock-events.number-too-large": "هذا العدد كبير جدًا",
+  "stock-events.offline-snapshot": "<strong>أنت غير متصل.</strong> يُعرض المخزون الذي تم تنزيله في <strong>{time}</strong>.",
   "stock-events.pack-size": "حجم العبوة",
   "stock-events.pick-date": "اختر تاريخًا",
   "stock-events.positive-number": "يجب إدخال عدد موجب",
