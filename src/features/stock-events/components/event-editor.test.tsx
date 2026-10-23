@@ -2004,7 +2004,7 @@ describe('Receive editor', () => {
     await user.type(code, 'queued{Enter}');
     expect(
       await within(second).findByText(
-        'A queued receipt already uses this lot code with expiry Jan 1, 2030.',
+        'Another receipt on this device already uses this lot code with expiry Jan 1, 2030.',
       ),
     ).toBeInTheDocument();
     await user.clear(code);
