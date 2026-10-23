@@ -1930,8 +1930,10 @@ describe('Receive editor', () => {
       `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-15`,
       'en',
     );
-    expect(cell(1, 'Expiry Date')).toHaveTextContent(shown);
-    expect(cell(2, 'Expiry Date')).toHaveTextContent(shown);
+    await waitFor(() => {
+      expect(cell(1, 'Expiry Date')).toHaveTextContent(shown);
+      expect(cell(2, 'Expiry Date')).toHaveTextContent(shown);
+    });
     await user.click(screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 2' }));
     const second = await screen.findByRole('dialog', { name: 'Edit Lot' });
     const code = within(second).getByRole('textbox', { name: 'Lot Code' });

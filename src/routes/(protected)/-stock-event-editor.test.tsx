@@ -882,7 +882,6 @@ describe('Unpack policies', () => {
 it('lands an offline queued Issue on its Stock On Hand without offering print', async () => {
   function QueuedIssue() {
     const print = useStockEventPrint({
-      kind: 'issue',
       copy: EVENT_KINDS.issue.print,
       userId: USER,
       facilityId: HOME,

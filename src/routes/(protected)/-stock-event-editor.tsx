@@ -288,7 +288,6 @@ export function useStockEventPrint({
   facilityId,
   programId,
 }: {
-  kind: ConfiguredEventKind;
   copy: EventPrintCopy;
   userId: string;
   facilityId: string;
@@ -367,7 +366,6 @@ function PrintableStockEventEditor({
 }: StockEventEditorPageProps & { copy: EventPrintCopy }) {
   const { userId, homeFacility, program } = props.data;
   const print = useStockEventPrint({
-    kind: props.kind,
     copy,
     userId,
     facilityId: homeFacility.id,
