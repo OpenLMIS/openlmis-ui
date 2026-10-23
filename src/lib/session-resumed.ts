@@ -7,7 +7,7 @@ export function onSessionResumed({
 }: {
   onUserChange: () => void;
   onExpired: () => void;
-  onResume: () => void;
+  onResume: (fromExpiry: boolean) => void;
 }) {
   return useLoginData.subscribe((state, previous) => {
     const changedUser = state.referenceDataUserId !== previous.referenceDataUserId;
@@ -18,6 +18,6 @@ export function onSessionResumed({
       !state.expired &&
       (changedUser || previous.expired || state.accessToken !== previous.accessToken)
     )
-      onResume();
+      onResume(previous.expired && !changedUser);
   });
 }

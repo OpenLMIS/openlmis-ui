@@ -389,8 +389,8 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
       setDownloadStatus({ phase: 'idle', incomplete: [] });
     },
     onExpired: () => stopActive('session'),
-    onResume: () => {
-      void run('force');
+    onResume: (fromExpiry) => {
+      void run(fromExpiry ? 'sign-in' : 'force');
     },
   });
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;

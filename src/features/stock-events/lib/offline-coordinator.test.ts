@@ -1049,7 +1049,7 @@ it('accepts an online foreground event while a download owns its lock', async ()
   }
 });
 
-it('reuses a sign-in-only dataset on reconnect and targeted home stock refresh', async () => {
+it('reuses a sign-in-only dataset on reconnect and refresh but downloads again after expiry', async () => {
   const { defineDownloadProvider } = await import('@/lib/download-provider');
   await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).clear();
   const fetch = vi.fn(async () => ({
@@ -1088,4 +1088,10 @@ it('reuses a sign-in-only dataset on reconnect and targeted home stock refresh',
   expect(
     await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get('catalog'),
   ).not.toHaveProperty('stale');
+  useLoginData.getState().expireSession();
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'downloader', username: 'user', accessToken: 'renewed' });
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  await finished();
 });

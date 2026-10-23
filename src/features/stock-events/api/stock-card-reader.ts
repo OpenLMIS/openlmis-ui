@@ -136,3 +136,26 @@ export async function readEventStockCards(
   });
   return { cards: hydrated, identities, summaries, products: [...versioned, ...unversioned] };
 }
+
+export async function fetchApprovedSummaries(
+  filter: EventStockCardsFilter,
+  config: AxiosRequestConfig = {},
+): Promise<{ id: string; versionNumber?: number }[]> {
+  const scope = config.sessionScope ?? getSessionScope();
+  assertSessionScope(scope);
+  const { data } = await client.get<Page<HomeStockSummary>>('/v2/stockCardSummaries', {
+    ...config,
+    params: { facilityId: filter.facilityId, programId: filter.programId, nonEmptyOnly: false },
+  });
+  assertSessionScope(scope);
+  if (data.totalPages > 1 || data.content.some((summary) => !summary.orderable?.id))
+    throw new Error('Incomplete approved stock summaries');
+  return [
+    ...new Map(
+      data.content.map(({ orderable }) => [
+        orderable.id,
+        { id: orderable.id, versionNumber: version(orderable) },
+      ]),
+    ).values(),
+  ];
+}

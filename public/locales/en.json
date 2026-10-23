@@ -634,6 +634,7 @@
   "offline.download.home-stock": "Home Facility Stock",
   "offline.download.incomplete": "Offline Download Incomplete",
   "offline.download.locks-required": "This browser cannot coordinate offline downloads. Use a browser with Web Locks support.",
+  "offline.download.receive-catalog": "Products To Receive",
   "offline.download.retry": "Retry",
   "offline.download.time-zone-fallback-description": "The deployment time zone could not be loaded. Dates and times use UTC until it is available.",
   "offline.download.time-zone-fallback-title": "Using UTC Time",

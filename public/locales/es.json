@@ -634,6 +634,7 @@
   "offline.download.home-stock": "Existencias Del Establecimiento Principal",
   "offline.download.incomplete": "Descarga Sin Conexión Incompleta",
   "offline.download.locks-required": "Este navegador no puede coordinar las descargas sin conexión. Utilice un navegador compatible con Web Locks.",
+  "offline.download.receive-catalog": "Productos Para Recibir",
   "offline.download.retry": "Reintentar",
   "offline.download.time-zone-fallback-description": "No se pudo cargar la zona horaria del despliegue. Las fechas y horas usan UTC hasta que esté disponible.",
   "offline.download.time-zone-fallback-title": "Usando La Hora UTC",

@@ -634,6 +634,7 @@
   "offline.download.home-stock": "مخزون المرفق الرئيسي",
   "offline.download.incomplete": "تنزيل البيانات للعمل دون اتصال غير مكتمل",
   "offline.download.locks-required": "لا يمكن لهذا المتصفح تنسيق تنزيل البيانات للعمل دون اتصال. استخدم متصفحًا يدعم Web Locks.",
+  "offline.download.receive-catalog": "المنتجات المطلوب استلامها",
   "offline.download.retry": "إعادة المحاولة",
   "offline.download.time-zone-fallback-description": "تعذّر تحميل المنطقة الزمنية للنظام. تُعرض التواريخ والأوقات بالتوقيت العالمي المنسق UTC حتى تصبح متاحة.",
   "offline.download.time-zone-fallback-title": "استخدام التوقيت العالمي المنسق",

@@ -634,6 +634,7 @@
   "offline.download.home-stock": "Stock de l’établissement principal",
   "offline.download.incomplete": "Téléchargement Hors Ligne Incomplet",
   "offline.download.locks-required": "Ce navigateur ne peut pas coordonner les téléchargements hors ligne. Utilisez un navigateur prenant en charge Web Locks.",
+  "offline.download.receive-catalog": "Produits à réceptionner",
   "offline.download.retry": "Réessayer",
   "offline.download.time-zone-fallback-description": "Le fuseau horaire du déploiement n’a pas pu être chargé. Les dates et heures utilisent UTC jusqu’à ce qu’il soit disponible.",
   "offline.download.time-zone-fallback-title": "Utilisation De L’Heure UTC",

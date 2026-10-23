@@ -634,6 +634,7 @@
   "offline.download.home-stock": "Stock Da Unidade Principal",
   "offline.download.incomplete": "Transferência Offline Incompleta",
   "offline.download.locks-required": "Este navegador não consegue coordenar as transferências offline. Utilize um navegador com suporte para Web Locks.",
+  "offline.download.receive-catalog": "Produtos A Receber",
   "offline.download.retry": "Tentar Novamente",
   "offline.download.time-zone-fallback-description": "Não foi possível carregar o fuso horário da instalação. As datas e horas utilizam UTC até que esteja disponível.",
   "offline.download.time-zone-fallback-title": "A Utilizar A Hora UTC",

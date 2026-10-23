@@ -18,6 +18,7 @@ import {
   fetchOrderablesByTradeItems,
   fetchOrganizations,
   fetchProcessingSchedules,
+  fetchProgramOrderables,
   fetchReasons,
   fetchSupervisedFacilities,
   fetchTradeItemByGtin,
@@ -690,3 +691,16 @@ it('does not request unfiltered approvals without facility types, or swallow a l
     fetchFacilityTypeApprovedOrderables({ facilityTypeCodes: ['HC'], programCode: 'EM' }),
   ).rejects.toThrow('Approval lookup failed');
 });
+
+it.each([
+  () => fetchLotsByTradeItems(['trade'], requestConfig),
+  () => fetchFacilityOrderableFulfills({ facilityId: 'home', programId: 'p' }, requestConfig),
+  () => fetchProgramOrderables('P', requestConfig),
+])('forwards background download configuration to every request', async (fetch) => {
+  get
+    .mockResolvedValueOnce({ data: { content: [], totalPages: 2 } })
+    .mockResolvedValue({ data: { content: [], totalPages: 2 } });
+  await fetch();
+  for (const [, config] of get.mock.calls) expect(config).toMatchObject(requestConfig);
+});
+const requestConfig = { session: false, signal: new AbortController().signal, sessionScope: 1 };
