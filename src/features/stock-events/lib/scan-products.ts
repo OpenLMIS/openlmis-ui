@@ -6,8 +6,17 @@ import {
   orderablesByTradeItemsOptions,
 } from '@/features/reference-data/api/queries';
 import type { Orderable } from '@/features/reference-data/lib/types';
-import { eventStockOnHandOptions } from '@/features/stock-events/api/queries';
+import {
+  eventStockOnHandOptions,
+  type ReceiveDevice,
+  receiveCatalogOptions,
+} from '@/features/stock-events/api/queries';
 import { receiveLotOptions } from '@/features/stock-events/lib/products';
+import {
+  catalogLots,
+  catalogScanCandidates,
+  catalogStock,
+} from '@/features/stock-events/lib/receive-catalog-view';
 import type { EventStockCard, EventStockCardsFilter } from '@/features/stock-events/lib/types';
 import type { ScanProduct } from '@/lib/stock-scan';
 
@@ -73,6 +82,32 @@ export async function approvedScanProduct(
       cards: receiveLotOptions(candidate, lots, stock, false).flatMap((option) =>
         option.card ? [option.card] : [],
       ),
+    },
+    productHasLots: lots.length > 0,
+  };
+}
+
+export async function catalogScanProduct(
+  queryClient: QueryClient,
+  device: ReceiveDevice,
+  tradeItemId: string,
+): Promise<ApprovedScanProduct> {
+  const view = await queryClient.fetchQuery(receiveCatalogOptions(device));
+  const candidates = catalogScanCandidates(view, tradeItemId);
+  if (!candidates.length) return { type: 'refuse', reason: 'productNotInProgram' };
+  if (candidates.length > 1) return { type: 'refuse', reason: 'productAmbiguous' };
+  const [candidate] = candidates;
+  const lots = catalogLots(view, [tradeItemId]);
+  return {
+    type: 'found',
+    product: {
+      orderable: candidate.orderable,
+      cards: receiveLotOptions(
+        candidate,
+        lots,
+        catalogStock(view, [candidate.approvedId]),
+        false,
+      ).flatMap((option) => (option.card ? [option.card] : [])),
     },
     productHasLots: lots.length > 0,
   };

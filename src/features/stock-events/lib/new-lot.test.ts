@@ -78,3 +78,26 @@ describe('editLotSchema', () => {
     ]);
   });
 });
+
+it('checks new and edited lot codes against device work across letter case and trade items', () => {
+  const deviceLots = [newLot('NEW-1', '2030-01-01')];
+  for (const [expirationDate, tradeItemId, valid] of [
+    ['2031-01-01', 'trade-1', false],
+    ['2030-01-01', 'trade-1', true],
+    ['2031-01-01', 'trade-2', true],
+  ] as const) {
+    const values = { lotCode: 'new-1', expirationDate };
+    expect(
+      newLotSchema({ ...context, lines: [], deviceLots, tradeItemId }).safeParse(values).success,
+    ).toBe(valid);
+    expect(
+      editLotSchema({
+        ...context,
+        lines: [],
+        deviceLots,
+        lot: newLot('MINE', null, tradeItemId),
+        lineKey: 'mine',
+      }).safeParse(values).success,
+    ).toBe(valid);
+  }
+});

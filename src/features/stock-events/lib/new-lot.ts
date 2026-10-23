@@ -6,7 +6,12 @@ import type { EventLot, NewLot } from '@/features/stock-events/lib/types';
 import { lotCodeSchema, sameLotCode } from '@/lib/lot-code';
 
 type DraftLine = { key: string; lot: EventLot | null };
-type LotContext = { lots: readonly LotSummary[]; lines: readonly DraftLine[]; today: string };
+type LotContext = {
+  lots: readonly LotSummary[];
+  lines: readonly DraftLine[];
+  today: string;
+  deviceLots?: readonly NewLot[];
+};
 
 const errorKey = (key: ParseKeys) => key;
 
@@ -48,9 +53,17 @@ export function newLotSchema({
   lots,
   lines,
   today,
+  deviceLots = [],
 }: LotContext & { tradeItemId: string }) {
   return lotFields(today).superRefine((values, context) => {
-    if (existingLot(lots, values.lotCode) || draftLotWithOtherExpiry(lines, tradeItemId, values))
+    if (
+      existingLot(lots, values.lotCode) ||
+      draftLotWithOtherExpiry(
+        [...lines, ...deviceLots.map((lot, index) => ({ key: `device:${index}`, lot }))],
+        tradeItemId,
+        values,
+      )
+    )
       context.addIssue({
         code: 'custom',
         path: ['lotCode'],
@@ -65,6 +78,7 @@ export function editLotSchema({
   lots,
   lines,
   today,
+  deviceLots = [],
 }: LotContext & { lot: NewLot; lineKey: string }) {
   return lotFields(today).superRefine((values, context) => {
     if (values.lotCode === lot.lotCode) return;
@@ -74,7 +88,14 @@ export function editLotSchema({
         path: ['lotCode'],
         message: 'stock-events.lot-code-exists',
       });
-    else if (draftLotWithOtherExpiry(lines, lot.tradeItemId, values, lineKey))
+    else if (
+      draftLotWithOtherExpiry(
+        [...lines, ...deviceLots.map((lot, index) => ({ key: `device:${index}`, lot }))],
+        lot.tradeItemId,
+        values,
+        lineKey,
+      )
+    )
       context.addIssue({
         code: 'custom',
         path: ['expirationDate'],

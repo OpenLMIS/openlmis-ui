@@ -6,6 +6,10 @@ import { fetchEventStockCards } from '@/features/stock-events/api/api';
 import {
   eventStockCardsOptions,
   fetchHomeStockTradeItem,
+  fetchReceiveTradeItem,
+  receiveApprovedProductsOptions,
+  receiveCatalogOptions,
+  receiveDevice,
 } from '@/features/stock-events/api/queries';
 import {
   getHomeStockBundle,
@@ -13,10 +17,16 @@ import {
   readHomeStockBundle,
 } from '@/features/stock-events/lib/home-stock-bundle';
 import { kitCards } from '@/features/stock-events/lib/products';
+import { readReceiveCatalog } from '@/features/stock-events/lib/receive-catalog';
+import { catalogScanProduct } from '@/features/stock-events/lib/scan-products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 
-vi.mock('@/features/reference-data/api/api', () => ({ fetchTradeItemByGtin: vi.fn() }));
+vi.mock('@/features/reference-data/api/api', () => ({
+  fetchTradeItemByGtin: vi.fn(),
+  fetchApprovedProducts: vi.fn(),
+}));
+vi.mock('@/features/stock-events/lib/receive-catalog', () => ({ readReceiveCatalog: vi.fn() }));
 vi.mock('@/features/stock-events/api/api', () => ({ fetchEventStockCards: vi.fn() }));
 vi.mock('@/features/stock-events/lib/home-stock-bundle', () => ({
   getHomeStockBundle: vi.fn(),
@@ -49,7 +59,7 @@ const kit: EventStockCard = {
 };
 const queryClient = () =>
   new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
+    defaultOptions: { queries: { retry: false, staleTime: 30_000, networkMode: 'always' } },
   });
 beforeEach(() => vi.resetAllMocks());
 
@@ -157,4 +167,71 @@ it('carries snapshot metadata only for cards actually read from the device', asy
     cards: saved.cards,
     device: undefined,
   });
+});
+
+it('reads and scans the Receive catalog offline without consuming a warm server page', async () => {
+  onlineManager.setOnline(false);
+  const client = queryClient();
+  const device = receiveDevice(filter, 'type', false);
+  vi.mocked(readHomeStockBundle).mockResolvedValue({
+    ...saved,
+    formatVersion: 6,
+    summaries: [],
+    products: [],
+  });
+  const orderable = {
+    id: 'approved',
+    productCode: 'APP',
+    fullProductName: 'Approved',
+    description: null,
+    identifiers: { tradeItem: 'trade' },
+  };
+  vi.mocked(readReceiveCatalog).mockResolvedValue({
+    ...filter,
+    facilityTypeId: 'type',
+    userId: 'user',
+    generation: 'catalog',
+    fetchedAt: 1,
+    formatVersion: 1,
+    scanning: true,
+    approved: [{ id: 'approved', versionNumber: null }],
+    products: [orderable],
+    fulfils: {},
+    lots: [],
+    tradeItems: [{ id: 'trade', gtin: '123' }],
+  });
+  const server = receiveApprovedProductsOptions(client, filter, '', 0);
+  client.setQueryData(server.queryKey, {
+    content: [],
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: 100,
+  });
+  expect(
+    (await client.fetchQuery(receiveApprovedProductsOptions(client, filter, '', 0, device)))
+      .content,
+  ).toEqual([{ id: 'approved', orderable }]);
+  await expect(fetchReceiveTradeItem(client, device, '123')).resolves.toEqual({
+    tradeItem: { id: 'trade', gtin: '123' },
+    offline: true,
+  });
+  await expect(catalogScanProduct(client, device, 'TRADE')).resolves.toMatchObject({
+    type: 'found',
+    product: { orderable, cards: [{ stockOnHand: null }] },
+    productHasLots: false,
+  });
+  await expect(catalogScanProduct(client, device, 'absent')).resolves.toEqual({
+    type: 'refuse',
+    reason: 'productNotInProgram',
+  });
+  expect(fetchTradeItemByGtin).not.toHaveBeenCalled();
+  expect(readReceiveCatalog).toHaveBeenCalledTimes(1);
+  client.setQueryData(receiveCatalogOptions(device).queryKey, {
+    ...(await client.fetchQuery(receiveCatalogOptions(device))),
+    scanning: false,
+  });
+  await expect(fetchReceiveTradeItem(client, device, '123')).rejects.toBeInstanceOf(
+    LocalDataUnavailableError,
+  );
 });
