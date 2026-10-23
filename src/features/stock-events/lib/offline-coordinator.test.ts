@@ -1082,6 +1082,7 @@ it('reuses a sign-in-only dataset on reconnect and refresh but downloads again a
   await waitFor(() => expect(download).toHaveBeenCalledTimes(4));
   await finished();
   expect(fetch).toHaveBeenCalledTimes(1);
+  expect(downloadSchedule(getLocalDb().name).due()).toBe(false);
   refreshOfflineDownload('home:p1');
   await waitFor(() => expect(download).toHaveBeenCalledTimes(5));
   await finished();
@@ -1089,7 +1090,6 @@ it('reuses a sign-in-only dataset on reconnect and refresh but downloads again a
   expect(
     await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get('catalog'),
   ).not.toHaveProperty('stale');
-  expect(downloadSchedule(getLocalDb().name).due()).toBe(false);
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'downloader', username: 'user', accessToken: 'rotated' });

@@ -125,6 +125,8 @@ it('downloads the exact approved version, latest fulfiller, slim lots and a sing
     requests.find((request) => request.url === '/orderables' && request.params.id)?.params.id,
   ).toEqual(['fulfiller', 'missing']);
   expect(requests.some((request) => request.url === '/tradeItems')).toBe(false);
+  for (const request of requests)
+    expect(request).toMatchObject({ session: false, backgroundRead: true });
   expect(await localTable(LOCAL_TABLES.receiveCatalogDownloads).count()).toBe(0);
 });
 

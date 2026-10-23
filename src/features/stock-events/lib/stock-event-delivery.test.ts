@@ -126,11 +126,12 @@ it('waits for its own access hold when an earlier event is access-paused', async
   expect(await result).toEqual({ kind: 'held', reason: 'access-changed' });
 });
 
-it('keeps a slow online submission in progress and invalidates stock before returning its receipt', async () => {
+it('keeps a slow online submission in progress and invalidates stock and lots before returning its receipt', async () => {
   const db = getLocalDb();
   await db.table(LOCAL_TABLES.stockEventQueue).put(event);
   const client = new QueryClient();
   client.setQueryData(queryKeys.stockCardSummaries.all, ['old-stock']);
+  client.setQueryData(queryKeys.lots.all, ['old-lots']);
   await db.table(LOCAL_TABLES.stockEventQueue).update(event.sequence, { status: 'sending' });
   vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout', 'Date'] });
   const observed = vi.spyOn(db.table(LOCAL_TABLES.stockEventQueue), 'get');
@@ -155,6 +156,7 @@ it('keeps a slow online submission in progress and invalidates stock before retu
   await vi.advanceTimersByTimeAsync(0);
   expect(await result).toEqual({ kind: 'accepted', receipt });
   expect(client.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated).toBe(true);
+  expect(client.getQueryState(queryKeys.lots.all)?.isInvalidated).toBe(true);
   expect(refresh).toHaveBeenCalledTimes(1);
 });
 

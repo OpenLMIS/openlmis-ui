@@ -54,6 +54,8 @@ import {
 import {
   eventStockCardsOptions,
   eventValidReasonsOptions,
+  receiveCatalogOptions,
+  receiveDevice,
 } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
@@ -66,6 +68,7 @@ import {
   getHomeStockBundle,
   type HomeStockBundle,
 } from '@/features/stock-events/lib/home-stock-bundle';
+import { receiveCatalogView } from '@/features/stock-events/lib/receive-catalog-view';
 import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
 import {
@@ -1902,6 +1905,19 @@ describe('Receive editor', () => {
         event,
       },
     }));
+    await getLocalDb()
+      .table(LOCAL_TABLES.stockEventReceipts)
+      .put({
+        draftId: 'accepted',
+        revision: 1,
+        localEventId: 'accepted',
+        event: {
+          userId: 'ada-id',
+          lines: [
+            { lot: { lotCode: 'QUEUED', expirationDate: '2030-01-01', tradeItemId: 'trade' } },
+          ],
+        },
+      });
     const { user, onSubmitted } = receiveSetup();
     await pick(user, 'Aspirin');
     await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
@@ -1909,6 +1925,11 @@ describe('Receive editor', () => {
     await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'NEW-1{Enter}');
     await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.getAllByRole('button', { name: /^Edit Lot, Aspirin NEW-1/ })).toHaveLength(2);
+    await waitFor(async () =>
+      expect(
+        (await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).toArray())[0]?.lines,
+      ).toHaveLength(2),
+    );
     await user.click(screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 1' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit Lot' });
     await waitFor(() =>
@@ -1937,6 +1958,11 @@ describe('Receive editor', () => {
     await user.click(screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 2' }));
     const second = await screen.findByRole('dialog', { name: 'Edit Lot' });
     const code = within(second).getByRole('textbox', { name: 'Lot Code' });
+    await user.clear(code);
+    await user.type(code, 'queued{Enter}');
+    expect(
+      await within(second).findByText(en['stock-events.lot-expiry-conflict']),
+    ).toBeInTheDocument();
     await user.clear(code);
     await user.type(code, 'NEW-2{Enter}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -2017,6 +2043,61 @@ describe('Receive editor', () => {
       expect(fetchEventStockOnHand).toHaveBeenCalledWith(
         expect.objectContaining({ orderableIds: ['product'] }),
       );
+    });
+
+    it('resolves an offline scan from the downloaded catalog without server lookups', async () => {
+      onlineManager.setOnline(false);
+      try {
+        const { queryClient } = receiveSetup();
+        queryClient.setQueryData(
+          receiveCatalogOptions(
+            receiveDevice({ facilityId: 'facility', programId: 'program' }, 'type', false),
+          ).queryKey,
+          receiveCatalogView(
+            {
+              facilityId: 'facility',
+              programId: 'program',
+              facilityTypeId: 'type',
+              userId: 'ada-id',
+              generation: 'catalog',
+              fetchedAt: 1,
+              formatVersion: 1,
+              scanning: true,
+              approved: [{ id: aspirin.id, versionNumber: null }],
+              products: [aspirin, fulfiller],
+              fulfils: { [aspirin.id]: ['fulfiller'] },
+              lots: [
+                { id: 'lot-1', lotCode: 'LOT-1', expirationDate: '2099-01-31', tradeItemId: 'box' },
+              ],
+              tradeItems: [{ id: 'box', gtin: parsed.gtin }],
+            },
+            {
+              facilityId: 'facility',
+              programId: 'program',
+              facilityTypeId: 'type',
+              userId: 'ada-id',
+              generation: 'stock',
+              fetchedAt: 1,
+              formatVersion: 6,
+              scanning: true,
+              cards: [],
+              reasons: [],
+              tradeItems: [],
+              identities: [],
+              summaries: [],
+              products: [],
+            },
+          ),
+        );
+        expect(await scanned()).toBeUndefined();
+        expect(
+          await screen.findByRole('textbox', { name: /^Quantity, Aspirin Box LOT-1/ }),
+        ).toBeInTheDocument();
+        expect(fetchTradeItemByGtin).not.toHaveBeenCalled();
+        expect(fetchOrderablesByTradeItems).not.toHaveBeenCalled();
+      } finally {
+        onlineManager.setOnline(true);
+      }
     });
 
     it('refuses a product neither approved nor fulfilling an approved one', async () => {

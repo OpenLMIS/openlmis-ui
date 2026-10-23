@@ -88,6 +88,12 @@ it('searches without case, pages the complete approved set and keeps determinist
     ).approved,
   ).toEqual(view.approved);
   expect(view.approved.find(({ id }) => id === 'extra')?.orderable).toEqual(product('extra'));
+  const stockVersion = receiveCatalogView(catalog, {
+    ...bundle,
+    products: [{ ...products[0], meta: { versionNumber: 9 } }],
+    summaries: [{ orderable: { id: '000' }, stockOnHand: 0, canFulfillForMe: [] }],
+  });
+  expect(stockVersion.approved.find(({ id }) => id === '000')?.orderable).toBe(products[0]);
   expect(catalogStock(view, ['000', 'extra'])).toEqual({ [stockKey('extra')]: 7 });
 });
 
