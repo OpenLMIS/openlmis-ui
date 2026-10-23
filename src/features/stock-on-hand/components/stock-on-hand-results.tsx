@@ -27,7 +27,7 @@ import {
 } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
-import { SnapshotAlert } from '@/components/offline-alert';
+import { PendingWorkAlert, SnapshotAlert } from '@/components/offline-alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -64,7 +64,7 @@ import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 type StockOnHandResultsProps = {
-  pendingEvents?: ReactNode;
+  pendingEvents?: number;
   cards: boolean;
   search: StockOnHandSearch;
   facilityId: string;
@@ -81,7 +81,7 @@ const collapsedSchema = z.array(z.string());
 const NO_SORT = { id: 'productCode', desc: false };
 
 export function StockOnHandResults({
-  pendingEvents,
+  pendingEvents = 0,
   cards,
   search,
   facilityId,
@@ -191,10 +191,21 @@ export function StockOnHandResults({
 
   return (
     <>
-      {page.device && !isFetching && (
-        <SnapshotAlert snapshot={page.device} message="stock-on-hand.offline-snapshot" />
+      {page.device && !isFetching ? (
+        <SnapshotAlert
+          snapshot={page.device}
+          message="stock-on-hand.offline-snapshot"
+          pending={pendingEvents}
+        />
+      ) : (
+        <PendingWorkAlert
+          count={pendingEvents}
+          message={{
+            online: 'offline-events.stock-pending-online',
+            offline: 'offline-events.stock-pending-offline',
+          }}
+        />
       )}
-      {page.device && pendingEvents}
       {cards ? (
         <GroupedCards {...view} columns={columns} listRef={pageStart.ref} />
       ) : (

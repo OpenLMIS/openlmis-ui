@@ -901,18 +901,17 @@ it('scopes the pending-work warning to the downloaded facility and program witho
   });
   renderRoute(appliedPath(), client);
   expect(await screen.findAllByText('Downloaded Medicine')).not.toHaveLength(0);
-  expect(screen.getByText('stock-on-hand.offline-snapshot')).toBeInTheDocument();
-  expect(await screen.findByText('offline-events.stock-pending-offline')).toBeVisible();
+  expect(await screen.findByText('stock-on-hand.offline-snapshot-pending')).toBeVisible();
+  expect(screen.queryByText('stock-on-hand.offline-snapshot')).not.toBeInTheDocument();
   await act(async () => {
     await queue.update(id, { programId: EM });
   });
-  await waitFor(() =>
-    expect(screen.queryByText('offline-events.stock-pending-offline')).not.toBeInTheDocument(),
-  );
+  expect(await screen.findByText('stock-on-hand.offline-snapshot')).toBeVisible();
+  expect(screen.queryByText('stock-on-hand.offline-snapshot-pending')).not.toBeInTheDocument();
   await act(async () => {
     await queue.update(id, { facilityId: BALAKA, programId: FP });
   });
-  expect(screen.queryByText('offline-events.stock-pending-offline')).not.toBeInTheDocument();
+  expect(screen.queryByText('stock-on-hand.offline-snapshot-pending')).not.toBeInTheDocument();
   await queue.clear();
   expect(screen.getByText('OFF-LOT')).toBeInTheDocument();
   await waitFor(() =>

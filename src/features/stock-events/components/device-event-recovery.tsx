@@ -5,7 +5,7 @@ import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { formatTimestamp } from '@/components/form/date-value';
-import { SettingsItem, SettingsList } from '@/components/form/settings-list';
+import { SettingsList } from '@/components/form/settings-list';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { useOfflineNavigationDialog } from '@/components/offline-navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -26,7 +26,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { DeviceEventLines } from '@/features/stock-events/components/device-event-lines';
+import {
+  DeviceEventLines,
+  EventDetailItem,
+} from '@/features/stock-events/components/device-event-lines';
 import {
   canRemoveDeviceEvent,
   DeviceEventRemoval,
@@ -174,12 +177,12 @@ export function DeviceEventRecovery({
           </DialogHeader>
           <div className="shrink-0 min-w-0">
             <SettingsList density="compact">
-              <SettingsItem label={t('offline-events.type')}>
+              <EventDetailItem label={t('offline-events.type')}>
                 <span className="inline-flex flex-wrap items-center justify-end gap-2">
                   <span>{t(EVENT_KINDS[event.kind].copy.eventType)}</span>
                   <EventStatus event={event} />
                 </span>
-              </SettingsItem>
+              </EventDetailItem>
               {[
                 [t('facility-program.facility'), recordLabel(event.facility)],
                 [t('facility-program.program'), recordLabel(event.program)],
@@ -195,9 +198,9 @@ export function DeviceEventRecovery({
               ]
                 .filter(([, value]) => value != null && value !== '')
                 .map(([label, value]) => (
-                  <SettingsItem key={label} label={label}>
+                  <EventDetailItem key={label} label={label}>
                     <span dir="auto">{value}</span>
-                  </SettingsItem>
+                  </EventDetailItem>
                 ))}
             </SettingsList>
           </div>

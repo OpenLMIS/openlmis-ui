@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { ZapIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
@@ -29,13 +30,17 @@ const unreachableMessages = {
   'stock-card.offline-summary': 'stock-card.unreachable-summary',
 } as const satisfies Record<SnapshotMessage, string>;
 
-export function SnapshotAlert({
-  snapshot,
-  message,
-}: {
-  snapshot: DeviceSnapshot;
-  message: SnapshotMessage;
-}) {
+const pendingMessages = {
+  offline: 'stock-on-hand.offline-snapshot-pending',
+  online: 'stock-on-hand.unreachable-snapshot-pending',
+} as const;
+
+type SnapshotAlertProps = { snapshot: DeviceSnapshot } & (
+  | { message: SnapshotMessage; pending?: never }
+  | { message: 'stock-on-hand.offline-snapshot'; pending: number }
+);
+
+export function SnapshotAlert({ snapshot, message, pending }: SnapshotAlertProps) {
   const { t, i18n } = useTranslation();
   const online = useOnline();
   const timeZone = useDeploymentTimeZone();
@@ -43,13 +48,48 @@ export function SnapshotAlert({
     time: true,
     timeZone,
   });
+  const key = pending
+    ? pendingMessages[online ? 'online' : 'offline']
+    : online
+      ? unreachableMessages[message]
+      : message;
   return (
     <OfflineAlert>
       <Trans
         t={t}
-        i18nKey={online ? unreachableMessages[message] : message}
-        values={{ time }}
-        components={{ strong: <strong /> }}
+        i18nKey={key}
+        count={pending}
+        values={{ time, count: pending }}
+        components={{ strong: <strong />, eventLink: <Link to="/offline-events" /> }}
+      />
+    </OfflineAlert>
+  );
+}
+
+export type PendingWorkMessage =
+  | 'offline-events.program-pending-online'
+  | 'offline-events.program-pending-offline'
+  | 'offline-events.stock-pending-online'
+  | 'offline-events.stock-pending-offline';
+
+export function PendingWorkAlert({
+  count,
+  message,
+}: {
+  count: number;
+  message: { online: PendingWorkMessage; offline: PendingWorkMessage; values?: { kind: string } };
+}) {
+  const { t } = useTranslation();
+  const online = useOnline();
+  if (!count) return null;
+  return (
+    <OfflineAlert>
+      <Trans
+        t={t}
+        i18nKey={online ? message.online : message.offline}
+        count={count}
+        values={{ count, ...message.values }}
+        components={{ strong: <strong />, eventLink: <Link to="/offline-events" /> }}
       />
     </OfflineAlert>
   );

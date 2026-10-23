@@ -119,7 +119,7 @@ function EventLines({ event, layout }: { event: DeviceEvent; layout: 'table' | '
             className={cn('flex min-w-0 flex-col gap-0.5', layout === 'cards' && 'items-end')}
             key={line.key}
           >
-            <span className="font-medium">
+            <span className="font-semibold">
               <bdi>{line.product}</bdi>
             </span>
             <dl
@@ -128,7 +128,7 @@ function EventLines({ event, layout }: { event: DeviceEvent; layout: 'table' | '
                 layout === 'cards' && 'justify-end',
               )}
             >
-              <EventLineDetail label={t('offline-events.lot')} hideLabel={!line.lotCode}>
+              <EventLineDetail label={t('offline-events.lot')}>
                 {line.lotCode ??
                   t(
                     line.productHasLots
@@ -154,19 +154,11 @@ function EventLines({ event, layout }: { event: DeviceEvent; layout: 'table' | '
   );
 }
 
-function EventLineDetail({
-  label,
-  hideLabel = false,
-  children,
-}: {
-  label: string;
-  hideLabel?: boolean;
-  children: ReactNode;
-}) {
+function EventLineDetail({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex min-w-0 gap-1">
-      <dt className={hideLabel ? 'sr-only' : 'shrink-0 text-muted-foreground'}>{label}</dt>
-      <dd className="min-w-0 wrap-break-word">
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 wrap-break-word font-medium">
         <bdi>{children}</bdi>
       </dd>
     </div>
