@@ -680,7 +680,7 @@ function ApprovedProductLotPicker({
         </div>
       )}
       {addingNewLot && (
-        <>
+        <div className="flex min-w-0 flex-col gap-4 @3xl/main:order-last @3xl/main:basis-full @3xl/main:flex-row @3xl/main:items-start">
           <div className="min-w-0 flex-1 @3xl/main:max-w-96">
             <Field spacing="tight" data-invalid={!!errors.lotCode || undefined}>
               <FieldLabel htmlFor={`${id}-code`}>
@@ -729,7 +729,7 @@ function ApprovedProductLotPicker({
               )}
             </Field>
           </div>
-        </>
+        </div>
       )}
       <div className="@3xl/main:w-auto">
         <Button
@@ -766,7 +766,7 @@ function PickerPanel({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-end">
+      <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:flex-wrap @3xl/main:items-end">
         {children}
         {status && <div className="@3xl/main:max-w-56 @3xl/main:pb-1.5">{status}</div>}
       </div>

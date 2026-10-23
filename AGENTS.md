@@ -440,8 +440,10 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   quantity inputs fill their cell while reserving a character-unit minimum based only on their
   translated placeholder, with room for at least five digits; extra digits scroll inside the input.
   Their date column minimum measures all 12 months in the page language. Quantity sizers live
-  once in the column header for every stock event layout; VVM and date sizers only serve measured
-  layouts. Adjustments keeps full-width inputs, with each quantity input reserving its placeholder
+  once in the column header for every stock event layout; VVM select and date-button sizers only
+  serve measured layouts. Every header also reserves its cells' minimums (Product, the translated
+  no-lot labels in Lot Code, Expiry months, comments, VVM, Date, Remove) and Receive decides VVM
+  from its offered products, so Adds never resize columns. Adjustments keeps full-width inputs, with each quantity input reserving its placeholder
   and at least five digits. At or above 672px, the table scrolls sideways when its column
   minimums do not fit.
 
@@ -639,7 +641,7 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   `@3xl/main:max-w-xl`, with a `Separator` below it. Decide from the offered list before
   anything is picked: stock event pickers use this compact row when no offered item has lots
   and keep labelled fields in a card otherwise. Receive can create lots, so it always keeps
-  labelled fields. Compose `PickerAdd`, `PickerAddField`, `PickerAddIcon` and `PickerAddButton`
+  labelled fields; its New Lot Code and Expiry fields take their own row so Product and Add stay put. Compose `PickerAdd`, `PickerAddField`, `PickerAddIcon` and `PickerAddButton`
   (`src/components/picker-add.tsx`); anchor the list to `PickerAddField` so it spans the icon. The loading skeleton repeats the layout last shown for
   that kind and program (`rememberedPickerLayout`), compact on a first visit.
 

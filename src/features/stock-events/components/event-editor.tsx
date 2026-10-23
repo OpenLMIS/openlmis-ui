@@ -59,6 +59,7 @@ import {
   fetchReceiveTradeItem,
   homeStockScope,
   type ReceiveDevice,
+  receiveApprovedProductsOptions,
   receiveCatalogOptions,
   receiveDevice,
 } from '@/features/stock-events/api/queries';
@@ -209,10 +210,8 @@ export function EventEditor({
   const bundleScope = homeStockDataset(config)
     ? homeStockScope({ facilityId, programId }, facilityTypeId)
     : undefined;
-  const device =
-    bundleScope && receiveCatalogDataset(config)
-      ? receiveDevice({ facilityId, programId }, facilityTypeId, online)
-      : undefined;
+  const receiveScope = receiveDevice({ facilityId, programId }, facilityTypeId, online);
+  const device = bundleScope && receiveCatalogDataset(config) ? receiveScope : undefined;
   const stockOptions = eventStockCardsOptions({ facilityId, programId }, bundleScope);
   const validOptions = eventValidReasonsOptions(
     { program: programId, facilityType: facilityTypeId },
@@ -252,6 +251,10 @@ export function EventEditor({
   const cardsQuery = useQuery({
     ...stockOptions,
     enabled: canViewStock && (fromCards || !!bundleScope),
+  });
+  const approvedQuery = useQuery({
+    ...receiveApprovedProductsOptions(queryClient, { facilityId, programId }, '', 0, receiveScope),
+    enabled: canViewStock && !!device,
   });
   const offeredCards = useMemo(
     () => filterCards(cardsQuery.data?.cards ?? []),
@@ -394,6 +397,10 @@ export function EventEditor({
     lines.some((line) => !!line.lot);
   const hasVVM =
     offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true') ||
+    (!!device &&
+      !!approvedQuery.data?.content.some(
+        ({ orderable }) => orderable.extraData?.useVVM === 'true',
+      )) ||
     lines.some((line) => line.useVVM);
   const hideableColumns = eventHideableColumns(kind);
   const fitColumns = useMemo(

@@ -1811,8 +1811,7 @@ describe('Receive editor', () => {
     const table = screen.getByRole('table');
     const index = within(table)
       .getAllByRole('columnheader')
-      .findIndex((item) => item.textContent === header);
-    expect(index).toBeGreaterThan(-1);
+      .indexOf(within(table).getByRole('columnheader', { name: header }));
     return within(within(table).getAllByRole('row')[row]).getAllByRole('cell')[index];
   }
 
@@ -1877,11 +1876,11 @@ describe('Receive editor', () => {
     expect(screen.getByRole('combobox', { name: /^VVM Status, Vaccine/ })).toBeInTheDocument();
   });
 
-  it('shows blank stock on hand for a stockless product and VVM Status once a line uses VVM', async () => {
+  it('shows VVM Status before adding when an offered product uses VVM and blank stock on hand', async () => {
     const { user } = receiveSetup();
     await screen.findByRole('columnheader', { name: 'Lot Code' });
     expect(screen.getByRole('columnheader', { name: 'Expiry Date' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'VVM Status' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: 'VVM Status' })).toBeInTheDocument();
     await pick(user, 'Vaccine');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Add' }));
