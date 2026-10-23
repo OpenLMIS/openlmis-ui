@@ -82,7 +82,7 @@ test('offline Issue retains its destination and queued event through persistent 
     await expect(
       page.getByRole('heading', { name: catalog['offline-events.title'], exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole('table')).toContainText('Fixture Clinic');
+    await expect(page.getByRole('table')).toContainText('Fixture Medicines');
     await expect(page.getByRole('table')).toContainText(catalog['offline-events.status-queued']);
     await expect(page.locator('[data-slot=sidebar-menu-badge]')).toHaveText('1');
     await expect(page.getByRole('table')).toContainText('Issue');
