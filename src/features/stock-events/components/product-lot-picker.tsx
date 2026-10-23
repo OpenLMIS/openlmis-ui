@@ -69,6 +69,7 @@ import type { EventStockCardsFilter } from '@/features/stock-events/lib/types';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useFlag } from '@/lib/feature-flags';
 import { LocalDataUnavailableError } from '@/lib/local-data';
+import { conflictingDeviceLot } from '@/lib/lot-code';
 import { productSearchStatus } from '@/lib/product-search-status';
 
 type BaseProps = EventStockCardsFilter & {
@@ -84,7 +85,7 @@ type Props = BaseProps &
     | { from?: 'stock-cards'; cardFilter: EventCardFilter }
     | {
         from: 'approved-products';
-        device?: ReceiveDevice;
+        device: ReceiveDevice;
         canManageLots: boolean;
         lines: readonly Pick<EventLine, 'key' | 'lot'>[];
       }
@@ -318,7 +319,7 @@ function ApprovedProductLotPicker({
   lines,
   device,
 }: BaseProps & {
-  device?: ReceiveDevice;
+  device: ReceiveDevice;
   canManageLots: boolean;
   lines: readonly Pick<EventLine, 'key' | 'lot'>[];
 }) {
@@ -473,6 +474,17 @@ function ApprovedProductLotPicker({
       errors[field] ??= issue.message as ParseKeys;
     }
   }
+  const queuedLot = tradeItemId
+    ? conflictingDeviceLot(deviceLots ?? [], tradeItemId, draft.lotCode, draft.expirationDate)
+    : undefined;
+  const lotError = (key: ParseKeys) =>
+    key === 'stock-events.lot-code-queued'
+      ? t(key, {
+          expiry: queuedLot?.expirationDate
+            ? formatDateValue(queuedLot.expirationDate, i18n.language)
+            : t('stock-events.no-expiry'),
+        })
+      : t(key);
   const lotItems = lotOptions.map((item) => ({
     value: item.value,
     label: lotItemLabel(item, t, i18n.language),
@@ -693,7 +705,7 @@ function ApprovedProductLotPicker({
                 }}
               />
               {errors.lotCode && (
-                <FieldError id={`${id}-code-error`}>{t(errors.lotCode)}</FieldError>
+                <FieldError id={`${id}-code-error`}>{lotError(errors.lotCode)}</FieldError>
               )}
             </Field>
           </div>

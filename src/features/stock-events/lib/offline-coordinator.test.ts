@@ -1103,3 +1103,51 @@ it('reuses a sign-in-only dataset on reconnect and refresh but downloads again a
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   await finished();
 });
+
+it('retains a failed catalog refresh across periodic reuse and retries it on reconnect', async () => {
+  const { defineDownloadProvider } = await import('@/lib/download-provider');
+  const record = {
+    userId: 'downloader',
+    generation: 'old',
+    fetchedAt: Date.now(),
+    draftId: 'catalog',
+  };
+  await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).put(record);
+  const fetch = vi
+    .fn(async () => ({ ...record, generation: 'new' }))
+    .mockRejectedValueOnce(new Error('Catalog unavailable'))
+    .mockRejectedValueOnce(new Error('Catalog unavailable'));
+  const intervals = vi.spyOn(globalThis, 'setInterval');
+  const provider = defineDownloadProvider({
+    id: 'catalog',
+    label: 'offline.download.receive-catalog',
+    table: LOCAL_TABLES.physicalInventoryDrafts,
+    refreshOn: ['sign-in'],
+    scopes: () => [{ id: 'p1', name: 'Program', key: 'catalog' }],
+    fetch,
+    accepts: () => true,
+    isFresh: () => true,
+  });
+  stop = startCoordinator({
+    initialTrigger: 'sign-in',
+    access: () => raw,
+    providers: [homeStockProvider(download), provider],
+  });
+  await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
+  expect(fetch).toHaveBeenCalledTimes(1);
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000);
+  for (const [tick, delay] of intervals.mock.calls) if (delay === 60_000) (tick as () => void)();
+  await waitFor(() => expect(navigator.locks.request).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(getDownloadStatus()).toMatchObject({ phase: 'failed', trigger: 'boot' }),
+  );
+  expect(fetch).toHaveBeenCalledTimes(2);
+  onlineManager.setOnline(false);
+  onlineManager.setOnline(true);
+  await finished();
+  expect(fetch).toHaveBeenCalledTimes(3);
+  expect(
+    (await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get('catalog')).generation,
+  ).toBe('new');
+  clock.mockRestore();
+});

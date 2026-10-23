@@ -13,7 +13,7 @@ import {
 } from '@/lib/download-provider';
 import { getFlag } from '@/lib/feature-flags';
 import type { OfflineAccess } from '@/lib/offline-access';
-import { parsePermissions, programGrants } from '@/lib/permissions';
+import { hasProgramGrant, parsePermissions } from '@/lib/permissions';
 import { homeStockScopes } from '@/lib/stock-programs';
 
 export const acceptsReceiveCatalog: DownloadAcceptance<
@@ -35,16 +35,11 @@ export const acceptsReceiveCatalog: DownloadAcceptance<
 export function receiveCatalogScopes(
   access: OfflineAccess,
 ): (DownloadScope & ReceiveCatalogScope)[] {
-  const grants = programGrants(
-    parsePermissions(access.permissionStrings),
-    EVENT_KINDS.receive.right,
-  );
+  const permissions = parsePermissions(access.permissionStrings);
   return homeStockScopes(access).flatMap((scope) => {
     const programCode = access.programs.find((program) => program.id === scope.programId)?.code;
     return programCode &&
-      grants.some(
-        (grant) => grant.facilityId === scope.facilityId && grant.programId === scope.programId,
-      )
+      hasProgramGrant(permissions, EVENT_KINDS.receive.right, scope.facilityId, scope.programId)
       ? [
           {
             ...scope,

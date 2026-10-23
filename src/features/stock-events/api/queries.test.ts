@@ -1,7 +1,7 @@
 import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { fetchTradeItemByGtin } from '@/features/reference-data/api/api';
+import { fetchOrderablesByIds, fetchTradeItemByGtin } from '@/features/reference-data/api/api';
 import { fetchEventStockCards } from '@/features/stock-events/api/api';
 import {
   eventStockCardsOptions,
@@ -10,6 +10,7 @@ import {
   receiveApprovedProductsOptions,
   receiveCatalogOptions,
   receiveDevice,
+  receiveOrderablesOptions,
 } from '@/features/stock-events/api/queries';
 import {
   getHomeStockBundle,
@@ -18,12 +19,14 @@ import {
 } from '@/features/stock-events/lib/home-stock-bundle';
 import { kitCards } from '@/features/stock-events/lib/products';
 import { readReceiveCatalog } from '@/features/stock-events/lib/receive-catalog';
+import type { ReceiveCatalogView } from '@/features/stock-events/lib/receive-catalog-view';
 import { catalogScanProduct } from '@/features/stock-events/lib/scan-products';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchTradeItemByGtin: vi.fn(),
+  fetchOrderablesByIds: vi.fn(),
   fetchApprovedProducts: vi.fn(),
 }));
 vi.mock('@/features/stock-events/lib/receive-catalog', () => ({ readReceiveCatalog: vi.fn() }));
@@ -200,7 +203,13 @@ it('reads and scans the Receive catalog offline without consuming a warm server 
     lots: [],
     tradeItems: [{ id: 'trade', gtin: '123' }],
   });
-  const server = receiveApprovedProductsOptions(client, filter, '', 0);
+  const server = receiveApprovedProductsOptions(
+    client,
+    filter,
+    '',
+    0,
+    receiveDevice(filter, 'type', true),
+  );
   client.setQueryData(server.queryKey, {
     content: [],
     totalElements: 0,
@@ -235,3 +244,49 @@ it('reads and scans the Receive catalog offline without consuming a warm server 
     LocalDataUnavailableError,
   );
 });
+
+it.each([false, true])(
+  'keeps device product versions scoped to each Receive catalog with online=%s',
+  async (online) => {
+    onlineManager.setOnline(online);
+    vi.mocked(fetchOrderablesByIds).mockRejectedValue(
+      new AxiosError('Unavailable', AxiosError.ERR_NETWORK),
+    );
+    const client = queryClient();
+    const a = receiveDevice(filter, 'type', online);
+    const b = receiveDevice({ ...filter, programId: 'other' }, 'type', online);
+    const view = (versionNumber: number): ReceiveCatalogView => ({
+      fetchedAt: 1,
+      generation: 'catalog',
+      scanning: true,
+      approved: [],
+      fulfils: {},
+      fulfilledBy: new Map<string, string[]>(),
+      lots: new Map(),
+      tradeItems: [],
+      stock: new Map(),
+      products: new Map([
+        [
+          'same',
+          {
+            id: 'same',
+            productCode: 'SAME',
+            fullProductName: 'Same',
+            description: null,
+            meta: { versionNumber },
+          },
+        ],
+      ]),
+    });
+    client.setQueryData(receiveCatalogOptions(a).queryKey, view(1));
+    client.setQueryData(receiveCatalogOptions(b).queryKey, view(2));
+    expect(
+      (await client.fetchQuery(receiveOrderablesOptions(client, ['same'], a)))[0].meta
+        ?.versionNumber,
+    ).toBe(1);
+    expect(
+      (await client.fetchQuery(receiveOrderablesOptions(client, ['same'], b)))[0].meta
+        ?.versionNumber,
+    ).toBe(2);
+  },
+);

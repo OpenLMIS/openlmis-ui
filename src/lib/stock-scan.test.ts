@@ -263,3 +263,23 @@ describe('resolveScan', () => {
     });
   });
 });
+
+it('refuses a scanned new lot with a different queued expiry before counting a draft line', () => {
+  const options = {
+    scan: { ...scan, lotCode: 'NEW', expiry: '2031-01-01' },
+    tradeItemId: 't1',
+    products: [product],
+    lines: [{ key: 'draft', orderable, lot: { lotCode: 'NEW', expirationDate: '2031-01-01' } }],
+    policy: receive,
+    deviceLots: [{ tradeItemId: 't1', lotCode: 'new', expirationDate: '2030-01-01' }],
+  };
+  expect(resolveScan(options)).toEqual({
+    type: 'refuse',
+    reason: 'lotCodeQueued',
+    params: { expiry: '2030-01-01' },
+  });
+  expect(resolveScan({ ...options, scan: { ...options.scan, expiry: '2030-01-01' } })).toEqual({
+    type: 'count',
+    lineKey: 'draft',
+  });
+});

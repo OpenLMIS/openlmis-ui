@@ -65,6 +65,8 @@ Receive lets you search downloaded approved products, including products with no
 choose their downloaded lots. If you have permission to manage lots, Add New Lot also works
 offline. Type the lot code and optional expiry date; the lot is saved inside the event and
 created by the server when it syncs. Refreshing data keeps typed and scanned new lots.
+If a downloaded lot already uses that code, choose it from the Lot Code list. If a queued receipt uses the code with
+another expiry, use the expiry shown in the message.
 
 While connected, Submit uses the same device queue. The success message appears only after
 the server accepts the event and the app records that result. Acceptance opens Stock On Hand.

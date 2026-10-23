@@ -1,4 +1,4 @@
-import { type QueryClient, queryOptions } from '@tanstack/react-query';
+import { type QueryClient, type QueryKey, queryOptions } from '@tanstack/react-query';
 import {
   fetchApprovedProducts,
   fetchFacilityOrderableFulfills,
@@ -14,12 +14,6 @@ import {
   orderablesByIdsOptions,
   tradeItemByGtinOptions,
 } from '@/features/reference-data/api/queries';
-import type {
-  ApprovedProduct,
-  LotSummary,
-  Orderable,
-  OrderableFulfills,
-} from '@/features/reference-data/lib/types';
 import {
   fetchAllStockEventLines,
   fetchEventStockCards,
@@ -34,20 +28,17 @@ import {
   type HomeStockScope,
   readHomeStockBundle,
 } from '@/features/stock-events/lib/home-stock-bundle';
-import {
-  type ReceiveCatalogFilter,
-  readReceiveCatalog,
-} from '@/features/stock-events/lib/receive-catalog';
+import { readReceiveCatalog } from '@/features/stock-events/lib/receive-catalog';
 import {
   catalogApprovedPage,
   catalogLots,
   catalogOrderables,
   catalogStock,
+  type ReceiveCatalogView,
   receiveCatalogView,
 } from '@/features/stock-events/lib/receive-catalog-view';
 import type {
   EventStockCardsFilter,
-  EventStockOnHand,
   EventStockOnHandFilter,
   PageQuery,
   StockEventsQuery,
@@ -61,7 +52,6 @@ import {
   LocalDataUnavailableError,
   onlineOrDevice,
 } from '@/lib/local-data';
-import type { Page } from '@/lib/types';
 
 export const homeStockScope = (
   filter: EventStockCardsFilter,
@@ -151,16 +141,7 @@ export const eventStockOnHandOptions = (filter: EventStockOnHandFilter) =>
 
 const APPROVED_PRODUCTS_PAGE_SIZE = 100;
 
-export const eventApprovedProductsOptions = (
-  filter: EventStockCardsFilter,
-  name: string,
-  page: number,
-) => approvedProductsOptions({ ...filter, name, page, size: APPROVED_PRODUCTS_PAGE_SIZE });
-
-type ReceiveQuery<T> = ReturnType<typeof deviceQuery<T>>;
-
 export type ReceiveDevice = {
-  catalog: ReceiveCatalogFilter;
   stock: HomeStockScope;
   online: boolean;
 };
@@ -170,17 +151,16 @@ export const receiveDevice = (
   facilityTypeId: string,
   online: boolean,
 ): ReceiveDevice => ({
-  catalog: { ...filter, facilityTypeId },
   stock: homeStockScope(filter, facilityTypeId),
   online,
 });
 
-export const receiveCatalogOptions = (device: Pick<ReceiveDevice, 'catalog' | 'stock'>) =>
+export const receiveCatalogOptions = (device: ReceiveDevice) =>
   queryOptions({
     queryKey: [...homeStockBundleKeys.cards(device.stock), 'receive-catalog'] as const,
     queryFn: async () => {
       const [catalog, bundle] = await Promise.all([
-        readReceiveCatalog(device.catalog),
+        readReceiveCatalog(device.stock),
         readHomeStockBundle(device.stock),
       ]);
       return receiveCatalogView(catalog, bundle);
@@ -189,100 +169,99 @@ export const receiveCatalogOptions = (device: Pick<ReceiveDevice, 'catalog' | 's
     networkMode: 'always',
   });
 
+function receiveQuery<T>(
+  queryClient: QueryClient,
+  device: ReceiveDevice,
+  queryKey: QueryKey,
+  server: () => Promise<T>,
+  pick: (view: ReceiveCatalogView) => T,
+  staleTime: number,
+) {
+  return deviceQuery({
+    queryKey: [
+      ...queryKey,
+      { facilityId: device.stock.facilityId, programId: device.stock.programId },
+    ],
+    online: device.online,
+    server,
+    device: async () => pick(await queryClient.fetchQuery(receiveCatalogOptions(device))),
+    staleTime,
+  });
+}
+
 export const receiveApprovedProductsOptions = (
   queryClient: QueryClient,
   filter: EventStockCardsFilter,
   name: string,
   page: number,
-  device?: ReceiveDevice,
-): ReceiveQuery<Page<ApprovedProduct>> => {
-  const options = eventApprovedProductsOptions(filter, name, page);
-  if (!device) return options as ReceiveQuery<Page<ApprovedProduct>>;
-  return deviceQuery({
-    queryKey: options.queryKey,
-    online: device.online,
-    server: () =>
-      fetchApprovedProducts({ ...filter, name, page, size: APPROVED_PRODUCTS_PAGE_SIZE }),
-    device: async () =>
-      catalogApprovedPage(
-        await queryClient.fetchQuery(receiveCatalogOptions(device)),
-        name,
-        page,
-        APPROVED_PRODUCTS_PAGE_SIZE,
-      ),
-    staleTime: 30_000,
-  });
+  device: ReceiveDevice,
+) => {
+  const params = { ...filter, name, page, size: APPROVED_PRODUCTS_PAGE_SIZE };
+  return receiveQuery(
+    queryClient,
+    device,
+    approvedProductsOptions(params).queryKey,
+    () => fetchApprovedProducts(params),
+    (view) => catalogApprovedPage(view, name, page, APPROVED_PRODUCTS_PAGE_SIZE),
+    30_000,
+  );
 };
 
 export const receiveFulfilsOptions = (
   queryClient: QueryClient,
   filter: EventStockCardsFilter,
-  device?: ReceiveDevice,
-): ReceiveQuery<OrderableFulfills> => {
-  const options = facilityOrderableFulfillsOptions(filter);
-  if (!device) return options as ReceiveQuery<OrderableFulfills>;
-  return deviceQuery({
-    queryKey: options.queryKey,
-    online: device.online,
-    server: () => fetchFacilityOrderableFulfills(filter),
-    device: async () => (await queryClient.fetchQuery(receiveCatalogOptions(device))).fulfils,
-    staleTime: LOOKUP_STALE_TIME,
-  });
-};
+  device: ReceiveDevice,
+) =>
+  receiveQuery(
+    queryClient,
+    device,
+    facilityOrderableFulfillsOptions(filter).queryKey,
+    () => fetchFacilityOrderableFulfills(filter),
+    (view) => view.fulfils,
+    LOOKUP_STALE_TIME,
+  );
 
 export const receiveOrderablesOptions = (
   queryClient: QueryClient,
   ids: readonly string[],
-  device?: ReceiveDevice,
-): ReceiveQuery<Orderable[]> => {
-  const options = orderablesByIdsOptions(ids);
-  if (!device) return options as ReceiveQuery<Orderable[]>;
-  return deviceQuery({
-    queryKey: options.queryKey,
-    online: device.online,
-    server: () => fetchOrderablesByIds(ids),
-    device: async () =>
-      catalogOrderables(await queryClient.fetchQuery(receiveCatalogOptions(device)), ids),
-    staleTime: LOOKUP_STALE_TIME,
-  });
-};
+  device: ReceiveDevice,
+) =>
+  receiveQuery(
+    queryClient,
+    device,
+    orderablesByIdsOptions(ids).queryKey,
+    () => fetchOrderablesByIds(ids),
+    (view) => catalogOrderables(view, ids),
+    LOOKUP_STALE_TIME,
+  );
 
 export const receiveLotsOptions = (
   queryClient: QueryClient,
   tradeItemIds: readonly string[],
-  device?: ReceiveDevice,
-): ReceiveQuery<LotSummary[]> => {
-  const options = lotsByTradeItemsOptions(tradeItemIds);
-  if (!device) return options as ReceiveQuery<LotSummary[]>;
-  return deviceQuery({
-    queryKey: options.queryKey,
-    online: device.online,
-    server: () => fetchLotsByTradeItems(tradeItemIds),
-    device: async () =>
-      catalogLots(await queryClient.fetchQuery(receiveCatalogOptions(device)), tradeItemIds),
-    staleTime: 30_000,
-  });
-};
+  device: ReceiveDevice,
+) =>
+  receiveQuery(
+    queryClient,
+    device,
+    lotsByTradeItemsOptions(tradeItemIds).queryKey,
+    () => fetchLotsByTradeItems(tradeItemIds),
+    (view) => catalogLots(view, tradeItemIds),
+    30_000,
+  );
 
 export const receiveStockOnHandOptions = (
   queryClient: QueryClient,
   filter: EventStockOnHandFilter,
-  device?: ReceiveDevice,
-): ReceiveQuery<EventStockOnHand> => {
-  const options = eventStockOnHandOptions(filter);
-  if (!device) return options as ReceiveQuery<EventStockOnHand>;
-  return deviceQuery({
-    queryKey: options.queryKey,
-    online: device.online,
-    server: () => fetchEventStockOnHand(filter),
-    device: async () =>
-      catalogStock(
-        await queryClient.fetchQuery(receiveCatalogOptions(device)),
-        filter.orderableIds,
-      ),
-    staleTime: 0,
-  });
-};
+  device: ReceiveDevice,
+) =>
+  receiveQuery(
+    queryClient,
+    device,
+    eventStockOnHandOptions(filter).queryKey,
+    () => fetchEventStockOnHand(filter),
+    (view) => catalogStock(view, filter.orderableIds),
+    0,
+  );
 
 export async function fetchReceiveTradeItem(
   queryClient: QueryClient,

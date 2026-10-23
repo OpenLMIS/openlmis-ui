@@ -1,5 +1,4 @@
-import { AxiosError, type AxiosRequestConfig } from 'axios';
-import { useLoginData } from '@/features/auth/store/login-data';
+import type { AxiosRequestConfig } from 'axios';
 import {
   fetchAllOrderableVersions,
   fetchFacilityOrderableFulfills,
@@ -10,12 +9,10 @@ import {
 } from '@/features/reference-data/api/api';
 import type { LotSummary, Orderable, TradeItem } from '@/features/reference-data/lib/types';
 import { fetchApprovedSummaries } from '@/features/stock-events/api/stock-card-reader';
-import { retryDownloadRead } from '@/features/stock-events/lib/download-read';
-import { LOCAL_TABLES } from '@/integrations/local-db';
-import { LocalDataUnavailableError } from '@/lib/local-data';
+import { downloadReader } from '@/features/stock-events/lib/download-read';
+import { getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { requireOwnedRecord } from '@/lib/local-records';
-import { isOnline } from '@/lib/online';
-import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { getSessionScope } from '@/lib/session-scope';
 
 export const RECEIVE_CATALOG_FORMAT = 1;
 export type ReceiveCatalogFilter = {
@@ -38,7 +35,7 @@ export type ReceiveCatalog = ReceiveCatalogFilter & {
   tradeItems: TradeItem[];
 };
 
-export function catalogProduct(product: Orderable): Orderable {
+function catalogProduct(product: Orderable): Orderable {
   return {
     id: product.id,
     productCode: product.productCode,
@@ -56,17 +53,14 @@ export async function fetchReceiveCatalog(
   scope: ReceiveCatalogScope,
   signal?: AbortSignal,
 ): Promise<ReceiveCatalog> {
-  const sessionScope = getSessionScope();
-  const userId = useLoginData.getState().referenceDataUserId;
-  if (!userId) throw new LocalDataUnavailableError();
-  const config: AxiosRequestConfig = { session: false, backgroundRead: true, signal, sessionScope };
-  const check = () => {
-    assertSessionScope(sessionScope);
-    signal?.throwIfAborted();
-    if (!isOnline() || useLoginData.getState().expired)
-      throw new AxiosError('Download stopped.', AxiosError.ERR_CANCELED);
+  const userId = getLocalDbUserId();
+  const config: AxiosRequestConfig & { signal?: AbortSignal } = {
+    session: false,
+    backgroundRead: true,
+    signal,
+    sessionScope: getSessionScope(),
   };
-  const read = <T>(task: () => Promise<T>) => retryDownloadRead(task, check);
+  const { check, read } = downloadReader(config);
   const filter = { facilityId: scope.facilityId, programId: scope.programId };
   const [approved, mapping, programProducts] = await Promise.all([
     read(() => fetchApprovedSummaries(filter, config)),

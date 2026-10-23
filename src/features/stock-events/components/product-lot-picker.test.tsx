@@ -248,7 +248,7 @@ function deferred<T>() {
 function renderApproved({
   canManageLots = false,
   lines = [],
-  device,
+  device = receiveDevice({ facilityId: 'facility', programId: 'program' }, 'type', true),
 }: {
   device?: ReceiveDevice;
   canManageLots?: boolean;
@@ -402,7 +402,7 @@ describe('ProductLotPicker with approved products', () => {
     await user.click(screen.getByRole('button', { name: /January 1st, 2031/ }));
     await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.getByRole('textbox', { name: 'New Lot Code' })).toHaveAccessibleDescription(
-      en['stock-events.lot-code-exists'],
+      'A queued receipt already uses this lot code with expiry Jan 1, 2030.',
     );
     expect(fetchApprovedProducts).not.toHaveBeenCalled();
   });

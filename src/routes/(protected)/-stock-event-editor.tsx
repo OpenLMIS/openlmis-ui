@@ -108,7 +108,7 @@ export async function loadStockEventEditor(
       queryClient.prefetchQuery(counterpartyOptions(counterparty, filter, bundleScope));
     if (products.from === 'stock-cards' || bundleScope)
       queryClient.prefetchQuery(eventStockCardsOptions(filter, bundleScope));
-    if (products.from === 'approved-products') {
+    if (products.from === 'approved-products' && device) {
       queryClient.prefetchQuery(receiveApprovedProductsOptions(queryClient, filter, '', 0, device));
       queryClient.prefetchQuery(receiveFulfilsOptions(queryClient, filter, device));
     }

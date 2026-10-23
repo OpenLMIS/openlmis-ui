@@ -12,6 +12,7 @@ import { productLabel } from '@/features/stock-events/lib/products';
 import type { ReceiveCatalog } from '@/features/stock-events/lib/receive-catalog';
 import type { EventStockOnHand } from '@/features/stock-events/lib/types';
 import { LocalDataUnavailableError } from '@/lib/local-data';
+import { pageLocally } from '@/lib/table-search';
 import type { Page } from '@/lib/types';
 
 export type ReceiveCatalogView = {
@@ -97,13 +98,7 @@ export function catalogApprovedPage(
   const matches = view.approved.filter(({ orderable }) =>
     (orderable.fullProductName ?? '').toLowerCase().includes(name.toLowerCase()),
   );
-  return {
-    content: matches.slice(page * size, (page + 1) * size),
-    totalElements: matches.length,
-    totalPages: Math.ceil(matches.length / size),
-    number: page,
-    size,
-  };
+  return pageLocally(matches, page, size);
 }
 
 export function catalogOrderables(view: ReceiveCatalogView, ids: readonly string[]): Orderable[] {

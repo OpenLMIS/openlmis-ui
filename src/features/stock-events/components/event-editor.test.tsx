@@ -1816,6 +1816,48 @@ describe('Receive editor', () => {
     return within(within(table).getAllByRole('row')[row]).getAllByRole('cell')[index];
   }
 
+  it('keeps Receive draft lines visible when the offline catalog is missing', async () => {
+    const context = createStockEventContext({
+      kind: 'receive',
+      facilityId: 'facility',
+      programId: 'program',
+    });
+    const line = newEventLine(card, undefined, '2026-10-14', {
+      kind: 'receive',
+      productHasLots: true,
+    });
+    line.quantity = { doses: '17', packs: '', remainder: '' };
+    await saveStockEventDraft(context, undefined, [line]);
+    onlineManager.setOnline(false);
+    setup(
+      true,
+      (client) => {
+        client.setQueryData(
+          validSourcesOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+          destinations,
+        );
+        client.setQueryData(editorStockOptions('receive').queryKey, {
+          cards: [
+            {
+              ...card,
+              id: 'card',
+              active: true,
+              occurredDate: null,
+              orderable: { ...card.orderable, description: null },
+            },
+          ],
+          device: { fetchedAt: Date.parse('2026-10-23T12:30:00Z'), generation: 'stock' },
+        });
+      },
+      { kind: 'receive', canManageLots: true },
+    );
+    expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
+      '17',
+    );
+    expect(screen.getByRole('button', { name: 'Submit Offline' })).toBeVisible();
+    expect(await screen.findByText("You're offline.")).toBeVisible();
+  });
+
   it('allows adding online Receive products while the foreground stock bundle is pending', async () => {
     vi.mocked(getHomeStockBundle).mockReturnValueOnce(new Promise(() => {}));
     const { user } = setup(
@@ -1961,7 +2003,9 @@ describe('Receive editor', () => {
     await user.clear(code);
     await user.type(code, 'queued{Enter}');
     expect(
-      await within(second).findByText(en['stock-events.lot-expiry-conflict']),
+      await within(second).findByText(
+        'A queued receipt already uses this lot code with expiry Jan 1, 2030.',
+      ),
     ).toBeInTheDocument();
     await user.clear(code);
     await user.type(code, 'NEW-2{Enter}');
@@ -2032,6 +2076,30 @@ describe('Receive editor', () => {
       });
       return message;
     }
+
+    it('refuses a scanned queued lot with a conflicting expiry and shows the accepted date', async () => {
+      await getLocalDb()
+        .table(LOCAL_TABLES.stockEventQueue)
+        .put({
+          localEventId: 'queued-lot',
+          userId: 'ada-id',
+          lines: [{ lot: { lotCode: 'lot-1', expirationDate: '2030-01-01', tradeItemId: 'box' } }],
+        });
+      vi.mocked(fetchLotsByTradeItems).mockResolvedValue([]);
+      receiveSetup();
+      await waitFor(() => expect(scanningEnabled).toBe(true));
+      let message: Awaited<ReturnType<typeof scan>>;
+      await act(async () => {
+        message = await scan({ ...parsed, expiry: '2031-01-01' }, new AbortController().signal);
+      });
+      expect(message).toEqual({
+        key: 'stock-events.lot-code-queued',
+        params: { expiry: 'Jan 1, 2030' },
+      });
+      expect(
+        screen.queryByRole('textbox', { name: /^Quantity, Aspirin Box/ }),
+      ).not.toBeInTheDocument();
+    });
 
     it('adds a product fulfilling an approved one with its lot and the approved stock lookup', async () => {
       receiveSetup();

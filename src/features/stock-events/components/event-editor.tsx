@@ -52,6 +52,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import {
+  deviceNewLotsOptions,
   eventStockCardsOptions,
   eventValidReasonsOptions,
   fetchHomeStockTradeItem,
@@ -131,7 +132,7 @@ import {
   copyRefusedEvent,
   type StockEventSyncError,
 } from '@/features/stock-events/lib/stock-event-sync';
-import type { EventStockCard } from '@/features/stock-events/lib/types';
+import type { EventStockCard, NewLot } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { columnChoicesSchema, useCardLayout } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
@@ -635,19 +636,20 @@ export function EventEditor({
     let tradeItem: TradeItem | null;
     let offline = false;
     try {
-      if (device) {
-        const result = await fetchReceiveTradeItem(queryClient, device, parsed.gtin);
+      const lookup = device
+        ? fetchReceiveTradeItem(queryClient, device, parsed.gtin)
+        : bundleScope
+          ? fetchHomeStockTradeItem(queryClient, bundleScope, parsed.gtin)
+          : undefined;
+      if (lookup) {
+        const result = await lookup;
         if (stale()) return;
         if (result.offline && !result.tradeItem)
-          return scanMessage('productNotInProgram', { gtin: parsed.gtin });
+          return scanMessage(device ? 'productNotInProgram' : 'productNotOnScreen', {
+            gtin: parsed.gtin,
+          });
         tradeItem = result.tradeItem;
         offline = result.offline;
-      } else if (bundleScope) {
-        const result = await fetchHomeStockTradeItem(queryClient, bundleScope, parsed.gtin);
-        if (stale()) return;
-        if (result.offline && !result.tradeItem)
-          return scanMessage('productNotOnScreen', { gtin: parsed.gtin });
-        tradeItem = result.tradeItem;
       } else {
         tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
       }
@@ -684,8 +686,18 @@ export function EventEditor({
       scanProducts = [found.product];
       hasLotsOf = () => found.productHasLots;
     }
+    let deviceLots: NewLot[] = [];
+    if (config.newLots === 'manual-and-scan') {
+      try {
+        deviceLots = await queryClient.fetchQuery(deviceNewLotsOptions());
+      } catch {
+        return stale() ? undefined : scanMessage('gtinLookupFailed');
+      }
+      if (stale()) return;
+    }
     const resolution = resolveScan({
       scan: parsed,
+      deviceLots,
       tradeItemId: tradeItem.id,
       products: scanProducts,
       lines: form.state.values.lines,
@@ -694,7 +706,17 @@ export function EventEditor({
           ? { allowsNewLot: true, today }
           : { allowsNewLot: false },
     });
-    if (resolution.type === 'refuse') return scanMessage(resolution.reason, resolution.params);
+    if (resolution.type === 'refuse')
+      return scanMessage(
+        resolution.reason,
+        resolution.reason === 'lotCodeQueued'
+          ? {
+              expiry: resolution.params.expiry
+                ? formatDateValue(resolution.params.expiry, i18n.language)
+                : t('stock-events.no-expiry'),
+            }
+          : resolution.params,
+      );
     let action = resolution;
     if (resolution.type === 'confirm-expiry') {
       const next = resolution.next;
@@ -828,7 +850,7 @@ export function EventEditor({
                     facilityId={facilityId}
                     programId={programId}
                     disabled={locked || !ready}
-                    {...(fromCards
+                    {...(fromCards || !device
                       ? { cardFilter: filterCards }
                       : { from: 'approved-products' as const, canManageLots, lines, device })}
                     onAdd={add}
@@ -1073,7 +1095,7 @@ export function EventEditor({
           />
         </QueryBoundary>
       )}
-      {editingLot && isNewLot(editingLot.lot) && (
+      {device && editingLot && isNewLot(editingLot.lot) && (
         <EditLotDialog
           device={device}
           open={editLotOpen}
@@ -1296,10 +1318,13 @@ function CatalogSnapshotAlert({
   snapshot: DeviceSnapshot;
   device: ReceiveDevice;
 }) {
-  const { data: catalog } = useSuspenseQuery(receiveCatalogOptions(device));
+  const { data: catalog } = useQuery(receiveCatalogOptions(device));
   return (
     <SnapshotAlert
-      snapshot={{ ...snapshot, fetchedAt: Math.min(snapshot.fetchedAt, catalog.fetchedAt) }}
+      snapshot={{
+        ...snapshot,
+        fetchedAt: Math.min(snapshot.fetchedAt, catalog?.fetchedAt ?? snapshot.fetchedAt),
+      }}
       message="stock-events.offline-snapshot"
     />
   );

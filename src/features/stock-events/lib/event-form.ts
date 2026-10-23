@@ -340,7 +340,8 @@ export function refreshStockEventLines(
     if (products.from === 'approved-products') {
       if (isNewLot(line.lot)) return line;
       const next = { ...line, stockOnHand: card?.stockOnHand ?? null, stockProblem: undefined };
-      if (JSON.stringify(next) === JSON.stringify(line)) return line;
+      if (next.stockOnHand === line.stockOnHand && next.stockProblem === line.stockProblem)
+        return line;
       changed = true;
       return next;
     }

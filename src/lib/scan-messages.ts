@@ -25,6 +25,7 @@ const MESSAGE_KEYS = {
   lotNotOnScreen: 'scan.lot-not-on-screen',
   lotRequired: 'scan.lot-required',
   lotExpiryPast: 'stock-events.lot-expiry-past',
+  lotCodeQueued: 'stock-events.lot-code-queued',
   noGtin: 'scan.error.no-product-code',
   gtinLookupFailed: 'scan.gtin-lookup-failed',
   gtinNotRegistered: 'scan.gtin-not-registered',

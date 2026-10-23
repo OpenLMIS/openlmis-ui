@@ -1,3 +1,5 @@
+import { conflictingDeviceLot } from '@/lib/lot-code';
+
 export type StockScan = {
   gtin: string;
   lotCode?: string;
@@ -31,7 +33,8 @@ export type ScanRefusalReason =
   | 'productAmbiguous'
   | 'lotRequired'
   | 'lotNotOnScreen'
-  | 'lotExpiryPast';
+  | 'lotExpiryPast'
+  | 'lotCodeQueued';
 export type ScanAction<Card extends ScanCard = ScanCard> =
   | { type: 'count'; lineKey: string }
   | { type: 'add'; card: Card };
@@ -48,6 +51,7 @@ export type ResolveScanOptions<Card extends ScanCard = ScanCard> = {
   products: readonly ScanProduct<Card>[];
   lines: readonly ScanLine[];
   policy: ScanPolicy;
+  deviceLots?: readonly { tradeItemId: string; lotCode: string; expirationDate: string | null }[];
 };
 
 function dateValue(value: string | Date | null | undefined): string | undefined {
@@ -76,6 +80,7 @@ export function resolveScan<Card extends ScanCard>({
   products,
   lines,
   policy,
+  deviceLots = [],
 }: ResolveScanOptions<Card>): ScanResolution<Card | PendingScanCard<Card>> {
   const matches = products.filter(
     (product) => product.orderable.identifiers?.tradeItem === tradeItemId,
@@ -95,6 +100,18 @@ export function resolveScan<Card extends ScanCard>({
     const template = product.cards[0];
     if (!policy.allowsNewLot || !template)
       return { type: 'refuse', reason: 'lotNotOnScreen', params: { lotCode } };
+    const conflict = conflictingDeviceLot(
+      deviceLots,
+      tradeItemId,
+      lotCode,
+      dateValue(scan.expiry) ?? '',
+    );
+    if (conflict)
+      return {
+        type: 'refuse',
+        reason: 'lotCodeQueued',
+        params: { expiry: conflict.expirationDate ?? '' },
+      };
     const pending = lines.find(
       (line) =>
         line.orderable.id === product.orderable.id &&

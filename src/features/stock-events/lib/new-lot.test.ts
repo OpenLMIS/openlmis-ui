@@ -101,3 +101,15 @@ it('checks new and edited lot codes against device work across letter case and t
     ).toBe(valid);
   }
 });
+
+it('refuses an expiry-only edit that conflicts with a queued lot', () => {
+  expect(
+    editLotSchema({
+      ...context,
+      lines: [],
+      deviceLots: [newLot('MINE', '2030-01-01')],
+      lot: newLot('MINE', '2030-01-01'),
+      lineKey: 'mine',
+    }).safeParse({ lotCode: 'MINE', expirationDate: '2031-01-01' }).success,
+  ).toBe(false);
+});

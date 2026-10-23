@@ -29,7 +29,8 @@ export function downloadDecision({
   if (retryAt > now) return 'defer';
   if (trigger === 'refresh' && !requested) return 'skip';
   if (!requested && trigger === 'retry' && !failed && !accessFailed) return 'skip';
-  if (changed) return 'reuse';
+  if (changed && !failed) return 'reuse';
+  if (failed) return 'fetch';
   const cause =
     trigger === 'sign-in' || trigger === 'force'
       ? trigger

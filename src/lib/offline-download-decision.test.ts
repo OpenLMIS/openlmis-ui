@@ -55,3 +55,24 @@ it.each([
     ).toBe(expected);
   },
 );
+
+it.each([
+  ['force', false],
+  ['boot', true],
+] as const)('retries a failed sign-in-only download on %s', (trigger, periodic) => {
+  expect(
+    downloadDecision({
+      trigger,
+      periodic,
+      complete: true,
+      refreshOn: ['sign-in'],
+      requested: false,
+      failed: true,
+      accessFailed: false,
+      changed: false,
+      fresh: true,
+      retryAt: 0,
+      now: 10,
+    }),
+  ).toBe('fetch');
+});
