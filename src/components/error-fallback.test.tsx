@@ -134,6 +134,7 @@ it('keeps offline chunk failures unavailable and retries on reconnect', () => {
 it.each([new TypeError('Cannot read properties of undefined'), httpError(500)])(
   'shows the normal error and retries loaders for a real failure offline: %s',
   async (error) => {
+    worker.canReloadIntoWorker.mockReturnValue(true);
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     onlineManager.setOnline(false);
     renderFallback(error);
@@ -148,6 +149,7 @@ it.each([new TypeError('Cannot read properties of undefined'), httpError(500)])(
 it('reloads an offline missing chunk into an active worker on Try Again', async () => {
   worker.canReloadIntoWorker.mockReturnValue(true);
   const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {});
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
   onlineManager.setOnline(false);
   renderFallback(missingChunk());
   await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));

@@ -2759,4 +2759,6 @@ it('queues an offline Issue using the destination node from the downloaded bundl
   expect(event.payload).not.toHaveProperty('documentNumber');
   expect(fetchValidAssignments).not.toHaveBeenCalled();
   expect(submitStockEvent).not.toHaveBeenCalled();
+  act(() => onlineManager.setOnline(true));
+  expect(screen.queryByText(time)).not.toBeInTheDocument();
 });
