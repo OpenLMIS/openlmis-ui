@@ -113,3 +113,31 @@ it('refuses an expiry-only edit that conflicts with a queued lot', () => {
     }).safeParse({ lotCode: 'MINE', expirationDate: '2031-01-01' }).success,
   ).toBe(false);
 });
+
+it('asks to pick a downloaded lot before reporting a conflicting accepted device lot', () => {
+  expect(
+    issues(
+      newLotSchema({
+        ...context,
+        deviceLots: [newLot('lc2017a', '2030-01-01')],
+      }).safeParse({ lotCode: 'LC2017A', expirationDate: '2031-01-01' }),
+    ),
+  ).toEqual([['lotCode', 'stock-events.lot-code-exists']]);
+});
+
+it('describes queued lots without expiry in both new and edited lot errors', () => {
+  const deviceLots = [newLot('QUEUED', null)];
+  const values = { lotCode: 'queued', expirationDate: '2031-01-01' };
+  const expected = [['lotCode', 'stock-events.lot-code-queued-no-expiry']];
+  expect(issues(newLotSchema({ ...context, deviceLots }).safeParse(values))).toEqual(expected);
+  expect(
+    issues(
+      editLotSchema({
+        ...context,
+        deviceLots,
+        lot: newLot('MINE', null),
+        lineKey: 'mine',
+      }).safeParse(values),
+    ),
+  ).toEqual(expected);
+});

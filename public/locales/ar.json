@@ -1940,6 +1940,7 @@
   "stock-events.lot-code-exists": "رمز التشغيلة هذا موجود بالفعل.",
   "stock-events.lot-code-invalid": "استخدم الأحرف اللاتينية والأرقام و ! \" % & ' ( ) * + , - . / : ; < = > ? _ فقط",
   "stock-events.lot-code-queued": "يستخدم إيصال في قائمة الانتظار رمز التشغيلة هذا بالفعل بتاريخ انتهاء الصلاحية {expiry}.",
+  "stock-events.lot-code-queued-no-expiry": "يستخدم إيصال في قائمة الانتظار رمز التشغيلة هذا بالفعل دون تاريخ انتهاء صلاحية.",
   "stock-events.lot-code-too-long": "استخدم 20 حرفًا على الأكثر.",
   "stock-events.lot-expiry-conflict": "يوجد تاريخ انتهاء صلاحية آخر لهذا الرمز.",
   "stock-events.lot-expiry-past": "يجب أن يكون تاريخ انتهاء صلاحية التشغيلة تاريخًا مستقبليًا.",

@@ -1104,7 +1104,7 @@ it('reuses a sign-in-only dataset on reconnect and refresh but downloads again a
   await finished();
 });
 
-it('retains a failed catalog refresh across periodic reuse and retries it on reconnect', async () => {
+it('retries a failed catalog refresh periodically and again on reconnect', async () => {
   const { defineDownloadProvider } = await import('@/lib/download-provider');
   const record = {
     userId: 'downloader',

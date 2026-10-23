@@ -1940,6 +1940,7 @@
   "stock-events.lot-code-exists": "Ce code de lot existe déjà.",
   "stock-events.lot-code-invalid": "Utilisez uniquement des lettres, des chiffres et ! \" % & ' ( ) * + , - . / : ; < = > ? _",
   "stock-events.lot-code-queued": "Une réception en attente utilise déjà ce code de lot avec la date de péremption {expiry}.",
+  "stock-events.lot-code-queued-no-expiry": "Une réception en attente utilise déjà ce code de lot sans date de péremption.",
   "stock-events.lot-code-too-long": "Utilisez au maximum 20 caractères.",
   "stock-events.lot-expiry-conflict": "Une autre date d’expiration existe pour ce code.",
   "stock-events.lot-expiry-past": "La date d’expiration du lot doit être une date future.",

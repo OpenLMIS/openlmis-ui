@@ -1940,6 +1940,7 @@
   "stock-events.lot-code-exists": "This lot code already exists.",
   "stock-events.lot-code-invalid": "Use only letters, digits and ! \" % & ' ( ) * + , - . / : ; < = > ? _",
   "stock-events.lot-code-queued": "A queued receipt already uses this lot code with expiry {expiry}.",
+  "stock-events.lot-code-queued-no-expiry": "A queued receipt already uses this lot code without an expiry date.",
   "stock-events.lot-code-too-long": "Use at most 20 characters.",
   "stock-events.lot-expiry-conflict": "There exists another expiration date for this code.",
   "stock-events.lot-expiry-past": "Lot expiration date should be a future date.",

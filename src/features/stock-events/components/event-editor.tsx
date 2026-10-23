@@ -713,7 +713,7 @@ export function EventEditor({
           ? {
               expiry: resolution.params.expiry
                 ? formatDateValue(resolution.params.expiry, i18n.language)
-                : t('stock-events.no-expiry'),
+                : '',
             }
           : resolution.params,
       );

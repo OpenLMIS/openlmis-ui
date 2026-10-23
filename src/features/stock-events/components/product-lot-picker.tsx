@@ -480,9 +480,7 @@ function ApprovedProductLotPicker({
   const lotError = (key: ParseKeys) =>
     key === 'stock-events.lot-code-queued'
       ? t(key, {
-          expiry: queuedLot?.expirationDate
-            ? formatDateValue(queuedLot.expirationDate, i18n.language)
-            : t('stock-events.no-expiry'),
+          expiry: formatDateValue(queuedLot?.expirationDate ?? '', i18n.language),
         })
       : t(key);
   const lotItems = lotOptions.map((item) => ({

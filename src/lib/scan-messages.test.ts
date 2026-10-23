@@ -34,3 +34,13 @@ describe('scanMessage', () => {
     });
   });
 });
+
+it('describes queued lot conflicts with and without an expiry date', () => {
+  expect(scanMessage('lotCodeQueued', { expiry: '' })).toEqual({
+    key: 'stock-events.lot-code-queued-no-expiry',
+  });
+  expect(scanMessage('lotCodeQueued', { expiry: 'Jan 1, 2030' })).toEqual({
+    key: 'stock-events.lot-code-queued',
+    params: { expiry: 'Jan 1, 2030' },
+  });
+});

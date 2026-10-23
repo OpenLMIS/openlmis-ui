@@ -100,11 +100,17 @@ export function resolveScan<Card extends ScanCard>({
     const template = product.cards[0];
     if (!policy.allowsNewLot || !template)
       return { type: 'refuse', reason: 'lotNotOnScreen', params: { lotCode } };
+    const pending = lines.find(
+      (line) =>
+        line.orderable.id === product.orderable.id &&
+        !line.lot?.id &&
+        line.lot?.lotCode.toLowerCase() === lotCode.toLowerCase(),
+    );
     const conflict = conflictingDeviceLot(
       deviceLots,
       tradeItemId,
       lotCode,
-      dateValue(scan.expiry) ?? '',
+      dateValue(scan.expiry) ?? dateValue(pending?.lot?.expirationDate) ?? '',
     );
     if (conflict)
       return {
@@ -112,12 +118,6 @@ export function resolveScan<Card extends ScanCard>({
         reason: 'lotCodeQueued',
         params: { expiry: conflict.expirationDate ?? '' },
       };
-    const pending = lines.find(
-      (line) =>
-        line.orderable.id === product.orderable.id &&
-        !line.lot?.id &&
-        line.lot?.lotCode.toLowerCase() === lotCode.toLowerCase(),
-    );
     if (pending) return { type: 'count', lineKey: pending.key };
     const scannedExpiry = dateValue(scan.expiry);
     if (scannedExpiry && scannedExpiry < policy.today)

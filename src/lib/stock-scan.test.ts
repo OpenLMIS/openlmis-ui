@@ -283,3 +283,14 @@ it('refuses a scanned new lot with a different queued expiry before counting a d
     lineKey: 'draft',
   });
 });
+
+it('counts a draft new lot without a scanned expiry when its expiry matches queued work', () => {
+  expect(
+    resolve({
+      scan: { gtin: scan.gtin, lotCode: 'NEW' },
+      policy: receive,
+      lines: [{ key: 'draft', orderable, lot: { lotCode: 'new', expirationDate: '2030-01-01' } }],
+      deviceLots: [{ tradeItemId: 't1', lotCode: 'NEW', expirationDate: '2030-01-01' }],
+    }),
+  ).toEqual({ type: 'count', lineKey: 'draft' });
+});

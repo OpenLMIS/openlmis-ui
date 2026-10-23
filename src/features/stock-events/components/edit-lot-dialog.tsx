@@ -112,9 +112,7 @@ function EditLotForm({
       values.expirationDate,
     );
     return t('stock-events.lot-code-queued', {
-      expiry: queuedLot?.expirationDate
-        ? formatDateValue(queuedLot.expirationDate, i18n.language)
-        : t('stock-events.no-expiry'),
+      expiry: formatDateValue(queuedLot?.expirationDate ?? '', i18n.language),
     });
   };
   return (
