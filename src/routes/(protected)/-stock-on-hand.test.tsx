@@ -33,7 +33,7 @@ import {
 } from '@/features/reference-data/api/api';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { fetchStockCardSummaries, fetchStockOnHandReport } from '@/features/stock-on-hand/api/api';
-import type { StockCardSummary } from '@/features/stock-on-hand/lib/types';
+import type { StockCardSummary, StockOnHandPage } from '@/features/stock-on-hand/lib/types';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { downloadFile } from '@/lib/download-file';
 import { EMPTY_VALUE } from '@/lib/empty-value';
@@ -967,6 +967,63 @@ it('keeps the picker visible for an invalid offline selection and loads stock on
   expect(screen.getByRole('combobox', { name: /facility-program.program/ })).toBeInTheDocument();
   act(() => onlineManager.setOnline(true));
   expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
+});
+
+it('keeps the offline Stock On Hand snapshot notice visible while stock refetches', async () => {
+  await seedHomeStock(
+    {
+      id: 'downloaded-card',
+      facility: { id: HOME, code: 'HC01', name: 'Comfort Health Clinic' },
+      program: { id: FP, code: 'P', name: 'Family Planning' },
+      orderable: {
+        id: 'downloaded-product',
+        productCode: 'OFF',
+        fullProductName: 'Downloaded Medicine',
+      },
+      lot: null,
+      stockOnHand: 9,
+      active: true,
+      lineItems: [],
+    },
+    USER,
+  );
+  onlineManager.setOnline(false);
+  const client = new QueryClient({
+    defaultOptions: { queries: { networkMode: 'always', retry: false } },
+  });
+  renderRoute(appliedPath(), client);
+  const notice = (await screen.findByText('stock-on-hand.offline-snapshot')).closest(
+    '[role="note"]',
+  );
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  const query = client.getQueryCache().find<StockOnHandPage>({
+    queryKey: [],
+    exact: false,
+    predicate: (query) => Boolean((query.state.data as StockOnHandPage | undefined)?.device),
+  });
+  if (!query?.state.data) throw new Error('Expected downloaded stock in the query cache');
+  const snapshot = query.state.data;
+  let finish!: (value: StockOnHandPage) => void;
+  let refetch!: Promise<StockOnHandPage>;
+  act(() => {
+    refetch = client.fetchQuery({
+      queryKey: query.queryKey,
+      networkMode: 'always',
+      staleTime: 0,
+      queryFn: () =>
+        new Promise<StockOnHandPage>((resolve) => {
+          finish = resolve;
+        }),
+    });
+  });
+  await waitFor(() => expect(client.isFetching({ queryKey: query.queryKey })).toBe(1));
+  expect(notice).toBeInTheDocument();
+  await act(async () => {
+    finish(snapshot);
+    await refetch;
+  });
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  expect(notice).toBeInTheDocument();
 });
 
 it('labels device stock as unreachable online and hides its notice during refresh', async () => {

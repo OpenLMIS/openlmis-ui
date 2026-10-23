@@ -809,7 +809,7 @@ export function EventEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
-            {cardsQuery.data?.device && !cardsQuery.isFetching && (
+            {cardsQuery.data?.device && !(online && cardsQuery.isFetching) && (
               <Suspense fallback={null}>
                 {device ? (
                   <CatalogSnapshotAlert snapshot={cardsQuery.data.device} device={device} />

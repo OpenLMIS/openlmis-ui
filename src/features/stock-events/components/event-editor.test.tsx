@@ -2958,6 +2958,68 @@ it('keeps an earlier unknown Unpack outcome visible after a later definitive ref
   expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
 });
 
+it('keeps the offline Issue snapshot notice visible while stock cards refetch', async () => {
+  onlineManager.setOnline(false);
+  await getLocalDb()
+    .table(LOCAL_TABLES.homeStockDownloads)
+    .put({
+      ...testBundleScope,
+      userId: 'ada-id',
+      formatVersion: 6,
+      generation: 'issue-download',
+      fetchedAt: Date.parse('2026-10-23T12:30:00Z'),
+      cards: [
+        {
+          ...other,
+          id: 'other',
+          orderable: { ...other.orderable, description: null },
+          active: true,
+          occurredDate: null,
+        },
+      ],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      destinations,
+      sources: [],
+    } satisfies HomeStockBundle);
+  const options = editorStockOptions('issue');
+  const { queryClient } = setup(
+    true,
+    (client) => client.removeQueries({ queryKey: options.queryKey }),
+    {
+      kind: 'issue',
+    },
+  );
+  const notice = (await screen.findByText("You're offline.")).closest('[role="note"]');
+  expect(notice).toHaveTextContent('Showing stock downloaded');
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  const data = queryClient.getQueryData(options.queryKey);
+  if (!data?.device) throw new Error('Expected downloaded stock in the query cache');
+  const snapshot = { cards: data.cards, device: data.device };
+  let finish!: (value: typeof snapshot) => void;
+  let refetch!: Promise<typeof snapshot>;
+  act(() => {
+    refetch = queryClient.fetchQuery({
+      queryKey: [...options.queryKey],
+      networkMode: 'always',
+      staleTime: 0,
+      queryFn: () =>
+        new Promise<typeof snapshot>((resolve) => {
+          finish = resolve;
+        }),
+    });
+  });
+  await waitFor(() => expect(queryClient.isFetching({ queryKey: options.queryKey })).toBe(1));
+  expect(notice).toBeInTheDocument();
+  await act(async () => {
+    finish(snapshot);
+    await refetch;
+  });
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(notice).toBeInTheDocument();
+});
+
 it('queues an offline Issue using the destination node from the downloaded bundle', async () => {
   const fetchedAt = Date.parse('2026-10-23T12:30:00Z');
   await getLocalDb()

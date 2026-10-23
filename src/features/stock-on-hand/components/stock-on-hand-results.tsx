@@ -191,7 +191,7 @@ export function StockOnHandResults({
 
   return (
     <>
-      {page.device && !isFetching ? (
+      {page.device && !(online && isFetching) ? (
         <SnapshotAlert
           snapshot={page.device}
           message="stock-on-hand.offline-snapshot"

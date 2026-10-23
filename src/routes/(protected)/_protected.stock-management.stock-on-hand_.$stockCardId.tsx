@@ -66,7 +66,7 @@ import { useReloadOnConnectivityChange } from '@/hooks/use-reload-on-connectivit
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import { isOnline } from '@/lib/online';
+import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
@@ -139,6 +139,7 @@ function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
   const isReloading = Route.useMatch({ select: (match) => match.isFetching });
+  const online = useOnline();
   const search = Route.useSearch();
   const { stockCardId } = Route.useParams();
   useReloadOnConnectivityChange(queryKeys.stockCards.detail(stockCardId));
@@ -173,7 +174,7 @@ function StockCardPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
-          {data.card.device !== undefined && !isFetching && !isReloading && (
+          {data.card.device !== undefined && !(online && (isFetching || isReloading)) && (
             <SnapshotAlert
               snapshot={data.card.device}
               message={
