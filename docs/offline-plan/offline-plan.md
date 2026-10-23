@@ -18,7 +18,8 @@ or no download yet.
 Each program becomes ready only when its complete bundle is stored. The sidebar reports progress
 and failures. Reconnect and same-user renewal refresh access and bundles; connected boot reuses
 complete data younger than 30 minutes. Older complete copies remain usable offline.
-A failed refresh keeps the previous complete copy.
+A failed refresh keeps the previous complete copy. The offline editor shows when its stock
+was downloaded.
 
 These workflows permit a new local Adjustment or Issue, not just editing an existing server
 draft. An offline Issue is queued and synced in order like an Adjustment, offers no printing

@@ -994,7 +994,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   A kind's `download` lists datasets with acceptance: home stock takes a minimum format through
   `HOME_STOCK_ACCEPTANCE` (Adjustments 4+, Stock On Hand 5+, Issue 6). Pickers derive readiness
   with `programReadiness` from `readScopeState` states (ready, ineligible, missing, outdated) and
-  show the reason visibly.
+  show Checking, Not Downloaded with a visible reason, or Ready.
   Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home
   stock; Stock Card keeps viewed home histories per owner until replaced by a newer view. Check home
   scope and exact grants separately from route capability; show local absence, never a 404.
@@ -1043,7 +1043,10 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   Never overlap probes; retain backoff until a real API request succeeds.
 - Queries use networkMode always. Pass errors to shared page/list/dialog/widget fallbacks using
   `useOfflineFailure`; reconnect retries must use the same path. Custom route retries invalidate
-  failed loaders before reset only while online. Report caught errors through the shared reporter.
+  failed loaders before reset; offline failures wait for connection. Report caught errors through
+  the shared reporter.
+- Only offline failures (`isOfflineError`, offline chunk failures) show the offline error page;
+  other errors show the normal error. Try Again reloads offline chunk failures into our active worker.
 - Route capabilities gate direct routes/preloads as well as navigation. Use the shared offline
   navigation dialog provider across sidebar, account menu and palette, preserving context and focus.
   Check server-action guards before work and after async access reads. Keep keyboard activation and descriptions.

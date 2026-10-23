@@ -36,8 +36,9 @@ Connect To Open This Page; Close returns to the item you selected.
 ## Drafts And Submit Offline
 
 Open Adjustments or Issue and choose a program. Edits save automatically. Wait for Saved On This Device
-before closing the browser. If saving fails, keep the page open and use Retry. A failed save
-is not confirmation that your latest edits are stored.
+before closing the browser. The editor shows when its stock was downloaded. If saving fails,
+keep the page open and use Retry. A failed save is not confirmation that your latest edits
+are stored.
 
 Reopening the same deployment in the same browser profile restores the draft for the same
 signed-in user. Archived Copies lets you restore or delete saved copies. If another tab has
