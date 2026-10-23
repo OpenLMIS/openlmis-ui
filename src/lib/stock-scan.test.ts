@@ -294,10 +294,9 @@ it('refuses a scanned new lot with a different queued expiry before counting a d
     params: { expiry: '2030-01-01' },
   });
   expect(resolveScan({ ...options, scan: { ...options.scan, expiry: '2030-01-01' } })).toEqual({
-    type: 'confirm-expiry',
-    recorded: '2031-01-01',
-    scanned: '2030-01-01',
-    next: { type: 'count', lineKey: 'draft' },
+    type: 'refuse',
+    reason: 'lotCodeQueued',
+    params: { expiry: '2030-01-01' },
   });
 });
 

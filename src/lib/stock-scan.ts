@@ -110,7 +110,7 @@ export function resolveScan<Card extends ScanCard>({
       deviceLots,
       tradeItemId,
       lotCode,
-      dateValue(scan.expiry) ?? dateValue(pending?.lot?.expirationDate) ?? '',
+      (pending ? dateValue(pending.lot?.expirationDate) : dateValue(scan.expiry)) ?? '',
     );
     if (conflict)
       return {
