@@ -2077,6 +2077,33 @@ describe('Receive editor', () => {
       return message;
     }
 
+    it('confirms a new-lot line expiry mismatch before counting and keeps its recorded expiry', async () => {
+      vi.mocked(fetchLotsByTradeItems).mockResolvedValue([]);
+      const { user } = receiveSetup();
+      await waitFor(() => expect(scanningEnabled).toBe(true));
+      const signal = new AbortController().signal;
+      await act(async () => {
+        await scan({ ...parsed, expiry: '2098-01-31' }, signal);
+      });
+      const quantity = await screen.findByRole('textbox', { name: /^Quantity, Aspirin Box lot-1/ });
+      expect(quantity).toHaveValue('16');
+      let operation: ReturnType<typeof scan>;
+      await act(async () => {
+        operation = scan({ ...parsed, expiry: '2099-01-31' }, signal);
+      });
+      const prompt = await screen.findByRole('alertdialog');
+      expect(prompt).toHaveTextContent('Jan 31, 2098');
+      expect(prompt).toHaveTextContent('Jan 31, 2099');
+      expect(quantity).toHaveValue('16');
+      await user.click(within(prompt).getByRole('button', { name: 'Confirm' }));
+      await act(async () => {
+        await operation;
+      });
+      expect(quantity).toHaveValue('32');
+      expect(screen.getByText('Jan 31, 2098')).toBeVisible();
+      expect(screen.queryByText('Jan 31, 2099')).not.toBeInTheDocument();
+    });
+
     it('refuses a scanned queued lot with a conflicting expiry and shows the accepted date', async () => {
       await getLocalDb()
         .table(LOCAL_TABLES.stockEventQueue)

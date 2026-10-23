@@ -118,8 +118,14 @@ export function resolveScan<Card extends ScanCard>({
         reason: 'lotCodeQueued',
         params: { expiry: conflict.expirationDate ?? '' },
       };
-    if (pending) return { type: 'count', lineKey: pending.key };
     const scannedExpiry = dateValue(scan.expiry);
+    if (pending) {
+      const next: ScanAction<Card> = { type: 'count', lineKey: pending.key };
+      const recorded = dateValue(pending.lot?.expirationDate);
+      if (recorded && scannedExpiry && recorded !== scannedExpiry)
+        return { type: 'confirm-expiry', recorded, scanned: scannedExpiry, next };
+      return next;
+    }
     if (scannedExpiry && scannedExpiry < policy.today)
       return { type: 'refuse', reason: 'lotExpiryPast', params: { lotCode } };
     const { id: _id, lot: _lot, ...rest } = template;

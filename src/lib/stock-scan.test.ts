@@ -119,7 +119,7 @@ describe('resolveScan', () => {
       card,
     });
   });
-  it('counts a pending lot without asking when a later scan disagrees, including an absent expiry', () => {
+  it('confirms a pending lot expiry mismatch and counts directly when an expiry is absent', () => {
     const pending = {
       ...first,
       key: 'pending',
@@ -130,7 +130,17 @@ describe('resolveScan', () => {
       policy: receive,
       lines: [pending],
     });
-    expect(decision).toEqual({ type: 'count', lineKey: 'pending' });
+    expect(decision).toEqual({
+      type: 'confirm-expiry',
+      recorded: '2027-01-31',
+      scanned: '2027-02-28',
+      next: { type: 'count', lineKey: 'pending' },
+    });
+    for (const expiry of [undefined, '2027-01-31']) {
+      expect(
+        resolve({ scan: { ...scan, lotCode: 'NEW', expiry }, policy: receive, lines: [pending] }),
+      ).toEqual({ type: 'count', lineKey: 'pending' });
+    }
     expect(
       resolve({
         scan: { ...scan, lotCode: 'NEW' },
@@ -242,7 +252,7 @@ describe('resolveScan', () => {
         params: { lotCode: 'NEW' },
       });
     });
-    it('counts a draft new lot of the same code in any case whatever the scanned expiry', () => {
+    it('confirms a draft new lot mismatch even when the scanned expiry is past', () => {
       const pending: ScanLine = {
         key: 'pending',
         orderable,
@@ -253,7 +263,12 @@ describe('resolveScan', () => {
           scan: { gtin: scan.gtin, lotCode: 'NEW', expiry: '2026-01-01' },
           lines: [pending],
         }),
-      ).toEqual({ type: 'count', lineKey: 'pending' });
+      ).toEqual({
+        type: 'confirm-expiry',
+        recorded: '2027-01-31',
+        scanned: '2026-01-01',
+        next: { type: 'count', lineKey: 'pending' },
+      });
       expect(
         resolveReceive({
           scan: { gtin: scan.gtin, lotCode: 'NEW', expiry: '2026-01-01' },
@@ -279,8 +294,10 @@ it('refuses a scanned new lot with a different queued expiry before counting a d
     params: { expiry: '2030-01-01' },
   });
   expect(resolveScan({ ...options, scan: { ...options.scan, expiry: '2030-01-01' } })).toEqual({
-    type: 'count',
-    lineKey: 'draft',
+    type: 'confirm-expiry',
+    recorded: '2031-01-01',
+    scanned: '2030-01-01',
+    next: { type: 'count', lineKey: 'draft' },
   });
 });
 

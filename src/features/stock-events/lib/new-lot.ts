@@ -98,6 +98,14 @@ export function editLotSchema({
   deviceLots = [],
 }: LotContext & { lot: NewLot; lineKey: string }) {
   return lotFields(today).superRefine((values, context) => {
+    if (values.lotCode !== lot.lotCode && existingLot(lots, values.lotCode)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['lotCode'],
+        message: 'stock-events.lot-code-exists',
+      });
+      return;
+    }
     const conflict = conflictingDeviceLot(
       deviceLots,
       lot.tradeItemId,
@@ -115,13 +123,7 @@ export function editLotSchema({
       return;
     }
     if (values.lotCode === lot.lotCode) return;
-    if (existingLot(lots, values.lotCode))
-      context.addIssue({
-        code: 'custom',
-        path: ['lotCode'],
-        message: 'stock-events.lot-code-exists',
-      });
-    else if (draftLotWithOtherExpiry(lines, lot.tradeItemId, values, lineKey))
+    if (draftLotWithOtherExpiry(lines, lot.tradeItemId, values, lineKey))
       context.addIssue({
         code: 'custom',
         path: ['expirationDate'],

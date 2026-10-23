@@ -141,3 +141,16 @@ it('describes queued lots without expiry in both new and edited lot errors', () 
     ),
   ).toEqual(expected);
 });
+
+it('asks to pick a downloaded lot before reporting a conflicting device lot on edit', () => {
+  expect(
+    issues(
+      editLotSchema({
+        ...context,
+        deviceLots: [newLot('lc2017a', '2030-01-01')],
+        lot: newLot('MINE', null),
+        lineKey: 'mine',
+      }).safeParse({ lotCode: 'LC2017A', expirationDate: '2031-01-01' }),
+    ),
+  ).toEqual([['lotCode', 'stock-events.lot-code-exists']]);
+});
