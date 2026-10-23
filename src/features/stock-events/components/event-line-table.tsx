@@ -3,6 +3,7 @@ import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanst
 import type { ParseKeys } from 'i18next';
 import { CalendarIcon, CircleAlertIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
 import {
+  type CSSProperties,
   memo,
   useCallback,
   useEffect,
@@ -787,6 +788,20 @@ export function EventLineTable({
       if (width) columnWidths.current[column.id] = width;
     });
   });
+  const [emptyWidth, setEmptyWidth] = useState<number>();
+  const hasRows = rows.length > 0;
+  useLayoutEffect(() => {
+    if (cards || hasRows) return;
+    const container = tableRegion.current?.querySelector<HTMLElement>(
+      '[data-slot="table-container"]',
+    );
+    if (!container) return;
+    const update = () => setEmptyWidth(container.clientWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [cards, hasRows]);
   const hasLines = form.state.values.lines.length > 0;
   const empty = (
     <DataTableEmpty
@@ -854,7 +869,16 @@ export function EventLineTable({
           isRowInvalid={(line) => !!line.stockProblem}
           density="compact"
           layout="auto"
-          empty={empty}
+          empty={
+            <div
+              className="sticky start-0 -mx-1.5 w-(--empty-width)"
+              style={
+                emptyWidth ? ({ '--empty-width': `${emptyWidth}px` } as CSSProperties) : undefined
+              }
+            >
+              {empty}
+            </div>
+          }
           footer={footer}
         />
       )}

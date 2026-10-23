@@ -1,8 +1,9 @@
 import { type QueryClient, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { ClipboardPenLineIcon } from 'lucide-react';
-import { type ComponentProps, useState } from 'react';
+import { type ComponentProps, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -40,12 +41,12 @@ import {
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import {
   EventLineTableSkeleton,
+  eventFitColumns,
   eventHideableColumns,
 } from '@/features/stock-events/components/event-line-table';
 import {
   EventLineToolbarActions,
   EventLineToolbarControls,
-  EventLineToolbarStatus,
 } from '@/features/stock-events/components/event-line-toolbar';
 import { PrintEventDialog } from '@/features/stock-events/components/print-event-dialog';
 import { ProductLotPickerSkeleton } from '@/features/stock-events/components/product-lot-picker';
@@ -57,9 +58,11 @@ import {
   homeStockDataset,
 } from '@/features/stock-events/lib/event-kinds';
 import { useCardView } from '@/hooks/use-card-view';
+import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
@@ -154,6 +157,8 @@ function StockEventHeader({
   );
 }
 
+const columnChoicesSchema = z.record(z.string(), z.boolean());
+
 export function StockEventPending({
   kind,
   programId,
@@ -161,13 +166,27 @@ export function StockEventPending({
   kind: ConfiguredEventKind;
   programId: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const config = EVENT_KINDS[kind];
   const online = useOnline();
   const unit = useQuantityUnit();
   const { measure, cards, columnView, layout } = useCardView(
     eventHideableColumns(kind),
     config.columnChoicesKey,
+  );
+  const measured = config.columnFit === 'measured';
+  const tableRegion = useRef<HTMLDivElement>(null);
+  const fitColumns = useMemo(
+    () => eventFitColumns(kind).filter(({ id }) => id !== 'total' || unit.unit === 'PACKS'),
+    [kind, unit.unit],
+  );
+  const fit = useFitColumnVisibility(
+    fitColumns,
+    useStoredState(config.columnChoicesKey, columnChoicesSchema, {}),
+    tableRegion,
+    undefined,
+    `${unit.unit}/${i18n.language}`,
+    measured && !cards,
   );
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: false });
@@ -176,13 +195,21 @@ export function StockEventPending({
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);
-  const visibility = {
-    ...(cards ? columnView.visibility : {}),
-    lotCode: false,
-    expiry: false,
-    vvm: false,
-    total: unit.unit === 'PACKS' && (!cards || columnView.visibility.total !== false),
-  };
+  const tableView = measured ? fit.visibility : columnView.visibility;
+  const visibility = cards
+    ? {
+        ...columnView.visibility,
+        lotCode: false,
+        expiry: false,
+        vvm: false,
+        total: unit.unit === 'PACKS' && columnView.visibility.total !== false,
+      }
+    : {
+        ...tableView,
+        lotCode: true,
+        vvm: false,
+        total: unit.unit === 'PACKS' && tableView.total !== false,
+      };
   return (
     <>
       <Workspace width={config.width}>
@@ -200,7 +227,6 @@ export function StockEventPending({
                 />
               </fieldset>
               <EventLineToolbarActions>
-                {config.drafts === 'device' && <EventLineToolbarStatus />}
                 <EventLineToolbarControls>
                   {unit.canSwitch && (
                     <div className="min-w-0 flex-1 @2xl/main:flex-none">
@@ -227,12 +253,14 @@ export function StockEventPending({
                 </EventLineToolbarControls>
               </EventLineToolbarActions>
             </DataTableToolbar>
-            <EventLineTableSkeleton
-              cards={cards}
-              kind={kind}
-              unit={unit.unit}
-              columnVisibility={visibility}
-            />
+            <div ref={tableRegion}>
+              <EventLineTableSkeleton
+                cards={cards}
+                kind={kind}
+                unit={unit.unit}
+                columnVisibility={visibility}
+              />
+            </div>
           </div>
         </WorkspaceContent>
       </Workspace>

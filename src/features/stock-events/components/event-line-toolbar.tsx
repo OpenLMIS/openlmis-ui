@@ -10,7 +10,7 @@ export function EventLineToolbarActions({ children }: { children: ReactNode }) {
 
 export function EventLineToolbarStatus({ children }: { children?: ReactNode }) {
   return (
-    <div className="flex min-h-9 min-w-0 flex-1 basis-48 flex-wrap items-center justify-end gap-2">
+    <div className="flex min-h-9 min-w-0 flex-1 basis-full flex-wrap items-center justify-end gap-2 empty:hidden @2xl/main:basis-48">
       {children}
     </div>
   );
