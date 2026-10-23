@@ -33,12 +33,17 @@ an older download, or the program has not been downloaded yet. Reconnect to down
 A disconnected icon marks pages that need a connection. Selecting one while offline opens
 Connect To Open This Page; Close returns to the item you selected.
 
+If a page cannot load offline because part of the app was not saved on this device, Not
+Available Offline appears. Try Again reloads the app from the device, which usually opens the
+page. Other errors show the normal error page, offline too, and Try Again loads the page again.
+
 ## Drafts And Submit Offline
 
 Open Adjustments or Issue and choose a program. Edits save automatically. Wait for Saved On This Device
-before closing the browser. The editor shows when its stock was downloaded. If saving fails,
-keep the page open and use Retry. A failed save is not confirmation that your latest edits
-are stored.
+before closing the browser. When the editor's stock comes from the device, a notice shows when
+it was downloaded. It starts with You're offline, or with Can't reach the server when you are
+connected but the server does not answer. If saving fails, keep the page open and use Retry.
+A failed save is not confirmation that your latest edits are stored.
 
 Reopening the same deployment in the same browser profile restores the draft for the same
 signed-in user. Archived Copies lets you restore or delete saved copies. If another tab has
@@ -58,7 +63,7 @@ There is no offline print offer. If sending cannot start promptly, the app confi
 and opens Stock On Hand too. Keep the app open for the queued event to sync.
 Other tabs recognize an upload in progress, so the same event is not sent twice.
 
-Stock On Hand shows downloaded home-facility stock and its download time. Search by product
+Stock On Hand shows downloaded home-facility stock with the same download notice. Search by product
 name, code or lot and open a Stock Card from its View action. Queued events do not change
 those balances until they sync and stock is downloaded again. Other facilities need a connection.
 
@@ -79,9 +84,11 @@ Open Offline Events directly below Home in the sidebar. Its badge counts queued 
 uploads in progress, unknown results and unresolved refusals, including held work. The
 Adjustments and Issue program lists also link there when its events are waiting or need review.
 
-The page shows each event's type, facility, program, occurred dates and sync status.
+The page shows each event's type, facility, program, details, occurred dates and sync status.
+Details lists each product with its lot, where it was issued to or received from (or the
+reason for an adjustment) and the quantity, so events of the same program can be told apart.
 On phones, each event has its own card. Choose View Details in the row menu or card to see
-its products, lots, quantities and reasons. Details also offers Transaction History and the
+every line in full. Details also offers Transaction History and the
 actions to remove an unsent event or resolve a refusal or unknown result. Status filters
 are inside Filters.
 

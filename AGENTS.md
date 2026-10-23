@@ -989,12 +989,17 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   failures. Definitive service errors and cancellations never fall back. Missing local data raises
   `LocalDataUnavailableError`, never a server 404. Preserve device markers and freshness bounds.
   Use `withOfflineAccess` when a read must select the saved access snapshot offline.
+  Exception: Issue counterparties (`counterpartyOptions`) wrap `onlineOrDevice` in the server
+  query key with `offlineAccessQuery` freshness, so admin saves still invalidate that entry.
+- Device data shows `SnapshotAlert` with its download time unless a refetch is in flight:
+  You're offline when offline, Can't reach the server when the app counts as online.
 - Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `homeStockPrograms`
   with event grants for event pickers. `useDownloadedScopes` applies caller acceptance offline.
   A kind's `download` lists datasets with acceptance: home stock takes a minimum format through
   `HOME_STOCK_ACCEPTANCE` (Adjustments 4+, Stock On Hand 5+, Issue 6). Pickers derive readiness
-  with `programReadiness` from `readScopeState` states (ready, ineligible, missing, outdated) and
-  show Checking, Not Downloaded with a visible reason, or Ready.
+  with `programReadiness` from `readScopeState` states (ready, ineligible, missing, outdated).
+  Offline, rows stay disabled without a reason while the device is read, then show Not
+  Downloaded with a visible reason, or Ready.
   Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home
   stock; Stock Card keeps viewed home histories per owner until replaced by a newer view. Check home
   scope and exact grants separately from route capability; show local absence, never a 404.
@@ -1045,12 +1050,17 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   `useOfflineFailure`; reconnect retries must use the same path. Custom route retries invalidate
   failed loaders before reset; offline failures wait for connection. Report caught errors through
   the shared reporter.
-- Only offline failures (`isOfflineError`, offline chunk failures) show the offline error page;
-  other errors show the normal error. Try Again reloads offline chunk failures into our active worker.
+- Only offline failures (`isOfflineError`, offline chunk failures) show Not Available Offline;
+  other errors show the normal error page, whose Try Again reruns the route even offline.
+  Try Again on a chunk failure reloads through the leave guard when `canReloadIntoWorker()`.
+  A rerun that fails again focuses the error heading.
 - Route capabilities gate direct routes/preloads as well as navigation. Use the shared offline
   navigation dialog provider across sidebar, account menu and palette, preserving context and focus.
   Check server-action guards before work and after async access reads. Keep keyboard activation and descriptions.
 - Offline Events opens for every signed-in user offline, even without downloaded access.
+  As legacy, its Details column lists each line's product, lot, destination, source or reason
+  and quantity (`deviceEventDetails`). Types reuse `transaction-history.type-*` labels; Unpack
+  keeps its own.
 - Hidden pages retain drafts/guards only for a valid protected match in the same session scope.
   Persistent overlay drafts stay mounted behind the visibility gate; transient overlays close.
   Discard decisions opt out so navigation and Log Out remain answerable.
@@ -1070,8 +1080,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Apply updates only to the requesting tab through the leave guard. Call allowUnload just before
   reload; retain protection if reload never happens. Verify using a production build.
 - Chunk-load recovery reloads once online through the guard. Offline route/chunk failures show
-  Not Available Offline and retry on reconnect, without reload loops. Try Again reloads into
-  our active worker.
+  Not Available Offline and retry on reconnect, without reload loops.
 
 ### Add an offline screen
 

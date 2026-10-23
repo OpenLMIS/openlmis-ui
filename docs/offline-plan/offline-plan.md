@@ -18,8 +18,14 @@ or no download yet.
 Each program becomes ready only when its complete bundle is stored. The sidebar reports progress
 and failures. Reconnect and same-user renewal refresh access and bundles; connected boot reuses
 complete data younger than 30 minutes. Older complete copies remain usable offline.
-A failed refresh keeps the previous complete copy. The offline editor shows when its stock
-was downloaded.
+A failed refresh keeps the previous complete copy. When stock on Stock On Hand, a Stock Card or
+an event editor comes from the device, a notice shows when it was downloaded. It says You're
+offline, or Can't reach the server when the device is connected but the server does not answer.
+
+Only pages that cannot load offline show Not Available Offline. If part of the app was not saved
+on the device, Try Again reloads the app from the device. Other errors show the normal error page,
+offline too. Offline Events lists each event's details: product, lot, destination, source or
+reason, and quantity.
 
 These workflows permit a new local Adjustment or Issue, not just editing an existing server
 draft. An offline Issue is queued and synced in order like an Adjustment, offers no printing
