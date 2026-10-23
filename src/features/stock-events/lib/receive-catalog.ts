@@ -101,7 +101,14 @@ export async function fetchReceiveCatalog(
   (
     await read(() =>
       fetchOrderablesByIds(
-        fulfillerIds.filter((id) => !latest.has(id)),
+        [
+          ...new Set([
+            ...fulfillerIds,
+            ...approved.flatMap(({ id, versionNumber }) =>
+              versionNumber === undefined ? [id] : [],
+            ),
+          ]),
+        ].filter((id) => !latest.has(id)),
         config,
       ),
     )
@@ -141,7 +148,9 @@ export async function fetchReceiveCatalog(
       versionNumber: versionNumber ?? null,
     })),
     products: [...products.values()].map(catalogProduct),
-    fulfils,
+    fulfils: Object.fromEntries(
+      Object.entries(fulfils).map(([id, ids]) => [id, ids.filter((id) => products.has(id))]),
+    ),
     lots: lots.map(({ id, lotCode, expirationDate, tradeItemId }) => ({
       id,
       lotCode,

@@ -190,7 +190,7 @@ export async function fetchAllOrderableVersions(
   identities: readonly OrderableIdentity[],
   config?: AxiosRequestConfig,
 ): Promise<Orderable[]> {
-  const scope = getSessionScope();
+  const scope = config?.sessionScope ?? getSessionScope();
   const unique = [
     ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
   ];

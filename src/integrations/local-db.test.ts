@@ -184,6 +184,8 @@ it('adds the Receive catalog at v12 without losing any v11 records', async () =>
   signIn('catalog-upgrade-v11');
   const old = new Dexie(getLocalDb().name);
   old.version(11).stores({
+    offlineAccess: 'userId',
+    stockEventSyncErrors: '&localEventId',
     homeStockDownloads: '[facilityId+programId]',
     stockCardHistory: 'id',
     physicalInventoryDrafts: 'draftId',
@@ -192,6 +194,8 @@ it('adds the Receive catalog at v12 without losing any v11 records', async () =>
     stockEventReceipts: '[draftId+revision], &localEventId',
   });
   const rows = {
+    offlineAccess: { userId: 'catalog-upgrade-v11', generation: 'access' },
+    stockEventSyncErrors: { localEventId: 'refused', status: 'refused' },
     homeStockDownloads: { facilityId: 'home', programId: 'p', generation: 'complete' },
     stockCardHistory: { id: 'card' },
     physicalInventoryDrafts: { draftId: 'inventory' },

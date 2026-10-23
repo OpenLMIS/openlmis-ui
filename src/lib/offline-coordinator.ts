@@ -238,7 +238,11 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
             }
             if (decision === 'skip') continue;
             if (decision === 'reuse') {
-              if (record) schedule.succeeded(workKey, record.fetchedAt);
+              if (record)
+                schedule.succeeded(
+                  workKey,
+                  provider.refreshOn.includes('periodic') ? record.fetchedAt : Infinity,
+                );
               continue;
             }
             if (requested) {
@@ -285,7 +289,10 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
                 check();
               });
               check();
-              schedule.succeeded(workKey, record.fetchedAt);
+              schedule.succeeded(
+                workKey,
+                provider.refreshOn.includes('periodic') ? record.fetchedAt : Infinity,
+              );
               incomplete.delete(workKey);
               publishRun({
                 phase: 'running',

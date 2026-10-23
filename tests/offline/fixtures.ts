@@ -24,11 +24,13 @@ export async function stub(
         access_token: 'fixture-token',
         expires_in: 1800,
       },
-      [`/api/users/${userId}/permissionStrings`]: programs.flatMap(({ id }) => [
-        `STOCK_ADJUST|${ids.home}|${id}`,
-        `STOCK_CARDS_VIEW|${ids.home}|${id}`,
+      [`/api/users/${userId}/permissionStrings`]: [
         'LOTS_MANAGE',
-      ]),
+        ...programs.flatMap(({ id }) => [
+          `STOCK_ADJUST|${ids.home}|${id}`,
+          `STOCK_CARDS_VIEW|${ids.home}|${id}`,
+        ]),
+      ],
       [`/api/users/${userId}`]: {
         id: userId,
         username: userId,

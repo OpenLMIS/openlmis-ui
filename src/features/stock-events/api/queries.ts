@@ -178,11 +178,13 @@ export const receiveDevice = (
 export const receiveCatalogOptions = (device: Pick<ReceiveDevice, 'catalog' | 'stock'>) =>
   queryOptions({
     queryKey: [...homeStockBundleKeys.cards(device.stock), 'receive-catalog'] as const,
-    queryFn: async () =>
-      receiveCatalogView(
-        await readReceiveCatalog(device.catalog),
-        await readHomeStockBundle(device.stock),
-      ),
+    queryFn: async () => {
+      const [catalog, bundle] = await Promise.all([
+        readReceiveCatalog(device.catalog),
+        readHomeStockBundle(device.stock),
+      ]);
+      return receiveCatalogView(catalog, bundle);
+    },
     staleTime: 60_000,
     networkMode: 'always',
   });
@@ -208,7 +210,7 @@ export const receiveApprovedProductsOptions = (
         page,
         APPROVED_PRODUCTS_PAGE_SIZE,
       ),
-    staleTime: 0,
+    staleTime: 30_000,
   });
 };
 
@@ -258,7 +260,7 @@ export const receiveLotsOptions = (
     server: () => fetchLotsByTradeItems(tradeItemIds),
     device: async () =>
       catalogLots(await queryClient.fetchQuery(receiveCatalogOptions(device)), tradeItemIds),
-    staleTime: 0,
+    staleTime: 30_000,
   });
 };
 

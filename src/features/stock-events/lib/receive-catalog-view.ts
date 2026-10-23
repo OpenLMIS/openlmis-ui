@@ -40,9 +40,10 @@ export function receiveCatalogView(
       return orderable ? [[id, { id, orderable }] as const] : [];
     }),
   );
+  const bundleProducts = new Map(bundle.products.map((product) => [product.id, product]));
   for (const summary of bundle.summaries) {
     if (approved.has(summary.orderable.id)) continue;
-    const orderable = bundle.products.find(({ id }) => id === summary.orderable.id);
+    const orderable = bundleProducts.get(summary.orderable.id);
     if (orderable) {
       approved.set(orderable.id, { id: orderable.id, orderable });
       products.set(orderable.id, orderable);

@@ -64,7 +64,11 @@ beforeEach(async () => {
             ? { content: missing ? [] : [product('approved', 1)], totalPages: 1 }
             : config.url === '/orderables'
               ? {
-                  content: config.params.id ? [product('fulfiller', 3)] : [product('approved', 2)],
+                  content: config.params.id
+                    ? config.params.id
+                        .filter((id: string) => id !== 'missing')
+                        .map((id: string) => product(id, 3))
+                    : [product('approved', 2)],
                   totalPages: 1,
                 }
               : config.url === '/lots'
@@ -101,6 +105,7 @@ afterEach(() => {
 it('downloads the exact approved version, latest fulfiller, slim lots and a single unpaged approved set', async () => {
   const record = await fetchReceiveCatalog(scope);
   expect(record.approved).toEqual([{ id: 'approved', versionNumber: 1 }]);
+  expect(record.fulfils).toEqual({ approved: ['fulfiller'] });
   expect(record.products.map(({ id, meta }) => [id, meta?.versionNumber])).toEqual([
     ['fulfiller', 3],
     ['approved', 1],
@@ -151,6 +156,15 @@ it('selects the latest available version when approval has no version and accept
   const record = await fetchReceiveCatalog(scope);
   expect(record.approved).toEqual([{ id: 'approved', versionNumber: null }]);
   expect(record.products.find((item) => item.id === 'approved')?.meta?.versionNumber).toBe(2);
+  approvedRows = [{ orderable: { id: 'external' } }];
+  const backfilled = await fetchReceiveCatalog(scope);
+  expect(backfilled.approved).toEqual([{ id: 'external', versionNumber: null }]);
+  expect(backfilled.products.map(({ id, meta }) => [id, meta?.versionNumber])).toEqual([
+    ['external', 3],
+  ]);
+  expect(requests.filter((request) => request.url === '/orderables').at(-1)?.params.id).toEqual([
+    'external',
+  ]);
   approvedRows = [];
   const empty = await fetchReceiveCatalog(scope);
   expect(empty.approved).toEqual([]);

@@ -1055,7 +1055,7 @@ it('reuses a sign-in-only dataset on reconnect and refresh but downloads again a
   const fetch = vi.fn(async () => ({
     userId: 'downloader',
     generation: 'catalog',
-    fetchedAt: Date.now(),
+    fetchedAt: Date.now() - 31 * 60_000,
     draftId: 'catalog',
   }));
   const provider = defineDownloadProvider({
@@ -1076,6 +1076,7 @@ it('reuses a sign-in-only dataset on reconnect and refresh but downloads again a
   await finished();
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(download).toHaveBeenCalledTimes(2);
+  expect(downloadSchedule(getLocalDb().name).due()).toBe(false);
   onlineManager.setOnline(false);
   onlineManager.setOnline(true);
   await waitFor(() => expect(download).toHaveBeenCalledTimes(4));
@@ -1088,6 +1089,13 @@ it('reuses a sign-in-only dataset on reconnect and refresh but downloads again a
   expect(
     await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).get('catalog'),
   ).not.toHaveProperty('stale');
+  expect(downloadSchedule(getLocalDb().name).due()).toBe(false);
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'downloader', username: 'user', accessToken: 'rotated' });
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(7));
+  await finished();
+  expect(fetch).toHaveBeenCalledTimes(1);
   useLoginData.getState().expireSession();
   useLoginData
     .getState()

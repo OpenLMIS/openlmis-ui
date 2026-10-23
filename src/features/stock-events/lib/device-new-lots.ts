@@ -22,7 +22,7 @@ export async function readDeviceNewLots(): Promise<NewLot[]> {
     ]);
     return [
       ...queued,
-      ...refused.map(({ event }) => event),
+      ...refused.flatMap(({ event, resolvedAt }) => (resolvedAt ? [] : [event])),
       ...accepted.flatMap(({ event }) => (event ? [event] : [])),
     ];
   });

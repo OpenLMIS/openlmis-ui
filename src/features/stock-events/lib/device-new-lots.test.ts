@@ -31,6 +31,11 @@ it('reads owner new lots from queued, refused and accepted work and deduplicates
       { ...lot, lotCode: 'REFUSED' },
     ]),
   });
+  await errors.add({
+    localEventId: 'dismissed',
+    resolvedAt: Date.now(),
+    event: event('dismissed', [{ ...lot, lotCode: 'DISMISSED' }]),
+  });
   await receipts.bulkAdd([
     {
       draftId: 'accepted',
