@@ -20,6 +20,20 @@ test('production shell reloads offline under /v2 after worker takeover', {
   );
 });
 
+test('a boot module that fails loads the page again', async ({ page, context }) => {
+  let documents = 0;
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) documents++;
+  });
+  await context.route('**/api{,/**,?*}', (route) => route.abort());
+  await context.route('**/localeSettings{,/**,?*}', (route) => route.abort());
+  await context.route('**/assets/react-vendor-*.js', (route) =>
+    documents > 1 ? route.fallback() : route.abort(),
+  );
+  await page.goto('./login');
+  await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
+});
+
 test('Try Again recovers an offline chunk after an uncontrolled hard reload', {
   tag: '@offline-shell',
 }, async ({ page, context, browserName, baseURL }) => {

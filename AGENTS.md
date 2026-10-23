@@ -1081,6 +1081,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   reload; retain protection if reload never happens. Verify using a production build.
 - Chunk-load recovery reloads once online through the guard. Offline route/chunk failures show
   Not Available Offline and retry on reconnect, without reload loops.
+- Chrome can abort a boot module the worker served, leaving a blank page. The `index.html` listener
+  reloads once when a module script fails, at most every 10 seconds; keep it.
 
 ### Add an offline screen
 
