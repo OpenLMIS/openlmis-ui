@@ -16,6 +16,9 @@ vi.mock('@tanstack/react-router', async (original) => ({
   useRouter: () => ({ invalidate }),
 }));
 
+const worker = vi.hoisted(() => ({ canReloadIntoWorker: vi.fn(() => false) }));
+vi.mock('@/lib/service-worker', () => worker);
+
 const chunk = vi.hoisted(() => ({ reloadOnce: vi.fn() }));
 vi.mock('@/lib/chunk-load', async (original) => ({
   ...(await original<typeof import('@/lib/chunk-load')>()),
@@ -27,11 +30,20 @@ const missingChunk = () =>
 
 const reset = vi.fn();
 const renderFallback = (error: unknown) =>
-  render(<ErrorFallback error={error as Error} info={undefined} reset={reset} />);
+  render(
+    <ErrorFallback
+      back={<Button>Back</Button>}
+      error={error as Error}
+      info={undefined}
+      reset={reset}
+    />,
+  );
 
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.clearAllMocks();
+  worker.canReloadIntoWorker.mockReturnValue(false);
+  vi.restoreAllMocks();
   onlineManager.setOnline(true);
 });
 
@@ -111,22 +123,36 @@ it('reseeds connection on retry after Continue Offline', async () => {
   expect(onlineManager.isOnline()).toBe(true);
 });
 
-describe('a page that fails while offline', () => {
-  it.each([
-    ['a part of the app this device lacks', missingChunk()],
-    ['any other failure', new TypeError('Cannot read properties of undefined')],
-  ])('says it is not available offline for %s, and retries on reconnect', (_, error) => {
+it('keeps offline chunk failures unavailable and retries on reconnect', () => {
+  onlineManager.setOnline(false);
+  renderFallback(missingChunk());
+  expect(screen.getByRole('heading', { name: 'offline.unavailable-title' })).toBeInTheDocument();
+  act(() => onlineManager.setOnline(true));
+  expect(chunk.reloadOnce).toHaveBeenCalledOnce();
+});
+
+it.each([new TypeError('Cannot read properties of undefined'), httpError(500)])(
+  'shows the normal error and retries loaders for a real failure offline: %s',
+  async (error) => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     onlineManager.setOnline(false);
     renderFallback(error);
+    expect(screen.getByRole('heading', { name: 'error.title' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+    expect(invalidate).toHaveBeenCalledOnce();
+    expect(reset).toHaveBeenCalledOnce();
+    expect(onlineManager.isOnline()).toBe(false);
+  },
+);
 
-    expect(screen.getByRole('heading', { name: 'offline.unavailable-title' })).toBeInTheDocument();
-    expect(screen.queryByText('error.title')).not.toBeInTheDocument();
-
-    act(() => onlineManager.setOnline(true));
-
-    if (error.message.includes('dynamically')) expect(chunk.reloadOnce).toHaveBeenCalledOnce();
-    else expect(reset).toHaveBeenCalledOnce();
-  });
+it('reloads an offline missing chunk into an active worker on Try Again', async () => {
+  worker.canReloadIntoWorker.mockReturnValue(true);
+  const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {});
+  onlineManager.setOnline(false);
+  renderFallback(missingChunk());
+  await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+  expect(reload).toHaveBeenCalledOnce();
+  expect(invalidate).not.toHaveBeenCalled();
 });
 
 it('reloads into the current version when an app part is missing online', () => {

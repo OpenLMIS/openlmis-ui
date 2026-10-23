@@ -20,6 +20,7 @@ import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
 import { isOfflineError } from '@/lib/http';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { isOnline, seedOnline } from '@/lib/online';
+import { canReloadIntoWorker } from '@/lib/service-worker';
 
 const reloadPage = () => {
   allowUnload();
@@ -42,12 +43,13 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
     reset();
   };
   const retry = () => {
+    if (staleApp && canReloadIntoWorker()) return whenLeaveAllowed(reloadPage);
     seedOnline();
-    if (!isOnline()) return;
+    if (offline && !isOnline()) return;
     if (staleApp) whenLeaveAllowed(() => reloadOnce(reloadPage) || rerun());
     else rerun();
   };
-  const offline = useOfflineFailure(error, retry, failedOffline && !isForbidden(error));
+  const offline = useOfflineFailure(error, retry, failedOffline && staleApp);
   useEffect(() => {
     if (staleApp && isOnline()) whenLeaveAllowed(() => reloadOnce(reloadPage));
   }, [staleApp]);
