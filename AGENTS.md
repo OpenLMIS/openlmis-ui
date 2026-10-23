@@ -996,8 +996,11 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `homeStockPrograms`
   with event grants for event pickers. `useDownloadedScopes` applies caller acceptance offline.
   A kind's `download` lists datasets with acceptance: home stock takes a minimum format through
-  `HOME_STOCK_ACCEPTANCE` (Adjustments 4+, Stock On Hand 5+, Issue 6). Pickers derive readiness
-  with `programReadiness` from `readScopeState` states (ready, ineligible, missing, outdated).
+  `HOME_STOCK_ACCEPTANCE` (Adjustments 4+, Stock On Hand 5+, Issue and Receive 6). Receive also
+  needs `receive-catalog`: refresh at sign-in, including expired-session sign-in; reuse complete
+  catalogs across reloads regardless of age. Refresh preserves typed and scanned new lots.
+  Pickers derive readiness with `programReadiness` from `readScopeState` states
+  (ready, ineligible, missing, outdated).
   Offline, rows stay disabled without a reason while the device is read, then show Not
   Downloaded with a visible reason, or Ready.
   Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home

@@ -1,34 +1,37 @@
 # Working Offline
 
-Adjustments and Issue can use downloaded data, save drafts and submit events without a
+Adjustments, Issue and Receive can use downloaded data, save drafts and submit events without a
 connection. Home, Offline Events, downloaded home-facility Stock On Hand and saved Stock Cards
-also open offline. Receive is next to work offline. Unpack needs a connection, as in the old
-UI, and Physical Inventory follows later. Transaction History, other stock pages,
-administration, printing and PDF downloads need a connection.
+also open offline. Unpack needs a connection, as in the old UI, and Physical Inventory follows
+later. Transaction History, other stock pages, administration, printing and PDF downloads need a
+connection.
 
 ## Before You Disconnect
 
-Sign in while connected, using the browser and device you will take with you. Downloads run
-in the background without stopping your work. Keep the app open until the download finishes.
-The sidebar reports download progress and failures at every width. If a download fails, use
-Retry. A previous complete download stays available. While the app stays open and visible,
-older downloads refresh automatically. Failed downloads retry after increasing waits, up to
-30 minutes. Retry or reconnecting starts another attempt without waiting for that delay.
+Sign in while connected, using the browser and device you will take with you. Downloads run in
+the background without stopping your work. Keep the app open until the download finishes. The
+sidebar reports download progress and failures at every width. If a download fails, use Retry. A
+previous complete download stays available. While the app stays open and visible, older stock
+downloads refresh automatically. Receive products download at each sign-in, including signing in
+again after a session expires. Reloading reuses a complete product list. Failed downloads retry
+after increasing waits, up to 30 minutes. Retry or reconnecting starts another attempt without
+waiting for that delay.
 
 Event times use your deployment's time zone. If the app cannot load that setting, it
 keeps the last known zone. Without a saved zone, it shows a notice and uses UTC until the
 setting is available again.
 
 The app downloads only your home-facility programs where you have permission to view Stock
-Cards. Each download holds the stock and the places Issue can send stock to. Adjustments and
-Issue then work offline for those programs where you also have permission to make that event.
-Programs at other facilities are not downloaded. A downloaded program is a snapshot of stock
-at download time. The app cannot download new data while
-disconnected. Wait for downloads to finish and check the sidebar for failures before leaving.
+Cards. Each download holds the stock and the places you can send stock to or receive it from.
+Receive also downloads its approved products and lots. Adjustments, Issue and Receive work
+offline for those programs where you also have permission to make that event. Programs at other
+facilities are not downloaded. A downloaded program is a snapshot of stock at download time. The
+app cannot download new data while disconnected. Wait for downloads to finish and check the
+sidebar for failures before leaving.
 
-Offline, the Adjustments and Issue program lists mark programs you cannot use as Not
-Downloaded and explain why: you lack permission to view Stock Cards, the device holds
-an older download, or the program has not been downloaded yet. Reconnect to download it.
+Offline, the Adjustments, Issue and Receive program lists mark programs you cannot use as Not
+Downloaded and explain why: you lack permission to view Stock Cards, the device holds an older
+download, or the program has not been downloaded yet. Reconnect to download it.
 
 A disconnected icon marks pages that need a connection. Selecting one while offline opens
 Connect To Open This Page; Close returns to the item you selected.
@@ -39,11 +42,11 @@ page. Other errors show the normal error page, offline too, and Try Again loads 
 
 ## Drafts And Submit Offline
 
-Open Adjustments or Issue and choose a program. Edits save automatically. Wait for Saved On This Device
-before closing the browser. When the editor's stock comes from the device, a notice shows when
-it was downloaded. It starts with You're offline, or with Can't reach the server when you are
-connected but the server does not answer. If saving fails, keep the page open and use Retry.
-A failed save is not confirmation that your latest edits are stored.
+Open Adjustments, Issue or Receive and choose a program. Edits save automatically. Wait for
+Saved On This Device before closing the browser. When the editor's stock comes from the device,
+a notice shows when it was downloaded. It starts with You're offline, or with Can't reach the
+server when you are connected but the server does not answer. If saving fails, keep the page
+open and use Retry. A failed save is not confirmation that your latest edits are stored.
 
 Reopening the same deployment in the same browser profile restores the draft for the same
 signed-in user. Archived Copies lets you restore or delete saved copies. If another tab has
@@ -53,9 +56,15 @@ save so one tab cannot silently replace the other tab's work.
 Submit Offline validates the lines and asks for your signature. Confirmation saves a frozen
 event on the device. Event Queued confirms that it is stored, then Stock On Hand opens for that
 facility and program. It shows the downloaded stock, which has not changed yet, and a note that
-the event is waiting to sync. Issue does not offer printing for a queued event. Further events
-start a new draft. Quantities are checked against the downloaded stock only; queued events do
-not reduce it, so the server may refuse an issue that would leave too little stock.
+the event is waiting to sync. Issue and Receive do not offer printing for a queued event.
+Further events start a new draft. Quantities are checked against the downloaded stock only;
+queued events do not reduce it, so the server may refuse an issue that would leave too little
+stock.
+
+Receive lets you search downloaded approved products, including products with no stock yet, and
+choose their downloaded lots. If you have permission to manage lots, Add New Lot also works
+offline. Type the lot code and optional expiry date; the lot is saved inside the event and
+created by the server when it syncs. Refreshing data keeps typed and scanned new lots.
 
 While connected, Submit uses the same device queue. The success message appears only after
 the server accepts the event and the app records that result. Acceptance opens Stock On Hand.
@@ -80,9 +89,9 @@ Keep the app open when you reconnect. Events send one at a time after fresh acce
 If Sign In To Sync appears, connect and sign in again as the same user. An expired session
 keeps your downloaded data, drafts and events available for local work.
 
-Open Offline Events directly below Home in the sidebar. Its badge counts queued events,
-uploads in progress, unknown results and unresolved refusals, including held work. The
-Adjustments and Issue program lists also link there when its events are waiting or need review.
+Open Offline Events directly below Home in the sidebar. Its badge counts queued events, uploads
+in progress, unknown results and unresolved refusals, including held work. The Adjustments,
+Issue and Receive program lists also link there when events are waiting or need review.
 
 The page shows each event's type, facility, program, details, occurred dates and sync status.
 Details lists each product with its lot, where it was issued to or received from (or the
