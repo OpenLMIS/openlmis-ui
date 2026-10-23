@@ -266,7 +266,7 @@ edits, which have no prop for TypeScript to detect:
 | `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
-| `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
+| `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus; keep `components` parts module-level and memoize DayButton, so re-renders never remount the calendar mid-click |
 | `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
