@@ -875,7 +875,13 @@ export function EventEditor({
                     disabled={locked || !ready}
                     {...(fromCards || !device
                       ? { cardFilter: filterCards }
-                      : { from: 'approved-products' as const, canManageLots, lines, device })}
+                      : {
+                          from: 'approved-products' as const,
+                          canManageLots,
+                          lines,
+                          device,
+                          cards,
+                        })}
                     onAdd={add}
                   >
                     {scanning && <ScanStatus {...scanStatus} />}

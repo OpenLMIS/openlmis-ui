@@ -1873,6 +1873,7 @@
   "stock-events.actions": "الإجراءات",
   "stock-events.add": "إضافة",
   "stock-events.add-new-lot": "إضافة تشغيلة جديدة",
+  "stock-events.add-new-lot-description": "أدخل رمز التشغيلة الجديدة من {product} وتاريخ انتهاء صلاحيتها.",
   "stock-events.cancel": "إلغاء",
   "stock-events.cards-error-description": "حاول مرة أخرى لتحميل بطاقات مخزون هذه المنشأة.",
   "stock-events.cards-error-title": "تعذر تحميل المنتجات",

@@ -1,11 +1,12 @@
 import { onlineManager, QueryClient } from '@tanstack/react-query';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
 import { I18nextProvider } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
+import { FormMessagesProvider } from '@/components/form/form-messages';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchApprovedProducts,
@@ -250,8 +251,10 @@ function renderApproved({
   canManageLots = false,
   lines = [],
   device = receiveDevice({ facilityId: 'facility', programId: 'program' }, 'type', true),
+  cards = false,
 }: {
   device?: ReceiveDevice;
+  cards?: boolean;
   canManageLots?: boolean;
   lines?: { key: string; lot: EventLot | null }[];
 } = {}) {
@@ -262,19 +265,22 @@ function renderApproved({
   });
   renderPage(
     <I18nextProvider i18n={i18n}>
-      <form onSubmit={onSubmit}>
-        <ProductLotPicker
-          kind="receive"
-          from="approved-products"
-          device={device}
-          facilityId="facility"
-          programId="program"
-          disabled={false}
-          canManageLots={canManageLots}
-          lines={lines}
-          onAdd={onAdd}
-        />
-      </form>
+      <FormMessagesProvider formatError={(key) => i18n.t(key, { defaultValue: key })}>
+        <form onSubmit={onSubmit}>
+          <ProductLotPicker
+            kind="receive"
+            from="approved-products"
+            device={device}
+            facilityId="facility"
+            programId="program"
+            disabled={false}
+            canManageLots={canManageLots}
+            lines={lines}
+            onAdd={onAdd}
+            cards={cards}
+          />
+        </form>
+      </FormMessagesProvider>
     </I18nextProvider>,
     { queryClient },
   );
@@ -636,6 +642,41 @@ describe('ProductLotPicker with approved products', () => {
     );
     expect(code).toHaveValue('NEW-2');
     expect(code).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('adds a new lot through a dialog on phones and keeps the previous lot on Cancel', async () => {
+    const { user, onAdd, onSubmit } = renderApproved({ canManageLots: true, cards: true });
+    await pickProduct(user, 'Aspirin');
+    const lot = await screen.findByRole('combobox', { name: 'Lot Code' });
+    await user.click(lot);
+    await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add New Lot' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(lot).toHaveTextContent('Lot Code');
+    await waitFor(() => expect(lot).toHaveFocus());
+    expect(screen.queryByRole('textbox', { name: 'New Lot Code' })).not.toBeInTheDocument();
+    await user.click(lot);
+    await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+    const reopened = await screen.findByRole('dialog', { name: 'Add New Lot' });
+    const code = within(reopened).getByRole('textbox', { name: 'New Lot Code' });
+    await user.type(code, 'lot-a{Enter}');
+    expect(code).toHaveAccessibleDescription('This lot code already exists.');
+    await user.clear(code);
+    await user.type(code, 'NEW-2');
+    await user.click(within(reopened).getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(lot).toHaveTextContent('NEW-2');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onAdd).toHaveBeenCalledWith(
+      {
+        orderable: aspirin,
+        lot: { lotCode: 'NEW-2', expirationDate: null, tradeItemId: 'trade' },
+        stockOnHand: 0,
+      },
+      true,
+    );
   });
 
   it('lists a fulfilling product once the fulfilment map loads, also by its own name', async () => {

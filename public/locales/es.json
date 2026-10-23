@@ -1873,6 +1873,7 @@
   "stock-events.actions": "Acciones",
   "stock-events.add": "Añadir",
   "stock-events.add-new-lot": "Añadir Nuevo Lote",
+  "stock-events.add-new-lot-description": "Introduzca el código y la fecha de caducidad del nuevo lote de {product}.",
   "stock-events.cancel": "Cancelar",
   "stock-events.cards-error-description": "Inténtelo de nuevo para cargar las fichas de existencias de este establecimiento.",
   "stock-events.cards-error-title": "No se pudieron cargar los productos",

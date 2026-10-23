@@ -1873,6 +1873,7 @@
   "stock-events.actions": "Actions",
   "stock-events.add": "Add",
   "stock-events.add-new-lot": "Add New Lot",
+  "stock-events.add-new-lot-description": "Enter the code and expiry date of the new lot of {product}.",
   "stock-events.cancel": "Cancel",
   "stock-events.cards-error-description": "Try again to load this facility’s stock cards.",
   "stock-events.cards-error-title": "Could Not Load Products",

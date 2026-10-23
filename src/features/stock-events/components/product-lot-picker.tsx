@@ -46,6 +46,7 @@ import {
   receiveOrderablesOptions,
   receiveStockOnHandOptions,
 } from '@/features/stock-events/api/queries';
+import { NewLotDialog } from '@/features/stock-events/components/new-lot-dialog';
 import type { EventLine, EventLineCandidate } from '@/features/stock-events/lib/event-form';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import type { HomeStockScope } from '@/features/stock-events/lib/home-stock-bundle';
@@ -59,7 +60,6 @@ import {
   type ApprovedProductOption,
   approvedProductOptions,
   type EventCardFilter,
-  type EventLotOption,
   eventLotOptions,
   eventProductOptions,
   type ReceiveLotOption,
@@ -88,6 +88,7 @@ type Props = BaseProps &
         device: ReceiveDevice;
         canManageLots: boolean;
         lines: readonly Pick<EventLine, 'key' | 'lot'>[];
+        cards?: boolean;
       }
   );
 
@@ -96,9 +97,15 @@ export function ProductLotPicker(props: Props) {
   return <StockCardLotPicker {...props} />;
 }
 
+type LotLabelItem = {
+  label?: string;
+  labelKey?: ParseKeys;
+  lot?: { expirationDate?: string | null } | null;
+};
+
 function useLotLabel() {
   const { t, i18n } = useTranslation();
-  return (item: EventLotOption | ReceiveLotOption) => (
+  return (item: LotLabelItem) => (
     <span className="flex min-w-0 items-center gap-1">
       <bdi>{item.labelKey ? t(item.labelKey) : item.label}</bdi>
       {item.lot?.expirationDate && (
@@ -111,15 +118,11 @@ function useLotLabel() {
   );
 }
 
-function lotItemLabel(
-  item: EventLotOption | ReceiveLotOption,
-  t: TFunction,
-  language: string,
-): string {
+function lotItemLabel(item: LotLabelItem, t: TFunction, language: string): string {
   if (item.labelKey) return t(item.labelKey);
   return item.lot?.expirationDate
     ? `${item.label} / ${formatDateValue(item.lot.expirationDate, language)}`
-    : item.label;
+    : (item.label ?? '');
 }
 
 function StockCardLotPicker({
@@ -322,6 +325,7 @@ function PickerAddSlot({ children }: { children: ReactNode }) {
 const PICK_STALE_TIME = 60_000;
 const SEARCH_DELAY = 300;
 const SHOW_MORE = 'show-more';
+const TYPED_NEW_LOT = 'typed-new-lot';
 
 type ShowMoreItem = { value: typeof SHOW_MORE; label: string; showMore: true };
 type ProductItem = ApprovedProductOption | ShowMoreItem;
@@ -340,10 +344,12 @@ function ApprovedProductLotPicker({
   canManageLots,
   lines,
   device,
+  cards = false,
 }: BaseProps & {
   device: ReceiveDevice;
   canManageLots: boolean;
   lines: readonly Pick<EventLine, 'key' | 'lot'>[];
+  cards?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -423,6 +429,7 @@ function ApprovedProductLotPicker({
   const [lotValue, setLotValue] = useState<string | null>(null);
   const [draft, setDraft] = useState({ lotCode: '', expirationDate: '' });
   const [attempted, setAttempted] = useState(false);
+  const [newLotDialog, setNewLotDialog] = useState<{ check: boolean } | null>(null);
   const [solePicked, setSolePicked] = useState(false);
   const sole =
     !query && !first.isPlaceholderData && total === 1 && approved.length === 1
@@ -508,10 +515,26 @@ function ApprovedProductLotPicker({
           expiry: formatDateValue(queuedLot?.expirationDate ?? '', i18n.language),
         })
       : t(key);
-  const lotItems = lotOptions.map((item) => ({
+  const typedLot =
+    cards && draft.lotCode
+      ? {
+          value: TYPED_NEW_LOT,
+          label: draft.lotCode,
+          lot: { expirationDate: draft.expirationDate || null },
+        }
+      : undefined;
+  const lotChoices: (ReceiveLotOption | NonNullable<typeof typedLot>)[] = typedLot
+    ? lotOptions.flatMap((item) => (item.value === ADD_NEW_LOT ? [item, typedLot] : [item]))
+    : lotOptions;
+  const lotItems = lotChoices.map((item) => ({
     value: item.value,
     label: lotItemLabel(item, t, i18n.language),
   }));
+  const shownLot = addingNewLot && typedLot ? typedLot : pickedLot;
+  const pickLot = (value: string | null) => {
+    if (cards && value === ADD_NEW_LOT) setNewLotDialog({ check: false });
+    else setLotValue(value === TYPED_NEW_LOT ? ADD_NEW_LOT : value);
+  };
 
   const pick = (item: ApprovedProductOption | null) => {
     setProduct(item);
@@ -529,6 +552,10 @@ function ApprovedProductLotPicker({
     setAttempted(true);
     const result = schema ? schema.safeParse(draft) : undefined;
     if (!tradeItemId || !result?.success) {
+      if (cards) {
+        setNewLotDialog({ check: true });
+        return;
+      }
       const invalid = result?.error?.issues[0]?.path[0];
       document.getElementById(`${id}-${invalid === 'expirationDate' ? 'expiry' : 'code'}`)?.focus();
       return;
@@ -676,9 +703,9 @@ function ApprovedProductLotPicker({
           </FieldLabel>
           <Select
             items={lotItems}
-            value={hasLotChoice ? selectedLot : null}
+            value={hasLotChoice ? (shownLot?.value ?? selectedLot) : null}
             disabled={disabled || !hasLotChoice}
-            onValueChange={setLotValue}
+            onValueChange={pickLot}
           >
             <SelectTrigger
               size="lg"
@@ -688,12 +715,12 @@ function ApprovedProductLotPicker({
               width="full"
             >
               <SelectValue placeholder={t(lotPlaceholder(!!product, !noLots))}>
-                {hasLotChoice && pickedLot ? lotLabel(pickedLot) : undefined}
+                {hasLotChoice && shownLot ? lotLabel(shownLot) : undefined}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {lotOptions.map((item) => (
+                {lotChoices.map((item) => (
                   <SelectItem key={item.value} value={item.value}>
                     {lotLabel(item)}
                   </SelectItem>
@@ -703,7 +730,7 @@ function ApprovedProductLotPicker({
           </Select>
         </Field>
       </div>
-      {addingNewLot ? (
+      {addingNewLot && !cards ? (
         <>
           <div className={NEW_LOT_SLOT}>
             <Field spacing="tight" data-invalid={!!errors.lotCode || undefined}>
@@ -782,6 +809,26 @@ function ApprovedProductLotPicker({
           {loading ? t('stock-events.lots-loading') : ''}
         </p>
       </PickerAddSlot>
+      {cards && product && tradeItemId && (
+        <NewLotDialog
+          open={newLotDialog !== null}
+          onOpenChange={(open) => !open && setNewLotDialog(null)}
+          returnFocus={() => document.getElementById(`${id}-lot`)}
+          product={product.label}
+          tradeItemId={tradeItemId}
+          lots={lots}
+          lines={lines}
+          deviceLots={deviceLots}
+          today={today}
+          values={draft}
+          check={newLotDialog?.check ?? false}
+          onAdd={(values) => {
+            setDraft(values);
+            setAttempted(false);
+            setLotValue(ADD_NEW_LOT);
+          }}
+        />
+      )}
     </PickerPanel>
   );
 }

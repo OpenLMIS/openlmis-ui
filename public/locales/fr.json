@@ -1873,6 +1873,7 @@
   "stock-events.actions": "Actions",
   "stock-events.add": "Ajouter",
   "stock-events.add-new-lot": "Ajouter Un Nouveau Lot",
+  "stock-events.add-new-lot-description": "Saisissez le code et la date d’expiration du nouveau lot de {product}.",
   "stock-events.cancel": "Annuler",
   "stock-events.cards-error-description": "Réessayez de charger les fiches de stock de cet établissement.",
   "stock-events.cards-error-title": "Impossible de charger les produits",

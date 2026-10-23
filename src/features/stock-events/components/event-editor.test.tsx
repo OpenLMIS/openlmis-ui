@@ -1910,7 +1910,10 @@ describe('Receive editor', () => {
     await pick(user, 'Aspirin');
     await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
     await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
-    await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'NEW-1{Enter}');
+    const newLot = await screen.findByRole('dialog', { name: 'Add New Lot' });
+    await user.type(within(newLot).getByRole('textbox', { name: 'New Lot Code' }), 'NEW-1{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     await user.click(
       await screen.findByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 1' }),

@@ -641,7 +641,8 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   `@3xl/main:max-w-xl`, with a `Separator` below it. Decide from the offered list before
   anything is picked: stock event pickers use this compact row when no offered item has lots
   and keep labelled fields in a card otherwise. Receive can create lots, so it always keeps
-  labelled fields; its New Lot Code and Expiry fields take their own row so Product and Add stay put. Compose `PickerAdd`, `PickerAddField`, `PickerAddIcon` and `PickerAddButton`
+  labelled fields; its New Lot Code and Expiry fields take their own row so Product and Add stay put.
+  With editor cards (below 672px), Add New Lot opens `NewLotDialog` instead, filling Lot Code. Compose `PickerAdd`, `PickerAddField`, `PickerAddIcon` and `PickerAddButton`
   (`src/components/picker-add.tsx`); anchor the list to `PickerAddField` so it spans the icon. The loading skeleton repeats the layout last shown for
   that kind and program (`rememberedPickerLayout`), compact on a first visit.
 

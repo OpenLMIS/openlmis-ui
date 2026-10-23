@@ -1873,6 +1873,7 @@
   "stock-events.actions": "Ações",
   "stock-events.add": "Adicionar",
   "stock-events.add-new-lot": "Adicionar Novo Lote",
+  "stock-events.add-new-lot-description": "Introduza o código e a data de validade do novo lote de {product}.",
   "stock-events.cancel": "Cancelar",
   "stock-events.cards-error-description": "Tente novamente carregar as fichas de stock desta unidade.",
   "stock-events.cards-error-title": "Não foi possível carregar os produtos",
