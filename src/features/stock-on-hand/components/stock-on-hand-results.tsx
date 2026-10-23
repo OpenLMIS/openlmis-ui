@@ -27,7 +27,7 @@ import {
 } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
-import { PendingWorkAlert, SnapshotAlert } from '@/components/offline-alert';
+import { PendingWorkAlert, SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -96,8 +96,16 @@ export function StockOnHandResults({
   const deferredSearch = useDeferredValue(search);
   const query = toSummariesQuery(deferredSearch, { facilityId, programId });
   const online = useOnline();
-  const { data: page, isFetching } = useSuspenseQuery(
-    stockCardSummariesOptions(query, readOnDevice, online),
+  const {
+    data: page,
+    isFetching,
+    dataUpdatedAt,
+    errorUpdatedAt,
+  } = useSuspenseQuery(stockCardSummariesOptions(query, readOnDevice, online));
+  const snapshotOnline = useSnapshotNotice(
+    !!page.device,
+    isFetching,
+    Math.max(dataUpdatedAt, errorUpdatedAt),
   );
   const ids = useMemo(() => summaryIds(page.content), [page]);
   const [orderables, lots] = useSuspenseQueries({
@@ -191,9 +199,10 @@ export function StockOnHandResults({
 
   return (
     <>
-      {page.device && !(online && isFetching) ? (
+      {page.device && snapshotOnline !== undefined ? (
         <SnapshotAlert
           snapshot={page.device}
+          online={snapshotOnline}
           message="stock-on-hand.offline-snapshot"
           pending={pendingEvents}
         />

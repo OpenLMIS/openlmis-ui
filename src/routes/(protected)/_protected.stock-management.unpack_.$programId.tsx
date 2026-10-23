@@ -3,6 +3,7 @@ import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search
 import { getKitUnpackReasonIds } from '@/lib/runtime-config';
 import {
   loadStockEventEditor,
+  reloadOnEntry,
   StockEventEditorPage,
   StockEventPending,
 } from '@/routes/(protected)/-stock-event-editor';
@@ -11,6 +12,7 @@ export const Route = createFileRoute('/(protected)/_protected/stock-management/u
   {
     validateSearch: stockEventSearchSchema,
     staticData: { crumbKey: 'stock-unpack.editor-crumb' },
+    shouldReload: reloadOnEntry,
     loader: ({ context: { queryClient }, params: { programId } }) =>
       loadStockEventEditor(queryClient, programId, 'unpack'),
     pendingComponent: () => (

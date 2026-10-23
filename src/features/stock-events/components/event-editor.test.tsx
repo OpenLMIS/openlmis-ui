@@ -3098,10 +3098,11 @@ it('queues an offline Issue using the destination node from the downloaded bundl
   act(() => onlineManager.setOnline(true));
   await waitFor(() => expect(finish).toBeTypeOf('function'));
   expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
-  expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
+  expect(screen.getByText("You're offline.")).toBeInTheDocument();
   await act(async () => finish([card, other]));
   await waitFor(() => expect(screen.queryByText(time)).not.toBeInTheDocument());
   expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+  expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
 });
 
 it('does not describe live cards as downloaded data after going offline', async () => {
@@ -3142,6 +3143,58 @@ it('does not describe live cards as downloaded data after going offline', async 
       formatTimestamp('2026-10-23T12:30:00Z', 'en', { time: true, timeZone: 'UTC' }),
     ),
   ).not.toBeInTheDocument();
+});
+
+it('keeps the unreachable notice in place while device stock refetches online', async () => {
+  await getLocalDb()
+    .table(LOCAL_TABLES.homeStockDownloads)
+    .put({
+      ...testBundleScope,
+      userId: 'ada-id',
+      formatVersion: 6,
+      generation: 'unreachable-download',
+      fetchedAt: Date.parse('2026-10-23T12:30:00Z'),
+      cards: [
+        {
+          ...other,
+          id: 'other',
+          orderable: { ...other.orderable, description: null },
+          active: true,
+          occurredDate: null,
+        },
+      ],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      destinations,
+      sources: [],
+    } satisfies HomeStockBundle);
+  onlineManager.setOnline(true);
+  vi.mocked(fetchEventStockCards).mockRejectedValue(httpError(503, '<html>Unavailable</html>'));
+  const options = editorStockOptions('issue');
+  const { queryClient } = setup(true, (client) => client.removeQueries(options), {
+    kind: 'issue',
+  });
+  const notice = (await screen.findByText("Can't reach the server.")).closest('[role="note"]');
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  let fail!: () => void;
+  vi.mocked(fetchEventStockCards).mockImplementation(
+    () =>
+      new Promise((_, reject) => {
+        fail = () => reject(httpError(503, '<html>Unavailable</html>'));
+      }),
+  );
+  act(() => {
+    void queryClient.refetchQueries({ queryKey: options.queryKey });
+  });
+  await waitFor(() => expect(fail).toBeTypeOf('function'));
+  expect(queryClient.isFetching({ queryKey: options.queryKey })).toBe(1);
+  expect(notice).toBeInTheDocument();
+  expect(notice).toHaveTextContent("Can't reach the server.");
+  await act(async () => fail());
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(notice).toBeInTheDocument();
+  expect(notice).toHaveTextContent("Can't reach the server.");
 });
 
 it.each([502, 503, 504])(
@@ -3196,6 +3249,7 @@ it.each([502, 503, 504])(
     act(() => onlineManager.setOnline(true));
     await waitFor(() => expect(finish).toBeTypeOf('function'));
     expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+    expect(screen.getByText("You're offline.")).toBeInTheDocument();
     await act(async () => finish([card, other]));
     await waitFor(() => expect(queryClient.isFetching()).toBe(0));
     expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();

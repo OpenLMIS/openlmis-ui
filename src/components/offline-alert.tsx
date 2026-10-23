@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { ZapIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { formatTimestamp } from '@/components/form/date-value';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -35,14 +35,38 @@ const pendingMessages = {
   online: 'stock-on-hand.unreachable-snapshot-pending',
 } as const;
 
-type SnapshotAlertProps = { snapshot: DeviceSnapshot } & (
+type SnapshotNotice = { online?: boolean; reconnectedAt?: number };
+
+function nextSnapshotNotice(
+  notice: SnapshotNotice,
+  present: boolean,
+  refreshing: boolean,
+  updatedAt: number,
+  online: boolean,
+): SnapshotNotice {
+  if (!present) return {};
+  if (notice.online === undefined) return { online: refreshing && online ? undefined : online };
+  if (!online) return { online: refreshing ? notice.online : false };
+  if (notice.online) return { online: true };
+  const reconnectedAt = notice.reconnectedAt ?? updatedAt;
+  return refreshing || updatedAt === reconnectedAt ? { online: false, reconnectedAt } : { online };
+}
+
+export function useSnapshotNotice(present: boolean, refreshing: boolean, updatedAt: number) {
+  const online = useOnline();
+  const [notice, setNotice] = useState<SnapshotNotice>({});
+  const next = nextSnapshotNotice(notice, present, refreshing, updatedAt, online);
+  if (next.online !== notice.online || next.reconnectedAt !== notice.reconnectedAt) setNotice(next);
+  return next.online;
+}
+
+type SnapshotAlertProps = { snapshot: DeviceSnapshot; online: boolean } & (
   | { message: SnapshotMessage; pending?: never }
   | { message: 'stock-on-hand.offline-snapshot'; pending: number }
 );
 
-export function SnapshotAlert({ snapshot, message, pending }: SnapshotAlertProps) {
+export function SnapshotAlert({ snapshot, message, pending, online }: SnapshotAlertProps) {
   const { t, i18n } = useTranslation();
-  const online = useOnline();
   const timeZone = useDeploymentTimeZone();
   const time = formatTimestamp(new Date(snapshot.fetchedAt).toISOString(), i18n.language, {
     time: true,

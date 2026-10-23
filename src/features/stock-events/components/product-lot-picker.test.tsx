@@ -62,7 +62,7 @@ describe('ProductLotPicker', () => {
     const label = await screen.findByText('Product');
     expect(label).toBeVisible();
     expect(label.parentElement).toHaveTextContent('*');
-    expect(screen.queryByText('Lot Code')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeDisabled();
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent(en['stock-events.products-loading']);
     expect(status).toHaveClass('sr-only');
@@ -107,7 +107,7 @@ describe('ProductLotPicker', () => {
       { queryClient },
     );
     const product = await screen.findByRole('combobox', { name: 'Product' });
-    expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
     await user.click(product);
     await user.click(await screen.findByRole('option', { name: 'Aspirin' }));
@@ -127,7 +127,8 @@ describe('ProductLotPicker', () => {
     );
     await user.click(product);
     await user.click(await screen.findByRole('option', { name: 'Ibuprofen' }));
-    expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
+    expect(lot).toBeDisabled();
+    expect(lot).toHaveTextContent('Product Has No Lots');
     expect(add).toBeEnabled();
   });
 });
@@ -499,7 +500,7 @@ describe('ProductLotPicker with approved products', () => {
     vi.mocked(fetchEventStockOnHand).mockRejectedValue(new Error('Unavailable'));
     await act(async () => queryClient.refetchQueries());
     await act(() => new Promise((done) => setTimeout(done)));
-    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeEnabled();
     expect(screen.queryByText(en['stock-events.lots-error-title'])).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
   });
@@ -544,7 +545,8 @@ describe('ProductLotPicker with approved products', () => {
     const add = screen.getByRole('button', { name: 'Add' });
     expect(add).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Loading Lots...');
-    expect(screen.queryByRole('textbox', { name: 'Lot Code' })).not.toBeInTheDocument();
+    const lot = screen.getByRole('combobox', { name: 'Lot Code' });
+    expect(lot).toBeDisabled();
     expect(fetchEventStockOnHand).toHaveBeenCalledWith({
       facilityId: 'facility',
       programId: 'program',
@@ -553,7 +555,8 @@ describe('ProductLotPicker with approved products', () => {
     await act(async () => stock.resolve({}));
     await waitFor(() => expect(add).toBeEnabled());
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
-    expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
+    expect(lot).toBeDisabled();
+    expect(lot).toHaveTextContent('Product Has No Lots');
     await user.click(add);
     expect(onAdd).toHaveBeenCalledWith(
       { orderable: ibuprofen, lot: null, stockOnHand: null },
@@ -563,7 +566,7 @@ describe('ProductLotPicker with approved products', () => {
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
     expect(fetchLotsByTradeItems).toHaveBeenCalledWith(['trade']);
     await act(async () => lots.resolve([existingLot]));
-    expect(await screen.findByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    await waitFor(() => expect(lot).toBeEnabled());
   });
 
   it.each([
@@ -594,7 +597,7 @@ describe('ProductLotPicker with approved products', () => {
     expect(await screen.findByText(en['stock-events.lots-error-title'])).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Try Again' }));
-    expect(await screen.findByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeEnabled());
     expect(screen.queryByText(en['stock-events.lots-error-title'])).not.toBeInTheDocument();
   });
 
@@ -695,7 +698,7 @@ describe('ProductLotPicker with approved products', () => {
     await screen.findByRole('option', { name: 'Salicylate' });
     await user.keyboard('{Escape}');
     expect(screen.getByRole('combobox', { name: 'Product' })).toHaveValue('Aspirin');
-    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeEnabled();
     expect(screen.getByRole('textbox', { name: 'New Lot Code' })).toHaveValue('NEW-1');
   });
 

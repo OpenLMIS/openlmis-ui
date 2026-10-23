@@ -17,7 +17,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { ErrorFallback } from '@/components/error-fallback';
-import { SnapshotAlert } from '@/components/offline-alert';
+import { SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,7 +66,7 @@ import { useReloadOnConnectivityChange } from '@/hooks/use-reload-on-connectivit
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import { isOnline, useOnline } from '@/lib/online';
+import { isOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
@@ -139,11 +139,16 @@ function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
   const isReloading = Route.useMatch({ select: (match) => match.isFetching });
-  const online = useOnline();
+  const loadedAt = Route.useMatch({ select: (match) => match.updatedAt });
   const search = Route.useSearch();
   const { stockCardId } = Route.useParams();
   useReloadOnConnectivityChange(queryKeys.stockCards.detail(stockCardId));
   const isFetching = useIsFetching({ queryKey: queryKeys.stockCards.detail(stockCardId) });
+  const snapshotOnline = useSnapshotNotice(
+    data?.card.device !== undefined,
+    isFetching > 0 || !!isReloading,
+    loadedAt,
+  );
   const eventSearch = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
     [search.mode, search.programId, search.facilityId],
@@ -174,9 +179,10 @@ function StockCardPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
-          {data.card.device !== undefined && !(online && (isFetching || isReloading)) && (
+          {data.card.device !== undefined && snapshotOnline !== undefined && (
             <SnapshotAlert
               snapshot={data.card.device}
+              online={snapshotOnline}
               message={
                 data.card.summaryOnly ? 'stock-card.offline-summary' : 'stock-card.offline-history'
               }

@@ -19,6 +19,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { permissionsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -67,6 +68,9 @@ import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection'
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
+
+export const reloadOnEntry = ({ cause }: { cause: 'preload' | 'enter' | 'stay' }) =>
+  cause !== 'stay';
 
 export async function loadStockEventEditor(
   queryClient: QueryClient,
@@ -197,6 +201,10 @@ export function StockEventPending({
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);
+  const { data: permissions } = useQuery({
+    ...permissionsOptions(userId ?? ''),
+    enabled: false,
+  });
   const tableView = measured ? fit.visibility : columnView.visibility;
   const visibility = cards
     ? {
@@ -218,7 +226,11 @@ export function StockEventPending({
         <StockEventHeader kind={kind} facility={home} program={program} />
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" aria-busy="true" ref={measure}>
-            <ProductLotPickerSkeleton kind={kind} programId={programId} />
+            <ProductLotPickerSkeleton
+              kind={kind}
+              programId={programId}
+              canManageLots={permissions?.rights.has(RIGHTS.lotsManage)}
+            />
             <DataTableToolbar>
               <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled>
                 <DataTableSearch

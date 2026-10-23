@@ -224,9 +224,11 @@ function StockCardLotPicker({
       </PickerPanel>
     );
   }
+  const productHasLots = !!product?.cards.some((card) => card.lot !== null);
+  const lotRequired = !product || productHasLots;
   return (
     <PickerPanel status={children}>
-      <div className="min-w-0 flex-1 @3xl/main:max-w-96">
+      <div className={FIELD_SLOT}>
         <Field spacing="tight">
           <FieldLabel htmlFor={`${id}-product`}>
             <FieldLabelText label={t(copy.product)} required />
@@ -244,43 +246,41 @@ function StockCardLotPicker({
           )}
         </Field>
       </div>
-      {product?.cards.some((card) => card.lot !== null) && (
-        <div className="min-w-0 flex-1 @3xl/main:max-w-96">
-          <Field spacing="tight">
-            <FieldLabel htmlFor={`${id}-lot`}>
-              <FieldLabelText label={t('stock-events.lot-code')} required />
-            </FieldLabel>
-            <Select
-              items={lotItems}
-              value={selectedLotId}
-              disabled={disabled}
-              onValueChange={setLotId}
+      <div className={FIELD_SLOT}>
+        <Field spacing="tight">
+          <FieldLabel htmlFor={`${id}-lot`}>
+            <FieldLabelText label={t('stock-events.lot-code')} required={lotRequired} />
+          </FieldLabel>
+          <Select
+            items={lotItems}
+            value={productHasLots ? selectedLotId : null}
+            disabled={disabled || !productHasLots}
+            onValueChange={setLotId}
+          >
+            <SelectTrigger
+              size="lg"
+              id={`${id}-lot`}
+              aria-required={lotRequired || undefined}
+              aria-label={t('stock-events.lot-code')}
+              width="full"
             >
-              <SelectTrigger
-                size="lg"
-                id={`${id}-lot`}
-                aria-required="true"
-                aria-label={t('stock-events.lot-code')}
-                width="full"
-              >
-                <SelectValue placeholder={t('stock-events.lot-code')}>
-                  {pickedLot ? lotLabel(pickedLot) : undefined}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {lots.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {lotLabel(item)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
-      )}
-      <div className="@3xl/main:w-auto">
+              <SelectValue placeholder={t(lotPlaceholder(product !== undefined, productHasLots))}>
+                {productHasLots && pickedLot ? lotLabel(pickedLot) : undefined}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {lots.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {lotLabel(item)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <PickerAddSlot>
         <Button
           size="lg"
           width="full"
@@ -292,8 +292,30 @@ function StockCardLotPicker({
           <PlusIcon data-icon="inline-start" />
           {t('stock-events.add')}
         </Button>
-      </div>
+      </PickerAddSlot>
     </PickerPanel>
+  );
+}
+
+const FIELD_SLOT = 'min-w-0 flex-1 @3xl/main:max-w-96';
+const MAIN_SLOT = 'min-w-0 flex-1 @3xl/main:flex-3 @3xl/main:max-w-96';
+const NEW_LOT_SLOT = 'min-w-0 flex-1 @3xl/main:flex-2 @3xl/main:max-w-72';
+const NEW_LOT_SPACE = 'hidden min-w-0 @3xl/main:block @3xl/main:flex-2 @3xl/main:max-w-72';
+
+const reservesNewLots = (kind: ConfiguredEventKind, canManageLots: boolean) =>
+  canManageLots && EVENT_KINDS[kind].newLots !== 'none';
+
+const lotPlaceholder = (picked: boolean, hasLots: boolean): ParseKeys =>
+  picked && !hasLots ? 'stock-events.product-has-no-lots' : 'stock-events.lot-code';
+
+function PickerAddSlot({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span aria-hidden="true" className="invisible hidden text-sm leading-snug @3xl/main:block">
+        &nbsp;
+      </span>
+      {children}
+    </div>
   );
 }
 
@@ -462,6 +484,9 @@ function ApprovedProductLotPicker({
       ? receiveLotOptions(product, lots, stock, canManageLots)
       : [];
   const selectedLot = lotOptions.length === 1 ? lotOptions[0].value : lotValue;
+  const hasLotChoice = lotOptions.length > 1;
+  const noLots = !!product && !loading && !lotsFailed && !stockFailed && !hasLotChoice;
+  const reserve = reservesNewLots(kind, canManageLots);
   const pickedLot = lotOptions.find((item) => item.value === selectedLot);
   const addingNewLot = pickedLot?.value === ADD_NEW_LOT;
   const schema = tradeItemId
@@ -533,7 +558,8 @@ function ApprovedProductLotPicker({
     if (stockFailed) void stockQuery.refetch();
   };
 
-  if (first.data === undefined && first.isPending) return <ProductLotPickerSkeleton kind={kind} />;
+  if (first.data === undefined && first.isPending)
+    return <ProductLotPickerSkeleton kind={kind} canManageLots={canManageLots} />;
   return (
     <PickerPanel
       status={children}
@@ -571,7 +597,7 @@ function ApprovedProductLotPicker({
         </>
       }
     >
-      <div className="min-w-0 flex-1 @3xl/main:max-w-96">
+      <div className={reserve ? MAIN_SLOT : FIELD_SLOT}>
         <Field spacing="tight">
           <FieldLabel htmlFor={`${id}-product`}>
             <FieldLabelText label={t(EVENT_KINDS[kind].copy.product)} required />
@@ -643,45 +669,43 @@ function ApprovedProductLotPicker({
           </Combobox>
         </Field>
       </div>
-      {lotOptions.length > 1 && (
-        <div className="min-w-0 flex-1 @3xl/main:max-w-96">
-          <Field spacing="tight">
-            <FieldLabel htmlFor={`${id}-lot`}>
-              <FieldLabelText label={t('stock-events.lot-code')} required />
-            </FieldLabel>
-            <Select
-              items={lotItems}
-              value={selectedLot}
-              disabled={disabled}
-              onValueChange={setLotValue}
+      <div className={reserve ? MAIN_SLOT : FIELD_SLOT}>
+        <Field spacing="tight">
+          <FieldLabel htmlFor={`${id}-lot`}>
+            <FieldLabelText label={t('stock-events.lot-code')} required={!noLots} />
+          </FieldLabel>
+          <Select
+            items={lotItems}
+            value={hasLotChoice ? selectedLot : null}
+            disabled={disabled || !hasLotChoice}
+            onValueChange={setLotValue}
+          >
+            <SelectTrigger
+              size="lg"
+              id={`${id}-lot`}
+              aria-required={!noLots || undefined}
+              aria-label={t('stock-events.lot-code')}
+              width="full"
             >
-              <SelectTrigger
-                size="lg"
-                id={`${id}-lot`}
-                aria-required="true"
-                aria-label={t('stock-events.lot-code')}
-                width="full"
-              >
-                <SelectValue placeholder={t('stock-events.lot-code')}>
-                  {pickedLot ? lotLabel(pickedLot) : undefined}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {lotOptions.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {lotLabel(item)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
-      )}
-      {addingNewLot && (
-        <div className="flex min-w-0 flex-col gap-4 @3xl/main:order-last @3xl/main:basis-full @3xl/main:flex-row @3xl/main:items-start">
-          <div className="min-w-0 flex-1 @3xl/main:max-w-96">
+              <SelectValue placeholder={t(lotPlaceholder(!!product, !noLots))}>
+                {hasLotChoice && pickedLot ? lotLabel(pickedLot) : undefined}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {lotOptions.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {lotLabel(item)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      {addingNewLot ? (
+        <>
+          <div className={NEW_LOT_SLOT}>
             <Field spacing="tight" data-invalid={!!errors.lotCode || undefined}>
               <FieldLabel htmlFor={`${id}-code`}>
                 <FieldLabelText label={t('stock-events.new-lot-code')} required />
@@ -707,7 +731,7 @@ function ApprovedProductLotPicker({
               )}
             </Field>
           </div>
-          <div className="min-w-0 flex-1 @3xl/main:max-w-96">
+          <div className={NEW_LOT_SLOT}>
             <Field spacing="tight" data-invalid={!!errors.expirationDate || undefined}>
               <FieldLabel htmlFor={`${id}-expiry`} id={`${id}-expiry-label`}>
                 <FieldLabelText label={t('stock-events.expiry-date')} />
@@ -729,9 +753,16 @@ function ApprovedProductLotPicker({
               )}
             </Field>
           </div>
-        </div>
+        </>
+      ) : (
+        reserve && (
+          <>
+            <div aria-hidden="true" className={NEW_LOT_SPACE} />
+            <div aria-hidden="true" className={NEW_LOT_SPACE} />
+          </>
+        )
       )}
-      <div className="@3xl/main:w-auto">
+      <PickerAddSlot>
         <Button
           size="lg"
           width="full"
@@ -750,7 +781,7 @@ function ApprovedProductLotPicker({
         <p role="status" aria-live="polite" className="sr-only">
           {loading ? t('stock-events.lots-loading') : ''}
         </p>
-      </div>
+      </PickerAddSlot>
     </PickerPanel>
   );
 }
@@ -766,9 +797,11 @@ function PickerPanel({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:flex-wrap @3xl/main:items-end">
+      <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-start">
         {children}
-        {status && <div className="@3xl/main:max-w-56 @3xl/main:pb-1.5">{status}</div>}
+        {status && (
+          <div className="@3xl/main:max-w-56 @3xl/main:self-end @3xl/main:pb-1.5">{status}</div>
+        )}
       </div>
       {alert}
       <Separator />
@@ -779,9 +812,11 @@ function PickerPanel({
 export function ProductLotPickerSkeleton({
   kind,
   programId,
+  canManageLots = false,
 }: {
   kind: ConfiguredEventKind;
   programId?: string;
+  canManageLots?: boolean;
 }) {
   const { t } = useTranslation();
   const copy = EVENT_KINDS[kind].copy;
@@ -817,10 +852,11 @@ export function ProductLotPickerSkeleton({
       </PickerPanel>
     );
   }
+  const reserve = reservesNewLots(kind, canManageLots);
   return (
     <PickerPanel status={scanning ? <ScanStatus status="ready" /> : undefined}>
       {loading}
-      <div className="min-w-0 flex-1 @3xl/main:max-w-96">
+      <div className={reserve ? MAIN_SLOT : FIELD_SLOT}>
         <Field spacing="tight">
           <FieldLabel>
             <FieldLabelText label={t(copy.product)} required />
@@ -837,12 +873,35 @@ export function ProductLotPickerSkeleton({
           </Combobox>
         </Field>
       </div>
-      <div className="@3xl/main:w-auto">
+      <div className={reserve ? MAIN_SLOT : FIELD_SLOT}>
+        <Field spacing="tight">
+          <FieldLabel>
+            <FieldLabelText label={t('stock-events.lot-code')} required />
+          </FieldLabel>
+          <Select disabled>
+            <SelectTrigger
+              size="lg"
+              aria-label={t('stock-events.lot-code')}
+              aria-required="true"
+              width="full"
+            >
+              <SelectValue placeholder={t('stock-events.lot-code')} />
+            </SelectTrigger>
+          </Select>
+        </Field>
+      </div>
+      {reserve && (
+        <>
+          <div aria-hidden="true" className={NEW_LOT_SPACE} />
+          <div aria-hidden="true" className={NEW_LOT_SPACE} />
+        </>
+      )}
+      <PickerAddSlot>
         <Button size="lg" width="full" disabled type="button">
           <PlusIcon data-icon="inline-start" />
           {t('stock-events.add')}
         </Button>
-      </div>
+      </PickerAddSlot>
     </PickerPanel>
   );
 }

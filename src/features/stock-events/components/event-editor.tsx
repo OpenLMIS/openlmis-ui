@@ -28,7 +28,7 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
 import { LoadError } from '@/components/load-error';
-import { SnapshotAlert } from '@/components/offline-alert';
+import { SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
 import { ScanStatus } from '@/components/scan-status';
@@ -252,6 +252,11 @@ export function EventEditor({
     ...stockOptions,
     enabled: canViewStock && (fromCards || !!bundleScope),
   });
+  const snapshotOnline = useSnapshotNotice(
+    !!cardsQuery.data?.device,
+    cardsQuery.isFetching,
+    Math.max(cardsQuery.dataUpdatedAt, cardsQuery.errorUpdatedAt),
+  );
   const approvedQuery = useQuery({
     ...receiveApprovedProductsOptions(queryClient, { facilityId, programId }, '', 0, receiveScope),
     enabled: canViewStock && !!device,
@@ -809,14 +814,19 @@ export function EventEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
-            {cardsQuery.data?.device && !(online && cardsQuery.isFetching) && (
+            {cardsQuery.data?.device && snapshotOnline !== undefined && (
               <Suspense fallback={null}>
                 {device ? (
-                  <CatalogSnapshotAlert snapshot={cardsQuery.data.device} device={device} />
+                  <CatalogSnapshotAlert
+                    snapshot={cardsQuery.data.device}
+                    device={device}
+                    online={snapshotOnline}
+                  />
                 ) : (
                   <SnapshotAlert
                     snapshot={cardsQuery.data.device}
                     message="stock-events.offline-snapshot"
+                    online={snapshotOnline}
                   />
                 )}
               </Suspense>
@@ -848,7 +858,13 @@ export function EventEditor({
               {canViewStock && (
                 <QueryBoundary
                   resetKey={`${facilityId}/${programId}`}
-                  pendingFallback={<ProductLotPickerSkeleton kind={kind} programId={programId} />}
+                  pendingFallback={
+                    <ProductLotPickerSkeleton
+                      kind={kind}
+                      programId={programId}
+                      canManageLots={canManageLots}
+                    />
+                  }
                   errorComponent={StockCardsError}
                 >
                   <ProductLotPicker
@@ -1321,9 +1337,11 @@ function RefusalRecovery(props: ComponentProps<typeof DeviceEventRecovery>) {
 function CatalogSnapshotAlert({
   snapshot,
   device,
+  online,
 }: {
   snapshot: DeviceSnapshot;
   device: ReceiveDevice;
+  online: boolean;
 }) {
   const { data: catalog } = useQuery(receiveCatalogOptions(device));
   return (
@@ -1333,6 +1351,7 @@ function CatalogSnapshotAlert({
         fetchedAt: Math.min(snapshot.fetchedAt, catalog?.fetchedAt ?? snapshot.fetchedAt),
       }}
       message="stock-events.offline-snapshot"
+      online={online}
     />
   );
 }

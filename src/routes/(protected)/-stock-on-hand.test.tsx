@@ -1026,7 +1026,7 @@ it('keeps the offline Stock On Hand snapshot notice visible while stock refetche
   expect(notice).toBeInTheDocument();
 });
 
-it('labels device stock as unreachable online and hides its notice during refresh', async () => {
+it('labels device stock as unreachable online and keeps its notice until a refresh brings server stock', async () => {
   await seedHomeStock(
     {
       id: 'downloaded-card',
@@ -1062,7 +1062,7 @@ it('labels device stock as unreachable online and hides its notice during refres
     void client.invalidateQueries();
   });
   await waitFor(() => expect(finish).toBeTypeOf('function'));
-  expect(screen.queryByText('offline.stock-snapshot-unreachable')).not.toBeInTheDocument();
+  expect(screen.getByText('offline.stock-snapshot-unreachable')).toBeInTheDocument();
   await act(async () => finish(page([summary])));
   await waitFor(() => expect(client.isFetching()).toBe(0));
   expect(screen.queryByText('offline.stock-snapshot-unreachable')).not.toBeInTheDocument();

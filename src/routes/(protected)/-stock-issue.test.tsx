@@ -152,6 +152,7 @@ function renderRoute(path = PICKER) {
     getParentRoute: () => layout,
     path: 'stock-management/issue/$programId',
     validateSearch: EditorRoute.options.validateSearch as never,
+    shouldReload: EditorRoute.options.shouldReload as never,
     loader: EditorRoute.options.loader as never,
     component: EditorRoute.options.component as never,
     pendingComponent: EditorRoute.options.pendingComponent as never,
@@ -254,6 +255,34 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   useLoginData.setState({ referenceDataUserId: null });
+});
+
+it('adds lines without rerunning the editor loader', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    ...grants,
+    `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+  ]);
+  vi.mocked(fetchEventStockCards).mockResolvedValue([
+    {
+      stockOnHand: 50,
+      orderable: { id: 'product', productCode: 'C1', fullProductName: 'Aspirin', netContent: 16 },
+      lot: null,
+    },
+  ]);
+  const options = EditorRoute.options as { loader: (...args: never[]) => unknown };
+  const loader = vi.spyOn(options, 'loader');
+  const user = userEvent.setup();
+  renderRoute(`${PICKER}/${FP}`);
+  const add = await screen.findByRole('button', { name: 'stock-events.add' });
+  await waitFor(() => expect(add).toBeEnabled());
+  expect(loader).toHaveBeenCalledTimes(1);
+  await user.click(add);
+  await user.click(add);
+  await waitFor(() =>
+    expect(document.querySelectorAll('[name$=".quantity.doses"]')).toHaveLength(2),
+  );
+  expect(loader).toHaveBeenCalledTimes(1);
+  loader.mockRestore();
 });
 
 describe('Issue report after submit', () => {
