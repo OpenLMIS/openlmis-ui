@@ -1104,6 +1104,45 @@ it('reuses a sign-in-only dataset on reconnect and refresh but downloads again a
   await finished();
 });
 
+it('keeps a failed catalog failed through an accepted-event refresh', async () => {
+  const { defineDownloadProvider } = await import('@/lib/download-provider');
+  const record = {
+    userId: 'downloader',
+    generation: 'old',
+    fetchedAt: Date.now(),
+    draftId: 'catalog',
+  };
+  await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).put(record);
+  const fetch = vi
+    .fn(async () => ({ ...record, generation: 'new' }))
+    .mockRejectedValueOnce(new Error('Catalog unavailable'));
+  const provider = defineDownloadProvider({
+    id: 'catalog',
+    label: 'offline.download.receive-catalog',
+    table: LOCAL_TABLES.physicalInventoryDrafts,
+    refreshOn: ['sign-in'],
+    scopes: () => [{ id: 'p1', name: 'Program', key: 'catalog' }],
+    fetch,
+    accepts: () => true,
+    isFresh: () => true,
+  });
+  stop = startCoordinator({
+    initialTrigger: 'sign-in',
+    access: () => raw,
+    providers: [homeStockProvider(download), provider],
+  });
+  await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
+  const downloads = download.mock.calls.length;
+  refreshOfflineDownload('home:p1');
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(downloads + 1));
+  await waitFor(() => expect(getDownloadStatus().phase).not.toBe('running'));
+  expect(getDownloadStatus()).toMatchObject({
+    phase: 'failed',
+    incomplete: [expect.objectContaining({ dataset: 'catalog' })],
+  });
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
 it('retries a failed catalog refresh periodically and again on reconnect', async () => {
   const { defineDownloadProvider } = await import('@/lib/download-provider');
   const record = {

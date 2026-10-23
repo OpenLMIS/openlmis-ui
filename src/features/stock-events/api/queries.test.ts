@@ -10,6 +10,8 @@ import {
   receiveApprovedProductsOptions,
   receiveCatalogOptions,
   receiveDevice,
+  receiveFulfilsOptions,
+  receiveLotsOptions,
   receiveOrderablesOptions,
 } from '@/features/stock-events/api/queries';
 import {
@@ -290,3 +292,35 @@ it.each([false, true])(
     ).toBe(2);
   },
 );
+
+it('reads fulfils and lots for the requested trade items from the device catalog', async () => {
+  onlineManager.setOnline(false);
+  const client = queryClient();
+  const device = receiveDevice(filter, 'type', false);
+  const t1Lots = [
+    { id: 'lot1', lotCode: 'LOT1', tradeItemId: 't1', expirationDate: null },
+    { id: 'lot2', lotCode: 'LOT2', tradeItemId: 't1', expirationDate: '2030-01-01' },
+  ];
+  const view: ReceiveCatalogView = {
+    fetchedAt: 1,
+    generation: 'catalog',
+    scanning: false,
+    approved: [],
+    products: new Map(),
+    fulfils: { approved: { canFulfillForMe: ['substitute'] } },
+    fulfilledBy: new Map(),
+    lots: new Map([
+      ['t1', t1Lots],
+      ['t2', [{ id: 'lot3', lotCode: 'LOT3', tradeItemId: 't2', expirationDate: null }]],
+    ]),
+    tradeItems: [],
+    stock: new Map(),
+  };
+  client.setQueryData(receiveCatalogOptions(device).queryKey, view);
+  await expect(client.fetchQuery(receiveFulfilsOptions(client, filter, device))).resolves.toEqual(
+    view.fulfils,
+  );
+  await expect(client.fetchQuery(receiveLotsOptions(client, ['t1'], device))).resolves.toEqual(
+    t1Lots,
+  );
+});

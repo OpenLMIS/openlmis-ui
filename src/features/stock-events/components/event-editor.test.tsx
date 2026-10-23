@@ -1851,11 +1851,11 @@ describe('Receive editor', () => {
       },
       { kind: 'receive', canManageLots: true },
     );
+    expect(await screen.findByText("You're offline.")).toBeVisible();
     expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
       '17',
     );
     expect(screen.getByRole('button', { name: 'Submit Offline' })).toBeVisible();
-    expect(await screen.findByText("You're offline.")).toBeVisible();
   });
 
   it('allows adding online Receive products while the foreground stock bundle is pending', async () => {
