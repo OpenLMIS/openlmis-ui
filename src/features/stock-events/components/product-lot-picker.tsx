@@ -1,4 +1,10 @@
-import { keepPreviousData, useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import type { ParseKeys, TFunction } from 'i18next';
 import { PackageIcon, PlusIcon } from 'lucide-react';
 import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -31,14 +37,14 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import {
-  facilityOrderableFulfillsOptions,
-  lotsByTradeItemsOptions,
-  orderablesByIdsOptions,
-} from '@/features/reference-data/api/queries';
-import {
-  eventApprovedProductsOptions,
+  deviceNewLotsOptions,
   eventStockCardsOptions,
-  eventStockOnHandOptions,
+  type ReceiveDevice,
+  receiveApprovedProductsOptions,
+  receiveFulfilsOptions,
+  receiveLotsOptions,
+  receiveOrderablesOptions,
+  receiveStockOnHandOptions,
 } from '@/features/stock-events/api/queries';
 import type { EventLine, EventLineCandidate } from '@/features/stock-events/lib/event-form';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
@@ -62,6 +68,7 @@ import {
 import type { EventStockCardsFilter } from '@/features/stock-events/lib/types';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useFlag } from '@/lib/feature-flags';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { productSearchStatus } from '@/lib/product-search-status';
 
 type BaseProps = EventStockCardsFilter & {
@@ -77,6 +84,7 @@ type Props = BaseProps &
     | { from?: 'stock-cards'; cardFilter: EventCardFilter }
     | {
         from: 'approved-products';
+        device?: ReceiveDevice;
         canManageLots: boolean;
         lines: readonly Pick<EventLine, 'key' | 'lot'>[];
       }
@@ -308,11 +316,15 @@ function ApprovedProductLotPicker({
   children,
   canManageLots,
   lines,
+  device,
 }: BaseProps & {
+  device?: ReceiveDevice;
   canManageLots: boolean;
   lines: readonly Pick<EventLine, 'key' | 'lot'>[];
 }) {
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const deviceLots = useQuery(deviceNewLotsOptions()).data;
   const id = useId();
   const lotLabel = useLotLabel();
   const today = toDateValue(new Date());
@@ -322,15 +334,16 @@ function ApprovedProductLotPicker({
   const [more, setMore] = useState({ query: '', pages: 1 });
   const pages = more.query === query ? more.pages : 1;
   const first = useQuery({
-    ...eventApprovedProductsOptions(filter, query, 0),
+    ...receiveApprovedProductsOptions(queryClient, filter, query, 0, device),
+    throwOnError: (error) => error instanceof LocalDataUnavailableError,
     placeholderData: keepPreviousData,
   });
   const next = useQueries({
     queries: Array.from({ length: pages - 1 }, (_, index) =>
-      eventApprovedProductsOptions(filter, query, index + 1),
+      receiveApprovedProductsOptions(queryClient, filter, query, index + 1, device),
     ),
   });
-  const fulfils = useQuery(facilityOrderableFulfillsOptions(filter));
+  const fulfils = useQuery(receiveFulfilsOptions(queryClient, filter, device));
   const fulfillingIds = useMemo(
     () => [
       ...new Set(Object.values(fulfils.data ?? {}).flatMap((item) => item.canFulfillForMe ?? [])),
@@ -338,7 +351,7 @@ function ApprovedProductLotPicker({
     [fulfils.data],
   );
   const fulfilling = useQuery({
-    ...orderablesByIdsOptions(fulfillingIds),
+    ...receiveOrderablesOptions(queryClient, fulfillingIds, device),
     enabled: fulfillingIds.length > 0,
   });
   const approved = [
@@ -358,11 +371,15 @@ function ApprovedProductLotPicker({
     queries: [first, ...next].map((page) => {
       const orderableIds = (page.data?.content ?? []).map(({ orderable }) => orderable.id);
       return {
-        ...eventStockOnHandOptions({
-          facilityId,
-          programId,
-          orderableIds: orderableIds.toSorted(),
-        }),
+        ...receiveStockOnHandOptions(
+          queryClient,
+          {
+            facilityId,
+            programId,
+            orderableIds: orderableIds.toSorted(),
+          },
+          device,
+        ),
         enabled: orderableIds.length > 0,
       };
     }),
@@ -373,7 +390,7 @@ function ApprovedProductLotPicker({
         ...new Set(items.flatMap((item) => item.orderable.identifiers?.tradeItem ?? [])),
       ].toSorted();
       return {
-        ...lotsByTradeItemsOptions(tradeItemIds),
+        ...receiveLotsOptions(queryClient, tradeItemIds, device),
         enabled: tradeItemIds.length > 0,
         placeholderData: keepPreviousData,
       };
@@ -412,18 +429,22 @@ function ApprovedProductLotPicker({
   const pageStockQuery = pageIndex === undefined ? undefined : pageStock[pageIndex];
   const pageLotsQuery = pageIndex === undefined || !tradeItemId ? undefined : pageLots[pageIndex];
   const lotsQuery = useQuery({
-    ...lotsByTradeItemsOptions(tradeItemId ? [tradeItemId] : []),
+    ...receiveLotsOptions(queryClient, tradeItemId ? [tradeItemId] : [], device),
     enabled: !!tradeItemId,
     staleTime: PICK_STALE_TIME,
     initialData: pageLotsQuery?.data?.filter((lot) => lot.tradeItemId === tradeItemId),
     initialDataUpdatedAt: pageLotsQuery?.dataUpdatedAt,
   });
   const stockQuery = useQuery({
-    ...eventStockOnHandOptions({
-      facilityId,
-      programId,
-      orderableIds: product ? [product.approvedId] : [],
-    }),
+    ...receiveStockOnHandOptions(
+      queryClient,
+      {
+        facilityId,
+        programId,
+        orderableIds: product ? [product.approvedId] : [],
+      },
+      device,
+    ),
     enabled: !!product,
     staleTime: PICK_STALE_TIME,
     initialData: pageStockQuery?.data,
@@ -442,7 +463,9 @@ function ApprovedProductLotPicker({
   const selectedLot = lotOptions.length === 1 ? lotOptions[0].value : lotValue;
   const pickedLot = lotOptions.find((item) => item.value === selectedLot);
   const addingNewLot = pickedLot?.value === ADD_NEW_LOT;
-  const schema = tradeItemId ? newLotSchema({ tradeItemId, lots, lines, today }) : undefined;
+  const schema = tradeItemId
+    ? newLotSchema({ tradeItemId, lots, lines, today, deviceLots })
+    : undefined;
   const errors: Partial<Record<NewLotField, ParseKeys>> = {};
   if (addingNewLot && attempted && schema) {
     for (const issue of schema.safeParse(draft).error?.issues ?? []) {

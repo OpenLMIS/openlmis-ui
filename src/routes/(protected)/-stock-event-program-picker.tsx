@@ -34,6 +34,7 @@ import {
   type ConfiguredEventKind,
   EVENT_KINDS,
   homeStockDataset,
+  receiveCatalogDataset,
 } from '@/features/stock-events/lib/event-kinds';
 import {
   HOME_STOCK_ACCEPTANCE,
@@ -43,6 +44,10 @@ import {
   type ProgramReadiness,
   programReadiness,
 } from '@/features/stock-events/lib/program-readiness';
+import {
+  acceptsReceiveCatalog,
+  receiveCatalogProvider,
+} from '@/features/stock-events/lib/receive-catalog-provider';
 import { useDownloadedScopes } from '@/hooks/use-downloaded-scopes';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
@@ -241,6 +246,7 @@ function ProgramsTable({
   const { t } = useTranslation();
   const online = useOnline();
   const provider = useMemo(() => homeStockProvider(), []);
+  const catalogProvider = useMemo(() => receiveCatalogProvider(), []);
   const scopes = useMemo(
     () =>
       programs.map((program) => ({
@@ -256,6 +262,10 @@ function ProgramsTable({
     enabled: !online && !!homeStock,
     accepts: HOME_STOCK_ACCEPTANCE[homeStock?.minimumFormat ?? 4],
   });
+  const catalog = useDownloadedScopes(catalogProvider, scopes, {
+    enabled: !online && receiveCatalogDataset(EVENT_KINDS[kind]),
+    accepts: acceptsReceiveCatalog,
+  });
   return (
     <StockProgramPicker
       actionLabel={t(action)}
@@ -265,7 +275,7 @@ function ProgramsTable({
         const readiness = programReadiness({
           programId: program.id,
           datasets,
-          states: { 'home-stock': downloaded },
+          states: { 'home-stock': downloaded, 'receive-catalog': catalog },
         });
         const disabled = !online && readiness.state !== 'ready';
         const missing =

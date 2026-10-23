@@ -55,7 +55,9 @@ import {
   eventStockCardsOptions,
   eventValidReasonsOptions,
   fetchHomeStockTradeItem,
+  fetchReceiveTradeItem,
   homeStockScope,
+  receiveDevice,
 } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
@@ -101,6 +103,7 @@ import {
   EVENT_KINDS,
   type EventKindConfig,
   homeStockDataset,
+  receiveCatalogDataset,
 } from '@/features/stock-events/lib/event-kinds';
 import {
   type KitUnpackReasonIds,
@@ -117,6 +120,7 @@ import { refusalMessage } from '@/features/stock-events/lib/refusal-message';
 import {
   type ApprovedScanProduct,
   approvedScanProduct,
+  catalogScanProduct,
 } from '@/features/stock-events/lib/scan-products';
 import type { StockEventDelivery } from '@/features/stock-events/lib/stock-event-delivery';
 import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
@@ -201,6 +205,10 @@ export function EventEditor({
   const bundleScope = homeStockDataset(config)
     ? homeStockScope({ facilityId, programId }, facilityTypeId)
     : undefined;
+  const device =
+    bundleScope && receiveCatalogDataset(config)
+      ? receiveDevice({ facilityId, programId }, facilityTypeId, online)
+      : undefined;
   const stockOptions = eventStockCardsOptions({ facilityId, programId }, bundleScope);
   const validOptions = eventValidReasonsOptions(
     { program: programId, facilityType: facilityTypeId },
@@ -239,7 +247,7 @@ export function EventEditor({
     (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
   const cardsQuery = useQuery({
     ...stockOptions,
-    enabled: canViewStock && fromCards,
+    enabled: canViewStock && (fromCards || !!bundleScope),
   });
   const offeredCards = useMemo(
     () => filterCards(cardsQuery.data?.cards ?? []),
@@ -622,8 +630,16 @@ export function EventEditor({
     const stale = () => signal.aborted || confirming.current || !mutation.isCurrent();
     if (stale()) return;
     let tradeItem: TradeItem | null;
+    let offline = false;
     try {
-      if (bundleScope) {
+      if (device) {
+        const result = await fetchReceiveTradeItem(queryClient, device, parsed.gtin);
+        if (stale()) return;
+        if (result.offline && !result.tradeItem)
+          return scanMessage('productNotInProgram', { gtin: parsed.gtin });
+        tradeItem = result.tradeItem;
+        offline = result.offline;
+      } else if (bundleScope) {
         const result = await fetchHomeStockTradeItem(queryClient, bundleScope, parsed.gtin);
         if (stale()) return;
         if (result.offline && !result.tradeItem)
@@ -648,12 +664,15 @@ export function EventEditor({
     } else {
       let found: ApprovedScanProduct;
       try {
-        found = await approvedScanProduct(
-          queryClient,
-          { facilityId, programId },
-          tradeItem.id,
-          stale,
-        );
+        found =
+          offline && device
+            ? await catalogScanProduct(queryClient, device, tradeItem.id)
+            : await approvedScanProduct(
+                queryClient,
+                { facilityId, programId },
+                tradeItem.id,
+                stale,
+              );
       } catch {
         return stale() ? undefined : scanMessage('gtinLookupFailed');
       }
@@ -804,7 +823,7 @@ export function EventEditor({
                     disabled={locked || !ready}
                     {...(fromCards
                       ? { cardFilter: filterCards }
-                      : { from: 'approved-products' as const, canManageLots, lines })}
+                      : { from: 'approved-products' as const, canManageLots, lines, device })}
                     onAdd={add}
                   >
                     {scanning && <ScanStatus {...scanStatus} />}
@@ -1049,6 +1068,7 @@ export function EventEditor({
       )}
       {editingLot && isNewLot(editingLot.lot) && (
         <EditLotDialog
+          device={device}
           open={editLotOpen}
           onOpenChange={setEditLotOpen}
           lot={editingLot.lot}

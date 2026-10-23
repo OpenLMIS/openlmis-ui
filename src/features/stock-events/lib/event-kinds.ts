@@ -266,8 +266,8 @@ export const EVENT_KINDS = {
     listRoute: '/stock-management/receive',
     editorRoute: '/stock-management/receive/$programId',
     historyType: 'receive',
-    download: [],
-    drafts: null,
+    download: [{ dataset: 'home-stock', minimumFormat: 6 }, { dataset: 'receive-catalog' }],
+    drafts: 'device',
     eventOrigin: 'RECEIVE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -389,6 +389,13 @@ export const OFFLINE_EVENT_TYPES = (Object.keys(EVENT_KINDS) as ConfiguredEventK
 export const OFFLINE_EVENT_KINDS = OFFLINE_EVENT_TYPES.map((kind) => EVENT_KINDS[kind]);
 export const OFFLINE_EVENT_RIGHTS = [...new Set(OFFLINE_EVENT_KINDS.map((kind) => kind.right))];
 
-export type EventDataset = { dataset: 'home-stock'; minimumFormat: HomeStockFormat };
+export type EventDataset =
+  | { dataset: 'home-stock'; minimumFormat: HomeStockFormat }
+  | { dataset: 'receive-catalog' };
 export const homeStockDataset = (config: EventKindConfig) =>
-  config.download.find((item) => item.dataset === 'home-stock');
+  config.download.find(
+    (item): item is Extract<EventDataset, { dataset: 'home-stock' }> =>
+      item.dataset === 'home-stock',
+  );
+export const receiveCatalogDataset = (config: EventKindConfig) =>
+  config.download.some((item) => item.dataset === 'receive-catalog');

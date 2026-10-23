@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
@@ -6,6 +6,7 @@ import ICU from 'i18next-icu';
 import { I18nextProvider } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
+import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchApprovedProducts,
   fetchFacilityOrderableFulfills,
@@ -14,13 +15,19 @@ import {
 } from '@/features/reference-data/api/api';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { fetchEventStockOnHand } from '@/features/stock-events/api/api';
-import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import {
+  eventStockCardsOptions,
+  type ReceiveDevice,
+  receiveDevice,
+} from '@/features/stock-events/api/queries';
 import {
   ProductLotPicker,
   ProductLotPickerSkeleton,
 } from '@/features/stock-events/components/product-lot-picker';
 import { allEventCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventLot, EventStockCard } from '@/features/stock-events/lib/types';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
+import { offlineAccessFixture } from '@/tests/offline-access';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/reference-data/api/api', () => ({
@@ -241,19 +248,24 @@ function deferred<T>() {
 function renderApproved({
   canManageLots = false,
   lines = [],
+  device,
 }: {
+  device?: ReceiveDevice;
   canManageLots?: boolean;
   lines?: { key: string; lot: EventLot | null }[];
 } = {}) {
   const onAdd = vi.fn();
   const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, networkMode: 'always' } },
+  });
   renderPage(
     <I18nextProvider i18n={i18n}>
       <form onSubmit={onSubmit}>
         <ProductLotPicker
           kind="receive"
           from="approved-products"
+          device={device}
           facilityId="facility"
           programId="program"
           disabled={false}
@@ -288,6 +300,111 @@ describe('ProductLotPicker with approved products', () => {
     vi.mocked(fetchOrderablesByIds).mockResolvedValue([]);
     vi.mocked(fetchLotsByTradeItems).mockResolvedValue([existingLot]);
     vi.mocked(fetchEventStockOnHand).mockResolvedValue({ 'aspirin/lot-a': 40 });
+  });
+
+  it('searches and pages the offline catalog, adds stockless products and checks queued new lots', async () => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'owner', username: 'Ada', accessToken: 'token' });
+    const db = getLocalDb();
+    await db.table(LOCAL_TABLES.stockEventQueue).clear();
+    const products = Array.from({ length: 120 }, (_, index) => ({
+      id: `product-${index}`,
+      productCode: `P${index}`,
+      fullProductName: `Product ${String(index).padStart(3, '0')}`,
+      description: null,
+      netContent: 1,
+      identifiers: { tradeItem: `trade-${index}` },
+    }));
+    const scope = {
+      facilityId: 'facility',
+      facilityTypeId: 'type',
+      programId: 'program',
+      userId: 'owner',
+      generation: 'download',
+      fetchedAt: Date.now(),
+      scanning: false,
+    };
+    await db.table(LOCAL_TABLES.offlineAccess).put(
+      offlineAccessFixture({
+        userId: 'owner',
+        home: { id: 'facility' },
+        programs: [{ id: 'program', code: 'P', name: 'Program', active: true }],
+        rights: [
+          'STOCK_ADJUST|facility|program',
+          'STOCK_CARDS_VIEW|facility|program',
+          'LOTS_MANAGE',
+        ],
+      }),
+    );
+    await db.table(LOCAL_TABLES.homeStockDownloads).put({
+      ...scope,
+      formatVersion: 6,
+      cards: [],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      summaries: [],
+      products: [],
+      sources: [],
+      destinations: [],
+    });
+    await db.table(LOCAL_TABLES.receiveCatalogDownloads).put({
+      ...scope,
+      formatVersion: 1,
+      approved: products.map(({ id }) => ({ id, versionNumber: null })),
+      products,
+      lots: [],
+      tradeItems: [],
+      fulfils: {},
+    });
+    await db.table(LOCAL_TABLES.stockEventQueue).put({
+      localEventId: 'queued',
+      userId: 'owner',
+      lines: [
+        { lot: { lotCode: 'NEW-1', expirationDate: '2030-01-01', tradeItemId: 'trade-119' } },
+      ],
+    });
+    onlineManager.setOnline(false);
+    const { user, onAdd } = renderApproved({
+      canManageLots: true,
+      device: receiveDevice({ facilityId: 'facility', programId: 'program' }, 'type', false),
+    });
+    const product = await productBox();
+    await user.click(product);
+    await screen.findByRole('option', { name: 'Product 000' });
+    expect(screen.queryByRole('option', { name: 'Product 119' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Show More' }));
+    await screen.findByRole('option', { name: 'Product 119' });
+    expect(screen.getByRole('option', { name: 'Product 000' })).toBeInTheDocument();
+    await user.type(product, 'PRODUCT 119');
+    await waitFor(() =>
+      expect(screen.queryByRole('option', { name: 'Product 000' })).not.toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('option', { name: 'Product 119' }));
+    await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: 'No Lot Defined' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onAdd).toHaveBeenCalledWith(
+      { orderable: products[119], lot: null, stockOnHand: null },
+      false,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Lot Code' }));
+    await user.click(screen.getByRole('option', { name: 'Add New Lot' }));
+    await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'new-1');
+    await user.click(screen.getByRole('button', { name: 'Expiry Date Pick A Date' }));
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Choose the Year' }),
+      '2031',
+    );
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Choose the Month' }), '0');
+    await user.click(screen.getByRole('button', { name: /January 1st, 2031/ }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getByRole('textbox', { name: 'New Lot Code' })).toHaveAccessibleDescription(
+      en['stock-events.lot-code-exists'],
+    );
+    expect(fetchApprovedProducts).not.toHaveBeenCalled();
   });
 
   it('distinguishes no approved products from a server search with no matches', async () => {

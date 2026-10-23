@@ -24,7 +24,6 @@ import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   deploymentTimeZoneOptions,
-  facilityOrderableFulfillsOptions,
   homeFacilityOptions,
   reasonsOptions,
   userProgramsOptions,
@@ -32,10 +31,12 @@ import {
 } from '@/features/reference-data/api/queries';
 import { fetchStockEventReport } from '@/features/stock-events/api/api';
 import {
-  eventApprovedProductsOptions,
   eventStockCardsOptions,
   eventValidReasonsOptions,
   homeStockScope,
+  receiveApprovedProductsOptions,
+  receiveDevice,
+  receiveFulfilsOptions,
 } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import {
@@ -55,6 +56,7 @@ import {
   EVENT_KINDS,
   type EventPrintCopy,
   homeStockDataset,
+  receiveCatalogDataset,
 } from '@/features/stock-events/lib/event-kinds';
 import { useCardView } from '@/hooks/use-card-view';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
@@ -98,13 +100,17 @@ export async function loadStockEventEditor(
     const bundleScope = homeStockDataset(EVENT_KINDS[kind])
       ? homeStockScope(filter, homeFacility.type.id)
       : undefined;
+    const device =
+      bundleScope && receiveCatalogDataset(EVENT_KINDS[kind])
+        ? receiveDevice(filter, homeFacility.type.id, isOnline())
+        : undefined;
     if (counterparty !== 'none')
       queryClient.prefetchQuery(counterpartyOptions(counterparty, filter, bundleScope));
-    if (products.from === 'stock-cards')
+    if (products.from === 'stock-cards' || bundleScope)
       queryClient.prefetchQuery(eventStockCardsOptions(filter, bundleScope));
     if (products.from === 'approved-products') {
-      queryClient.prefetchQuery(eventApprovedProductsOptions(filter, '', 0));
-      queryClient.prefetchQuery(facilityOrderableFulfillsOptions(filter));
+      queryClient.prefetchQuery(receiveApprovedProductsOptions(queryClient, filter, '', 0, device));
+      queryClient.prefetchQuery(receiveFulfilsOptions(queryClient, filter, device));
     }
     if (EVENT_KINDS[kind].contents.type === 'kit') queryClient.prefetchQuery(reasonsOptions());
     if (EVENT_KINDS[kind].reasons !== null)
@@ -277,7 +283,6 @@ export function StockEventPending({
 }
 
 export function useStockEventPrint({
-  kind,
   copy,
   userId,
   facilityId,
@@ -293,12 +298,10 @@ export function useStockEventPrint({
   const navigate = useNavigate();
   const [eventId, setEventId] = useState<string | null>(null);
   const landing = () =>
-    !homeStockDataset(EVENT_KINDS[kind]) && !isOnline()
-      ? navigate({ to: EVENT_KINDS[kind].listRoute })
-      : navigate({
-          to: '/stock-management/stock-on-hand',
-          search: { mode: 'my', facilityId, programId },
-        });
+    navigate({
+      to: '/stock-management/stock-on-hand',
+      search: { mode: 'my', facilityId, programId },
+    });
   const print = usePrintReport({
     userId,
     right: RIGHTS.stockCardsView,

@@ -62,7 +62,10 @@ import {
   EVENT_KINDS,
   homeStockDataset,
 } from '@/features/stock-events/lib/event-kinds';
-import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
+import {
+  getHomeStockBundle,
+  type HomeStockBundle,
+} from '@/features/stock-events/lib/home-stock-bundle';
 import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
 import {
@@ -76,7 +79,6 @@ import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
-import { queryKeys } from '@/lib/key-factory';
 import { onlineOrDevice } from '@/lib/local-data';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
@@ -99,29 +101,27 @@ vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => {
   const actual = await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>();
   return {
     ...actual,
-    getHomeStockBundle: async (filter: {
-      facilityId: string;
-      programId: string;
-      facilityTypeId: string;
-    }) =>
-      onlineOrDevice<{
-        cards: EventStockCard[];
-        reasons: HomeStockBundle['reasons'];
-        tradeItems: HomeStockBundle['tradeItems'];
-      }>(
-        async () => ({
-          cards: await fetchEventStockCards({
-            facilityId: filter.facilityId,
-            programId: filter.programId,
+    getHomeStockBundle: vi.fn(
+      async (filter: { facilityId: string; programId: string; facilityTypeId: string }) =>
+        onlineOrDevice<{
+          cards: EventStockCard[];
+          reasons: HomeStockBundle['reasons'];
+          tradeItems: HomeStockBundle['tradeItems'];
+        }>(
+          async () => ({
+            cards: await fetchEventStockCards({
+              facilityId: filter.facilityId,
+              programId: filter.programId,
+            }),
+            reasons: await fetchValidReasons({
+              program: filter.programId,
+              facilityType: filter.facilityTypeId,
+            }),
+            tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
           }),
-          reasons: await fetchValidReasons({
-            program: filter.programId,
-            facilityType: filter.facilityTypeId,
-          }),
-          tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
-        }),
-        () => actual.readHomeStockBundle(filter),
-      ),
+          () => actual.readHomeStockBundle(filter),
+        ),
+    ),
   };
 });
 
@@ -308,6 +308,11 @@ function setup(
             }}
             kind={kind}
             defaultReasonId={defaultReasonId}
+            kitUnpackReasonIds={
+              kind === 'unpack'
+                ? { kitUnpackReasonId: 'unpack', unpackedFromKitReasonId: 'contents' }
+                : undefined
+            }
             canViewStock={canViewStock}
             canManageLots={canManageLots}
             facilityId="facility"
@@ -383,36 +388,32 @@ async function validLine(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
 }
 
-async function validReceiveLine(user: ReturnType<typeof userEvent.setup>) {
-  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toBeEnabled());
-  await add(user);
-  await user.click(screen.getByRole('combobox', { name: /^Received From,/ }));
-  await user.click(await screen.findByRole('option', { name: 'Hospital' }));
+async function validUnpackLine(user: ReturnType<typeof userEvent.setup>) {
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Kit' })).toBeEnabled());
+  await user.click(screen.getByRole('button', { name: 'Add' }));
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
 }
 
-function onlineReceiveSetup() {
-  vi.mocked(fetchApprovedProducts).mockResolvedValue({
-    content: [{ id: 'approved', orderable: { ...card.orderable, description: null } }],
-    totalElements: 1,
-    totalPages: 1,
-    number: 0,
-    size: 50,
-  });
-  vi.mocked(fetchFacilityOrderableFulfills).mockResolvedValue({});
-  vi.mocked(fetchLotsByTradeItems).mockResolvedValue([
-    { id: 'lot', lotCode: 'LOT', expirationDate: '2099-01-30', tradeItemId: 'trade' },
-  ]);
-  vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
+function onlineUnpackSetup() {
+  const kit = {
+    ...card.orderable,
+    description: null,
+    children: [{ orderable: { id: 'child' }, quantity: 1 }],
+  };
+  vi.mocked(fetchOrderablesByIds).mockResolvedValue([kit]);
   return setup(
     true,
     (client) => {
-      client.setQueryData(
-        validSourcesOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-        destinations,
-      );
+      client.setQueryData(editorStockOptions('unpack').queryKey, {
+        cards: [{ ...card, orderable: kit }],
+        device: undefined,
+      });
+      client.setQueryData(reasonsOptions().queryKey, [
+        { ...reason, id: 'unpack', reasonCategory: 'AGGREGATION' },
+        { ...reason, id: 'contents', reasonType: 'CREDIT', reasonCategory: 'AGGREGATION' },
+      ]);
     },
-    { kind: 'receive' },
+    { kind: 'unpack' },
   );
 }
 
@@ -613,9 +614,9 @@ describe('EventEditor', () => {
             finish = () => (outcome === 'success' ? resolve('event') : reject(httpError(400)));
           }),
       );
-      const { user, onSubmitted, queryClient } = onlineReceiveSetup();
+      const { user, onSubmitted, queryClient } = onlineUnpackSetup();
       const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
-      await validReceiveLine(user);
+      await validUnpackLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
@@ -1076,8 +1077,8 @@ describe('EventEditor', () => {
     'keeps lines after submit failure without retrying',
     async (error) => {
       vi.mocked(submitStockEvent).mockRejectedValueOnce(error);
-      const { user, onSubmitted } = onlineReceiveSetup();
-      await validReceiveLine(user);
+      const { user, onSubmitted } = onlineUnpackSetup();
+      await validUnpackLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -1812,6 +1813,25 @@ describe('Receive editor', () => {
     return within(within(table).getAllByRole('row')[row]).getAllByRole('cell')[index];
   }
 
+  it('allows adding online Receive products while the foreground stock bundle is pending', async () => {
+    vi.mocked(getHomeStockBundle).mockReturnValueOnce(new Promise(() => {}));
+    const { user } = setup(
+      true,
+      (client) => {
+        client.removeQueries({ queryKey: editorStockOptions('receive').queryKey });
+        client.setQueryData(
+          validSourcesOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+          destinations,
+        );
+      },
+      { kind: 'receive', canManageLots: true },
+    );
+    await pick(user, 'Vaccine');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getByRole('combobox', { name: /^VVM Status, Vaccine/ })).toBeInTheDocument();
+  });
+
   it('shows blank stock on hand for a stockless product and VVM Status once a line uses VVM', async () => {
     const { user } = receiveSetup();
     await screen.findByRole('columnheader', { name: 'Lot Code' });
@@ -1869,10 +1889,20 @@ describe('Receive editor', () => {
     ).toHaveValue('TYPED-LOT');
   });
 
-  it('edits new lot codes and shared expiry, then invalidates lots after submission', async () => {
-    vi.mocked(submitStockEvent).mockResolvedValue('receive-event');
-    const { user, queryClient, onSubmitted } = receiveSetup();
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  it('edits new lot codes and shared expiry, then submits through the device queue', async () => {
+    vi.mocked(waitForStockEventReceipt).mockImplementationOnce(async (event) => ({
+      kind: 'accepted',
+      receipt: {
+        draftId: event.draftId,
+        revision: event.revision,
+        localEventId: event.localEventId,
+        acceptedAt: Date.now(),
+        source: 'server',
+        serverEventId: 'receive-event',
+        event,
+      },
+    }));
+    const { user, onSubmitted } = receiveSetup();
     await pick(user, 'Aspirin');
     await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
     await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
@@ -1922,11 +1952,14 @@ describe('Receive editor', () => {
     }
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
-    await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('receive-event'));
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.lots.all });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockEvents.all });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockCards.all });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockCardSummaries.all });
+    await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('receive-event', true));
+    const payload = vi.mocked(waitForStockEventReceipt).mock.calls[0][0].payload;
+    expect(payload.lineItems.map((item) => item.lot)).toEqual([
+      { lotCode: 'NEW-1', expirationDate: expect.any(String) },
+      { lotCode: 'NEW-2', expirationDate: expect.any(String) },
+    ]);
+    for (const item of payload.lineItems) expect(item).not.toHaveProperty('lotId');
+    expect(submitStockEvent).not.toHaveBeenCalled();
   });
 
   describe('scanning', () => {
@@ -2715,12 +2748,12 @@ it('keeps the editor usable while the deployment time zone suspends', async () =
   expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
 });
 
-it('keeps an earlier unknown Receive outcome visible after a later definitive refusal', async () => {
+it('keeps an earlier unknown Unpack outcome visible after a later definitive refusal', async () => {
   vi.mocked(submitStockEvent)
     .mockRejectedValueOnce(networkError())
     .mockRejectedValueOnce(httpError(400));
-  const { user } = onlineReceiveSetup();
-  await validReceiveLine(user);
+  const { user } = onlineUnpackSetup();
+  await validUnpackLine(user);
   for (let attempt = 0; attempt < 2; attempt++) {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));

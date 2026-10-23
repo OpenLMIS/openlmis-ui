@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { DialogLoadError, FieldSkeleton } from '@/components/dialog-parts';
 import { useAppForm } from '@/components/form/form';
@@ -17,12 +17,17 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
-import { lotsByTradeItemsOptions } from '@/features/reference-data/api/queries';
+import {
+  deviceNewLotsOptions,
+  type ReceiveDevice,
+  receiveLotsOptions,
+} from '@/features/stock-events/api/queries';
 import type { EventLine } from '@/features/stock-events/lib/event-form';
 import { editLotSchema } from '@/features/stock-events/lib/new-lot';
 import type { NewLot } from '@/features/stock-events/lib/types';
 
 type EditLotDialogProps = {
+  device?: ReceiveDevice;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lot: NewLot;
@@ -69,13 +74,18 @@ function EditLotForm({
   today,
   onSave,
   onDone,
+  device,
 }: Omit<EditLotDialogProps, 'open' | 'onOpenChange'> & { onDone: () => boolean }) {
   const { t } = useTranslation();
-  const { data: lots } = useSuspenseQuery(lotsByTradeItemsOptions([lot.tradeItemId]));
+  const queryClient = useQueryClient();
+  const { data: lots } = useSuspenseQuery(
+    receiveLotsOptions(queryClient, [lot.tradeItemId], device),
+  );
+  const deviceLots = useQuery(deviceNewLotsOptions()).data;
   const form = useAppForm({
     defaultValues: { lotCode: lot.lotCode, expirationDate: lot.expirationDate ?? '' },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
-    validators: { onDynamic: editLotSchema({ lot, lineKey, lots, lines, today }) },
+    validators: { onDynamic: editLotSchema({ lot, lineKey, lots, lines, today, deviceLots }) },
     onSubmit: ({ value }) => {
       if (!onDone()) return;
       onSave({ lotCode: value.lotCode, expirationDate: value.expirationDate || null });

@@ -140,19 +140,19 @@ describe('offline navigation', () => {
   it('opens the offline dialog from an expanded sidebar item and returns focus', async () => {
     onlineManager.setOnline(false);
     renderSidebar(['STOCK_ADJUST', 'USERS_MANAGE'], { path: '/stock-management/adjustments' });
-    const receive = await screen.findByRole('button', { name: 'nav.stock-management.receive' });
-    expect(receive).not.toHaveAttribute('aria-disabled', 'true');
-    expect(receive).toHaveAttribute('data-unavailable');
-    expect(receive).not.toHaveAttribute('disabled');
-    expect(receive).not.toHaveAttribute('href');
-    expect(receive).toHaveAccessibleDescription('offline.connection-required');
-    receive.focus();
+    const unpack = await screen.findByRole('button', { name: 'nav.stock-management.unpack' });
+    expect(unpack).not.toHaveAttribute('aria-disabled', 'true');
+    expect(unpack).toHaveAttribute('data-unavailable');
+    expect(unpack).not.toHaveAttribute('disabled');
+    expect(unpack).not.toHaveAttribute('href');
+    expect(unpack).toHaveAccessibleDescription('offline.connection-required');
+    unpack.focus();
     await userEvent.keyboard(' ');
     expect(
       await screen.findByRole('alertdialog', { name: 'offline.navigation-title' }),
     ).toHaveTextContent('offline.navigation-unavailable');
     await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
-    await waitFor(() => expect(receive).toHaveFocus());
+    await waitFor(() => expect(unpack).toHaveFocus());
     expect(screen.getByRole('link', { name: 'nav.stock-management.adjustments' })).toHaveAttribute(
       'data-active',
     );
@@ -162,15 +162,15 @@ describe('offline navigation', () => {
     onlineManager.setOnline(false);
     renderSidebar(['STOCK_ADJUST'], { defaultOpen: false });
     await userEvent.click(await screen.findByRole('button', { name: 'nav.stock-management' }));
-    const receive = await screen.findByRole('menuitem', { name: 'nav.stock-management.receive' });
-    expect(receive).toHaveAttribute('data-unavailable');
-    receive.focus();
+    const unpack = await screen.findByRole('menuitem', { name: 'nav.stock-management.unpack' });
+    expect(unpack).toHaveAttribute('data-unavailable');
+    unpack.focus();
     await userEvent.keyboard('{Enter}');
     expect(
       await screen.findByRole('alertdialog', { name: 'offline.navigation-title' }),
     ).toHaveTextContent('offline.navigation-unavailable');
     await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
-    await waitFor(() => expect(receive).toHaveFocus());
+    await waitFor(() => expect(unpack).toHaveFocus());
   });
 });
 
