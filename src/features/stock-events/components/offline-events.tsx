@@ -122,12 +122,7 @@ function EventLines({ event, layout }: { event: DeviceEvent; layout: 'table' | '
             <span className="font-semibold">
               <bdi>{line.product}</bdi>
             </span>
-            <dl
-              className={cn(
-                'flex flex-wrap gap-x-3 gap-y-0.5',
-                layout === 'cards' && 'justify-end',
-              )}
-            >
+            <dl className={cn('flex flex-col gap-0.5', layout === 'cards' && 'items-end')}>
               <EventLineDetail label={t('offline-events.lot')}>
                 {line.lotCode ??
                   t(
