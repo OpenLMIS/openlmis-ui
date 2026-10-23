@@ -54,6 +54,8 @@ import {
 import {
   eventStockCardsOptions,
   eventValidReasonsOptions,
+  receiveCatalogOptions,
+  receiveDevice,
 } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
@@ -62,7 +64,11 @@ import {
   EVENT_KINDS,
   homeStockDataset,
 } from '@/features/stock-events/lib/event-kinds';
-import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
+import {
+  getHomeStockBundle,
+  type HomeStockBundle,
+} from '@/features/stock-events/lib/home-stock-bundle';
+import { receiveCatalogView } from '@/features/stock-events/lib/receive-catalog-view';
 import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
 import {
@@ -76,7 +82,6 @@ import type { EventStockCard } from '@/features/stock-events/lib/types';
 import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
-import { queryKeys } from '@/lib/key-factory';
 import { onlineOrDevice } from '@/lib/local-data';
 import { httpError, networkError } from '@/tests/http-error';
 import { renderPage } from '@/tests/render-page';
@@ -99,29 +104,27 @@ vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => {
   const actual = await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>();
   return {
     ...actual,
-    getHomeStockBundle: async (filter: {
-      facilityId: string;
-      programId: string;
-      facilityTypeId: string;
-    }) =>
-      onlineOrDevice<{
-        cards: EventStockCard[];
-        reasons: HomeStockBundle['reasons'];
-        tradeItems: HomeStockBundle['tradeItems'];
-      }>(
-        async () => ({
-          cards: await fetchEventStockCards({
-            facilityId: filter.facilityId,
-            programId: filter.programId,
+    getHomeStockBundle: vi.fn(
+      async (filter: { facilityId: string; programId: string; facilityTypeId: string }) =>
+        onlineOrDevice<{
+          cards: EventStockCard[];
+          reasons: HomeStockBundle['reasons'];
+          tradeItems: HomeStockBundle['tradeItems'];
+        }>(
+          async () => ({
+            cards: await fetchEventStockCards({
+              facilityId: filter.facilityId,
+              programId: filter.programId,
+            }),
+            reasons: await fetchValidReasons({
+              program: filter.programId,
+              facilityType: filter.facilityTypeId,
+            }),
+            tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
           }),
-          reasons: await fetchValidReasons({
-            program: filter.programId,
-            facilityType: filter.facilityTypeId,
-          }),
-          tradeItems: [{ id: 'trade', gtin: '00012345678905' }],
-        }),
-        () => actual.readHomeStockBundle(filter),
-      ),
+          () => actual.readHomeStockBundle(filter),
+        ),
+    ),
   };
 });
 
@@ -308,6 +311,11 @@ function setup(
             }}
             kind={kind}
             defaultReasonId={defaultReasonId}
+            kitUnpackReasonIds={
+              kind === 'unpack'
+                ? { kitUnpackReasonId: 'unpack', unpackedFromKitReasonId: 'contents' }
+                : undefined
+            }
             canViewStock={canViewStock}
             canManageLots={canManageLots}
             facilityId="facility"
@@ -383,36 +391,32 @@ async function validLine(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
 }
 
-async function validReceiveLine(user: ReturnType<typeof userEvent.setup>) {
-  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toBeEnabled());
-  await add(user);
-  await user.click(screen.getByRole('combobox', { name: /^Received From,/ }));
-  await user.click(await screen.findByRole('option', { name: 'Hospital' }));
+async function validUnpackLine(user: ReturnType<typeof userEvent.setup>) {
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Kit' })).toBeEnabled());
+  await user.click(screen.getByRole('button', { name: 'Add' }));
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '17');
 }
 
-function onlineReceiveSetup() {
-  vi.mocked(fetchApprovedProducts).mockResolvedValue({
-    content: [{ id: 'approved', orderable: { ...card.orderable, description: null } }],
-    totalElements: 1,
-    totalPages: 1,
-    number: 0,
-    size: 50,
-  });
-  vi.mocked(fetchFacilityOrderableFulfills).mockResolvedValue({});
-  vi.mocked(fetchLotsByTradeItems).mockResolvedValue([
-    { id: 'lot', lotCode: 'LOT', expirationDate: '2099-01-30', tradeItemId: 'trade' },
-  ]);
-  vi.mocked(fetchEventStockOnHand).mockResolvedValue({});
+function onlineUnpackSetup() {
+  const kit = {
+    ...card.orderable,
+    description: null,
+    children: [{ orderable: { id: 'child' }, quantity: 1 }],
+  };
+  vi.mocked(fetchOrderablesByIds).mockResolvedValue([kit]);
   return setup(
     true,
     (client) => {
-      client.setQueryData(
-        validSourcesOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
-        destinations,
-      );
+      client.setQueryData(editorStockOptions('unpack').queryKey, {
+        cards: [{ ...card, orderable: kit }],
+        device: undefined,
+      });
+      client.setQueryData(reasonsOptions().queryKey, [
+        { ...reason, id: 'unpack', reasonCategory: 'AGGREGATION' },
+        { ...reason, id: 'contents', reasonType: 'CREDIT', reasonCategory: 'AGGREGATION' },
+      ]);
     },
-    { kind: 'receive' },
+    { kind: 'unpack' },
   );
 }
 
@@ -613,9 +617,9 @@ describe('EventEditor', () => {
             finish = () => (outcome === 'success' ? resolve('event') : reject(httpError(400)));
           }),
       );
-      const { user, onSubmitted, queryClient } = onlineReceiveSetup();
+      const { user, onSubmitted, queryClient } = onlineUnpackSetup();
       const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
-      await validReceiveLine(user);
+      await validUnpackLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(submitStockEvent).toHaveBeenCalledOnce());
@@ -1076,8 +1080,8 @@ describe('EventEditor', () => {
     'keeps lines after submit failure without retrying',
     async (error) => {
       vi.mocked(submitStockEvent).mockRejectedValueOnce(error);
-      const { user, onSubmitted } = onlineReceiveSetup();
-      await validReceiveLine(user);
+      const { user, onSubmitted } = onlineUnpackSetup();
+      await validUnpackLine(user);
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -1807,16 +1811,76 @@ describe('Receive editor', () => {
     const table = screen.getByRole('table');
     const index = within(table)
       .getAllByRole('columnheader')
-      .findIndex((item) => item.textContent === header);
-    expect(index).toBeGreaterThan(-1);
+      .indexOf(within(table).getByRole('columnheader', { name: header }));
     return within(within(table).getAllByRole('row')[row]).getAllByRole('cell')[index];
   }
 
-  it('shows blank stock on hand for a stockless product and VVM Status once a line uses VVM', async () => {
+  it('keeps Receive draft lines visible when the offline catalog is missing', async () => {
+    const context = createStockEventContext({
+      kind: 'receive',
+      facilityId: 'facility',
+      programId: 'program',
+    });
+    const line = newEventLine(card, undefined, '2026-10-14', {
+      kind: 'receive',
+      productHasLots: true,
+    });
+    line.quantity = { doses: '17', packs: '', remainder: '' };
+    await saveStockEventDraft(context, undefined, [line]);
+    onlineManager.setOnline(false);
+    setup(
+      true,
+      (client) => {
+        client.setQueryData(
+          validSourcesOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+          destinations,
+        );
+        client.setQueryData(editorStockOptions('receive').queryKey, {
+          cards: [
+            {
+              ...card,
+              id: 'card',
+              active: true,
+              occurredDate: null,
+              orderable: { ...card.orderable, description: null },
+            },
+          ],
+          device: { fetchedAt: Date.parse('2026-10-23T12:30:00Z'), generation: 'stock' },
+        });
+      },
+      { kind: 'receive', canManageLots: true },
+    );
+    expect(await screen.findByText("You're offline.")).toBeVisible();
+    expect(await screen.findByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue(
+      '17',
+    );
+    expect(screen.getByRole('button', { name: 'Submit Offline' })).toBeVisible();
+  });
+
+  it('allows adding online Receive products while the foreground stock bundle is pending', async () => {
+    vi.mocked(getHomeStockBundle).mockReturnValueOnce(new Promise(() => {}));
+    const { user } = setup(
+      true,
+      (client) => {
+        client.removeQueries({ queryKey: editorStockOptions('receive').queryKey });
+        client.setQueryData(
+          validSourcesOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+          destinations,
+        );
+      },
+      { kind: 'receive', canManageLots: true },
+    );
+    await pick(user, 'Vaccine');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getByRole('combobox', { name: /^VVM Status, Vaccine/ })).toBeInTheDocument();
+  });
+
+  it('shows VVM Status before adding when an offered product uses VVM and blank stock on hand', async () => {
     const { user } = receiveSetup();
     await screen.findByRole('columnheader', { name: 'Lot Code' });
     expect(screen.getByRole('columnheader', { name: 'Expiry Date' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'VVM Status' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: 'VVM Status' })).toBeInTheDocument();
     await pick(user, 'Vaccine');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Add' }));
@@ -1846,7 +1910,10 @@ describe('Receive editor', () => {
     await pick(user, 'Aspirin');
     await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
     await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
-    await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'NEW-1{Enter}');
+    const newLot = await screen.findByRole('dialog', { name: 'Add New Lot' });
+    await user.type(within(newLot).getByRole('textbox', { name: 'New Lot Code' }), 'NEW-1{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     await user.click(
       await screen.findByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 1' }),
@@ -1869,16 +1936,44 @@ describe('Receive editor', () => {
     ).toHaveValue('TYPED-LOT');
   });
 
-  it('edits new lot codes and shared expiry, then invalidates lots after submission', async () => {
-    vi.mocked(submitStockEvent).mockResolvedValue('receive-event');
-    const { user, queryClient, onSubmitted } = receiveSetup();
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+  it('edits new lot codes and shared expiry, then submits through the device queue', async () => {
+    vi.mocked(waitForStockEventReceipt).mockImplementationOnce(async (event) => ({
+      kind: 'accepted',
+      receipt: {
+        draftId: event.draftId,
+        revision: event.revision,
+        localEventId: event.localEventId,
+        acceptedAt: Date.now(),
+        source: 'server',
+        serverEventId: 'receive-event',
+        event,
+      },
+    }));
+    await getLocalDb()
+      .table(LOCAL_TABLES.stockEventReceipts)
+      .put({
+        draftId: 'accepted',
+        revision: 1,
+        localEventId: 'accepted',
+        event: {
+          userId: 'ada-id',
+          lines: [
+            { lot: { lotCode: 'QUEUED', expirationDate: '2030-01-01', tradeItemId: 'trade' } },
+          ],
+        },
+      });
+    const { user, onSubmitted } = receiveSetup();
     await pick(user, 'Aspirin');
     await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
     await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
     await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'NEW-1{Enter}');
     await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(screen.getAllByRole('button', { name: /^Edit Lot, Aspirin NEW-1/ })).toHaveLength(2);
+    await waitFor(async () =>
+      expect(
+        (await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).toArray())[0]?.lines,
+      ).toHaveLength(2),
+    );
     await user.click(screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 1' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit Lot' });
     await waitFor(() =>
@@ -1900,11 +1995,20 @@ describe('Receive editor', () => {
       `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-15`,
       'en',
     );
-    expect(cell(1, 'Expiry Date')).toHaveTextContent(shown);
-    expect(cell(2, 'Expiry Date')).toHaveTextContent(shown);
+    await waitFor(() => {
+      expect(cell(1, 'Expiry Date')).toHaveTextContent(shown);
+      expect(cell(2, 'Expiry Date')).toHaveTextContent(shown);
+    });
     await user.click(screen.getByRole('button', { name: 'Edit Lot, Aspirin NEW-1, Line 2' }));
     const second = await screen.findByRole('dialog', { name: 'Edit Lot' });
     const code = within(second).getByRole('textbox', { name: 'Lot Code' });
+    await user.clear(code);
+    await user.type(code, 'queued{Enter}');
+    expect(
+      await within(second).findByText(
+        'Another receipt on this device already uses this lot code with expiry Jan 1, 2030.',
+      ),
+    ).toBeInTheDocument();
     await user.clear(code);
     await user.type(code, 'NEW-2{Enter}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -1922,11 +2026,14 @@ describe('Receive editor', () => {
     }
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
-    await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('receive-event'));
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.lots.all });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockEvents.all });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockCards.all });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.stockCardSummaries.all });
+    await waitFor(() => expect(onSubmitted).toHaveBeenCalledWith('receive-event', true));
+    const payload = vi.mocked(waitForStockEventReceipt).mock.calls[0][0].payload;
+    expect(payload.lineItems.map((item) => item.lot)).toEqual([
+      { lotCode: 'NEW-1', expirationDate: expect.any(String) },
+      { lotCode: 'NEW-2', expirationDate: expect.any(String) },
+    ]);
+    for (const item of payload.lineItems) expect(item).not.toHaveProperty('lotId');
+    expect(submitStockEvent).not.toHaveBeenCalled();
   });
 
   describe('scanning', () => {
@@ -1972,6 +2079,57 @@ describe('Receive editor', () => {
       return message;
     }
 
+    it('confirms a new-lot line expiry mismatch before counting and keeps its recorded expiry', async () => {
+      vi.mocked(fetchLotsByTradeItems).mockResolvedValue([]);
+      const { user } = receiveSetup();
+      await waitFor(() => expect(scanningEnabled).toBe(true));
+      const signal = new AbortController().signal;
+      await act(async () => {
+        await scan({ ...parsed, expiry: '2098-01-31' }, signal);
+      });
+      const quantity = await screen.findByRole('textbox', { name: /^Quantity, Aspirin Box lot-1/ });
+      expect(quantity).toHaveValue('16');
+      let operation: ReturnType<typeof scan>;
+      await act(async () => {
+        operation = scan({ ...parsed, expiry: '2099-01-31' }, signal);
+      });
+      const prompt = await screen.findByRole('alertdialog');
+      expect(prompt).toHaveTextContent('Jan 31, 2098');
+      expect(prompt).toHaveTextContent('Jan 31, 2099');
+      expect(quantity).toHaveValue('16');
+      await user.click(within(prompt).getByRole('button', { name: 'Confirm' }));
+      await act(async () => {
+        await operation;
+      });
+      expect(quantity).toHaveValue('32');
+      expect(screen.getByText('Jan 31, 2098')).toBeVisible();
+      expect(screen.queryByText('Jan 31, 2099')).not.toBeInTheDocument();
+    });
+
+    it('refuses a scanned queued lot with a conflicting expiry and shows the accepted date', async () => {
+      await getLocalDb()
+        .table(LOCAL_TABLES.stockEventQueue)
+        .put({
+          localEventId: 'queued-lot',
+          userId: 'ada-id',
+          lines: [{ lot: { lotCode: 'lot-1', expirationDate: '2030-01-01', tradeItemId: 'box' } }],
+        });
+      vi.mocked(fetchLotsByTradeItems).mockResolvedValue([]);
+      receiveSetup();
+      await waitFor(() => expect(scanningEnabled).toBe(true));
+      let message: Awaited<ReturnType<typeof scan>>;
+      await act(async () => {
+        message = await scan({ ...parsed, expiry: '2031-01-01' }, new AbortController().signal);
+      });
+      expect(message).toEqual({
+        key: 'stock-events.lot-code-queued',
+        params: { expiry: 'Jan 1, 2030' },
+      });
+      expect(
+        screen.queryByRole('textbox', { name: /^Quantity, Aspirin Box/ }),
+      ).not.toBeInTheDocument();
+    });
+
     it('adds a product fulfilling an approved one with its lot and the approved stock lookup', async () => {
       receiveSetup();
       expect(await scanned()).toBeUndefined();
@@ -1982,6 +2140,75 @@ describe('Receive editor', () => {
       expect(fetchEventStockOnHand).toHaveBeenCalledWith(
         expect.objectContaining({ orderableIds: ['product'] }),
       );
+    });
+
+    it('resolves an offline scan from the downloaded catalog without server lookups', async () => {
+      onlineManager.setOnline(false);
+      try {
+        const catalogTime = Date.parse('2026-10-22T09:00:00Z');
+        const stockTime = Date.parse('2026-10-23T12:30:00Z');
+        const { queryClient } = receiveSetup();
+        queryClient.setQueryData(editorStockOptions('receive').queryKey, {
+          cards: [],
+          device: { fetchedAt: stockTime, generation: 'stock' },
+        });
+        queryClient.setQueryData(
+          receiveCatalogOptions(
+            receiveDevice({ facilityId: 'facility', programId: 'program' }, 'type', false),
+          ).queryKey,
+          receiveCatalogView(
+            {
+              facilityId: 'facility',
+              programId: 'program',
+              facilityTypeId: 'type',
+              userId: 'ada-id',
+              generation: 'catalog',
+              fetchedAt: catalogTime,
+              formatVersion: 1,
+              scanning: true,
+              approved: [{ id: aspirin.id, versionNumber: null }],
+              products: [aspirin, fulfiller],
+              fulfils: { [aspirin.id]: ['fulfiller'] },
+              lots: [
+                { id: 'lot-1', lotCode: 'LOT-1', expirationDate: '2099-01-31', tradeItemId: 'box' },
+              ],
+              tradeItems: [{ id: 'box', gtin: parsed.gtin }],
+            },
+            {
+              facilityId: 'facility',
+              programId: 'program',
+              facilityTypeId: 'type',
+              userId: 'ada-id',
+              generation: 'stock',
+              fetchedAt: stockTime,
+              formatVersion: 6,
+              scanning: true,
+              cards: [],
+              reasons: [],
+              tradeItems: [],
+              identities: [],
+              summaries: [],
+              products: [],
+            },
+          ),
+        );
+        expect(await scanned()).toBeUndefined();
+        expect(
+          await screen.findByRole('textbox', { name: /^Quantity, Aspirin Box LOT-1/ }),
+        ).toBeInTheDocument();
+        const time = formatTimestamp(new Date(catalogTime).toISOString(), 'en', {
+          time: true,
+          timeZone: 'UTC',
+        });
+        expect(await screen.findByText(time)).toBeInTheDocument();
+        expect(screen.getByText(time).closest('[role="note"]')).toHaveTextContent(
+          en['stock-events.offline-snapshot'].replace(/<\/?strong>/g, '').replace('{time}', time),
+        );
+        expect(fetchTradeItemByGtin).not.toHaveBeenCalled();
+        expect(fetchOrderablesByTradeItems).not.toHaveBeenCalled();
+      } finally {
+        onlineManager.setOnline(true);
+      }
     });
 
     it('refuses a product neither approved nor fulfilling an approved one', async () => {
@@ -2715,12 +2942,12 @@ it('keeps the editor usable while the deployment time zone suspends', async () =
   expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled();
 });
 
-it('keeps an earlier unknown Receive outcome visible after a later definitive refusal', async () => {
+it('keeps an earlier unknown Unpack outcome visible after a later definitive refusal', async () => {
   vi.mocked(submitStockEvent)
     .mockRejectedValueOnce(networkError())
     .mockRejectedValueOnce(httpError(400));
-  const { user } = onlineReceiveSetup();
-  await validReceiveLine(user);
+  const { user } = onlineUnpackSetup();
+  await validUnpackLine(user);
   for (let attempt = 0; attempt < 2; attempt++) {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm' }));
@@ -2732,6 +2959,68 @@ it('keeps an earlier unknown Receive outcome visible after a later definitive re
   );
   expect(submitStockEvent).toHaveBeenCalledTimes(2);
   expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
+});
+
+it('keeps the offline Issue snapshot notice visible while stock cards refetch', async () => {
+  onlineManager.setOnline(false);
+  await getLocalDb()
+    .table(LOCAL_TABLES.homeStockDownloads)
+    .put({
+      ...testBundleScope,
+      userId: 'ada-id',
+      formatVersion: 6,
+      generation: 'issue-download',
+      fetchedAt: Date.parse('2026-10-23T12:30:00Z'),
+      cards: [
+        {
+          ...other,
+          id: 'other',
+          orderable: { ...other.orderable, description: null },
+          active: true,
+          occurredDate: null,
+        },
+      ],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      destinations,
+      sources: [],
+    } satisfies HomeStockBundle);
+  const options = editorStockOptions('issue');
+  const { queryClient } = setup(
+    true,
+    (client) => client.removeQueries({ queryKey: options.queryKey }),
+    {
+      kind: 'issue',
+    },
+  );
+  const notice = (await screen.findByText("You're offline.")).closest('[role="note"]');
+  expect(notice).toHaveTextContent('Showing stock downloaded');
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  const data = queryClient.getQueryData(options.queryKey);
+  if (!data?.device) throw new Error('Expected downloaded stock in the query cache');
+  const snapshot = { cards: data.cards, device: data.device };
+  let finish!: (value: typeof snapshot) => void;
+  let refetch!: Promise<typeof snapshot>;
+  act(() => {
+    refetch = queryClient.fetchQuery({
+      queryKey: [...options.queryKey],
+      networkMode: 'always',
+      staleTime: 0,
+      queryFn: () =>
+        new Promise<typeof snapshot>((resolve) => {
+          finish = resolve;
+        }),
+    });
+  });
+  await waitFor(() => expect(queryClient.isFetching({ queryKey: options.queryKey })).toBe(1));
+  expect(notice).toBeInTheDocument();
+  await act(async () => {
+    finish(snapshot);
+    await refetch;
+  });
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(notice).toBeInTheDocument();
 });
 
 it('queues an offline Issue using the destination node from the downloaded bundle', async () => {
@@ -2812,10 +3101,11 @@ it('queues an offline Issue using the destination node from the downloaded bundl
   act(() => onlineManager.setOnline(true));
   await waitFor(() => expect(finish).toBeTypeOf('function'));
   expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
-  expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
+  expect(screen.getByText("You're offline.")).toBeInTheDocument();
   await act(async () => finish([card, other]));
   await waitFor(() => expect(screen.queryByText(time)).not.toBeInTheDocument());
   expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+  expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
 });
 
 it('does not describe live cards as downloaded data after going offline', async () => {
@@ -2856,6 +3146,58 @@ it('does not describe live cards as downloaded data after going offline', async 
       formatTimestamp('2026-10-23T12:30:00Z', 'en', { time: true, timeZone: 'UTC' }),
     ),
   ).not.toBeInTheDocument();
+});
+
+it('keeps the unreachable notice in place while device stock refetches online', async () => {
+  await getLocalDb()
+    .table(LOCAL_TABLES.homeStockDownloads)
+    .put({
+      ...testBundleScope,
+      userId: 'ada-id',
+      formatVersion: 6,
+      generation: 'unreachable-download',
+      fetchedAt: Date.parse('2026-10-23T12:30:00Z'),
+      cards: [
+        {
+          ...other,
+          id: 'other',
+          orderable: { ...other.orderable, description: null },
+          active: true,
+          occurredDate: null,
+        },
+      ],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      destinations,
+      sources: [],
+    } satisfies HomeStockBundle);
+  onlineManager.setOnline(true);
+  vi.mocked(fetchEventStockCards).mockRejectedValue(httpError(503, '<html>Unavailable</html>'));
+  const options = editorStockOptions('issue');
+  const { queryClient } = setup(true, (client) => client.removeQueries(options), {
+    kind: 'issue',
+  });
+  const notice = (await screen.findByText("Can't reach the server.")).closest('[role="note"]');
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  let fail!: () => void;
+  vi.mocked(fetchEventStockCards).mockImplementation(
+    () =>
+      new Promise((_, reject) => {
+        fail = () => reject(httpError(503, '<html>Unavailable</html>'));
+      }),
+  );
+  act(() => {
+    void queryClient.refetchQueries({ queryKey: options.queryKey });
+  });
+  await waitFor(() => expect(fail).toBeTypeOf('function'));
+  expect(queryClient.isFetching({ queryKey: options.queryKey })).toBe(1);
+  expect(notice).toBeInTheDocument();
+  expect(notice).toHaveTextContent("Can't reach the server.");
+  await act(async () => fail());
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(notice).toBeInTheDocument();
+  expect(notice).toHaveTextContent("Can't reach the server.");
 });
 
 it.each([502, 503, 504])(
@@ -2910,6 +3252,7 @@ it.each([502, 503, 504])(
     act(() => onlineManager.setOnline(true));
     await waitFor(() => expect(finish).toBeTypeOf('function'));
     expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+    expect(screen.getByText("You're offline.")).toBeInTheDocument();
     await act(async () => finish([card, other]));
     await waitFor(() => expect(queryClient.isFetching()).toBe(0));
     expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();

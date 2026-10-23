@@ -28,7 +28,7 @@ export async function fetchByIds<T extends { id: string }>(
   param = 'id',
   config?: AxiosRequestConfig,
 ) {
-  const scope = getSessionScope();
+  const scope = config?.sessionScope ?? getSessionScope();
   const batches = await fetchIdBatches(ids, async (batch) => {
     const found: T[] = [];
     for (let page = 0; ; page += 1) {

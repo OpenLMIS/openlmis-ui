@@ -1,11 +1,13 @@
-import { QueryClient } from '@tanstack/react-query';
-import { act, screen, waitFor } from '@testing-library/react';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
 import { I18nextProvider } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
+import { FormMessagesProvider } from '@/components/form/form-messages';
+import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchApprovedProducts,
   fetchFacilityOrderableFulfills,
@@ -14,13 +16,19 @@ import {
 } from '@/features/reference-data/api/api';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { fetchEventStockOnHand } from '@/features/stock-events/api/api';
-import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
+import {
+  eventStockCardsOptions,
+  type ReceiveDevice,
+  receiveDevice,
+} from '@/features/stock-events/api/queries';
 import {
   ProductLotPicker,
   ProductLotPickerSkeleton,
 } from '@/features/stock-events/components/product-lot-picker';
 import { allEventCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventLot, EventStockCard } from '@/features/stock-events/lib/types';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
+import { offlineAccessFixture } from '@/tests/offline-access';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/reference-data/api/api', () => ({
@@ -55,7 +63,7 @@ describe('ProductLotPicker', () => {
     const label = await screen.findByText('Product');
     expect(label).toBeVisible();
     expect(label.parentElement).toHaveTextContent('*');
-    expect(screen.queryByText('Lot Code')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeDisabled();
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent(en['stock-events.products-loading']);
     expect(status).toHaveClass('sr-only');
@@ -100,7 +108,7 @@ describe('ProductLotPicker', () => {
       { queryClient },
     );
     const product = await screen.findByRole('combobox', { name: 'Product' });
-    expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
     await user.click(product);
     await user.click(await screen.findByRole('option', { name: 'Aspirin' }));
@@ -120,7 +128,8 @@ describe('ProductLotPicker', () => {
     );
     await user.click(product);
     await user.click(await screen.findByRole('option', { name: 'Ibuprofen' }));
-    expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
+    expect(lot).toBeDisabled();
+    expect(lot).toHaveTextContent('Product Has No Lots');
     expect(add).toBeEnabled();
   });
 });
@@ -241,27 +250,37 @@ function deferred<T>() {
 function renderApproved({
   canManageLots = false,
   lines = [],
+  device = receiveDevice({ facilityId: 'facility', programId: 'program' }, 'type', true),
+  cards = false,
 }: {
+  device?: ReceiveDevice;
+  cards?: boolean;
   canManageLots?: boolean;
   lines?: { key: string; lot: EventLot | null }[];
 } = {}) {
   const onAdd = vi.fn();
   const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, networkMode: 'always' } },
+  });
   renderPage(
     <I18nextProvider i18n={i18n}>
-      <form onSubmit={onSubmit}>
-        <ProductLotPicker
-          kind="receive"
-          from="approved-products"
-          facilityId="facility"
-          programId="program"
-          disabled={false}
-          canManageLots={canManageLots}
-          lines={lines}
-          onAdd={onAdd}
-        />
-      </form>
+      <FormMessagesProvider formatError={(key) => i18n.t(key, { defaultValue: key })}>
+        <form onSubmit={onSubmit}>
+          <ProductLotPicker
+            kind="receive"
+            from="approved-products"
+            device={device}
+            facilityId="facility"
+            programId="program"
+            disabled={false}
+            canManageLots={canManageLots}
+            lines={lines}
+            onAdd={onAdd}
+            cards={cards}
+          />
+        </form>
+      </FormMessagesProvider>
     </I18nextProvider>,
     { queryClient },
   );
@@ -288,6 +307,111 @@ describe('ProductLotPicker with approved products', () => {
     vi.mocked(fetchOrderablesByIds).mockResolvedValue([]);
     vi.mocked(fetchLotsByTradeItems).mockResolvedValue([existingLot]);
     vi.mocked(fetchEventStockOnHand).mockResolvedValue({ 'aspirin/lot-a': 40 });
+  });
+
+  it('searches and pages the offline catalog, adds stockless products and checks queued new lots', async () => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'owner', username: 'Ada', accessToken: 'token' });
+    const db = getLocalDb();
+    await db.table(LOCAL_TABLES.stockEventQueue).clear();
+    const products = Array.from({ length: 120 }, (_, index) => ({
+      id: `product-${index}`,
+      productCode: `P${index}`,
+      fullProductName: `Product ${String(index).padStart(3, '0')}`,
+      description: null,
+      netContent: 1,
+      identifiers: { tradeItem: `trade-${index}` },
+    }));
+    const scope = {
+      facilityId: 'facility',
+      facilityTypeId: 'type',
+      programId: 'program',
+      userId: 'owner',
+      generation: 'download',
+      fetchedAt: Date.now(),
+      scanning: false,
+    };
+    await db.table(LOCAL_TABLES.offlineAccess).put(
+      offlineAccessFixture({
+        userId: 'owner',
+        home: { id: 'facility' },
+        programs: [{ id: 'program', code: 'P', name: 'Program', active: true }],
+        rights: [
+          'STOCK_ADJUST|facility|program',
+          'STOCK_CARDS_VIEW|facility|program',
+          'LOTS_MANAGE',
+        ],
+      }),
+    );
+    await db.table(LOCAL_TABLES.homeStockDownloads).put({
+      ...scope,
+      formatVersion: 6,
+      cards: [],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      summaries: [],
+      products: [],
+      sources: [],
+      destinations: [],
+    });
+    await db.table(LOCAL_TABLES.receiveCatalogDownloads).put({
+      ...scope,
+      formatVersion: 1,
+      approved: products.map(({ id }) => ({ id, versionNumber: null })),
+      products,
+      lots: [],
+      tradeItems: [],
+      fulfils: {},
+    });
+    await db.table(LOCAL_TABLES.stockEventQueue).put({
+      localEventId: 'queued',
+      userId: 'owner',
+      lines: [
+        { lot: { lotCode: 'NEW-1', expirationDate: '2030-01-01', tradeItemId: 'trade-119' } },
+      ],
+    });
+    onlineManager.setOnline(false);
+    const { user, onAdd } = renderApproved({
+      canManageLots: true,
+      device: receiveDevice({ facilityId: 'facility', programId: 'program' }, 'type', false),
+    });
+    const product = await productBox();
+    await user.click(product);
+    await screen.findByRole('option', { name: 'Product 000' });
+    expect(screen.queryByRole('option', { name: 'Product 119' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Show More' }));
+    await screen.findByRole('option', { name: 'Product 119' });
+    expect(screen.getByRole('option', { name: 'Product 000' })).toBeInTheDocument();
+    await user.type(product, 'PRODUCT 119');
+    await waitFor(() =>
+      expect(screen.queryByRole('option', { name: 'Product 000' })).not.toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('option', { name: 'Product 119' }));
+    await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+    await user.click(await screen.findByRole('option', { name: 'No Lot Defined' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onAdd).toHaveBeenCalledWith(
+      { orderable: products[119], lot: null, stockOnHand: null },
+      false,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Lot Code' }));
+    await user.click(screen.getByRole('option', { name: 'Add New Lot' }));
+    await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'new-1');
+    await user.click(screen.getByRole('button', { name: 'Expiry Date Pick A Date' }));
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Choose the Year' }),
+      '2031',
+    );
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Choose the Month' }), '0');
+    await user.click(screen.getByRole('button', { name: /January 1st, 2031/ }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getByRole('textbox', { name: 'New Lot Code' })).toHaveAccessibleDescription(
+      'Another receipt on this device already uses this lot code with expiry Jan 1, 2030.',
+    );
+    expect(fetchApprovedProducts).not.toHaveBeenCalled();
   });
 
   it('distinguishes no approved products from a server search with no matches', async () => {
@@ -382,7 +506,7 @@ describe('ProductLotPicker with approved products', () => {
     vi.mocked(fetchEventStockOnHand).mockRejectedValue(new Error('Unavailable'));
     await act(async () => queryClient.refetchQueries());
     await act(() => new Promise((done) => setTimeout(done)));
-    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeEnabled();
     expect(screen.queryByText(en['stock-events.lots-error-title'])).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
   });
@@ -427,7 +551,8 @@ describe('ProductLotPicker with approved products', () => {
     const add = screen.getByRole('button', { name: 'Add' });
     expect(add).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Loading Lots...');
-    expect(screen.queryByRole('textbox', { name: 'Lot Code' })).not.toBeInTheDocument();
+    const lot = screen.getByRole('combobox', { name: 'Lot Code' });
+    expect(lot).toBeDisabled();
     expect(fetchEventStockOnHand).toHaveBeenCalledWith({
       facilityId: 'facility',
       programId: 'program',
@@ -436,7 +561,8 @@ describe('ProductLotPicker with approved products', () => {
     await act(async () => stock.resolve({}));
     await waitFor(() => expect(add).toBeEnabled());
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
-    expect(screen.queryByRole('combobox', { name: 'Lot Code' })).not.toBeInTheDocument();
+    expect(lot).toBeDisabled();
+    expect(lot).toHaveTextContent('Product Has No Lots');
     await user.click(add);
     expect(onAdd).toHaveBeenCalledWith(
       { orderable: ibuprofen, lot: null, stockOnHand: null },
@@ -446,7 +572,7 @@ describe('ProductLotPicker with approved products', () => {
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
     expect(fetchLotsByTradeItems).toHaveBeenCalledWith(['trade']);
     await act(async () => lots.resolve([existingLot]));
-    expect(await screen.findByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    await waitFor(() => expect(lot).toBeEnabled());
   });
 
   it.each([
@@ -477,7 +603,7 @@ describe('ProductLotPicker with approved products', () => {
     expect(await screen.findByText(en['stock-events.lots-error-title'])).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Try Again' }));
-    expect(await screen.findByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeEnabled());
     expect(screen.queryByText(en['stock-events.lots-error-title'])).not.toBeInTheDocument();
   });
 
@@ -516,6 +642,41 @@ describe('ProductLotPicker with approved products', () => {
     );
     expect(code).toHaveValue('NEW-2');
     expect(code).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('adds a new lot through a dialog on phones and keeps the previous lot on Cancel', async () => {
+    const { user, onAdd, onSubmit } = renderApproved({ canManageLots: true, cards: true });
+    await pickProduct(user, 'Aspirin');
+    const lot = await screen.findByRole('combobox', { name: 'Lot Code' });
+    await user.click(lot);
+    await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add New Lot' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(lot).toHaveTextContent('Lot Code');
+    await waitFor(() => expect(lot).toHaveFocus());
+    expect(screen.queryByRole('textbox', { name: 'New Lot Code' })).not.toBeInTheDocument();
+    await user.click(lot);
+    await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+    const reopened = await screen.findByRole('dialog', { name: 'Add New Lot' });
+    const code = within(reopened).getByRole('textbox', { name: 'New Lot Code' });
+    await user.type(code, 'lot-a{Enter}');
+    expect(code).toHaveAccessibleDescription('This lot code already exists.');
+    await user.clear(code);
+    await user.type(code, 'NEW-2');
+    await user.click(within(reopened).getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(lot).toHaveTextContent('NEW-2');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onAdd).toHaveBeenCalledWith(
+      {
+        orderable: aspirin,
+        lot: { lotCode: 'NEW-2', expirationDate: null, tradeItemId: 'trade' },
+        stockOnHand: 0,
+      },
+      true,
+    );
   });
 
   it('lists a fulfilling product once the fulfilment map loads, also by its own name', async () => {
@@ -578,7 +739,7 @@ describe('ProductLotPicker with approved products', () => {
     await screen.findByRole('option', { name: 'Salicylate' });
     await user.keyboard('{Escape}');
     expect(screen.getByRole('combobox', { name: 'Product' })).toHaveValue('Aspirin');
-    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Lot Code' })).toBeEnabled();
     expect(screen.getByRole('textbox', { name: 'New Lot Code' })).toHaveValue('NEW-1');
   });
 

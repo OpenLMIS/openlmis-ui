@@ -26,9 +26,14 @@ import {
   fetchValidAssignments,
   fetchValidReasons,
 } from '@/features/reference-data/api/api';
-import { lotsByIdsOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
-import { fetchEventStockOnHand, submitStockEvent } from '@/features/stock-events/api/api';
+import {
+  fetchEventStockCards,
+  fetchEventStockOnHand,
+  submitStockEvent,
+} from '@/features/stock-events/api/api';
+import { waitForStockEventReceipt } from '@/features/stock-events/lib/stock-event-delivery';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.receive';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.receive_.$programId';
@@ -43,6 +48,8 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchReasons: vi.fn(),
+  storedTimeZone: () => 'UTC',
+  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),
@@ -55,9 +62,33 @@ vi.mock('@/features/reference-data/api/api', () => ({
 }));
 
 vi.mock('@/features/stock-events/api/api', () => ({
+  fetchEventStockCards: vi.fn(),
   fetchEventStockOnHand: vi.fn(),
   submitStockEvent: vi.fn(),
   fetchStockEventReport: vi.fn(),
+}));
+
+vi.mock('@/features/stock-events/lib/home-stock-bundle', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/home-stock-bundle')>()),
+  getHomeStockBundle: async (filter: {
+    facilityId: string;
+    programId: string;
+    facilityTypeId: string;
+  }) => ({
+    cards: await fetchEventStockCards({
+      facilityId: filter.facilityId,
+      programId: filter.programId,
+    }),
+    reasons: await fetchValidReasons({
+      program: filter.programId,
+      facilityType: filter.facilityTypeId,
+    }),
+    tradeItems: [],
+  }),
+}));
+vi.mock('@/features/stock-events/lib/stock-event-delivery', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/stock-event-delivery')>()),
+  waitForStockEventReceipt: vi.fn(),
 }));
 
 vi.mock('@/lib/open-report', () => ({
@@ -151,6 +182,19 @@ function renderRoute(path = PICKER) {
 }
 
 beforeEach(async () => {
+  vi.mocked(fetchEventStockCards).mockResolvedValue([]);
+  vi.mocked(waitForStockEventReceipt).mockImplementation(async (event) => ({
+    kind: 'accepted',
+    receipt: {
+      draftId: event.draftId,
+      revision: event.revision,
+      localEventId: event.localEventId,
+      acceptedAt: Date.now(),
+      source: 'server',
+      serverEventId: 'event-id',
+      event,
+    },
+  }));
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   await i18n.changeLanguage('en');
   vi.stubGlobal(
@@ -201,6 +245,8 @@ beforeEach(async () => {
     username: 'administrator',
     accessToken: 'token',
   });
+  await getLocalDb().table(LOCAL_TABLES.stockEventDrafts).clear();
+  await getLocalDb().table(LOCAL_TABLES.stockEventQueue).clear();
   vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
   vi.mocked(fetchUserRecord).mockResolvedValue({
     id: USER,
@@ -252,10 +298,10 @@ describe('Receive new lots', () => {
     expect(within(options).queryByRole('option', { name: 'stock-events.add-new-lot' })).toBeNull();
   });
 
-  it('sends a new lot and refreshes lot lookups after the receipt', async () => {
+  it('submits a new lot through the device queue', async () => {
     vi.mocked(fetchPermissionStrings).mockResolvedValue([...grants, 'LOTS_MANAGE']);
     const user = userEvent.setup();
-    const { queryClient } = renderRoute(`${PICKER}/${FP}`);
+    renderRoute(`${PICKER}/${FP}`);
     await pickProduct(user);
     await user.click(await screen.findByRole('combobox', { name: 'stock-events.lot-code' }));
     await user.click(await screen.findByRole('option', { name: 'stock-events.add-new-lot' }));
@@ -263,13 +309,16 @@ describe('Receive new lots', () => {
       screen.getByRole('textbox', { name: 'stock-events.new-lot-code' }),
       'NEW-1{Enter}',
     );
-    const lots = lotsByIdsOptions(['lot']).queryKey;
-    queryClient.setQueryData(lots, []);
     await submitLine(user);
     await screen.findByText('stock-receive.print-title');
-    expect(vi.mocked(submitStockEvent).mock.calls[0][0].lineItems[0]).toMatchObject({
-      lot: { lotCode: 'NEW-1' },
-    });
-    expect(queryClient.getQueryState(lots)?.isInvalidated).toBe(true);
+    expect(vi.mocked(waitForStockEventReceipt).mock.calls[0][0].payload.lineItems[0]).toMatchObject(
+      {
+        lot: { lotCode: 'NEW-1' },
+      },
+    );
+    expect(
+      vi.mocked(waitForStockEventReceipt).mock.calls[0][0].payload.lineItems[0],
+    ).not.toHaveProperty('lotId');
+    expect(submitStockEvent).not.toHaveBeenCalled();
   });
 });

@@ -27,3 +27,24 @@ it('needs no download for kinds without datasets', () => {
     state: 'ready',
   });
 });
+
+it.each([
+  ['ready', 'ready', true, { state: 'ready' }],
+  ['ready', 'missing', true, { state: 'not-downloaded', reason: 'catalog-missing' }],
+  ['ready', undefined, false, { state: 'checking' }],
+  ['outdated', 'ready', true, { state: 'not-downloaded', reason: 'older-download' }],
+] as const)('requires both Receive downloads (%s, %s)', (stock, catalog, loaded, expected) => {
+  expect(
+    programReadiness({
+      programId: 'p',
+      datasets: [{ dataset: 'home-stock', minimumFormat: 6 }, { dataset: 'receive-catalog' }],
+      states: {
+        'home-stock': { loaded: true, states: new Map([['p', stock]]) },
+        'receive-catalog': {
+          loaded,
+          states: new Map<string, DownloadScopeState>(catalog ? [['p', catalog]] : []),
+        },
+      },
+    }),
+  ).toEqual(expected);
+});

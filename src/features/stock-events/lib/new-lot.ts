@@ -3,10 +3,15 @@ import { z } from 'zod';
 import type { LotSummary } from '@/features/reference-data/lib/types';
 import { isNewLot } from '@/features/stock-events/lib/event-form';
 import type { EventLot, NewLot } from '@/features/stock-events/lib/types';
-import { lotCodeSchema, sameLotCode } from '@/lib/lot-code';
+import { conflictingDeviceLot, lotCodeSchema, sameLotCode } from '@/lib/lot-code';
 
 type DraftLine = { key: string; lot: EventLot | null };
-type LotContext = { lots: readonly LotSummary[]; lines: readonly DraftLine[]; today: string };
+type LotContext = {
+  lots: readonly LotSummary[];
+  lines: readonly DraftLine[];
+  today: string;
+  deviceLots?: readonly NewLot[];
+};
 
 const errorKey = (key: ParseKeys) => key;
 
@@ -48,9 +53,34 @@ export function newLotSchema({
   lots,
   lines,
   today,
+  deviceLots = [],
 }: LotContext & { tradeItemId: string }) {
   return lotFields(today).superRefine((values, context) => {
-    if (existingLot(lots, values.lotCode) || draftLotWithOtherExpiry(lines, tradeItemId, values))
+    if (existingLot(lots, values.lotCode)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['lotCode'],
+        message: 'stock-events.lot-code-exists',
+      });
+      return;
+    }
+    const conflict = conflictingDeviceLot(
+      deviceLots,
+      tradeItemId,
+      values.lotCode,
+      values.expirationDate,
+    );
+    if (conflict) {
+      context.addIssue({
+        code: 'custom',
+        path: ['lotCode'],
+        message: conflict.expirationDate
+          ? 'stock-events.lot-code-queued'
+          : 'stock-events.lot-code-queued-no-expiry',
+      });
+      return;
+    }
+    if (draftLotWithOtherExpiry(lines, tradeItemId, values))
       context.addIssue({
         code: 'custom',
         path: ['lotCode'],
@@ -65,16 +95,35 @@ export function editLotSchema({
   lots,
   lines,
   today,
+  deviceLots = [],
 }: LotContext & { lot: NewLot; lineKey: string }) {
   return lotFields(today).superRefine((values, context) => {
-    if (values.lotCode === lot.lotCode) return;
-    if (existingLot(lots, values.lotCode))
+    if (values.lotCode !== lot.lotCode && existingLot(lots, values.lotCode)) {
       context.addIssue({
         code: 'custom',
         path: ['lotCode'],
         message: 'stock-events.lot-code-exists',
       });
-    else if (draftLotWithOtherExpiry(lines, lot.tradeItemId, values, lineKey))
+      return;
+    }
+    const conflict = conflictingDeviceLot(
+      deviceLots,
+      lot.tradeItemId,
+      values.lotCode,
+      values.expirationDate,
+    );
+    if (conflict) {
+      context.addIssue({
+        code: 'custom',
+        path: ['lotCode'],
+        message: conflict.expirationDate
+          ? 'stock-events.lot-code-queued'
+          : 'stock-events.lot-code-queued-no-expiry',
+      });
+      return;
+    }
+    if (values.lotCode === lot.lotCode) return;
+    if (draftLotWithOtherExpiry(lines, lot.tradeItemId, values, lineKey))
       context.addIssue({
         code: 'custom',
         path: ['expirationDate'],

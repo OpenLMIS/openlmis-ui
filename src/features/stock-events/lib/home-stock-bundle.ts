@@ -1,4 +1,4 @@
-import { AxiosError, type AxiosRequestConfig } from 'axios';
+import type { AxiosRequestConfig } from 'axios';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -17,11 +17,10 @@ import {
   type HomeStockSummary,
   readEventStockCards,
 } from '@/features/stock-events/api/stock-card-reader';
-import { retryDownloadRead } from '@/features/stock-events/lib/download-read';
+import { downloadReader } from '@/features/stock-events/lib/download-read';
 import { LOCAL_TABLES } from '@/integrations/local-db';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { requireOwnedRecord } from '@/lib/local-records';
-import { isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const HOME_STOCK_FORMATS = [4, 5, 6] as const;
@@ -128,16 +127,9 @@ async function fetchBundle(
   config: AxiosRequestConfig & { signal?: AbortSignal },
   counterparties: boolean,
 ): Promise<HomeStockBundle> {
-  const sessionScope = config.sessionScope ?? getSessionScope();
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new LocalDataUnavailableError();
-  const check = () => {
-    assertSessionScope(sessionScope);
-    config.signal?.throwIfAborted();
-    if (config.backgroundRead && (!isOnline() || useLoginData.getState().expired))
-      throw new AxiosError('Download stopped.', AxiosError.ERR_CANCELED);
-  };
-  const read = <T>(task: () => Promise<T>) => retryDownloadRead(task, check);
+  const { check, read } = downloadReader(config);
   const assignments = (resource: 'validDestinations' | 'validSources') =>
     counterparties
       ? read(() =>

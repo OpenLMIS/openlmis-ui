@@ -24,10 +24,13 @@ export async function stub(
         access_token: 'fixture-token',
         expires_in: 1800,
       },
-      [`/api/users/${userId}/permissionStrings`]: programs.flatMap(({ id }) => [
-        `STOCK_ADJUST|${ids.home}|${id}`,
-        `STOCK_CARDS_VIEW|${ids.home}|${id}`,
-      ]),
+      [`/api/users/${userId}/permissionStrings`]: [
+        'LOTS_MANAGE',
+        ...programs.flatMap(({ id }) => [
+          `STOCK_ADJUST|${ids.home}|${id}`,
+          `STOCK_CARDS_VIEW|${ids.home}|${id}`,
+        ]),
+      ],
       [`/api/users/${userId}`]: {
         id: userId,
         username: userId,
@@ -99,6 +102,40 @@ export async function stub(
         ],
         totalPages: 1,
       },
+      '/api/orderables': {
+        content: [
+          {
+            id: 'product',
+            productCode: 'MED',
+            fullProductName: 'Fixture Product',
+            netContent: 10,
+            identifiers: { tradeItem: 'trade-product' },
+            meta: { versionNumber: 1 },
+          },
+          {
+            id: 'vaccine',
+            productCode: 'VAC',
+            fullProductName: 'Fixture Vaccine',
+            netContent: 1,
+            identifiers: { tradeItem: 'trade-vaccine' },
+            meta: { versionNumber: 1 },
+          },
+        ],
+        totalPages: 1,
+      },
+      '/api/orderableFulfills': {},
+      '/api/lots': {
+        content: [
+          {
+            id: 'lot-1',
+            lotCode: 'LOT-1',
+            expirationDate: '2099-12-31',
+            tradeItemId: 'trade-vaccine',
+          },
+        ],
+        totalPages: 1,
+      },
+      '/api/tradeItems': { content: [], totalPages: 1 },
       '/api/validReasons': [
         {
           hidden: false,
@@ -114,6 +151,21 @@ export async function stub(
       ],
     };
     if (url.pathname === '/api/v2/stockCardSummaries') {
+      if (url.searchParams.get('nonEmptyOnly') !== 'true')
+        return route.fulfill(
+          url.searchParams.get('programId') === 'never'
+            ? { status: 503, json: {} }
+            : {
+                json: {
+                  content: ['product', 'vaccine'].map((id) => ({
+                    orderable: { id, versionNumber: 1 },
+                    canFulfillForMe: [],
+                  })),
+                  totalPages: 1,
+                },
+              },
+        );
+
       if (url.searchParams.get('programId') === 'never')
         return route.fulfill({ status: 503, json: { message: 'Unavailable program' } });
       if ((await stock()) === 'fail') return route.abort('timedout');

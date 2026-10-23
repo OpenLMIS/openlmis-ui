@@ -59,6 +59,9 @@ const downloadEntry = (provider: DownloadProvider, task: DownloadTask) => ({
   datasetLabel: provider.label,
 });
 
+const refreshAt = (provider: DownloadProvider, fetchedAt: number) =>
+  provider.refreshOn.includes('periodic') ? fetchedAt : Infinity;
+
 export function startOfflineCoordinator(dependencies: Dependencies) {
   const providers = dependencies.providers;
   let freshAccess: { epoch: string; saved: OfflineAccess } | undefined;
@@ -216,6 +219,9 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
               !!task.refreshKey &&
               requestedKeys.has(task.refreshKey) &&
               provider.refreshOn.includes('accepted');
+            const wasFailed = previousStatus.incomplete.some(
+              (item) => item.id === task.id && item.dataset === provider.id,
+            );
             const decision = downloadDecision({
               trigger,
               periodic,
@@ -224,9 +230,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
               requested,
               retryAt,
               now: Date.now(),
-              failed: previousStatus.incomplete.some(
-                (item) => item.id === task.id && item.dataset === provider.id,
-              ),
+              failed: wasFailed,
               accessFailed: !!previousStatus.accessFailed,
               changed: !!record && record.generation !== baseline.get(workKey),
               fresh: task.isFresh(record),
@@ -236,9 +240,12 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
               failed.push(downloadEntry(provider, task));
               continue;
             }
-            if (decision === 'skip') continue;
+            if (decision === 'skip') {
+              if (wasFailed) failed.push(downloadEntry(provider, task));
+              continue;
+            }
             if (decision === 'reuse') {
-              if (record) schedule.succeeded(workKey, record.fetchedAt);
+              if (record) schedule.succeeded(workKey, refreshAt(provider, record.fetchedAt));
               continue;
             }
             if (requested) {
@@ -285,7 +292,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
                 check();
               });
               check();
-              schedule.succeeded(workKey, record.fetchedAt);
+              schedule.succeeded(workKey, refreshAt(provider, record.fetchedAt));
               incomplete.delete(workKey);
               publishRun({
                 phase: 'running',
@@ -389,8 +396,8 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
       setDownloadStatus({ phase: 'idle', incomplete: [] });
     },
     onExpired: () => stopActive('session'),
-    onResume: () => {
-      void run('force');
+    onResume: (fromExpiry) => {
+      void run(fromExpiry ? 'sign-in' : 'force');
     },
   });
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;

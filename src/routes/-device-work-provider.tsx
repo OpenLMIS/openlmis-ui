@@ -130,7 +130,7 @@ const loadDeviceWorkServices = () =>
   Promise.all([
     import('@/lib/offline-coordinator'),
     import('@/features/stock-events/lib/stock-event-uploader'),
-    import('@/features/stock-events/lib/home-stock-provider'),
+    import('@/features/stock-events/lib/download-providers'),
   ]);
 
 export function startDeviceWorkServices(
@@ -160,11 +160,11 @@ export function startDeviceWorkServices(
     if (!active || loading || stop) return;
     loading = true;
     try {
-      const [coordinator, uploader, { homeStockProvider }] = await load();
+      const [coordinator, uploader, { stockEventDownloadProviders }] = await load();
       if (!active) return;
       const services = coordinator.startOfflineCoordinator({
         initialTrigger,
-        providers: [homeStockProvider()],
+        providers: stockEventDownloadProviders(),
         access: deviceAccessReaders,
         onTimeZoneFallback: () =>
           toast.info(i18n.t('offline.download.time-zone-fallback-title'), {

@@ -186,14 +186,36 @@ function SelectSizer({
   );
 }
 
-const DateSizer = memo(function DateSizer({ year, language }: { year: string; language: string }) {
-  const labels = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, month) =>
-        formatDateValue(`${year}-${String(month + 1).padStart(2, '0')}-28`, language),
-      ),
-    [year, language],
+function TextSizer({ labels }: { labels: readonly string[] }) {
+  return (
+    <div aria-hidden className="invisible grid h-0 w-max overflow-hidden text-sm">
+      {[...new Set(labels)].map((label) => (
+        <span key={label} className="col-start-1 row-start-1 whitespace-nowrap">
+          {label}
+        </span>
+      ))}
+    </div>
   );
+}
+
+function monthLabels(year: string, language: string) {
+  return Array.from({ length: 12 }, (_, month) =>
+    formatDateValue(`${year}-${String(month + 1).padStart(2, '0')}-28`, language),
+  );
+}
+
+const ExpirySizer = memo(function ExpirySizer({
+  year,
+  language,
+}: {
+  year: string;
+  language: string;
+}) {
+  return <TextSizer labels={monthLabels(year, language)} />;
+});
+
+const DateSizer = memo(function DateSizer({ year, language }: { year: string; language: string }) {
+  const labels = useMemo(() => monthLabels(year, language), [year, language]);
   return (
     <div aria-hidden className="invisible grid h-0 w-max overflow-hidden">
       {labels.map((label) => (
@@ -603,6 +625,7 @@ export function EventLineTable({
   const config = EVENT_KINDS[kind];
   const measured = config.columnFit === 'measured';
   const compactSelects = usesCompactEventColumns(kind, containerWidth);
+  const year = today.slice(0, 4) || String(new Date().getFullYear());
   const lineIndex = useRef(new Map<string, number>());
   lineIndex.current = new Map(form.state.values.lines.map((line, index) => [line.key, index]));
   const columns = useMemo(
@@ -676,12 +699,26 @@ export function EventLineTable({
                       ]}
                     />
                   )}
-                  {measured && id === 'date' && (
-                    <DateSizer
-                      year={today.slice(0, 4) || String(new Date().getFullYear())}
-                      language={i18n.language}
+                  {id === 'product' && <div className={measured ? 'w-48' : 'w-28'} />}
+                  {id === 'lotCode' && (
+                    <TextSizer
+                      labels={[
+                        t('stock-events.no-lot-defined'),
+                        t('stock-events.product-has-no-lots'),
+                      ]}
                     />
                   )}
+                  {id === 'expiry' && <ExpirySizer year={year} language={i18n.language} />}
+                  {(id === 'destinationComments' || id === 'comments') && (
+                    <div className={measured ? 'w-28' : 'w-32'} />
+                  )}
+                  {!measured && id === 'quantity' && (
+                    <div className={unit === 'PACKS' ? 'w-28' : 'w-20'} />
+                  )}
+                  {id === 'vvm' && <div className="w-24" />}
+                  {!measured && id === 'date' && <div className="w-32" />}
+                  {id === 'actions' && <div className="w-7" />}
+                  {measured && id === 'date' && <DateSizer year={year} language={i18n.language} />}
                 </div>
               </>
             ),
@@ -723,6 +760,7 @@ export function EventLineTable({
       assignments,
       unit,
       today,
+      year,
       disabled,
       onRemove,
       onEditLot,

@@ -873,3 +873,36 @@ it.each(['issue', 'adjustment'] as const)(
     expect(restored.productHasLots).toBe(added.productHasLots);
   },
 );
+
+it.each(['new-lot', 'version', 'missing'] as const)(
+  'refreshes Receive balances without replacing approved line metadata (%s)',
+  (scenario) => {
+    const original = line({
+      orderable: { ...card.orderable, meta: { versionNumber: 2 } },
+      ...(scenario === 'new-lot' && {
+        lot: { lotCode: 'NEW', expirationDate: null, tradeItemId: 'trade' },
+      }),
+    });
+    const cards =
+      scenario === 'missing'
+        ? []
+        : [{ ...card, stockOnHand: 12, ...(scenario === 'new-lot' && { lot: null }) }];
+    const [refreshed] = refreshStockEventLines([original], cards, today, 'receive');
+    expect(refreshed).toEqual(
+      scenario === 'new-lot'
+        ? original
+        : {
+            ...original,
+            stockOnHand: scenario === 'missing' ? null : 12,
+            stockProblem: undefined,
+          },
+    );
+  },
+);
+
+it('never replaces a new Issue lot with a no-lot card', () => {
+  const original = line({ lot: { lotCode: 'NEW', expirationDate: null, tradeItemId: 'trade' } });
+  const [refreshed] = refreshStockEventLines([original], [{ ...card, lot: null }], today, 'issue');
+  expect(refreshed.lot).toEqual(original.lot);
+  expect(refreshed.stockProblem).toBe('missing');
+});

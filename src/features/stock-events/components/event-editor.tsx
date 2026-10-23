@@ -28,7 +28,7 @@ import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
 import { LoadError } from '@/components/load-error';
-import { SnapshotAlert } from '@/components/offline-alert';
+import { SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { QueryBoundary } from '@/components/query-boundary';
 import { ScanStatus } from '@/components/scan-status';
@@ -52,10 +52,16 @@ import {
 } from '@/features/reference-data/api/queries';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import {
+  deviceNewLotsOptions,
   eventStockCardsOptions,
   eventValidReasonsOptions,
   fetchHomeStockTradeItem,
+  fetchReceiveTradeItem,
   homeStockScope,
+  type ReceiveDevice,
+  receiveApprovedProductsOptions,
+  receiveCatalogOptions,
+  receiveDevice,
 } from '@/features/stock-events/api/queries';
 import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines-dialog';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
@@ -101,6 +107,7 @@ import {
   EVENT_KINDS,
   type EventKindConfig,
   homeStockDataset,
+  receiveCatalogDataset,
 } from '@/features/stock-events/lib/event-kinds';
 import {
   type KitUnpackReasonIds,
@@ -117,6 +124,7 @@ import { refusalMessage } from '@/features/stock-events/lib/refusal-message';
 import {
   type ApprovedScanProduct,
   approvedScanProduct,
+  catalogScanProduct,
 } from '@/features/stock-events/lib/scan-products';
 import type { StockEventDelivery } from '@/features/stock-events/lib/stock-event-delivery';
 import { createStockEventContext } from '@/features/stock-events/lib/stock-event-local';
@@ -125,7 +133,7 @@ import {
   copyRefusedEvent,
   type StockEventSyncError,
 } from '@/features/stock-events/lib/stock-event-sync';
-import type { EventStockCard } from '@/features/stock-events/lib/types';
+import type { EventStockCard, NewLot } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { columnChoicesSchema, useCardLayout } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
@@ -137,6 +145,7 @@ import { useFlag } from '@/lib/feature-flags';
 import type { Gs1Result } from '@/lib/gs1/parse-gs1';
 import { isOfflineError, isRefused } from '@/lib/http';
 import { formatIsolatedList } from '@/lib/isolate-values';
+import type { DeviceSnapshot } from '@/lib/local-data';
 import { useOnline } from '@/lib/online';
 import { revealField } from '@/lib/reveal-field';
 import {
@@ -201,6 +210,8 @@ export function EventEditor({
   const bundleScope = homeStockDataset(config)
     ? homeStockScope({ facilityId, programId }, facilityTypeId)
     : undefined;
+  const receiveScope = receiveDevice({ facilityId, programId }, facilityTypeId, online);
+  const device = bundleScope && receiveCatalogDataset(config) ? receiveScope : undefined;
   const stockOptions = eventStockCardsOptions({ facilityId, programId }, bundleScope);
   const validOptions = eventValidReasonsOptions(
     { program: programId, facilityType: facilityTypeId },
@@ -239,7 +250,16 @@ export function EventEditor({
     (!needsCounterparty || (counterpartyQuery.data !== undefined && assignments.length > 0));
   const cardsQuery = useQuery({
     ...stockOptions,
-    enabled: canViewStock && fromCards,
+    enabled: canViewStock && (fromCards || !!bundleScope),
+  });
+  const snapshotOnline = useSnapshotNotice(
+    !!cardsQuery.data?.device,
+    cardsQuery.isFetching,
+    Math.max(cardsQuery.dataUpdatedAt, cardsQuery.errorUpdatedAt),
+  );
+  const approvedQuery = useQuery({
+    ...receiveApprovedProductsOptions(queryClient, { facilityId, programId }, '', 0, receiveScope),
+    enabled: canViewStock && !!device,
   });
   const offeredCards = useMemo(
     () => filterCards(cardsQuery.data?.cards ?? []),
@@ -382,6 +402,10 @@ export function EventEditor({
     lines.some((line) => !!line.lot);
   const hasVVM =
     offeredCards.some((card) => card.orderable.extraData?.useVVM === 'true') ||
+    (!!device &&
+      !!approvedQuery.data?.content.some(
+        ({ orderable }) => orderable.extraData?.useVVM === 'true',
+      )) ||
     lines.some((line) => line.useVVM);
   const hideableColumns = eventHideableColumns(kind);
   const fitColumns = useMemo(
@@ -622,13 +646,22 @@ export function EventEditor({
     const stale = () => signal.aborted || confirming.current || !mutation.isCurrent();
     if (stale()) return;
     let tradeItem: TradeItem | null;
+    let offline = false;
     try {
-      if (bundleScope) {
-        const result = await fetchHomeStockTradeItem(queryClient, bundleScope, parsed.gtin);
+      const lookup = device
+        ? fetchReceiveTradeItem(queryClient, device, parsed.gtin)
+        : bundleScope
+          ? fetchHomeStockTradeItem(queryClient, bundleScope, parsed.gtin)
+          : undefined;
+      if (lookup) {
+        const result = await lookup;
         if (stale()) return;
         if (result.offline && !result.tradeItem)
-          return scanMessage('productNotOnScreen', { gtin: parsed.gtin });
+          return scanMessage(device ? 'productNotInProgram' : 'productNotOnScreen', {
+            gtin: parsed.gtin,
+          });
         tradeItem = result.tradeItem;
+        offline = result.offline;
       } else {
         tradeItem = await queryClient.fetchQuery(tradeItemByGtinOptions(parsed.gtin));
       }
@@ -648,12 +681,15 @@ export function EventEditor({
     } else {
       let found: ApprovedScanProduct;
       try {
-        found = await approvedScanProduct(
-          queryClient,
-          { facilityId, programId },
-          tradeItem.id,
-          stale,
-        );
+        found =
+          offline && device
+            ? await catalogScanProduct(queryClient, device, tradeItem.id)
+            : await approvedScanProduct(
+                queryClient,
+                { facilityId, programId },
+                tradeItem.id,
+                stale,
+              );
       } catch {
         return stale() ? undefined : scanMessage('gtinLookupFailed');
       }
@@ -662,8 +698,18 @@ export function EventEditor({
       scanProducts = [found.product];
       hasLotsOf = () => found.productHasLots;
     }
+    let deviceLots: NewLot[] = [];
+    if (config.newLots === 'manual-and-scan') {
+      try {
+        deviceLots = await queryClient.fetchQuery(deviceNewLotsOptions());
+      } catch {
+        return stale() ? undefined : scanMessage('gtinLookupFailed');
+      }
+      if (stale()) return;
+    }
     const resolution = resolveScan({
       scan: parsed,
+      deviceLots,
       tradeItemId: tradeItem.id,
       products: scanProducts,
       lines: form.state.values.lines,
@@ -672,7 +718,17 @@ export function EventEditor({
           ? { allowsNewLot: true, today }
           : { allowsNewLot: false },
     });
-    if (resolution.type === 'refuse') return scanMessage(resolution.reason, resolution.params);
+    if (resolution.type === 'refuse')
+      return scanMessage(
+        resolution.reason,
+        resolution.reason === 'lotCodeQueued'
+          ? {
+              expiry: resolution.params.expiry
+                ? formatDateValue(resolution.params.expiry, i18n.language)
+                : '',
+            }
+          : resolution.params,
+      );
     let action = resolution;
     if (resolution.type === 'confirm-expiry') {
       const next = resolution.next;
@@ -758,12 +814,21 @@ export function EventEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
-            {cardsQuery.data?.device && !cardsQuery.isFetching && (
+            {cardsQuery.data?.device && snapshotOnline !== undefined && (
               <Suspense fallback={null}>
-                <SnapshotAlert
-                  snapshot={cardsQuery.data.device}
-                  message="stock-events.offline-snapshot"
-                />
+                {device ? (
+                  <CatalogSnapshotAlert
+                    snapshot={cardsQuery.data.device}
+                    device={device}
+                    online={snapshotOnline}
+                  />
+                ) : (
+                  <SnapshotAlert
+                    snapshot={cardsQuery.data.device}
+                    message="stock-events.offline-snapshot"
+                    online={snapshotOnline}
+                  />
+                )}
               </Suspense>
             )}
             {refusal && (
@@ -793,7 +858,13 @@ export function EventEditor({
               {canViewStock && (
                 <QueryBoundary
                   resetKey={`${facilityId}/${programId}`}
-                  pendingFallback={<ProductLotPickerSkeleton kind={kind} programId={programId} />}
+                  pendingFallback={
+                    <ProductLotPickerSkeleton
+                      kind={kind}
+                      programId={programId}
+                      canManageLots={canManageLots}
+                    />
+                  }
                   errorComponent={StockCardsError}
                 >
                   <ProductLotPicker
@@ -802,9 +873,15 @@ export function EventEditor({
                     facilityId={facilityId}
                     programId={programId}
                     disabled={locked || !ready}
-                    {...(fromCards
+                    {...(fromCards || !device
                       ? { cardFilter: filterCards }
-                      : { from: 'approved-products' as const, canManageLots, lines })}
+                      : {
+                          from: 'approved-products' as const,
+                          canManageLots,
+                          lines,
+                          device,
+                          cards,
+                        })}
                     onAdd={add}
                   >
                     {scanning && <ScanStatus {...scanStatus} />}
@@ -1047,8 +1124,9 @@ export function EventEditor({
           />
         </QueryBoundary>
       )}
-      {editingLot && isNewLot(editingLot.lot) && (
+      {device && editingLot && isNewLot(editingLot.lot) && (
         <EditLotDialog
+          device={device}
           open={editLotOpen}
           onOpenChange={setEditLotOpen}
           lot={editingLot.lot}
@@ -1260,4 +1338,26 @@ function LookupError({
 function RefusalRecovery(props: ComponentProps<typeof DeviceEventRecovery>) {
   const timeZone = useDeploymentTimeZone();
   return <DeviceEventRecovery {...props} timeZone={timeZone} />;
+}
+
+function CatalogSnapshotAlert({
+  snapshot,
+  device,
+  online,
+}: {
+  snapshot: DeviceSnapshot;
+  device: ReceiveDevice;
+  online: boolean;
+}) {
+  const { data: catalog } = useQuery(receiveCatalogOptions(device));
+  return (
+    <SnapshotAlert
+      snapshot={{
+        ...snapshot,
+        fetchedAt: Math.min(snapshot.fetchedAt, catalog?.fetchedAt ?? snapshot.fetchedAt),
+      }}
+      message="stock-events.offline-snapshot"
+      online={online}
+    />
+  );
 }

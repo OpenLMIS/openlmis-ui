@@ -334,9 +334,17 @@ export function refreshStockEventLines(
   );
   let changed = false;
   const refreshed = lines.map((line) => {
-    const card = byProductLot.get(
-      key(line.orderable.id, isNewLot(line.lot) ? undefined : line.lot?.id),
-    );
+    const card = isNewLot(line.lot)
+      ? undefined
+      : byProductLot.get(key(line.orderable.id, line.lot?.id));
+    if (products.from === 'approved-products') {
+      if (isNewLot(line.lot)) return line;
+      const next = { ...line, stockOnHand: card?.stockOnHand ?? null, stockProblem: undefined };
+      if (next.stockOnHand === line.stockOnHand && next.stockProblem === line.stockProblem)
+        return line;
+      changed = true;
+      return next;
+    }
     const stockProblem = !card
       ? 'missing'
       : allowed.has(card)

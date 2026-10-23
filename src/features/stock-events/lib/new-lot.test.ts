@@ -78,3 +78,79 @@ describe('editLotSchema', () => {
     ]);
   });
 });
+
+it('checks new and edited lot codes against device work across letter case and trade items', () => {
+  const deviceLots = [newLot('NEW-1', '2030-01-01')];
+  for (const [expirationDate, tradeItemId, valid] of [
+    ['2031-01-01', 'trade-1', false],
+    ['2030-01-01', 'trade-1', true],
+    ['2031-01-01', 'trade-2', true],
+  ] as const) {
+    const values = { lotCode: 'new-1', expirationDate };
+    expect(
+      newLotSchema({ ...context, lines: [], deviceLots, tradeItemId }).safeParse(values).success,
+    ).toBe(valid);
+    expect(
+      editLotSchema({
+        ...context,
+        lines: [],
+        deviceLots,
+        lot: newLot('MINE', null, tradeItemId),
+        lineKey: 'mine',
+      }).safeParse(values).success,
+    ).toBe(valid);
+  }
+});
+
+it('refuses an expiry-only edit that conflicts with a queued lot', () => {
+  expect(
+    editLotSchema({
+      ...context,
+      lines: [],
+      deviceLots: [newLot('MINE', '2030-01-01')],
+      lot: newLot('MINE', '2030-01-01'),
+      lineKey: 'mine',
+    }).safeParse({ lotCode: 'MINE', expirationDate: '2031-01-01' }).success,
+  ).toBe(false);
+});
+
+it('asks to pick a downloaded lot before reporting a conflicting accepted device lot', () => {
+  expect(
+    issues(
+      newLotSchema({
+        ...context,
+        deviceLots: [newLot('lc2017a', '2030-01-01')],
+      }).safeParse({ lotCode: 'LC2017A', expirationDate: '2031-01-01' }),
+    ),
+  ).toEqual([['lotCode', 'stock-events.lot-code-exists']]);
+});
+
+it('describes queued lots without expiry in both new and edited lot errors', () => {
+  const deviceLots = [newLot('QUEUED', null)];
+  const values = { lotCode: 'queued', expirationDate: '2031-01-01' };
+  const expected = [['lotCode', 'stock-events.lot-code-queued-no-expiry']];
+  expect(issues(newLotSchema({ ...context, deviceLots }).safeParse(values))).toEqual(expected);
+  expect(
+    issues(
+      editLotSchema({
+        ...context,
+        deviceLots,
+        lot: newLot('MINE', null),
+        lineKey: 'mine',
+      }).safeParse(values),
+    ),
+  ).toEqual(expected);
+});
+
+it('asks to pick a downloaded lot before reporting a conflicting device lot on edit', () => {
+  expect(
+    issues(
+      editLotSchema({
+        ...context,
+        deviceLots: [newLot('lc2017a', '2030-01-01')],
+        lot: newLot('MINE', null),
+        lineKey: 'mine',
+      }).safeParse({ lotCode: 'LC2017A', expirationDate: '2031-01-01' }),
+    ),
+  ).toEqual([['lotCode', 'stock-events.lot-code-exists']]);
+});

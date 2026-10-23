@@ -3,7 +3,7 @@ import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
-import { homeStockProvider } from '@/features/stock-events/lib/home-stock-provider';
+import { stockEventDownloadProviders } from '@/features/stock-events/lib/download-providers';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { reloadOnce } from '@/lib/chunk-load';
 import { deviceAccessReaders, startDeviceWorkServices } from '@/routes/-device-work-provider';
@@ -34,7 +34,7 @@ it('recovers a failed service import on reconnect and stops both services on unm
     .mockResolvedValue([
       { startOfflineCoordinator: coordinator },
       { startStockEventUploader: uploader },
-      { homeStockProvider },
+      { stockEventDownloadProviders },
     ]);
   stop = startDeviceWorkServices('sign-in', load, undefined, reviewRefused);
   await waitFor(() => expect(load).toHaveBeenCalledOnce());

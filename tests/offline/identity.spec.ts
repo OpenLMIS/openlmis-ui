@@ -33,14 +33,14 @@ test('offline navigation explains unavailable pages and blocks direct routes wit
     )
       protectedRequests.push(request.url());
   });
-  const receive = page.getByRole('button', { name: 'Receive', exact: true });
-  await expect(receive).toHaveAttribute('data-unavailable');
-  await expect(receive).toBeEnabled();
-  await receive.click();
+  const unpack = page.getByRole('button', { name: 'Unpack', exact: true });
+  await expect(unpack).toHaveAttribute('data-unavailable');
+  await expect(unpack).toBeEnabled();
+  await unpack.click();
   const unavailable = page.getByRole('alertdialog');
   await expect(unavailable).toContainText("This page can't be loaded while offline.");
   await unavailable.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(receive).toBeFocused();
+  await expect(unpack).toBeFocused();
   await expect(page).toHaveURL(/adjustments$/);
   const stock = page.getByRole('link', { name: 'Stock On Hand', exact: true });
   await expect(stock).not.toHaveAttribute('data-unavailable');

@@ -266,7 +266,7 @@ edits, which have no prop for TypeScript to detect:
 | `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
-| `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus |
+| `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus; keep `components` parts module-level and memoize DayButton, so re-renders never remount the calendar mid-click |
 | `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
@@ -440,8 +440,10 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   quantity inputs fill their cell while reserving a character-unit minimum based only on their
   translated placeholder, with room for at least five digits; extra digits scroll inside the input.
   Their date column minimum measures all 12 months in the page language. Quantity sizers live
-  once in the column header for every stock event layout; VVM and date sizers only serve measured
-  layouts. Adjustments keeps full-width inputs, with each quantity input reserving its placeholder
+  once in the column header for every stock event layout; VVM select and date-button sizers only
+  serve measured layouts. Every header also reserves its cells' minimums (Product, the translated
+  no-lot labels in Lot Code, Expiry months, comments, VVM, Date, Remove) and Receive decides VVM
+  from its offered products, so Adds never resize columns. Adjustments keeps full-width inputs, with each quantity input reserving its placeholder
   and at least five digits. At or above 672px, the table scrolls sideways when its column
   minimums do not fit.
 
@@ -639,7 +641,8 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   `@3xl/main:max-w-xl`, with a `Separator` below it. Decide from the offered list before
   anything is picked: stock event pickers use this compact row when no offered item has lots
   and keep labelled fields in a card otherwise. Receive can create lots, so it always keeps
-  labelled fields. Compose `PickerAdd`, `PickerAddField`, `PickerAddIcon` and `PickerAddButton`
+  labelled fields; its New Lot Code and Expiry fields take their own row so Product and Add stay put.
+  With editor cards (below 672px), Add New Lot opens `NewLotDialog` instead, filling Lot Code. Compose `PickerAdd`, `PickerAddField`, `PickerAddIcon` and `PickerAddButton`
   (`src/components/picker-add.tsx`); anchor the list to `PickerAddField` so it spans the icon. The loading skeleton repeats the layout last shown for
   that kind and program (`rememberedPickerLayout`), compact on a first visit.
 
@@ -996,8 +999,11 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `homeStockPrograms`
   with event grants for event pickers. `useDownloadedScopes` applies caller acceptance offline.
   A kind's `download` lists datasets with acceptance: home stock takes a minimum format through
-  `HOME_STOCK_ACCEPTANCE` (Adjustments 4+, Stock On Hand 5+, Issue 6). Pickers derive readiness
-  with `programReadiness` from `readScopeState` states (ready, ineligible, missing, outdated).
+  `HOME_STOCK_ACCEPTANCE` (Adjustments 4+, Stock On Hand 5+, Issue and Receive 6). Receive also
+  needs `receive-catalog`: refresh at sign-in, including expired-session sign-in; reuse complete
+  catalogs across reloads regardless of age. Refresh preserves typed and scanned new lots.
+  Pickers derive readiness with `programReadiness` from `readScopeState` states
+  (ready, ineligible, missing, outdated).
   Offline, rows stay disabled without a reason while the device is read, then show Not
   Downloaded with a visible reason, or Ready.
   Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home

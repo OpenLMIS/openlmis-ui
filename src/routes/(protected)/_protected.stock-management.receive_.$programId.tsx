@@ -3,6 +3,7 @@ import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search
 import { getDefaultReceiveReasonId } from '@/lib/runtime-config';
 import {
   loadStockEventEditor,
+  reloadOnEntry,
   StockEventEditorPage,
   StockEventPending,
 } from '@/routes/(protected)/-stock-event-editor';
@@ -12,6 +13,7 @@ export const Route = createFileRoute(
 )({
   validateSearch: stockEventSearchSchema,
   staticData: { crumbKey: 'stock-receive.editor-crumb' },
+  shouldReload: reloadOnEntry,
   loader: ({ context: { queryClient }, params: { programId } }) =>
     loadStockEventEditor(queryClient, programId, 'receive'),
   pendingComponent: () => (
