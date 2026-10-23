@@ -1607,7 +1607,9 @@ it('retains draft lot and VVM columns when refreshed stock no longer offers them
   localStorage.setItem('adjustment-columns', JSON.stringify({ expiry: true }));
   const { user, queryClient } = setup(true, (client) =>
     client.setQueryData(editorStockOptions().queryKey, {
-      cards: [{ ...other, orderable: { ...other.orderable, extraData: { useVVM: 'true' } } }],
+      cards: [
+        { ...other, id: 'other', orderable: { ...other.orderable, extraData: { useVVM: 'true' } } },
+      ],
       device: undefined,
     }),
   );
@@ -2799,8 +2801,21 @@ it('queues an offline Issue using the destination node from the downloaded bundl
   expect(event.payload).not.toHaveProperty('documentNumber');
   expect(fetchValidAssignments).not.toHaveBeenCalled();
   expect(submitStockEvent).not.toHaveBeenCalled();
+  vi.mocked(fetchValidAssignments).mockResolvedValue(destinations);
+  let finish!: (cards: EventStockCard[]) => void;
+  vi.mocked(fetchEventStockCards).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
   act(() => onlineManager.setOnline(true));
-  expect(screen.queryByText(time)).not.toBeInTheDocument();
+  await waitFor(() => expect(finish).toBeTypeOf('function'));
+  expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+  expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
+  await act(async () => finish([card, other]));
+  await waitFor(() => expect(screen.queryByText(time)).not.toBeInTheDocument());
+  expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
 });
 
 it('does not describe live cards as downloaded data after going offline', async () => {
@@ -2842,3 +2857,62 @@ it('does not describe live cards as downloaded data after going offline', async 
     ),
   ).not.toBeInTheDocument();
 });
+
+it.each([502, 503, 504])(
+  'shows downloaded stock honestly after gateway %s while online',
+  async (status) => {
+    const fetchedAt = Date.parse('2026-10-23T12:30:00Z');
+    await getLocalDb()
+      .table(LOCAL_TABLES.homeStockDownloads)
+      .put({
+        ...testBundleScope,
+        userId: 'ada-id',
+        formatVersion: 6,
+        generation: 'gateway-download',
+        fetchedAt,
+        cards: [
+          {
+            ...other,
+            id: 'other',
+            orderable: { ...other.orderable, description: null },
+            active: true,
+            occurredDate: null,
+          },
+        ],
+        reasons: [],
+        tradeItems: [],
+        identities: [],
+        destinations,
+        sources: [],
+      } satisfies HomeStockBundle);
+    onlineManager.setOnline(true);
+    vi.mocked(fetchEventStockCards).mockRejectedValue(
+      httpError(status, '<html>Bad Gateway</html>'),
+    );
+    const { queryClient } = setup(
+      true,
+      (client) => {
+        client.removeQueries({ queryKey: editorStockOptions('issue').queryKey });
+      },
+      { kind: 'issue' },
+    );
+    expect(await screen.findByText("Can't reach the server.")).toBeInTheDocument();
+    expect(onlineManager.isOnline()).toBe(true);
+    let finish!: (cards: EventStockCard[]) => void;
+    vi.mocked(fetchEventStockCards).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    act(() => onlineManager.setOnline(false));
+    await screen.findByText("You're offline.");
+    act(() => onlineManager.setOnline(true));
+    await waitFor(() => expect(finish).toBeTypeOf('function'));
+    expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+    await act(async () => finish([card, other]));
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+    expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
+  },
+);

@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { deviceEventDetails } from '@/features/stock-events/lib/device-event-details';
 import {
   COUNTERPARTY,
   EVENT_KINDS,
@@ -35,12 +36,12 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
     'offline-events.occurred-date',
     'stock-events.vvm-status',
   ];
-  const lines = event.payload.lineItems.map((item, index) => {
-    const line = event.lines[index];
+  const lines = deviceEventDetails(event).map((line) => {
+    const { item } = line;
     const values: Partial<Record<ParseKeys, string | null | undefined>> = {
-      'offline-events.lot': line?.lot?.lotCode,
+      'offline-events.lot': line.lotCode,
       'offline-events.quantity': new Intl.NumberFormat(i18n.language).format(item.quantity),
-      'offline-events.reason': event.reasons?.find((reason) => reason.id === item.reasonId)?.name,
+      'offline-events.reason': line.reason,
       'stock-events.reason-comments': item.reasonFreeText,
       'offline-events.occurred-date': item.occurredDate
         ? formatDateValue(item.occurredDate, i18n.language)
@@ -50,15 +51,13 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
         : undefined,
     };
     if (counterparty) {
-      const destination = config.counterparty === 'destination';
-      values[counterparty.column] = (destination ? event.destinations : event.sources)?.find(
-        (entry) => entry.id === (destination ? item.destinationId : item.sourceId),
-      )?.name;
-      values[counterparty.comments] = destination ? item.destinationFreeText : item.sourceFreeText;
+      values[counterparty.column] = line.counterparty;
+      values[counterparty.comments] =
+        config.counterparty === 'destination' ? item.destinationFreeText : item.sourceFreeText;
     }
     return {
-      key: line?.key ?? index,
-      product: line?.orderable.fullProductName || item.orderableId,
+      key: line.key,
+      product: line.product,
       values: headers.map((header) => values[header]),
     };
   });

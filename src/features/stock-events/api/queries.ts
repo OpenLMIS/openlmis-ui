@@ -50,6 +50,8 @@ export const eventStockCardsOptions = (filter: EventStockCardsFilter, bundle?: H
       return { cards: result.cards, device };
     },
     networkMode: 'always',
+    staleTime: (query) => (query.state.data?.device ? 0 : 30_000),
+    refetchOnReconnect: true,
   });
 
 export const eventValidReasonsOptions = (

@@ -788,20 +788,6 @@ export function EventLineTable({
       if (width) columnWidths.current[column.id] = width;
     });
   });
-  const [emptyWidth, setEmptyWidth] = useState<number>();
-  const hasRows = rows.length > 0;
-  useLayoutEffect(() => {
-    if (cards || hasRows) return;
-    const container = tableRegion.current?.querySelector<HTMLElement>(
-      '[data-slot="table-container"]',
-    );
-    if (!container) return;
-    const update = () => setEmptyWidth(container.clientWidth);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [cards, hasRows]);
   const hasLines = form.state.values.lines.length > 0;
   const empty = (
     <DataTableEmpty
@@ -872,9 +858,7 @@ export function EventLineTable({
           empty={
             <div
               className="sticky start-0 -mx-1.5 w-(--empty-width)"
-              style={
-                emptyWidth ? ({ '--empty-width': `${emptyWidth}px` } as CSSProperties) : undefined
-              }
+              style={{ '--empty-width': '100cqi' } as CSSProperties}
             >
               {empty}
             </div>

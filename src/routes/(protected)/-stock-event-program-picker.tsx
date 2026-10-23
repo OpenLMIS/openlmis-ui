@@ -268,27 +268,18 @@ function ProgramsTable({
           states: { 'home-stock': downloaded },
         });
         const disabled = !online && readiness.state !== 'ready';
-        const unavailable = disabled ? unavailableCopy(readiness) : undefined;
+        const missing =
+          !online && readiness.state === 'not-downloaded' ? readiness.reason : undefined;
         return {
           id: program.id,
           label: recordLabel(program),
           disabled,
-          disabledReason: unavailable && t(unavailable.reason),
-          disabledDescription: unavailable && t(unavailable.description),
+          disabledReason: missing && t('stock-programs.not-downloaded'),
+          disabledDescription: missing && t(NOT_DOWNLOADED_DESCRIPTIONS[missing]),
         };
       })}
     />
   );
-}
-
-function unavailableCopy(
-  readiness: ProgramReadiness,
-): { reason: ParseKeys; description: ParseKeys } | undefined {
-  if (readiness.state !== 'not-downloaded') return undefined;
-  return {
-    reason: 'stock-programs.not-downloaded',
-    description: NOT_DOWNLOADED_DESCRIPTIONS[readiness.reason],
-  };
 }
 
 const NOT_DOWNLOADED_DESCRIPTIONS = {

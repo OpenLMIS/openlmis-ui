@@ -16,7 +16,6 @@ import {
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { z } from 'zod';
 import {
   DataTableEmpty,
   type DataTableFeatures,
@@ -94,7 +93,7 @@ import type {
   InventoryStockLine,
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
-import { useCardLayout } from '@/hooks/use-card-view';
+import { columnChoicesSchema, useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useOpening } from '@/hooks/use-opening';
@@ -109,7 +108,6 @@ import { useOnline } from '@/lib/online';
 import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 
-const choicesSchema = z.record(z.string(), z.boolean());
 const NO_SORT = { id: 'product', desc: false };
 const helper = createColumnHelper<DataTableFeatures, InventoryProductGroup>();
 const columns = helper.columns([helper.display({ id: 'product' })]);
@@ -142,7 +140,7 @@ export function PhysicalInventoryEditor(props: Props) {
     },
     [measure],
   );
-  const choices = useStoredState('physical-inventory.columns', choicesSchema, {});
+  const choices = useStoredState('physical-inventory.columns', columnChoicesSchema, {});
   const queryClient = useQueryClient();
   const [optionalColumns, setOptionalColumns] = useState(() => {
     const stock = queryClient.getQueryData(inventoryStockLinesOptions(props.draft).queryKey) ?? [];

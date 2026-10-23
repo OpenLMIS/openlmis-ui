@@ -182,16 +182,18 @@ function ProgramPickerContent({
                 {row.disabledReason && <UnavailableLabel row={row} />}
               </div>
             </CardBand>
-            {row.disabledReason && row.disabledDescription ? (
-              <div className="px-4 py-2">
-                <UnavailableDescription row={row} />
-              </div>
-            ) : null}
-            {statusLabel ? (
+            {(row.disabledReason && row.disabledDescription) || statusLabel ? (
               <CardRows>
-                <SettingsItem label={statusLabel}>
-                  <bdi>{orEmpty(row.status)}</bdi>
-                </SettingsItem>
+                {row.disabledReason && row.disabledDescription ? (
+                  <div className="flex min-h-8 items-center">
+                    <UnavailableDescription row={row} />
+                  </div>
+                ) : null}
+                {statusLabel ? (
+                  <SettingsItem label={statusLabel}>
+                    <bdi>{orEmpty(row.status)}</bdi>
+                  </SettingsItem>
+                ) : null}
               </CardRows>
             ) : null}
           </CardListItem>

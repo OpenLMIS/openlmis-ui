@@ -1,3 +1,4 @@
+import { useIsFetching } from '@tanstack/react-query';
 import {
   createFileRoute,
   type ErrorComponentProps,
@@ -137,9 +138,11 @@ export const Route = createFileRoute(
 function StockCardPage() {
   const { t } = useTranslation();
   const data = Route.useLoaderData();
+  const isReloading = Route.useMatch({ select: (match) => match.isFetching });
   const search = Route.useSearch();
   const { stockCardId } = Route.useParams();
   useReloadOnConnectivityChange(queryKeys.stockCards.detail(stockCardId));
+  const isFetching = useIsFetching({ queryKey: queryKeys.stockCards.detail(stockCardId) });
   const eventSearch = useMemo(
     () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
     [search.mode, search.programId, search.facilityId],
@@ -170,7 +173,7 @@ function StockCardPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
           <StockCardHeader card={data.card} unit={unit} />
-          {data.card.device !== undefined && (
+          {data.card.device !== undefined && !isFetching && !isReloading && (
             <SnapshotAlert
               snapshot={data.card.device}
               message={

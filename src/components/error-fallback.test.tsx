@@ -1,7 +1,8 @@
 import { onlineManager } from '@tanstack/react-query';
 import { createRootRoute, createRouter, RouterContextProvider } from '@tanstack/react-router';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
@@ -14,9 +15,10 @@ vi.mock('sonner', () => ({ toast: { info: vi.fn() } }));
 vi.mock('@/components/no-access-page', () => ({ NoAccessPage: () => <p>no-access</p> }));
 
 const invalidate = vi.fn();
+const router = { invalidate };
 vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
-  useRouter: () => ({ invalidate }),
+  useRouter: () => router,
 }));
 
 const worker = vi.hoisted(() => ({ canReloadIntoWorker: vi.fn(() => false) }));
@@ -199,4 +201,25 @@ it('holds automatic chunk recovery until unsaved work allows leaving', () => {
   expect(proceed).toBeTypeOf('function');
   act(proceed);
   expect(chunk.reloadOnce).toHaveBeenCalledOnce();
+});
+
+it('focuses the error heading when a retry fails again', async () => {
+  function FailedRoute() {
+    const [attempt, setAttempt] = useState(0);
+    return (
+      <ErrorFallback
+        key={attempt}
+        back={<Button>Back</Button>}
+        error={new Error('boom')}
+        info={undefined}
+        reset={() => setAttempt((value) => value + 1)}
+      />
+    );
+  }
+  render(<FailedRoute />);
+  const heading = screen.getByRole('heading', { name: 'error.title' });
+  expect(heading).not.toHaveFocus();
+  await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'error.title' })).toHaveFocus());
+  expect(heading).not.toBeInTheDocument();
 });

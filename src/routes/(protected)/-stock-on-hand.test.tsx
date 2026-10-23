@@ -969,3 +969,45 @@ it('keeps the picker visible for an invalid offline selection and loads stock on
   act(() => onlineManager.setOnline(true));
   expect(await screen.findAllByText('Levonorgestrel')).not.toHaveLength(0);
 });
+
+it('labels device stock as unreachable online and hides its notice during refresh', async () => {
+  await seedHomeStock(
+    {
+      id: 'downloaded-card',
+      facility: { id: HOME, code: 'HC01', name: 'Comfort Health Clinic' },
+      program: { id: FP, code: 'P', name: 'Family Planning' },
+      orderable: {
+        id: 'downloaded-product',
+        productCode: 'OFF',
+        fullProductName: 'Downloaded Medicine',
+      },
+      lot: null,
+      stockOnHand: 9,
+      active: true,
+      lineItems: [],
+    },
+    USER,
+  );
+  vi.mocked(fetchStockCardSummaries).mockRejectedValue(httpError(502, '<html>Bad Gateway</html>'));
+  const client = new QueryClient({
+    defaultOptions: { queries: { networkMode: 'always', retry: false } },
+  });
+  renderRoute(appliedPath(), client);
+  expect(await screen.findByText('offline.stock-snapshot-unreachable')).toBeInTheDocument();
+  expect(onlineManager.isOnline()).toBe(true);
+  let finish!: (result: ReturnType<typeof page>) => void;
+  vi.mocked(fetchStockCardSummaries).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  act(() => {
+    void client.invalidateQueries();
+  });
+  await waitFor(() => expect(finish).toBeTypeOf('function'));
+  expect(screen.queryByText('offline.stock-snapshot-unreachable')).not.toBeInTheDocument();
+  await act(async () => finish(page([summary])));
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  expect(screen.queryByText('offline.stock-snapshot-unreachable')).not.toBeInTheDocument();
+});

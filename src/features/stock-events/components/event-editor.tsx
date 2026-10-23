@@ -21,7 +21,6 @@ import {
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { z } from 'zod';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -128,7 +127,7 @@ import {
 } from '@/features/stock-events/lib/stock-event-sync';
 import type { EventStockCard } from '@/features/stock-events/lib/types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
-import { useCardLayout } from '@/hooks/use-card-view';
+import { columnChoicesSchema, useCardLayout } from '@/hooks/use-card-view';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
@@ -169,7 +168,6 @@ type Props = {
   deviceDisplay: StockEventDisplay;
   onSubmitted: (eventId: string, synced?: boolean) => void | Promise<void>;
 };
-const columnChoicesSchema = z.record(z.string(), z.boolean());
 const EMPTY_LOOKUP: never[] = [];
 
 export function EventEditor({
@@ -760,7 +758,7 @@ export function EventEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measureRegion}>
-            {cardsQuery.data?.device && !online && (
+            {cardsQuery.data?.device && !cardsQuery.isFetching && (
               <Suspense fallback={null}>
                 <SnapshotAlert
                   snapshot={cardsQuery.data.device}

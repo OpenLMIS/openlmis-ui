@@ -70,7 +70,7 @@ describe('registerServiceWorker', () => {
     vi.useFakeTimers();
     stubServiceWorker({});
     const registration = Object.assign(new EventTarget(), {
-      active: { scriptURL: `${location.origin}/legacy-worker.js` },
+      active: { scriptURL: `${location.origin}/legacy-worker.js`, state: 'activated' },
       update: vi.fn(),
     });
     register.mockResolvedValue(registration);
@@ -79,9 +79,9 @@ describe('registerServiceWorker', () => {
     registerServiceWorker({ enabled: true });
     await vi.advanceTimersByTimeAsync(0);
     expect(canReloadIntoWorker()).toBe(false);
-    for (const handler of handlers.activated) handler({ sw: ours });
+    registration.active = { ...ours, state: 'activated' };
     expect(canReloadIntoWorker()).toBe(true);
-    for (const handler of handlers.activated) handler({ sw: { ...ours, state: 'redundant' } });
+    registration.active.state = 'redundant';
     expect(canReloadIntoWorker()).toBe(false);
   });
 

@@ -182,7 +182,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'debit-reason',
     newLots: 'none',
     copy: {
-      eventType: 'stock-events.type-adjustment',
+      eventType: 'transaction-history.type-adjustment',
       pickerTitle: 'stock-adjustment.title',
       make: 'stock-adjustment.make',
       pageDescription: 'stock-adjustment.page-description',
@@ -238,7 +238,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'always',
     newLots: 'none',
     copy: {
-      eventType: 'stock-events.type-issue',
+      eventType: 'transaction-history.type-issue',
       pickerTitle: 'stock-issue.title',
       make: 'stock-issue.make',
       pageDescription: 'stock-issue.page-description',
@@ -294,7 +294,7 @@ export const EVENT_KINDS = {
     stockOnHandCap: 'never',
     newLots: 'manual-and-scan',
     copy: {
-      eventType: 'stock-events.type-receive',
+      eventType: 'transaction-history.type-receive',
       pickerTitle: 'stock-receive.title',
       make: 'stock-receive.make',
       pageDescription: 'stock-receive.page-description',

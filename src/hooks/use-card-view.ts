@@ -8,7 +8,7 @@ import {
 } from '@/components/data-table/responsive-columns';
 import { useStoredState } from '@/hooks/use-stored-state';
 
-const choicesSchema = z.record(z.string(), z.boolean());
+export const columnChoicesSchema = z.record(z.string(), z.boolean());
 
 export function useCardLayout<T extends HTMLElement>() {
   const [measure, width] = useElementWidth<T>();
@@ -21,13 +21,10 @@ export function useCardView<T extends HTMLElement = HTMLDivElement>(
   storageKey: string,
 ) {
   const { measure, width, cards } = useCardLayout<T>();
-  const columnView = useColumnVisibility(
-    columns,
-    useStoredState(storageKey, choicesSchema, {}),
-    cards ? undefined : width,
-  );
+  const choices = useStoredState(storageKey, columnChoicesSchema, {});
+  const columnView = useColumnVisibility(columns, choices, cards ? undefined : width);
   const layout = cards ? 'cards' : 'table';
-  return { measure, cards, columnView, layout } as const;
+  return { measure, cards, columnView, layout, choices } as const;
 }
 
 const DIALOG_WIDTHS_REM = { lg: 32, table: 36, xl: 48 } as const;

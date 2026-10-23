@@ -860,3 +860,16 @@ it('does not blame expiry when a kit card is excluded by stock or product eligib
     'excluded',
   );
 });
+
+it.each(['issue', 'adjustment'] as const)(
+  'keeps the offered-lot label after restoring a %s draft',
+  (kind) => {
+    const noLot = { ...card, id: 'no-lot', lot: null };
+    const added = newEventLine(noLot, undefined, today, {
+      kind,
+      productHasLots: kind === 'adjustment',
+    });
+    const [restored] = refreshStockEventLines([added], [noLot, card], today, kind);
+    expect(restored.productHasLots).toBe(added.productHasLots);
+  },
+);
