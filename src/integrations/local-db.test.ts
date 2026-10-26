@@ -39,7 +39,7 @@ describe('getLocalDb', () => {
 
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(11);
+    expect(db.verno).toBe(12);
     if (version === 1) await db.table(LOCAL_TABLES.physicalInventoryDrafts).put(draft);
     expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId)).toEqual(draft);
     expect(db.table(LOCAL_TABLES.offlineAccess).schema.primKey.keyPath).toBe('userId');
@@ -107,7 +107,7 @@ describe('getLocalDb', () => {
   });
 });
 
-it('opens an existing v6 database at v11 while preserving drafts, queues and receipts', async () => {
+it('opens an existing v6 database at v12 while preserving drafts, queues and receipts', async () => {
   signIn('queue-upgrade-v6');
   const old = new Dexie(getLocalDb().name);
   old.version(1).stores({});
@@ -135,7 +135,7 @@ it('opens an existing v6 database at v11 while preserving drafts, queues and rec
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(11);
+  expect(db.verno).toBe(12);
   for (const [table, row] of Object.entries(rows)) {
     if (table === 'adjustmentDownloads') continue;
     expect(await db.table(table).toArray()).toEqual([row]);
@@ -174,8 +174,45 @@ it('removes v9 card histories while preserving home stock and unresolved work', 
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(11);
+  expect(db.verno).toBe(12);
   expect(await db.table(LOCAL_TABLES.stockCardHistory).count()).toBe(0);
   for (const [table, row] of Object.entries(rows))
     expect(await db.table(table).toArray()).toEqual([row]);
+});
+
+it('adds the Receive catalog at v12 without losing any v11 records', async () => {
+  signIn('catalog-upgrade-v11');
+  const old = new Dexie(getLocalDb().name);
+  old.version(11).stores({
+    offlineAccess: 'userId',
+    stockEventSyncErrors: '&localEventId',
+    homeStockDownloads: '[facilityId+programId]',
+    stockCardHistory: 'id',
+    physicalInventoryDrafts: 'draftId',
+    stockEventDrafts: 'draftId, [kind+facilityId+programId+state]',
+    stockEventQueue: '++sequence, &localEventId, [status+sequence]',
+    stockEventReceipts: '[draftId+revision], &localEventId',
+  });
+  const rows = {
+    offlineAccess: { userId: 'catalog-upgrade-v11', generation: 'access' },
+    stockEventSyncErrors: { localEventId: 'refused', status: 'refused' },
+    homeStockDownloads: { facilityId: 'home', programId: 'p', generation: 'complete' },
+    stockCardHistory: { id: 'card' },
+    physicalInventoryDrafts: { draftId: 'inventory' },
+    stockEventDrafts: { draftId: 'draft', revision: 3 },
+    stockEventQueue: { sequence: 1, localEventId: 'pending', status: 'uncertain' },
+    stockEventReceipts: { draftId: 'accepted', revision: 1, localEventId: 'accepted' },
+  };
+  for (const [table, row] of Object.entries(rows)) await old.table(table).put(row);
+  old.close();
+  const db = getLocalDb();
+  await db.open();
+  expect(db.verno).toBe(12);
+  for (const [table, row] of Object.entries(rows))
+    expect(await db.table(table).toArray()).toEqual([row]);
+  expect(await db.table(LOCAL_TABLES.receiveCatalogDownloads).count()).toBe(0);
+  expect(db.table(LOCAL_TABLES.receiveCatalogDownloads).schema.primKey.keyPath).toEqual([
+    'facilityId',
+    'programId',
+  ]);
 });

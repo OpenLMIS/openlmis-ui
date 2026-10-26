@@ -786,7 +786,7 @@ it.each([
   },
 );
 
-it('refreshes a previously cached server card after reconnecting', async () => {
+it('keeps the offline notice until a reconnect refresh replaces the downloaded card', async () => {
   await seedHomeStock(card, USER);
   const client = new QueryClient({
     defaultOptions: { queries: { networkMode: 'always', retry: false } },
@@ -795,9 +795,26 @@ it('refreshes a previously cached server card after reconnecting', async () => {
   onlineManager.setOnline(false);
   renderRoute(path(), client);
   await screen.findByText('stock-card.offline-summary');
-  vi.mocked(fetchStockCard).mockResolvedValue({ ...card, stockOnHand: 99 });
+  let unreachableShown = false;
+  const copy = new MutationObserver(() => {
+    unreachableShown ||= !!document.body.textContent?.includes('stock-card.unreachable');
+  });
+  copy.observe(document.body, { childList: true, subtree: true, characterData: true });
+  let finish!: (value: typeof card) => void;
+  vi.mocked(fetchStockCard).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
   act(() => onlineManager.setOnline(true));
+  await waitFor(() => expect(finish).toBeTypeOf('function'));
+  expect(screen.getByText('stock-card.offline-summary')).toBeInTheDocument();
+  await act(async () => finish({ ...card, stockOnHand: 99 }));
   expect(await screen.findByText('99')).toBeInTheDocument();
+  copy.disconnect();
+  expect(unreachableShown).toBe(false);
+  expect(screen.queryByText('stock-card.offline-summary')).not.toBeInTheDocument();
   await waitFor(async () =>
     expect(await getLocalDb().table(LOCAL_TABLES.stockCardHistory).get(card.id)).toMatchObject({
       card: { stockOnHand: 99 },

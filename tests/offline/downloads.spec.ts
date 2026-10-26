@@ -55,7 +55,11 @@ test('stale bundle survives offline restart with its download time and missing p
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           const db = request.result;
-          const transaction = db.transaction('homeStockDownloads', 'readwrite');
+          const transaction = db.transaction(
+            ['homeStockDownloads', 'receiveCatalogDownloads'],
+            'readwrite',
+          );
+          transaction.objectStore('receiveCatalogDownloads').delete(['home', 'program']);
           const table = transaction.objectStore('homeStockDownloads');
           const read = table.get(['home', 'program']);
           read.onsuccess = () => table.put({ ...read.result, stale: true });
@@ -94,6 +98,13 @@ test('stale bundle survives offline restart with its download time and missing p
       page.getByText('Connect To Download This Data', { exact: true }).first(),
     ).toBeVisible();
     await expect(page.getByText('No Access', { exact: true })).toHaveCount(0);
+    await page.goto('./stock-management/receive');
+    const receive = page.getByRole('row').filter({ hasText: 'Fixture Medicines' });
+    await expect(receive).toContainText('Not Downloaded');
+    await expect(receive.getByRole('link', { name: 'Make Receive' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   } finally {
     await context.close();
     await rm(directory, { recursive: true, force: true });

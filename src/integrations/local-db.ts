@@ -45,6 +45,7 @@ export function getLocalDb(): Dexie {
     database.version(9).stores({ stockCardHistory: 'id, fetchedAt' });
     database.version(10).stores({ stockCardHistory: null });
     database.version(11).stores({ stockCardHistory: 'id' });
+    database.version(12).stores({ receiveCatalogDownloads: '[facilityId+programId]' });
   }
   return database;
 }
@@ -58,6 +59,7 @@ useLoginData.subscribe((state, previous) => {
 export const LOCAL_TABLES = {
   offlineAccess: 'offlineAccess',
   homeStockDownloads: 'homeStockDownloads',
+  receiveCatalogDownloads: 'receiveCatalogDownloads',
   stockCardHistory: 'stockCardHistory',
   physicalInventoryDrafts: 'physicalInventoryDrafts',
   stockEventDrafts: 'stockEventDrafts',

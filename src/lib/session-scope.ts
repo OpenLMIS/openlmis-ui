@@ -29,3 +29,7 @@ function subscribe(listener: () => void) {
 export function useSessionScope() {
   return useSyncExternalStore(subscribe, getSessionScope);
 }
+
+export function isSessionExpired() {
+  return useLoginData.getState().expired;
+}

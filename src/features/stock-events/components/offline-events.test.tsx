@@ -115,9 +115,16 @@ it.each([
       expect(rows).toHaveLength(2);
       expect(rows[1]).toHaveTextContent('Facility');
       expect(rows[1]).toHaveTextContent('Program');
-      expect(rows[1]).toHaveTextContent(
-        /Product.*stock-events\.product-has-no-lots.*Damaged.*12.*Product.*Lost.*7/,
+      expect(rows[1]).not.toHaveTextContent('Damaged');
+      await userEvent.click(
+        within(rows[1]).getByRole('button', { name: 'offline-events.details-label' }),
       );
+      const details = await screen.findByRole('dialog');
+      expect(details).toHaveTextContent(
+        /Product.*stock-events\.product-has-no-lots.*12.*Damaged.*Product.*7.*Lost/,
+      );
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(
         screen.getByRole('columnheader', { name: 'offline-events.occurred-date' }),
       ).toBeInTheDocument();
@@ -147,8 +154,14 @@ it.each([
       );
     } else {
       const card = (await screen.findByText('Facility')).closest('li') as HTMLElement;
-      expect(within(card).getByText('offline-events.line-details')).toBeVisible();
-      expect(card).toHaveTextContent(/Product.*Damaged.*12.*Product.*Lost.*7/);
+      await userEvent.click(
+        within(card).getByRole('button', { name: 'offline-events.details-label' }),
+      );
+      expect(await screen.findByRole('dialog')).toHaveTextContent(
+        /Product.*12.*Damaged.*Product.*7.*Lost/,
+      );
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(screen.queryByRole('table')).not.toBeInTheDocument();
       if (status === 'refused') {
         const remove = screen.getByRole('button', { name: 'offline-events.remove-event-label' });
@@ -393,7 +406,7 @@ it('validates event type and calendar dates from links', () => {
   ).toMatchObject({ eventType: 'adjustment', startDate: '2026-10-12', endDate: '2026-10-13' });
   expect(
     offlineEventsSearchSchema.parse({
-      eventType: 'receive',
+      eventType: 'unpack',
       startDate: '2026-02-30',
       endDate: 'invalid',
     }),

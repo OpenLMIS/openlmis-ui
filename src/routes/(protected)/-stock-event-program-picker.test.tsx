@@ -28,6 +28,7 @@ vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
       { kind: 'adjustment', status: 'queued' },
       { kind: 'issue', status: 'queued' },
       { kind: 'adjustment', status: 'accepted' },
+      { kind: 'receive', status: 'queued' },
     ] as DeviceEvent[],
   }),
 }));
@@ -36,6 +37,7 @@ it.each([
   { kind: 'adjustment', online: false, view: true },
   { kind: 'adjustment', online: false, view: false },
   { kind: 'issue', online: false, view: true },
+  { kind: 'receive', online: false, view: true },
 ] satisfies { kind: ConfiguredEventKind; online: boolean; view: boolean }[])(
   'shows pending work for this kind with connection-specific copy (%o)',
   async ({ kind, online, view }) => {
@@ -43,6 +45,7 @@ it.each([
       .getState()
       .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
     await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).clear();
+    await getLocalDb().table(LOCAL_TABLES.receiveCatalogDownloads).clear();
     onlineManager.setOnline(online);
     const language = createInstance();
     await language.use(ICU).init({
@@ -96,10 +99,11 @@ it.each([
       </I18nextProvider>,
       { queryClient: client },
     );
+    const eventName = kind === 'receive' ? 'receipt' : kind;
     expect(await screen.findByRole('note')).toHaveTextContent(
       online
-        ? `1 ${kind} is waiting to sync or needs review.`
-        : `You're offline. 1 ${kind} is waiting to sync.`,
+        ? `1 ${eventName} is waiting to sync or needs review.`
+        : `You're offline. 1 ${eventName} is waiting to sync.`,
     );
     if (!online) expect(screen.getByText("You're offline.").tagName).toBe('STRONG');
     expect(screen.getByRole('link', { name: 'Offline Events' })).toHaveAttribute(
@@ -130,7 +134,7 @@ it.each([
             facilityTypeId: 'type',
             programId: 'p',
             userId: 'u',
-            formatVersion: kind === 'issue' ? 5 : 4,
+            formatVersion: kind === 'adjustment' ? 4 : 5,
             summaries: [],
             products: [],
             generation: 'available',
@@ -142,7 +146,7 @@ it.each([
             identities: [],
           } satisfies HomeStockBundle);
       });
-      if (kind === 'issue') {
+      if (kind !== 'adjustment') {
         await waitFor(() =>
           expect(action).toHaveAccessibleDescription(
             en['stock-programs.older-download-description'],
@@ -154,6 +158,31 @@ it.each([
             formatVersion: 6,
             destinations: [],
             sources: [],
+          });
+        });
+      }
+      if (kind === 'receive') {
+        await waitFor(() =>
+          expect(action).toHaveAccessibleDescription(
+            en['stock-programs.catalog-missing-description'],
+          ),
+        );
+        expect(action).toHaveAttribute('aria-disabled', 'true');
+        await act(async () => {
+          await getLocalDb().table(LOCAL_TABLES.receiveCatalogDownloads).put({
+            facilityId: 'f',
+            facilityTypeId: 'type',
+            programId: 'p',
+            userId: 'u',
+            formatVersion: 1,
+            generation: 'catalog',
+            fetchedAt: Date.now(),
+            scanning: false,
+            approved: [],
+            products: [],
+            lots: [],
+            tradeItems: [],
+            fulfils: {},
           });
         });
       }

@@ -19,12 +19,12 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { permissionsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   deploymentTimeZoneOptions,
-  facilityOrderableFulfillsOptions,
   homeFacilityOptions,
   reasonsOptions,
   userProgramsOptions,
@@ -32,10 +32,12 @@ import {
 } from '@/features/reference-data/api/queries';
 import { fetchStockEventReport } from '@/features/stock-events/api/api';
 import {
-  eventApprovedProductsOptions,
   eventStockCardsOptions,
   eventValidReasonsOptions,
   homeStockScope,
+  receiveApprovedProductsOptions,
+  receiveDevice,
+  receiveFulfilsOptions,
 } from '@/features/stock-events/api/queries';
 import { EventEditor, type EventSearch } from '@/features/stock-events/components/event-editor';
 import {
@@ -55,6 +57,7 @@ import {
   EVENT_KINDS,
   type EventPrintCopy,
   homeStockDataset,
+  receiveCatalogDataset,
 } from '@/features/stock-events/lib/event-kinds';
 import { useCardView } from '@/hooks/use-card-view';
 import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
@@ -65,6 +68,9 @@ import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection'
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
+
+export const reloadOnEntry = ({ cause }: { cause: 'preload' | 'enter' | 'stay' }) =>
+  cause !== 'stay';
 
 export async function loadStockEventEditor(
   queryClient: QueryClient,
@@ -98,13 +104,17 @@ export async function loadStockEventEditor(
     const bundleScope = homeStockDataset(EVENT_KINDS[kind])
       ? homeStockScope(filter, homeFacility.type.id)
       : undefined;
+    const device =
+      bundleScope && receiveCatalogDataset(EVENT_KINDS[kind])
+        ? receiveDevice(filter, homeFacility.type.id, isOnline())
+        : undefined;
     if (counterparty !== 'none')
       queryClient.prefetchQuery(counterpartyOptions(counterparty, filter, bundleScope));
-    if (products.from === 'stock-cards')
+    if (products.from === 'stock-cards' || bundleScope)
       queryClient.prefetchQuery(eventStockCardsOptions(filter, bundleScope));
-    if (products.from === 'approved-products') {
-      queryClient.prefetchQuery(eventApprovedProductsOptions(filter, '', 0));
-      queryClient.prefetchQuery(facilityOrderableFulfillsOptions(filter));
+    if (products.from === 'approved-products' && device) {
+      queryClient.prefetchQuery(receiveApprovedProductsOptions(queryClient, filter, '', 0, device));
+      queryClient.prefetchQuery(receiveFulfilsOptions(queryClient, filter, device));
     }
     if (EVENT_KINDS[kind].contents.type === 'kit') queryClient.prefetchQuery(reasonsOptions());
     if (EVENT_KINDS[kind].reasons !== null)
@@ -191,6 +201,10 @@ export function StockEventPending({
     enabled: false,
   });
   const program = home?.supportedPrograms?.find((item) => item.id === programId);
+  const { data: permissions } = useQuery({
+    ...permissionsOptions(userId ?? ''),
+    enabled: false,
+  });
   const tableView = measured ? fit.visibility : columnView.visibility;
   const visibility = cards
     ? {
@@ -212,7 +226,11 @@ export function StockEventPending({
         <StockEventHeader kind={kind} facility={home} program={program} />
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" aria-busy="true" ref={measure}>
-            <ProductLotPickerSkeleton kind={kind} programId={programId} />
+            <ProductLotPickerSkeleton
+              kind={kind}
+              programId={programId}
+              canManageLots={permissions?.rights.has(RIGHTS.lotsManage)}
+            />
             <DataTableToolbar>
               <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled>
                 <DataTableSearch
@@ -277,13 +295,11 @@ export function StockEventPending({
 }
 
 export function useStockEventPrint({
-  kind,
   copy,
   userId,
   facilityId,
   programId,
 }: {
-  kind: ConfiguredEventKind;
   copy: EventPrintCopy;
   userId: string;
   facilityId: string;
@@ -293,12 +309,10 @@ export function useStockEventPrint({
   const navigate = useNavigate();
   const [eventId, setEventId] = useState<string | null>(null);
   const landing = () =>
-    !homeStockDataset(EVENT_KINDS[kind]) && !isOnline()
-      ? navigate({ to: EVENT_KINDS[kind].listRoute })
-      : navigate({
-          to: '/stock-management/stock-on-hand',
-          search: { mode: 'my', facilityId, programId },
-        });
+    navigate({
+      to: '/stock-management/stock-on-hand',
+      search: { mode: 'my', facilityId, programId },
+    });
   const print = usePrintReport({
     userId,
     right: RIGHTS.stockCardsView,
@@ -364,7 +378,6 @@ function PrintableStockEventEditor({
 }: StockEventEditorPageProps & { copy: EventPrintCopy }) {
   const { userId, homeFacility, program } = props.data;
   const print = useStockEventPrint({
-    kind: props.kind,
     copy,
     userId,
     facilityId: homeFacility.id,

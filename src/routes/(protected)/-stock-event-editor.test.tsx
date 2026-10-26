@@ -620,7 +620,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
           facilityId: HOME,
           programId: FP,
         });
-        expect(fetchEventStockCards).not.toHaveBeenCalled();
+        expect(fetchEventStockCards).toHaveBeenCalledWith({ facilityId: HOME, programId: FP });
       }
       expect(fetchValidReasons).toHaveBeenCalledWith({ program: FP, facilityType: 'type' });
       if (counterparty)
@@ -879,36 +879,9 @@ describe('Unpack policies', () => {
   });
 });
 
-it('returns to the available program list when connection drops before print Skip', async () => {
-  function SubmittedEvent() {
-    const print = useStockEventPrint({
-      kind: 'receive',
-      copy: EVENT_KINDS.receive.print,
-      userId: USER,
-      facilityId: HOME,
-      programId: FP,
-    });
-    return (
-      <>
-        <button type="button" onClick={() => print.onSubmitted('event')}>
-          Submitted
-        </button>
-        {print.dialog}
-      </>
-    );
-  }
-  const router = renderPage(<SubmittedEvent />);
-  await userEvent.click(await screen.findByRole('button', { name: 'Submitted' }));
-  await screen.findByRole('alertdialog');
-  await act(() => onlineManager.setOnline(false));
-  await userEvent.click(screen.getByRole('button', { name: 'stock-receive.print-skip' }));
-  await waitFor(() => expect(router.state.location.pathname).toBe('/stock-management/receive'));
-});
-
 it('lands an offline queued Issue on its Stock On Hand without offering print', async () => {
   function QueuedIssue() {
     const print = useStockEventPrint({
-      kind: 'issue',
       copy: EVENT_KINDS.issue.print,
       userId: USER,
       facilityId: HOME,

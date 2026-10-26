@@ -190,7 +190,7 @@ export async function fetchAllOrderableVersions(
   identities: readonly OrderableIdentity[],
   config?: AxiosRequestConfig,
 ): Promise<Orderable[]> {
-  const scope = getSessionScope();
+  const scope = config?.sessionScope ?? getSessionScope();
   const unique = [
     ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
   ];
@@ -223,8 +223,11 @@ export function fetchLotsByIds(
   return fetchByIds<LotSummary>('/lots', ids, 'id', config);
 }
 
-export async function fetchLotsByTradeItems(ids: readonly string[]): Promise<LotSummary[]> {
-  const lots = await fetchByIds<LotSummary>('/lots', ids, 'tradeItemId');
+export async function fetchLotsByTradeItems(
+  ids: readonly string[],
+  config?: AxiosRequestConfig,
+): Promise<LotSummary[]> {
+  const lots = await fetchByIds<LotSummary>('/lots', ids, 'tradeItemId', config);
   return [...new Map(lots.map((lot) => [lot.id, lot])).values()];
 }
 
@@ -248,8 +251,12 @@ export type FacilityProgramFilter = { facilityId: string; programId: string };
 
 export async function fetchFacilityOrderableFulfills(
   filter: FacilityProgramFilter,
+  config?: AxiosRequestConfig,
 ): Promise<OrderableFulfills> {
-  const { data } = await client.get<OrderableFulfills>('/orderableFulfills', { params: filter });
+  const { data } = await client.get<OrderableFulfills>('/orderableFulfills', {
+    ...config,
+    params: filter,
+  });
   return data;
 }
 
@@ -430,4 +437,25 @@ export async function fetchRejectionReasons(): Promise<RejectionReason[]> {
     }
   }
   return records;
+}
+
+const PROGRAM_ORDERABLES_PAGE_SIZE = 1000;
+
+export async function fetchProgramOrderables(
+  programCode: string,
+  config?: AxiosRequestConfig,
+): Promise<Orderable[]> {
+  const scope = config?.sessionScope ?? getSessionScope();
+  const products: Orderable[] = [];
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<Orderable>>('/orderables', {
+      ...config,
+      params: { program: programCode, page, size: PROGRAM_ORDERABLES_PAGE_SIZE },
+    });
+    assertSessionScope(scope);
+    products.push(...data.content);
+    if (page + 1 >= data.totalPages) break;
+  }
+  return products;
 }

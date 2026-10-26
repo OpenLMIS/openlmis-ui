@@ -40,7 +40,7 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
-import { PendingDeviceWork } from '@/features/stock-events/components/pending-device-work';
+import { usePendingDeviceCount } from '@/features/stock-events/components/pending-device-work';
 import {
   HOME_STOCK_ACCEPTANCE,
   homeStockProvider,
@@ -507,6 +507,9 @@ function StockOnHandList({
   const { unit, setUnit, canSwitch } = useQuantityUnit();
   const query = toSummariesQuery(search, selection);
   const collapsedKey = `stock-on-hand.collapsed:${userId}:${selection.facilityId}:${selection.programId}`;
+  const pendingEvents = usePendingDeviceCount(
+    (event) => event.facilityId === selection.facilityId && event.programId === selection.programId,
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -549,17 +552,7 @@ function StockOnHandList({
         resetKey={JSON.stringify(query)}
       >
         <StockOnHandResults
-          pendingEvents={
-            <PendingDeviceWork
-              match={(event) =>
-                event.facilityId === selection.facilityId && event.programId === selection.programId
-              }
-              message={{
-                online: 'offline-events.stock-pending-online',
-                offline: 'offline-events.stock-pending-offline',
-              }}
-            />
-          }
+          pendingEvents={pendingEvents}
           readOnDevice={readStockOnHandOnDevice}
           cards={columnView.cards}
           collapsedKey={collapsedKey}

@@ -738,6 +738,28 @@ describe('date picker', () => {
     expect(within(calendar).getByRole('button', { name: /January 21st, 2019/ })).toBeDisabled();
   });
 
+  it('keeps a click on the calendar that a page update interrupts', async () => {
+    const user = userEvent.setup();
+    const picker = (onValueChange: (value: string) => void) => (
+      <DatePicker
+        id="expiry"
+        label="Expiry"
+        onValueChange={onValueChange}
+        placeholder="Expiry"
+        value="2019-01-15"
+      />
+    );
+    const { rerender } = render(picker(vi.fn()));
+
+    const calendar = await openCalendar(user, /^Expiry/);
+    const next = await within(calendar).findByRole('button', { name: /next month/i });
+    await user.pointer({ keys: '[MouseLeft>]', target: next });
+    rerender(picker(vi.fn()));
+    await user.pointer({ keys: '[/MouseLeft]', target: next });
+
+    expect(within(calendar).getByRole('grid')).toHaveAttribute('aria-label', 'February 2019');
+  });
+
   it('clears its date', async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();

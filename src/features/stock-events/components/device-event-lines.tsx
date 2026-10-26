@@ -1,4 +1,5 @@
 import type { ParseKeys } from 'i18next';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
@@ -39,7 +40,9 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
   const lines = deviceEventDetails(event).map((line) => {
     const { item } = line;
     const values: Partial<Record<ParseKeys, string | null | undefined>> = {
-      'offline-events.lot': line.lotCode,
+      'offline-events.lot':
+        line.lotCode ??
+        t(line.productHasLots ? 'stock-events.no-lot-defined' : 'stock-events.product-has-no-lots'),
       'offline-events.quantity': new Intl.NumberFormat(i18n.language).format(item.quantity),
       'offline-events.reason': line.reason,
       'stock-events.reason-comments': item.reasonFreeText,
@@ -83,14 +86,14 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
               </CardBand>
               <CardRows>
                 {visibleHeaders.map(({ header, index }) => (
-                  <SettingsItem key={header} label={t(header)}>
+                  <EventDetailItem key={header} label={t(header)}>
                     <span
                       className={header === 'offline-events.lot' ? 'break-all' : undefined}
                       dir="auto"
                     >
                       {orEmpty(line.values[index])}
                     </span>
-                  </SettingsItem>
+                  </EventDetailItem>
                 ))}
               </CardRows>
             </CardListItem>
@@ -137,5 +140,13 @@ export function DeviceEventLines({ event }: { event: DeviceEvent }) {
         </DataTableCard>
       )}
     </div>
+  );
+}
+
+export function EventDetailItem({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <SettingsItem label={<span className="text-muted-foreground">{label}</span>}>
+      {children}
+    </SettingsItem>
   );
 }

@@ -47,7 +47,7 @@ export function useDeviceDrafts({
   return {
     enabled,
     pending,
-    ready: ready && (!enabled || cardsLoaded),
+    ready: ready && (!enabled || config.products.from !== 'stock-cards' || cardsLoaded),
     submitLabel:
       enabled && !online
         ? ('stock-events.submit-offline' as const)

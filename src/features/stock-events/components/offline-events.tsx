@@ -1,14 +1,6 @@
 import { type ColumnDef, useTable } from '@tanstack/react-table';
-import { ListChecksIcon } from 'lucide-react';
-import {
-  type ReactNode,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { ListChecksIcon, ListIcon } from 'lucide-react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CardActionsSkeleton } from '@/components/card-actions';
 import {
@@ -35,11 +27,20 @@ import { DataTableViewOptions } from '@/components/data-table/data-table-view-op
 import { DialogNotFound } from '@/components/dialog-parts';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
 import { DatePicker } from '@/components/form/form-fields';
-import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
+import { SettingsItem } from '@/components/form/settings-list';
 import { FormDialog } from '@/components/form-dialog/form-dialog';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Workspace,
   WorkspaceContent,
@@ -50,15 +51,12 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { DeviceEventActions } from '@/features/stock-events/components/device-event-actions';
+import { DeviceEventLines } from '@/features/stock-events/components/device-event-lines';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
 import { EventStatus } from '@/features/stock-events/components/event-status';
 import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
 import { deviceEventDetails } from '@/features/stock-events/lib/device-event-details';
-import {
-  COUNTERPARTY,
-  EVENT_KINDS,
-  OFFLINE_EVENT_TYPES,
-} from '@/features/stock-events/lib/event-kinds';
+import { EVENT_KINDS, OFFLINE_EVENT_TYPES } from '@/features/stock-events/lib/event-kinds';
 import {
   activeEventFilters,
   CLEARED_EVENT_FILTERS,
@@ -78,7 +76,6 @@ import {
   toPaginationState,
   useTableSearchState,
 } from '@/lib/table-search';
-import { cn } from '@/lib/utils';
 
 const hideable = [
   { id: 'facility', labelKey: 'facility-program.facility', hideBelow: '5xl' },
@@ -101,75 +98,25 @@ function EventDate({ event }: { event: DeviceEvent }) {
   ));
 }
 
-function EventLines({ event, layout }: { event: DeviceEvent; layout: 'table' | 'cards' }) {
-  const { t, i18n } = useTranslation();
-  const side = EVENT_KINDS[event.kind].counterparty;
-  const quantity = new Intl.NumberFormat(i18n.language);
+function EventDetails({ event, label, size }: { event: DeviceEvent; label: string; size?: 'sm' }) {
+  const { t } = useTranslation();
+  const count = t('offline-events.details-count', { count: deviceEventDetails(event).length });
   return (
-    <ul
-      className={cn(
-        'flex flex-col gap-2 whitespace-normal text-sm',
-        layout === 'table' ? 'min-w-48' : 'text-end',
-      )}
-    >
-      {deviceEventDetails(event).map((line) => {
-        const party = side === 'none' ? line.reason : line.counterparty;
-        return (
-          <li
-            className={cn('flex min-w-0 flex-col gap-0.5', layout === 'cards' && 'items-end')}
-            key={line.key}
-          >
-            <span className="font-medium">
-              <bdi>{line.product}</bdi>
-            </span>
-            <dl
-              className={cn(
-                'flex flex-wrap gap-x-3 gap-y-0.5',
-                layout === 'cards' && 'justify-end',
-              )}
-            >
-              <EventLineDetail label={t('offline-events.lot')} hideLabel={!line.lotCode}>
-                {line.lotCode ??
-                  t(
-                    line.productHasLots
-                      ? 'stock-events.no-lot-defined'
-                      : 'stock-events.product-has-no-lots',
-                  )}
-              </EventLineDetail>
-              {party && (
-                <EventLineDetail
-                  label={t(side === 'none' ? 'offline-events.reason' : COUNTERPARTY[side].column)}
-                >
-                  {party}
-                </EventLineDetail>
-              )}
-              <EventLineDetail label={t('offline-events.quantity')}>
-                {quantity.format(line.item.quantity)}
-              </EventLineDetail>
-            </dl>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function EventLineDetail({
-  label,
-  hideLabel = false,
-  children,
-}: {
-  label: string;
-  hideLabel?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex min-w-0 gap-1">
-      <dt className={hideLabel ? 'sr-only' : 'shrink-0 text-muted-foreground'}>{label}</dt>
-      <dd className="min-w-0 wrap-break-word">
-        <bdi>{children}</bdi>
-      </dd>
-    </div>
+    <Popover>
+      <PopoverTrigger render={<Button aria-label={label} size={size} variant="outline" />}>
+        <ListIcon data-icon="inline-start" />
+        {count}
+      </PopoverTrigger>
+      <PopoverContent align="end" width="table">
+        <PopoverHeader>
+          <PopoverTitle>{t(EVENT_KINDS[event.kind].copy.eventType)}</PopoverTitle>
+          <PopoverDescription>{count}</PopoverDescription>
+        </PopoverHeader>
+        <ScrollArea height="fill">
+          <DeviceEventLines event={event} />
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -398,7 +345,8 @@ function OfflineEventsTable({
       event: DeviceEvent,
       key:
         | 'offline-events.review-event-label'
-        | 'offline-events.remove-event-label' = 'offline-events.review-event-label',
+        | 'offline-events.remove-event-label'
+        | 'offline-events.details-label' = 'offline-events.review-event-label',
     ) =>
       t(key, {
         type: t(EVENT_KINDS[event.kind].copy.eventType),
@@ -407,6 +355,7 @@ function OfflineEventsTable({
           timeZone,
         }),
         status: t(`offline-events.status-${event.status}`),
+        count: deviceEventDetails(event).length,
       }),
     [t, i18n.language, timeZone],
   );
@@ -445,7 +394,14 @@ function OfflineEventsTable({
       {
         id: 'details',
         header: t('offline-events.line-details'),
-        cell: ({ row }) => <EventLines event={row.original} layout="table" />,
+        cell: ({ row }) => (
+          <EventDetails
+            event={row.original}
+            label={reviewLabel(row.original, 'offline-events.details-label')}
+            size="sm"
+          />
+        ),
+        meta: { className: 'w-32', skeleton: 'control' },
       },
       {
         id: 'occurredDate',
@@ -664,12 +620,12 @@ function OfflineEventsTable({
                     </SettingsItem>
                   )}
                   {columnVisibility.details !== false && (
-                    <SettingsRowFrame
-                      value="wide"
-                      label={<span className="text-sm">{t('offline-events.line-details')}</span>}
-                    >
-                      <EventLines event={event} layout="cards" />
-                    </SettingsRowFrame>
+                    <SettingsItem label={t('offline-events.line-details')}>
+                      <EventDetails
+                        event={event}
+                        label={reviewLabel(event, 'offline-events.details-label')}
+                      />
+                    </SettingsItem>
                   )}
                   {columnVisibility.occurredDate !== false && (
                     <SettingsItem label={t('offline-events.occurred-date')}>

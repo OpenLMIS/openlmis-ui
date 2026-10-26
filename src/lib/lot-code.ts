@@ -21,3 +21,18 @@ export function lotCodeSchema(messages: LotCodeMessages) {
 
 export const sameLotCode = (first: string, second: string) =>
   first.toLowerCase() === second.toLowerCase();
+
+export function conflictingDeviceLot<
+  T extends {
+    tradeItemId: string;
+    lotCode: string;
+    expirationDate: string | null;
+  },
+>(lots: readonly T[], tradeItemId: string, lotCode: string, expirationDate: string) {
+  return lots.find(
+    (lot) =>
+      lot.tradeItemId === tradeItemId &&
+      sameLotCode(lot.lotCode, lotCode) &&
+      (lot.expirationDate ?? '') !== expirationDate,
+  );
+}

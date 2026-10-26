@@ -74,6 +74,7 @@ export function useDeviceSubmission({
                 body.lineItems.some(
                   (item) =>
                     item.orderableId === card.orderable.id &&
+                    !item.lot &&
                     (item.lotId ?? null) === (card.lot?.id ?? null),
                 ),
               )

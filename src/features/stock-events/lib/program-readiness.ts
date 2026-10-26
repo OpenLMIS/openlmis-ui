@@ -6,7 +6,7 @@ export type ProgramReadiness =
   | { state: 'ready' }
   | {
       state: 'not-downloaded';
-      reason: 'no-stock-card-right' | 'older-download' | 'not-downloaded';
+      reason: 'no-stock-card-right' | 'older-download' | 'not-downloaded' | 'catalog-missing';
     };
 
 export function programReadiness(input: {
@@ -20,6 +20,7 @@ export function programReadiness(input: {
   >;
 }): ProgramReadiness {
   const entries = input.datasets.map(({ dataset }) => ({
+    dataset,
     loaded: input.states[dataset]?.loaded,
     state: input.states[dataset]?.states.get(input.programId),
   }));
@@ -28,7 +29,11 @@ export function programReadiness(input: {
   if (entries.some(({ loaded }) => !loaded)) return { state: 'checking' };
   if (entries.some(({ state }) => state === 'outdated'))
     return { state: 'not-downloaded', reason: 'older-download' };
-  if (entries.some(({ state }) => state === 'missing' || state === undefined))
-    return { state: 'not-downloaded', reason: 'not-downloaded' };
+  const missing = entries.find(({ state }) => state === 'missing' || state === undefined);
+  if (missing)
+    return {
+      state: 'not-downloaded',
+      reason: missing.dataset === 'receive-catalog' ? 'catalog-missing' : 'not-downloaded',
+    };
   return { state: 'ready' };
 }

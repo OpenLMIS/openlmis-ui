@@ -1,3 +1,5 @@
+import { conflictingDeviceLot } from '@/lib/lot-code';
+
 export type StockScan = {
   gtin: string;
   lotCode?: string;
@@ -31,7 +33,8 @@ export type ScanRefusalReason =
   | 'productAmbiguous'
   | 'lotRequired'
   | 'lotNotOnScreen'
-  | 'lotExpiryPast';
+  | 'lotExpiryPast'
+  | 'lotCodeQueued';
 export type ScanAction<Card extends ScanCard = ScanCard> =
   | { type: 'count'; lineKey: string }
   | { type: 'add'; card: Card };
@@ -48,6 +51,7 @@ export type ResolveScanOptions<Card extends ScanCard = ScanCard> = {
   products: readonly ScanProduct<Card>[];
   lines: readonly ScanLine[];
   policy: ScanPolicy;
+  deviceLots?: readonly { tradeItemId: string; lotCode: string; expirationDate: string | null }[];
 };
 
 function dateValue(value: string | Date | null | undefined): string | undefined {
@@ -76,6 +80,7 @@ export function resolveScan<Card extends ScanCard>({
   products,
   lines,
   policy,
+  deviceLots = [],
 }: ResolveScanOptions<Card>): ScanResolution<Card | PendingScanCard<Card>> {
   const matches = products.filter(
     (product) => product.orderable.identifiers?.tradeItem === tradeItemId,
@@ -101,8 +106,26 @@ export function resolveScan<Card extends ScanCard>({
         !line.lot?.id &&
         line.lot?.lotCode.toLowerCase() === lotCode.toLowerCase(),
     );
-    if (pending) return { type: 'count', lineKey: pending.key };
+    const conflict = conflictingDeviceLot(
+      deviceLots,
+      tradeItemId,
+      lotCode,
+      (pending ? dateValue(pending.lot?.expirationDate) : dateValue(scan.expiry)) ?? '',
+    );
+    if (conflict)
+      return {
+        type: 'refuse',
+        reason: 'lotCodeQueued',
+        params: { expiry: conflict.expirationDate ?? '' },
+      };
     const scannedExpiry = dateValue(scan.expiry);
+    if (pending) {
+      const next: ScanAction<Card> = { type: 'count', lineKey: pending.key };
+      const recorded = dateValue(pending.lot?.expirationDate);
+      if (recorded && scannedExpiry && recorded !== scannedExpiry)
+        return { type: 'confirm-expiry', recorded, scanned: scannedExpiry, next };
+      return next;
+    }
     if (scannedExpiry && scannedExpiry < policy.today)
       return { type: 'refuse', reason: 'lotExpiryPast', params: { lotCode } };
     const { id: _id, lot: _lot, ...rest } = template;

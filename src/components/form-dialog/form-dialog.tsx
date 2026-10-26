@@ -1,5 +1,5 @@
 import { Loader2Icon } from 'lucide-react';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
+type DialogContentProps = ComponentProps<typeof DialogContent>;
+
 type FormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -23,6 +25,7 @@ type FormDialogProps = {
   size?: 'lg' | 'table' | 'xl' | '2xl';
   /** `fixed` keeps the same height whatever the body shows, such as a table as it is filtered. */
   height?: 'auto' | 'fixed';
+  finalFocus?: DialogContentProps['finalFocus'];
   children: ReactNode;
 };
 
@@ -34,6 +37,7 @@ export function FormDialog({
   closeButton = true,
   size = 'lg',
   height = 'auto',
+  finalFocus,
   children,
 }: FormDialogProps) {
   const popupRef = useRef<HTMLDivElement>(null);
@@ -52,6 +56,7 @@ export function FormDialog({
           (!lastPressWasTouch && firstField(popupRef.current)) || popupRef.current
         }
         layout="scroll"
+        finalFocus={finalFocus}
         ref={popupRef}
         showCloseButton={closeButton}
         height={height}
