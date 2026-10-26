@@ -536,6 +536,8 @@
   "offline-events.copy-resolved": "Este evento ya se ha copiado para corregirlo.",
   "offline-events.copy-warning": "¿Copiar este evento en un borrador editable? Se archivarán los cambios existentes para este establecimiento y programa. El original rechazado permanece en este dispositivo.",
   "offline-events.details": "Detalles Del Evento",
+  "offline-events.details-count": "{count, plural, one {# Artículo} other {# Artículos}}",
+  "offline-events.details-label": "{count, plural, one {# Artículo} other {# Artículos}} De {type}, En Cola Desde {date}, {status}",
   "offline-events.draft-changed": "El Evento Sin Conexión Necesita Revisión",
   "offline-events.draft-changed-description": "El evento guardado y su borrador ya no coinciden, por lo que la sincronización de este establecimiento y programa está pausada para revisión.",
   "offline-events.draft-changed-held-description": "Cambió en otra pestaña.",

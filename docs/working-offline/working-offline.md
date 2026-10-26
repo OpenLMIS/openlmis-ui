@@ -96,8 +96,9 @@ in progress, unknown results and unresolved refusals, including held work. The A
 Issue and Receive program lists also link there when events are waiting or need review.
 
 The page shows each event's type, facility, program, details, occurred dates and sync status.
-Details lists each product with its lot, where it was issued to or received from (or the
-reason for an adjustment) and the quantity, so events of the same program can be told apart.
+Details shows how many items an event has. Select it to see each product with its lot, where
+it was issued to or received from (or the reason for an adjustment) and the quantity, so events
+of the same program can be told apart. Long events scroll inside that list.
 On phones, each event has its own card. Choose View Details in the row menu or card to see
 every line in full. Details also offers Transaction History and the
 actions to remove an unsent event or resolve a refusal or unknown result. Status filters

@@ -536,6 +536,8 @@
   "offline-events.copy-resolved": "Este evento já foi copiado para correção.",
   "offline-events.copy-warning": "Copiar este evento para um rascunho editável? As alterações existentes para esta unidade e programa serão arquivadas. O original recusado permanece neste dispositivo.",
   "offline-events.details": "Detalhes Do Evento",
+  "offline-events.details-count": "{count, plural, one {# Item} other {# Itens}}",
+  "offline-events.details-label": "{count, plural, one {# Item} other {# Itens}} De {type}, Na Fila Desde {date}, {status}",
   "offline-events.draft-changed": "Evento Offline Precisa De Revisão",
   "offline-events.draft-changed-description": "O evento guardado e o rascunho já não correspondem, pelo que a sincronização desta unidade e programa está suspensa para revisão.",
   "offline-events.draft-changed-held-description": "Alterado noutra aba.",

@@ -536,6 +536,8 @@
   "offline-events.copy-resolved": "تم نسخ هذا الحدث بالفعل لتصحيحه.",
   "offline-events.copy-warning": "هل تريد نسخ هذا الحدث إلى مسودة قابلة للتعديل؟ ستُؤرشف التعديلات الحالية لهذا المرفق والبرنامج. يبقى الأصل المرفوض على هذا الجهاز.",
   "offline-events.details": "تفاصيل الحدث",
+  "offline-events.details-count": "{count, plural, zero {لا عناصر} one {عنصر واحد} two {عنصران} few {# عناصر} many {# عنصرًا} other {# عنصر}}",
+  "offline-events.details-label": "{count, plural, zero {لا عناصر} one {عنصر واحد} two {عنصران} few {# عناصر} many {# عنصرًا} other {# عنصر}} في {type}، في قائمة الانتظار منذ {date}، {status}",
   "offline-events.draft-changed": "الحدث دون اتصال يحتاج إلى مراجعة",
   "offline-events.draft-changed-description": "لم يعد الحدث المحفوظ ومسودته متطابقين، لذا أُوقفت مزامنة هذه المنشأة والبرنامج مؤقتًا للمراجعة.",
   "offline-events.draft-changed-held-description": "تغيّر في علامة تبويب أخرى.",

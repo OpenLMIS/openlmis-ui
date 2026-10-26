@@ -536,6 +536,8 @@
   "offline-events.copy-resolved": "Cet événement a déjà été copié pour correction.",
   "offline-events.copy-warning": "Copier cet événement dans un brouillon modifiable ? Les modifications existantes pour cet établissement et ce programme seront archivées. L’original refusé reste sur cet appareil.",
   "offline-events.details": "Détails De L'événement",
+  "offline-events.details-count": "{count, plural, one {# Article} other {# Articles}}",
+  "offline-events.details-label": "{count, plural, one {# Article} other {# Articles}} De {type}, En Attente Depuis {date}, {status}",
   "offline-events.draft-changed": "Événement Hors Ligne À Vérifier",
   "offline-events.draft-changed-description": "L’événement enregistré et son brouillon ne correspondent plus, donc la synchronisation de cet établissement et programme est suspendue pour vérification.",
   "offline-events.draft-changed-held-description": "Modifié dans un autre onglet.",

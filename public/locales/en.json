@@ -536,6 +536,8 @@
   "offline-events.copy-resolved": "This event has already been copied for correction.",
   "offline-events.copy-warning": "Copy this event into an editable draft? Existing edits for this facility and program will be archived. The refused original stays on this device.",
   "offline-events.details": "Event Details",
+  "offline-events.details-count": "{count, plural, one {# Item} other {# Items}}",
+  "offline-events.details-label": "{count, plural, one {# Item} other {# Items}} For {type}, Queued {date}, {status}",
   "offline-events.draft-changed": "Offline Event Needs Review",
   "offline-events.draft-changed-description": "The saved event and its draft no longer match, so sync for this facility and program is paused for review.",
   "offline-events.draft-changed-held-description": "Changed in another tab.",
