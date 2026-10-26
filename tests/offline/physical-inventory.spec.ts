@@ -64,6 +64,7 @@ test('inventory counts and new lots survive offline restart and only explicit Sa
     await expect(page.getByText('Never Downloaded', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.waitForURL((url) => url.pathname.endsWith('/physical-inventory/program'));
     await page.reload();
     await expect(count(page, 'Fixture Product')).toHaveValue('20');
     await count(page, 'Fixture Product').fill('0012');
