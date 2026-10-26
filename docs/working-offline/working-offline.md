@@ -90,18 +90,20 @@ Not Available Offline. Reconnect to refresh stock and open histories you need.
 
 Before disconnecting, open the draft online in the browser and device you will use for counting.
 Wait for its products and reasons to finish loading. Only drafts opened online on this device
-are available offline; you cannot start a new draft without a connection.
+are available offline; others show Not On This Device. You cannot start a new draft without a
+connection.
 
 Offline, you can enter counts and reasons, use Add Products and add new lots if you have
 permission to manage lots. Scanning is off. Edits save automatically on this device. Wait for
 Saved On This Device before closing the browser. Counts remain on the device after sign-out
-and are available when the same user signs in again.
+and are available when the same user signs in again. If the draft changes in another tab,
+choose Load Saved Draft to use that tab's counts, or Keep My Counts to replace them with yours.
 
 Save and Delete need a connection. Submit checks the counts first, then asks you to connect
 before submitting. Nothing is sent automatically when the connection returns. The page keeps
 your counts; reopening the draft online refreshes its stock balances.
 
-An earlier-draft alert means this device has edited counts for a draft that is no longer the
+Earlier Counts On This Device means this device has edited counts for a draft that is no longer the
 current server draft. Those counts are kept separately and are not sent to the server or offered
 in the offline draft list. Discard Earlier Counts asks for confirmation and removes that
 earlier device copy. It does not delete the current server draft.
