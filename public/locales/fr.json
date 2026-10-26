@@ -536,7 +536,6 @@
   "offline-events.copy": "Copier Pour Correction",
   "offline-events.copy-resolved": "Cet événement a déjà été copié pour correction.",
   "offline-events.copy-warning": "Copier cet événement dans un brouillon modifiable ? Les modifications existantes pour cet établissement et ce programme seront archivées. L’original refusé reste sur cet appareil.",
-  "offline-events.could-not-perform": "Nous n’avons pas pu effectuer cet événement. {message}",
   "offline-events.date": "Date",
   "offline-events.details": "Détails De L'événement",
   "offline-events.details-count": "{count, plural, one {# Article} other {# Articles}}",

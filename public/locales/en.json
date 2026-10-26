@@ -536,7 +536,6 @@
   "offline-events.copy": "Copy For Correction",
   "offline-events.copy-resolved": "This event has already been copied for correction.",
   "offline-events.copy-warning": "Copy this event into an editable draft? Existing edits for this facility and program will be archived. The refused original stays on this device.",
-  "offline-events.could-not-perform": "We couldn't perform this event. {message}",
   "offline-events.date": "Date",
   "offline-events.details": "Event Details",
   "offline-events.details-count": "{count, plural, one {# Item} other {# Items}}",

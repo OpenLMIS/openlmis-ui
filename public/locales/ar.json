@@ -536,7 +536,6 @@
   "offline-events.copy": "نسخ للتصحيح",
   "offline-events.copy-resolved": "تم نسخ هذا الحدث بالفعل لتصحيحه.",
   "offline-events.copy-warning": "هل تريد نسخ هذا الحدث إلى مسودة قابلة للتعديل؟ ستُؤرشف التعديلات الحالية لهذا المرفق والبرنامج. يبقى الأصل المرفوض على هذا الجهاز.",
-  "offline-events.could-not-perform": "تعذر علينا تنفيذ هذا الحدث. {message}",
   "offline-events.date": "التاريخ",
   "offline-events.details": "تفاصيل الحدث",
   "offline-events.details-count": "{count, plural, zero {لا عناصر} one {عنصر واحد} two {عنصران} few {# عناصر} many {# عنصرًا} other {# عنصر}}",

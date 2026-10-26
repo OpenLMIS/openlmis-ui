@@ -46,7 +46,7 @@ function fixture(
   };
 }
 
-it('isolates refusal details in Arabic and uses a neutral fallback for copied refusals', async () => {
+it('shows the server message without the lead-in and a neutral fallback for copied refusals', async () => {
   const i18n = createInstance().use(IsolatingICU);
   await i18n.init({
     lng: 'ar',
@@ -71,9 +71,7 @@ it('isolates refusal details in Arabic and uses a neutral fallback for copied re
   };
   uncertain.lastFailure = 'Stored last failure';
   const { unmount } = renderMessage(refused);
-  expect(screen.getByText(/Human refusal/)).toHaveTextContent(
-    'تعذر علينا تنفيذ هذا الحدث. \u2068Human refusal\u2069',
-  );
+  expect(screen.getByText('Human refusal')).toHaveAttribute('dir', 'auto');
   unmount();
   refused.error.message = '';
   const fallback = renderMessage(refused);
