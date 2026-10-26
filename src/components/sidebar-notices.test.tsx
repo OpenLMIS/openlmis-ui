@@ -373,13 +373,13 @@ it('shows action-needed events once visibly and once in the persistent announcer
   expect(notes).toHaveLength(3);
   expect(notes[0]).toHaveClass('border-destructive/30');
   expect(notes.some((note) => note.textContent?.includes('Access Changed'))).toBe(true);
-  expect(screen.getAllByRole('button', { name: 'Review Offline Events' })).toHaveLength(1);
+  expect(screen.getAllByRole('button', { name: 'Review' })).toHaveLength(1);
   const needsReview = notes.find((note) =>
     note.textContent?.includes('2 Offline Events Need Review'),
   );
   expect(needsReview).toHaveClass('border-destructive/30');
   if (!needsReview) throw new Error('Missing action-needed notice');
-  expect(within(needsReview).getByRole('button', { name: 'Review Offline Events' })).toBeVisible();
+  expect(within(needsReview).getByRole('button', { name: 'Review' })).toBeVisible();
   expect(screen.getAllByRole('status')).toHaveLength(1);
 });
 it('keeps the offline connection notice alone and offers sign-in after reconnect', () => {

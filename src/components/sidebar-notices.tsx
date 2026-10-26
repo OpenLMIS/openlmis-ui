@@ -72,7 +72,7 @@ function useNotices(): Notice[] {
   const phase = ownPhase === 'idle' && device.sending ? 'syncing' : ownPhase;
   const needsAction = device.refused + device.uncertain;
   const review = {
-    label: t('offline-events.review'),
+    label: t('offline-events.review-short'),
     onClick: () =>
       void navigate({ to: '/offline-events', search: needsAction ? { tab: 'errors' } : {} }),
   };
@@ -217,7 +217,7 @@ function useNotices(): Notice[] {
         variant: 'warning',
         Icon: AlertTriangleIcon,
         title: t(`offline-events.${reason}`),
-        description: t(`offline-events.${reason}-description`),
+        description: t(`offline-events.${reason}-held-description`),
         action: review,
         closesSidebar: true,
       });
@@ -228,7 +228,6 @@ function useNotices(): Notice[] {
       variant: 'destructive',
       Icon: AlertTriangleIcon,
       title: t('offline-events.action-needed-count', { count: needsAction }),
-      description: t('offline-events.action-needed-description'),
       action: review,
       closesSidebar: true,
     });
