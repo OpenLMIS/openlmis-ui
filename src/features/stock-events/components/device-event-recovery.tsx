@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Trash2Icon } from 'lucide-react';
+import { AlertTriangleIcon, CircleXIcon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -172,6 +172,9 @@ export function DeviceEventRecovery({
       });
     }
   };
+  const stockChanged = event.error?.category === 'stock-changed';
+  const fallbackReason = t('offline-events.refused-description');
+  const reason = refusalMessage(event.error, t);
   const timestamp = (value?: number) =>
     value
       ? formatTimestamp(new Date(value).toISOString(), i18n.language, { time: true, timeZone })
@@ -235,20 +238,40 @@ export function DeviceEventRecovery({
             className="min-h-0 min-w-0 flex flex-col gap-3 overflow-y-auto"
           >
             <DeviceEventLines event={event} />
-            {event.error?.category === 'stock-changed' && (
-              <Alert variant="warning">
-                <AlertTitle>{t('offline-events.stock-changed')}</AlertTitle>
-                <AlertDescription>{t('offline-events.stock-changed-description')}</AlertDescription>
+            {(stockChanged || event.status === 'refused') && (
+              <Alert variant={stockChanged ? 'warning' : 'destructive'}>
+                {stockChanged ? <AlertTriangleIcon /> : <CircleXIcon />}
+                <AlertTitle>
+                  {t(
+                    stockChanged ? 'offline-events.stock-changed' : 'offline-events.status-refused',
+                  )}
+                </AlertTitle>
+                <AlertDescription>
+                  <div className="flex min-w-0 flex-col gap-2.5">
+                    <div>
+                      {t(
+                        stockChanged
+                          ? 'offline-events.stock-changed-description'
+                          : 'offline-events.refused-description',
+                      )}
+                    </div>
+                    {event.status === 'refused' && reason !== fallbackReason && (
+                      <figure className="flex min-w-0 flex-col gap-1 border-s-2 border-current/30 ps-3">
+                        <figcaption className="text-xs font-medium">
+                          {t('offline-events.full-error')}
+                        </figcaption>
+                        <blockquote dir="auto" className="text-pretty break-words text-foreground">
+                          {reason}
+                        </blockquote>
+                      </figure>
+                    )}
+                  </div>
+                </AlertDescription>
               </Alert>
-            )}
-            {event.status === 'refused' && (
-              <div className="flex min-w-0 flex-col gap-2">
-                <h3 className="font-medium">{t('offline-events.full-error')}</h3>
-                <p dir="auto">{refusalMessage(event.error, t)}</p>
-              </div>
             )}
             {event.pauseReason && (
               <Alert variant="warning">
+                <AlertTriangleIcon />
                 <AlertTitle>{t(pauseCopy[event.pauseReason].title)}</AlertTitle>
                 <AlertDescription>{t(pauseCopy[event.pauseReason].description)}</AlertDescription>
               </Alert>
@@ -256,6 +279,8 @@ export function DeviceEventRecovery({
             {event.status === 'uncertain' && (
               <>
                 <Alert variant="warning">
+                  <AlertTriangleIcon />
+                  <AlertTitle>{t('offline-events.status-uncertain')}</AlertTitle>
                   <AlertDescription>{t('offline-events.uncertain-description')}</AlertDescription>
                 </Alert>
                 {canView ? (

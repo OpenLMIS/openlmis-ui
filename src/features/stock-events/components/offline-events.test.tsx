@@ -208,7 +208,7 @@ it.each([
     const dialog = within(await screen.findByRole('dialog'));
     expect(dialog.getByText('Facility')).toBeVisible();
     expect(dialog.getByText('Program')).toBeVisible();
-    expect(dialog.getByText(`offline-events.status-${status}`)).toBeVisible();
+    expect(dialog.getAllByText(`offline-events.status-${status}`)[0]).toBeVisible();
     expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
       `transaction-history.type-adjustment. offline-events.status-${status}`,
     );
