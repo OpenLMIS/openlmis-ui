@@ -18,6 +18,7 @@ export function OfflineAlert({ children }: { children: ReactNode }) {
 }
 
 type SnapshotMessage =
+  | 'physical-inventory.reconnected-snapshot'
   | 'physical-inventory.offline-snapshot'
   | 'stock-events.offline-snapshot'
   | 'stock-on-hand.offline-snapshot'
@@ -25,6 +26,7 @@ type SnapshotMessage =
   | 'stock-card.offline-summary';
 
 const unreachableMessages = {
+  'physical-inventory.reconnected-snapshot': 'physical-inventory.reconnected-snapshot',
   'physical-inventory.offline-snapshot': 'physical-inventory.unreachable-snapshot',
   'stock-events.offline-snapshot': 'offline.stock-snapshot-unreachable',
   'stock-on-hand.offline-snapshot': 'offline.stock-snapshot-unreachable',
@@ -43,18 +45,18 @@ function nextSnapshotNotice(
   notice: SnapshotNotice,
   present: boolean,
   refreshing: boolean,
-  updatedAt: number,
+  updatedAt: number | undefined,
   online: boolean,
 ): SnapshotNotice {
   if (!present) return {};
   if (notice.online === undefined) return { online: refreshing && online ? undefined : online };
   if (!online) return { online: refreshing ? notice.online : false };
-  if (notice.online) return { online: true };
+  if (notice.online || (updatedAt === undefined && !refreshing)) return { online: true };
   const reconnectedAt = notice.reconnectedAt ?? updatedAt;
   return refreshing || updatedAt === reconnectedAt ? { online: false, reconnectedAt } : { online };
 }
 
-export function useSnapshotNotice(present: boolean, refreshing: boolean, updatedAt: number) {
+export function useSnapshotNotice(present: boolean, refreshing: boolean, updatedAt?: number) {
   const online = useOnline();
   const [notice, setNotice] = useState<SnapshotNotice>({});
   const next = nextSnapshotNotice(notice, present, refreshing, updatedAt, online);

@@ -14,7 +14,7 @@ export function deviceQuery<T>({
   queryKey: QueryKey;
   online: boolean;
   server: (context: QueryFunctionContext) => Promise<T>;
-  device?: () => Promise<T>;
+  device?: (serverError?: unknown) => Promise<T>;
   staleTime: number;
   canFallback?: (error: unknown) => boolean;
 }) {

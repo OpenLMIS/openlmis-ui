@@ -91,7 +91,9 @@ export async function readInventoryScope(scope: InventoryScope) {
   return copies;
 }
 
-export async function readInventoryLocalByScope(scope: InventoryScope) {
+export async function readInventoryLocalByScope(
+  scope: InventoryScope,
+): Promise<InventoryLocalCopy | undefined> {
   return (await readInventoryScope(scope))
     .filter(
       (copy) =>
@@ -152,6 +154,7 @@ export async function writeInventoryLocal(
   db: Dexie = getLocalDb(),
   reference?: InventoryReference,
   allowOrphan = false,
+  { snapshotOnly = false, referenceUnchanged = false } = {},
 ) {
   const table = db.table<InventoryLocalCopy, string>(LOCAL_TABLES.physicalInventoryDrafts);
   const expected = copy.revision ? copy : undefined;
@@ -171,9 +174,15 @@ export async function writeInventoryLocal(
     next: async (stored) => {
       if (reference) {
         if (!matchesCopy(reference, copy)) throw new Error('Mismatched inventory reference');
-        await putOwnedRecord(LOCAL_TABLES.physicalInventoryReference, reference, () =>
-          assertSessionScope(scope),
-        );
+        if (
+          !referenceUnchanged ||
+          reference.userId !== getLocalDbUserId() ||
+          !stored ||
+          !matchesCopy(reference, stored)
+        )
+          await putOwnedRecord(LOCAL_TABLES.physicalInventoryReference, reference, () =>
+            assertSessionScope(scope),
+          );
       }
       return {
         ...copy,
@@ -181,7 +190,7 @@ export async function writeInventoryLocal(
           ? { fetchedAt: stored.fetchedAt, generation: stored.generation }
           : {}),
         revision:
-          reference && !copy.modified && stored?.revision
+          reference && snapshotOnly && stored?.revision
             ? stored.revision
             : (copy.revision ?? 0) + 1,
       };

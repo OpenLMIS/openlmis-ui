@@ -317,8 +317,9 @@ it('writes removal of the last locally added line so it cannot return on reopen'
       }),
       expect.any(Number),
       expect.anything(),
+      expect.anything(),
       undefined,
-      undefined,
+      expect.objectContaining({ snapshotOnly: false }),
     ),
   );
 });
@@ -347,8 +348,9 @@ it('always confirms Save, sends hidden members, and retains an unmodified device
       expect.objectContaining({ draftId: 'd', modified: false, baselineKeys: expect.any(Array) }),
       expect.any(Number),
       expect.anything(),
+      expect.anything(),
       undefined,
-      undefined,
+      expect.objectContaining({ snapshotOnly: false }),
     ),
   );
   expect(clearInventoryLocal).not.toHaveBeenCalled();
@@ -368,6 +370,7 @@ it('stores an unmodified copy with its products on an online open', async () => 
         ),
       }),
       undefined,
+      expect.objectContaining({ snapshotOnly: true }),
     ),
   );
 });
@@ -577,8 +580,9 @@ it('keeps Delete on an added row after Save replaces its editable lot with the s
     }),
     expect.any(Number),
     expect.anything(),
+    expect.anything(),
     undefined,
-    undefined,
+    expect.objectContaining({ snapshotOnly: false }),
   );
   expect(savePhysicalInventory).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -791,8 +795,9 @@ it('keeps sorting and paging stable during count entry while progress and saved 
       }),
       expect.any(Number),
       expect.anything(),
+      expect.anything(),
       undefined,
-      undefined,
+      expect.objectContaining({ snapshotOnly: false }),
     ),
   );
 });
@@ -934,8 +939,9 @@ it('retains saved session counts when the stock refresh fails and saves them aga
     expect.objectContaining({ modified: false }),
     expect.any(Number),
     expect.anything(),
+    expect.anything(),
     undefined,
-    undefined,
+    expect.objectContaining({ snapshotOnly: false }),
   );
   expect(savePhysicalInventory).toHaveBeenLastCalledWith(
     expect.objectContaining({

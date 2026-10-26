@@ -118,14 +118,8 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
         </div>
       ) : result.isError ? (
         t('physical-inventory.status-error')
-      ) : (
-        t(
-          missing
-            ? 'physical-inventory.not-on-device'
-            : result.data
-              ? 'physical-inventory.draft'
-              : 'physical-inventory.not-started',
-        )
+      ) : missing ? null : (
+        t(result.data ? 'physical-inventory.draft' : 'physical-inventory.not-started')
       ),
       actionLabel: t(
         result.isError

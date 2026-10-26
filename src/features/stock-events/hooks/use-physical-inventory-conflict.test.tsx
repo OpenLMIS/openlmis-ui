@@ -166,15 +166,113 @@ it.each([false, true])(
     );
     await act(async () => {
       const refreshed = { ...copy, fetchedAt: 2, generation: 'G2' };
-      await b.result.current.write(refreshed, inventoryReference(refreshed, [], []));
+      await b.result.current.write(refreshed, inventoryReference(refreshed, [], []), true);
     });
     await act(async () => {
       await a.result.current.write({ ...copy, modified: true, savedAt: 3 });
     });
     expect(a.result.current.status).toBe('saved');
     const latest = await readInventoryLocal('draft');
-    expect(latest).toMatchObject({ modified: true, savedAt: 3, generation: 'G2', fetchedAt: 2 });
+    expect(latest).toMatchObject({
+      modified: true,
+      savedAt: 3,
+      generation: existing ? 'G' : 'G2',
+      fetchedAt: existing ? 1 : 2,
+    });
     if (!latest) throw new Error('Missing saved counts');
     expect(await readInventoryReference(latest)).toBeDefined();
+  },
+);
+
+it.each([false, true])(
+  'keeps counts and their reference together after another tab opens (modified: %s)',
+  async (modified) => {
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: crypto.randomUUID(),
+      username: 'Ada',
+      accessToken: 'token',
+    });
+    const { buildInventoryLines } = await import(
+      '@/features/stock-events/lib/physical-inventory-lines'
+    );
+    const lines = buildInventoryLines(
+      [
+        {
+          orderable: { id: 'p', productCode: 'P', fullProductName: 'Product', description: null },
+          lot: null,
+          stockOnHand: 10,
+        },
+      ],
+      [{ orderableId: 'p', quantity: 7 }],
+    );
+    const copy: InventoryLocalCopy = {
+      draftId: 'draft',
+      facilityId: 'home',
+      programId: 'one',
+      lines,
+      modified,
+      savedAt: 1,
+      formatVersion: 1,
+      baselineKeys: ['p'],
+      fetchedAt: 1,
+      generation: 'G1',
+    };
+    const reference = inventoryReference(copy, lines, []);
+    const saved = await writeInventoryLocal(copy, undefined, undefined, reference);
+    const a = renderHook(() =>
+      usePhysicalInventoryAutosave(
+        noCopy,
+        usePhysicalInventoryForm(lines, false),
+        saved?.revision,
+        undefined,
+        saved,
+      ),
+    );
+    await act(async () => {
+      await a.result.current.write(copy, reference);
+    });
+    const current = await readInventoryLocal(copy.draftId);
+    const b = renderHook(() =>
+      usePhysicalInventoryAutosave(
+        noCopy,
+        usePhysicalInventoryForm(lines, false),
+        current?.revision,
+        undefined,
+        current,
+      ),
+    );
+    const refreshed = {
+      ...copy,
+      generation: 'G2',
+      fetchedAt: 2,
+      lines: lines.map((line) => ({ ...line, stockOnHand: 20 })),
+    };
+    await act(async () => {
+      await b.result.current.write(
+        refreshed,
+        inventoryReference(refreshed, refreshed.lines, []),
+        true,
+      );
+    });
+    const opened = await readInventoryLocal(copy.draftId);
+    expect(opened?.revision).toBe(current?.revision);
+    await act(async () => {
+      await a.result.current.write({ ...copy, modified: true, savedAt: 3 });
+    });
+    expect(a.result.current.status).toBe('saved');
+    const latest = await readInventoryLocal(copy.draftId);
+    expect(latest).toMatchObject({ generation: 'G1', fetchedAt: 1 });
+    if (!latest) throw new Error('Missing counts');
+    expect(latest.lines[0].stockOnHand).toBe(10);
+    expect(latest.revision).toBe((opened?.revision ?? 0) + 1);
+    expect(await readInventoryReference(latest)).toMatchObject({
+      generation: 'G1',
+      fetchedAt: 1,
+      eligible: [expect.objectContaining({ stockOnHand: 10 })],
+    });
+    await act(async () => {
+      await a.result.current.write({ ...copy, modified: false, savedAt: 4 });
+    });
+    expect((await readInventoryLocal(copy.draftId))?.revision).toBe((latest.revision ?? 0) + 1);
   },
 );

@@ -352,7 +352,9 @@ function InventoryDraftRows({
   const [entryUpdatedAfter] = useState(eligibleUpdatedAfter);
   const scanning = useFlag('GS1_SCANNING');
   const online = useOnline();
-  const noticeOnline = useSnapshotNotice(true, false, 0);
+  const noticeOnline = useSnapshotNotice(true, false);
+  const [wasOffline, setWasOffline] = useState(!online);
+  if (!online && !wasOffline) setWasOffline(true);
   const eligible = useQuery(
     deviceCopy
       ? inventoryDeviceOptions(deviceCopy).eligible
@@ -487,7 +489,7 @@ function InventoryDraftRows({
     snapshotWritten.current = true;
     const value = currentCopy();
     void autosave
-      .write(value, inventoryReference(value, eligible.data, reasons))
+      .write(value, inventoryReference(value, eligible.data, reasons), !dirty)
       .then(() => setReadFailed(false))
       .catch((error) => reportCaughtError(error, {}));
   }, [
@@ -503,6 +505,7 @@ function InventoryDraftRows({
     submitted,
     currentCopy,
     autosave.write,
+    dirty,
   ]);
   const status = readFailed && !modified && !form.state.isDirty ? 'failed' : autosave.status;
   useDeviceSaveFailureAnnouncement(status);
@@ -511,7 +514,7 @@ function InventoryDraftRows({
     if (!eligible.data || !reasonsQuery.isSuccess) return;
     const value = currentCopy();
     void autosave
-      .write(value, inventoryReference(value, eligible.data, reasons))
+      .write(value, inventoryReference(value, eligible.data, reasons), !dirty)
       .then(() => setReadFailed(false))
       .catch((error) => reportCaughtError(error, {}));
   };
@@ -730,11 +733,15 @@ function InventoryDraftRows({
   };
   return (
     <div ref={region} tabIndex={-1} className="flex flex-col gap-4" aria-busy={search !== deferred}>
-      {(deviceCopy || noticeOnline === false) && noticeOnline !== undefined && (
+      {(deviceCopy || wasOffline) && noticeOnline !== undefined && (
         <Suspense fallback={null}>
           <SnapshotAlert
             snapshot={snapshot}
-            message="physical-inventory.offline-snapshot"
+            message={
+              noticeOnline && wasOffline
+                ? 'physical-inventory.reconnected-snapshot'
+                : 'physical-inventory.offline-snapshot'
+            }
             online={noticeOnline}
           />
         </Suspense>
@@ -980,7 +987,7 @@ function InventoryDraftRows({
                   title={t('stock-events.reasons-error-title')}
                   description={t('stock-events.reasons-error-description')}
                 />
-              ) : !online ? (
+              ) : !online && !deviceCopy ? (
                 <OfflineAlert>{t('offline.unavailable-description')}</OfflineAlert>
               ) : (
                 <div className="h-20">
@@ -1026,7 +1033,7 @@ function InventoryDraftRows({
       )}
       <DiscardChangesDialog
         {...guard.dialog}
-        {...deviceDraftLeaveCopy(t, true, guard.dialog.signingOut)}
+        {...deviceDraftLeaveCopy(t, true, guard.dialog.signingOut, 'keep')}
       />
     </div>
   );

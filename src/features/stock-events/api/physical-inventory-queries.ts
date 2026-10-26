@@ -21,9 +21,7 @@ import type {
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { deviceQuery } from '@/lib/device-query';
-import { isAccessFallbackError, isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import { LocalDataUnavailableError } from '@/lib/local-data';
 import { isOnline } from '@/lib/online';
 import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -31,12 +29,10 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 export const physicalInventoryDraftOptions = (scope: InventoryScope, online = isOnline()) =>
   deviceQuery({
     online,
-    canFallback: (error) =>
-      isOfflineError(error) &&
-      (error instanceof LocalDataUnavailableError || isAccessFallbackError(error)),
     staleTime: 30_000,
-    device: async (): Promise<PhysicalInventoryDraft | null> => {
+    device: async (serverError): Promise<PhysicalInventoryDraft | null> => {
       const copy = await readInventoryLocalByScope(scope);
+      if (!copy && serverError) throw serverError;
       return copy
         ? {
             id: copy.draftId,
@@ -120,17 +116,22 @@ export const eligibleInventoryProductsOptions = (
 
 export const inventoryRefreshFilters = (
   draft: PhysicalInventoryDraft,
+  includeDraft = true,
 ): InvalidateQueryFilters[] => [
-  {
-    queryKey: physicalInventoryDraftOptions(
-      {
-        programId: draft.programId,
-        facilityId: draft.facilityId,
-      },
-      true,
-    ).queryKey,
-    exact: true,
-  },
+  ...(includeDraft
+    ? [
+        {
+          queryKey: physicalInventoryDraftOptions(
+            {
+              programId: draft.programId,
+              facilityId: draft.facilityId,
+            },
+            true,
+          ).queryKey,
+          exact: true,
+        },
+      ]
+    : []),
   { queryKey: inventorySummariesOptions(draft).queryKey, exact: true },
   { queryKey: [...queryKeys.physicalInventories.detail(draft.id), 'stock-lines'] },
 ];

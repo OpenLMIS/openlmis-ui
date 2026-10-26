@@ -9,6 +9,7 @@ import {
   type InventoryLocalCopy,
   type InventoryReference,
   readInventoryLocal,
+  readInventoryReference,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { getLocalDb } from '@/integrations/local-db';
@@ -34,6 +35,13 @@ export function usePhysicalInventoryAutosave(
     let persistedReference: InventoryReference | undefined;
     let pendingReference: InventoryReference | undefined;
     let metadata = initialCopy;
+    let initialReference: Promise<InventoryReference | undefined> | undefined;
+    const captureReference = () => {
+      initialReference ??= initialCopy
+        ? readInventoryReference(initialCopy).catch(() => undefined)
+        : Promise.resolve(undefined);
+      return initialReference;
+    };
     let quiet = false;
     let resolving = false;
     let draftId: string | undefined;
@@ -41,19 +49,20 @@ export function usePhysicalInventoryAutosave(
     const serial = createInventoryWriter<{
       copy: InventoryLocalCopy;
       reference?: InventoryReference;
+      snapshotOnly?: boolean;
     }>(
-      async ({ copy: value, reference }) => {
+      async ({ copy: value, reference, snapshotOnly }) => {
         if (getSessionScope() !== scope) return;
+        if (initialCopy && !persistedReference) persistedReference = await captureReference();
         draftId = value.draftId;
+        const referenceToWrite = reference ?? (resolving ? undefined : persistedReference);
         const next = {
           ...value,
-          fetchedAt: reference?.fetchedAt ?? metadata?.fetchedAt,
-          generation: reference?.generation ?? metadata?.generation,
+          fetchedAt: referenceToWrite?.fetchedAt ?? metadata?.fetchedAt,
+          generation: referenceToWrite?.generation ?? metadata?.generation,
           revision,
         };
         try {
-          const referenceToWrite =
-            reference === persistedReference && !resolving ? undefined : reference;
           const commit = () =>
             writeInventoryLocal(
               resolving ? { ...next, revision, orphaned: false } : { ...next, revision },
@@ -61,6 +70,7 @@ export function usePhysicalInventoryAutosave(
               db,
               referenceToWrite,
               resolving ? true : undefined,
+              { snapshotOnly, referenceUnchanged: referenceToWrite === persistedReference },
             );
           let saved: InventoryLocalCopy | undefined;
           try {
@@ -102,13 +112,18 @@ export function usePhysicalInventoryAutosave(
         if (getSessionScope() === scope && !(quiet && next === 'saving')) setStatus(next);
       },
     );
-    const enqueue = (value: InventoryLocalCopy, reference?: InventoryReference) => {
+    const enqueue = (
+      value: InventoryLocalCopy,
+      reference?: InventoryReference,
+      snapshotOnly = false,
+    ) => {
       quiet = !value.modified;
       pendingReference = reference ?? pendingReference;
-      serial.enqueue({ copy: value, reference: pendingReference });
+      serial.enqueue({ copy: value, reference: pendingReference, snapshotOnly });
     };
     return {
       ...serial,
+      captureReference,
       enqueue,
       reset: serial.reset,
       async loadLatest() {
@@ -154,6 +169,9 @@ export function usePhysicalInventoryAutosave(
       },
     };
   });
+  useEffect(() => {
+    void writer.captureReference();
+  }, [writer]);
   const [staged, setStaged] = useState<InventoryLocalCopy | null>(null);
   if (copy !== queued) {
     setQueued(() => copy);
@@ -181,8 +199,8 @@ export function usePhysicalInventoryAutosave(
     flush: writer.flush,
     retry: writer.retry,
     clear: writer.clear,
-    async write(value: InventoryLocalCopy, reference?: InventoryReference) {
-      writer.enqueue(value, reference);
+    async write(value: InventoryLocalCopy, reference?: InventoryReference, snapshotOnly = false) {
+      writer.enqueue(value, reference, snapshotOnly);
       await writer.flush();
     },
     reset: writer.reset,

@@ -177,31 +177,50 @@ it('lets in-flight reads finish after disconnection instead of guarding them as 
   client.clear();
 });
 
-it.each(['<html>Unavailable</html>', { message: 'Unavailable' }])(
-  'rejects a 503 response rather than caching a missing device draft: %j',
-  async (data) => {
-    onlineManager.setOnline(true);
-    const error = new AxiosError('Unavailable', undefined, undefined, undefined, {
-      status: 503,
-      data,
-      statusText: 'Unavailable',
-      headers: {},
-      config: { headers: {} } as never,
-    });
-    vi.mocked(fetchPhysicalInventoryDraft).mockRejectedValueOnce(error);
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    await expect(
-      client.fetchQuery(physicalInventoryDraftOptions({ facilityId: 'f', programId: 'p' })),
-    ).rejects.toBe(error);
-  },
-);
-
-it('does not replace a cancelled draft request with a device result', async () => {
+it.each([false, true])('handles a gateway page with a device copy: %s', async (available) => {
+  const { readInventoryLocalByScope } = await import(
+    '@/features/stock-events/lib/physical-inventory-local'
+  );
   onlineManager.setOnline(true);
-  const error = new AxiosError('Cancelled', AxiosError.ERR_CANCELED);
+  const error = new AxiosError('Unavailable', undefined, undefined, undefined, {
+    status: 503,
+    data: '<html>Unavailable</html>',
+    statusText: 'Unavailable',
+    headers: {},
+    config: { headers: {} } as never,
+  });
+  vi.mocked(readInventoryLocalByScope).mockResolvedValueOnce(
+    available
+      ? { draftId: 'd', facilityId: 'f', programId: 'p', lines: [], modified: false, savedAt: 1 }
+      : undefined,
+  );
   vi.mocked(fetchPhysicalInventoryDraft).mockRejectedValueOnce(error);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const result = client.fetchQuery(
+    physicalInventoryDraftOptions({ facilityId: 'f', programId: 'p' }),
+  );
+  if (available) await expect(result).resolves.toMatchObject({ id: 'd' });
+  else await expect(result).rejects.toBe(error);
+});
+
+it('opens a device copy after a draft request times out', async () => {
+  const { readInventoryLocalByScope } = await import(
+    '@/features/stock-events/lib/physical-inventory-local'
+  );
+  onlineManager.setOnline(true);
+  vi.mocked(readInventoryLocalByScope).mockResolvedValueOnce({
+    draftId: 'd',
+    facilityId: 'f',
+    programId: 'p',
+    lines: [],
+    modified: false,
+    savedAt: 1,
+  });
+  vi.mocked(fetchPhysicalInventoryDraft).mockRejectedValueOnce(
+    new AxiosError('Timeout', AxiosError.ECONNABORTED),
+  );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await expect(
     client.fetchQuery(physicalInventoryDraftOptions({ facilityId: 'f', programId: 'p' })),
-  ).rejects.toBe(error);
+  ).resolves.toMatchObject({ id: 'd' });
 });

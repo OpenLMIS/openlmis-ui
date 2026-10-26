@@ -204,13 +204,13 @@ export function InventoryActions(props: Props) {
       const requestedAt = Date.now();
       const current = await fetchPhysicalInventoryDraft(props.draft);
       check();
+      try {
+        await reconcileInventoryCopies(props.draft, current?.id, requestedAt);
+      } catch (error) {
+        reportCaughtError(error, {});
+      }
+      check();
       if (current?.id !== props.draft.id) {
-        try {
-          await reconcileInventoryCopies(props.draft, current?.id, requestedAt);
-        } catch (error) {
-          reportCaughtError(error, {});
-        }
-        check();
         await queryClient.invalidateQueries({ queryKey: queryKeys.physicalInventories.all });
         check();
         throw new InventoryOrphaned();
@@ -241,9 +241,12 @@ export function InventoryActions(props: Props) {
         },
       );
       check();
-      if (action.type === 'save')
-        await savePhysicalInventory(inventorySavePayload(props.draft, prepared, eligible));
-      else {
+      if (action.type === 'save') {
+        const saved = inventorySavePayload(props.draft, prepared, eligible);
+        await savePhysicalInventory(saved);
+        assertSessionScope(scope);
+        queryClient.setQueryData(physicalInventoryDraftOptions(props.draft, true).queryKey, saved);
+      } else {
         try {
           await submitPhysicalInventory(
             inventorySubmitPayload(props.draft, prepared, action.occurredDate, action.signature),
@@ -309,7 +312,7 @@ export function InventoryActions(props: Props) {
         return;
       }
       let description = serverMessage(error) ?? t(ACTION_KEYS[action.type].errorDescription);
-      if (error instanceof InventoryOrphaned) description = t('physical-inventory.orphaned-counts');
+      if (error instanceof InventoryOrphaned) description = t('physical-inventory.orphaned-action');
       if (error instanceof InventoryLotError)
         description =
           error.reason === 'duplicate'
@@ -362,26 +365,12 @@ export function InventoryActions(props: Props) {
             queryKeys.stockCardSummaries.all,
             queryKeys.stockCards.all,
           ].map((queryKey) => ({ queryKey }))
-        : inventoryRefreshFilters(props.draft);
+        : inventoryRefreshFilters(props.draft, action.type !== 'save');
     for (const filter of filters) void queryClient.invalidateQueries(filter);
     toast.success(t(ACTION_KEYS[action.type].successTitle), {
       description: t(ACTION_KEYS[action.type].successDescription),
     });
     setDialog(action.type === 'submit' ? 'print' : null);
-    if (action.type === 'save' && isOnline()) {
-      try {
-        await queryClient.fetchQuery({
-          ...physicalInventoryDraftOptions({
-            programId: props.draft.programId,
-            facilityId: props.draft.facilityId,
-          }),
-          staleTime: 0,
-        });
-      } catch (error) {
-        reportCaughtError(error, {});
-      }
-      if (!mutation.isCurrent()) return;
-    }
     props.onBusy(false);
     posting.current = false;
     if (action.type === 'delete') await props.onDeleted();

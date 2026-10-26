@@ -21,10 +21,11 @@ export function requireOnline() {
 
 export async function onlineOrDevice<T>(
   online: () => Promise<T>,
-  device: () => Promise<T>,
+  device: (serverError?: unknown) => Promise<T>,
   canFallback: (error: unknown) => boolean = isAccessFallbackError,
 ): Promise<T> {
   const scope = getSessionScope();
+  let serverError: unknown;
   if (isOnline()) {
     try {
       const result = await online();
@@ -33,9 +34,10 @@ export async function onlineOrDevice<T>(
     } catch (error) {
       assertSessionScope(scope);
       if (!canFallback(error)) throw error;
+      serverError = error;
     }
   }
-  const result = await device();
+  const result = await device(serverError);
   assertSessionScope(scope);
   if (typeof result === 'object' && result !== null)
     deviceResults.set(result, getConnectionGeneration());

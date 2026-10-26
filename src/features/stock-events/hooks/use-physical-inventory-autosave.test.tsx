@@ -7,6 +7,7 @@ import { usePhysicalInventoryForm } from '@/features/stock-events/hooks/use-phys
 import {
   type InventoryLocalCopy,
   readInventoryLocal,
+  readInventoryReference,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { DraftConflictError } from '@/lib/draft-store';
@@ -14,6 +15,7 @@ import { DraftConflictError } from '@/lib/draft-store';
 vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   writeInventoryLocal: vi.fn(),
   readInventoryLocal: vi.fn(),
+  readInventoryReference: vi.fn().mockResolvedValue(undefined),
 }));
 const noCopy = () => null;
 const signIn = (id: string) =>
@@ -30,6 +32,7 @@ const copy: InventoryLocalCopy = {
 };
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(readInventoryReference).mockResolvedValue(undefined);
   vi.mocked(writeInventoryLocal).mockResolvedValue(undefined);
   signIn('autosave-user');
 });
@@ -173,7 +176,7 @@ it('shares one revision chain between the open snapshot, edits and a saved basel
     2,
   ]);
   expect(vi.mocked(writeInventoryLocal).mock.calls[0][3]).toBe(reference);
-  expect(vi.mocked(writeInventoryLocal).mock.calls[1][3]).toBeUndefined();
+  expect(vi.mocked(writeInventoryLocal).mock.calls[1][3]).toBe(reference);
   expect(vi.mocked(writeInventoryLocal).mock.calls[2][0]).toMatchObject({
     modified: false,
     baselineKeys: ['saved'],

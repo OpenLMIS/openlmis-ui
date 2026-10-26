@@ -112,20 +112,29 @@ function setup(overrides: Partial<ComponentProps<typeof InventoryActions>> = {})
   );
   return { fetch, onSaved, onDeleted, client };
 }
-it('refetches Save with the facility/program key rather than the draft object', async () => {
+it('checks the server once for Save and caches the accepted draft without another GET', async () => {
   const user = userEvent.setup();
-  const { fetch } = setup();
+  const { client } = setup();
   await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
   );
-  await waitFor(() =>
-    expect(fetch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        queryKey: physicalInventoryDraftOptions({ facilityId: 'f', programId: 'p' }).queryKey,
-      }),
-    ),
-  );
+  await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  expect(fetchPhysicalInventoryDraft).toHaveBeenCalledTimes(1);
+  expect(client.getQueryData(physicalInventoryDraftOptions(draft).queryKey)).toMatchObject({
+    id: 'd',
+    lineItems: [expect.objectContaining({ orderableId: 'p', quantity: 5 })],
+  });
+});
+it('disables Delete and explains the revision conflict', () => {
+  setup({
+    conflicted: true,
+    writeDisabled: true,
+    writeDisabledReason: 'stock-events.draft-conflict',
+  });
+  const button = screen.getByRole('button', { name: 'physical-inventory.delete' });
+  expect(button).toHaveAttribute('aria-disabled', 'true');
+  expect(button).toHaveAttribute('aria-description', 'stock-events.draft-conflict');
 });
 it.each(['save', 'delete', 'submit'] as const)(
   'reports a successful server %s separately from device cleanup failure',
@@ -209,23 +218,6 @@ it.each(['save', 'submit'] as const)(
     );
   },
 );
-it('closes Save at success while the server draft refresh is still pending', async () => {
-  const user = userEvent.setup();
-  const fresh = Promise.withResolvers<null>();
-  vi.mocked(fetchPhysicalInventoryDraft)
-    .mockResolvedValueOnce(draft)
-    .mockReturnValueOnce(fresh.promise);
-  setup();
-  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
-  await user.click(
-    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
-  );
-  await waitFor(() => expect(toast.success).toHaveBeenCalled());
-  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-  await act(async () => {
-    fresh.resolve(null);
-  });
-});
 it('navigates after Delete without resetting the draft to empty lines', async () => {
   const user = userEvent.setup();
   const { onSaved, onDeleted } = setup();
@@ -530,7 +522,7 @@ it.each(['save', 'submit'] as const)(
     expect(submitPhysicalInventory).not.toHaveBeenCalled();
     expect(createPhysicalInventoryLot).not.toHaveBeenCalled();
     expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-      'physical-inventory.orphaned-counts',
+      'physical-inventory.orphaned-action',
     );
   },
 );

@@ -684,7 +684,7 @@ it('opens unmodified device lines offline and keeps their counts and source on r
   );
   expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toBe(input);
   expect(input).toHaveValue('7');
-  expect(screen.getByText('physical-inventory.offline-snapshot')).toBeInTheDocument();
+  expect(screen.getByText('physical-inventory.reconnected-snapshot')).toBeInTheDocument();
   expect(fetchPhysicalInventoryDraft).not.toHaveBeenCalled();
   expect(fetchInventoryStockLines).not.toHaveBeenCalled();
   expect(fetchEligibleInventoryProducts).not.toHaveBeenCalled();
@@ -740,5 +740,27 @@ it('shows failed offline program reads and retries every failed program', async 
   read.mockClear();
   await user.click(screen.getByRole('button', { name: 'Try Again' }));
   await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+  read.mockRestore();
+});
+
+it('waits for device reasons without asking for a connection', async () => {
+  const copy = await seedDeviceEditor();
+  const local = await import('@/features/stock-events/lib/physical-inventory-local');
+  const reference = await local.requireInventoryReference(copy);
+  const pending = Promise.withResolvers<typeof reference>();
+  const read = vi.spyOn(local, 'requireInventoryReference').mockReturnValue(pending.promise);
+  onlineManager.setOnline(false);
+  const user = userEvent.setup();
+  renderRoute(`${PICKER}/${FP}`, (client) =>
+    client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true }),
+  );
+  await user.click(await screen.findByRole('button', { name: /physical-inventory.add-reasons/ }));
+  const dialog = await screen.findByRole('dialog');
+  expect(dialog).not.toHaveTextContent('offline.unavailable-description');
+  expect(dialog.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
+  await act(async () => pending.resolve(reference));
+  await waitFor(() =>
+    expect(dialog.querySelector('[data-slot="skeleton"]')).not.toBeInTheDocument(),
+  );
   read.mockRestore();
 });
