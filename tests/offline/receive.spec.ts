@@ -79,8 +79,9 @@ test('offline Receive queues a typed new lot inside the event without posting', 
         },
       ],
     });
-    expect(event.payload.lineItems).toHaveLength(1);
-    expect(event.payload.lineItems[0]).not.toHaveProperty('lotId');
+    const { lineItems } = event.payload as { lineItems: unknown[] };
+    expect(lineItems).toHaveLength(1);
+    expect(lineItems[0]).not.toHaveProperty('lotId');
     expect(event.payload).not.toHaveProperty('documentNumber');
     expect(posts).toBe(0);
   } finally {

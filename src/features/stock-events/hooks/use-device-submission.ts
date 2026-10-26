@@ -166,7 +166,11 @@ export function useDeviceSubmission({
               ),
               action: {
                 label: t('offline-events.review'),
-                onClick: () => void navigate({ to: '/offline-events' }),
+                onClick: () =>
+                  void navigate({
+                    to: '/offline-events',
+                    search: delivery.kind === 'uncertain' ? { tab: 'errors' } : {},
+                  }),
               },
             },
           );

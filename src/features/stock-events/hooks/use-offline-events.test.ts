@@ -18,7 +18,7 @@ beforeEach(async () => {
 
 it('avoids full reads until owned work appears and updates the shared shell summary live', async () => {
   const receipts = vi.spyOn(getLocalDb().table(LOCAL_TABLES.stockEventReceipts), 'toArray');
-  const result = renderHook(() => useOfflineEvents(true, true)).result;
+  const result = renderHook(() => useOfflineEvents(true)).result;
   await waitFor(() => expect(result.current.events).toEqual([]));
   expect(receipts).not.toHaveBeenCalled();
   await getLocalDb()

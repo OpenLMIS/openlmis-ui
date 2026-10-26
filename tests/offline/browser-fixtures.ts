@@ -63,9 +63,52 @@ function preserveFirefoxWorkerCache(context: BrowserContext, initiallyOffline = 
   };
 }
 
+// Chrome 152 still blocks requests offline but resets navigator.onLine on each new document.
+const resetsOnLine = (browserName: string, version: string) =>
+  browserName === 'chromium' && Number.parseInt(version, 10) < 156;
+
+async function emulateOnLine(context: BrowserContext, initiallyOffline = false) {
+  const setOffline = context.setOffline.bind(context);
+  const shim = (offline: boolean) =>
+    context.addInitScript((offline) => {
+      const native = Object.getOwnPropertyDescriptor(Navigator.prototype, 'onLine')?.get;
+      const state = { offline };
+      Object.defineProperty(window, '__offlineEmulation', { value: state });
+      Object.defineProperty(Navigator.prototype, 'onLine', {
+        configurable: true,
+        get() {
+          return !state.offline && Boolean(native?.call(this));
+        },
+      });
+    }, offline);
+  let script = await shim(initiallyOffline);
+  context.setOffline = async (next) => {
+    await setOffline(next);
+    await script.dispose();
+    script = await shim(next);
+    if (next) return;
+    for (const page of context.pages()) {
+      await page
+        .evaluate(() => {
+          const state = Reflect.get(window, '__offlineEmulation') as
+            | { offline: boolean }
+            | undefined;
+          if (!state?.offline) return;
+          state.offline = false;
+          window.dispatchEvent(new Event('online'));
+        })
+        .catch((error: unknown) => {
+          // A document replaced mid-evaluation boots with the online script.
+          if (!String(error).includes('Execution context was destroyed')) throw error;
+        });
+    }
+  };
+}
+
 export const test = base.extend<{
   persistentContext: (directory: string, offline?: boolean) => Promise<BrowserContext>;
   firefoxWorkerCache: undefined;
+  chromeOnLine: undefined;
   failClosedFixtures: undefined;
   webkitFixtureRouting: undefined;
 }>({
@@ -101,6 +144,13 @@ export const test = base.extend<{
     },
     { auto: true },
   ],
+  chromeOnLine: [
+    async ({ context, browser, browserName }, use) => {
+      if (resetsOnLine(browserName, browser.version())) await emulateOnLine(context);
+      await use(undefined);
+    },
+    { auto: true },
+  ],
   persistentContext: async ({ playwright, browserName, channel, baseURL, serviceWorkers }, use) => {
     await use(async (directory, offline = false) => {
       const context = await playwright[browserName].launchPersistentContext(directory, {
@@ -112,6 +162,11 @@ export const test = base.extend<{
       });
       failClosedRoutes(context);
       if (browserName === 'firefox') preserveFirefoxWorkerCache(context, offline);
+      const version =
+        browserName === 'chromium'
+          ? await context.pages()[0].evaluate(() => navigator.userAgent.match(/Chrome\/(\d+)/)?.[1])
+          : undefined;
+      if (resetsOnLine(browserName, version ?? '')) await emulateOnLine(context, offline);
       return context;
     });
   },

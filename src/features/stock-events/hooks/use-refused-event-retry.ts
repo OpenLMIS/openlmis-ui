@@ -5,7 +5,12 @@ import { createStockEventContext } from '@/features/stock-events/lib/stock-event
 import { type DeviceEvent, retryRefusedEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 
-export function useRefusedEventRetry(event: DeviceEvent, canSend: boolean, onDone?: () => void) {
+export function useRefusedEventRetry(
+  event: DeviceEvent,
+  canSend: boolean,
+  onDone?: () => void,
+  onStale?: () => void,
+) {
   const { t } = useTranslation();
   const available =
     event.status === 'refused' &&
@@ -23,12 +28,15 @@ export function useRefusedEventRetry(event: DeviceEvent, canSend: boolean, onDon
     try {
       const changed = await operation.mutateAsync();
       if (!operation.isCurrent()) return;
-      if (changed) announceDeviceSave('offline-events.status-queued');
-      else
+      if (changed) {
+        announceDeviceSave('offline-events.status-queued');
+        onDone?.();
+      } else {
         toast.warning(t('offline-events.changed-title'), {
           description: t('offline-events.changed-description'),
         });
-      onDone?.();
+        onStale?.();
+      }
     } catch {
       if (!operation.isCurrent()) return;
       toast.error(t('offline-events.action-failed'), {

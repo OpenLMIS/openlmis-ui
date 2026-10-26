@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { InCardContext } from '@/components/card-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { DeviceEventActions } from '@/features/stock-events/components/device-event-actions';
@@ -217,6 +218,24 @@ it('a stale recovery choice explains that the event changed without repeating it
   ).toBe('new-attempt');
 });
 
+it('closes a confirmation when another tab replaces the displayed attempt', async () => {
+  const { uncertain, onClose } = await open(true, 'uncertain', 'adjustment', false);
+  let replaceEvent: (event: DeviceEvent) => void = () => {};
+  function Recovery() {
+    const [event, setEvent] = useState(uncertain);
+    replaceEvent = setEvent;
+    return <DeviceEventRecovery event={event} canView={false} canSend onClose={onClose} />;
+  }
+  renderPage(<Recovery />, { queryClient: new QueryClient() });
+  await userEvent.click(await screen.findByRole('button', { name: 'offline-events.recorded' }));
+  await screen.findByRole('alertdialog');
+  await getLocalDb()
+    .table(LOCAL_TABLES.stockEventQueue)
+    .update(uncertain.sequence, { attemptId: 'new-attempt' });
+  act(() => replaceEvent({ ...uncertain, attemptId: 'new-attempt' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+});
+
 it('keeps recorded recovery available after losing adjustment grants but blocks Send Again', async () => {
   const { onClose } = await open(false);
   expect(screen.getByRole('button', { name: 'offline-events.send-again' })).toHaveAttribute(
@@ -241,17 +260,17 @@ it('dismisses a refusal after confirmation and shows only a human message in det
   expect(screen.getByRole('dialog')).toHaveTextContent('Human refusal');
   expect(screen.queryByText(/secret-debug-value/)).not.toBeInTheDocument();
   expect(screen.queryByText('offline-events.revision')).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'offline-events.remove' }));
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.dismiss' }));
   const warning = screen.getByRole('alertdialog');
-  expect(warning).toHaveTextContent('offline-events.remove-refused-warning');
-  await userEvent.click(within(warning).getByRole('button', { name: 'offline-events.remove' }));
+  expect(warning).toHaveTextContent('offline-events.dismiss-warning');
+  await userEvent.click(within(warning).getByRole('button', { name: 'offline-events.dismiss' }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(
     (await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).get(uncertain.localEventId))
       .dismissedAt,
   ).toBeDefined();
   expect(client.post).not.toHaveBeenCalled();
-  expect(announceDeviceSave).toHaveBeenCalledWith('offline-events.refused-removed');
+  expect(announceDeviceSave).toHaveBeenCalledWith('offline-events.refused-dismissed');
   const local = renderHook(() => useOfflineEvents());
   await waitFor(() => expect(local.result.current.events).toEqual([]));
   expect(await countUnsyncedDeviceWork()).toBe(0);
@@ -317,7 +336,7 @@ it.each([
       const [event, setEvent] = useState<string>();
       return (
         <OfflineEventsPage
-          search={{ event }}
+          search={{ event, tab: status === 'accepted' ? 'synced' : undefined }}
           onSearchChange={() => {}}
           onOpenEvent={setEvent}
           onCloseEvent={() => setEvent(undefined)}
@@ -344,7 +363,9 @@ it.each([
     await userEvent.click(within(confirm).getByRole('button', { name: 'offline-events.remove' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     await waitFor(() =>
-      expect(document.activeElement).toHaveTextContent('offline-events.no-events-title'),
+      expect(document.activeElement).toHaveTextContent(
+        status === 'accepted' ? 'offline-events.no-synced-title' : 'offline-events.no-events-title',
+      ),
     );
     expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
     expect(announceDeviceSave).toHaveBeenCalledWith(
@@ -407,6 +428,57 @@ it('Retry requeues a refusal without confirmation, retains one visible event and
     expect(events.current.events?.map((event) => event.status)).toEqual(['accepted']),
   );
 });
+it('stale Retry leaves row focus alone and still closes the recovery dialog', async () => {
+  const { uncertain: event } = await open(true, 'refused', 'adjustment', false);
+  const onRemoved = vi.fn();
+  const onClose = vi.fn();
+  await getLocalDb()
+    .table(LOCAL_TABLES.stockEventSyncErrors)
+    .update(event.localEventId, { resolvedAt: Date.now() });
+  renderPage(
+    <DeviceEventActions
+      event={event}
+      canSend
+      label="View event"
+      removeLabel="Dismiss event"
+      onOpen={vi.fn()}
+      onRemoved={onRemoved}
+    />,
+    { queryClient: new QueryClient() },
+  );
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'offline-events.actions-label' }),
+  );
+  await userEvent.click(
+    await screen.findByRole('menuitem', { name: 'offline-events.retry-refused' }),
+  );
+  await waitFor(() =>
+    expect(toast.warning).toHaveBeenCalledWith('offline-events.changed-title', {
+      description: 'offline-events.changed-description',
+    }),
+  );
+  expect(onRemoved).not.toHaveBeenCalled();
+  renderPage(
+    <DeviceEventRecovery
+      event={event}
+      canView={false}
+      canSend
+      onClose={onClose}
+      onRemoved={onRemoved}
+    />,
+    { queryClient: new QueryClient() },
+  );
+  await userEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', {
+      name: 'offline-events.retry-refused',
+    }),
+  );
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  expect(onRemoved).not.toHaveBeenCalled();
+  expect(announceDeviceSave).not.toHaveBeenCalled();
+  expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
+});
+
 it.each(['uncertain', 'accepted', 'queued'] as const)(
   'does not offer Retry for %s events',
   async (status) => {
@@ -416,7 +488,7 @@ it.each(['uncertain', 'accepted', 'queued'] as const)(
     ).not.toBeInTheDocument();
   },
 );
-it('keeps refused Retry disabled without sending rights and retains correction/removal', async () => {
+it('keeps refused Retry disabled without sending rights and retains correction/dismissal', async () => {
   await open(false, 'refused');
   const retry = screen.getByRole('button', { name: 'offline-events.retry-refused' });
   expect(retry).toHaveAttribute('aria-disabled', 'true');
@@ -424,7 +496,7 @@ it('keeps refused Retry disabled without sending rights and retains correction/r
   await userEvent.click(retry);
   expect(await getLocalDb().table(LOCAL_TABLES.stockEventQueue).count()).toBe(0);
   expect(screen.getByRole('button', { name: 'offline-events.copy' })).toBeEnabled();
-  expect(screen.getByRole('button', { name: 'offline-events.remove' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'offline-events.dismiss' })).toBeEnabled();
 });
 
 it.each(['menu', 'cards'] as const)(
@@ -432,15 +504,16 @@ it.each(['menu', 'cards'] as const)(
   async (layout) => {
     const { uncertain: event } = await open(true, 'refused', 'adjustment', false);
     renderPage(
-      <DeviceEventActions
-        event={event}
-        canSend
-        label="View event"
-        removeLabel="Remove event"
-        onOpen={vi.fn()}
-        onRemoved={vi.fn()}
-        layout={layout}
-      />,
+      <InCardContext value={layout === 'cards'}>
+        <DeviceEventActions
+          event={event}
+          canSend
+          label="View event"
+          removeLabel="Dismiss event"
+          onOpen={vi.fn()}
+          onRemoved={vi.fn()}
+        />
+      </InCardContext>,
     );
     if (layout === 'menu')
       await userEvent.click(

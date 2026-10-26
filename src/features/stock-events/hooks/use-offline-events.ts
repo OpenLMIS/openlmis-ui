@@ -12,7 +12,7 @@ import type { OfflineAccess } from '@/lib/offline-access';
 import { type Permissions, parsePermissions } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope, useSessionScope } from '@/lib/session-scope';
 
-export function useOfflineEvents(enabled = true, onlyIfPresent = false) {
+export function useOfflineEvents(onlyIfPresent = false) {
   const scope = useSessionScope();
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<{
@@ -25,7 +25,6 @@ export function useOfflineEvents(enabled = true, onlyIfPresent = false) {
     permissionsFetchedAt?: number;
   }>({ scope, attempt: 0 });
   useEffect(() => {
-    if (!enabled) return;
     const subscription = liveQuery(async () => {
       assertSessionScope(scope);
       const hasDeviceEvents = await hasOwnDeviceEvents();
@@ -94,13 +93,13 @@ export function useOfflineEvents(enabled = true, onlyIfPresent = false) {
       },
     });
     return () => subscription.unsubscribe();
-  }, [enabled, onlyIfPresent, scope, retry]);
+  }, [onlyIfPresent, scope, retry]);
   return {
-    hasDeviceEvents: enabled && state.scope === scope && !!state.hasDeviceEvents,
+    hasDeviceEvents: state.scope === scope && !!state.hasDeviceEvents,
     permissionsFetchedAt: state.scope === scope ? state.permissionsFetchedAt : undefined,
     permissions: state.scope === scope ? state.permissions : undefined,
-    events: enabled && state.scope === scope && state.attempt === retry ? state.events : undefined,
-    error: enabled && state.scope === scope && state.attempt === retry ? state.error : undefined,
+    events: state.scope === scope && state.attempt === retry ? state.events : undefined,
+    error: state.scope === scope && state.attempt === retry ? state.error : undefined,
     retry: () => setRetry((value) => value + 1),
   };
 }

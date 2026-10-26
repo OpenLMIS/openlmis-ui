@@ -70,9 +70,11 @@ function useNotices(): Notice[] {
   const { waiting } = device;
   const { phase: ownPhase, countdown: syncCountdown, wake } = useDeviceSync();
   const phase = ownPhase === 'idle' && device.sending ? 'syncing' : ownPhase;
+  const needsAction = device.refused + device.uncertain;
   const review = {
-    label: t('offline-events.review'),
-    onClick: () => void navigate({ to: '/offline-events' }),
+    label: t('offline-events.review-short'),
+    onClick: () =>
+      void navigate({ to: '/offline-events', search: needsAction ? { tab: 'errors' } : {} }),
   };
   const online = useOnline();
   const offlineSession = useOfflineSession();
@@ -131,7 +133,13 @@ function useNotices(): Notice[] {
       title: t('offline.download.unavailable'),
       description: t('offline.download.locks-required'),
     });
-  if (download.phase === 'failed' && (online || download.reason !== 'offline')) {
+  if (
+    download.phase === 'failed' &&
+    (online ||
+      download.reason !== 'offline' ||
+      download.incomplete.length > 0 ||
+      download.accessFailed)
+  ) {
     const reason = download.reason ?? 'read';
     const programsByDataset = new Map<ParseKeys, string[]>();
     for (const item of download.incomplete) {
@@ -156,7 +164,9 @@ function useNotices(): Notice[] {
       ]
         .filter(Boolean)
         .join('\n'),
-      action: { label: t('offline.download.retry'), onClick: retryOfflineDownload },
+      action: online
+        ? { label: t('offline.download.retry'), onClick: retryOfflineDownload }
+        : undefined,
     });
   }
   const signInPending =
@@ -215,19 +225,17 @@ function useNotices(): Notice[] {
         variant: 'warning',
         Icon: AlertTriangleIcon,
         title: t(`offline-events.${reason}`),
-        description: t(`offline-events.${reason}-description`),
+        description: t(`offline-events.${reason}-held-description`),
         action: review,
         closesSidebar: true,
       });
   }
-  const needsAction = device.refused + device.uncertain;
   if (needsAction)
     notices.unshift({
       id: 'device-events-action-needed',
       variant: 'destructive',
       Icon: AlertTriangleIcon,
       title: t('offline-events.action-needed-count', { count: needsAction }),
-      description: t('offline-events.action-needed-description'),
       action: review,
       closesSidebar: true,
     });

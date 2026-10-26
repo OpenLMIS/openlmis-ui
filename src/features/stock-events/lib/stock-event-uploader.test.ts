@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import Dexie from 'dexie';
 import ICU from 'i18next-icu';
-import { type Action, toast } from 'sonner';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -576,7 +576,7 @@ it('excludes access preparation from the foreground sending start deadline', asy
   }
 });
 
-it('summarizes only new background refusals once per pass and offers review', async () => {
+it('summarizes only new background refusals once per pass without an action', async () => {
   await i18n.use(ICU).init({
     lng: 'en',
     resources: { en: { translation: en } },
@@ -585,30 +585,21 @@ it('summarizes only new background refusals once per pass and offers review', as
   });
   await enqueue();
   await enqueue();
-  const reviewRefused = vi.fn();
   const translated = vi.spyOn(i18n, 't');
   const send = vi.fn(async () => ({
     status: 400,
     data: { messageKey: 'refused', message: 'Refused' },
   }));
-  stops.push(startStockEventUploader({ access: async () => snapshot, send, reviewRefused }));
+  stops.push(startStockEventUploader({ access: async () => snapshot, send }));
   onlineManager.setOnline(true);
   await waitFor(() => expect(toast.error).toHaveBeenCalledOnce());
   expect(toast.error).toHaveBeenCalledWith('2 Offline Events Refused', {
     description: en['offline-events.refused-summary-description'],
-    action: { label: en['offline-events.review'], onClick: expect.any(Function) },
   });
   expect(translated).toHaveBeenCalledWith('offline-events.refused-summary', { count: 2 });
-  const options = vi.mocked(toast.error).mock.calls[0][1];
-  const action = options?.action as Action;
-  action.onClick({} as never);
-  expect(reviewRefused).toHaveBeenCalledOnce();
   wakeStockEventSync();
   await waitFor(() => expect(getSyncPhase()).toBe('idle'));
   expect(toast.error).toHaveBeenCalledOnce();
-  useLoginData.getState().clearLoginData();
-  action.onClick({} as never);
-  expect(reviewRefused).toHaveBeenCalledOnce();
 });
 
 it('keeps foreground refusals out of the background summary toast', async () => {

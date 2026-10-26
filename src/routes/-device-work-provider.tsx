@@ -1,5 +1,4 @@
 import { onlineManager } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
 import type { AxiosRequestConfig } from 'axios';
 import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
@@ -28,30 +27,21 @@ import { DeviceStatusProvider } from '@/routes/-device-status-provider';
 
 export function DeviceWorkProvider({ initialTrigger }: { initialTrigger: InitialTrigger }) {
   const scope = useSessionScope();
-  const navigate = useNavigate();
-  const reviewRefused = useCallback(() => {
-    void navigate({ to: '/offline-events', search: { status: 'refused' } });
-  }, [navigate]);
-  const { events, hasDeviceEvents } = useOfflineEvents(true, true);
+  const { events, hasDeviceEvents } = useOfflineEvents(true);
   const foreground = useForegroundStockEventIds(
     events?.some((event) => event.status === 'queued' || event.status === 'sending') ?? false,
   );
   const services = useRef<{ refresh: (key: string) => void } | undefined>(undefined);
   const refreshOfflineDownload = useCallback((key: string) => services.current?.refresh(key), []);
   useEffect(() => {
-    const stop = startDeviceWorkServices(
-      initialTrigger,
-      loadDeviceWorkServices,
-      (current) => {
-        services.current = current;
-      },
-      reviewRefused,
-    );
+    const stop = startDeviceWorkServices(initialTrigger, loadDeviceWorkServices, (current) => {
+      services.current = current;
+    });
     return () => {
       services.current = undefined;
       stop();
     };
-  }, [initialTrigger, reviewRefused]);
+  }, [initialTrigger]);
   const publish = useContext(DeviceWorkPublisher);
   const pending = events?.filter(isPendingDeviceEvent).length ?? 0;
   const waiting =
@@ -139,7 +129,6 @@ export function startDeviceWorkServices(
   onReady?: (
     services: ReturnType<typeof import('@/lib/offline-coordinator').startOfflineCoordinator>,
   ) => void,
-  reviewRefused?: () => void,
 ) {
   let active = true;
   let loading = false;
@@ -175,7 +164,6 @@ export function startDeviceWorkServices(
         const stopUploader = uploader.startStockEventUploader({
           access: services.freshAccess,
           refresh: services.refresh,
-          reviewRefused,
         });
         onReady?.(services);
         stop = () => {
