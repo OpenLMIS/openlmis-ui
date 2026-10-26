@@ -245,11 +245,7 @@ function NavLinkItem({
         {item.connectionRequired && <WifiOffIcon aria-hidden="true" />}
       </SidebarMenuButton>
       {count > 0 && (
-        <SidebarMenuBadge
-          collapsed="indicator"
-          variant={needsAction ? 'destructive' : 'default'}
-          aria-hidden
-        >
+        <SidebarMenuBadge collapsed="indicator" aria-hidden>
           <LocalizedCount count={count} />
         </SidebarMenuBadge>
       )}

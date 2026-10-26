@@ -187,7 +187,7 @@ it('puts counted Offline Events directly below Home and keeps its link available
 });
 
 it.each(['refused', 'uncertain'] as const)(
-  'marks the Offline Events badge and accessible name when %s events need action',
+  'keeps the normal Offline Events badge and names action needed when %s events need action',
   async (status) => {
     renderSidebar([], { pending: 4, [status]: 1 });
     const events = await screen.findByRole('link', {
@@ -195,7 +195,7 @@ it.each(['refused', 'uncertain'] as const)(
     });
     expect(events.closest('li')?.querySelector('[data-slot=sidebar-menu-badge]')).toHaveAttribute(
       'data-variant',
-      'destructive',
+      'default',
     );
   },
 );
