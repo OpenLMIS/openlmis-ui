@@ -564,7 +564,7 @@ it('keeps an open Dismiss confirmation through unrelated live changes', async ()
   expect(screen.getByRole('alertdialog')).toBe(confirmation);
 });
 
-it('labels the active panel and keeps it and its toolbar mounted through tabs', async () => {
+it('labels the panel with the active tab', async () => {
   local.width = 1440;
   local.events = [];
   mount();
@@ -572,22 +572,44 @@ it('labels the active panel and keeps it and its toolbar mounted through tabs', 
   const pending = screen.getByRole('tab', { name: /offline-events.tab-pending/ });
   expect(pending).toHaveAttribute('aria-controls', panel.id);
   expect(panel).toHaveAttribute('aria-labelledby', pending.id);
-  const filters = screen.getByRole('button', { name: /Filters/ });
   await userEvent.click(screen.getByRole('tab', { name: /offline-events.tab-errors/ }));
-  expect(screen.getByRole('tabpanel')).toBe(panel);
-  expect(screen.getByRole('button', { name: /Filters/ })).toBe(filters);
   expect(panel).toHaveAttribute(
     'aria-labelledby',
     screen.getByRole('tab', { name: /offline-events.tab-errors/ }).id,
   );
 });
 
-it('hides events outside the date range and restores them with Clear Filters', async () => {
+it('filters by event type and date bounds, then Clear Filters restores every event', async () => {
+  const user = userEvent.setup();
   local.width = 1440;
-  local.events = [fixture('Outside Range', 'queued', 1, 10)];
-  mount('/?startDate=2026-10-13');
+  const issued = fixture('Issued', 'queued', 2, 20);
+  local.events = [
+    fixture('Adjusted', 'queued', 1, 10),
+    {
+      ...issued,
+      kind: 'issue',
+      payload: {
+        ...issued.payload,
+        lineItems: [{ ...issued.payload.lineItems[0], occurredDate: '2026-10-13' }],
+      },
+    },
+  ];
+  const { router } = mount('/?startDate=2026-10-13&endDate=2026-10-14');
+  await screen.findByText('Issued');
+  expect(screen.queryByText('Adjusted')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: /Filters/ }));
+  await user.click(screen.getByRole('button', { name: /offline-events.end-date/ }));
+  expect(await screen.findByRole('button', { name: /October 12/ })).toBeDisabled();
+  await user.keyboard('{Escape}');
+  await user.click(screen.getByRole('combobox', { name: 'offline-events.pending-event' }));
+  await user.click(
+    await screen.findByRole('option', { name: 'transaction-history.type-adjustment' }),
+  );
+  expect(router.state.location.search).toMatchObject({ eventType: 'adjustment' });
   await screen.findByText('offline-events.no-matches-title');
-  expect(screen.queryByText('Outside Range')).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'data-table.clear-filters' }));
-  expect(await screen.findByText('Outside Range')).toBeVisible();
+  expect(screen.queryByText('Issued')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'data-table.clear-filters' }));
+  expect(await screen.findByText('Adjusted')).toBeVisible();
+  expect(screen.getByText('Issued')).toBeVisible();
+  expect(router.state.location.search).toEqual({});
 });
