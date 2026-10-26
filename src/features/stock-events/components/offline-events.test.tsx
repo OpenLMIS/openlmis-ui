@@ -12,20 +12,25 @@ import {
   type OfflineEventsSearch,
   offlineEventsSearchSchema,
 } from '@/features/stock-events/lib/offline-events-search';
-import { type DeviceEvent, resolveUncertain } from '@/features/stock-events/lib/stock-event-sync';
+import {
+  type DeviceEvent,
+  dismissRefusedEvent,
+  resolveUncertain,
+} from '@/features/stock-events/lib/stock-event-sync';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
 
 vi.mock('@/features/stock-events/lib/stock-event-sync', async (original) => ({
   ...(await original<typeof import('@/features/stock-events/lib/stock-event-sync')>()),
+  dismissRefusedEvent: vi.fn(),
   resolveUncertain: vi.fn(),
 }));
 
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 const local = vi.hoisted(() => ({ events: [] as DeviceEvent[], width: 1440 }));
 vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
-  useOfflineEvents: () => local,
+  useOfflineEvents: () => ({ ...local }),
   useHasDeviceEvents: () => false,
 }));
 vi.mock('@/features/stock-events/hooks/use-refused-event-retry', () => ({
@@ -393,6 +398,10 @@ it.each([1440, 390])(
     await waitFor(() => expect(order()).toEqual(['Pending First', 'Pending Later']));
     await userEvent.click(screen.getByRole('tab', { name: /offline-events.tab-errors/ }));
     await waitFor(() => expect(order()).toEqual(['Error First', 'Error Later']));
+    if (width === 1440) {
+      await userEvent.click(screen.getByRole('button', { name: 'offline-events.failed-at' }));
+      await waitFor(() => expect(order()).toEqual(['Error Later', 'Error First']));
+    }
     await userEvent.click(screen.getByRole('tab', { name: /offline-events.tab-synced/ }));
     await waitFor(() => expect(order()).toEqual(['Synced Newer', 'Synced Older']));
     if (width === 1440)
@@ -656,6 +665,45 @@ it('does not move focus later when Send Again keeps the event on Pending', async
   refresh();
   await screen.findByText('offline-events.no-events-title');
   expect(filters).toHaveFocus();
+});
+
+it('focuses the list when Dismiss completes after an unrelated live change', async () => {
+  useLoginData.getState().setLoginData({
+    referenceDataUserId: 'dismiss',
+    username: 'Ada',
+    accessToken: 'token',
+  });
+  local.width = 1440;
+  local.events = [fixture('Refused', 'refused', 1, 10), fixture('Other', 'queued', 2, 20)];
+  let complete = (_changed: boolean) => {};
+  vi.mocked(dismissRefusedEvent).mockImplementationOnce(
+    () =>
+      new Promise<boolean>((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const { refresh } = mount('/?tab=errors');
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'offline-events.actions-label' }),
+  );
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'offline-events.dismiss' }));
+  await userEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'offline-events.dismiss',
+    }),
+  );
+  await waitFor(() => expect(dismissRefusedEvent).toHaveBeenCalled());
+  local.events = [...local.events];
+  refresh();
+  await act(async () => complete(true));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  local.events = local.events.filter((event) => event.localEventId !== 'Refused');
+  refresh();
+  await screen.findByText('offline-events.no-errors-title');
+  expect(document.activeElement).not.toBe(document.body);
+  expect(document.activeElement).toContainElement(
+    screen.getByText('offline-events.no-errors-title'),
+  );
 });
 
 it('returns to Pending queue order when the Date header sort is cleared', async () => {

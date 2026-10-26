@@ -471,9 +471,13 @@ function OfflineEventsTable({
     id: string;
     events: typeof local.events;
   }>();
+  const latestEvents = useRef(local.events);
+  useEffect(() => {
+    latestEvents.current = local.events;
+  }, [local.events]);
   const onRemoved = useCallback(
-    (id: string) => setFocusRequest({ id, events: local.events }),
-    [local.events],
+    (id: string) => setFocusRequest({ id, events: latestEvents.current }),
+    [],
   );
   useEffect(() => {
     if (!focusRequest || !local.events || search.event) return;
@@ -576,6 +580,7 @@ function OfflineEventsTable({
             {
               id: defaultSort.id,
               accessorFn: sortValue[defaultSort.id],
+              sortDescFirst: defaultSort.desc,
               header: ({ column }) => (
                 <DataTableColumnHeader column={column} title={t(defaultSort.labelKey)} />
               ),
