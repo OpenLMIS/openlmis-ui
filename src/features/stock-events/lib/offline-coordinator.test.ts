@@ -1264,3 +1264,25 @@ it.each(['offline', 'session'] as const)(
     expect(downloadSchedule(getLocalDb().name).retryAt('home-stock:["home","p1"]')).toBe(0);
   },
 );
+
+it('counts a failed download once when going offline interrupts the same run', async () => {
+  const now = Date.now();
+  vi.spyOn(Date, 'now').mockReturnValue(now);
+  begin();
+  await finished();
+  stop?.();
+  download.mockImplementation(({ programId }) =>
+    programId === 'p1' ? Promise.reject(new Error('Server error')) : new Promise(() => {}),
+  );
+  stop = startCoordinator({
+    access: () => raw,
+    providers: [homeStockProvider(download)],
+    initialTrigger: 'sign-in',
+  });
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(4));
+  await new Promise((resolve) => setTimeout(resolve));
+  onlineManager.setOnline(false);
+  const schedule = downloadSchedule(getLocalDb().name);
+  expect(schedule.retryAt('home-stock:["home","p1"]')).toBe(now + 60_000);
+  expect(schedule.retryAt('home-stock:["home","p2"]')).toBe(now + 60_000);
+});

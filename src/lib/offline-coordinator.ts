@@ -191,6 +191,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
           } catch (error) {
             check();
             schedule.failed('access');
+            unfinished.delete('access');
             schedule.save();
             throw error;
           }
@@ -327,6 +328,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
                 error.code !== AxiosError.ERR_CANCELED
               ) {
                 schedule.failed(workKey);
+                unfinished.delete(workKey);
                 schedule.save();
                 publishRun({
                   phase: 'failed',
@@ -340,6 +342,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
               if (isAxiosError(error) && error.code === AxiosError.ECONNABORTED) reason = 'timeout';
               else reason ??= 'read';
               schedule.failed(workKey);
+              unfinished.delete(workKey);
               failed.push(downloadEntry(provider, task));
             }
           }
