@@ -95,14 +95,31 @@ Open Offline Events directly below Home in the sidebar. Its badge counts queued 
 in progress, unknown results and unresolved refusals, including held work. The Adjustments,
 Issue and Receive program lists also link there when events are waiting or need review.
 
-The page shows each event's type, facility, program, details, occurred dates and sync status.
+The page has three tabs:
+
+- Pending Events lists the Pending Event, Facility, Program, Details, Date and Status of work
+  waiting to send. Waiting means another event for the same facility and program needs
+  attention first. Held means this event cannot send because access or its saved draft changed.
+  The status explains which action is needed.
+- Synchronization Errors lists Pending Event, Facility, Program, Details, Error Message, Date
+  and Failed At. Refused, Stock Changed, Needs Review and Copied For Correction events appear
+  here. Needs Review means the server's answer is unknown, so check before sending again.
+- Synced lists Pending Event, Facility, Program, Details, Date and Synced At for recorded
+  events.
+
 Details shows how many items an event has. Select it to see each product with its lot, where
 it was issued to or received from (or the reason for an adjustment) and the quantity, so events
 of the same program can be told apart. Long events scroll inside that list.
-On phones, each event has its own card. Choose View Details in the row menu or card to see
-every line in full. Details also offers Transaction History and the
-actions to remove an unsent event or resolve a refusal or unknown result. Status filters
-are inside Filters.
+
+On phones, each event has its own card with the same details. Filters offers Pending Event,
+From and To on every tab. Dates match any line in an event and include both ends of the range.
+Clear Filters shows all events in the current tab. Filters stay selected when you switch tabs.
+
+Choose View Details in the row menu or card to see every line in full. Details also offers
+Transaction History and recovery actions. Remove asks for confirmation before removing an
+unsent event or hiding a synced event. Dismiss asks for confirmation and hides a refusal while
+keeping its history. Retry returns a refused event to Pending Events; Copy For Correction opens
+an editable copy instead.
 
 - Queued means waiting to send. You may remove an event that has never been attempted, after
   confirmation. Removing it does not change server stock.

@@ -1,10 +1,11 @@
 import { EyeIcon, RotateCwIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type CardAction, CardActions, RowActions } from '@/components/card-actions';
+import { type CardAction, RowActions, useInCards } from '@/components/card-actions';
 import {
   canRemoveDeviceEvent,
   DeviceEventRemoval,
+  removeKey,
 } from '@/features/stock-events/components/device-event-removal';
 import { useRefusedEventRetry } from '@/features/stock-events/hooks/use-refused-event-retry';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
@@ -16,9 +17,7 @@ export function DeviceEventActions({
   removeLabel,
   onOpen,
   onRemoved,
-  layout = 'menu',
 }: {
-  layout?: 'menu' | 'cards';
   event: DeviceEvent;
   canSend: boolean;
   label: string;
@@ -27,8 +26,9 @@ export function DeviceEventActions({
   onRemoved: () => void;
 }) {
   const { t } = useTranslation();
+  const inCards = useInCards();
   const [removing, setRemoving] = useState(false);
-  const retry = useRefusedEventRetry(event, canSend);
+  const retry = useRefusedEventRetry(event, canSend, onRemoved);
   const actions: CardAction[] = [
     ...(retry.available
       ? [
@@ -47,7 +47,7 @@ export function DeviceEventActions({
       id: 'review',
       icon: <EyeIcon />,
       label: t('offline-events.review-event'),
-      name: layout === 'cards' ? label : undefined,
+      name: inCards ? label : undefined,
       onSelect: onOpen,
       disabled: retry.pending,
     },
@@ -56,8 +56,8 @@ export function DeviceEventActions({
           {
             id: 'remove',
             icon: <Trash2Icon />,
-            label: t('offline-events.remove'),
-            name: layout === 'cards' ? removeLabel : undefined,
+            label: t(removeKey(event)),
+            name: inCards ? removeLabel : undefined,
             destructive: true,
             disabled: retry.pending,
             onSelect: () => setRemoving(true),
@@ -65,10 +65,9 @@ export function DeviceEventActions({
         ]
       : []),
   ];
-  const Actions = layout === 'cards' ? CardActions : RowActions;
   return (
     <>
-      <Actions actions={actions} label={t('offline-events.actions-label', { event: label })} />
+      <RowActions actions={actions} label={t('offline-events.actions-label', { event: label })} />
       {removing && (
         <DeviceEventRemoval
           event={event}

@@ -14,8 +14,10 @@ import {
 } from '@/features/stock-events/lib/stock-event-queue';
 import {
   acceptStockEvent,
+  blockedScopes,
   classifyUpload,
   copyRefusedEvent,
+  type DeviceEvent,
   dismissRefusedEvent,
   hideAcceptedEvent,
   pruneStockEvents,
@@ -760,4 +762,22 @@ it('retried refusals obey access, session and facility/program barriers in the e
   expect(session.send).not.toHaveBeenCalled();
   await syncStockEvents(getLocalDb(), error.event.userId, deps);
   expect(deps.send).toHaveBeenCalledTimes(2);
+});
+
+it('blocks a scope for later held or in-flight queue rows, while refusal and receipt projections never block', async () => {
+  const first = await enqueue('one');
+  const later = await enqueue('one');
+  const uncertain = await enqueue('two');
+  const sending = await enqueue('three');
+  const refused = await enqueue('four');
+  const accepted = await enqueue('five');
+  const rows: DeviceEvent[] = [
+    first,
+    { ...later, pauseReason: 'access-changed' },
+    { ...uncertain, status: 'uncertain' },
+    { ...sending, status: 'sending' },
+    { ...refused, status: 'refused' },
+    { ...accepted, status: 'accepted' },
+  ];
+  expect([...blockedScopes(rows)]).toEqual(['home:one', 'home:two', 'home:three']);
 });

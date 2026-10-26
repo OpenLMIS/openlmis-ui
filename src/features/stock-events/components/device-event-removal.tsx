@@ -26,6 +26,9 @@ export const canRemoveDeviceEvent = (event: DeviceEvent) =>
   event.status === 'refused' ||
   (event.status === 'queued' && !event.attemptId);
 
+export const removeKey = (event: DeviceEvent) =>
+  event.status === 'refused' ? 'offline-events.dismiss' : 'offline-events.remove';
+
 export function DeviceEventRemoval({
   event,
   onClose,
@@ -57,7 +60,7 @@ export function DeviceEventRemoval({
           event.status === 'accepted'
             ? 'offline-events.synced-removed'
             : event.status === 'refused'
-              ? 'offline-events.refused-removed'
+              ? 'offline-events.refused-dismissed'
               : 'offline-events.removed',
         );
         onRemoved();
@@ -82,13 +85,13 @@ export function DeviceEventRemoval({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('offline-events.remove')}</AlertDialogTitle>
+          <AlertDialogTitle>{t(removeKey(event))}</AlertDialogTitle>
           <AlertDialogDescription>
             {t(
               event.status === 'accepted'
                 ? 'offline-events.remove-synced-warning'
                 : event.status === 'refused'
-                  ? 'offline-events.remove-refused-warning'
+                  ? 'offline-events.dismiss-warning'
                   : 'offline-events.remove-warning',
             )}
           </AlertDialogDescription>
@@ -98,7 +101,7 @@ export function DeviceEventRemoval({
             {t('offline-events.cancel')}
           </AlertDialogCancel>
           <Button variant="destructive" disabled={mutation.isPending} onClick={() => void remove()}>
-            {t('offline-events.remove')}
+            {t(removeKey(event))}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
