@@ -186,7 +186,7 @@ export async function writeInventoryLocal(
       }
       return {
         ...copy,
-        ...(!reference && stored
+        ...(!reference && stored && !allowOrphan
           ? { fetchedAt: stored.fetchedAt, generation: stored.generation }
           : {}),
         revision:

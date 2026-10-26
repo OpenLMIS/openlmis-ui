@@ -22,7 +22,6 @@ export function requireOnline() {
 export async function onlineOrDevice<T>(
   online: () => Promise<T>,
   device: (serverError?: unknown) => Promise<T>,
-  canFallback: (error: unknown) => boolean = isAccessFallbackError,
 ): Promise<T> {
   const scope = getSessionScope();
   let serverError: unknown;
@@ -33,7 +32,7 @@ export async function onlineOrDevice<T>(
       return result;
     } catch (error) {
       assertSessionScope(scope);
-      if (!canFallback(error)) throw error;
+      if (!isAccessFallbackError(error)) throw error;
       serverError = error;
     }
   }

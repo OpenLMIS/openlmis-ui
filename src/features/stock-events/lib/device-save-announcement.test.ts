@@ -6,7 +6,7 @@ import {
 } from '@/features/stock-events/lib/device-save-announcement';
 import type { DraftSaveState } from '@/lib/draft-writer';
 
-it('announces a failed device save once and its recovery, never routine saves', () => {
+it('announces a failed device save and its recovery, never routine saves', () => {
   const view = renderHook(
     ({ status }: { status: DraftSaveState['status'] }) => {
       useDeviceSaveFailureAnnouncement(status);

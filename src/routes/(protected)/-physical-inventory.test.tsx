@@ -19,6 +19,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { createContext } from 'react';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
 import { canOpen } from '@/components/nav-access';
@@ -114,7 +115,10 @@ function renderRoute(
   renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
 ) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { staleTime: Infinity, retry: false, networkMode: 'always' } },
+    defaultOptions: {
+      queries: { staleTime: Infinity, retry: false, networkMode: 'always' },
+      mutations: { networkMode: 'always' },
+    },
   });
   seed?.(queryClient);
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
@@ -136,6 +140,7 @@ function renderRoute(
     path: 'stock-management/physical-inventory/$programId',
     validateSearch: EditorRoute.options.validateSearch as never,
     loader: EditorRoute.options.loader as never,
+    shouldReload: EditorRoute.options.shouldReload as never,
     component: EditorRoute.options.component as never,
     pendingComponent: EditorRoute.options.pendingComponent as never,
     staticData: EditorRoute.options.staticData,
@@ -735,7 +740,7 @@ it('shows failed offline program reads and retries every failed program', async 
   onlineManager.setOnline(false);
   const user = userEvent.setup();
   renderRoute();
-  await screen.findByText('physical-inventory.load-error-description');
+  await screen.findByText('physical-inventory.list-load-error-description');
   expect(screen.getAllByText('physical-inventory.status-error')).toHaveLength(2);
   read.mockClear();
   await user.click(screen.getByRole('button', { name: 'Try Again' }));
@@ -763,4 +768,60 @@ it('waits for device reasons without asking for a connection', async () => {
     expect(dialog.querySelector('[data-slot="skeleton"]')).not.toBeInTheDocument(),
   );
   read.mockRestore();
+});
+
+it('preserves the open online editor when offline validation changes search', async () => {
+  await seedDeviceEditor();
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    ...grants,
+    `STOCK_CARDS_VIEW|${HOME}|${FP}`,
+  ]);
+  const stock = ['A', 'B'].map((id) => ({
+    orderable: { id, productCode: id, fullProductName: id, description: null },
+    lot: null,
+    stockOnHand: 5,
+    stockCardId: id,
+    active: true,
+  }));
+  vi.mocked(fetchInventoryStockLines).mockResolvedValue(stock);
+  vi.mocked(fetchEligibleInventoryProducts).mockResolvedValue(stock);
+  vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValue({
+    id: 'draft',
+    facilityId: HOME,
+    programId: FP,
+    lineItems: [{ orderableId: 'A', quantity: 20 }],
+  });
+  const user = userEvent.setup();
+  const { router } = renderRoute(`${PICKER}/${FP}`);
+  const input = (await screen.findAllByRole('textbox', { name: 'stock-events.field-of' }))[0];
+  expect(input).toHaveValue('20');
+  await user.clear(input);
+  await user.type(input, '12');
+  const opened = router.state.matches.at(-1)?.loaderData;
+  act(() => onlineManager.setOnline(false));
+  await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await user.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
+  );
+  await waitFor(() => expect(router.state.status).toBe('idle'));
+  expect(router.state.matches.at(-1)?.loaderData).toBe(opened);
+  expect(input).toHaveValue('12');
+  expect(input).toBeInTheDocument();
+  expect(fetchInventoryStockLines).toHaveBeenCalledTimes(1);
+});
+
+it('refuses Start if connectivity changes before its click is handled', async () => {
+  const error = vi.spyOn(toast, 'error');
+  renderRoute();
+  const start = await screen.findByRole('button', { name: 'physical-inventory.start' });
+  act(() => {
+    onlineManager.setOnline(false);
+    start.click();
+  });
+  await waitFor(() =>
+    expect(error).toHaveBeenCalledWith('physical-inventory.start-error-title', {
+      description: 'offline.action-description',
+    }),
+  );
+  expect(startPhysicalInventory).not.toHaveBeenCalled();
 });

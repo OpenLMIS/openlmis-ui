@@ -34,6 +34,7 @@ import {
 import { InventoryOrphans } from '@/features/stock-events/components/inventory-orphans';
 import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
 import { PhysicalInventoryPendingBody } from '@/features/stock-events/components/physical-inventory-pending';
+import { inventorySavePayload } from '@/features/stock-events/lib/physical-inventory-form';
 import { readInventoryLocalByScope } from '@/features/stock-events/lib/physical-inventory-local';
 import {
   type InventorySearch,
@@ -54,6 +55,7 @@ export const Route = createFileRoute(
 )({
   validateSearch: inventorySearchSchema,
   preload: false,
+  shouldReload: ({ cause }) => cause === 'enter',
   staticData: { crumbKey: 'physical-inventory.editor-crumb' },
   loader: {
     staleReloadMode: 'blocking',
@@ -92,7 +94,11 @@ export const Route = createFileRoute(
         return {
           ...base,
           deviceCopy,
-          draft: { id: deviceCopy.draftId, ...selection, lineItems: [] },
+          draft: inventorySavePayload(
+            { id: deviceCopy.draftId, ...selection, lineItems: [] },
+            deviceCopy.lines,
+            [],
+          ),
           missingCopy: false,
         };
       };

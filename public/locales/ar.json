@@ -716,6 +716,8 @@
   "physical-inventory.invalid-description": "يحتوي الجرد الفعلي على بنود غير صالحة.",
   "physical-inventory.invalid-title": "بنود غير صالحة",
   "physical-inventory.keep-counts": "الاحتفاظ بأعدادي",
+  "physical-inventory.list-load-error-description": "تعذر تحميل مسودات الجرد. تحقق من اتصالك وحاول مرة أخرى.",
+  "physical-inventory.list-load-error-title": "تعذر تحميل مسودات الجرد",
   "physical-inventory.load-error-description": "تعذر تحميل بنود الجرد. حاول مجددًا.",
   "physical-inventory.load-error-title": "تعذر تحميل الجرد",
   "physical-inventory.local-clear-error-title": "لم تُمسح نسخة الجهاز",

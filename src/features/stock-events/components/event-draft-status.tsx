@@ -1,5 +1,5 @@
 import { CheckIcon, Loader2Icon, TriangleAlertIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertDialog,
@@ -21,6 +21,7 @@ type Props = DraftSaveState & {
 };
 export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }: Props) {
   const { t } = useTranslation();
+  const loadButton = useRef<HTMLButtonElement>(null);
   const [resolving, setResolving] = useState(false);
   const resolveFailure = conflict
     ? conflict.failed
@@ -84,7 +85,7 @@ export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }
         )}
       </div>
       <AlertDialog open={status === 'conflict'}>
-        <AlertDialogContent>
+        <AlertDialogContent initialFocus={loadButton}>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('stock-events.draft-conflict-title')}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -96,7 +97,7 @@ export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }
             <Button variant="outline" disabled={resolving} onClick={() => void resolve('copy')}>
               {conflict?.keep ?? t('stock-events.draft-copy')}
             </Button>
-            <Button disabled={resolving} onClick={() => void resolve('load')}>
+            <Button ref={loadButton} disabled={resolving} onClick={() => void resolve('load')}>
               {t('stock-events.draft-load')}
             </Button>
           </AlertDialogFooter>

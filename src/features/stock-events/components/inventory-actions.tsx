@@ -76,7 +76,11 @@ import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 class UnknownSubmit extends Error {}
-class InventoryOrphaned extends Error {}
+class InventoryOrphaned extends Error {
+  constructor(readonly keptCounts: boolean) {
+    super();
+  }
+}
 function reportUnlessConflict(error: unknown) {
   if (error instanceof DraftConflictError) throw error;
   reportCaughtError(error, {});
@@ -104,6 +108,7 @@ type Props = {
   clearLocal: (draftId: string) => Promise<void>;
   writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<unknown>;
   onBusy: (busy: boolean) => void;
+  onOrphaned?: () => void;
   onLots: (lines: InventoryLine[]) => void;
   onSaved: (lines: InventoryLine[], terminal: boolean, localSaved: boolean) => void;
   onDialogChange: (open: boolean) => void;
@@ -211,9 +216,12 @@ export function InventoryActions(props: Props) {
       }
       check();
       if (current?.id !== props.draft.id) {
+        props.onOrphaned?.();
         await queryClient.invalidateQueries({ queryKey: queryKeys.physicalInventories.all });
         check();
-        throw new InventoryOrphaned();
+        const earlier = await readInventoryLocal(props.draft.id).catch(() => undefined);
+        check();
+        throw new InventoryOrphaned(Boolean(earlier?.orphaned && earlier.modified));
       }
       const eligible = await queryClient.fetchQuery(eligibleOptions);
       check();
@@ -245,7 +253,13 @@ export function InventoryActions(props: Props) {
         const saved = inventorySavePayload(props.draft, prepared, eligible);
         await savePhysicalInventory(saved);
         assertSessionScope(scope);
-        queryClient.setQueryData(physicalInventoryDraftOptions(props.draft, true).queryKey, saved);
+        queryClient.setQueryData(
+          physicalInventoryDraftOptions(
+            { facilityId: props.draft.facilityId, programId: props.draft.programId },
+            true,
+          ).queryKey,
+          saved,
+        );
       } else {
         try {
           await submitPhysicalInventory(
@@ -312,7 +326,12 @@ export function InventoryActions(props: Props) {
         return;
       }
       let description = serverMessage(error) ?? t(ACTION_KEYS[action.type].errorDescription);
-      if (error instanceof InventoryOrphaned) description = t('physical-inventory.orphaned-action');
+      if (error instanceof InventoryOrphaned)
+        description = t(
+          error.keptCounts
+            ? 'physical-inventory.orphaned-action'
+            : 'physical-inventory.no-draft-description',
+        );
       if (error instanceof InventoryLotError)
         description =
           error.reason === 'duplicate'

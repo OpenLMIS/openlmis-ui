@@ -33,6 +33,7 @@ export function usePhysicalInventoryAutosave(
     let revision = initialRevision;
     const initialLines = form.state.values.lines;
     let persistedReference: InventoryReference | undefined;
+    let referenceLoaded = !initialCopy;
     let pendingReference: InventoryReference | undefined;
     let metadata = initialCopy;
     let initialReference: Promise<InventoryReference | undefined> | undefined;
@@ -53,13 +54,23 @@ export function usePhysicalInventoryAutosave(
     }>(
       async ({ copy: value, reference, snapshotOnly }) => {
         if (getSessionScope() !== scope) return;
-        if (initialCopy && !persistedReference) persistedReference = await captureReference();
+        if (!referenceLoaded) {
+          persistedReference = await captureReference();
+          referenceLoaded = true;
+        }
         draftId = value.draftId;
-        const referenceToWrite = reference ?? (resolving ? undefined : persistedReference);
+        const retainedReference =
+          resolving &&
+          (persistedReference?.generation !== value.generation ||
+            persistedReference?.fetchedAt !== value.fetchedAt)
+            ? undefined
+            : persistedReference;
+        const referenceToWrite = reference ?? retainedReference;
+        const snapshot = resolving ? value : metadata;
         const next = {
           ...value,
-          fetchedAt: referenceToWrite?.fetchedAt ?? metadata?.fetchedAt,
-          generation: referenceToWrite?.generation ?? metadata?.generation,
+          fetchedAt: referenceToWrite?.fetchedAt ?? snapshot?.fetchedAt ?? value.fetchedAt,
+          generation: referenceToWrite?.generation ?? snapshot?.generation ?? value.generation,
           revision,
         };
         try {
@@ -88,7 +99,7 @@ export function usePhysicalInventoryAutosave(
             revision = error.stored.revision;
             saved = await commit();
           }
-          if (referenceToWrite) persistedReference = referenceToWrite;
+          persistedReference = referenceToWrite;
           revision = saved?.revision;
           metadata = saved;
           if (pendingReference === reference) pendingReference = undefined;
@@ -148,7 +159,6 @@ export function usePhysicalInventoryAutosave(
         await serial.wait();
         if (getSessionScope() !== scope) return;
         revision = observed?.stored?.revision ?? 0;
-        metadata = observed?.stored;
         resolving = true;
         serial.resolve();
         enqueue(value, reference);

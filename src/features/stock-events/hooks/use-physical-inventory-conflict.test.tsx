@@ -115,7 +115,7 @@ it.each([true, false])(
       await view.result.current.keepCounts(copy, freshReference ? reference : undefined);
     });
     const kept = await readInventoryLocal(copy.draftId);
-    const generation = freshReference ? 'G' : 'G2';
+    const generation = 'G';
     expect(kept).toMatchObject({ generation, orphaned: false, modified: true });
     if (!kept) throw new Error('Missing kept counts');
     expect(await readInventoryReference(kept)).toMatchObject({ generation });
@@ -274,5 +274,74 @@ it.each([false, true])(
       await a.result.current.write({ ...copy, modified: false, savedAt: 4 });
     });
     expect((await readInventoryLocal(copy.draftId))?.revision).toBe((latest.revision ?? 0) + 1);
+  },
+);
+
+it.each([false, true])(
+  'keeps this visit snapshot identity before its reference is ready (previous copy: %s)',
+  async (previous) => {
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: crypto.randomUUID(),
+      username: 'Ada',
+      accessToken: 'token',
+    });
+    const other: InventoryLocalCopy = {
+      draftId: 'draft',
+      facilityId: 'home',
+      programId: 'one',
+      lines: [],
+      modified: true,
+      savedAt: 1,
+      generation: 'other',
+      fetchedAt: 20,
+      formatVersion: 1,
+      baselineKeys: [],
+    };
+    const initial = previous
+      ? await writeInventoryLocal(
+          { ...other, generation: 'previous', fetchedAt: 5 },
+          undefined,
+          undefined,
+          inventoryReference({ ...other, generation: 'previous', fetchedAt: 5 }, [], []),
+        )
+      : undefined;
+    const own = { ...other, generation: 'own', fetchedAt: 10 };
+    const view = renderHook(() =>
+      usePhysicalInventoryAutosave(
+        noCopy,
+        usePhysicalInventoryForm([], false),
+        initial?.revision ?? 0,
+        undefined,
+        initial,
+      ),
+    );
+    if (initial)
+      await act(async () => {
+        await view.result.current.write(initial);
+      });
+    const stored = await readInventoryLocal(other.draftId);
+    await writeInventoryLocal(
+      { ...other, revision: stored?.revision },
+      undefined,
+      undefined,
+      inventoryReference(other, [], []),
+    );
+    await act(async () => {
+      await expect(view.result.current.write(own)).rejects.toBeInstanceOf(DraftConflictError);
+    });
+    await act(async () => {
+      await view.result.current.keepCounts(own);
+    });
+    const kept = await readInventoryLocal(own.draftId);
+    expect(kept).toMatchObject({ generation: 'own', fetchedAt: 10 });
+    if (!kept) throw new Error('Missing kept counts');
+    expect(await readInventoryReference(kept)).toBeUndefined();
+    await act(async () => {
+      await view.result.current.write({ ...own, savedAt: 3 });
+    });
+    expect(await readInventoryLocal(own.draftId)).toMatchObject({
+      generation: 'own',
+      fetchedAt: 10,
+    });
   },
 );

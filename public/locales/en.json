@@ -716,6 +716,8 @@
   "physical-inventory.invalid-description": "Physical inventory has invalid line items.",
   "physical-inventory.invalid-title": "Invalid Line Items",
   "physical-inventory.keep-counts": "Keep My Counts",
+  "physical-inventory.list-load-error-description": "The inventory drafts could not be loaded. Check your connection and try again.",
+  "physical-inventory.list-load-error-title": "Could Not Load Inventory Drafts",
   "physical-inventory.load-error-description": "The inventory lines could not be loaded. Try again.",
   "physical-inventory.load-error-title": "Could Not Load Inventory",
   "physical-inventory.local-clear-error-title": "Device Copy Not Cleared",

@@ -14,7 +14,6 @@ import {
   inventorySummariesOptions,
   physicalInventoryDraftOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
-import { DraftConflictError } from '@/lib/draft-store';
 
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
   fetchPhysicalInventoryDraft: vi.fn(),
@@ -149,20 +148,18 @@ vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   reconcileInventoryCopies: vi.fn(),
   readInventoryLocalByScope: vi.fn().mockResolvedValue(undefined),
 }));
-it.each([new Error('IndexedDB unavailable'), new DraftConflictError(undefined)])(
-  'returns the server draft despite failed reconciliation: %s',
-  async (error) => {
-    const { reconcileInventoryCopies } = await import(
-      '@/features/stock-events/lib/physical-inventory-local'
-    );
-    vi.mocked(reconcileInventoryCopies).mockRejectedValueOnce(error);
-    const draft = { id: 'd', facilityId: 'f', programId: 'p', lineItems: [] };
-    vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(draft);
-    await expect(
-      new QueryClient().fetchQuery(physicalInventoryDraftOptions(draft)),
-    ).resolves.toEqual(draft);
-  },
-);
+it('returns the server draft despite failed reconciliation', async () => {
+  const error = new Error('IndexedDB unavailable');
+  const { reconcileInventoryCopies } = await import(
+    '@/features/stock-events/lib/physical-inventory-local'
+  );
+  vi.mocked(reconcileInventoryCopies).mockRejectedValueOnce(error);
+  const draft = { id: 'd', facilityId: 'f', programId: 'p', lineItems: [] };
+  vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(draft);
+  await expect(new QueryClient().fetchQuery(physicalInventoryDraftOptions(draft))).resolves.toEqual(
+    draft,
+  );
+});
 
 it('lets in-flight reads finish after disconnection instead of guarding them as mutations', async () => {
   const summaries = Promise.withResolvers<[]>();
@@ -177,7 +174,7 @@ it('lets in-flight reads finish after disconnection instead of guarding them as 
   client.clear();
 });
 
-it.each([false, true])('handles a gateway page with a device copy: %s', async (available) => {
+async function gatewayDraft(available: boolean) {
   const { readInventoryLocalByScope } = await import(
     '@/features/stock-events/lib/physical-inventory-local'
   );
@@ -199,8 +196,15 @@ it.each([false, true])('handles a gateway page with a device copy: %s', async (a
   const result = client.fetchQuery(
     physicalInventoryDraftOptions({ facilityId: 'f', programId: 'p' }),
   );
-  if (available) await expect(result).resolves.toMatchObject({ id: 'd' });
-  else await expect(result).rejects.toBe(error);
+  return { result, error };
+}
+it('opens a device copy after a gateway page', async () => {
+  const { result } = await gatewayDraft(true);
+  await expect(result).resolves.toMatchObject({ id: 'd' });
+});
+it('rejects a gateway page when no device copy exists', async () => {
+  const { result, error } = await gatewayDraft(false);
+  await expect(result).rejects.toBe(error);
 });
 
 it('opens a device copy after a draft request times out', async () => {

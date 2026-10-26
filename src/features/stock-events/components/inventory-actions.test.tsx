@@ -1,4 +1,9 @@
-import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+} from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
@@ -64,6 +69,7 @@ beforeEach(() => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'user', username: 'user', accessToken: 'token' });
+  vi.mocked(readInventoryLocal).mockResolvedValue(undefined);
   vi.mocked(clearInventoryLocal).mockResolvedValue(undefined);
   vi.mocked(writeInventoryLocal).mockResolvedValue(undefined);
   vi.mocked(savePhysicalInventory).mockResolvedValue(undefined);
@@ -115,52 +121,53 @@ function setup(overrides: Partial<ComponentProps<typeof InventoryActions>> = {})
 it('checks the server once for Save and caches the accepted draft without another GET', async () => {
   const user = userEvent.setup();
   const { client } = setup();
+  const scope = { facilityId: draft.facilityId, programId: draft.programId };
+  const options = physicalInventoryDraftOptions(scope);
+  client.setQueryData(options.queryKey, draft);
+  const observer = new QueryObserver(client, options);
+  const unsubscribe = observer.subscribe(() => {});
   await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
   );
   await waitFor(() => expect(toast.success).toHaveBeenCalled());
   expect(fetchPhysicalInventoryDraft).toHaveBeenCalledTimes(1);
-  expect(client.getQueryData(physicalInventoryDraftOptions(draft).queryKey)).toMatchObject({
+  expect(client.getQueryData(options.queryKey)).toMatchObject({
     id: 'd',
     lineItems: [expect.objectContaining({ orderableId: 'p', quantity: 5 })],
   });
+  unsubscribe();
 });
-it('disables Delete and explains the revision conflict', () => {
-  setup({
-    conflicted: true,
-    writeDisabled: true,
-    writeDisabledReason: 'stock-events.draft-conflict',
+async function confirmAction(action: 'save' | 'delete' | 'submit') {
+  const user = userEvent.setup();
+  await user.click(
+    screen.getByRole('button', {
+      name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
+    }),
+  );
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', {
+      name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
+    }),
+  );
+}
+it('reports a successful server Save separately from a device write failure', async () => {
+  vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new Error('Full'));
+  const { onSaved } = setup();
+  await confirmAction('save');
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  expect(toast.error).not.toHaveBeenCalled();
+  expect(toast.success).toHaveBeenCalledWith('physical-inventory.saved-title', {
+    description: 'physical-inventory.saved-description',
   });
-  const button = screen.getByRole('button', { name: 'physical-inventory.delete' });
-  expect(button).toHaveAttribute('aria-disabled', 'true');
-  expect(button).toHaveAttribute('aria-description', 'stock-events.draft-conflict');
 });
-it.each(['save', 'delete', 'submit'] as const)(
-  'reports a successful server %s separately from device cleanup failure',
+it.each(['delete', 'submit'] as const)(
+  'reports successful server %s separately from device cleanup failure',
   async (action) => {
-    const user = userEvent.setup();
-    if (action === 'save') vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new Error('Full'));
-    else vi.mocked(clearInventoryLocal).mockRejectedValueOnce(new Error('Full'));
+    vi.mocked(clearInventoryLocal).mockRejectedValueOnce(new Error('Full'));
     const { onSaved, onDeleted } = setup();
-    await user.click(
-      screen.getByRole('button', {
-        name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
-      }),
-    );
-    await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
-        name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
-      }),
-    );
+    await confirmAction(action);
     await waitFor(() => expect(action === 'delete' ? onDeleted : onSaved).toHaveBeenCalled());
-    if (action === 'save') {
-      expect(toast.error).not.toHaveBeenCalled();
-      expect(toast.success).toHaveBeenCalledWith('physical-inventory.saved-title', {
-        description: 'physical-inventory.saved-description',
-      });
-      return;
-    }
     expect(toast.error).toHaveBeenCalledWith('physical-inventory.local-clear-error-title', {
       description: `physical-inventory.${action}-local-clear-error`,
     });
@@ -353,8 +360,8 @@ it('saves with created lot ids even when their device write fails', async () => 
 });
 
 it.each([
-  ...(['save', 'delete', 'submit'] as const).map((action) => [action, 'conflicted'] as const),
-  ...(['save', 'delete', 'submit'] as const).map((action) => [action, 'orphaned'] as const),
+  ...(['save', 'delete'] as const).map((action) => [action, 'conflicted'] as const),
+  ...(['save', 'delete'] as const).map((action) => [action, 'orphaned'] as const),
 ])('keeps counts and stops %s when the device copy is %s', async (action, cause) => {
   const user = userEvent.setup();
   const flush =
@@ -374,12 +381,12 @@ it.each([
   const { onDeleted } = setup({ flush });
   await user.click(
     screen.getByRole('button', {
-      name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
+      name: `physical-inventory.${action}`,
     }),
   );
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', {
-      name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
+      name: `physical-inventory.${action}`,
     }),
   );
   await screen.findByRole('alertdialog');
@@ -506,6 +513,15 @@ it.each(['save', 'submit'] as const)(
   async (action) => {
     const user = userEvent.setup();
     vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(null);
+    vi.mocked(readInventoryLocal).mockResolvedValueOnce(undefined).mockResolvedValueOnce({
+      draftId: 'd',
+      programId: 'p',
+      facilityId: 'f',
+      lines: [],
+      modified: true,
+      orphaned: true,
+      savedAt: 1,
+    });
     setup();
     await user.click(
       screen.getByRole('button', {
@@ -526,3 +542,18 @@ it.each(['save', 'submit'] as const)(
     );
   },
 );
+
+it('does not claim earlier counts were kept when reconciliation removed an untouched copy', async () => {
+  vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(null);
+  vi.mocked(readInventoryLocal).mockResolvedValue(undefined);
+  setup();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'physical-inventory.no-draft-description',
+  );
+  expect(screen.queryByText('physical-inventory.orphaned-action')).not.toBeInTheDocument();
+});

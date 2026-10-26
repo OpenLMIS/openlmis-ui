@@ -716,6 +716,8 @@
   "physical-inventory.invalid-description": "O inventário físico contém linhas inválidas.",
   "physical-inventory.invalid-title": "Linhas Inválidas",
   "physical-inventory.keep-counts": "Manter as minhas contagens",
+  "physical-inventory.list-load-error-description": "Não foi possível carregar os rascunhos de inventário. Verifique a sua ligação e tente novamente.",
+  "physical-inventory.list-load-error-title": "Não Foi Possível Carregar Os Rascunhos De Inventário",
   "physical-inventory.load-error-description": "Não foi possível carregar as linhas do inventário. Tente novamente.",
   "physical-inventory.load-error-title": "Não foi possível carregar o inventário",
   "physical-inventory.local-clear-error-title": "Cópia Do Dispositivo Não Apagada",

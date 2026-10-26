@@ -716,6 +716,8 @@
   "physical-inventory.invalid-description": "El inventario físico tiene líneas no válidas.",
   "physical-inventory.invalid-title": "Líneas No Válidas",
   "physical-inventory.keep-counts": "Conservar mis recuentos",
+  "physical-inventory.list-load-error-description": "No se pudieron cargar los borradores de inventario. Revisa tu conexión e inténtalo de nuevo.",
+  "physical-inventory.list-load-error-title": "No Se Pudieron Cargar Los Borradores De Inventario",
   "physical-inventory.load-error-description": "No se pudieron cargar las líneas del inventario. Inténtelo de nuevo.",
   "physical-inventory.load-error-title": "No se pudo cargar el inventario",
   "physical-inventory.local-clear-error-title": "Copia Del Dispositivo No Borrada",

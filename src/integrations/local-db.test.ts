@@ -24,50 +24,51 @@ describe('localDatabaseName', () => {
 });
 
 describe('getLocalDb', () => {
-  it.each([1, 2, 11, 12])(
-    'upgrades version %s without losing inventory drafts or catalogs',
-    async (version) => {
-      signIn(`inventory-upgrade-${version}`);
-      const old = new Dexie(getLocalDb().name);
-      old.version(1).stores({});
-      const draft = { draftId: 'existing-count', lines: [{ quantity: '12' }], savedAt: 123 };
-      const catalog = { facilityId: 'f', programId: 'p', products: [] };
-      if (version >= 2) {
-        old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
-        if (version >= 11) old.version(11).stores({ stockCardHistory: 'id' });
-        if (version === 12)
-          old.version(12).stores({ receiveCatalogDownloads: '[facilityId+programId]' });
-        await old.table(LOCAL_TABLES.physicalInventoryDrafts).put(draft);
-        if (version === 12) await old.table(LOCAL_TABLES.receiveCatalogDownloads).put(catalog);
-      } else {
-        await old.open();
+  async function upgrade(version: 1 | 2 | 12) {
+    signIn(`inventory-upgrade-${version}`);
+    const old = new Dexie(getLocalDb().name);
+    old.version(1).stores({});
+    const draft = { draftId: 'existing-count', lines: [{ quantity: '12' }], savedAt: 123 };
+    const catalog = { facilityId: 'f', programId: 'p', products: [] };
+    if (version >= 2) {
+      old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
+      if (version === 12) {
+        old.version(11).stores({ stockCardHistory: 'id' });
+        old.version(12).stores({ receiveCatalogDownloads: '[facilityId+programId]' });
       }
-      old.close();
-
-      const db = getLocalDb();
-      await db.open();
-      expect(db.verno).toBe(13);
-      expect(db.table(LOCAL_TABLES.physicalInventoryReference).schema.primKey.keyPath).toBe(
-        'draftId',
-      );
-      expect(
-        db.table(LOCAL_TABLES.physicalInventoryDrafts).schema.idxByName['[facilityId+programId]'],
-      ).toBeDefined();
-      if (version === 1) await db.table(LOCAL_TABLES.physicalInventoryDrafts).put(draft);
-      expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId)).toEqual(
-        draft,
-      );
-      if (version === 12)
-        expect(await db.table(LOCAL_TABLES.receiveCatalogDownloads).get(['f', 'p'])).toEqual(
-          catalog,
-        );
-      expect(db.table(LOCAL_TABLES.offlineAccess).schema.primKey.keyPath).toBe('userId');
-      expect(db.table(LOCAL_TABLES.homeStockDownloads).schema.primKey.keyPath).toEqual([
-        'facilityId',
-        'programId',
-      ]);
-    },
-  );
+      await old.table(LOCAL_TABLES.physicalInventoryDrafts).put(draft);
+      if (version === 12) await old.table(LOCAL_TABLES.receiveCatalogDownloads).put(catalog);
+    } else await old.open();
+    old.close();
+    const db = getLocalDb();
+    await db.open();
+    expect(db.verno).toBe(13);
+    expect(db.table(LOCAL_TABLES.physicalInventoryReference).schema.primKey.keyPath).toBe(
+      'draftId',
+    );
+    expect(
+      db.table(LOCAL_TABLES.physicalInventoryDrafts).schema.idxByName['[facilityId+programId]'],
+    ).toBeDefined();
+    expect(db.table(LOCAL_TABLES.offlineAccess).schema.primKey.keyPath).toBe('userId');
+    expect(db.table(LOCAL_TABLES.homeStockDownloads).schema.primKey.keyPath).toEqual([
+      'facilityId',
+      'programId',
+    ]);
+    return { db, draft, catalog };
+  }
+  it('adds inventory storage when upgrading version 1', async () => {
+    const { db } = await upgrade(1);
+    expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).count()).toBe(0);
+  });
+  it('preserves inventory drafts when upgrading version 2', async () => {
+    const { db, draft } = await upgrade(2);
+    expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId)).toEqual(draft);
+  });
+  it('preserves inventory drafts and catalogs when upgrading version 12', async () => {
+    const { db, draft, catalog } = await upgrade(12);
+    expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId)).toEqual(draft);
+    expect(await db.table(LOCAL_TABLES.receiveCatalogDownloads).get(['f', 'p'])).toEqual(catalog);
+  });
 
   it('needs someone signed in, since every database belongs to a user', () => {
     expect(() => getLocalDb()).toThrow();

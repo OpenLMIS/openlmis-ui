@@ -12,6 +12,7 @@ import { physicalInventoryDraftOptions } from '@/features/stock-events/api/physi
 import { useReloadOnConnectivityChange } from '@/hooks/use-reload-on-connectivity-change';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { recordLabel } from '@/lib/facility-program-selection';
+import { isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
 import { useOnline } from '@/lib/online';
@@ -101,9 +102,13 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
         params: { programId: draft.programId },
       });
     },
-    onError: () =>
+    onError: (error) =>
       toast.error(t('physical-inventory.start-error-title'), {
-        description: t('physical-inventory.start-error-description'),
+        description: t(
+          isOfflineError(error)
+            ? 'offline.action-description'
+            : 'physical-inventory.start-error-description',
+        ),
       }),
   });
   const rows = programs.map((program, index) => {
@@ -138,8 +143,8 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
     <>
       {failed.length > 0 && (
         <ListError
-          title={t('physical-inventory.load-error-title')}
-          description={t('physical-inventory.load-error-description')}
+          title={t('physical-inventory.list-load-error-title')}
+          description={t('physical-inventory.list-load-error-description')}
           error={failed[0].error}
           reset={() => {
             for (const result of failed) void result.refetch();

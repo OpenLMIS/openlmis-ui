@@ -716,6 +716,8 @@
   "physical-inventory.invalid-description": "L’inventaire physique contient des lignes non valides.",
   "physical-inventory.invalid-title": "Lignes Non Valides",
   "physical-inventory.keep-counts": "Conserver mes comptages",
+  "physical-inventory.list-load-error-description": "Les brouillons d’inventaire n’ont pas pu être chargés. Vérifiez votre connexion et réessayez.",
+  "physical-inventory.list-load-error-title": "Impossible De Charger Les Brouillons D’Inventaire",
   "physical-inventory.load-error-description": "Les lignes d’inventaire n’ont pas pu être chargées. Réessayez.",
   "physical-inventory.load-error-title": "Impossible de charger l’inventaire",
   "physical-inventory.local-clear-error-title": "Copie Locale Non Effacée",

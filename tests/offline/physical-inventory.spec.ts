@@ -140,3 +140,86 @@ test('inventory counts and new lots survive offline restart and only explicit Sa
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+for (const scenario of ['invalid', 'deleted'] as const) {
+  test(`online-opened inventory preserves counts after ${scenario}`, {
+    tag: '@offline-shell',
+  }, async ({ persistentContext }) => {
+    const directory = await mkdtemp(join(tmpdir(), 'openlmis-inventory-regression-'));
+    const context = await persistentContext(directory);
+    const writes: string[] = [];
+    let deleted = false;
+    try {
+      await stub(context, async () => 'finish', {
+        home: 'home',
+        program: 'program',
+        inventory: true,
+      });
+      await context.route('**/api{,/**,?*}', async (route) => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        if (request.method() === 'GET') {
+          if (deleted && path === '/api/physicalInventories') return route.fulfill({ json: [] });
+          return route.fallback();
+        }
+        if (path === '/api/oauth/token' || path === '/api/orderables/search')
+          return route.fallback();
+        writes.push(`${request.method()} ${path}`);
+        return route.abort('blockedbyclient');
+      });
+      const page = context.pages()[0];
+      await login(
+        page,
+        'download-user',
+        'Fixture Medicines',
+        '/stock-management/physical-inventory',
+      );
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
+      await expect(count(page, 'Fixture Product')).toHaveValue('20');
+      await saved(page);
+      await waitForOfflineShell(page);
+      await context.setOffline(true);
+      await count(page, 'Fixture Product').fill('12');
+      await saved(page);
+      if (scenario === 'invalid') {
+        await page.getByRole('button', { name: 'Submit', exact: true }).click();
+        await expect(page.getByRole('alertdialog')).toContainText('Invalid Line Items');
+        await page
+          .getByRole('alertdialog')
+          .getByRole('button', { name: 'Close', exact: true })
+          .click();
+        await expect(count(page, 'Second Product')).toBeFocused();
+        await expect(count(page, 'Fixture Product')).toHaveValue('12');
+        await count(page, 'Second Product').fill('20');
+        await saved(page);
+        await expect(count(page, 'Fixture Product')).toHaveValue('12');
+      } else {
+        deleted = true;
+        await context.setOffline(false);
+        await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
+        await page
+          .getByRole('dialog', { name: 'Save', exact: true })
+          .getByRole('button', { name: 'Save', exact: true })
+          .click();
+        await expect(page.getByRole('alertdialog')).toContainText('deleted or submitted elsewhere');
+        await page
+          .getByRole('alertdialog')
+          .getByRole('button', { name: 'Close', exact: true })
+          .click();
+        await expect(
+          page.getByText('Earlier Counts On This Device', { exact: true }),
+        ).toBeVisible();
+        await expect(count(page, 'Fixture Product')).toBeDisabled();
+        await expect
+          .poll(async () => (await records(page, 'physicalInventoryDrafts'))[0]?.orphaned)
+          .toBe(true);
+      }
+      await expect(page.getByRole('alertdialog')).toHaveCount(0);
+      expect(writes).toEqual([]);
+    } finally {
+      await context.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+}

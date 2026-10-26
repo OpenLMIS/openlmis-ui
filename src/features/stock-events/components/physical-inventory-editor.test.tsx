@@ -11,6 +11,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { toDateValue } from '@/components/form/date-value';
 import { quantityValue } from '@/components/form/quantity-value';
@@ -42,6 +43,7 @@ import {
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { inventoryWrite } from '@/tests/inventory-writes';
 
 vi.mock('@/features/stock-events/lib/physical-inventory-lines', async (original) => {
   const actual =
@@ -138,7 +140,10 @@ function setup(
   routed = false,
 ) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity },
+      mutations: { networkMode: 'always' },
+    },
   });
   client.setQueryData(inventoryStockLinesOptions(draft).queryKey, initialStock);
   client.setQueryData(eligibleInventoryProductsOptions(draft).queryKey, initialStock);
@@ -308,18 +313,15 @@ it('writes removal of the last locally added line so it cannot return on reopen'
   );
   await waitFor(() =>
     expect(writeInventoryLocal).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        lines: expect.arrayContaining([
-          expect.objectContaining({ key: 'A|none' }),
-          expect.objectContaining({ key: 'B|none' }),
-        ]),
-        modified: true,
-      }),
-      expect.any(Number),
-      expect.anything(),
-      expect.anything(),
-      undefined,
-      expect.objectContaining({ snapshotOnly: false }),
+      ...inventoryWrite(
+        expect.objectContaining({
+          lines: expect.arrayContaining([
+            expect.objectContaining({ key: 'A|none' }),
+            expect.objectContaining({ key: 'B|none' }),
+          ]),
+          modified: true,
+        }),
+      ),
     ),
   );
 });
@@ -345,12 +347,9 @@ it('always confirms Save, sends hidden members, and retains an unmodified device
   );
   await waitFor(() =>
     expect(writeInventoryLocal).toHaveBeenCalledWith(
-      expect.objectContaining({ draftId: 'd', modified: false, baselineKeys: expect.any(Array) }),
-      expect.any(Number),
-      expect.anything(),
-      expect.anything(),
-      undefined,
-      expect.objectContaining({ snapshotOnly: false }),
+      ...inventoryWrite(
+        expect.objectContaining({ draftId: 'd', modified: false, baselineKeys: expect.any(Array) }),
+      ),
     ),
   );
   expect(clearInventoryLocal).not.toHaveBeenCalled();
@@ -573,16 +572,13 @@ it('keeps Delete on an added row after Save replaces its editable lot with the s
     ).not.toBeInTheDocument(),
   );
   expect(writeInventoryLocal).toHaveBeenCalledWith(
-    expect.objectContaining({
-      lines: expect.arrayContaining([
-        expect.objectContaining({ key: 'A|created', justAdded: true, newLot: undefined }),
-      ]),
-    }),
-    expect.any(Number),
-    expect.anything(),
-    expect.anything(),
-    undefined,
-    expect.objectContaining({ snapshotOnly: false }),
+    ...inventoryWrite(
+      expect.objectContaining({
+        lines: expect.arrayContaining([
+          expect.objectContaining({ key: 'A|created', justAdded: true, newLot: undefined }),
+        ]),
+      }),
+    ),
   );
   expect(savePhysicalInventory).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -781,23 +777,20 @@ it('keeps sorting and paging stable during count entry while progress and saved 
   expect(inventoryGroups).not.toHaveBeenCalled();
   await waitFor(() =>
     expect(writeInventoryLocal).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        lines: expect.arrayContaining([
-          expect.objectContaining({
-            key: 'A|none',
-            quantity: expect.objectContaining({ doses: '12345' }),
-          }),
-          expect.objectContaining({
-            key: 'B|none',
-            quantity: expect.objectContaining({ doses: '' }),
-          }),
-        ]),
-      }),
-      expect.any(Number),
-      expect.anything(),
-      expect.anything(),
-      undefined,
-      expect.objectContaining({ snapshotOnly: false }),
+      ...inventoryWrite(
+        expect.objectContaining({
+          lines: expect.arrayContaining([
+            expect.objectContaining({
+              key: 'A|none',
+              quantity: expect.objectContaining({ doses: '12345' }),
+            }),
+            expect.objectContaining({
+              key: 'B|none',
+              quantity: expect.objectContaining({ doses: '' }),
+            }),
+          ]),
+        }),
+      ),
     ),
   );
 });
@@ -848,12 +841,6 @@ it('deletes after a persistence failure without prompting to discard saved serve
   );
   await waitFor(() => expect(onDeleted).toHaveBeenCalled());
   expect(deletePhysicalInventory).toHaveBeenCalledWith('d');
-});
-it('does not guard an untouched draft when its opening snapshot fails', async () => {
-  vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
-  setup();
-  await screen.findAllByText('stock-events.draft-failed');
-  expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false);
 });
 
 it('allows Delete when eligibility fails while keeping Save and Submit disabled', async () => {
@@ -936,12 +923,7 @@ it('retains saved session counts when the stock refresh fails and saves them aga
     expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
   }
   expect(writeInventoryLocal).toHaveBeenCalledWith(
-    expect.objectContaining({ modified: false }),
-    expect.any(Number),
-    expect.anything(),
-    expect.anything(),
-    undefined,
-    expect.objectContaining({ snapshotOnly: false }),
+    ...inventoryWrite(expect.objectContaining({ modified: false })),
   );
   expect(savePhysicalInventory).toHaveBeenLastCalledWith(
     expect.objectContaining({
@@ -1201,15 +1183,16 @@ it('disables conflict choices while loading and explains the disabled actions', 
   await waitFor(() => expect(writeInventoryLocal).toHaveBeenCalled());
   await user.type(input, '7');
   const load = await screen.findByRole('button', { name: 'stock-events.draft-load' });
+  await waitFor(() => expect(load).toHaveFocus());
   for (const name of [
     'physical-inventory.save',
     'physical-inventory.delete',
     'stock-events.submit',
-  ])
-    expect(screen.getByRole('button', { name, hidden: true })).toHaveAttribute(
-      'aria-description',
-      'stock-events.draft-conflict',
-    );
+  ]) {
+    const button = screen.getByRole('button', { name, hidden: true });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAttribute('aria-description', 'stock-events.draft-conflict');
+  }
   const reading = Promise.withResolvers<typeof stored>();
   vi.mocked(readInventoryLocal).mockReturnValue(reading.promise);
   await user.click(load);
@@ -1263,19 +1246,99 @@ it('explains unavailable reasons and Submit when disconnected before reference r
   expect(await screen.findByRole('dialog')).toHaveTextContent('offline.unavailable-description');
 });
 
-it.each([false, true])(
-  'flushes before leaving and blocks only a failed device commit: failed=%s',
-  async (failed) => {
-    if (failed) vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Quota'));
-    const user = userEvent.setup();
-    setup();
-    await user.type(await screen.findByRole('textbox', { name: 'stock-events.field-of' }), '8');
-    const guard = vi.mocked(useDiscardGuard).mock.lastCall?.[1];
-    expect(guard?.pending).toBe(false);
-    let result: boolean | undefined;
-    await act(async () => {
-      result = await guard?.flushBeforeLeave?.();
-    });
-    expect(result).toBe(!failed);
-  },
-);
+it.each([
+  { failed: false, changed: true },
+  { failed: true, changed: true },
+  { failed: true, changed: false },
+])('flushes before leaving: failed=$failed changed=$changed', async ({ failed, changed }) => {
+  if (failed) vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Quota'));
+  const user = userEvent.setup();
+  setup();
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  if (changed) await user.type(input, '8');
+  if (failed) await screen.findAllByText('stock-events.draft-failed');
+  const guard = vi.mocked(useDiscardGuard).mock.lastCall?.[1];
+  expect(guard?.pending).toBe(false);
+  let result: boolean | undefined;
+  await act(async () => {
+    result = await guard?.flushBeforeLeave?.();
+  });
+  expect(result).toBe(!changed || !failed);
+});
+
+it('stops autosaving after its own Save pre-check archives the current counts', async () => {
+  const local = await import('@/features/stock-events/lib/physical-inventory-local');
+  const api = await import('@/features/stock-events/api/physical-inventory-api');
+  let orphaned = false;
+  vi.mocked(api.fetchPhysicalInventoryDraft).mockResolvedValueOnce(null);
+  vi.mocked(local.reconcileInventoryCopies).mockImplementationOnce(async () => {
+    orphaned = true;
+  });
+  vi.mocked(readInventoryLocal).mockImplementation(async () =>
+    orphaned
+      ? {
+          draftId: 'd',
+          facilityId: 'f',
+          programId: 'p',
+          lines: [],
+          modified: true,
+          orphaned: true,
+          savedAt: 1,
+        }
+      : undefined,
+  );
+  vi.mocked(writeInventoryLocal).mockImplementation(async (value) => {
+    if (orphaned)
+      throw new (await import('@/lib/draft-store')).DraftConflictError({
+        ...value,
+        orphaned: true,
+        revision: 9,
+      });
+    return { ...value, revision: 1 };
+  });
+  const user = userEvent.setup();
+  setup();
+  await user.type(await screen.findByRole('textbox', { name: 'stock-events.field-of' }), '12');
+  await screen.findByText('stock-events.draft-saved');
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  await screen.findByText('physical-inventory.orphaned-action');
+  expect(screen.queryByText('stock-events.draft-conflict-title')).not.toBeInTheDocument();
+  const writes = vi.mocked(writeInventoryLocal).mock.calls.length;
+  await user.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
+  );
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(writeInventoryLocal).toHaveBeenCalledTimes(writes);
+  expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toBeDisabled();
+  expect(savePhysicalInventory).not.toHaveBeenCalled();
+});
+
+it('refuses Deactivate offline after its confirmation was opened', async () => {
+  const error = vi.spyOn(toast, 'error');
+  const user = userEvent.setup();
+  const view = setup();
+  view.client.setQueryData(inventoryStockLinesOptions(draft).queryKey, [
+    { ...stock[0], stockOnHand: 0 },
+  ]);
+  await user.click(
+    await screen.findByRole('button', {
+      name: 'stock-events.field-of:physical-inventory.deactivate',
+    }),
+  );
+  const confirm = within(screen.getByRole('dialog')).getByRole('button', {
+    name: 'physical-inventory.deactivate',
+  });
+  act(() => {
+    onlineManager.setOnline(false);
+    confirm.click();
+  });
+  expect(deactivateInventoryStockCard).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect(error).toHaveBeenCalledWith('physical-inventory.deactivate-error-title', {
+      description: 'offline.action-description',
+    }),
+  );
+});

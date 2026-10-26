@@ -11,6 +11,7 @@ import {
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { DraftConflictError } from '@/lib/draft-store';
+import { inventoryWrites } from '@/tests/inventory-writes';
 
 vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   writeInventoryLocal: vi.fn(),
@@ -170,14 +171,10 @@ it('shares one revision chain between the open snapshot, edits and a saved basel
   await act(async () => {
     await view.result.current.write({ ...copy, modified: false, baselineKeys: ['saved'] });
   });
-  expect(vi.mocked(writeInventoryLocal).mock.calls.map(([value]) => value.revision)).toEqual([
-    undefined,
-    1,
-    2,
-  ]);
-  expect(vi.mocked(writeInventoryLocal).mock.calls[0][3]).toBe(reference);
-  expect(vi.mocked(writeInventoryLocal).mock.calls[1][3]).toBe(reference);
-  expect(vi.mocked(writeInventoryLocal).mock.calls[2][0]).toMatchObject({
+  expect(inventoryWrites().map(({ copy }) => copy.revision)).toEqual([undefined, 1, 2]);
+  expect(inventoryWrites()[0].reference).toBe(reference);
+  expect(inventoryWrites()[1].reference).toBe(reference);
+  expect(inventoryWrites()[2].copy).toMatchObject({
     modified: false,
     baselineKeys: ['saved'],
     fetchedAt: 12,
@@ -203,7 +200,7 @@ it('silently adopts a newer revision in an untouched tab, then writes from that 
   await act(async () => {
     await view.result.current.write(copy);
   });
-  expect(vi.mocked(writeInventoryLocal).mock.calls[1][0]).toMatchObject({
+  expect(inventoryWrites()[1].copy).toMatchObject({
     revision: 4,
     generation: 'G2',
     fetchedAt: 2,
@@ -240,7 +237,7 @@ it('checks the observed revision for Load Latest and Keep My Counts', async () =
   await act(async () => {
     await view.result.current.keepCounts(copy);
   });
-  expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[0]).toMatchObject({
+  expect(inventoryWrites().at(-1)?.copy).toMatchObject({
     modified: true,
     revision: 5,
   });
@@ -260,7 +257,7 @@ it.each([undefined, { ...copy, revision: 4, orphaned: true }])(
     await act(async () => {
       await view.result.current.keepCounts(copy);
     });
-    expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[0].revision).toBe(stored?.revision ?? 0);
+    expect(inventoryWrites().at(-1)?.copy.revision).toBe(stored?.revision ?? 0);
     expect(view.result.current.status).toBe('saved');
   },
 );
@@ -305,7 +302,7 @@ it('rewrites the reference after keeping counts over another generation', async 
   await act(async () => {
     await view.result.current.keepCounts(opened, reference);
   });
-  expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[3]).toEqual(reference);
+  expect(inventoryWrites().at(-1)?.reference).toEqual(reference);
 });
 
 it('does not keep orphan recovery enabled after a failed Keep My Counts write', async () => {
@@ -324,7 +321,7 @@ it('does not keep orphan recovery enabled after a failed Keep My Counts write', 
   await act(async () => {
     await view.result.current.write(copy);
   });
-  expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[4]).toBeUndefined();
+  expect(inventoryWrites().at(-1)?.allowOrphan).toBeUndefined();
 });
 it('stages changed modified copies before layout effects observe leave protection', () => {
   const observed = vi.fn();
@@ -360,7 +357,7 @@ it('keeps the stored snapshot identity when an offline-opened draft is saved aft
   await act(async () => {
     await view.result.current.write({ ...copy, modified: false });
   });
-  expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[0]).toMatchObject({
+  expect(inventoryWrites().at(-1)?.copy).toMatchObject({
     fetchedAt: 123,
     generation: 'device',
     revision: 3,
@@ -368,55 +365,60 @@ it('keeps the stored snapshot identity when an offline-opened draft is saved aft
   });
 });
 
-it.each([false, true])(
-  'persists the visit reference after an early edit (previous copy: %s)',
-  async (previous) => {
-    const local = await vi.importActual<
-      typeof import('@/features/stock-events/lib/physical-inventory-local')
-    >('@/features/stock-events/lib/physical-inventory-local');
-    vi.mocked(writeInventoryLocal).mockImplementation(local.writeInventoryLocal);
-    vi.mocked(readInventoryLocal).mockImplementation(local.readInventoryLocal);
-    const old = {
-      ...copy,
-      draftId: crypto.randomUUID(),
-      formatVersion: 1,
-      baselineKeys: [],
-      fetchedAt: 10,
-      generation: 'G1',
-    };
-    const initial = previous
-      ? await local.writeInventoryLocal(
-          old,
-          undefined,
-          undefined,
-          local.inventoryReference(old, [], []),
-        )
-      : undefined;
-    const next = { ...old, fetchedAt: 20, generation: 'G2' };
-    const view = renderHook(
-      ({ value }) => {
-        const form = usePhysicalInventoryForm([], false);
-        const getCopy = useCallback(() => value, [value]);
-        return usePhysicalInventoryAutosave(getCopy, form, initial?.revision, undefined, initial);
-      },
-      { initialProps: { value: null as InventoryLocalCopy | null } },
-    );
-    view.rerender({ value: next });
-    await act(async () => {
-      await view.result.current.flush();
-    });
-    if (initial) {
-      const early = await local.readInventoryLocal(old.draftId);
-      expect(early).toMatchObject({ generation: 'G1', fetchedAt: 10 });
-      if (!early) throw new Error('Missing earlier copy');
-      expect(await local.readInventoryReference(early)).toBeDefined();
-    }
-    await act(async () => {
-      await view.result.current.write(next, local.inventoryReference(next, [], []));
-    });
-    const stored = await local.readInventoryLocal(old.draftId);
-    expect(stored).toMatchObject({ generation: 'G2', fetchedAt: 20 });
-    if (!stored) throw new Error('Missing stored copy');
-    expect(await local.readInventoryReference(stored)).toBeDefined();
-  },
-);
+async function earlyEdit(previous: boolean) {
+  const local = await vi.importActual<
+    typeof import('@/features/stock-events/lib/physical-inventory-local')
+  >('@/features/stock-events/lib/physical-inventory-local');
+  vi.mocked(writeInventoryLocal).mockImplementation(local.writeInventoryLocal);
+  vi.mocked(readInventoryLocal).mockImplementation(local.readInventoryLocal);
+  const old = {
+    ...copy,
+    draftId: crypto.randomUUID(),
+    formatVersion: 1,
+    baselineKeys: [],
+    fetchedAt: 10,
+    generation: 'G1',
+  };
+  const initial = previous
+    ? await local.writeInventoryLocal(
+        old,
+        undefined,
+        undefined,
+        local.inventoryReference(old, [], []),
+      )
+    : undefined;
+  const next = { ...old, fetchedAt: 20, generation: 'G2' };
+  const view = renderHook(
+    ({ value }) => {
+      const form = usePhysicalInventoryForm([], false);
+      const getCopy = useCallback(() => value, [value]);
+      return usePhysicalInventoryAutosave(getCopy, form, initial?.revision, undefined, initial);
+    },
+    { initialProps: { value: null as InventoryLocalCopy | null } },
+  );
+  view.rerender({ value: next });
+  await act(async () => {
+    await view.result.current.flush();
+  });
+  return { local, old, initial, next, view };
+}
+async function finishReference({ local, old, next, view }: Awaited<ReturnType<typeof earlyEdit>>) {
+  await act(async () => {
+    await view.result.current.write(next, local.inventoryReference(next, [], []));
+  });
+  const stored = await local.readInventoryLocal(old.draftId);
+  expect(stored).toMatchObject({ generation: 'G2', fetchedAt: 20 });
+  if (!stored) throw new Error('Missing stored copy');
+  expect(await local.readInventoryReference(stored)).toBeDefined();
+}
+it('persists the visit reference after an early edit without a previous copy', async () => {
+  await finishReference(await earlyEdit(false));
+});
+it('retains the previous reference until an early edit receives this visit reference', async () => {
+  const state = await earlyEdit(true);
+  const early = await state.local.readInventoryLocal(state.old.draftId);
+  expect(early).toMatchObject({ generation: 'G1', fetchedAt: 10 });
+  if (!early) throw new Error('Missing earlier copy');
+  expect(await state.local.readInventoryReference(early)).toBeDefined();
+  await finishReference(state);
+});

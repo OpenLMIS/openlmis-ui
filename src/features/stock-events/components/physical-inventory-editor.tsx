@@ -113,7 +113,7 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { deviceDraftLeaveCopy } from '@/lib/device-draft-leave-copy';
 import { useFlag } from '@/lib/feature-flags';
-import { isRefused } from '@/lib/http';
+import { isOfflineError, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
@@ -394,6 +394,7 @@ function InventoryDraftRows({
   const [actionDialog, setActionDialog] = useState(false);
   const [readFailed, setReadFailed] = useState(localFailed);
   const [submitted, setSubmitted] = useState(false);
+  const [orphaned, setOrphaned] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [unchecked, setUnchecked] = useState<ReadonlySet<string>>(() => new Set());
   const onCounted = useCallback(
@@ -468,8 +469,9 @@ function InventoryDraftRows({
     [draft, form, baseline, modified, snapshot, withDisplayedMembership],
   );
   const copy = useCallback(
-    () => (!busy && !submitted && (modified || form.state.isDirty) ? currentCopy() : null),
-    [busy, submitted, modified, form, currentCopy],
+    () =>
+      !busy && !submitted && !orphaned && (modified || form.state.isDirty) ? currentCopy() : null,
+    [busy, submitted, orphaned, modified, form, currentCopy],
   );
   const autosave = usePhysicalInventoryAutosave(copy, form, localRevision, onAdopt, initialCopy);
   const snapshotWritten = useRef(adopted);
@@ -483,7 +485,8 @@ function InventoryDraftRows({
       eligible.dataUpdatedAt < (entryUpdatedAfter ?? 0) ||
       !reasonsQuery.isSuccess ||
       busy ||
-      submitted
+      submitted ||
+      orphaned
     )
       return;
     snapshotWritten.current = true;
@@ -503,6 +506,7 @@ function InventoryDraftRows({
     reasons,
     busy,
     submitted,
+    orphaned,
     currentCopy,
     autosave.write,
     dirty,
@@ -556,13 +560,18 @@ function InventoryDraftRows({
         description: t('physical-inventory.deactivated-description'),
       });
     },
-    onError: () =>
+    onError: (error) =>
       toast.error(t('physical-inventory.deactivate-error-title'), {
-        description: t('physical-inventory.deactivate-error-description'),
+        description: t(
+          isOfflineError(error)
+            ? 'offline.action-description'
+            : 'physical-inventory.deactivate-error-description',
+        ),
       }),
   });
   const guard = useDiscardGuard(
     !submitted &&
+      !orphaned &&
       (modified || dirty) &&
       (status === 'saving' || status === 'failed' || status === 'conflict'),
     {
@@ -683,7 +692,7 @@ function InventoryDraftRows({
     [form, focusAfterRemoval],
   );
   const hasFilters = search.keyword || search.includeInactive;
-  const pending = mutation.isPending || busy || submitted;
+  const pending = mutation.isPending || busy || submitted || orphaned;
   const editor = useMemo(
     () => ({
       form,
@@ -863,7 +872,7 @@ function InventoryDraftRows({
         userId={userId}
         username={username}
         showInDoses={quantityUnit.unit === 'DOSES'}
-        disabled={busy || mutation.isPending}
+        disabled={busy || mutation.isPending || orphaned}
         conflicted={status === 'conflict'}
         writeDisabled={!eligible.data || eligible.isError || status === 'conflict'}
         writeDisabledReason={
@@ -877,6 +886,7 @@ function InventoryDraftRows({
         writeLocal={autosave.write}
         clearLocal={autosave.clear}
         onBusy={setBusy}
+        onOrphaned={() => setOrphaned(true)}
         onLots={(next) =>
           form.setFieldValue('lines', Object.fromEntries(next.map((line) => [line.key, line])))
         }
