@@ -640,7 +640,6 @@
   "offline-events.type-all": "Todos",
   "offline-events.uncertain-description": "No pudimos confirmar si este evento fue registrado. Revise las tarjetas de existencias y el historial de transacciones antes de elegir. Los demás eventos de este establecimiento y programa están en espera.",
   "offline-events.waiting": "{count, plural, one {# Evento Pendiente De Sincronización} other {# Eventos Pendientes De Sincronización}}",
-  "offline-events.waiting-description": "Otro evento de este establecimiento y programa debe finalizar o revisarse.",
   "offline.action-description": "Conéctese a la red para usar esta acción.",
   "offline.back-online": "Conexión restablecida",
   "offline.connection-required": "Conéctese a la red para abrir esta página.",

@@ -640,7 +640,6 @@
   "offline-events.type-all": "All",
   "offline-events.uncertain-description": "We could not confirm whether this event was recorded. Check Stock Cards and Transaction History before choosing. Other events for this facility and program are waiting.",
   "offline-events.waiting": "{count, plural, one {# Event Waiting To Sync} other {# Events Waiting To Sync}}",
-  "offline-events.waiting-description": "Another event in this facility and program needs to finish or be reviewed.",
   "offline.action-description": "Connect to use this action.",
   "offline.back-online": "You're Back Online",
   "offline.connection-required": "Connect to open this page.",

@@ -640,7 +640,6 @@
   "offline-events.type-all": "Tous",
   "offline-events.uncertain-description": "Nous n'avons pas pu confirmer si cet événement a été enregistré. Vérifiez les fiches de stock et l'historique des transactions avant de choisir. Les autres événements de cet établissement et de ce programme sont en attente.",
   "offline-events.waiting": "{count, plural, one {# Événement En Attente De Synchronisation} other {# Événements En Attente De Synchronisation}}",
-  "offline-events.waiting-description": "Un autre événement pour cet établissement et ce programme doit se terminer ou être examiné.",
   "offline.action-description": "Connectez-vous au réseau pour utiliser cette action.",
   "offline.back-online": "Connexion rétablie",
   "offline.connection-required": "Connectez-vous au réseau pour ouvrir cette page.",

@@ -26,21 +26,9 @@ export function OfflineEventPendingState({
   const { t } = useTranslation();
   const state = pendingState(event, blocked);
   return (
-    <div className="flex flex-col items-start gap-1 whitespace-normal">
-      <Badge variant={state === 'held' || state === 'waiting' ? 'warning' : 'info'}>
-        {t(pendingKeys[state])}
-      </Badge>
-      {state === 'held' && (
-        <p>
-          {t(
-            event.pauseReason === 'access-changed'
-              ? 'offline-events.access-changed-held-description'
-              : 'offline-events.draft-changed-held-description',
-          )}
-        </p>
-      )}
-      {state === 'waiting' && <p>{t('offline-events.waiting-description')}</p>}
-    </div>
+    <Badge variant={state === 'held' || state === 'waiting' ? 'warning' : 'info'}>
+      {t(pendingKeys[state])}
+    </Badge>
   );
 }
 

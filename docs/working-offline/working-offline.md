@@ -123,7 +123,7 @@ The page has three tabs:
 - Pending Events lists the Pending Event, Facility, Program, Details, Date and Status of work
   waiting to send. Waiting means another event for the same facility and program needs
   attention first. Held means this event cannot send because access or its saved draft changed.
-  The status explains which action is needed.
+  View Details explains why a Held event is paused.
 - Synchronization Errors lists Pending Event, Facility, Program, Details, Error Message, Date
   and Failed At. Refused, Stock Changed, Needs Review and Copied For Correction events appear
   here. Needs Review means the server's answer is unknown, so check before sending again.

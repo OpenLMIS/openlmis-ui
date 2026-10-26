@@ -640,7 +640,6 @@
   "offline-events.type-all": "الكل",
   "offline-events.uncertain-description": "لم نتمكن من تأكيد ما إذا تم تسجيل هذا الحدث. تحقق من بطاقات المخزون وسجل المعاملات قبل الاختيار. الأحداث الأخرى لهذا المرفق والبرنامج قيد الانتظار.",
   "offline-events.waiting": "{count, plural, zero {لا توجد أحداث تنتظر المزامنة} one {حدث واحد ينتظر المزامنة} two {حدثان ينتظران المزامنة} few {# أحداث تنتظر المزامنة} many {# حدثًا ينتظر المزامنة} other {# حدث ينتظر المزامنة}}",
-  "offline-events.waiting-description": "يجب أن يكتمل حدث آخر في هذه المنشأة وهذا البرنامج أو تتم مراجعته.",
   "offline.action-description": "اتصل بالشبكة لاستخدام هذا الإجراء.",
   "offline.back-online": "عاد الاتصال",
   "offline.connection-required": "اتصل بالشبكة لفتح هذه الصفحة.",

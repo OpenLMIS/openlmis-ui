@@ -640,7 +640,6 @@
   "offline-events.type-all": "Todos",
   "offline-events.uncertain-description": "Não foi possível confirmar se este evento foi registrado. Verifique os cartões de estoque e o histórico de transações antes de escolher. Outros eventos desta unidade e deste programa estão aguardando.",
   "offline-events.waiting": "{count, plural, one {# Evento Aguardando Sincronização} other {# Eventos Aguardando Sincronização}}",
-  "offline-events.waiting-description": "Outro evento desta unidade sanitária e programa precisa de terminar ou ser revisto.",
   "offline.action-description": "Ligue-se à rede para utilizar esta ação.",
   "offline.back-online": "Está Novamente Online",
   "offline.connection-required": "Ligue-se à rede para abrir esta página.",
