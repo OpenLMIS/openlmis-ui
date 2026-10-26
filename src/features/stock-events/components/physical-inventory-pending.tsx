@@ -188,17 +188,15 @@ export function PhysicalInventoryPendingBody({
           </div>
         }
         save={
-          <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-hidden>
-            <div className="size-4 shrink-0">
+          <span
+            className="relative inline-flex h-5 items-center px-2 text-xs font-medium"
+            aria-hidden
+          >
+            <span className="invisible ps-4">{t('stock-events.draft-saved')}</span>
+            <span className="absolute inset-0 overflow-hidden rounded-4xl">
               <Skeleton fill />
-            </div>
-            <span className="relative">
-              <span className="invisible">{t('physical-inventory.saved-local')}</span>
-              <span className="absolute inset-0">
-                <Skeleton fill />
-              </span>
             </span>
-          </div>
+          </span>
         }
       />
       <PhysicalInventoryGridSkeleton

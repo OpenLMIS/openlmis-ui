@@ -35,6 +35,7 @@ export function createInventoryWriter<T>(
       resolve();
     },
     resolve,
+    retry: serial.retry,
     reset() {
       if (conflict instanceof DraftConflictError) return;
       serial.reset();

@@ -224,25 +224,28 @@ it('restores a modified local count ahead of the server and marks only pending o
   expect(input).toHaveValue('9');
   await user.clear(input);
   await user.type(input, '8');
-  expect(screen.getByText('physical-inventory.saving')).toBeInTheDocument();
+  expect(screen.getByText('stock-events.draft-saving')).toBeInTheDocument();
   expect(useDiscardGuard).toHaveBeenLastCalledWith(true, expect.any(Object));
   write.resolve();
-  await waitFor(() =>
-    expect(screen.getByText('physical-inventory.saved-local')).toBeInTheDocument(),
-  );
+  await waitFor(() => expect(screen.getByText('stock-events.draft-saved')).toBeInTheDocument());
   expect(useDiscardGuard).toHaveBeenLastCalledWith(false, expect.any(Object));
 });
-it('keeps edited counts visible after storage failure', async () => {
+it('keeps edited counts visible after storage failure and retries the write', async () => {
   vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
   const user = userEvent.setup();
   setup();
   const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
   await user.type(input, '8');
-  await waitFor(() =>
-    expect(screen.getByRole('status')).toHaveTextContent('physical-inventory.not-saved-local'),
-  );
+  const retry = await screen.findByRole('button', { name: 'stock-events.draft-retry' });
+  expect(screen.getByText('stock-events.draft-failed')).toBeInTheDocument();
   expect(input).toHaveValue('8');
   expect(useDiscardGuard).toHaveBeenLastCalledWith(true, expect.any(Object));
+  const calls = vi.mocked(writeInventoryLocal).mock.calls.length;
+  vi.mocked(writeInventoryLocal).mockResolvedValue(undefined);
+  await user.click(retry);
+  await waitFor(() => expect(screen.getByText('stock-events.draft-saved')).toBeInTheDocument());
+  expect(vi.mocked(writeInventoryLocal).mock.calls.length).toBeGreaterThan(calls);
+  expect(vi.mocked(writeInventoryLocal).mock.lastCall?.[0].lines[0].quantity?.doses).toBe('8');
 });
 
 it('keeps doses when switching through packs and remainder', async () => {
@@ -833,7 +836,7 @@ it('deletes after a persistence failure without prompting to discard saved serve
   const onDeleted = vi.fn();
   setup(undefined, onDeleted);
   await user.type(await screen.findByRole('textbox', { name: 'stock-events.field-of' }), '5');
-  await screen.findAllByText('physical-inventory.not-saved-local');
+  await screen.findAllByText('stock-events.draft-failed');
   await user.click(screen.getByRole('button', { name: 'physical-inventory.delete' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.delete' }),
@@ -844,7 +847,7 @@ it('deletes after a persistence failure without prompting to discard saved serve
 it('does not guard an untouched draft when its opening snapshot fails', async () => {
   vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Full'));
   setup();
-  await screen.findAllByText('physical-inventory.not-saved-local');
+  await screen.findAllByText('stock-events.draft-failed');
   expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false);
 });
 
@@ -1154,7 +1157,7 @@ it('keeps the device failure visible after server Save resets the saved form bas
   setup();
   const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
   await user.type(input, '5');
-  await screen.findAllByText('physical-inventory.not-saved-local');
+  await screen.findAllByText('stock-events.draft-failed');
   await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
@@ -1168,11 +1171,11 @@ it('keeps the device failure visible after server Save resets the saved form bas
     }),
   );
   expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('5');
-  expect(screen.getAllByText('physical-inventory.not-saved-local').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('stock-events.draft-failed').length).toBeGreaterThan(0);
   await waitFor(() => expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false));
 });
 
-it('disables both conflict choices while Load Latest is reading the device', async () => {
+it('disables conflict choices while loading and explains the disabled actions', async () => {
   const { DraftConflictError } = await import('@/lib/draft-store');
   const stored = {
     draftId: 'd',
@@ -1191,7 +1194,16 @@ it('disables both conflict choices while Load Latest is reading the device', asy
   const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
   await waitFor(() => expect(writeInventoryLocal).toHaveBeenCalled());
   await user.type(input, '7');
-  const load = await screen.findByRole('button', { name: 'physical-inventory.load-latest' });
+  const load = await screen.findByRole('button', { name: 'stock-events.draft-load' });
+  for (const name of [
+    'physical-inventory.save',
+    'physical-inventory.delete',
+    'stock-events.submit',
+  ])
+    expect(screen.getByRole('button', { name, hidden: true })).toHaveAttribute(
+      'aria-description',
+      'stock-events.draft-conflict',
+    );
   const reading = Promise.withResolvers<typeof stored>();
   vi.mocked(readInventoryLocal).mockReturnValue(reading.promise);
   await user.click(load);
@@ -1221,7 +1233,7 @@ it('loads an adopted unmodified copy instead of rebuilding stale loader counts',
   vi.mocked(readInventoryLocal).mockResolvedValue(latest);
   vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new DraftConflictError(latest));
   await user.type(input, '7');
-  await user.click(await screen.findByRole('button', { name: 'physical-inventory.load-latest' }));
+  await user.click(await screen.findByRole('button', { name: 'stock-events.draft-load' }));
   await waitFor(() =>
     expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('9'),
   );

@@ -17,10 +17,16 @@ import type { DraftSaveState } from '@/lib/draft-writer';
 type Props = DraftSaveState & {
   onRetry: () => void;
   onResolve: (choice: 'load' | 'copy') => Promise<void>;
+  conflict?: { description: string; keep: string; failed?: string };
 };
-export function EventDraftStatus({ status, error, onRetry, onResolve }: Props) {
+export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }: Props) {
   const { t } = useTranslation();
   const [resolving, setResolving] = useState(false);
+  const resolveFailure = conflict
+    ? conflict.failed
+    : error !== undefined && !(error instanceof DraftConflictError)
+      ? t('stock-events.draft-failed')
+      : undefined;
   const resolve = async (choice: 'load' | 'copy') => {
     if (resolving) return;
     setResolving(true);
@@ -56,14 +62,17 @@ export function EventDraftStatus({ status, error, onRetry, onResolve }: Props) {
             )}
           </Badge>
         ) : (
-          <>
-            <TriangleAlertIcon aria-hidden="true" className="size-4 shrink-0 text-destructive" />
+          <span className="flex min-w-0 items-start gap-2">
+            <TriangleAlertIcon
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0 text-destructive"
+            />
             <span>
               {t(
                 status === 'conflict' ? 'stock-events.draft-conflict' : 'stock-events.draft-failed',
               )}
             </span>
-          </>
+          </span>
         )}
         {status === 'saving' && error !== undefined && (
           <span>{t('stock-events.draft-failed')}</span>
@@ -79,15 +88,13 @@ export function EventDraftStatus({ status, error, onRetry, onResolve }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>{t('stock-events.draft-conflict-title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('stock-events.draft-conflict-description')}
-              {error !== undefined && !(error instanceof DraftConflictError) && (
-                <span className="block text-destructive">{t('stock-events.draft-failed')}</span>
-              )}
+              {conflict?.description ?? t('stock-events.draft-conflict-description')}
+              {resolveFailure && <span className="block text-destructive">{resolveFailure}</span>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button variant="outline" disabled={resolving} onClick={() => void resolve('copy')}>
-              {t('stock-events.draft-copy')}
+              {conflict?.keep ?? t('stock-events.draft-copy')}
             </Button>
             <Button disabled={resolving} onClick={() => void resolve('load')}>
               {t('stock-events.draft-load')}

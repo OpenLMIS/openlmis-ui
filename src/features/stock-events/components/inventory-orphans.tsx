@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { TriangleAlertIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ErrorAlert } from '@/components/dialog-parts';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -24,11 +25,13 @@ export function InventoryOrphans({ scope }: { scope: InventoryScope }) {
   const { t } = useTranslation();
   const [confirm, setConfirm] = useState(false);
   const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState(false);
   const copies = useQuery(inventoryOrphansOptions(scope));
   if (!copies.data?.length) return null;
   const discard = async () => {
     const session = getSessionScope();
     setPending(true);
+    setFailed(false);
     try {
       const db = getLocalDb();
       for (const copy of copies.data ?? [])
@@ -36,10 +39,7 @@ export function InventoryOrphans({ scope }: { scope: InventoryScope }) {
       if (getSessionScope() === session) setConfirm(false);
     } catch (error) {
       reportCaughtError(error, {});
-      if (getSessionScope() === session)
-        toast.error(t('physical-inventory.copy-error-title'), {
-          description: t('physical-inventory.copy-error-description'),
-        });
+      if (getSessionScope() === session) setFailed(true);
     } finally {
       if (getSessionScope() === session) {
         await copies.refetch();
@@ -50,9 +50,18 @@ export function InventoryOrphans({ scope }: { scope: InventoryScope }) {
   return (
     <>
       <Alert variant="warning" role="note">
+        <TriangleAlertIcon />
+        <AlertTitle>{t('physical-inventory.orphaned-title')}</AlertTitle>
         <AlertDescription>
           <p>{t('physical-inventory.orphaned-counts')}</p>
-          <Button variant="warning" disabled={pending} onClick={() => setConfirm(true)}>
+          <Button
+            variant="warning"
+            disabled={pending}
+            onClick={() => {
+              setFailed(false);
+              setConfirm(true);
+            }}
+          >
             {t('physical-inventory.discard-copy')}
           </Button>
         </AlertDescription>
@@ -65,6 +74,12 @@ export function InventoryOrphans({ scope }: { scope: InventoryScope }) {
               {t('physical-inventory.discard-copy-description')}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {failed && (
+            <ErrorAlert
+              title={t('physical-inventory.discard-error-title')}
+              description={t('physical-inventory.discard-error-description')}
+            />
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>{t('stock-events.cancel')}</AlertDialogCancel>
             <Button variant="destructive" disabled={pending} onClick={() => void discard()}>

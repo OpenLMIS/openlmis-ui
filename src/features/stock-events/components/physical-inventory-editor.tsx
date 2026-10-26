@@ -2,7 +2,7 @@ import { useStore } from '@tanstack/react-form';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
-import { ClipboardListIcon, TriangleAlertIcon } from 'lucide-react';
+import { ClipboardListIcon } from 'lucide-react';
 import {
   type ReactNode,
   Suspense,
@@ -36,7 +36,7 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
 import { OfflineAlert, SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
 import { QueryBoundary } from '@/components/query-boundary';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ScanUnavailable } from '@/components/scan-status';
 import { Button } from '@/components/ui/button';
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -49,12 +49,12 @@ import {
   inventoryRefreshFilters,
   inventoryStockLinesOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
+import { EventDraftStatus } from '@/features/stock-events/components/event-draft-status';
 import { InventoryActions } from '@/features/stock-events/components/inventory-actions';
 import { InventoryAddProductsDialog } from '@/features/stock-events/components/inventory-add-products-dialog';
 import { InventoryDeactivateDialog } from '@/features/stock-events/components/inventory-deactivate-dialog';
 import { InventoryEditLotDialog } from '@/features/stock-events/components/inventory-edit-lot-dialog';
 import { InventoryReasonsDialog } from '@/features/stock-events/components/inventory-reasons-dialog';
-import { InventorySaveIndicator } from '@/features/stock-events/components/inventory-save-indicator';
 import { InventoryScan } from '@/features/stock-events/components/inventory-scan';
 import {
   inventoryHideableColumns,
@@ -69,6 +69,7 @@ import {
   type PhysicalInventoryForm,
   usePhysicalInventoryForm,
 } from '@/features/stock-events/hooks/use-physical-inventory-form';
+import { useDeviceSaveFailureAnnouncement } from '@/features/stock-events/lib/device-save-announcement';
 import { inventoryLineError } from '@/features/stock-events/lib/physical-inventory-form';
 import { inventoryFormats } from '@/features/stock-events/lib/physical-inventory-format';
 import {
@@ -504,6 +505,16 @@ function InventoryDraftRows({
     autosave.write,
   ]);
   const status = readFailed && !modified && !form.state.isDirty ? 'failed' : autosave.status;
+  useDeviceSaveFailureAnnouncement(status);
+  const retrySave = () => {
+    if (autosave.status === 'failed') return autosave.retry();
+    if (!eligible.data || !reasonsQuery.isSuccess) return;
+    const value = currentCopy();
+    void autosave
+      .write(value, inventoryReference(value, eligible.data, reasons))
+      .then(() => setReadFailed(false))
+      .catch((error) => reportCaughtError(error, {}));
+  };
   const allowLeave = useRef(false);
   const [dialog, setDialog] = useState<{
     type: 'reasons' | 'lot' | 'deactivate';
@@ -698,10 +709,9 @@ function InventoryDraftRows({
       onRemove,
     ],
   );
-  const [resolving, setResolving] = useState(false);
-  const resolveConflict = async (choice: 'load' | 'keep') => {
-    if (resolving) return;
-    setResolving(true);
+  const [resolveFailed, setResolveFailed] = useState(false);
+  const resolveConflict = async (choice: 'load' | 'copy') => {
+    setResolveFailed(false);
     try {
       if (choice === 'load') await autosave.loadLatest();
       else {
@@ -715,11 +725,7 @@ function InventoryDraftRows({
       }
     } catch (error) {
       reportCaughtError(error, {});
-      toast.error(t('physical-inventory.copy-error-title'), {
-        description: t('physical-inventory.copy-error-description'),
-      });
-    } finally {
-      setResolving(false);
+      setResolveFailed(true);
     }
   };
   return (
@@ -734,37 +740,54 @@ function InventoryDraftRows({
         </Suspense>
       )}
       {toolbar}
-      {scanning && !online && (
-        <OfflineAlert>{t('physical-inventory.scanning-offline')}</OfflineAlert>
-      )}
-      {saveSlot && createPortal(<InventorySaveIndicator status={status} />, saveSlot)}
+      {scanning &&
+        (online ? (
+          eligible.data && (
+            <InventoryScan
+              eligible={eligible.data}
+              getLines={() => Object.values(form.state.values.lines)}
+              canManageLots={canManageLots}
+              paused={
+                busy || submitted || mutation.isPending || addOpen || !!shownDialog || actionDialog
+              }
+              onCount={(line) => {
+                onCounted(line.key);
+                form.setFieldValue('lines', (current) => ({ ...current, [line.key]: line }));
+                const target = inventoryPageOf(
+                  filterInventoryLines(
+                    [...lines.filter((item) => item.key !== line.key), line],
+                    { includeInactive: search.includeInactive },
+                    String,
+                  ),
+                  line,
+                  search.size,
+                );
+                onSearchChange(
+                  { keyword: undefined, page: target === 1 ? undefined : target },
+                  true,
+                );
+              }}
+            />
+          )
+        ) : (
+          <ScanUnavailable>{t('physical-inventory.scanning-offline')}</ScanUnavailable>
+        ))}
+      {saveSlot &&
+        createPortal(
+          <EventDraftStatus
+            status={status}
+            onRetry={retrySave}
+            onResolve={resolveConflict}
+            conflict={{
+              description: t('physical-inventory.conflict-description'),
+              keep: t('physical-inventory.keep-counts'),
+              failed: resolveFailed ? t('physical-inventory.conflict-error') : undefined,
+            }}
+          />,
+          saveSlot,
+        )}
       {progressSlot &&
         createPortal(<InventoryCompletion form={form} lines={filtered} />, progressSlot)}
-      {status === 'conflict' && (
-        <Alert variant="warning" role="note">
-          <TriangleAlertIcon />
-          <AlertTitle>{t('stock-events.draft-conflict-title')}</AlertTitle>
-          <AlertDescription>
-            <p>{t('stock-events.draft-conflict')}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="warning"
-                disabled={resolving}
-                onClick={() => void resolveConflict('load')}
-              >
-                {t('physical-inventory.load-latest')}
-              </Button>
-              <Button
-                variant="warning"
-                disabled={resolving}
-                onClick={() => void resolveConflict('keep')}
-              >
-                {t('physical-inventory.keep-counts')}
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
       {eligible.isError ? (
         <LoadError
           error={eligible.error}
@@ -820,30 +843,6 @@ function InventoryDraftRows({
               </Button>
             ) : undefined
           }
-        />
-      )}
-      {scanning && online && eligible.data && (
-        <InventoryScan
-          eligible={eligible.data}
-          getLines={() => Object.values(form.state.values.lines)}
-          canManageLots={canManageLots}
-          paused={
-            busy || submitted || mutation.isPending || addOpen || !!shownDialog || actionDialog
-          }
-          onCount={(line) => {
-            onCounted(line.key);
-            form.setFieldValue('lines', (current) => ({ ...current, [line.key]: line }));
-            const target = inventoryPageOf(
-              filterInventoryLines(
-                [...lines.filter((item) => item.key !== line.key), line],
-                { includeInactive: search.includeInactive },
-                String,
-              ),
-              line,
-              search.size,
-            );
-            onSearchChange({ keyword: undefined, page: target === 1 ? undefined : target }, true);
-          }}
         />
       )}
       <InventoryActions

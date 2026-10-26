@@ -179,6 +179,7 @@ export function usePhysicalInventoryAutosave(
     loadLatest: writer.loadLatest,
     keepCounts: writer.keepCounts,
     flush: writer.flush,
+    retry: writer.retry,
     clear: writer.clear,
     async write(value: InventoryLocalCopy, reference?: InventoryReference) {
       writer.enqueue(value, reference);

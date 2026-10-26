@@ -109,9 +109,8 @@ test('inventory counts and new lots survive offline restart and only explicit Sa
     await page.getByRole('alertdialog').getByRole('button', { name: 'Close', exact: true }).click();
     expect(writes).toEqual([]);
     await page.goto(`${listUrl}/never`);
-    await expect(
-      page.getByRole('heading', { name: 'Not Available Offline', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText('Not On This Device', { exact: true })).toBeVisible();
+    await expect(page.getByText('Back To Programs', { exact: true })).toBeVisible();
     await page.goto(editorUrl);
     await expect(count(page, 'Fixture Product')).toHaveValue('0012');
     await context.setOffline(false);

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { ClipboardListIcon } from 'lucide-react';
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
+import { ClipboardListIcon, WifiOffIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { DataTableEmpty } from '@/components/data-table/data-table';
+import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,8 +44,8 @@ import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
-import { deviceDataGeneration, LocalDataUnavailableError } from '@/lib/local-data';
-import { isOnline } from '@/lib/online';
+import { deviceDataGeneration } from '@/lib/local-data';
+import { isOnline, useOnReconnect } from '@/lib/online';
 import { hasProgramGrant } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -80,16 +80,20 @@ export const Route = createFileRoute(
       const fromDevice = async () => {
         const deviceCopy = await readInventoryLocalByScope(selection);
         assertSessionScope(session);
-        if (!deviceCopy) throw new LocalDataUnavailableError();
-        return {
+        const base = {
           eligibleUpdatedAfter: 0,
           userId,
           homeFacility,
           program,
           canViewStock,
           canManageLots: permissions.rights.has(RIGHTS.lotsManage),
+        };
+        if (!deviceCopy) return { ...base, deviceCopy: undefined, draft: null, missingCopy: true };
+        return {
+          ...base,
           deviceCopy,
           draft: { id: deviceCopy.draftId, ...selection, lineItems: [] },
+          missingCopy: false,
         };
       };
       if (!isOnline()) return fromDevice();
@@ -136,6 +140,7 @@ export const Route = createFileRoute(
         draft,
         canViewStock,
         canManageLots: permissions.rights.has(RIGHTS.lotsManage),
+        missingCopy: false,
       };
     },
   },
@@ -155,7 +160,12 @@ function InventoryPage() {
     canManageLots,
     eligibleUpdatedAfter,
     deviceCopy,
+    missingCopy,
   } = Route.useLoaderData();
+  const router = useRouter();
+  useOnReconnect(() => {
+    if (missingCopy) void router.invalidate();
+  });
   const currentUser = useReloadForUser(userId, queryKeys.physicalInventories.all);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -168,7 +178,25 @@ function InventoryPage() {
         <EditorHeader home={homeFacility} program={program} />
         <WorkspaceContent>
           <InventoryOrphans scope={{ facilityId: homeFacility.id, programId: program.id }} />
-          {draft ? (
+          {missingCopy ? (
+            <DataTableCard>
+              <DataTableEmpty
+                icon={<WifiOffIcon />}
+                title={t('physical-inventory.not-on-device')}
+                description={t('physical-inventory.not-on-device-description')}
+                action={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link to="/stock-management/physical-inventory" />}
+                  >
+                    {t('physical-inventory.back')}
+                  </Button>
+                }
+              />
+            </DataTableCard>
+          ) : draft ? (
             canViewStock ? (
               <PhysicalInventoryEditor
                 key={draft.id}

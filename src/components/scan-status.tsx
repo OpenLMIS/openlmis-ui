@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BarcodeScanStatus } from '@/hooks/use-barcode-scan';
 import { cn } from '@/lib/utils';
@@ -29,5 +30,14 @@ export function ScanStatus({ status, message }: BarcodeScanStatus) {
       />
       <span>{message ? t(message.key, message.params) : t(STATUS_KEYS[status])}</span>
     </div>
+  );
+}
+
+export function ScanUnavailable({ children }: { children: ReactNode }) {
+  return (
+    <p className="flex items-start gap-2 text-sm text-muted-foreground" role="note">
+      <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full bg-offline" />
+      <span>{children}</span>
+    </p>
   );
 }

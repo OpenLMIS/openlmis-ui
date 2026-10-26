@@ -691,19 +691,22 @@ it('opens unmodified device lines offline and keeps their counts and source on r
   expect(fetchValidReasons).not.toHaveBeenCalled();
 });
 it.each(['absent', 'older format'])(
-  'shows Not Available Offline for an %s copy without sending a server read',
+  'explains an %s copy inside the editor and reloads it on reconnect',
   async (kind) => {
     await seedDeviceEditor(0);
     if (kind === 'absent') await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).clear();
     onlineManager.setOnline(false);
-    const warning = expectRouteWarning(
-      `/(protected)/_protected/stock-management/physical-inventory_/$programId${PICKER}/${FP}`,
+    renderRoute(`${PICKER}/${FP}`);
+    await screen.findByText('physical-inventory.not-on-device');
+    expect(screen.getByText('physical-inventory.editor-title')).toBeInTheDocument();
+    expect(screen.getByText('physical-inventory.back').closest('a')).toHaveAttribute(
+      'href',
+      expect.stringContaining('/stock-management/physical-inventory'),
     );
-    renderRoute(`${PICKER}/${FP}`, undefined, { onCaughtError: () => {} });
-    await screen.findByRole('heading', { name: 'offline.unavailable-title' });
     expect(fetchPhysicalInventoryDraft).not.toHaveBeenCalled();
     expect(fetchInventoryStockLines).not.toHaveBeenCalled();
-    warning();
+    act(() => onlineManager.setOnline(true));
+    await waitFor(() => expect(fetchPhysicalInventoryDraft).toHaveBeenCalled());
   },
 );
 

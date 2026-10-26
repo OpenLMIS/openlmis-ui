@@ -1,5 +1,6 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
+import { CircleAlertIcon, WifiOffIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -109,6 +111,7 @@ type Props = {
   onDeleted: () => void | Promise<void>;
   onSubmitted: () => void | Promise<void>;
 };
+type Failure = { title: string; description: string; offline?: boolean };
 const ACTION_KEYS = {
   save: {
     errorTitle: 'physical-inventory.save-error-title',
@@ -139,9 +142,9 @@ export function InventoryActions(props: Props) {
   const eligibleOptions = eligibleInventoryProductsOptions(props.draft, props.eligibleUpdatedAfter);
   const eligibleFetching = useIsFetching({ queryKey: eligibleOptions.queryKey }) > 0;
   const [dialog, setDialog] = useState<'save' | 'delete' | 'submit' | 'print' | null>(null);
-  const [failure, setFailure] = useState<{ title: string; description: string } | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [failureCopy, setFailureCopy] = useState(failure);
-  const showFailure = (next: { title: string; description: string }) => {
+  const showFailure = (next: Failure) => {
     setFailure(next);
     setFailureCopy(next);
   };
@@ -149,6 +152,7 @@ export function InventoryActions(props: Props) {
     showFailure({
       title: t('physical-inventory.submit-offline-title'),
       description: t('physical-inventory.submit-offline-description'),
+      offline: true,
     });
   const invalidLines = useRef<readonly InventoryLine[] | null>(null);
   const submitButton = useRef<HTMLButtonElement>(null);
@@ -453,6 +457,13 @@ export function InventoryActions(props: Props) {
           }}
         >
           <AlertDialogHeader>
+            <AlertDialogMedia>
+              {failureCopy?.offline ? (
+                <WifiOffIcon />
+              ) : (
+                <CircleAlertIcon className="text-destructive" />
+              )}
+            </AlertDialogMedia>
             <AlertDialogTitle>{failureCopy?.title}</AlertDialogTitle>
             <AlertDialogDescription>{failureCopy?.description}</AlertDialogDescription>
           </AlertDialogHeader>

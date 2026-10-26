@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { toast } from 'sonner';
 import { expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { InventoryOrphans } from '@/features/stock-events/components/inventory-orphans';
@@ -14,8 +13,7 @@ vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   readInventoryScope: vi.fn(),
   clearInventoryLocal: vi.fn(),
 }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
-it('requires confirmation and reports a failed orphan discard without losing the copy', async () => {
+it('requires confirmation and reports a failed orphan discard inside the dialog', async () => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'orphan-discard', username: 'Ada', accessToken: 'token' });
@@ -44,10 +42,14 @@ it('requires confirmation and reports a failed orphan discard without losing the
       name: 'physical-inventory.discard-copy',
     }),
   );
+  const dialog = screen.getByRole('alertdialog');
+  expect(
+    await within(dialog).findByText('physical-inventory.discard-error-title'),
+  ).toBeInTheDocument();
   await waitFor(() =>
-    expect(toast.error).toHaveBeenCalledWith('physical-inventory.copy-error-title', {
-      description: 'physical-inventory.copy-error-description',
-    }),
+    expect(
+      within(dialog).getByRole('button', { name: 'physical-inventory.discard-copy' }),
+    ).toBeEnabled(),
   );
   expect(clearInventoryLocal).toHaveBeenCalledWith('old', 0, expect.any(Number), expect.anything());
   expect(screen.getByText('physical-inventory.orphaned-counts')).toBeInTheDocument();
