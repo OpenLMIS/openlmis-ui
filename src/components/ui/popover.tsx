@@ -57,12 +57,12 @@ function PopoverContent({
             width === "table"
               ? "w-3xl max-w-(--available-width) max-h-[min(32rem,var(--available-height))] overflow-hidden"
               : width === "notifications"
-              ? "w-88 max-w-(--available-width) max-h-[min(32rem,var(--available-height))] gap-0 overflow-hidden"
-              : width === "auto"
-                ? "w-auto"
-                : width === "wide"
-                  ? "w-80 max-w-(--available-width)"
-                  : "w-72",
+                ? "w-88 max-w-(--available-width) max-h-[min(32rem,var(--available-height))] gap-0 overflow-hidden"
+                : width === "auto"
+                  ? "w-auto"
+                  : width === "wide"
+                    ? "w-80 max-w-(--available-width)"
+                    : "w-72",
             padding === "none" ? "p-0" : "p-2.5",
             className
           )}

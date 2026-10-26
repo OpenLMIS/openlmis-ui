@@ -40,6 +40,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Workspace,
   WorkspaceContent,
@@ -111,9 +112,9 @@ function EventDetails({ event, label, size }: { event: DeviceEvent; label: strin
           <PopoverTitle>{t(EVENT_KINDS[event.kind].copy.eventType)}</PopoverTitle>
           <PopoverDescription>{count}</PopoverDescription>
         </PopoverHeader>
-        <div className="-mx-2.5 -mb-2.5 min-h-0 overflow-y-auto px-2.5 pb-2.5">
+        <ScrollArea height="fill">
           <DeviceEventLines event={event} />
-        </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   );

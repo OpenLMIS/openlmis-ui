@@ -1066,8 +1066,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Offline Events opens for every signed-in user offline, even without downloaded access.
   As legacy, its Details column shows each line's product, lot, destination, source or reason
   and quantity: an item-count button opens a scrolling `PopoverContent width="table"` with
-  `DeviceEventLines` (table, or cards below 672px). Types reuse `transaction-history.type-*` labels; Unpack
-  keeps its own.
+  `DeviceEventLines` (table, or cards below 672px) in a `ScrollArea`. Types reuse
+  `transaction-history.type-*` labels; Unpack keeps its own.
 - Hidden pages retain drafts/guards only for a valid protected match in the same session scope.
   Persistent overlay drafts stay mounted behind the visibility gate; transient overlays close.
   Discard decisions opt out so navigation and Log Out remain answerable.
