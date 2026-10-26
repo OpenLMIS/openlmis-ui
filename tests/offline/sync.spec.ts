@@ -54,7 +54,7 @@ test('interrupted upload becomes uncertain after restart and is never automatica
       .toBe('uncertain');
     await page
       .getByRole('tab', {
-        name: catalog['offline-events.tab-errors'].replace('{count}', '1'),
+        name: catalog['offline-events.tab-errors-label'].replace('{count}', '1'),
         exact: true,
       })
       .click();
@@ -100,7 +100,7 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   await expect(page.locator('tbody tr')).toHaveCount(2);
   await page
     .getByRole('tab', {
-      name: catalog['offline-events.tab-errors'].replace('{count}', '0'),
+      name: catalog['offline-events.tab-errors-label'].replace('{count}', '0'),
       exact: true,
     })
     .click();
@@ -113,7 +113,7 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   ).not.toBeVisible();
   await page
     .getByRole('tab', {
-      name: catalog['offline-events.tab-pending'].replace('{count}', '2'),
+      name: catalog['offline-events.tab-pending-label'].replace('{count}', '2'),
       exact: true,
     })
     .click();
@@ -138,7 +138,7 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   await expect(page.locator('tbody tr')).toHaveCount(1);
   await page
     .getByRole('tab', {
-      name: catalog['offline-events.tab-synced'].replace('{count}', '1'),
+      name: catalog['offline-events.tab-synced-label'].replace('{count}', '1'),
       exact: true,
     })
     .click();
@@ -149,7 +149,7 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   );
   await page
     .getByRole('tab', {
-      name: catalog['offline-events.tab-pending'].replace('{count}', '1'),
+      name: catalog['offline-events.tab-pending-label'].replace('{count}', '1'),
       exact: true,
     })
     .click();
@@ -160,7 +160,7 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
   ).toBeVisible();
   await page
     .getByRole('tab', {
-      name: catalog['offline-events.tab-synced'].replace('{count}', '2'),
+      name: catalog['offline-events.tab-synced-label'].replace('{count}', '2'),
       exact: true,
     })
     .click();
@@ -214,7 +214,7 @@ test('closing the uploading tab leaves uncertainty in the surviving tab without 
     .toBe('uncertain');
   await survivor
     .getByRole('tab', {
-      name: catalog['offline-events.tab-errors'].replace('{count}', '1'),
+      name: catalog['offline-events.tab-errors-label'].replace('{count}', '1'),
       exact: true,
     })
     .click();

@@ -73,7 +73,7 @@ for (const language of ['en', 'ar']) {
     ).toBeFocused();
     await page
       .getByRole('tab', {
-        name: labels['offline-events.tab-pending'].replace('{count}', '1'),
+        name: labels['offline-events.tab-pending-label'].replace('{count}', '1'),
         exact: true,
       })
       .click();
@@ -86,7 +86,7 @@ for (const language of ['en', 'ar']) {
     expect(bodies).toEqual([frozen]);
     await page
       .getByRole('tab', {
-        name: labels['offline-events.tab-errors'].replace('{count}', '0'),
+        name: labels['offline-events.tab-errors-label'].replace('{count}', '0'),
         exact: true,
       })
       .click();
@@ -127,7 +127,7 @@ for (const language of ['en', 'ar']) {
     await expect.poll(() => bodies.length).toBe(3);
     await page
       .getByRole('tab', {
-        name: labels['offline-events.tab-pending'].replace('{count}', '1'),
+        name: labels['offline-events.tab-pending-label'].replace('{count}', '1'),
         exact: true,
       })
       .click();
@@ -144,7 +144,7 @@ for (const language of ['en', 'ar']) {
     ).toBeVisible();
     await page
       .getByRole('tab', {
-        name: labels['offline-events.tab-synced'].replace('{count}', '1'),
+        name: labels['offline-events.tab-synced-label'].replace('{count}', '1'),
         exact: true,
       })
       .click();

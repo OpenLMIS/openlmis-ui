@@ -34,6 +34,7 @@ import { FormDialog } from '@/components/form-dialog/form-dialog';
 import { ListError } from '@/components/list-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -286,18 +287,23 @@ export function OfflineEventsPage({
             }
           >
             <TabsList size="lg" wrap="column" aria-label={t('offline-events.tabs-label')}>
-              {tabs.map((value) => (
-                <TabsTrigger
-                  key={value}
-                  value={value}
-                  id={`${panelId}-${value}`}
-                  aria-controls={panelId}
-                >
-                  {t(`offline-events.tab-${value}`, {
-                    count: local.events?.filter((event) => tabOf(event) === value).length ?? 0,
-                  })}
-                </TabsTrigger>
-              ))}
+              {tabs.map((value) => {
+                const count = local.events?.filter((event) => tabOf(event) === value).length ?? 0;
+                return (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    id={`${panelId}-${value}`}
+                    aria-controls={panelId}
+                    aria-label={t(`offline-events.tab-${value}-label`, { count })}
+                  >
+                    {t(`offline-events.tab-${value}`)}
+                    {count > 0 && (
+                      <Badge variant={value === 'errors' ? 'warning' : 'secondary'}>{count}</Badge>
+                    )}
+                  </TabsTrigger>
+                );
+              })}
             </TabsList>
             <div
               role="tabpanel"
