@@ -80,7 +80,9 @@ for (const language of ['en', 'ar']) {
     await expect
       .poll(async () => (await records(page, 'stockEventQueue'))[0]?.status)
       .toBe('queued');
-    await expect(page.getByText('Fixture Product', { exact: false })).toBeVisible();
+    await expect(
+      page.getByText(labels['transaction-history.type-adjustment'], { exact: true }),
+    ).toBeVisible();
     expect(bodies).toEqual([frozen]);
     await page
       .getByRole('tab', {
@@ -129,7 +131,9 @@ for (const language of ['en', 'ar']) {
         exact: true,
       })
       .click();
-    await expect(page.getByText('Fixture Product', { exact: false })).toBeVisible();
+    await expect(
+      page.getByText(labels['transaction-history.type-adjustment'], { exact: true }),
+    ).toBeVisible();
     if (!accept) throw new Error('No retry awaiting acceptance');
     await accept();
     await expect.poll(async () => (await records(page, 'stockEventReceipts')).length).toBe(1);
@@ -145,7 +149,9 @@ for (const language of ['en', 'ar']) {
       })
       .click();
     await expect(page).toHaveURL(/\/offline-events\?tab=synced$/);
-    await expect(page.getByText('Fixture Product', { exact: false })).toBeVisible();
+    await expect(
+      page.getByText(labels['transaction-history.type-adjustment'], { exact: true }),
+    ).toBeVisible();
     expect(await records(page, 'stockEventQueue')).toEqual([]);
     expect((await records(page, 'stockEventDrafts'))[0].state).toBe('accepted');
   });

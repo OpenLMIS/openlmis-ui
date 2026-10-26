@@ -144,7 +144,9 @@ test('two tabs reconnect in sequence with one uploader and receipts only after a
     .click();
   await expect(page).toHaveURL(/\/offline-events\?tab=synced$/);
   await expect(page.locator('tbody tr')).toHaveCount(1);
-  await expect(page.getByRole('table')).toContainText('Fixture Product');
+  await expect(page.getByRole('table')).toContainText(
+    catalog['transaction-history.type-adjustment'],
+  );
   await page
     .getByRole('tab', {
       name: catalog['offline-events.tab-pending'].replace('{count}', '1'),
