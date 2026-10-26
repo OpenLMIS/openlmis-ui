@@ -1,8 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { CellText } from '@/components/table-cards';
 import { Badge } from '@/components/ui/badge';
 import { errorState, pendingState } from '@/features/stock-events/lib/offline-event-tabs';
-import { refusalMessage } from '@/features/stock-events/lib/refusal-message';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 
 const pendingKeys = {
@@ -50,21 +48,8 @@ export function OfflineEventErrorMessage({ event }: { event: DeviceEvent }) {
   const { t } = useTranslation();
   const state = errorState(event);
   return (
-    <div className="flex flex-col items-start gap-2 whitespace-normal">
-      <Badge variant={state === 'uncertain' || state === 'copied' ? 'warning' : 'destructive'}>
-        {t(errorKeys[state])}
-      </Badge>
-      <CellText overflow="clamp">
-        {state === 'uncertain'
-          ? t('offline-events.error-uncertain')
-          : refusalMessage(
-              event.error,
-              t,
-              state === 'copied'
-                ? 'offline-events.no-refusal-details'
-                : 'offline-events.no-error-details',
-            )}
-      </CellText>
-    </div>
+    <Badge variant={state === 'uncertain' || state === 'copied' ? 'warning' : 'destructive'}>
+      {t(errorKeys[state])}
+    </Badge>
   );
 }

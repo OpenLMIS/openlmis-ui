@@ -49,7 +49,9 @@ for (const language of ['en', 'ar']) {
     await page.evaluate((language) => localStorage.setItem('i18nextLng', language), language);
     await page.goto('./offline-events?tab=errors');
     await expect(page.locator('html')).toHaveAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
-    await expect(page.getByText('Refusal 1', { exact: false })).toBeVisible();
+    await expect(
+      page.getByText(labels['offline-events.status-refused'], { exact: true }).first(),
+    ).toBeVisible();
     await context.setOffline(true);
     if (language === 'en') {
       await page.locator('tbody button[aria-haspopup=menu]').click();
@@ -95,7 +97,9 @@ for (const language of ['en', 'ar']) {
       .poll(async () => (await records(page, 'stockEventSyncErrors'))[0]?.message)
       .toBe('Refusal 2');
     expect(bodies).toEqual([frozen, frozen]);
-    await expect(page.getByText('Refusal 2', { exact: false })).toBeVisible();
+    await expect(
+      page.getByText(labels['offline-events.status-refused'], { exact: true }).first(),
+    ).toBeVisible();
     if (language === 'en') {
       await page.locator('tbody button[aria-haspopup=menu]').click();
       await page

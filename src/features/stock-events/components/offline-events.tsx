@@ -560,7 +560,7 @@ function OfflineEventsTable({
               id: 'error',
               header: t('offline-events.error-message'),
               cell: ({ row }) => <OfflineEventErrorMessage event={row.original} />,
-              meta: { className: '@2xl/main:w-1/4', label: t('offline-events.error-message') },
+              meta: { className: 'w-44', label: t('offline-events.error-message') },
             } satisfies ColumnDef<DataTableFeatures, DeviceEvent>,
           ]
         : []),
