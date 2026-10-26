@@ -121,3 +121,60 @@ it.each([true, false])(
     expect(await readInventoryReference(kept)).toMatchObject({ generation });
   },
 );
+
+it.each([false, true])(
+  'keeps a modified tab writable after an untouched snapshot (existing copy: %s)',
+  async (existing) => {
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: crypto.randomUUID(),
+      username: 'Ada',
+      accessToken: 'token',
+    });
+    const copy: InventoryLocalCopy = {
+      draftId: 'draft',
+      facilityId: 'home',
+      programId: 'one',
+      lines: [],
+      modified: false,
+      savedAt: 1,
+      formatVersion: 1,
+      baselineKeys: [],
+      fetchedAt: 1,
+      generation: 'G',
+    };
+    const reference = inventoryReference(copy, [], []);
+    const saved = existing
+      ? await writeInventoryLocal(copy, undefined, undefined, reference)
+      : undefined;
+    const a = renderHook(() =>
+      usePhysicalInventoryAutosave(
+        noCopy,
+        usePhysicalInventoryForm([], false),
+        saved?.revision,
+        undefined,
+        saved,
+      ),
+    );
+    const b = renderHook(() =>
+      usePhysicalInventoryAutosave(
+        noCopy,
+        usePhysicalInventoryForm([], false),
+        saved?.revision,
+        undefined,
+        saved,
+      ),
+    );
+    await act(async () => {
+      const refreshed = { ...copy, fetchedAt: 2, generation: 'G2' };
+      await b.result.current.write(refreshed, inventoryReference(refreshed, [], []));
+    });
+    await act(async () => {
+      await a.result.current.write({ ...copy, modified: true, savedAt: 3 });
+    });
+    expect(a.result.current.status).toBe('saved');
+    const latest = await readInventoryLocal('draft');
+    expect(latest).toMatchObject({ modified: true, savedAt: 3, generation: 'G2', fetchedAt: 2 });
+    if (!latest) throw new Error('Missing saved counts');
+    expect(await readInventoryReference(latest)).toBeDefined();
+  },
+);

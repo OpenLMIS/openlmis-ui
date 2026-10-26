@@ -2,7 +2,6 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   clearInventoryLocal,
-  INVENTORY_FORMAT_VERSION,
   inventoryReference,
   readInventoryLocal,
   readInventoryLocalByScope,
@@ -10,6 +9,7 @@ import {
   reconcileInventoryCopies,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
+import { INVENTORY_FORMAT_VERSION } from '@/features/stock-events/lib/physical-inventory-types';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { DraftConflictError } from '@/lib/draft-store';

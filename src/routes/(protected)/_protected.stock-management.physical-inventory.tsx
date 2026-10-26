@@ -3,12 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { ListError } from '@/components/list-error';
-import {
-  StockProgramPicker,
-  StockProgramPickerSkeleton,
-} from '@/components/stock-program-picker/stock-program-picker';
+import { StockProgramPicker } from '@/components/stock-program-picker/stock-program-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { startPhysicalInventory } from '@/features/stock-events/api/physical-inventory-api';
@@ -110,51 +106,39 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
         description: t('physical-inventory.start-error-description'),
       }),
   });
-  const rows = programs.flatMap((program, index) => {
+  const rows = programs.map((program, index) => {
     const result = drafts[index];
-    if (!online && !result.isError && !result.data) return [];
-    return [
-      {
-        id: program.id,
-        label: recordLabel(program),
-        status: result.isPending ? (
-          <div className="h-4 w-20">
-            <Skeleton fill />
-          </div>
-        ) : result.isError ? (
-          t('physical-inventory.status-error')
-        ) : (
-          t(result.data ? 'physical-inventory.draft' : 'physical-inventory.not-started')
-        ),
-        actionLabel: t(
-          result.isError
-            ? 'physical-inventory.retry'
+    const missing = !online && result.isSuccess && !result.data;
+    return {
+      id: program.id,
+      label: recordLabel(program),
+      status: result.isPending ? (
+        <div className="h-4 w-20">
+          <Skeleton fill />
+        </div>
+      ) : result.isError ? (
+        t('physical-inventory.status-error')
+      ) : (
+        t(
+          missing
+            ? 'physical-inventory.not-on-device'
             : result.data
-              ? 'physical-inventory.continue'
-              : 'physical-inventory.start',
-        ),
-        disabled: result.isPending || mutation.isPending,
-      },
-    ];
+              ? 'physical-inventory.draft'
+              : 'physical-inventory.not-started',
+        )
+      ),
+      actionLabel: t(
+        result.isError
+          ? 'physical-inventory.retry'
+          : result.data || !online
+            ? 'physical-inventory.continue'
+            : 'physical-inventory.start',
+      ),
+      disabled: result.isPending || mutation.isPending || missing,
+      disabledReason: missing ? t('physical-inventory.not-on-device') : undefined,
+      disabledDescription: missing ? t('physical-inventory.open-online-first') : undefined,
+    };
   });
-  if (!online && hasHomeFacility && rows.length === 0) {
-    if (drafts.some((draft) => draft.isPending))
-      return (
-        <StockProgramPickerSkeleton
-          actionLabel={t('physical-inventory.continue')}
-          statusLabel={t('physical-inventory.status')}
-          actionsLabel={t('physical-inventory.actions')}
-        />
-      );
-    return (
-      <DataTableCard>
-        <DataTableEmpty
-          title={t('physical-inventory.no-device-drafts-title')}
-          description={t('physical-inventory.no-device-drafts-description')}
-        />
-      </DataTableCard>
-    );
-  }
   const failed = drafts.filter((draft) => draft.isError);
   return (
     <>
@@ -184,7 +168,7 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
               to: '/stock-management/physical-inventory/$programId',
               params: { programId: row.id },
             });
-          else mutation.mutate(row.id);
+          else if (online) mutation.mutate(row.id);
         }}
       />
     </>

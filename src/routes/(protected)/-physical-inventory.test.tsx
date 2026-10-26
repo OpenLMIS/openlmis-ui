@@ -571,7 +571,7 @@ it('does not start deferred eligibility for another user after summaries resolve
   expect(fetchEligibleInventoryProducts).not.toHaveBeenCalled();
 });
 
-it('lists only exactly granted home programs with a device draft offline and never offers Start', async () => {
+it('lists granted home programs offline with a reason for missing copies and never offers Start', async () => {
   const extra = { id: 'without-copy', code: 'NC', name: 'No Copy', active: true };
   const allPrograms = [...programs, extra];
   const access = offlineAccessFixture({
@@ -608,10 +608,14 @@ it('lists only exactly granted home programs with a device draft offline and nev
   }
   onlineManager.setOnline(false);
   renderRoute();
-  expect(await screen.findByRole('button', { name: 'physical-inventory.continue' })).toBeEnabled();
+  await screen.findAllByText('physical-inventory.not-on-device');
+  const actions = screen.getAllByRole('button', { name: 'physical-inventory.continue' });
+  expect(actions[0]).toBeEnabled();
+  expect(actions[1]).toHaveAttribute('aria-disabled', 'true');
   expect(screen.getByText('Family Planning')).toBeInTheDocument();
   expect(screen.queryByText('Essential Meds')).not.toBeInTheDocument();
-  expect(screen.queryByText('No Copy')).not.toBeInTheDocument();
+  expect(screen.getByText('No Copy')).toBeInTheDocument();
+  expect(screen.getByText('physical-inventory.open-online-first')).toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: 'physical-inventory.start' }),
   ).not.toBeInTheDocument();

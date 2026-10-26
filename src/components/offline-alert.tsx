@@ -25,7 +25,7 @@ type SnapshotMessage =
   | 'stock-card.offline-summary';
 
 const unreachableMessages = {
-  'physical-inventory.offline-snapshot': 'physical-inventory.offline-snapshot',
+  'physical-inventory.offline-snapshot': 'physical-inventory.unreachable-snapshot',
   'stock-events.offline-snapshot': 'offline.stock-snapshot-unreachable',
   'stock-on-hand.offline-snapshot': 'offline.stock-snapshot-unreachable',
   'stock-card.offline-history': 'stock-card.unreachable-history',

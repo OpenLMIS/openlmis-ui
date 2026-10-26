@@ -1,16 +1,11 @@
 import { useStore } from '@tanstack/react-form';
-import {
-  queryOptions,
-  type UseQueryOptions,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardListIcon, TriangleAlertIcon } from 'lucide-react';
 import {
   type ReactNode,
+  Suspense,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -39,7 +34,7 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { LoadError } from '@/components/load-error';
-import { OfflineAlert, SnapshotAlert } from '@/components/offline-alert';
+import { OfflineAlert, SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -97,7 +92,6 @@ import {
 } from '@/features/stock-events/lib/physical-inventory-local';
 import {
   canDeactivateInventoryLine,
-  type InventoryReasonAssignment,
   inventoryOptionalColumns,
   inventoryReasons,
 } from '@/features/stock-events/lib/physical-inventory-products';
@@ -116,6 +110,7 @@ import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
+import { deviceDraftLeaveCopy } from '@/lib/device-draft-leave-copy';
 import { useFlag } from '@/lib/feature-flags';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
@@ -245,29 +240,28 @@ type RowsProps = Props &
     onAddClose: () => void;
   };
 function InventoryRows(props: RowsProps) {
-  const stockQuery = useSuspenseQuery(
-    props.deviceCopy
-      ? inventoryDeviceOptions(props.deviceCopy).stock
-      : {
-          ...inventoryStockLinesOptions(props.draft, props.eligibleUpdatedAfter),
-          refetchOnWindowFocus: false,
-          refetchOnReconnect: false,
-        },
-  );
+  const stockQuery = useQuery({
+    ...inventoryStockLinesOptions(props.draft, props.eligibleUpdatedAfter),
+    enabled: !props.deviceCopy,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
   if (
+    !props.deviceCopy &&
     stockQuery.isError &&
     !stockQuery.isFetching &&
-    stockQuery.dataUpdatedAt < (props.eligibleUpdatedAfter ?? 0)
+    (!stockQuery.data || stockQuery.dataUpdatedAt < (props.eligibleUpdatedAfter ?? 0))
   )
     throw stockQuery.error;
-  const { data: stock } = stockQuery;
+  const stock = props.deviceCopy?.lines ?? stockQuery.data;
   const opening = useOpening();
   const [loaded, setLoaded] = useState<InventoryLocalCopy | null>();
   const [loadKey, setLoadKey] = useState(0);
   const local = useQuery(
     queryOptions({
       queryKey: [...queryKeys.physicalInventories.detail(props.draft.id), 'local', opening],
-      queryFn: async () => props.deviceCopy ?? (await readInventoryLocal(props.draft.id)) ?? null,
+      queryFn: async () => (await readInventoryLocal(props.draft.id)) ?? null,
+      enabled: !props.deviceCopy,
       staleTime: Infinity,
       gcTime: 0,
       refetchOnReconnect: false,
@@ -275,31 +269,39 @@ function InventoryRows(props: RowsProps) {
       retry: false,
     }),
   );
-  if (local.isPending || stockQuery.dataUpdatedAt < (props.eligibleUpdatedAfter ?? 0))
+  if (
+    !stock ||
+    (!props.deviceCopy &&
+      (local.isPending || stockQuery.dataUpdatedAt < (props.eligibleUpdatedAfter ?? 0)))
+  )
     return props.pendingBody;
-  const currentCopy = loaded === undefined ? local.data : loaded;
+  const currentCopy = loaded === undefined ? (props.deviceCopy ?? local.data) : loaded;
   return (
-    <>
-      {props.toolbar}
-      <InventoryDraftRows
-        {...props}
-        key={loadKey}
-        deviceCopy={props.deviceCopy ? (currentCopy ?? props.deviceCopy) : undefined}
-        onAdopt={(copy) => {
-          setLoaded(copy ?? null);
-          setLoadKey((key) => key + 1);
-        }}
-        stock={stock}
-        localLines={props.deviceCopy || currentCopy?.modified ? currentCopy?.lines : undefined}
-        localFailed={local.isError}
-        localRemoved={
-          props.deviceCopy || currentCopy?.modified ? (currentCopy?.removedKeys ?? []) : []
-        }
-        localModified={Boolean(currentCopy?.modified)}
-        localRevision={currentCopy?.revision}
-        initialCopy={currentCopy ?? undefined}
-      />
-    </>
+    <InventoryDraftRows
+      {...props}
+      key={loadKey}
+      deviceCopy={props.deviceCopy ? (currentCopy ?? props.deviceCopy) : undefined}
+      onAdopt={(copy) => {
+        setLoaded(copy ?? null);
+        setLoadKey((key) => key + 1);
+      }}
+      stock={stock}
+      adopted={loaded != null}
+      localLines={
+        props.deviceCopy || loaded !== undefined || currentCopy?.modified
+          ? currentCopy?.lines
+          : undefined
+      }
+      localFailed={local.isError}
+      localRemoved={
+        props.deviceCopy || loaded !== undefined || currentCopy?.modified
+          ? (currentCopy?.removedKeys ?? [])
+          : []
+      }
+      localModified={Boolean(currentCopy?.modified)}
+      localRevision={currentCopy?.revision}
+      initialCopy={currentCopy ?? undefined}
+    />
   );
 }
 
@@ -332,8 +334,11 @@ function InventoryDraftRows({
   onSubmitted,
   eligibleUpdatedAfter,
   deviceCopy,
+  toolbar,
+  adopted,
 }: RowsProps & {
   stock: InventoryStockLine[];
+  adopted: boolean;
   localLines?: InventoryLine[];
   localFailed: boolean;
   localRemoved: string[];
@@ -346,8 +351,7 @@ function InventoryDraftRows({
   const [entryUpdatedAfter] = useState(eligibleUpdatedAfter);
   const scanning = useFlag('GS1_SCANNING');
   const online = useOnline();
-  const [usingSnapshot, setUsingSnapshot] = useState(Boolean(deviceCopy));
-  if (!online && !usingSnapshot) setUsingSnapshot(true);
+  const noticeOnline = useSnapshotNotice(true, false, 0);
   const eligible = useQuery(
     deviceCopy
       ? inventoryDeviceOptions(deviceCopy).eligible
@@ -356,22 +360,32 @@ function InventoryDraftRows({
           enabled: online,
         },
   );
-  const reasonsQuery = useQuery(
-    deviceCopy
+  const serverReasons = useQuery({
+    ...validReasonsOptions({ program: draft.programId, facilityType: facilityTypeId }),
+    enabled: !deviceCopy && online,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const deviceReasons = useQuery({
+    ...(deviceCopy
       ? inventoryDeviceOptions(deviceCopy).reasons
       : {
-          ...(validReasonsOptions({
-            program: draft.programId,
-            facilityType: facilityTypeId,
-          }) as UseQueryOptions<InventoryReasonAssignment[]>),
-          enabled: online,
-          refetchOnWindowFocus: false,
-          refetchOnReconnect: false,
-        },
+          queryKey: [...queryKeys.physicalInventories.detail(draft.id), 'device-reasons-pending'],
+          queryFn: async () => [],
+        }),
+    enabled: Boolean(deviceCopy),
+  });
+  const reasonsQuery = deviceCopy ? deviceReasons : serverReasons;
+  const reasons = useMemo(
+    () => (deviceCopy ? (deviceReasons.data ?? []) : inventoryReasons(serverReasons.data ?? [])),
+    [deviceCopy, deviceReasons.data, serverReasons.data],
   );
-  const reasons = useMemo(() => inventoryReasons(reasonsQuery.data ?? []), [reasonsQuery.data]);
   const [baseline, setBaseline] = useState<readonly Pick<InventoryLine, 'key'>[]>(() =>
-    inventoryBaseline(stock, draft.lineItems, deviceCopy),
+    inventoryBaseline(
+      stock,
+      draft.lineItems,
+      deviceCopy ?? (adopted && initialCopy?.baselineKeys ? initialCopy : undefined),
+    ),
   );
   const [busy, setBusy] = useState(false);
   const [actionDialog, setActionDialog] = useState(false);
@@ -393,8 +407,8 @@ function InventoryDraftRows({
   const region = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const [formLines, setFormLines] = useState(() =>
-    deviceCopy
-      ? (localLines ?? deviceCopy.lines)
+    deviceCopy || adopted
+      ? (localLines ?? deviceCopy?.lines ?? [])
       : buildInventoryLines(stock, draft.lineItems, localLines, localRemoved),
   );
   const form = usePhysicalInventoryForm(formLines, validationAttempted);
@@ -455,7 +469,7 @@ function InventoryDraftRows({
     [busy, submitted, modified, form, currentCopy],
   );
   const autosave = usePhysicalInventoryAutosave(copy, form, localRevision, onAdopt, initialCopy);
-  const snapshotWritten = useRef(false);
+  const snapshotWritten = useRef(adopted);
   useEffect(() => {
     if (
       deviceCopy ||
@@ -491,14 +505,6 @@ function InventoryDraftRows({
   ]);
   const status = readFailed && !modified && !form.state.isDirty ? 'failed' : autosave.status;
   const allowLeave = useRef(false);
-  const guard = useDiscardGuard(
-    !submitted &&
-      (modified || dirty) &&
-      (status === 'saving' || status === 'failed' || status === 'conflict'),
-    {
-      allowLeave: () => allowLeave.current,
-    },
-  );
   const [dialog, setDialog] = useState<{
     type: 'reasons' | 'lot' | 'deactivate';
     line: InventoryLine;
@@ -541,6 +547,24 @@ function InventoryDraftRows({
         description: t('physical-inventory.deactivate-error-description'),
       }),
   });
+  const guard = useDiscardGuard(
+    !submitted &&
+      (modified || dirty) &&
+      (status === 'saving' || status === 'failed' || status === 'conflict'),
+    {
+      allowLeave: () => allowLeave.current,
+      pending: busy || mutation.isPending,
+      flushBeforeLeave: async () => {
+        if (!modified && !form.state.isDirty) return true;
+        try {
+          await autosave.flush();
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    },
+  );
   const lines = useMemo(
     () => eligibleInventoryLines(allLines, eligible.data),
     [allLines, eligible.data],
@@ -700,13 +724,16 @@ function InventoryDraftRows({
   };
   return (
     <div ref={region} tabIndex={-1} className="flex flex-col gap-4" aria-busy={search !== deferred}>
-      {usingSnapshot && (
-        <SnapshotAlert
-          snapshot={snapshot}
-          message="physical-inventory.offline-snapshot"
-          online={online}
-        />
+      {(deviceCopy || noticeOnline === false) && noticeOnline !== undefined && (
+        <Suspense fallback={null}>
+          <SnapshotAlert
+            snapshot={snapshot}
+            message="physical-inventory.offline-snapshot"
+            online={noticeOnline}
+          />
+        </Suspense>
       )}
+      {toolbar}
       {scanning && !online && (
         <OfflineAlert>{t('physical-inventory.scanning-offline')}</OfflineAlert>
       )}
@@ -831,7 +858,15 @@ function InventoryDraftRows({
         username={username}
         showInDoses={quantityUnit.unit === 'DOSES'}
         disabled={busy || mutation.isPending}
+        conflicted={status === 'conflict'}
         writeDisabled={!eligible.data || eligible.isError || status === 'conflict'}
+        writeDisabledReason={
+          status === 'conflict'
+            ? t('stock-events.draft-conflict')
+            : !online && !eligible.data
+              ? t('offline.unavailable-description')
+              : undefined
+        }
         flush={autosave.flush}
         writeLocal={autosave.write}
         clearLocal={autosave.clear}
@@ -946,6 +981,8 @@ function InventoryDraftRows({
                   title={t('stock-events.reasons-error-title')}
                   description={t('stock-events.reasons-error-description')}
                 />
+              ) : !online ? (
+                <OfflineAlert>{t('offline.unavailable-description')}</OfflineAlert>
               ) : (
                 <div className="h-20">
                   <Skeleton fill />
@@ -988,7 +1025,10 @@ function InventoryDraftRows({
           }}
         />
       )}
-      <DiscardChangesDialog {...guard.dialog} description={t('stock-events.discard-description')} />
+      <DiscardChangesDialog
+        {...guard.dialog}
+        {...deviceDraftLeaveCopy(t, true, guard.dialog.signingOut)}
+      />
     </div>
   );
 }

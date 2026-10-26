@@ -9,18 +9,19 @@ export function deviceQuery<T>({
   server,
   device,
   staleTime,
+  canFallback,
 }: {
   queryKey: QueryKey;
   online: boolean;
   server: (context: QueryFunctionContext) => Promise<T>;
   device?: () => Promise<T>;
   staleTime: number;
+  canFallback?: (error: unknown) => boolean;
 }) {
   return queryOptions({
     queryKey: device && !online ? deviceQueryKey(queryKey) : queryKey,
-    networkMode: 'always',
     queryFn: (context) =>
-      device ? onlineOrDevice(() => server(context), device) : server(context),
+      device ? onlineOrDevice(() => server(context), device, canFallback) : server(context),
     ...offlineAccessQuery(staleTime),
   });
 }

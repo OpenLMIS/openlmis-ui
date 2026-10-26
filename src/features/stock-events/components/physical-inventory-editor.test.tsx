@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
   createRootRoute,
@@ -7,7 +7,7 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { useState } from 'react';
@@ -53,7 +53,9 @@ vi.mock('@/features/stock-events/lib/physical-inventory-lines', async (original)
   };
 });
 
+vi.mock('@/hooks/use-deployment-time-zone', () => ({ useDeploymentTimeZone: () => 'UTC' }));
 vi.mock('react-i18next', () => ({
+  Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
   useTranslation: () => ({
     i18n: { language: 'en' },
     t: (key: string, options?: { field?: string }) =>
@@ -1181,10 +1183,13 @@ it('disables both conflict choices while Load Latest is reading the device', asy
     savedAt: 1,
     revision: 2,
   };
-  vi.mocked(writeInventoryLocal).mockRejectedValue(new DraftConflictError(stored));
+  vi.mocked(writeInventoryLocal)
+    .mockResolvedValueOnce(undefined)
+    .mockRejectedValue(new DraftConflictError(stored));
   const user = userEvent.setup();
   setup();
   const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await waitFor(() => expect(writeInventoryLocal).toHaveBeenCalled());
   await user.type(input, '7');
   const load = await screen.findByRole('button', { name: 'physical-inventory.load-latest' });
   const reading = Promise.withResolvers<typeof stored>();
@@ -1194,3 +1199,65 @@ it('disables both conflict choices while Load Latest is reading the device', asy
   expect(screen.getByRole('button', { name: 'physical-inventory.keep-counts' })).toBeDisabled();
   reading.resolve(stored);
 });
+
+it('loads an adopted unmodified copy instead of rebuilding stale loader counts', async () => {
+  const { DraftConflictError } = await import('@/lib/draft-store');
+  const user = userEvent.setup();
+  setup();
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await waitFor(() => expect(writeInventoryLocal).toHaveBeenCalled());
+  const latest = {
+    draftId: 'd',
+    programId: 'p',
+    facilityId: 'f',
+    lines: buildInventoryLines(stock, []).map((line) => ({
+      ...line,
+      quantity: quantityValue('9', 10),
+    })),
+    modified: false,
+    savedAt: 2,
+    revision: 2,
+  };
+  vi.mocked(readInventoryLocal).mockResolvedValue(latest);
+  vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new DraftConflictError(latest));
+  await user.type(input, '7');
+  await user.click(await screen.findByRole('button', { name: 'physical-inventory.load-latest' }));
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'stock-events.field-of' })).toHaveValue('9'),
+  );
+  expect(writeInventoryLocal).toHaveBeenCalledTimes(2);
+});
+
+it('explains unavailable reasons and Submit when disconnected before reference reads finish', async () => {
+  const { fetchValidReasons } = await import('@/features/reference-data/api/api');
+  vi.mocked(fetchValidReasons).mockReturnValueOnce(new Promise(() => {}));
+  const user = userEvent.setup();
+  const view = setup();
+  view.client.removeQueries({ queryKey: eligibleInventoryProductsOptions(draft).queryKey });
+  vi.mocked(fetchEligibleInventoryProducts).mockReturnValueOnce(new Promise(() => {}));
+  await user.type(await screen.findByRole('textbox', { name: 'stock-events.field-of' }), '7');
+  act(() => onlineManager.setOnline(false));
+  expect(screen.getByRole('button', { name: 'stock-events.submit' })).toHaveAttribute(
+    'aria-description',
+    'offline.unavailable-description',
+  );
+  await user.click(screen.getByRole('button', { name: /physical-inventory.reasons/ }));
+  expect(await screen.findByRole('dialog')).toHaveTextContent('offline.unavailable-description');
+});
+
+it.each([false, true])(
+  'flushes before leaving and blocks only a failed device commit: failed=%s',
+  async (failed) => {
+    if (failed) vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Quota'));
+    const user = userEvent.setup();
+    setup();
+    await user.type(await screen.findByRole('textbox', { name: 'stock-events.field-of' }), '8');
+    const guard = vi.mocked(useDiscardGuard).mock.lastCall?.[1];
+    expect(guard?.pending).toBe(false);
+    let result: boolean | undefined;
+    await act(async () => {
+      result = await guard?.flushBeforeLeave?.();
+    });
+    expect(result).toBe(!failed);
+  },
+);

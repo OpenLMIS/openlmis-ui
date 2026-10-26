@@ -61,9 +61,14 @@ test('inventory counts and new lots survive offline restart and only explicit Sa
     page = context.pages()[0];
     await page.goto(listUrl);
     await expect(page.getByText('Fixture Medicines', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Never Downloaded', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Never Downloaded', { exact: true })).toBeVisible();
+    await expect(page.getByText('Open this draft online first.', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'Continue', exact: true })
+      .filter({ visible: true })
+      .first()
+      .click();
     await page.waitForURL((url) => url.pathname.endsWith('/physical-inventory/program'));
     await page.reload();
     await expect(count(page, 'Fixture Product')).toHaveValue('20');

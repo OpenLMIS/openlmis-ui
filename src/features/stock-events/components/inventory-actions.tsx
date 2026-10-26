@@ -29,6 +29,7 @@ import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
 import {
   createPhysicalInventoryLot,
   deletePhysicalInventory,
+  fetchPhysicalInventoryDraft,
   fetchPhysicalInventoryReport,
   savePhysicalInventory,
   submitPhysicalInventory,
@@ -50,6 +51,7 @@ import {
 } from '@/features/stock-events/lib/physical-inventory-lines';
 import {
   readInventoryLocal,
+  reconcileInventoryCopies,
   type writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import {
@@ -63,14 +65,16 @@ import type {
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { DraftConflictError } from '@/lib/draft-store';
+import { isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
+import { requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 class UnknownSubmit extends Error {}
+class InventoryOrphaned extends Error {}
 function reportUnlessConflict(error: unknown) {
   if (error instanceof DraftConflictError) throw error;
   reportCaughtError(error, {});
@@ -92,6 +96,8 @@ type Props = {
   showInDoses: boolean;
   disabled: boolean;
   writeDisabled?: boolean;
+  conflicted?: boolean;
+  writeDisabledReason?: string;
   flush: () => Promise<void>;
   clearLocal: (draftId: string) => Promise<void>;
   writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<unknown>;
@@ -191,6 +197,20 @@ export function InventoryActions(props: Props) {
         await deletePhysicalInventory(props.draft.id);
         return [];
       }
+      const requestedAt = Date.now();
+      const current = await fetchPhysicalInventoryDraft(props.draft);
+      check();
+      if (current?.id !== props.draft.id) {
+        try {
+          await reconcileInventoryCopies(props.draft, current?.id, requestedAt);
+        } catch (error) {
+          reportCaughtError(error, {});
+        }
+        check();
+        await queryClient.invalidateQueries({ queryKey: queryKeys.physicalInventories.all });
+        check();
+        throw new InventoryOrphaned();
+      }
       const eligible = await queryClient.fetchQuery(eligibleOptions);
       check();
       const lines = eligibleInventoryLines(props.getLines(), eligible);
@@ -273,10 +293,7 @@ export function InventoryActions(props: Props) {
       next = await mutation.mutateAsync(action);
     } catch (error) {
       if (!mutation.isCurrent()) return;
-      if (
-        !(error instanceof UnknownSubmit) &&
-        (error instanceof LocalDataUnavailableError || !isOnline())
-      ) {
+      if (!(error instanceof UnknownSubmit) && (isOfflineError(error) || !isOnline())) {
         if (action.type === 'submit') showOffline();
         else
           toast.error(t(ACTION_KEYS[action.type].errorTitle), {
@@ -288,6 +305,7 @@ export function InventoryActions(props: Props) {
         return;
       }
       let description = serverMessage(error) ?? t(ACTION_KEYS[action.type].errorDescription);
+      if (error instanceof InventoryOrphaned) description = t('physical-inventory.orphaned-counts');
       if (error instanceof InventoryLotError)
         description =
           error.reason === 'duplicate'
@@ -364,6 +382,8 @@ export function InventoryActions(props: Props) {
     posting.current = false;
     if (action.type === 'delete') await props.onDeleted();
   };
+  const writeReason = props.writeDisabledReason ?? offlineReason;
+  const deleteReason = props.conflicted ? props.writeDisabledReason : offlineReason;
   const disabled = props.disabled || mutation.isPending || finished.current;
   return (
     <>
@@ -374,40 +394,44 @@ export function InventoryActions(props: Props) {
         />
       )}
       <WorkspaceFooterPortal width="wide">
-        <ActionTooltip reason={offlineReason}>
+        <ActionTooltip reason={deleteReason}>
           <Button
             size="lg"
             variant="destructive"
-            disabled={disabled || !online}
-            focusableWhenDisabled={!online}
-            aria-description={offlineReason}
+            disabled={disabled || props.conflicted || !online}
+            focusableWhenDisabled={!!deleteReason}
+            aria-description={deleteReason}
             onClick={() => openConfirm('delete')}
           >
             {t('physical-inventory.delete')}
           </Button>
         </ActionTooltip>
         <div className="flex flex-wrap justify-end gap-2">
-          <ActionTooltip reason={offlineReason}>
+          <ActionTooltip reason={writeReason}>
             <Button
               ref={saveButton}
               size="lg"
               variant="outline"
               disabled={disabled || props.writeDisabled || eligibleFetching || !online}
-              focusableWhenDisabled={!online}
-              aria-description={offlineReason}
+              focusableWhenDisabled={!!writeReason}
+              aria-description={writeReason}
               onClick={() => openConfirm('save')}
             >
               {t('physical-inventory.save')}
             </Button>
           </ActionTooltip>
-          <Button
-            ref={submitButton}
-            size="lg"
-            disabled={disabled || props.writeDisabled || eligibleFetching || unknown}
-            onClick={submit}
-          >
-            {t('stock-events.submit')}
-          </Button>
+          <ActionTooltip reason={props.writeDisabledReason}>
+            <Button
+              ref={submitButton}
+              size="lg"
+              disabled={disabled || props.writeDisabled || eligibleFetching || unknown}
+              focusableWhenDisabled={!!props.writeDisabledReason}
+              aria-description={props.writeDisabledReason}
+              onClick={submit}
+            >
+              {t('stock-events.submit')}
+            </Button>
+          </ActionTooltip>
         </div>
       </WorkspaceFooterPortal>
       <AlertDialog

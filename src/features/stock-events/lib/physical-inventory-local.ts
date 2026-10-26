@@ -5,6 +5,7 @@ import type {
   InventoryScope,
   InventoryStockLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import { INVENTORY_FORMAT_VERSION } from '@/features/stock-events/lib/physical-inventory-types';
 import { getLocalDb, getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { DraftConflictError, type DraftRevision, saveRevisionedDraft } from '@/lib/draft-store';
 import type { DeviceSnapshot } from '@/lib/local-data';
@@ -24,7 +25,6 @@ export type InventoryLocalCopy = InventoryScope &
     savedAt: number;
   };
 
-export const INVENTORY_FORMAT_VERSION = 1;
 export type InventoryReference = InventoryScope &
   DeviceSnapshot & {
     userId: string;
@@ -168,14 +168,23 @@ export async function writeInventoryLocal(
       if (stored && !stored.revision && !copy.revision) return undefined;
       return stored;
     },
-    next: async () => {
+    next: async (stored) => {
       if (reference) {
         if (!matchesCopy(reference, copy)) throw new Error('Mismatched inventory reference');
         await putOwnedRecord(LOCAL_TABLES.physicalInventoryReference, reference, () =>
           assertSessionScope(scope),
         );
       }
-      return { ...copy, revision: (copy.revision ?? 0) + 1 };
+      return {
+        ...copy,
+        ...(!reference && stored
+          ? { fetchedAt: stored.fetchedAt, generation: stored.generation }
+          : {}),
+        revision:
+          reference && !copy.modified && stored?.revision
+            ? stored.revision
+            : (copy.revision ?? 0) + 1,
+      };
     },
   });
 }

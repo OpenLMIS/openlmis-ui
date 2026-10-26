@@ -1,4 +1,5 @@
 import { onlineManager, QueryClient, QueryObserver } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { expect, it, vi } from 'vitest';
 import {
   fetchEligibleInventoryProducts,
@@ -146,6 +147,7 @@ it('shares normalized versioned orderable reads under the existing orderables li
 
 vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   reconcileInventoryCopies: vi.fn(),
+  readInventoryLocalByScope: vi.fn().mockResolvedValue(undefined),
 }));
 it.each([new Error('IndexedDB unavailable'), new DraftConflictError(undefined)])(
   'returns the server draft despite failed reconciliation: %s',
@@ -162,18 +164,44 @@ it.each([new Error('IndexedDB unavailable'), new DraftConflictError(undefined)])
   },
 );
 
-it('does not expand eligible products after summaries finish while disconnected', async () => {
+it('lets in-flight reads finish after disconnection instead of guarding them as mutations', async () => {
   const summaries = Promise.withResolvers<[]>();
   vi.mocked(fetchInventorySummaries).mockReturnValueOnce(summaries.promise);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const eligibleCalls = vi.mocked(fetchEligibleInventoryProducts).mock.calls.length;
   const pending = client.fetchQuery(
     eligibleInventoryProductsOptions({ facilityId: 'f', programId: 'p' }),
   );
-  const assertion = expect(pending).rejects.toHaveProperty('name', 'LocalDataUnavailableError');
   onlineManager.setOnline(false);
   summaries.resolve([]);
-  await assertion;
-  expect(fetchEligibleInventoryProducts).toHaveBeenCalledTimes(eligibleCalls);
+  await expect(pending).resolves.toEqual([]);
   client.clear();
+});
+
+it.each(['<html>Unavailable</html>', { message: 'Unavailable' }])(
+  'rejects a 503 response rather than caching a missing device draft: %j',
+  async (data) => {
+    onlineManager.setOnline(true);
+    const error = new AxiosError('Unavailable', undefined, undefined, undefined, {
+      status: 503,
+      data,
+      statusText: 'Unavailable',
+      headers: {},
+      config: { headers: {} } as never,
+    });
+    vi.mocked(fetchPhysicalInventoryDraft).mockRejectedValueOnce(error);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    await expect(
+      client.fetchQuery(physicalInventoryDraftOptions({ facilityId: 'f', programId: 'p' })),
+    ).rejects.toBe(error);
+  },
+);
+
+it('does not replace a cancelled draft request with a device result', async () => {
+  onlineManager.setOnline(true);
+  const error = new AxiosError('Cancelled', AxiosError.ERR_CANCELED);
+  vi.mocked(fetchPhysicalInventoryDraft).mockRejectedValueOnce(error);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  await expect(
+    client.fetchQuery(physicalInventoryDraftOptions({ facilityId: 'f', programId: 'p' })),
+  ).rejects.toBe(error);
 });

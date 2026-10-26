@@ -2,7 +2,6 @@ import { quantityValue } from '@/components/form/quantity-value';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { pageOf } from '@/features/stock-events/lib/line-filter';
 import type { InventoryLocalCopy } from '@/features/stock-events/lib/physical-inventory-local';
-import { INVENTORY_FORMAT_VERSION } from '@/features/stock-events/lib/physical-inventory-local';
 import type {
   InventoryCategoryBand,
   InventoryDraftItem,
@@ -10,6 +9,7 @@ import type {
   InventoryProductGroup,
   InventoryStockLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import { INVENTORY_FORMAT_VERSION } from '@/features/stock-events/lib/physical-inventory-types';
 import type { DeviceSnapshot } from '@/lib/local-data';
 
 export const inventoryLineKey = (orderableId: string, lotId?: string | null, clientId?: string) =>

@@ -30,6 +30,7 @@ export function usePhysicalInventoryAutosave(
     const scope = getSessionScope();
     const db = getLocalDb();
     let revision = initialRevision;
+    const initialLines = form.state.values.lines;
     let persistedReference: InventoryReference | undefined;
     let pendingReference: InventoryReference | undefined;
     let metadata = initialCopy;
@@ -53,13 +54,30 @@ export function usePhysicalInventoryAutosave(
         try {
           const referenceToWrite =
             reference === persistedReference && !resolving ? undefined : reference;
-          const saved = await writeInventoryLocal(
-            resolving ? { ...next, orphaned: false } : next,
-            scope,
-            db,
-            referenceToWrite,
-            resolving ? true : undefined,
-          );
+          const commit = () =>
+            writeInventoryLocal(
+              resolving ? { ...next, revision, orphaned: false } : { ...next, revision },
+              scope,
+              db,
+              referenceToWrite,
+              resolving ? true : undefined,
+            );
+          let saved: InventoryLocalCopy | undefined;
+          try {
+            saved = await commit();
+          } catch (error) {
+            if (
+              revision !== undefined ||
+              !(error instanceof DraftConflictError) ||
+              !error.stored ||
+              error.stored.modified ||
+              error.stored.orphaned ||
+              JSON.stringify(error.stored.lines) !== JSON.stringify(Object.values(initialLines))
+            )
+              throw error;
+            revision = error.stored.revision;
+            saved = await commit();
+          }
           if (referenceToWrite) persistedReference = referenceToWrite;
           revision = saved?.revision;
           metadata = saved;

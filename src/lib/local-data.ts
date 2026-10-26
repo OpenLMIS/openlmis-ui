@@ -22,6 +22,7 @@ export function requireOnline() {
 export async function onlineOrDevice<T>(
   online: () => Promise<T>,
   device: () => Promise<T>,
+  canFallback: (error: unknown) => boolean = isAccessFallbackError,
 ): Promise<T> {
   const scope = getSessionScope();
   if (isOnline()) {
@@ -31,7 +32,7 @@ export async function onlineOrDevice<T>(
       return result;
     } catch (error) {
       assertSessionScope(scope);
-      if (!isAccessFallbackError(error)) throw error;
+      if (!canFallback(error)) throw error;
     }
   }
   const result = await device();

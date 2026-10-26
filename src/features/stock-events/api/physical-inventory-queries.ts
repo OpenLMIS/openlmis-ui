@@ -14,7 +14,6 @@ import {
   reconcileInventoryCopies,
   requireInventoryReference,
 } from '@/features/stock-events/lib/physical-inventory-local';
-import type { InventoryReasonAssignment } from '@/features/stock-events/lib/physical-inventory-products';
 import type {
   InventoryScope,
   InventoryStockLine,
@@ -22,8 +21,9 @@ import type {
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { deviceQuery } from '@/lib/device-query';
+import { isAccessFallbackError, isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
-import { requireOnline } from '@/lib/local-data';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { isOnline } from '@/lib/online';
 import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -31,6 +31,9 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 export const physicalInventoryDraftOptions = (scope: InventoryScope, online = isOnline()) =>
   deviceQuery({
     online,
+    canFallback: (error) =>
+      isOfflineError(error) &&
+      (error instanceof LocalDataUnavailableError || isAccessFallbackError(error)),
     staleTime: 30_000,
     device: async (): Promise<PhysicalInventoryDraft | null> => {
       const copy = await readInventoryLocalByScope(scope);
@@ -70,7 +73,6 @@ export const inventorySummariesOptions = (
   queryOptions({
     queryKey: queryKeys.physicalInventories.list({ programId, facilityId, summaries: true }),
     queryFn: () => {
-      requireOnline();
       return fetchInventorySummaries({ programId, facilityId });
     },
     staleTime: (query: Query<InventorySummary[]>) =>
@@ -84,10 +86,8 @@ export const inventoryStockLinesOptions = (draft: PhysicalInventoryDraft, update
       query.state.dataUpdatedAt < updatedAfter ? 0 : Infinity,
     queryFn: async ({ client }) => {
       const session = getSessionScope();
-      requireOnline();
       const summaries = await client.fetchQuery(inventorySummariesOptions(draft, updatedAfter));
       assertSessionScope(session);
-      requireOnline();
       return fetchInventoryStockLines(draft.lineItems, summaries, (identities) =>
         client.fetchQuery(orderablesByIdentitiesOptions(identities)),
       );
@@ -102,12 +102,10 @@ export const eligibleInventoryProductsOptions = (
     queryKey: queryKeys.physicalInventoryProducts.list({ programId, facilityId }),
     queryFn: async ({ client }) => {
       const session = getSessionScope();
-      requireOnline();
       const summaries = await client.fetchQuery(
         inventorySummariesOptions({ programId, facilityId }, updatedAfter),
       );
       assertSessionScope(session);
-      requireOnline();
       return fetchEligibleInventoryProducts({ programId, facilityId }, summaries, (identities) =>
         client.fetchQuery(orderablesByIdentitiesOptions(identities)),
       );
@@ -157,24 +155,15 @@ export function inventoryDeviceOptions(copy: InventoryLocalCopy) {
     queryFn: () => requireInventoryReference(copy),
   });
   return {
-    stock: queryOptions<InventoryStockLine[]>({
-      ...options,
-      queryKey: [...key, 'stock'],
-      queryFn: async () => copy.lines,
-    }),
     eligible: queryOptions<InventoryStockLine[]>({
       ...options,
       queryKey: [...key, 'eligible'],
       queryFn: async ({ client }) => (await client.fetchQuery(referenceOptions)).eligible,
     }),
-    reasons: queryOptions<InventoryReasonAssignment[]>({
+    reasons: queryOptions<InventoryReference['reasons']>({
       ...options,
       queryKey: [...key, 'reasons'],
-      queryFn: async ({ client }) =>
-        (await client.fetchQuery(referenceOptions)).reasons.map((reason) => ({
-          hidden: false,
-          reason,
-        })),
+      queryFn: async ({ client }) => (await client.fetchQuery(referenceOptions)).reasons,
     }),
   };
 }

@@ -42,7 +42,7 @@ vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
 }));
 vi.mock('@/features/stock-events/lib/physical-inventory-local', async (original) => ({
   ...(await original<typeof import('@/features/stock-events/lib/physical-inventory-local')>()),
-  reconcileInventoryCopies: vi.fn(),
+  reconcileInventoryCopies: vi.fn().mockResolvedValue(undefined),
   readInventoryLocal: vi.fn(),
   clearInventoryLocal: vi.fn(),
   writeInventoryLocal: vi.fn(),
@@ -60,6 +60,7 @@ const stock = {
 const lines = buildInventoryLines([stock], [{ orderableId: 'p', quantity: 5 }]);
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValue(draft);
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'user', username: 'user', accessToken: 'token' });
@@ -211,7 +212,9 @@ it.each(['save', 'submit'] as const)(
 it('closes Save at success while the server draft refresh is still pending', async () => {
   const user = userEvent.setup();
   const fresh = Promise.withResolvers<null>();
-  vi.mocked(fetchPhysicalInventoryDraft).mockReturnValueOnce(fresh.promise);
+  vi.mocked(fetchPhysicalInventoryDraft)
+    .mockResolvedValueOnce(draft)
+    .mockReturnValueOnce(fresh.promise);
   setup();
   await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
   await user.click(
@@ -503,5 +506,31 @@ it.each(['save', 'delete', 'submit'] as const)(
     expect(savePhysicalInventory).not.toHaveBeenCalled();
     expect(deletePhysicalInventory).not.toHaveBeenCalled();
     expect(submitPhysicalInventory).not.toHaveBeenCalled();
+  },
+);
+
+it.each(['save', 'submit'] as const)(
+  'refuses %s when the server draft was deleted while this editor was offline',
+  async (action) => {
+    const user = userEvent.setup();
+    vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(null);
+    setup();
+    await user.click(
+      screen.getByRole('button', {
+        name: action === 'submit' ? 'stock-events.submit' : 'physical-inventory.save',
+      }),
+    );
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: action === 'submit' ? 'stock-events.confirm' : 'physical-inventory.save',
+      }),
+    );
+    await waitFor(() => expect(fetchPhysicalInventoryDraft).toHaveBeenCalled());
+    expect(savePhysicalInventory).not.toHaveBeenCalled();
+    expect(submitPhysicalInventory).not.toHaveBeenCalled();
+    expect(createPhysicalInventoryLot).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'physical-inventory.orphaned-counts',
+    );
   },
 );
