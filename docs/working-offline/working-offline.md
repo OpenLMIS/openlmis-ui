@@ -10,9 +10,10 @@ connection.
 
 Sign in while connected, using the browser and device you will take with you. Downloads run in
 the background without stopping your work. Keep the app open until the download finishes. The
-sidebar reports download progress and failures at every width. If a download fails, use Retry. A
-previous complete download stays available. While the app stays open and visible, older stock
-downloads refresh automatically. Receive products download at each sign-in, including signing in
+sidebar reports download progress and failures at every width. Offline Download Incomplete stays
+visible if the connection is lost before downloads finish. Reconnect to finish; Retry is available
+while connected. A previous complete download stays available. While the app stays open and
+visible, older stock downloads refresh automatically. Receive products download at each sign-in, including signing in
 again after a session expires. Reloading reuses a complete product list. Failed downloads retry
 after increasing waits, up to 30 minutes. Retry or reconnecting starts another attempt without
 waiting for that delay.

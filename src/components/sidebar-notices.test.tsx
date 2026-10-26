@@ -257,30 +257,16 @@ it('replaces download progress with one completion notice for four seconds and r
   expect(screen.getAllByRole('note')).toHaveLength(2);
   expect(screen.getByRole('status')).toHaveTextContent('offline.download.failed-programs');
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.title');
-  expect(screen.getByRole('button', { name: 'offline.download.retry' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'offline.download.retry' })).not.toBeInTheDocument();
 });
 
-it('suppresses an offline-caused download failure until reconnecting', () => {
+it('suppresses redundant offline download failures without unfinished work', () => {
   onlineManager.setOnline(false);
-  setDownloadStatus({
-    phase: 'failed',
-    reason: 'offline',
-    incomplete: [
-      {
-        id: 'p',
-        name: 'Program',
-        dataset: 'home-stock',
-        datasetLabel: 'offline.download.home-stock',
-      },
-    ],
-  });
+  setDownloadStatus({ phase: 'failed', reason: 'offline', incomplete: [] });
   renderNotices();
   expect(screen.getAllByRole('note')).toHaveLength(1);
   expect(screen.queryByText('offline.download.incomplete')).not.toBeInTheDocument();
   expect(screen.getByRole('status')).not.toHaveTextContent('offline.download.failure-offline');
-  act(() => onlineManager.setOnline(true));
-  expect(screen.getByRole('button', { name: 'offline.download.retry' })).toBeVisible();
-  expect(screen.getByRole('status')).toHaveTextContent('offline.download.failure-offline');
 });
 
 it('keeps accepted-event refresh progress and completion silent while retaining read failures', () => {
@@ -550,5 +536,39 @@ it.each(['refused', 'uncertain'] as const)(
       'bg-destructive',
     );
     expect(screen.getAllByRole('status')).toHaveLength(1);
+  },
+);
+
+it.each([false, true])(
+  'keeps interrupted downloads visible offline with access failure %s',
+  (accessFailed) => {
+    onlineManager.setOnline(false);
+    setDownloadStatus({
+      phase: 'failed',
+      reason: 'offline',
+      accessFailed,
+      incomplete: accessFailed
+        ? []
+        : [
+            {
+              id: 'p1',
+              name: 'Medicines',
+              dataset: 'home-stock',
+              datasetLabel: 'offline.download.home-stock',
+            },
+          ],
+    });
+    renderNotices();
+    const notice = screen
+      .getAllByRole('note')
+      .find((note) => note.textContent?.includes('offline.download.incomplete'));
+    expect(notice).toBeDefined();
+    expect(notice).toHaveTextContent('offline.download.failure-offline');
+    expect(
+      screen.queryByRole('button', { name: 'offline.download.retry' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    act(() => onlineManager.setOnline(true));
+    expect(screen.getByRole('button', { name: 'offline.download.retry' })).toBeInTheDocument();
   },
 );

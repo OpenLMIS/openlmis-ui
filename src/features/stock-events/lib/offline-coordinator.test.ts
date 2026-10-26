@@ -749,7 +749,7 @@ it('compares generations by the full storage key when another facility has the s
     ]);
   begin();
   await finished();
-  expect(download.mock.calls.map(([scope]) => scope.programId)).toEqual(['p1', 'p2']);
+  expect(download.mock.calls.map(([scope]) => scope.programId)).toEqual(['p2', 'p1']);
   expect(
     await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['z-away', 'p1']),
   ).toMatchObject({
@@ -1190,3 +1190,77 @@ it('retries a failed catalog refresh periodically and again on reconnect', async
   ).toBe('new');
   clock.mockRestore();
 });
+
+it('fetches a missing catalog before refreshing complete home stock on reconnect', async () => {
+  const { defineDownloadProvider } = await import('@/lib/download-provider');
+  begin();
+  await finished();
+  stop?.();
+  const order: string[] = [];
+  download.mockImplementation(async ({ programId }) => {
+    order.push(programId);
+    return bundle(programId);
+  });
+  const table = getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts);
+  await table.delete('priority-catalog');
+  const provider = defineDownloadProvider({
+    id: 'catalog',
+    label: 'offline.download.receive-catalog',
+    table: LOCAL_TABLES.physicalInventoryDrafts,
+    refreshOn: ['sign-in'],
+    scopes: () => [{ id: 'p1', name: 'Program', key: 'priority-catalog' }],
+    fetch: async () => {
+      order.push('catalog');
+      return {
+        userId: 'downloader',
+        generation: 'new',
+        fetchedAt: Date.now(),
+        draftId: 'priority-catalog',
+      };
+    },
+    accepts: () => true,
+    isFresh: () => true,
+  });
+  onlineManager.setOnline(false);
+  stop = startCoordinator({
+    access: () => raw,
+    providers: [homeStockProvider(download), provider],
+  });
+  onlineManager.setOnline(true);
+  await finished();
+  expect(order).toEqual(['catalog', 'p1', 'p2']);
+});
+
+it.each(['offline', 'session'] as const)(
+  'schedules unfinished downloads soon after %s interrupts a run',
+  async (cause) => {
+    const now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    const intervals = vi.spyOn(globalThis, 'setInterval');
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    begin();
+    await finished();
+    await vi.mocked(navigator.locks.request).mock.results.at(-1)?.value;
+    download.mockImplementation(() => new Promise(() => {}));
+    refreshOfflineDownload('home:p1');
+    await waitFor(() => expect(getDownloadStatus().phase).toBe('running'));
+    if (cause === 'offline') onlineManager.setOnline(false);
+    else useLoginData.getState().expireSession();
+    await vi
+      .mocked(navigator.locks.request)
+      .mock.results.at(-1)
+      ?.value.catch(() => undefined);
+    const schedule = downloadSchedule(getLocalDb().name);
+    expect(schedule.retryAt('home-stock:["home","p1"]')).toBe(now + 60_000);
+    clock.mockReturnValue(now + 60_000);
+    expect(downloadSchedule(getLocalDb().name).due()).toBe(true);
+    download.mockImplementation(async ({ programId }) => bundle(programId));
+    download.mockClear();
+    useLoginData.setState({ expired: false });
+    onlineManager.setOnline(true);
+    for (const [tick, delay] of intervals.mock.calls) if (delay === 60_000) (tick as () => void)();
+    await waitFor(() => expect(download).toHaveBeenCalled());
+    await finished();
+    expect(downloadSchedule(getLocalDb().name).retryAt('home-stock:["home","p1"]')).toBe(0);
+  },
+);

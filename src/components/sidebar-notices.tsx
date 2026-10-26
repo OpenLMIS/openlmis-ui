@@ -133,7 +133,13 @@ function useNotices(): Notice[] {
       title: t('offline.download.unavailable'),
       description: t('offline.download.locks-required'),
     });
-  if (download.phase === 'failed' && (online || download.reason !== 'offline')) {
+  if (
+    download.phase === 'failed' &&
+    (online ||
+      download.reason !== 'offline' ||
+      download.incomplete.length > 0 ||
+      download.accessFailed)
+  ) {
     const reason = download.reason ?? 'read';
     const programsByDataset = new Map<ParseKeys, string[]>();
     for (const item of download.incomplete) {
@@ -158,7 +164,9 @@ function useNotices(): Notice[] {
       ]
         .filter(Boolean)
         .join('\n'),
-      action: { label: t('offline.download.retry'), onClick: retryOfflineDownload },
+      action: online
+        ? { label: t('offline.download.retry'), onClick: retryOfflineDownload }
+        : undefined,
     });
   }
   const signInPending =
