@@ -1082,7 +1082,9 @@ export function EventEditor({
                   <>
                     <Button
                       variant="outline"
-                      onClick={() => void navigate({ to: '/offline-events' })}
+                      onClick={() =>
+                        void navigate({ to: '/offline-events', search: { tab: 'errors' } })
+                      }
                     >
                       {t('offline-events.review')}
                     </Button>

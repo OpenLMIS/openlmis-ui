@@ -4,6 +4,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { OfflineEventsPage } from '@/features/stock-events/components/offline-events';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
@@ -11,10 +12,15 @@ import {
   type OfflineEventsSearch,
   offlineEventsSearchSchema,
 } from '@/features/stock-events/lib/offline-events-search';
-import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
+import { type DeviceEvent, resolveUncertain } from '@/features/stock-events/lib/stock-event-sync';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { parsePermissions } from '@/lib/permissions';
 import { renderPage } from '@/tests/render-page';
+
+vi.mock('@/features/stock-events/lib/stock-event-sync', async (original) => ({
+  ...(await original<typeof import('@/features/stock-events/lib/stock-event-sync')>()),
+  resolveUncertain: vi.fn(),
+}));
 
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
 const local = vi.hoisted(() => ({ events: [] as DeviceEvent[], width: 1440 }));
@@ -612,4 +618,62 @@ it('filters by event type and date bounds, then Clear Filters restores every eve
   expect(await screen.findByText('Adjusted')).toBeVisible();
   expect(screen.getByText('Issued')).toBeVisible();
   expect(router.state.location.search).toEqual({});
+});
+
+it('does not move focus later when Send Again keeps the event on Pending', async () => {
+  useLoginData.getState().setLoginData({
+    referenceDataUserId: 'focus',
+    username: 'Ada',
+    accessToken: 'token',
+  });
+  local.width = 1440;
+  const event = fixture('Resending', 'uncertain', 1, 10);
+  local.events = [event];
+  let complete = (_changed: boolean) => {};
+  vi.mocked(resolveUncertain).mockImplementationOnce(
+    () =>
+      new Promise<boolean>((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const { refresh } = mount('/?event=Resending', ['STOCK_ADJUST|f|p']);
+  await userEvent.click(await screen.findByRole('button', { name: 'offline-events.send-again' }));
+  await userEvent.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', {
+      name: 'offline-events.send-again',
+    }),
+  );
+  await waitFor(() => expect(resolveUncertain).toHaveBeenCalled());
+  local.events = [{ ...event, status: 'queued', error: undefined }];
+  refresh();
+  await act(async () => complete(true));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  local.events = [...local.events];
+  refresh();
+  const filters = screen.getByRole('button', { name: /Filters/ });
+  filters.focus();
+  local.events = [];
+  refresh();
+  await screen.findByText('offline-events.no-events-title');
+  expect(filters).toHaveFocus();
+});
+
+it('returns to Pending queue order when the Date header sort is cleared', async () => {
+  local.width = 1440;
+  const first = fixture('First Queued', 'queued', 1, 10);
+  const later = fixture('Later Queued', 'queued', 2, 20);
+  first.payload.lineItems[0].occurredDate = '2026-10-14';
+  local.events = [later, first];
+  const { router } = mount();
+  await screen.findByText('First Queued');
+  const order = () =>
+    screen.getAllByText(/^(First Queued|Later Queued)$/).map((item) => item.textContent);
+  expect(order()).toEqual(['First Queued', 'Later Queued']);
+  const date = screen.getByRole('button', { name: 'offline-events.date' });
+  await userEvent.click(date);
+  await waitFor(() => expect(order()).toEqual(['Later Queued', 'First Queued']));
+  await userEvent.click(date);
+  await userEvent.click(date);
+  await waitFor(() => expect(router.state.location.search).toEqual({}));
+  expect(order()).toEqual(['First Queued', 'Later Queued']);
 });
