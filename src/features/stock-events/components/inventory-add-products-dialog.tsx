@@ -55,6 +55,7 @@ import type {
 import { useCardLayout } from '@/hooks/use-card-view';
 import { orEmpty, tableValue } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
+import { randomId } from '@/lib/random-id';
 import { toLatinDigits } from '@/lib/whole-number';
 
 type Props = {
@@ -172,7 +173,7 @@ function AddProductsForm({
       const newLot =
         value.lotId === NEW
           ? {
-              clientId: crypto.randomUUID(),
+              clientId: randomId(),
               lotCode: value.lotCode.trim(),
               expirationDate: value.expirationDate || null,
               tradeItemId: candidate.orderable.identifiers?.tradeItem ?? '',

@@ -229,6 +229,9 @@ The app runs beside legacy under `/v2`, routed by Consul KV. See the
 - `VITE_BASE_PATH` is a build input, compiled into asset URLs. Router `basepath`, i18next
   `loadPath`, assets and new app URLs must derive from `import.meta.env.BASE_URL`, never
   assume `/`. The shared API remains at `/api`; see Environment Variables.
+- Some servers use plain HTTP. Use `randomId()` (`src/lib/random-id.ts`), never
+  `crypto.randomUUID()`, which insecure pages lack. `isSecureOrigin` (`src/lib/secure-context.ts`)
+  keeps device drafts and offline services off there; stock events post directly.
 
 ### Design-system linting (shadcn/lint)
 

@@ -23,6 +23,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import type { InitialTrigger } from '@/lib/offline-coordinator';
+import { isSecureOrigin } from '@/lib/secure-context';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
 
 const DeviceWorkProvider = lazy(() =>
@@ -64,7 +65,9 @@ export function SignedInDeviceWork({ children }: { children: ReactNode }) {
           <DeviceSyncPublisher value={publishSync}>
             {children}
             <Suspense fallback={null}>
-              {authenticated && <DeviceWorkProvider initialTrigger={initialTrigger} />}
+              {authenticated && isSecureOrigin && (
+                <DeviceWorkProvider initialTrigger={initialTrigger} />
+              )}
             </Suspense>
           </DeviceSyncPublisher>
         </DeviceSyncContext>

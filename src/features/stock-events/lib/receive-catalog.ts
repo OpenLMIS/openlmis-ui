@@ -12,6 +12,7 @@ import { fetchApprovedSummaries } from '@/features/stock-events/api/stock-card-r
 import { downloadReader } from '@/features/stock-events/lib/download-read';
 import { getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { requireOwnedRecord } from '@/lib/local-records';
+import { randomId } from '@/lib/random-id';
 import { getSessionScope } from '@/lib/session-scope';
 
 export const RECEIVE_CATALOG_FORMAT = 1;
@@ -133,7 +134,7 @@ export async function fetchReceiveCatalog(
     ...filter,
     facilityTypeId: scope.facilityTypeId,
     userId,
-    generation: crypto.randomUUID(),
+    generation: randomId(),
     fetchedAt: Date.now(),
     formatVersion: RECEIVE_CATALOG_FORMAT,
     scanning: scope.scanning,

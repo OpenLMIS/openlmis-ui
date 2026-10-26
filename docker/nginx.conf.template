@@ -1,6 +1,7 @@
 server {
   listen 80;
   root /usr/share/nginx/html;
+  absolute_redirect off;
 
   gzip on;
   gzip_proxied any;

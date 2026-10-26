@@ -26,6 +26,7 @@ import type {
   StockEventLineItem,
 } from '@/features/stock-events/lib/types';
 import { sameLotCode } from '@/lib/lot-code';
+import { randomId } from '@/lib/random-id';
 import { MAX_WHOLE_NUMBER, toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const lineFields = z.object({
@@ -71,7 +72,7 @@ export function newEventLine(
 ): EventLine {
   const hasCounterparty = EVENT_KINDS[kind].counterparty !== 'none';
   return {
-    key: crypto.randomUUID(),
+    key: randomId(),
     orderable: card.orderable,
     lot: card.lot,
     stockOnHand: card.stockOnHand,

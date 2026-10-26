@@ -2,10 +2,11 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
+import { randomId } from '@/lib/random-id';
 import { getSessionScope } from '@/lib/session-scope';
 
 type AcceptedScope = { facilityId: string; programId: string; userId?: string };
-const origin = crypto.randomUUID();
+const origin = randomId();
 const channelName = () => `${getLocalDb().name}:stock-event-accepted`;
 
 export function invalidateAcceptedStockEvent(queryClient: QueryClient) {
