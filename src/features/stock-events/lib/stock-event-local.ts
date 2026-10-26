@@ -3,6 +3,7 @@ import type { EventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
 import { getLocalDb, getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { assertDraftRevision, DraftConflictError, saveRevisionedDraft } from '@/lib/draft-store';
+import { randomId } from '@/lib/random-id';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export type StockEventSelection = {
@@ -70,9 +71,9 @@ function record(
     facilityId: context.facilityId,
     programId: context.programId,
     userId: context.userId,
-    draftId: crypto.randomUUID(),
+    draftId: randomId(),
     revision: 1,
-    localEventId: crypto.randomUUID(),
+    localEventId: randomId(),
     state: 'editing',
     lines,
     savedAt: Date.now(),
@@ -104,9 +105,9 @@ export async function saveStockEventDraft(
           lines,
           stored?.downloadGeneration ?? downloadGeneration ?? bundle?.generation,
         ),
-        draftId: stored?.draftId ?? crypto.randomUUID(),
+        draftId: stored?.draftId ?? randomId(),
         revision: (stored?.revision ?? 0) + 1,
-        localEventId: stored?.localEventId ?? crypto.randomUUID(),
+        localEventId: stored?.localEventId ?? randomId(),
       };
     },
   });

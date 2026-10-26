@@ -16,6 +16,7 @@ import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/typ
 import { onlineOrDevice } from '@/lib/local-data';
 import { offlineAccessQuery } from '@/lib/offline-access';
 import { RIGHTS } from '@/lib/rights';
+import { isSecureOrigin } from '@/lib/secure-context';
 
 type EventProducts =
   | {
@@ -83,6 +84,8 @@ export function counterpartyOptions(
       }
     : options;
 }
+
+const deviceDrafts = isSecureOrigin ? ('device' as const) : null;
 
 export type EventKindConfig = {
   right: string;
@@ -164,7 +167,7 @@ export const EVENT_KINDS = {
     editorRoute: '/stock-management/adjustments/$programId',
     historyType: 'adjustment',
     download: [{ dataset: 'home-stock', minimumFormat: 4 }],
-    drafts: 'device',
+    drafts: deviceDrafts,
     eventOrigin: 'ADJUSTMENT',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -211,7 +214,7 @@ export const EVENT_KINDS = {
     editorRoute: '/stock-management/issue/$programId',
     historyType: 'issue',
     download: [{ dataset: 'home-stock', minimumFormat: 6 }],
-    drafts: 'device',
+    drafts: deviceDrafts,
     eventOrigin: 'ISSUE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },
@@ -267,7 +270,7 @@ export const EVENT_KINDS = {
     editorRoute: '/stock-management/receive/$programId',
     historyType: 'receive',
     download: [{ dataset: 'home-stock', minimumFormat: 6 }, { dataset: 'receive-catalog' }],
-    drafts: 'device',
+    drafts: deviceDrafts,
     eventOrigin: 'RECEIVE',
     contents: { type: 'none' },
     confirmation: { type: 'signature' },

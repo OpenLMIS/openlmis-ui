@@ -5,6 +5,7 @@ import { deviceDataGeneration, LocalDataUnavailableError, onlineOrDevice } from 
 import { putOwnedRecord, requireOwnedRecord } from '@/lib/local-records';
 import { OFFLINE_FRESH_FOR } from '@/lib/offline-freshness';
 import { getConnectionGeneration } from '@/lib/online';
+import { randomId } from '@/lib/random-id';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { UserRecord } from '@/lib/user-types';
 
@@ -145,7 +146,7 @@ export async function readAccessSnapshot(readers: AccessReaders, check: () => vo
     programs: programs.map(({ id, code, name, active }) => ({ id, code, name, active })),
     homeFacility: home ? snapshotHome(home) : null,
     fetchedAt: Date.now(),
-    generation: crypto.randomUUID(),
+    generation: randomId(),
     formatVersion: 1,
   };
   return snapshot;

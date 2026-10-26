@@ -361,6 +361,10 @@ program is downloaded. Wait for Adjustments downloads to finish in the actual br
 and check sidebar failures before disconnecting. Keep `/api` outside the `/v2` asset cache; API responses must never be cached
 by a proxy or service worker as an offline substitute.
 
+Over plain HTTP on an address other than `localhost`, browsers withhold the service worker and
+Web Locks, so offline mode stays off: the UI works online only, nothing is downloaded and
+stock events are sent straight to the server without device drafts.
+
 Offline download and upload coordination requires Web Locks. Browsers without it show an
 explanation and keep connected reads available, but cannot automatically send queued work.
 Edge has full automated browser coverage on Linux in Docker. WebKit has partial coverage

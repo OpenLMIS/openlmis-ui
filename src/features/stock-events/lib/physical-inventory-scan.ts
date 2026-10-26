@@ -10,6 +10,7 @@ import type {
   InventoryLine,
   InventoryStockLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import { randomId } from '@/lib/random-id';
 import type { ScanMessage } from '@/lib/scan-messages';
 import { scanMessage } from '@/lib/scan-messages';
 import type { StockScan } from '@/lib/stock-scan';
@@ -73,7 +74,7 @@ export async function resolveInventoryScan({
       if (signal?.aborted) return { type: 'cancelled' };
       if (!accepted) return { type: 'refuse', message: { key: 'scan.discarded' } };
       line = addedInventoryLine(matches[0], quantityValue(), {
-        clientId: crypto.randomUUID(),
+        clientId: randomId(),
         lotCode: scan.lotCode,
         expirationDate: expiryDate,
         tradeItemId,

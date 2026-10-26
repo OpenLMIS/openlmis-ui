@@ -40,6 +40,7 @@ import type {
   InventoryLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import type { QuantityUnit } from '@/lib/quantity';
+import { randomId } from '@/lib/random-id';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 const positive = wholeNumberText(
@@ -77,7 +78,7 @@ export function InventoryReasonsDialog({
   const form = useAppForm({
     defaultValues: {
       adjustments: [...line.stockAdjustments].reverse().map((item) => ({
-        key: String(crypto.randomUUID()),
+        key: randomId(),
         reason: item.reason,
         quantity: quantityValue(String(item.quantity), line.orderable.netContent),
       })),
@@ -116,7 +117,7 @@ export function InventoryReasonsDialog({
       const reason = reasons.find((item) => item.id === value.reasonId);
       if (!reason) return;
       form.setFieldValue('adjustments', (current) => [
-        { key: String(crypto.randomUUID()), reason, quantity: value.quantity },
+        { key: randomId(), reason, quantity: value.quantity },
         ...current,
       ]);
       addForm.reset();

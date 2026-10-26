@@ -8,6 +8,7 @@ import {
 } from '@/features/stock-events/lib/stock-event-local';
 import type { QueuedStockEvent } from '@/features/stock-events/lib/stock-event-queue';
 import { LOCAL_TABLES } from '@/integrations/local-db';
+import { randomId } from '@/lib/random-id';
 import { assertSessionScope } from '@/lib/session-scope';
 
 type UploadResponse = { status: number; data: unknown };
@@ -290,7 +291,7 @@ async function beginAttempt(db: Dexie, event: QueuedStockEvent, check: () => voi
     const sending: QueuedStockEvent = {
       ...matched.row,
       status: 'sending',
-      attemptId: crypto.randomUUID(),
+      attemptId: randomId(),
       attemptStartedAt: Date.now(),
     };
     await db.table(LOCAL_TABLES.stockEventQueue).put(sending);

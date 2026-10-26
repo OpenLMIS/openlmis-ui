@@ -21,6 +21,7 @@ import { downloadReader } from '@/features/stock-events/lib/download-read';
 import { LOCAL_TABLES } from '@/integrations/local-db';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { requireOwnedRecord } from '@/lib/local-records';
+import { randomId } from '@/lib/random-id';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const HOME_STOCK_FORMATS = [4, 5, 6] as const;
@@ -182,7 +183,7 @@ async function fetchBundle(
   return {
     ...filter,
     userId,
-    generation: crypto.randomUUID(),
+    generation: randomId(),
     fetchedAt: Date.now(),
     formatVersion: 6,
     ...(counterparties
