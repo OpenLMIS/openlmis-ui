@@ -40,7 +40,6 @@ import { uploadAccessEpoch } from '@/lib/upload-access';
 
 export function startStockEventUploader(dependencies: {
   access: (force?: boolean) => Promise<OfflineAccess>;
-  reviewRefused?: () => void;
   refresh?: (refreshKey: string) => void;
   send?: SyncDependencies['send'];
   retryReceipt?: () => Promise<void>;
@@ -213,12 +212,6 @@ export function startStockEventUploader(dependencies: {
         if (refusedCount)
           toast.error(i18n.t('offline-events.refused-summary', { count: refusedCount }), {
             description: i18n.t('offline-events.refused-summary-description'),
-            action: {
-              label: i18n.t('offline-events.review'),
-              onClick: () => {
-                if (scope === getSessionScope() && !stopped) dependencies.reviewRefused?.();
-              },
-            },
           });
         setSyncPhase(
           acceptedCount &&
