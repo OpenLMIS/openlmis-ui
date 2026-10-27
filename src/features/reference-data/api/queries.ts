@@ -304,7 +304,7 @@ export const deploymentTimeZoneOptions = () =>
     queryKey: queryKeys.localeSettings.all,
     queryFn: async ({ client }): Promise<DeploymentTimeZone> => {
       try {
-        const settings = await client.fetchQuery(currencySettingsOptions());
+        const settings = await client.fetchQuery({ ...currencySettingsOptions(), retry: false });
         return { zone: readDeploymentTimeZone(settings), read: true };
       } catch {
         return { zone: storedTimeZone() ?? 'UTC', read: false };

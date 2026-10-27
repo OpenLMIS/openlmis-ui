@@ -165,6 +165,29 @@ export function RequisitionGridView({
     !record.supplyingFacilityAccessDenied &&
     !!record.supplyingFacilities?.length &&
     models.some((model) => model.line.supplyingFacilityStockOnHand != null);
+  const cellContext = useMemo(
+    () => ({
+      currency,
+      unit,
+      formatter,
+      shortfallLabel: t('requisitions.requisition.stock-shortfall'),
+      cards: view.cards,
+      stockBased: !!record.template.populateStockOnHandFromStockCards,
+      yes: t('requisitions.yes'),
+      no: t('requisitions.no'),
+      unavailable: t('requisitions.requisition.not-available'),
+      onAdjustments,
+    }),
+    [
+      currency,
+      unit,
+      formatter,
+      view.cards,
+      record.template.populateStockOnHandFromStockCards,
+      t,
+      onAdjustments,
+    ],
+  );
   const defs = useMemo(
     () =>
       columns.map((column) =>
@@ -174,33 +197,16 @@ export function RequisitionGridView({
           meta: { label: column.label },
           cell: ({ row }) =>
             row.original.model
-              ? renderValue(column, row.original.model, {
-                  currency,
-                  unit,
-                  formatter,
-                  shortfall: supplyingHasStock && gridRowTone(row.original, true) === 'shortfall',
-                  shortfallLabel: t('requisitions.requisition.stock-shortfall'),
-                  cards: view.cards,
-                  stockBased: !!record.template.populateStockOnHandFromStockCards,
-                  yes: t('requisitions.yes'),
-                  no: t('requisitions.no'),
-                  unavailable: t('requisitions.requisition.not-available'),
-                  onAdjustments,
-                })
+              ? renderValue(
+                  column,
+                  row.original.model,
+                  cellContext,
+                  supplyingHasStock && gridRowTone(row.original, true) === 'shortfall',
+                )
               : null,
         }),
       ),
-    [
-      columns,
-      currency,
-      unit,
-      formatter,
-      supplyingHasStock,
-      view.cards,
-      record.template.populateStockOnHandFromStockCards,
-      t,
-      onAdjustments,
-    ],
+    [columns, cellContext, supplyingHasStock],
   );
   const table = useTable({
     features: dataTableFeatures,
@@ -272,18 +278,21 @@ export function RequisitionGridView({
     for (const header of headers) observer.observe(header);
     return () => observer.disconnect();
   }, [columns, view.cards]);
-  const pin = (id: string) => {
-    const pinned = visible.filter((c) => columns.find((column) => column.name === c.id)?.sticky);
-    const index = pinned.findIndex((c) => c.id === id);
-    return index < 0
-      ? {}
-      : {
-          sticky: true,
-          stickyOffset: pinned
-            .slice(0, index)
-            .reduce((sum, c) => sum + (pinnedWidths[c.id] ?? 0), 0),
-        };
-  };
+  const columnsById = useMemo(
+    () => new Map(columns.map((column) => [column.name, column])),
+    [columns],
+  );
+  const pinnedColumns = useMemo(() => {
+    const pinned = new Map<string, { sticky: true; stickyOffset: number }>();
+    let offset = 0;
+    for (const column of visible) {
+      if (!columnsById.get(column.id)?.sticky) continue;
+      pinned.set(column.id, { sticky: true, stickyOffset: offset });
+      offset += pinnedWidths[column.id] ?? 0;
+    }
+    return pinned;
+  }, [visible, columnsById, pinnedWidths]);
+  const pin = (id: string) => pinnedColumns.get(id);
   const adjustment = models.find((model) => model.line.id === search.adjustments);
   return (
     <div ref={view.measure} className="flex min-w-0 flex-col gap-4">
@@ -321,16 +330,14 @@ export function RequisitionGridView({
             <TableHeader>
               <TableRow pinned surface="muted">
                 {visible.map((column) => {
-                  const definition = columns.find((c) => c.name === column.id)?.definition;
+                  const definition = columnsById.get(column.id)?.definition;
                   const label = (
                     <DataTableHeaderLabel>{column.columnDef.meta?.label}</DataTableHeaderLabel>
                   );
                   return (
                     <TableHead
                       key={column.id}
-                      data-pinned={
-                        columns.find((c) => c.name === column.id)?.sticky ? column.id : undefined
-                      }
+                      data-pinned={columnsById.get(column.id)?.sticky ? column.id : undefined}
                       {...pin(column.id)}
                     >
                       {definition ? (
@@ -413,7 +420,6 @@ function renderValue(
     currency: CurrencySettings;
     unit: QuantityUnit;
     formatter: Intl.NumberFormat;
-    shortfall: boolean;
     shortfallLabel: string;
     cards: boolean;
     stockBased: boolean;
@@ -422,6 +428,7 @@ function renderValue(
     unavailable: string;
     onAdjustments: (id: string) => void;
   },
+  shortfall: boolean,
 ) {
   const { line, product } = model;
   const value = line[column.name as keyof RequisitionLineItem];
@@ -485,7 +492,7 @@ function renderValue(
           {quantity}
           <ChevronRightIcon data-icon="inline-end" className="rtl:rotate-180" />
         </Button>
-      ) : column.kind === 'supplyingStock' && context.shortfall ? (
+      ) : column.kind === 'supplyingStock' && shortfall ? (
         <span className="inline-flex items-center gap-1">
           {quantity ?? (context.cards ? EMPTY_VALUE : null)}
           <TriangleAlertIcon aria-hidden className="size-4 text-warning" />

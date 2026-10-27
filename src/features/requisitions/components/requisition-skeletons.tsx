@@ -121,7 +121,7 @@ export function RequisitionGridPending({
         tab: tab ?? defaultRequisitionTab(record.template),
         status: record.status,
         emergency: record.emergency,
-        supplyingStock: false,
+        supplyingStock: !record.supplyingFacilityAccessDenied,
       })
     : PENDING_COLUMNS.map((name) => ({
         name,

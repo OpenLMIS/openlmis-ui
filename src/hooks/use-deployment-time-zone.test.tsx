@@ -105,3 +105,16 @@ it('serves the time zone and currency from one locale settings request', async (
   expect(currency).toMatchObject({ currencyCode: 'MWK', currencySymbol: 'K' });
   expect(client.get).toHaveBeenCalledTimes(1);
 });
+
+it('falls back after one failed settings request even when queries retry by default', async () => {
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: 2, retryDelay: 0 } },
+  });
+  vi.mocked(client.get).mockRejectedValue(new Error('server unavailable'));
+
+  expect(await queryClient.fetchQuery(deploymentTimeZoneOptions())).toEqual({
+    zone: 'UTC',
+    read: false,
+  });
+  expect(client.get).toHaveBeenCalledTimes(1);
+});
