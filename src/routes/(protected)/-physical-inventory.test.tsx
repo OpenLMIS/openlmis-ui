@@ -674,11 +674,14 @@ async function seedDeviceEditor(formatVersion = 1) {
 it('opens unmodified device lines offline and keeps their counts and source on reconnect', async () => {
   await seedDeviceEditor();
   onlineManager.setOnline(false);
-  renderRoute(`${PICKER}/${FP}`, (client) =>
+  const { router } = renderRoute(`${PICKER}/${FP}`, (client) =>
     client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true }),
   );
   const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
   expect(input).toHaveValue('7');
+  expect(router.state.matches.at(-1)?.loaderData).toMatchObject({
+    draft: { lineItems: [expect.objectContaining({ orderableId: 'p', quantity: 7 })] },
+  });
   expect(screen.getByText('physical-inventory.offline-snapshot')).toBeInTheDocument();
   act(() => onlineManager.setOnline(true));
   await waitFor(() =>

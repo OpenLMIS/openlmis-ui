@@ -22,7 +22,10 @@ export function usePhysicalInventoryAutosave(
   initialRevision?: number,
   onAdopt?: (copy: InventoryLocalCopy | undefined) => void,
   initialCopy?: InventoryLocalCopy,
+  onOrphaned?: () => void,
 ) {
+  const orphan = useRef(onOrphaned);
+  orphan.current = onOrphaned;
   const adopt = useRef(onAdopt);
   adopt.current = onAdopt;
   const [status, setStatus] = useState<InventorySaveStatus>('saved');
@@ -43,6 +46,12 @@ export function usePhysicalInventoryAutosave(
         : Promise.resolve(undefined);
       return initialReference;
     };
+    let orphaned = false;
+    const archive = () => {
+      orphaned = true;
+      serial.resolve();
+      orphan.current?.();
+    };
     let quiet = false;
     let resolving = false;
     let draftId: string | undefined;
@@ -53,7 +62,7 @@ export function usePhysicalInventoryAutosave(
       snapshotOnly?: boolean;
     }>(
       async ({ copy: value, reference, snapshotOnly }) => {
-        if (getSessionScope() !== scope) return;
+        if (getSessionScope() !== scope || orphaned) return;
         if (!referenceLoaded) {
           persistedReference = await captureReference();
           referenceLoaded = true;
@@ -105,6 +114,10 @@ export function usePhysicalInventoryAutosave(
           if (pendingReference === reference) pendingReference = undefined;
         } catch (error) {
           if (error instanceof DraftConflictError) {
+            if (error.stored?.orphaned) {
+              archive();
+              return;
+            }
             observed = error;
             if (!value.modified && !form.state.isDirty && error.stored && !error.stored.orphaned) {
               revision = error.stored.revision;
@@ -128,6 +141,7 @@ export function usePhysicalInventoryAutosave(
       reference?: InventoryReference,
       snapshotOnly = false,
     ) => {
+      if (orphaned) return;
       quiet = !value.modified;
       pendingReference = reference ?? pendingReference;
       serial.enqueue({ copy: value, reference: pendingReference, snapshotOnly });
@@ -140,6 +154,10 @@ export function usePhysicalInventoryAutosave(
       async loadLatest() {
         const latest = draftId ? await readInventoryLocal(draftId) : undefined;
         if (getSessionScope() !== scope) return;
+        if (latest?.orphaned) {
+          archive();
+          return;
+        }
         try {
           if (latest) assertDraftRevision(latest, observed?.stored);
         } catch (error) {
@@ -148,7 +166,6 @@ export function usePhysicalInventoryAutosave(
           }
           throw error;
         }
-        if (latest?.orphaned) throw new Error('This inventory copy is no longer current');
         revision = latest?.revision ?? 0;
         metadata = latest;
         pendingReference = undefined;
@@ -158,6 +175,13 @@ export function usePhysicalInventoryAutosave(
       async keepCounts(value: InventoryLocalCopy, reference?: InventoryReference) {
         await serial.wait();
         if (getSessionScope() !== scope) return;
+        if (orphaned) return;
+        const latest = await readInventoryLocal(value.draftId);
+        if (getSessionScope() !== scope) return;
+        if (latest?.orphaned) {
+          archive();
+          return;
+        }
         revision = observed?.stored?.revision ?? 0;
         resolving = true;
         serial.resolve();

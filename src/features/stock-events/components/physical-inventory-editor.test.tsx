@@ -31,6 +31,7 @@ import {
   eligibleInventoryProductsOptions,
   inventoryStockLinesOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
+import { InventoryOrphans } from '@/features/stock-events/components/inventory-orphans';
 import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
 import {
   buildInventoryLines,
@@ -1341,4 +1342,79 @@ it('refuses Deactivate offline after its confirmation was opened', async () => {
       description: 'offline.action-description',
     }),
   );
+});
+
+it('locks counts archived by another tab without offering conflict recovery', async () => {
+  const local = await vi.importActual<
+    typeof import('@/features/stock-events/lib/physical-inventory-local')
+  >('@/features/stock-events/lib/physical-inventory-local');
+  const db = (await import('@/integrations/local-db')).getLocalDb();
+  await db.table('physicalInventoryDrafts').clear();
+  vi.mocked(readInventoryLocal).mockImplementation(local.readInventoryLocal);
+  vi.mocked(writeInventoryLocal).mockImplementation(local.writeInventoryLocal);
+  const user = userEvent.setup();
+  vi.mocked(fetchEligibleInventoryProducts).mockReturnValueOnce(new Promise(() => {}));
+  const view = setup();
+  view.client.removeQueries({ queryKey: eligibleInventoryProductsOptions(draft).queryKey });
+  render(
+    <QueryClientProvider client={view.client}>
+      <InventoryOrphans scope={draft} />
+    </QueryClientProvider>,
+  );
+  const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+  await user.type(input, '12');
+  await screen.findByText('stock-events.draft-saved');
+  await local.reconcileInventoryCopies(draft, undefined, Date.now() + 1);
+  await user.type(input, '3');
+  await waitFor(() => expect(input).toBeDisabled());
+  expect(screen.queryByText('stock-events.draft-conflict-title')).not.toBeInTheDocument();
+  expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false);
+  const saved = await local.readInventoryLocal('d');
+  expect(saved).toMatchObject({ orphaned: true, modified: true });
+  const writes = vi.mocked(writeInventoryLocal).mock.calls.length;
+  view.client.setQueryData(eligibleInventoryProductsOptions(draft).queryKey, [...stock]);
+  await waitFor(() =>
+    expect(screen.getByText('physical-inventory.orphaned-title')).toBeInTheDocument(),
+  );
+  expect(writeInventoryLocal).toHaveBeenCalledTimes(writes);
+  expect(await local.readInventoryLocal('d')).toEqual(saved);
+});
+
+it('releases leave protection and skips a late snapshot after the Save pre-check locks counts', async () => {
+  const local = await import('@/features/stock-events/lib/physical-inventory-local');
+  const api = await import('@/features/stock-events/api/physical-inventory-api');
+  vi.mocked(api.fetchPhysicalInventoryDraft).mockResolvedValueOnce(null);
+  const { fetchValidReasons } = await import('@/features/reference-data/api/api');
+  const reasons = Promise.withResolvers<never[]>();
+  vi.mocked(fetchValidReasons).mockReturnValueOnce(reasons.promise);
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Quota'));
+  vi.mocked(local.reconcileInventoryCopies).mockImplementationOnce(async () => {
+    vi.mocked(readInventoryLocal).mockResolvedValue({
+      draftId: 'd',
+      facilityId: 'f',
+      programId: 'p',
+      lines: [],
+      modified: true,
+      orphaned: true,
+      savedAt: 1,
+    });
+  });
+  const user = userEvent.setup();
+  const view = setup();
+  await user.type(await screen.findByRole('textbox', { name: 'stock-events.field-of' }), '12');
+  await screen.findAllByText('stock-events.draft-failed');
+  expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(true);
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  await screen.findByText('physical-inventory.orphaned-action');
+  expect(vi.mocked(useDiscardGuard).mock.lastCall?.[0]).toBe(false);
+  const writes = vi.mocked(writeInventoryLocal).mock.calls.length;
+  await act(async () => {
+    reasons.resolve([]);
+    await reasons.promise;
+  });
+  await waitFor(() => expect(view.client.isFetching()).toBe(0));
+  expect(writeInventoryLocal).toHaveBeenCalledTimes(writes);
 });

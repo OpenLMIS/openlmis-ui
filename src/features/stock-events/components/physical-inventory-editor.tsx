@@ -473,7 +473,18 @@ function InventoryDraftRows({
       !busy && !submitted && !orphaned && (modified || form.state.isDirty) ? currentCopy() : null,
     [busy, submitted, orphaned, modified, form, currentCopy],
   );
-  const autosave = usePhysicalInventoryAutosave(copy, form, localRevision, onAdopt, initialCopy);
+  const onOrphaned = useCallback(() => {
+    setOrphaned(true);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.physicalInventories.all });
+  }, [queryClient]);
+  const autosave = usePhysicalInventoryAutosave(
+    copy,
+    form,
+    localRevision,
+    onAdopt,
+    initialCopy,
+    onOrphaned,
+  );
   const snapshotWritten = useRef(adopted);
   useEffect(() => {
     if (
@@ -886,7 +897,7 @@ function InventoryDraftRows({
         writeLocal={autosave.write}
         clearLocal={autosave.clear}
         onBusy={setBusy}
-        onOrphaned={() => setOrphaned(true)}
+        onOrphaned={onOrphaned}
         onLots={(next) =>
           form.setFieldValue('lines', Object.fromEntries(next.map((line) => [line.key, line])))
         }

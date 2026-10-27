@@ -244,23 +244,20 @@ it('checks the observed revision for Load Latest and Keep My Counts', async () =
   expect(view.result.current.status).toBe('saved');
 });
 
-it.each([undefined, { ...copy, revision: 4, orphaned: true }])(
-  'can keep counts after the stored copy is removed or orphaned: %s',
-  async (stored) => {
-    vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new DraftConflictError(stored));
-    const view = renderHook(() =>
-      usePhysicalInventoryAutosave(noCopy, usePhysicalInventoryForm([], false), 1),
-    );
-    await act(async () => {
-      await expect(view.result.current.write(copy)).rejects.toBeInstanceOf(DraftConflictError);
-    });
-    await act(async () => {
-      await view.result.current.keepCounts(copy);
-    });
-    expect(inventoryWrites().at(-1)?.copy.revision).toBe(stored?.revision ?? 0);
-    expect(view.result.current.status).toBe('saved');
-  },
-);
+it('can keep counts after the stored copy is removed', async () => {
+  vi.mocked(writeInventoryLocal).mockRejectedValueOnce(new DraftConflictError(undefined));
+  const view = renderHook(() =>
+    usePhysicalInventoryAutosave(noCopy, usePhysicalInventoryForm([], false), 1),
+  );
+  await act(async () => {
+    await expect(view.result.current.write(copy)).rejects.toBeInstanceOf(DraftConflictError);
+  });
+  await act(async () => {
+    await view.result.current.keepCounts(copy);
+  });
+  expect(inventoryWrites().at(-1)?.copy.revision).toBe(0);
+  expect(view.result.current.status).toBe('saved');
+});
 it.each([undefined, { ...copy, revision: 4 }])(
   'loads the server baseline when the conflicting device copy was deleted: %s',
   async (stored) => {
@@ -307,7 +304,7 @@ it('rewrites the reference after keeping counts over another generation', async 
 
 it('does not keep orphan recovery enabled after a failed Keep My Counts write', async () => {
   vi.mocked(writeInventoryLocal)
-    .mockRejectedValueOnce(new DraftConflictError({ ...copy, revision: 2, orphaned: true }))
+    .mockRejectedValueOnce(new DraftConflictError({ ...copy, revision: 2 }))
     .mockRejectedValueOnce(new Error('Full'));
   const view = renderHook(() =>
     usePhysicalInventoryAutosave(noCopy, usePhysicalInventoryForm([], false), 1),
@@ -422,3 +419,45 @@ it('retains the previous reference until an early edit receives this visit refer
   expect(await state.local.readInventoryReference(early)).toBeDefined();
   await finishReference(state);
 });
+
+it.each(['load', 'keep'] as const)(
+  'locks a conflict archived by another tab before %s',
+  async (choice) => {
+    const local = await vi.importActual<
+      typeof import('@/features/stock-events/lib/physical-inventory-local')
+    >('@/features/stock-events/lib/physical-inventory-local');
+    vi.mocked(writeInventoryLocal).mockImplementation(local.writeInventoryLocal);
+    vi.mocked(readInventoryLocal).mockImplementation(local.readInventoryLocal);
+    const opened = await local.writeInventoryLocal({ ...copy, draftId: crypto.randomUUID() });
+    if (!opened) throw new Error('Missing stored copy');
+    const onOrphaned = vi.fn();
+    const view = renderHook(() =>
+      usePhysicalInventoryAutosave(
+        noCopy,
+        usePhysicalInventoryForm([], false),
+        opened.revision,
+        undefined,
+        undefined,
+        onOrphaned,
+      ),
+    );
+    await local.writeInventoryLocal(opened);
+    await act(async () => {
+      await expect(view.result.current.write(opened)).rejects.toBeInstanceOf(DraftConflictError);
+    });
+    await local.reconcileInventoryCopies(opened, undefined, Date.now() + 1);
+    const archived = await local.readInventoryLocal(opened.draftId);
+    await act(async () => {
+      if (choice === 'load') await view.result.current.loadLatest();
+      else await view.result.current.keepCounts(opened);
+    });
+    expect(onOrphaned).toHaveBeenCalledOnce();
+    expect(view.result.current.status).toBe('saved');
+    await act(async () => {
+      await view.result.current.keepCounts(opened);
+      await view.result.current.write(opened);
+    });
+    expect(await local.readInventoryLocal(opened.draftId)).toEqual(archived);
+    expect(archived).toMatchObject({ orphaned: true, modified: true });
+  },
+);

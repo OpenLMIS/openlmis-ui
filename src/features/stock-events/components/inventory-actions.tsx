@@ -221,7 +221,7 @@ export function InventoryActions(props: Props) {
         check();
         const earlier = await readInventoryLocal(props.draft.id).catch(() => undefined);
         check();
-        throw new InventoryOrphaned(Boolean(earlier?.orphaned && earlier.modified));
+        throw new InventoryOrphaned(Boolean(earlier?.modified));
       }
       const eligible = await queryClient.fetchQuery(eligibleOptions);
       check();

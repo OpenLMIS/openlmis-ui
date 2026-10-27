@@ -30,6 +30,7 @@ import { buildInventoryLines } from '@/features/stock-events/lib/physical-invent
 import {
   clearInventoryLocal,
   readInventoryLocal,
+  reconcileInventoryCopies,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { addedInventoryLine } from '@/features/stock-events/lib/physical-inventory-products';
@@ -552,6 +553,46 @@ it('does not claim earlier counts were kept when reconciliation removed an untou
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
   );
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'physical-inventory.no-draft-description',
+  );
+  expect(screen.queryByText('physical-inventory.orphaned-action')).not.toBeInTheDocument();
+});
+
+it('reports retained modified counts even if marking them orphaned fails', async () => {
+  vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(null);
+  vi.mocked(reconcileInventoryCopies).mockRejectedValueOnce(new Error('Device write failed'));
+  vi.mocked(readInventoryLocal).mockResolvedValue({
+    draftId: 'd',
+    facilityId: 'f',
+    programId: 'p',
+    lines: [],
+    modified: true,
+    savedAt: 1,
+  });
+  const onOrphaned = vi.fn();
+  setup({ onOrphaned });
+  await confirmAction('save');
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'physical-inventory.orphaned-action',
+  );
+  expect(onOrphaned).toHaveBeenCalledOnce();
+  expect(savePhysicalInventory).not.toHaveBeenCalled();
+});
+
+it('does not claim an untouched orphaned copy contains earlier counts', async () => {
+  vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(null);
+  vi.mocked(readInventoryLocal).mockResolvedValueOnce(undefined).mockResolvedValueOnce({
+    draftId: 'd',
+    facilityId: 'f',
+    programId: 'p',
+    lines: [],
+    modified: false,
+    orphaned: true,
+    savedAt: 1,
+  });
+  setup();
+  await confirmAction('save');
   expect(await screen.findByRole('alertdialog')).toHaveTextContent(
     'physical-inventory.no-draft-description',
   );
