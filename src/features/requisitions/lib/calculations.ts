@@ -1,0 +1,202 @@
+import type { RequisitionLine } from '@/features/requisitions/lib/lines';
+import {
+  calculatePatientQuantities,
+  parsePatients,
+  patientsForProduct,
+} from '@/features/requisitions/lib/patients';
+import type { Requisition, RequisitionLineItem } from '@/features/requisitions/lib/requisition';
+import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
+
+const preAuthorization = new Set(['INITIATED', 'REJECTED', 'SUBMITTED']);
+const patientOverrideStatuses = new Set(['AUTHORIZED', 'IN_APPROVAL', 'APPROVED']);
+const ratioScale = 10n ** 1000n;
+
+export const displayQuantity = (
+  quantity: number | null | undefined,
+  netContent: number | null | undefined,
+  unit: QuantityUnit,
+  language?: string,
+) => cardQuantity(quantity, netContent, unit, language);
+
+export function packsToShip(
+  quantity: number,
+  netContent: number | null | undefined,
+  threshold = 0,
+  roundToZero = false,
+): number {
+  if (quantity <= 0 || !netContent || netContent < 0) return 0;
+  const packs = Math.floor(quantity / netContent) + (quantity % netContent > threshold ? 1 : 0);
+  return packs === 0 && !roundToZero ? 1 : packs;
+}
+
+export function orderQuantity(
+  line: RequisitionLineItem,
+  requisition: Pick<Requisition, 'status' | 'template'>,
+): number {
+  if (!preAuthorization.has(requisition.status)) return line.approvedQuantity ?? 0;
+  return (
+    line.requestedQuantity ??
+    (requisition.template.populateStockOnHandFromStockCards
+      ? line.calculatedOrderQuantityIsa
+      : line.calculatedOrderQuantity) ??
+    0
+  );
+}
+
+function adjustedConsumption(
+  consumed: number,
+  days: number,
+  stockout: number,
+  additional: number,
+): number {
+  if (consumed === 0) return 0;
+  const availableDays = days - stockout;
+  if (availableDays === 0) return consumed;
+  const numerator = BigInt(days) * ratioScale;
+  const denominator = BigInt(availableDays);
+  const quotient = numerator / denominator;
+  const remainder = numerator % denominator;
+  const ratio =
+    quotient +
+    (2n * (remainder < 0n ? -remainder : remainder) >=
+    (denominator < 0n ? -denominator : denominator)
+      ? denominator < 0n
+        ? -1n
+        : 1n
+      : 0n);
+  const scaled = BigInt(consumed) * ratio;
+  const result = scaled / ratioScale + (scaled % ratioScale > 0n ? 1n : 0n);
+  return Number(result) + Math.max(additional, 0);
+}
+
+function maximumStock(average: number, periods: number): number {
+  const [coefficient = '0', exponent = '0'] = String(periods).toLowerCase().split('e');
+  const [whole = '0', fraction = ''] = coefficient.split('.');
+  const scale = fraction.length - Number(exponent);
+  const multiplier = BigInt(whole + fraction) * BigInt(average);
+  if (scale <= 0) return Number(multiplier * 10n ** BigInt(-scale));
+  const divisor = 10n ** BigInt(scale);
+  const absolute = multiplier < 0n ? -multiplier : multiplier;
+  const rounded = absolute / divisor + (2n * (absolute % divisor) >= divisor ? 1n : 0n);
+  return Number(multiplier < 0n ? -rounded : rounded);
+}
+
+export function calculateLine(
+  model: RequisitionLine,
+  requisition: Requisition,
+  monthsInPeriod: number,
+): RequisitionLineItem {
+  const line = { ...model.line };
+  if (line.skipped) return line;
+  const { template } = requisition;
+  const calculated = (name: string) => template.columnsMap[name]?.source === 'CALCULATED';
+  const stockBased = template.populateStockOnHandFromStockCards;
+  if (model.fullSupply && !requisition.emergency) {
+    if (calculated('totalLossesAndAdjustments') && !stockBased) {
+      const reasons = new Map(
+        requisition.stockAdjustmentReasons?.map((reason) => [reason.reasonId, reason]),
+      );
+      line.totalLossesAndAdjustments = (line.stockAdjustments ?? []).reduce((sum, adjustment) => {
+        const reason = reasons.get(adjustment.reasonId);
+        return sum + (reason ? adjustment.quantity * (reason.reasonType === 'CREDIT' ? 1 : -1) : 0);
+      }, 0);
+    }
+    const stock = () =>
+      (line.beginningBalance ?? 0) +
+      (line.totalReceivedQuantity ?? 0) +
+      (line.totalLossesAndAdjustments ?? 0);
+    if (calculated('stockOnHand')) line.stockOnHand = stock() - (line.totalConsumedQuantity ?? 0);
+    if (calculated('totalConsumedQuantity'))
+      line.totalConsumedQuantity = stock() - (line.stockOnHand ?? 0);
+    if (calculated('total'))
+      line.total = (line.beginningBalance ?? 0) + (line.totalReceivedQuantity ?? 0);
+    if (calculated('adjustedConsumption')) {
+      line.adjustedConsumption = adjustedConsumption(
+        line.totalConsumedQuantity ?? 0,
+        30 * monthsInPeriod,
+        line.totalStockoutDays ?? 0,
+        template.columnsMap.additionalQuantityRequired?.isDisplayed
+          ? (line.additionalQuantityRequired ?? 0)
+          : 0,
+      );
+    }
+    if (calculated('averageConsumption')) {
+      const previous = line.previousAdjustedConsumptions ?? [];
+      line.averageConsumption = template.enableAvgConsumptionForCurrentPeriod
+        ? Math.ceil((line.adjustedConsumption ?? 0) / 2)
+        : Math.ceil(
+            (previous.reduce((sum, value) => sum + value, 0) + (line.adjustedConsumption ?? 0)) /
+              (previous.length + 1),
+          );
+    }
+    const maxStock = () =>
+      maximumStock(line.averageConsumption ?? 0, model.approvedProduct?.maxPeriodsOfStock ?? 0);
+    if (calculated('maximumStockQuantity')) line.maximumStockQuantity = maxStock();
+    if (calculated('calculatedOrderQuantity'))
+      line.calculatedOrderQuantity = Math.max(
+        (line.maximumStockQuantity ?? maxStock()) -
+          (line.stockOnHand ?? stock() - (line.totalConsumedQuantity ?? 0)),
+        0,
+      );
+    if (calculated('calculatedOrderQuantityIsa'))
+      line.calculatedOrderQuantityIsa =
+        line.idealStockAmount == null
+          ? null
+          : Math.max(line.idealStockAmount - (line.stockOnHand ?? 0), 0);
+  }
+  line.pricePerPack = model.program?.pricePerPack ?? 0;
+  line.dosesPerPatient = model.program?.dosesPerPatient ?? 0;
+  if (calculated('numberOfPatientsOnTreatmentNextMonth')) {
+    const patients = patientsForProduct(
+      parsePatients(requisition.patientsData),
+      model.product?.productCode ?? '',
+    );
+    line.numberOfPatientsOnTreatmentNextMonth =
+      patientOverrideStatuses.has(requisition.status) &&
+      line.numberOfPatientsOnTreatmentNextMonth != null
+        ? line.numberOfPatientsOnTreatmentNextMonth
+        : patients;
+  }
+  const patientValues = calculatePatientQuantities(
+    line.numberOfPatientsOnTreatmentNextMonth,
+    line.dosesPerPatient,
+    line.stockOnHand,
+    model.product?.netContent,
+  );
+  if (calculated('totalRequirement')) line.totalRequirement = patientValues.totalRequirement;
+  if (calculated('totalQuantityNeededByHf'))
+    line.totalQuantityNeededByHf = !line.dosesPerPatient
+      ? null
+      : line.stockOnHand == null
+        ? 0
+        : 2 * (line.totalRequirement ?? 0);
+  if (calculated('quantityToIssue'))
+    line.quantityToIssue = !line.dosesPerPatient
+      ? null
+      : Math.max((line.totalQuantityNeededByHf ?? 0) - (line.stockOnHand ?? 0), 0);
+  if (calculated('convertedQuantityToIssue'))
+    line.convertedQuantityToIssue = !line.dosesPerPatient
+      ? null
+      : model.product?.netContent
+        ? Math.floor((line.quantityToIssue ?? 0) / model.product.netContent)
+        : 0;
+  line.packsToShip = packsToShip(
+    orderQuantity(line, requisition),
+    model.product?.netContent,
+    model.product?.packRoundingThreshold ?? 0,
+    model.product?.roundToZero,
+  );
+  line.totalCost = line.packsToShip * line.pricePerPack;
+  return line;
+}
+
+export function calculateTotals(lines: readonly RequisitionLine[]) {
+  let fullSupply = 0;
+  let nonFullSupply = 0;
+  for (const model of lines) {
+    if (model.line.skipped) continue;
+    if (model.fullSupply) fullSupply += model.line.totalCost ?? 0;
+    else nonFullSupply += model.line.totalCost ?? 0;
+  }
+  return { fullSupply, nonFullSupply, total: fullSupply + nonFullSupply };
+}
