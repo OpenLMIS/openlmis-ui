@@ -1945,7 +1945,7 @@
   "stock-events.draft-delete-description": "سيتم حذف هذه النسخة من هذا الجهاز. لا يمكن التراجع عن ذلك.",
   "stock-events.draft-delete-title": "حذف النسخة المؤرشفة؟",
   "stock-events.draft-failed": "تعذر الحفظ على هذا الجهاز. لم يتم حفظ أحدث تعديلاتك.",
-  "stock-events.draft-kept-leave-description": "تعذّر حفظ أحدث تعديلاتك. يحتفظ خيار تجاهل والمغادرة بآخر مسودة محفوظة على هذا الجهاز، لكن ستفقد التعديلات غير المحفوظة.",
+  "stock-events.draft-kept-leave-description": "تعذر حفظ آخر تعديلاتك. يحتفظ التجاهل والمغادرة بآخر مسودة محفوظة على هذا الجهاز، لكن التعديلات غير المحفوظة ستُفقد.",
   "stock-events.draft-leave": "تجاهل والمغادرة",
   "stock-events.draft-leave-description": "تعذر حفظ آخر تعديلاتك. يؤدي التجاهل والمغادرة إلى حذف هذه المسودة من الجهاز، بما في ذلك بنودها المحفوظة.",
   "stock-events.draft-leave-title": "آخر التعديلات غير محفوظة",

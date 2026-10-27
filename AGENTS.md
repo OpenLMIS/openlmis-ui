@@ -549,8 +549,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   shadcn controls from a parent.
 - `DataTableFilters` badges the count of its own active filters and offers Clear Filters for
   them only, as a `destructive` Button. Fields apply live, without an Apply button. Pending
-  text in a Filters popover text field is applied when the popover closes. Page-level search
-  drops unsent typing on navigation. Pending toolbars render it disabled.
+  toolbars render it disabled. Text typed in a Filters popover field still waiting to apply is
+  applied when the popover closes; page-level search drops unsent typing on navigation.
 - Short fixed lists use `DataTableSelectFilter`, with `allLabel` when legacy offers All.
   Long lists use searchable `DataTableComboboxFilter`; optional `description` follows labels
   in muted text.
