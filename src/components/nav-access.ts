@@ -4,8 +4,10 @@ import { type LucideIcon, SettingsIcon, UserIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useDeviceWork } from '@/components/device-work';
 import { rightsOptions } from '@/features/auth/api/queries';
+import { requisitionViewNodes } from '@/features/auth/lib/requisition-access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { rolesOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { useFlag } from '@/lib/feature-flags';
 import { navRightFor } from '@/lib/nav-rights';
@@ -48,7 +50,12 @@ export function navWithinRights(
 function useSignedInRights() {
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: rights } = useQuery({ ...rightsOptions(userId ?? ''), enabled: Boolean(userId) });
-  return rights;
+  const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: Boolean(userId) });
+  const { data: roles } = useQuery({ ...rolesOptions(), enabled: Boolean(userId) });
+  return useMemo(() => {
+    if (!user || !roles || !requisitionViewNodes(user, roles).length) return rights;
+    return new Set([...(rights ?? []), RIGHTS.requisitionView]);
+  }, [rights, user, roles]);
 }
 
 /** The signed-in user's nav, for the sidebar and the command palette. */

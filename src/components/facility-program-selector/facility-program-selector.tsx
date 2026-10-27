@@ -261,16 +261,16 @@ function NoOptions({ label, message }: { label: string; message: string }) {
 }
 
 type SelectorFrameProps = {
-  mode: ReactNode;
+  mode?: ReactNode;
   children: ReactNode;
   search: ReactNode;
 };
 
-function SelectorFrame({ mode, children, search }: SelectorFrameProps) {
+export function SelectorFrame({ mode, children, search }: SelectorFrameProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-start">
-        <div className="min-w-0 flex-1 @3xl/main:max-w-96">{mode}</div>
+        {mode && <div className="min-w-0 flex-1 @3xl/main:max-w-96">{mode}</div>}
         {Children.map(children, (field) => (
           <div className="min-w-0 flex-1 @3xl/main:max-w-96">{field}</div>
         ))}
@@ -288,16 +288,6 @@ function SelectorFrame({ mode, children, search }: SelectorFrameProps) {
 
 export function FacilityProgramSelectorSkeleton() {
   const { t } = useTranslation();
-  const field = (label: string) => (
-    <div className="flex flex-col gap-1">
-      <span className="font-medium text-sm leading-snug">
-        <FieldLabelText label={label} required />
-      </span>
-      <div className="h-9">
-        <Skeleton fill />
-      </div>
-    </div>
-  );
   return (
     <div aria-busy>
       <SelectorFrame
@@ -315,9 +305,22 @@ export function FacilityProgramSelectorSkeleton() {
           </div>
         }
       >
-        {field(t('facility-program.facility'))}
-        {field(t('facility-program.program'))}
+        <SelectorSkeletonField label={t('facility-program.facility')} />
+        <SelectorSkeletonField label={t('facility-program.program')} />
       </SelectorFrame>
+    </div>
+  );
+}
+
+export function SelectorSkeletonField({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-medium text-sm leading-snug">
+        <FieldLabelText label={label} required />
+      </span>
+      <div className="h-9">
+        <Skeleton fill />
+      </div>
     </div>
   );
 }

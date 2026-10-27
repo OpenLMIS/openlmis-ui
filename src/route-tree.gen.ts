@@ -42,6 +42,7 @@ import { Route as protectedProtectedAdministrationValidSourcesRouteImport } from
 import { Route as protectedProtectedProfileIndexRouteImport } from './routes/(protected)/_protected.profile.index'
 import { Route as protectedProtectedProfileNotificationsRouteImport } from './routes/(protected)/_protected.profile.notifications'
 import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(protected)/_protected.profile.roles'
+import { Route as protectedProtectedRequisitionsViewRouteImport } from './routes/(protected)/_protected.requisitions.view'
 import { Route as protectedProtectedSettingsIndexRouteImport } from './routes/(protected)/_protected.settings.index'
 import { Route as protectedProtectedSettingsFeatureFlagsRouteImport } from './routes/(protected)/_protected.settings.feature-flags'
 import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(protected)/_protected.settings.theme'
@@ -270,6 +271,12 @@ const protectedProtectedProfileRolesRoute =
     id: '/roles',
     path: '/roles',
     getParentRoute: () => protectedProtectedProfileRoute,
+  } as any)
+const protectedProtectedRequisitionsViewRoute =
+  protectedProtectedRequisitionsViewRouteImport.update({
+    id: '/requisitions/view',
+    path: '/requisitions/view',
+    getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedSettingsIndexRoute =
   protectedProtectedSettingsIndexRouteImport.update({
@@ -532,6 +539,7 @@ export interface FileRoutesByFullPath {
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
+  '/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
@@ -601,6 +609,7 @@ export interface FileRoutesByTo {
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
+  '/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
@@ -673,6 +682,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/(protected)/_protected/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
+  '/(protected)/_protected/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/(protected)/_protected/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/(protected)/_protected/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/(protected)/_protected/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
@@ -746,6 +756,7 @@ export interface FileRouteTypes {
     | '/administration/valid-sources'
     | '/profile/notifications'
     | '/profile/roles'
+    | '/requisitions/view'
     | '/settings/feature-flags'
     | '/settings/theme'
     | '/stock-management/adjustments'
@@ -815,6 +826,7 @@ export interface FileRouteTypes {
     | '/administration/valid-sources'
     | '/profile/notifications'
     | '/profile/roles'
+    | '/requisitions/view'
     | '/settings/feature-flags'
     | '/settings/theme'
     | '/stock-management/adjustments'
@@ -886,6 +898,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/valid-sources'
     | '/(protected)/_protected/profile/notifications'
     | '/(protected)/_protected/profile/roles'
+    | '/(protected)/_protected/requisitions/view'
     | '/(protected)/_protected/settings/feature-flags'
     | '/(protected)/_protected/settings/theme'
     | '/(protected)/_protected/stock-management/adjustments'
@@ -1166,6 +1179,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/profile/roles'
       preLoaderRoute: typeof protectedProtectedProfileRolesRouteImport
       parentRoute: typeof protectedProtectedProfileRoute
+    }
+    '/(protected)/_protected/requisitions/view': {
+      id: '/(protected)/_protected/requisitions/view'
+      path: '/requisitions/view'
+      fullPath: '/requisitions/view'
+      preLoaderRoute: typeof protectedProtectedRequisitionsViewRouteImport
+      parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/settings/': {
       id: '/(protected)/_protected/settings/'
@@ -1520,6 +1540,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
+  protectedProtectedRequisitionsViewRoute: typeof protectedProtectedRequisitionsViewRoute
   protectedProtectedStockManagementAdjustmentsRoute: typeof protectedProtectedStockManagementAdjustmentsRoute
   protectedProtectedStockManagementIssueRoute: typeof protectedProtectedStockManagementIssueRoute
   protectedProtectedStockManagementPhysicalInventoryRoute: typeof protectedProtectedStockManagementPhysicalInventoryRoute
@@ -1598,6 +1619,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidDestinationsRoute,
   protectedProtectedAdministrationValidSourcesRoute:
     protectedProtectedAdministrationValidSourcesRoute,
+  protectedProtectedRequisitionsViewRoute:
+    protectedProtectedRequisitionsViewRoute,
   protectedProtectedStockManagementAdjustmentsRoute:
     protectedProtectedStockManagementAdjustmentsRoute,
   protectedProtectedStockManagementIssueRoute:
