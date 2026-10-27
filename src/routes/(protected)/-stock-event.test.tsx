@@ -17,6 +17,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { compile } from 'tailwindcss';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { formatTimestamp } from '@/components/form/date-value';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -349,6 +350,34 @@ describe('stock event detail', () => {
     await screen.findByText('DOC-1');
     expect(screen.getByRole('button', { name: 'stock-event.print' })).toBeDisabled();
   });
+
+  it.each([1400, 390])(
+    'keeps long transaction details readable at content width %i',
+    async (width) => {
+      vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ width } as DOMRect);
+      const lotCode = 'LOT'.repeat(80);
+      vi.mocked(fetchStockEventLines).mockResolvedValue(
+        linesPage([{ ...line, lot: { id: 'lot1', lotCode, expirationDate: '2027-01-31' } }]),
+      );
+      renderRoute();
+      const lot = await screen.findByText(lotCode);
+      const compiler = await compile('@tailwind utilities;');
+      const styles = document.createElement('style');
+      styles.textContent = compiler.build([
+        ...new Set(
+          [...document.querySelectorAll('[class]')].flatMap((node) => [...node.classList]),
+        ),
+      ]);
+      document.head.append(styles);
+      onTestFinished(() => styles.remove());
+      if (width === 1400) expect(getComputedStyle(lot).whiteSpace).toBe('nowrap');
+      else {
+        let value: Element | null = lot;
+        while (value && !getComputedStyle(value).overflowWrap) value = value.parentElement;
+        expect(value && getComputedStyle(value).overflowWrap).toBe('break-word');
+      }
+    },
+  );
 
   it('converts both quantities to packs with remainders', async () => {
     renderRoute();

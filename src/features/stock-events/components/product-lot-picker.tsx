@@ -175,7 +175,6 @@ function StockCardLotPicker({
   const productCombobox = (input: ReactNode, anchor?: RefObject<HTMLDivElement | null>) => (
     <Combobox
       items={products}
-      limit={50}
       itemToStringLabel={(item) => item.label}
       value={product ?? null}
       onValueChange={(item) => {
