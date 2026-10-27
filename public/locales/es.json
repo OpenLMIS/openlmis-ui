@@ -384,6 +384,8 @@
   "ideal-stock-amounts.upload-label": "Cargar valores actualizados",
   "ideal-stock-amounts.uploaded": "Archivo cargado correctamente. Número de registros procesados: {amount, number}",
   "ideal-stock-amounts.uploaded-title": "Carga completada",
+  "legacy.description": "Abrir la versión anterior de {appName}.",
+  "legacy.label": "Volver a la versión anterior",
   "login.forgot-password": "¿Olvidó su contraseña?",
   "login.heading": "Iniciar sesión",
   "login.hide-password": "Ocultar contraseña",

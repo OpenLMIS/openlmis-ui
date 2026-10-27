@@ -384,6 +384,8 @@
   "ideal-stock-amounts.upload-label": "Carregar Valores Atualizados",
   "ideal-stock-amounts.uploaded": "Ficheiro carregado com sucesso. Número de registos processados: {amount, number}",
   "ideal-stock-amounts.uploaded-title": "Carregamento Concluído",
+  "legacy.description": "Abrir a versão anterior de {appName}.",
+  "legacy.label": "Voltar à versão anterior",
   "login.forgot-password": "Esqueceu-se da Palavra-Passe?",
   "login.heading": "Iniciar sessão",
   "login.hide-password": "Ocultar palavra-passe",

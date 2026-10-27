@@ -384,6 +384,8 @@
   "ideal-stock-amounts.upload-label": "رفع القيم المحدّثة",
   "ideal-stock-amounts.uploaded": "تم رفع الملف بنجاح. عدد السجلات التي تمت معالجتها: {amount, number}",
   "ideal-stock-amounts.uploaded-title": "اكتمل الرفع",
+  "legacy.description": "افتح الإصدار السابق من {appName}.",
+  "legacy.label": "العودة إلى الواجهة السابقة",
   "login.forgot-password": "هل نسيت كلمة المرور؟",
   "login.heading": "تسجيل الدخول",
   "login.hide-password": "إخفاء كلمة المرور",

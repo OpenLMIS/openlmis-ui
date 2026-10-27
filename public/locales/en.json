@@ -384,6 +384,8 @@
   "ideal-stock-amounts.upload-label": "Upload Updated Values",
   "ideal-stock-amounts.uploaded": "File uploaded successfully. Number of records processed: {amount, number}",
   "ideal-stock-amounts.uploaded-title": "Upload Complete",
+  "legacy.description": "Open the previous version of {appName}.",
+  "legacy.label": "Back To Legacy",
   "login.forgot-password": "Forgot Password?",
   "login.heading": "Sign In",
   "login.hide-password": "Hide Password",

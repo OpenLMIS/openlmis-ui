@@ -384,6 +384,8 @@
   "ideal-stock-amounts.upload-label": "Importer les valeurs mises à jour",
   "ideal-stock-amounts.uploaded": "Fichier importé avec succès. Nombre d’enregistrements traités : {amount, number}",
   "ideal-stock-amounts.uploaded-title": "Importation terminée",
+  "legacy.description": "Ouvrir la version précédente de {appName}.",
+  "legacy.label": "Revenir à l’ancienne version",
   "login.forgot-password": "Mot de passe oublié ?",
   "login.heading": "Se connecter",
   "login.hide-password": "Masquer le mot de passe",

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { LogOutIcon, WifiOffIcon } from 'lucide-react';
+import { HistoryIcon, LogOutIcon, WifiOffIcon } from 'lucide-react';
 import { type ReactElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDeviceWork } from '@/components/device-work';
@@ -20,6 +20,7 @@ import {
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { profileOptions } from '@/features/profile/api/queries';
+import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
 import { isNavParent } from '@/lib/config';
 import { fullName } from '@/lib/text';
 import type { LiveNavLink } from '@/lib/types';
@@ -34,6 +35,7 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { logout } = useAuthActions();
+  const legacy = useBackToLegacy();
   const username = useLoginData((state) => state.username);
   const referenceDataUserId = useLoginData((state) => state.referenceDataUserId);
 
@@ -102,13 +104,25 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
             ))}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => offlineSignOut.confirm(() => void handleLogout())}
-            variant="destructive"
-          >
-            <LogOutIcon className="rtl:rotate-180" />
-            {t('nav-user.log-out')}
-          </DropdownMenuItem>
+          <DropdownMenuGroup>
+            {legacy.available && (
+              <DropdownMenuItem
+                onClick={legacy.onClick}
+                variant="warning"
+                aria-description={legacy.description}
+              >
+                <HistoryIcon />
+                {legacy.label}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={() => offlineSignOut.confirm(() => void handleLogout())}
+              variant="destructive"
+            >
+              <LogOutIcon className="rtl:rotate-180" />
+              {t('nav-user.log-out')}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
       {offlineSignOut.dialog}
