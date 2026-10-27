@@ -106,7 +106,7 @@ it.each([true, false])(
       await view.result.current.write(copy, reference);
     });
     const stored = await readInventoryLocal(copy.draftId);
-    const other = { ...copy, revision: stored?.revision, generation: 'G2', orphaned: true };
+    const other = { ...copy, revision: stored?.revision, generation: 'G2' };
     await writeInventoryLocal(other, undefined, undefined, inventoryReference(other, [], []));
     await act(async () => {
       await expect(view.result.current.write(copy)).rejects.toBeInstanceOf(DraftConflictError);
