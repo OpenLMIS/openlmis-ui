@@ -1,7 +1,5 @@
 import type { RequisitionStatus } from '@/lib/requisition-status';
 
-export type { RequisitionStatus } from '@/lib/requisition-status';
-
 export type RequisitionSummary = {
   id: string;
   emergency: boolean;

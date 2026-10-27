@@ -1,5 +1,5 @@
 import type { ParseKeys } from 'i18next';
-import type { ColumnSource } from '@/features/requisition-templates/lib/types';
+import type { ColumnSource } from '@/lib/requisition-template';
 
 export const SOURCE_KEYS: Record<ColumnSource, ParseKeys> = {
   USER_INPUT: 'requisition-templates.configure.source.user-input',

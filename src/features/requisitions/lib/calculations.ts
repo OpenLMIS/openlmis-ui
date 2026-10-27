@@ -1,6 +1,7 @@
 import type { RequisitionLine } from '@/features/requisitions/lib/lines';
 import {
   calculatePatientQuantities,
+  PATIENT_QUANTITY_COLUMNS,
   type PatientQuantities,
   type PatientsData,
   parsePatients,
@@ -157,7 +158,7 @@ export function calculateLine(
           : Math.max(line.idealStockAmount - (line.stockOnHand ?? 0), 0);
   }
   line.pricePerPack = model.program?.pricePerPack ?? 0;
-  line.dosesPerPatient = model.program?.dosesPerPatient ?? 0;
+  line.dosesPerPatient = model.program?.dosesPerPatient ?? null;
   if (calculated('numberOfPatientsOnTreatmentNextMonth')) {
     const patients = patientsForProduct(
       recordPatients(requisition),
@@ -169,14 +170,8 @@ export function calculateLine(
         ? line.numberOfPatientsOnTreatmentNextMonth
         : patients;
   }
-  const patientColumns = [
-    'totalRequirement',
-    'totalQuantityNeededByHf',
-    'quantityToIssue',
-    'convertedQuantityToIssue',
-  ] as const;
   const stored: Partial<PatientQuantities> = {};
-  for (const name of patientColumns) {
+  for (const name of PATIENT_QUANTITY_COLUMNS) {
     if (!calculated(name)) stored[name] = line[name] ?? null;
   }
   const patientValues = calculatePatientQuantities(
@@ -187,7 +182,7 @@ export function calculateLine(
     stored,
   );
   line.patientQuantitiesNotAvailable = patientValues.notAvailable;
-  for (const name of patientColumns) {
+  for (const name of PATIENT_QUANTITY_COLUMNS) {
     if (calculated(name)) line[name] = patientValues[name];
   }
   line.packsToShip = packsToShip(

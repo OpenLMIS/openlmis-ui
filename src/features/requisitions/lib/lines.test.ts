@@ -63,8 +63,8 @@ it('hides skipped only by template option with an explicit show-skipped override
     requisitionLineItems: [line({ skipped: true })],
   });
   const models = buildLines(r, [product()]);
-  expect(filterLines(models, { template: r.template })).toEqual([]);
-  expect(filterLines(models, { template: r.template, showSkipped: true })).toHaveLength(1);
+  expect(filterLines(models, { hideSkipped: true })).toEqual([]);
+  expect(filterLines(models, { hideSkipped: true, showSkipped: true })).toHaveLength(1);
 });
 
 it('does not silently hydrate a missing pinned version from a newer product or approval', () => {

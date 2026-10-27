@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
-import { gridRowTone } from '@/features/requisitions/components/requisition-grid-cards';
 import { line, record } from '@/features/requisitions/lib/fixtures/builders';
+import { gridRowTone } from '@/features/requisitions/lib/grid-row-tone';
 import { buildLines } from '@/features/requisitions/lib/lines';
 
 it('treats missing supplying stock as zero once supplying stock is available and prioritizes skipped rows', () => {

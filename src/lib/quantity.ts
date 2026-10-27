@@ -9,9 +9,10 @@ export function cardQuantity(
   netContent: number | null | undefined,
   unit: QuantityUnit,
   language?: string,
+  formatter?: Intl.NumberFormat,
 ): string | null {
   if (stockOnHand == null) return null;
-  const format = language ? new Intl.NumberFormat(language).format : String;
+  const format = formatter?.format ?? (language ? new Intl.NumberFormat(language).format : String);
   if (unit === 'DOSES') return format(stockOnHand);
   if (!hasPackSize(netContent)) return format(0);
   const packs = Math.trunc(stockOnHand / netContent) || 0;

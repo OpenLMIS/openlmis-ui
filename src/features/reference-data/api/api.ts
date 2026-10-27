@@ -1,5 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
+import { uniqueIdentities } from '@/features/reference-data/lib/identities';
 import { latestOrderableVersions } from '@/features/reference-data/lib/latest-orderable-versions';
 import {
   normalizeRejectionReason,
@@ -193,30 +194,7 @@ export async function fetchAllOrderableVersions(
   identities: readonly OrderableIdentity[],
   config?: AxiosRequestConfig,
 ): Promise<Orderable[]> {
-  const scope = config?.sessionScope ?? getSessionScope();
-  const unique = [
-    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
-  ];
-  const batches = await fetchIdBatches(unique, async (batch) => {
-    const found: Orderable[] = [];
-    for (let page = 0; ; page += 1) {
-      assertSessionScope(scope);
-      const { data } = await client.post<Page<Orderable>>(
-        '/orderables/search',
-        {
-          identities: batch,
-          page,
-          size: BY_IDS_BATCH,
-        },
-        ...(config ? [config] : []),
-      );
-      assertSessionScope(scope);
-      found.push(...data.content);
-      if (page + 1 >= data.totalPages) break;
-    }
-    return found;
-  });
-  return batches.flat();
+  return fetchByIdentities<Orderable>('/orderables/search', identities, config);
 }
 
 export function fetchLotsByIds(
@@ -487,22 +465,24 @@ export async function fetchCurrencySettings() {
   return data;
 }
 
-export async function fetchApprovedProductsByIdentities(identities: readonly OrderableIdentity[]) {
-  const scope = getSessionScope();
-  const unique = [
-    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
-  ];
-  const batches = await fetchIdBatches(unique, async (batch) => {
-    const found: ApprovedProduct[] = [];
+export function fetchApprovedProductsByIdentities(identities: readonly OrderableIdentity[]) {
+  return fetchByIdentities<ApprovedProduct>('/facilityTypeApprovedProducts/search', identities);
+}
+
+async function fetchByIdentities<T>(
+  path: string,
+  identities: readonly OrderableIdentity[],
+  config?: AxiosRequestConfig,
+): Promise<T[]> {
+  const scope = config?.sessionScope ?? getSessionScope();
+  const batches = await fetchIdBatches(uniqueIdentities(identities), async (batch) => {
+    const found: T[] = [];
     for (let page = 0; ; page += 1) {
       assertSessionScope(scope);
-      const { data } = await client.post<Page<ApprovedProduct>>(
-        '/facilityTypeApprovedProducts/search',
-        {
-          identities: batch,
-          page,
-          size: BY_IDS_BATCH,
-        },
+      const { data } = await client.post<Page<T>>(
+        path,
+        { identities: batch, page, size: BY_IDS_BATCH },
+        ...(config ? [config] : []),
       );
       assertSessionScope(scope);
       found.push(...data.content);

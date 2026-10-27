@@ -60,13 +60,6 @@ export function toEventsQuery(
   };
 }
 
-export {
-  changeDetailPaging,
-  type DetailPagingSearch,
-  detailPagingSchema,
-  detailTableSearch,
-} from '@/lib/table-search';
-
 export const reversePagingSchema = z.object({
   reversePage: paging.shape.page.transform((value) => (value === 1 ? undefined : value)),
   reverseSize: paging.shape.size.transform((value) => (value === 10 ? undefined : value)),

@@ -50,6 +50,7 @@ import {
   reasonsOptions,
   tradeItemByGtinOptions,
 } from '@/features/reference-data/api/queries';
+import { productLabel } from '@/features/reference-data/lib/products';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import {
   deviceNewLotsOptions,
@@ -115,11 +116,7 @@ import {
   unpackReasons,
 } from '@/features/stock-events/lib/kit-unpack';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
-import {
-  eventProductOptions,
-  productHasLots,
-  productLabel,
-} from '@/features/stock-events/lib/products';
+import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
 import { refusalMessage } from '@/features/stock-events/lib/refusal-message';
 import {
   type ApprovedScanProduct,

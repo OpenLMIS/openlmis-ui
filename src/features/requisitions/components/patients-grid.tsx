@@ -101,7 +101,7 @@ export function PatientsGrid({ patientsData }: { patientsData?: string | null })
           meta: { label: month(index) },
           cell: ({ row }) => {
             const value = row.original.patient?.data[index];
-            if (!value || value.disabled) return null;
+            if (!value || value.disabled) return cards ? false : null;
             return value.value == null || value.value === ''
               ? null
               : new Intl.NumberFormat(i18n.language).format(Number(value.value));
@@ -121,9 +121,6 @@ export function PatientsGrid({ patientsData }: { patientsData?: string | null })
           heading={(row) => row.heading}
           tone={(row) => (row.patient?.isSkipped ? 'skipped' : undefined)}
           empty={empty}
-          detailVisible={(row, id) =>
-            !id.startsWith('month') || !row.patient?.data[Number(id.slice(5))]?.disabled
-          }
         />
       ) : (
         <DataTableCard>

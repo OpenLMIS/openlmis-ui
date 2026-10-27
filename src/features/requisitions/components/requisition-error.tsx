@@ -1,13 +1,9 @@
 import { type ErrorComponentProps, Link } from '@tanstack/react-router';
-import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RecordError } from '@/components/record-error';
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
 
-export function RequisitionError({
-  search,
-  ...props
-}: ErrorComponentProps & { search: unknown; width?: ComponentProps<typeof RecordError>['width'] }) {
+export function RequisitionError({ search, ...props }: ErrorComponentProps & { search: unknown }) {
   const { t } = useTranslation();
   return (
     <RecordError

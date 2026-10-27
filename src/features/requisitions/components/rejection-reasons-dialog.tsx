@@ -18,16 +18,15 @@ export function latestRejection(record: RequisitionRecord) {
 }
 
 export function RejectionReasonsDialog({
-  record,
+  rejection,
   open,
   onClose,
 }: {
-  record: RequisitionRecord;
+  rejection: ReturnType<typeof latestRejection>;
   open: boolean;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const rejection = latestRejection(record);
   return (
     <FormDialog
       open={open}

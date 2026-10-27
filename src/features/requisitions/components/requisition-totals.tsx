@@ -4,7 +4,8 @@ import { CardBand, CardRows } from '@/components/card-list';
 import { DataTableCard } from '@/components/data-table/data-table';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
-import { type CurrencySettings, formatCurrency } from '@/features/requisitions/lib/currency';
+import type { CurrencySettings } from '@/features/reference-data/lib/types';
+import { formatCurrency } from '@/features/requisitions/lib/currency';
 
 export function RequisitionTotals({
   totals,

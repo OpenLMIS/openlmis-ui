@@ -46,6 +46,7 @@ import {
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { productName } from '@/features/reference-data/lib/product-name';
+import { productLabel } from '@/features/reference-data/lib/products';
 import { ProductName } from '@/features/stock-events/components/product-name';
 import type { PhysicalInventoryForm } from '@/features/stock-events/hooks/use-physical-inventory-form';
 import {
@@ -62,7 +63,6 @@ import type {
   InventoryCategoryBand,
   InventoryLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
-import { productLabel } from '@/features/stock-events/lib/products';
 import { vvmItems } from '@/features/stock-events/lib/vvm-items';
 import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';

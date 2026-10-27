@@ -1,12 +1,4 @@
-export type CurrencySettings = {
-  currencyCode: string;
-  currencySymbol: string;
-  currencySymbolSide: 'left' | 'right';
-  currencyDecimalPlaces: number;
-  groupingSize: number;
-  groupingSeparator: string;
-  decimalSeparator: string;
-};
+import type { CurrencySettings } from '@/features/reference-data/lib/types';
 
 export function formatCurrency(
   value: number | null | undefined,

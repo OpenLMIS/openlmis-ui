@@ -49,13 +49,20 @@ export function CardListItem({
   children: ReactNode;
 }) {
   const content = (
-    <div className={cn('divide-y', tone === 'shortfall' && 'bg-warning/10')}>{children}</div>
+    <div
+      className={cn(
+        'divide-y',
+        tone === 'skipped' && 'bg-muted text-foreground',
+        tone === 'shortfall' && 'bg-warning/10',
+      )}
+    >
+      {children}
+    </div>
   );
   return (
     <li
       className={cn(
         'scroll-mt-page-start',
-        tone === 'skipped' && 'opacity-50',
         drag && 'relative translate-y-(--card-y)',
         drag?.animate && 'transition-transform duration-150 ease-out',
       )}

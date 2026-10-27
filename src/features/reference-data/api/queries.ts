@@ -49,6 +49,7 @@ import {
   storedTimeZone,
   type ValidAssignmentsFilter,
 } from '@/features/reference-data/api/api';
+import { uniqueIdentities } from '@/features/reference-data/lib/identities';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
 import { deviceQuery } from '@/lib/device-query';
 import {
@@ -232,9 +233,7 @@ export const orderablesByTradeItemsOptions = (tradeItemIds: readonly string[]) =
   });
 
 export const orderablesByIdentitiesOptions = (identities: readonly OrderableIdentity[]) => {
-  const unique = [
-    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
-  ].sort((a, b) => a.id.localeCompare(b.id) || a.versionNumber - b.versionNumber);
+  const unique = uniqueIdentities(identities, true);
   return queryOptions({
     queryKey: queryKeys.orderables.list({ identities: unique }),
     queryFn: () => fetchOrderablesByIdentities(unique),
@@ -394,9 +393,7 @@ export const currencySettingsOptions = () =>
     staleTime: LOOKUP_STALE_TIME,
   });
 export const approvedProductsByIdentitiesOptions = (identities: readonly OrderableIdentity[]) => {
-  const unique = [
-    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
-  ].sort((a, b) => a.id.localeCompare(b.id) || a.versionNumber - b.versionNumber);
+  const unique = uniqueIdentities(identities, true);
   return queryOptions({
     queryKey: [...queryKeys.facilityTypeApprovedProducts.all, 'identities', unique] as const,
     queryFn: () => fetchApprovedProductsByIdentities(unique),

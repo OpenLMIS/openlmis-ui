@@ -426,3 +426,14 @@ it('recalculates N and P when present regardless of display or source', () => {
     ),
   ).toMatchObject({ adjustedConsumption: 5, averageConsumption: 5 });
 });
+
+it('leaves Doses Per Patient empty when the program entry has no value', () => {
+  expect(calculate().dosesPerPatient).toBeNull();
+  expect(
+    calculate(
+      {},
+      {},
+      { programs: [{ programId: 'program', fullSupply: true, dosesPerPatient: 0 }] },
+    ).dosesPerPatient,
+  ).toBe(0);
+});

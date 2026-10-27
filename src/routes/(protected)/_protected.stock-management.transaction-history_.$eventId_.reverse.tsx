@@ -21,12 +21,12 @@ import { EventHeaderSkeleton } from '@/features/stock-events/components/event-he
 import { ReverseEditor } from '@/features/stock-events/components/reverse-editor';
 import { StockEventError } from '@/features/stock-events/components/stock-event-error';
 import {
-  detailPagingSchema,
   reversePagingSchema,
   transactionHistorySearchSchema,
 } from '@/features/stock-events/lib/search';
 import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { detailPagingSchema } from '@/lib/table-search';
 
 const searchSchema = transactionHistorySearchSchema
   .extend(detailPagingSchema.shape)

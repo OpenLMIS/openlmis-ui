@@ -37,12 +37,7 @@ import {
 } from '@/features/stock-events/components/event-lines';
 import { StockEventError } from '@/features/stock-events/components/stock-event-error';
 import { canReverseEvent } from '@/features/stock-events/lib/event-access';
-import {
-  type DetailPagingSearch,
-  detailPagingSchema,
-  detailTableSearch,
-  transactionHistorySearchSchema,
-} from '@/features/stock-events/lib/search';
+import { transactionHistorySearchSchema } from '@/features/stock-events/lib/search';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';
 import { useCardView } from '@/hooks/use-card-view';
 import { usePrintReport } from '@/hooks/use-print-report';
@@ -53,7 +48,8 @@ import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import { withShownReversals } from '@/lib/stock-labels';
-import { toPaginationState } from '@/lib/table-search';
+import type { DetailPagingSearch } from '@/lib/table-search';
+import { detailPagingSchema, detailTableSearch, toPaginationState } from '@/lib/table-search';
 
 const RIGHT = RIGHTS.stockCardsView;
 let shownEventId: string | undefined;

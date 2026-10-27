@@ -1,7 +1,5 @@
 import { productLabel } from '@/features/reference-data/lib/products';
 
-export { productLabel } from '@/features/reference-data/lib/products';
-
 import type {
   ApprovedProduct,
   LotSummary,

@@ -1,32 +1,6 @@
-export type RequisitionStatus =
-  | 'INITIATED'
-  | 'REJECTED'
-  | 'SUBMITTED'
-  | 'AUTHORIZED'
-  | 'IN_APPROVAL'
-  | 'APPROVED'
-  | 'RELEASED'
-  | 'RELEASED_WITHOUT_ORDER'
-  | 'SKIPPED';
-
-export type ColumnSource =
-  | 'CALCULATED'
-  | 'USER_INPUT'
-  | 'STOCK_CARDS'
-  | 'REFERENCE_DATA'
-  | 'PREVIOUS_REQUISITION';
-
-export type RequisitionColumn = {
-  name: string;
-  indicator?: string;
-  label: string;
-  definition?: string | null;
-  displayOrder: number;
-  isDisplayed: boolean;
-  source: ColumnSource;
-  option?: { optionName: string } | null;
-  columnDefinition?: { columnType: string };
-};
+import type { ApprovedProduct, Orderable } from '@/features/reference-data/lib/types';
+import type { RequisitionStatus } from '@/lib/requisition-status';
+import type { RequisitionColumn } from '@/lib/requisition-template';
 
 export type RequisitionTemplate = {
   id?: string;
@@ -38,33 +12,22 @@ export type RequisitionTemplate = {
 
 export type VersionIdentity = { id: string; versionNumber?: number };
 
-export type RequisitionProgramEntry = {
-  programId: string;
-  fullSupply?: boolean;
-  pricePerPack?: number | null;
-  dosesPerPatient?: number | null;
-  displayOrder?: number | null;
-  orderableCategoryDisplayName?: string | null;
-  orderableCategoryDisplayOrder?: number | null;
-};
+export type RequisitionProgramEntry = NonNullable<Orderable['programs']>[number];
 
-export type RequisitionProduct = {
-  id: string;
-  meta?: { versionNumber?: number };
-  productCode: string;
-  fullProductName: string | null;
-  netContent?: number | null;
-  packRoundingThreshold?: number | null;
-  roundToZero?: boolean;
-  dispensable?: { displayUnit?: string | null };
-  programs?: readonly RequisitionProgramEntry[];
-};
+export type RequisitionProduct = Pick<
+  Orderable,
+  | 'id'
+  | 'meta'
+  | 'productCode'
+  | 'fullProductName'
+  | 'netContent'
+  | 'packRoundingThreshold'
+  | 'roundToZero'
+  | 'dispensable'
+  | 'programs'
+>;
 
-export type RequisitionApprovedProduct = {
-  id: string;
-  meta?: { versionNumber?: number };
-  maxPeriodsOfStock?: number | null;
-};
+export type RequisitionApprovedProduct = Pick<ApprovedProduct, 'id' | 'meta' | 'maxPeriodsOfStock'>;
 
 export type RequisitionReason = {
   reasonId: string;

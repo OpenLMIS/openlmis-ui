@@ -1656,6 +1656,7 @@
   "requisitions.requisition.show-skipped": "Show Skipped",
   "requisitions.requisition.status-message": "{hasAuthor, select, yes {{status} - {author} on {date}} other {{status} on {date}}}",
   "requisitions.requisition.stock": "Stock On Hand",
+  "requisitions.requisition.stock-shortfall": "Insufficient Supplying Stock",
   "requisitions.requisition.supplier-access-denied": "Stock on hand at the supplying facility is not shown because you do not have access to its stock cards. You can still approve this requisition. To see stock levels, contact your administrator.",
   "requisitions.requisition.supplier-not-configured": "not configured",
   "requisitions.requisition.supplying-facility": "Supplying Facility: {facilities}",

@@ -34,7 +34,7 @@ export type RequisitionRecord = Omit<Requisition, 'requisitionLineItems'> & {
   id: string;
   facility: { id: string };
   processingPeriod: { id: string };
-  supervisoryNode?: { id: string } | null;
+  supervisoryNode?: string | null;
   reportOnly?: boolean;
   datePhysicalStockCountCompleted?: string | null;
   extraData?: { originalRequisition?: string } | null;

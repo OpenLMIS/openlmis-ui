@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { InputSizer } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
+import { productLabel } from '@/features/reference-data/lib/products';
 import type { Reason } from '@/features/reference-data/lib/types';
 import type { EventSearch } from '@/features/stock-events/components/event-editor';
 import { ProductName } from '@/features/stock-events/components/product-name';
@@ -46,7 +47,6 @@ import {
   EVENT_KINDS,
   type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
-import { productLabel } from '@/features/stock-events/lib/products';
 import { vvmItems } from '@/features/stock-events/lib/vvm-items';
 import { usePageStart } from '@/hooks/use-page-start';
 import { orEmpty, tableValue } from '@/lib/empty-value';

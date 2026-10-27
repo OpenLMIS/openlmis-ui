@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { column } from '@/features/requisitions/lib/fixtures/builders';
-import { compileColumns } from '@/features/requisitions/lib/template';
+import {
+  compileColumns,
+  defaultRequisitionTab,
+  hidesSkipped,
+} from '@/features/requisitions/lib/template';
 
 const names = [
   'skipped',
@@ -34,7 +38,7 @@ describe('compileColumns', () => {
     expect(compiledNames()).toEqual([...names.slice(0, 3), 'packSize', ...names.slice(3)]);
     expect(
       compileColumns(template, context)
-        .filter((c) => c.indicator === 'S')
+        .filter((c) => template.columnsMap[c.name]?.indicator === 'S')
         .map((c) => c.name),
     ).toEqual(['skipped', 'calculatedOrderQuantityIsa']);
   });
@@ -96,9 +100,10 @@ describe('compileColumns', () => {
       'supplyingFacilityStockOnHand',
     );
   });
-  it('marks conversion, input, sticky and stock-based adjustments policies', () => {
+  it('marks conversion and stock-based adjustments policies', () => {
     const result = compileColumns(
       {
+        populateStockOnHandFromStockCards: true,
         columnsMap: {
           totalLossesAndAdjustments: column('totalLossesAndAdjustments', 1, {
             source: 'USER_INPUT',
@@ -106,12 +111,11 @@ describe('compileColumns', () => {
           }),
         },
       },
-      { ...context, stockBased: true },
+      context,
     );
     expect(result[0]).toMatchObject({
       kind: 'adjustments',
       convertsToPacks: true,
-      userInput: true,
     });
     expect(result[0]).toMatchObject({ definition: 'Snapshot', stockBasedNote: true });
   });
@@ -139,4 +143,18 @@ it('omits hidden columns even after authorization', () => {
       context,
     ).map((column) => column.name),
   ).toEqual(['requestedQuantity']);
+});
+
+it('uses Patients as the default for pending skipped-line controls', () => {
+  const t = {
+    ...template,
+    patientsTabEnabled: true,
+    columnsMap: {
+      ...template.columnsMap,
+      skipped: column('skipped', 0, { option: { optionName: 'hideSkippedLineItems' } }),
+    },
+  };
+  expect(defaultRequisitionTab(t)).toBe('patients');
+  expect(hidesSkipped(t, undefined)).toBe(false);
+  expect(hidesSkipped(t, 'fullSupply')).toBe(true);
 });

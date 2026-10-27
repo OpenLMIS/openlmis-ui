@@ -181,9 +181,10 @@ export function pageLocally<T>(items: readonly T[], page: number, size: number) 
   };
 }
 
+const detailTableSchema = tableSearchSchema(['date']);
 export const detailPagingSchema = z.object({
-  detailPage: tableSearchSchema(['date']).shape.page,
-  detailSize: tableSearchSchema(['date']).shape.size,
+  detailPage: detailTableSchema.shape.page,
+  detailSize: detailTableSchema.shape.size,
 });
 export type DetailPagingSearch = z.infer<typeof detailPagingSchema>;
 

@@ -1,9 +1,6 @@
-import type {
-  ColumnSource,
-  RequisitionColumn,
-  RequisitionStatus,
-  RequisitionTemplate,
-} from '@/features/requisitions/lib/requisition';
+import type { RequisitionTemplate } from '@/features/requisitions/lib/requisition';
+import type { RequisitionStatus } from '@/lib/requisition-status';
+import type { RequisitionColumn } from '@/lib/requisition-template';
 
 export type GridColumnKind =
   | 'product'
@@ -18,21 +15,17 @@ export type GridColumnKind =
   | 'supplyingStock';
 export type GridColumn = {
   name: string;
-  indicator: string;
   label: string;
   definition: string;
   stockBasedNote?: boolean;
-  source: ColumnSource;
   kind: GridColumnKind;
   convertsToPacks: boolean;
-  userInput: boolean;
   sticky: boolean;
 };
 export type ColumnContext = {
   tab: 'fullSupply' | 'nonFullSupply' | 'patients';
   status: RequisitionStatus;
   emergency?: boolean;
-  stockBased?: boolean;
   supplyingStock?: boolean;
 };
 
@@ -110,22 +103,16 @@ export function compileColumns(
     })
     .sort((a, b) => a.displayOrder - b.displayOrder);
   return columns.flatMap((column) => {
-    const compiled = compileColumn(
-      column,
-      context.stockBased ?? template.populateStockOnHandFromStockCards ?? false,
-    );
+    const compiled = compileColumn(column, template.populateStockOnHandFromStockCards ?? false);
     return column.name === 'orderable.fullProductName'
       ? [
           compiled,
           {
             name: 'packSize',
-            indicator: '',
             label: '',
             definition: '',
-            source: 'REFERENCE_DATA' as const,
             kind: 'packSize' as const,
             convertsToPacks: false,
-            userInput: false,
             sticky: false,
           },
         ]
@@ -137,11 +124,9 @@ function compileColumn(column: RequisitionColumn, stockBased: boolean): GridColu
   const convertsToPacks = packColumns.has(column.name);
   return {
     name: column.name,
-    indicator: column.indicator ?? '',
     label: column.label,
     definition: column.definition ?? '',
     stockBasedNote: stockBased && column.name === 'totalLossesAndAdjustments',
-    source: column.source,
     kind:
       kinds[column.name] ??
       (convertsToPacks
@@ -150,7 +135,18 @@ function compileColumn(column: RequisitionColumn, stockBased: boolean): GridColu
           ? 'text'
           : 'count'),
     convertsToPacks,
-    userInput: column.source === 'USER_INPUT',
     sticky: column.name === 'orderable.productCode' || column.name === 'orderable.fullProductName',
   };
 }
+
+export type RequisitionTab = 'fullSupply' | 'nonFullSupply' | 'patients';
+
+export const defaultRequisitionTab = (template: RequisitionTemplate): RequisitionTab =>
+  template.patientsTabEnabled ? 'patients' : 'fullSupply';
+
+export const hidesSkipped = (
+  template: RequisitionTemplate,
+  tab: RequisitionTab = defaultRequisitionTab(template),
+) =>
+  tab === 'fullSupply' &&
+  template.columnsMap.skipped?.option?.optionName === 'hideSkippedLineItems';

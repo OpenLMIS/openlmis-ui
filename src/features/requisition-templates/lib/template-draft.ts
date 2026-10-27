@@ -1,10 +1,9 @@
 import { sortColumns } from '@/features/requisition-templates/lib/column-order';
 import type {
-  ColumnSource,
   NewRequisitionTemplate,
   RequisitionTemplate,
-  TemplateColumnDefinition,
 } from '@/features/requisition-templates/lib/types';
+import type { ColumnSource, TemplateColumnDefinition } from '@/lib/requisition-template';
 import { toWholeNumber } from '@/lib/whole-number';
 
 export type ColumnDraft = {

@@ -1,9 +1,6 @@
 import type { AddTemplateFormValues } from '@/features/requisition-templates/lib/add-template-form';
-import type {
-  ColumnDefinition,
-  NewRequisitionTemplate,
-  TemplateColumn,
-} from '@/features/requisition-templates/lib/types';
+import type { NewRequisitionTemplate } from '@/features/requisition-templates/lib/types';
+import type { ColumnDefinition, TemplateColumn } from '@/lib/requisition-template';
 
 const LOCKED_ORDER = ['skipped', 'orderable.productCode', 'orderable.fullProductName'];
 const lockOrder = (column: ColumnDefinition) => {

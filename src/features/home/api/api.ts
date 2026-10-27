@@ -1,10 +1,10 @@
 import type {
   EquipmentStatus,
-  RequisitionStatus,
   RequisitionSummary,
   SystemNotification,
 } from '@/features/home/lib/types';
 import { client } from '@/integrations/axios';
+import type { RequisitionStatus } from '@/lib/requisition-status';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 

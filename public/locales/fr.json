@@ -1656,6 +1656,7 @@
   "requisitions.requisition.show-skipped": "Afficher Les Produits Ignorés",
   "requisitions.requisition.status-message": "{hasAuthor, select, yes {{status} - {author} le {date}} other {{status} le {date}}}",
   "requisitions.requisition.stock": "Stock Disponible",
+  "requisitions.requisition.stock-shortfall": "Stock Insuffisant Dans L’établissement Fournisseur",
   "requisitions.requisition.supplier-access-denied": "Le stock disponible de l’établissement fournisseur n’est pas affiché car vous n’avez pas accès à ses fiches de stock. Vous pouvez toujours approuver cette réquisition. Pour consulter les niveaux de stock, contactez votre administrateur.",
   "requisitions.requisition.supplier-not-configured": "non configuré",
   "requisitions.requisition.supplying-facility": "Établissement Fournisseur : {facilities}",

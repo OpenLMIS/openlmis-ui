@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  changeDetailPaging,
   changeReversePaging,
-  detailPagingSchema,
-  detailTableSearch,
   hasEventFilters,
   invalidDateRange,
   reversePagingSchema,
@@ -11,6 +8,7 @@ import {
   toEventsQuery,
   transactionHistorySearchSchema,
 } from '@/features/stock-events/lib/search';
+import { changeDetailPaging, detailPagingSchema, detailTableSearch } from '@/lib/table-search';
 
 const FACILITY = '11111111-1111-4111-8111-111111111111';
 const PROGRAM = '22222222-2222-4222-8222-222222222222';

@@ -1,3 +1,10 @@
+export const PATIENT_QUANTITY_COLUMNS = [
+  'totalRequirement',
+  'totalQuantityNeededByHf',
+  'quantityToIssue',
+  'convertedQuantityToIssue',
+] as const;
+
 export type PatientMonth = { value?: number | string | null; disabled: boolean };
 export type PatientRow = {
   key: string;

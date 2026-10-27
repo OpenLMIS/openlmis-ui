@@ -1,4 +1,5 @@
-import type { RequisitionStatus, RequisitionSummary } from '@/features/home/lib/types';
+import type { RequisitionSummary } from '@/features/home/lib/types';
+import type { RequisitionStatus } from '@/lib/requisition-status';
 
 /** Sent on but not approved yet; drafts, rejections and skipped periods are left out. */
 const IN_PROGRESS: ReadonlySet<RequisitionStatus> = new Set<RequisitionStatus>([

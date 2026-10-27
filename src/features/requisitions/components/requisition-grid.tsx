@@ -1,7 +1,7 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { createColumnHelper, FlexRender, functionalUpdate, useTable } from '@tanstack/react-table';
-import { ChevronRightIcon } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { ChevronRightIcon, TriangleAlertIcon } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTableCard,
@@ -13,6 +13,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { FlagBadge } from '@/components/flag-badge';
+import { TableCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -25,42 +26,39 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  approvedProductsByIdentitiesOptions,
-  currencySettingsOptions,
-  orderablesByIdentitiesOptions,
-  processingPeriodOptions,
-  programLookupOptions,
-} from '@/features/reference-data/api/queries';
 import { productLabel } from '@/features/reference-data/lib/products';
+import type { CurrencySettings } from '@/features/reference-data/lib/types';
+import { requisitionGridQueries } from '@/features/requisitions/api/queries';
 import { AdjustmentsDialog } from '@/features/requisitions/components/adjustments-dialog';
-import {
-  gridRowTone,
-  RequisitionGridCards,
-} from '@/features/requisitions/components/requisition-grid-cards';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
-import { RequisitionTotals } from '@/features/requisitions/components/requisition-totals';
 import { SupplyingStockNote } from '@/features/requisitions/components/supplying-stock-note';
 import { calculateLine, calculateTotals } from '@/features/requisitions/lib/calculations';
-import { type CurrencySettings, formatCurrency } from '@/features/requisitions/lib/currency';
+import { formatCurrency } from '@/features/requisitions/lib/currency';
+import { gridRowTone } from '@/features/requisitions/lib/grid-row-tone';
 import {
   buildLines,
   filterLines,
   type RequisitionLine,
   splitLines,
 } from '@/features/requisitions/lib/lines';
+import { PATIENT_QUANTITY_COLUMNS } from '@/features/requisitions/lib/patients';
 import type {
   RequisitionApprovedProduct,
   RequisitionLineItem,
   RequisitionProduct,
 } from '@/features/requisitions/lib/requisition';
-import { compileColumns, type GridColumn } from '@/features/requisitions/lib/template';
+import {
+  compileColumns,
+  type GridColumn,
+  hidesSkipped,
+} from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { useCardView } from '@/hooks/use-card-view';
 import { usePageStart } from '@/hooks/use-page-start';
-import { tableValue } from '@/lib/empty-value';
+import { EMPTY_VALUE, tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import {
+  changeDetailPaging,
   detailTableSearch,
   fromPaginationState,
   type SearchChange,
@@ -90,23 +88,10 @@ type Props = {
 const helper = createColumnHelper<DataTableFeatures, GridRow>();
 export function RequisitionGrid(props: Props) {
   const { record } = props;
-  const [
-    { data: products },
-    { data: approvedProducts },
-    { data: period },
-    { data: currency },
-    { data: program },
-  ] = useSuspenseQueries({
-    queries: [
-      orderablesByIdentitiesOptions(record.requisitionLineItems.map((l) => l.orderable)),
-      approvedProductsByIdentitiesOptions(
-        record.requisitionLineItems.flatMap((l) => (l.approvedProduct ? [l.approvedProduct] : [])),
-      ),
-      processingPeriodOptions(record.processingPeriod.id),
-      currencySettingsOptions(),
-      programLookupOptions(record.program.id),
-    ],
-  });
+  const [{ data: products }, { data: approvedProducts }, { data: period }, { data: currency }] =
+    useSuspenseQueries({
+      queries: requisitionGridQueries(record),
+    });
   return (
     <RequisitionGridView
       {...props}
@@ -114,7 +99,6 @@ export function RequisitionGrid(props: Props) {
       approvedProducts={approvedProducts}
       monthsInPeriod={period.durationInMonths ?? 1}
       currency={currency}
-      showNonFullSupply={!!program.showNonFullSupplyTab}
     />
   );
 }
@@ -130,7 +114,6 @@ export function RequisitionGridView({
   approvedProducts,
   monthsInPeriod,
   currency,
-  showNonFullSupply,
   unit,
   setUnit,
   canSwitch,
@@ -139,12 +122,11 @@ export function RequisitionGridView({
   approvedProducts: readonly RequisitionApprovedProduct[];
   monthsInPeriod: number;
   currency: CurrencySettings;
-  showNonFullSupply: boolean;
-  unit: QuantityUnit;
-  setUnit: (unit: QuantityUnit) => void;
-  canSwitch: boolean;
 }) {
   const { t, i18n } = useTranslation();
+  const formatter = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const tableElement = useRef<HTMLTableElement>(null);
+  const [pinnedWidths, setPinnedWidths] = useState<Record<string, number>>({});
   const models = useMemo(
     () =>
       buildLines(record, products, approvedProducts).map((model) => ({
@@ -182,14 +164,11 @@ export function RequisitionGridView({
   const filtered = useMemo(
     () =>
       filterLines(selected, {
-        template:
-          tab === 'fullSupply' && columns.some((column) => column.kind === 'skip')
-            ? record.template
-            : undefined,
+        hideSkipped: hidesSkipped(record.template, tab),
         product: search.product,
         showSkipped: search.skipped,
       }),
-    [selected, record.template, tab, columns, search.product, search.skipped],
+    [selected, record.template, tab, search.product, search.skipped],
   );
   const pagination = toPaginationState(detailTableSearch(search));
   const pageIndex = Math.min(
@@ -219,6 +198,11 @@ export function RequisitionGridView({
     }
     return rows;
   }, [filtered, pageIndex, pagination.pageSize]);
+  const supplyingHasStock =
+    supplyingStock &&
+    !record.supplyingFacilityAccessDenied &&
+    !!record.supplyingFacilities?.length &&
+    models.some((model) => model.line.supplyingFacilityStockOnHand != null);
   const defs = useMemo(
     () =>
       columns.map((column) =>
@@ -231,7 +215,9 @@ export function RequisitionGridView({
               ? renderValue(column, row.original.model, {
                   currency,
                   unit,
-                  language: i18n.language,
+                  formatter,
+                  shortfall: supplyingHasStock && gridRowTone(row.original, true) === 'shortfall',
+                  shortfallLabel: t('requisitions.requisition.stock-shortfall'),
                   cards: view.cards,
                   stockBased: !!record.template.populateStockOnHandFromStockCards,
                   yes: t('requisitions.yes'),
@@ -246,7 +232,8 @@ export function RequisitionGridView({
       columns,
       currency,
       unit,
-      i18n.language,
+      formatter,
+      supplyingHasStock,
       view.cards,
       record.template.populateStockOnHandFromStockCards,
       t,
@@ -263,25 +250,21 @@ export function RequisitionGridView({
     manualSorting: true,
     state: {
       pagination: { ...pagination, pageIndex },
-      columnVisibility: view.columnView.visibility,
+      columnVisibility: { ...view.columnView.visibility, 'orderable.productCode': !view.cards },
     },
     onPaginationChange: pageStart.onPaginationChange((updater) =>
       onSearchChange(
         (previous) => {
-          const current = toPaginationState(detailTableSearch(previous));
-          const next = fromPaginationState(current, functionalUpdate(updater, current));
-          return { detailPage: next.page, detailSize: next.size };
+          return changeDetailPaging(previous, (current) => {
+            const pagination = toPaginationState(current);
+            return fromPaginationState(pagination, functionalUpdate(updater, pagination));
+          });
         },
         false,
         pageStart.navigation,
       ),
     ),
   });
-  const supplyingHasStock =
-    supplyingStock &&
-    !record.supplyingFacilityAccessDenied &&
-    !!record.supplyingFacilities?.length &&
-    models.some((model) => model.line.supplyingFacilityStockOnHand != null);
   const empty = (
     <DataTableEmpty
       action={
@@ -310,6 +293,35 @@ export function RequisitionGridView({
   );
   const footer = <DataTablePagination table={table} />;
   const visible = table.getVisibleLeafColumns();
+  useLayoutEffect(() => {
+    if (view.cards || !columns.some((column) => column.sticky)) return;
+    const headers = tableElement.current?.querySelectorAll<HTMLTableCellElement>('th[data-pinned]');
+    if (!headers?.length) return;
+    const update = () => {
+      const widths = Object.fromEntries(
+        Array.from(headers, (h) => [h.dataset.pinned as string, h.offsetWidth]),
+      );
+      setPinnedWidths((previous) =>
+        JSON.stringify(previous) === JSON.stringify(widths) ? previous : widths,
+      );
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    for (const header of headers) observer.observe(header);
+    return () => observer.disconnect();
+  }, [columns, view.cards]);
+  const pin = (id: string) => {
+    const pinned = visible.filter((c) => columns.find((column) => column.name === c.id)?.sticky);
+    const index = pinned.findIndex((c) => c.id === id);
+    return index < 0
+      ? {}
+      : {
+          sticky: true,
+          stickyOffset: pinned
+            .slice(0, index)
+            .reduce((sum, c) => sum + (pinnedWidths[c.id] ?? 0), 0),
+        };
+  };
   const adjustment = models.find((model) => model.line.id === search.adjustments);
   return (
     <div ref={view.measure} className="flex min-w-0 flex-col gap-4">
@@ -319,41 +331,46 @@ export function RequisitionGridView({
         view={view}
         search={search}
         onSearchChange={onSearchChange}
-        hideSkipped={
-          tab === 'fullSupply' &&
-          columns.some((column) => column.kind === 'skip') &&
-          record.template.columnsMap.skipped?.option?.optionName === 'hideSkippedLineItems'
-        }
+        hideSkipped={hidesSkipped(record.template, tab)}
         skippedCount={selected.filter((model) => model.line.skipped).length}
         unit={unit}
         setUnit={setUnit}
         canSwitch={canSwitch}
       />
       {view.cards ? (
-        <RequisitionGridCards
+        <TableCards
           table={table}
           footer={footer}
           empty={empty}
           listRef={pageStart.ref}
-          supplyingStock={supplyingHasStock}
+          title="orderable.fullProductName"
+          heading={(row) => row.category}
+          tone={(row) => gridRowTone(row, supplyingHasStock)}
         />
       ) : (
         <DataTableCard>
           <Table
+            ref={tableElement}
             density="compact"
             layout="auto"
             tabIndex={-1}
             aria-label={t('requisitions.requisition.products')}
           >
-            <TableHeader surface="muted">
-              <TableRow>
+            <TableHeader>
+              <TableRow pinned surface="muted">
                 {visible.map((column) => {
                   const definition = columns.find((c) => c.name === column.id)?.definition;
                   const label = (
                     <DataTableHeaderLabel>{column.columnDef.meta?.label}</DataTableHeaderLabel>
                   );
                   return (
-                    <TableHead key={column.id}>
+                    <TableHead
+                      key={column.id}
+                      data-pinned={
+                        columns.find((c) => c.name === column.id)?.sticky ? column.id : undefined
+                      }
+                      {...pin(column.id)}
+                    >
                       {definition ? (
                         <Tooltip>
                           <TooltipTrigger render={<button type="button" />}>{label}</TooltipTrigger>
@@ -371,17 +388,21 @@ export function RequisitionGridView({
               {table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map((row) =>
                   row.original.category !== undefined ? (
-                    <TableRow key={row.id} surface="primary">
+                    <TableRow key={row.id} pinned surface="primary">
                       <TableCell colSpan={visible.length}>
-                        <div className="ps-6">
+                        <div className="sticky start-0 w-fit ps-6">
                           <bdi>{row.original.category}</bdi>
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    <TableRow key={row.id} tone={gridRowTone(row.original, supplyingHasStock)}>
+                    <TableRow
+                      key={row.id}
+                      pinned
+                      tone={gridRowTone(row.original, supplyingHasStock)}
+                    >
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
+                        <TableCell key={cell.id} {...pin(cell.column.id)}>
                           <FlexRender cell={cell} />
                         </TableCell>
                       ))}
@@ -395,9 +416,9 @@ export function RequisitionGridView({
               )}
             </TableBody>
             <TableFooter>
-              <TableRow>
+              <TableRow pinned surface="muted">
                 {visible.map((column, index) => (
-                  <TableCell key={column.id}>
+                  <TableCell key={column.id} {...pin(column.id)}>
                     {index === 0 ? (
                       t('requisitions.requisition.total')
                     ) : column.id === 'totalCost' ? (
@@ -411,11 +432,6 @@ export function RequisitionGridView({
           <DataTableFooter>{footer}</DataTableFooter>
         </DataTableCard>
       )}
-      <RequisitionTotals
-        totals={totals}
-        currency={currency}
-        showNonFullSupply={showNonFullSupply}
-      />
       {adjustment && !record.template.populateStockOnHandFromStockCards && (
         <AdjustmentsDialog
           model={adjustment}
@@ -433,7 +449,9 @@ function renderValue(
   context: {
     currency: CurrencySettings;
     unit: QuantityUnit;
-    language: string;
+    formatter: Intl.NumberFormat;
+    shortfall: boolean;
+    shortfallLabel: string;
     cards: boolean;
     stockBased: boolean;
     yes: string;
@@ -446,12 +464,7 @@ function renderValue(
   const value = line[column.name as keyof RequisitionLineItem];
   if (
     line.patientQuantitiesNotAvailable &&
-    [
-      'totalRequirement',
-      'totalQuantityNeededByHf',
-      'quantityToIssue',
-      'convertedQuantityToIssue',
-    ].includes(column.name)
+    (PATIENT_QUANTITY_COLUMNS as readonly string[]).includes(column.name)
   )
     return context.unavailable;
   switch (column.kind) {
@@ -462,20 +475,22 @@ function renderValue(
         <bdi>
           {context.cards
             ? `${productLabel(product)} (${product.productCode})`
-            : productLabel(product)}
+            : product.fullProductName}
         </bdi>
       ) : null;
     case 'packSize':
-      return product?.netContent == null
-        ? null
-        : new Intl.NumberFormat(context.language).format(product.netContent);
+      return product?.netContent == null ? null : context.formatter.format(product.netContent);
     case 'unit':
       return tableValue(product?.dispensable?.displayUnit);
     case 'skip':
       return context.cards ? (
         <FlagBadge value={!!line.skipped} trueLabel={context.yes} falseLabel={context.no} />
       ) : (
-        <Checkbox disabled checked={!!line.skipped} aria-label={column.label} />
+        <Checkbox
+          disabled
+          checked={!!line.skipped}
+          aria-label={`${column.label}: ${product?.fullProductName ?? product?.productCode ?? ''}`}
+        />
       );
     case 'currency':
       return formatCurrency(value as number | null | undefined, context.currency);
@@ -485,10 +500,10 @@ function renderValue(
       const number = value as number | null | undefined;
       const text =
         column.convertsToPacks || column.kind === 'supplyingStock'
-          ? cardQuantity(number, product?.netContent, context.unit, context.language)
+          ? cardQuantity(number, product?.netContent, context.unit, undefined, context.formatter)
           : number == null
             ? null
-            : new Intl.NumberFormat(context.language).format(number);
+            : context.formatter.format(number);
       const quantity =
         text != null &&
         context.unit === 'PACKS' &&
@@ -502,11 +517,17 @@ function renderValue(
           size="sm"
           variant="ghost"
           onClick={() => context.onAdjustments(line.id)}
-          aria-label={`${column.label}: ${product?.fullProductName ?? product?.productCode ?? ''}`}
+          aria-label={`${column.label}: ${text}, ${product?.fullProductName ?? product?.productCode ?? ''}`}
         >
           {quantity}
           <ChevronRightIcon data-icon="inline-end" className="rtl:rotate-180" />
         </Button>
+      ) : column.kind === 'supplyingStock' && context.shortfall ? (
+        <span className="inline-flex items-center gap-1">
+          {quantity ?? (context.cards ? EMPTY_VALUE : null)}
+          <TriangleAlertIcon aria-hidden className="size-4 text-warning" />
+          <span className="sr-only">{context.shortfallLabel}</span>
+        </span>
       ) : (
         quantity
       );

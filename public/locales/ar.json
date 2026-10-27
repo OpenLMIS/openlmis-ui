@@ -1656,6 +1656,7 @@
   "requisitions.requisition.show-skipped": "إظهار المتجاوزة",
   "requisitions.requisition.status-message": "{hasAuthor, select, yes {{status} - {author} في {date}} other {{status} في {date}}}",
   "requisitions.requisition.stock": "المخزون المتاح",
+  "requisitions.requisition.stock-shortfall": "مخزون جهة التوريد غير كافٍ",
   "requisitions.requisition.supplier-access-denied": "لا يظهر المخزون المتاح في مرفق الإمداد لأنك لا تملك صلاحية الوصول إلى بطاقات مخزونه. لا يزال بإمكانك الموافقة على هذا الطلب. لعرض مستويات المخزون، اتصل بالمسؤول.",
   "requisitions.requisition.supplier-not-configured": "غير مهيأ",
   "requisitions.requisition.supplying-facility": "مرفق الإمداد: {facilities}",

@@ -1,9 +1,9 @@
 import type {
   Requisition,
-  RequisitionColumn,
   RequisitionLineItem,
   RequisitionProduct,
 } from '@/features/requisitions/lib/requisition';
+import type { RequisitionColumn } from '@/lib/requisition-template';
 
 export function column(
   name: string,

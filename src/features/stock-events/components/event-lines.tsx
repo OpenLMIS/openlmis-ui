@@ -23,19 +23,17 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { stockEventLinesOptions } from '@/features/stock-events/api/queries';
-import {
-  changeDetailPaging,
-  type DetailPagingSearch,
-  detailPagingSchema,
-  detailTableSearch,
-  transactionHistorySearchSchema,
-} from '@/features/stock-events/lib/search';
+import { transactionHistorySearchSchema } from '@/features/stock-events/lib/search';
 import type { StockEventLine } from '@/features/stock-events/lib/types';
 import { usePageStart } from '@/hooks/use-page-start';
 import { EMPTY_VALUE, tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { eventLinks, namedWithFreeText } from '@/lib/stock-labels';
+import type { DetailPagingSearch } from '@/lib/table-search';
 import {
+  changeDetailPaging,
+  detailPagingSchema,
+  detailTableSearch,
   type SearchChange,
   type TableSearch,
   toPaginationState,

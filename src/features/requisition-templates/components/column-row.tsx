@@ -35,8 +35,8 @@ import {
   getRowErrors,
   type RowError,
 } from '@/features/requisition-templates/lib/template-validation';
-import type { TemplateColumn } from '@/features/requisition-templates/lib/types';
 import { orEmpty } from '@/lib/empty-value';
+import type { TemplateColumn } from '@/lib/requisition-template';
 import { cn } from '@/lib/utils';
 
 type Props = { form: TemplateEditorForm; column: TemplateColumn };

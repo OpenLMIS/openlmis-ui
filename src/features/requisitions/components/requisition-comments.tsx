@@ -31,8 +31,8 @@ export function RequisitionComments({
   const { data } = useSuspenseQuery(requisitionStatusMessagesOptions(record.id));
   const messages = data.toSorted((a, b) => b.createdDate.localeCompare(a.createdDate));
   const latest = messages[0];
-  const hasRejections =
-    record.status === 'REJECTED' && !!latestRejection(record)?.rejectionDtos?.length;
+  const rejected = latestRejection(record);
+  const hasRejections = record.status === 'REJECTED' && !!rejected?.rejectionDtos?.length;
   return (
     <section aria-label={t('requisitions.requisition.comments')} className="flex flex-col gap-2">
       <h2 className="font-semibold text-sm">{t('requisitions.requisition.comments')}</h2>
@@ -55,7 +55,7 @@ export function RequisitionComments({
       </div>
       <RequisitionHistoryDialog messages={messages} open={!!history} onClose={onClose} />
       {hasRejections && (
-        <RejectionReasonsDialog record={record} open={!!rejection} onClose={onClose} />
+        <RejectionReasonsDialog rejection={rejected} open={!!rejection} onClose={onClose} />
       )}
     </section>
   );

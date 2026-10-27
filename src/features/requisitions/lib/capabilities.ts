@@ -1,8 +1,8 @@
 import type {
   RequisitionProgram,
-  RequisitionStatus,
   RequisitionTemplate,
 } from '@/features/requisitions/lib/requisition';
+import type { RequisitionStatus } from '@/lib/requisition-status';
 import { RIGHTS } from '@/lib/rights';
 
 export type RequisitionAction =

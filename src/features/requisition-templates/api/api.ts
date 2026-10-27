@@ -3,11 +3,11 @@ import {
   type TemplateDraft,
 } from '@/features/requisition-templates/lib/template-draft';
 import type {
-  ColumnDefinition,
   NewRequisitionTemplate,
   RequisitionTemplate,
 } from '@/features/requisition-templates/lib/types';
 import { client } from '@/integrations/axios';
+import type { ColumnDefinition } from '@/lib/requisition-template';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 

@@ -4,7 +4,6 @@ import type {
   RequisitionLineItem,
   RequisitionProduct,
   RequisitionProgramEntry,
-  RequisitionTemplate,
   VersionIdentity,
 } from '@/features/requisitions/lib/requisition';
 
@@ -65,11 +64,9 @@ export function splitLines(lines: readonly RequisitionLine[]) {
 
 export function filterLines(
   lines: readonly RequisitionLine[],
-  options: { template?: RequisitionTemplate; product?: string; showSkipped?: boolean } = {},
+  options: { hideSkipped?: boolean; product?: string; showSkipped?: boolean } = {},
 ) {
-  const hideSkipped =
-    options.template?.columnsMap.skipped?.option?.optionName === 'hideSkippedLineItems' &&
-    !options.showSkipped;
+  const hideSkipped = options.hideSkipped && !options.showSkipped;
   const query = options.product?.trim().toLocaleLowerCase() ?? '';
   return lines.filter(
     (l) =>

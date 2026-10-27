@@ -23,11 +23,8 @@ import {
 import { requireRequisitionView } from '@/features/auth/lib/requisition-access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
-  approvedProductsByIdentitiesOptions,
-  currencySettingsOptions,
   deploymentTimeZoneOptions,
   facilityOptions,
-  orderablesByIdentitiesOptions,
   processingPeriodOptions,
   programLookupOptions,
   requisitionGroupOptions,
@@ -35,6 +32,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { fetchRequisitionReport } from '@/features/requisitions/api/api';
 import {
+  requisitionGridQueries,
   requisitionOptions,
   requisitionStatusMessagesOptions,
 } from '@/features/requisitions/api/queries';
@@ -51,6 +49,7 @@ import {
 import { RequisitionTabs } from '@/features/requisitions/components/requisition-tabs';
 import { requisitionCapabilities } from '@/features/requisitions/lib/capabilities';
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
+import { defaultRequisitionTab, hidesSkipped } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
@@ -59,7 +58,7 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { openReport } from '@/lib/open-report';
 import type { QuantityUnit } from '@/lib/quantity';
 import { RIGHTS } from '@/lib/rights';
-import { detailPagingSchema, type SearchChange, textFilterSchema } from '@/lib/table-search';
+import { detailPagingSchema, textFilterSchema } from '@/lib/table-search';
 
 const dialogFlag = z.boolean().optional().catch(undefined);
 const searchSchema = requisitionSearchSchema.extend({
@@ -108,26 +107,12 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
     if (!userId || userChanged() || !access || !record) return;
     queryClient.prefetchQuery(requisitionStatusMessagesOptions(record.id));
     queryClient.prefetchQuery(facilityOptions(record.facility.id));
-    queryClient.prefetchQuery(processingPeriodOptions(record.processingPeriod.id));
-    queryClient.prefetchQuery(programLookupOptions(record.program.id));
-    queryClient.prefetchQuery(currencySettingsOptions());
-    queryClient.prefetchQuery(
-      orderablesByIdentitiesOptions(
-        record.requisitionLineItems.map(({ orderable }) => ({
-          id: orderable.id,
-          versionNumber: orderable.versionNumber,
-        })),
-      ),
-    );
-    queryClient.prefetchQuery(
-      approvedProductsByIdentitiesOptions(
-        record.requisitionLineItems.flatMap(({ approvedProduct }) =>
-          approvedProduct
-            ? [{ id: approvedProduct.id, versionNumber: approvedProduct.versionNumber }]
-            : [],
-        ),
-      ),
-    );
+    const [products, approvedProducts, period, currency, program] = requisitionGridQueries(record);
+    queryClient.prefetchQuery(products);
+    queryClient.prefetchQuery(approvedProducts);
+    queryClient.prefetchQuery(period);
+    queryClient.prefetchQuery(currency);
+    queryClient.prefetchQuery(program);
     shownRequisitionId = record.id;
     return { record, userId, access };
   },
@@ -138,16 +123,8 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
 
 function RequisitionPage() {
   const data = Route.useLoaderData();
+  const quantity = useQuantityUnit();
   const search = Route.useSearch();
-  const { updateSearch, openDialog, closeDialog } =
-    useSearchNavigation<typeof search>(CLOSED_DIALOGS);
-  const { unit, setUnit, canSwitch } = useQuantityUnit();
-  const onAdjustments = useCallback(
-    (adjustments: string) => {
-      void openDialog({ adjustments });
-    },
-    [openDialog],
-  );
   const userId = useReloadForUser(
     data?.userId,
     requisitionOptions(Route.useParams().requisitionId).queryKey,
@@ -165,68 +142,112 @@ function RequisitionPage() {
           <RequisitionHeading record={record} />
         </QueryBoundary>
         <WorkspaceActions>
-          <RequisitionPrint record={record} userId={userId} unit={unit} />
+          <RequisitionPrint record={record} userId={userId} unit={quantity.unit} />
         </WorkspaceActions>
       </WorkspaceHeader>
-      <WorkspaceContent>
-        <div className="flex flex-col gap-4">
-          <QueryBoundary
-            resetKey={record.id}
-            errorComponent={SectionError}
-            pendingFallback={<RequisitionHeaderSkeleton record={record} />}
-          >
-            <RequisitionHeader record={record} />
-          </QueryBoundary>
-          <QueryBoundary resetKey={record.id} errorComponent={SectionError} pendingFallback={null}>
-            <RequisitionLegacyActions data={data} />
-          </QueryBoundary>
-          <QueryBoundary
-            resetKey={record.id}
-            errorComponent={SectionError}
-            pendingFallback={<RequisitionCommentsSkeleton />}
-          >
-            <RequisitionComments
-              record={record}
-              history={search.history}
-              rejection={search.rejection}
-              onHistory={() => void openDialog({ history: true })}
-              onRejection={() => void openDialog({ rejection: true })}
-              onClose={closeDialog}
-            />
-          </QueryBoundary>
-          <QueryBoundary
-            resetKey={record.id}
-            errorComponent={SectionError}
-            pendingFallback={
-              <>
-                <RequisitionTabsSkeleton />
-                <RequisitionGridPending
-                  hideSkipped={
-                    search.tab !== 'nonFullSupply' &&
-                    !record.emergency &&
-                    !!record.template.columnsMap.skipped?.isDisplayed &&
-                    record.template.columnsMap.skipped?.option?.optionName ===
-                      'hideSkippedLineItems'
-                  }
-                  canSwitch={canSwitch}
-                />
-              </>
-            }
-          >
-            <RequisitionDetailTabs
-              data={data}
-              unit={unit}
-              setUnit={setUnit}
-              canSwitch={canSwitch}
-              search={search}
-              onSearchChange={updateSearch}
-              onAdjustments={onAdjustments}
-              onCloseAdjustments={closeDialog}
-            />
-          </QueryBoundary>
-        </div>
-      </WorkspaceContent>
+      <QueryBoundary
+        resetKey={record.id}
+        errorComponent={SectionError}
+        pendingFallback={
+          <WorkspaceContent>
+            <div aria-busy className="flex flex-col gap-4">
+              <RequisitionHeaderSkeleton record={record} />
+              <RequisitionCommentsSkeleton />
+              <RequisitionTabsSkeleton />
+              <RequisitionGridPending
+                hideSkipped={hidesSkipped(record.template, search.tab)}
+                canSwitch={quantity.canSwitch}
+              />
+            </div>
+          </WorkspaceContent>
+        }
+      >
+        <RequisitionBody data={data} quantity={quantity} />
+      </QueryBoundary>
     </Workspace>
+  );
+}
+
+function RequisitionBody({
+  data,
+  quantity,
+}: {
+  data: RequisitionData;
+  quantity: ReturnType<typeof useQuantityUnit>;
+}) {
+  const { record } = data;
+  const { unit, setUnit, canSwitch } = quantity;
+  const search = Route.useSearch();
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<typeof search>(CLOSED_DIALOGS);
+  const onAdjustments = useCallback(
+    (adjustments: string) => {
+      void openDialog({ adjustments });
+    },
+    [openDialog],
+  );
+  const { approver, deferred } = useRequisitionPolicy(data);
+  return (
+    <WorkspaceContent>
+      <div className="flex flex-col gap-4">
+        <QueryBoundary
+          resetKey={record.id}
+          errorComponent={SectionError}
+          pendingFallback={<RequisitionHeaderSkeleton record={record} />}
+        >
+          <RequisitionHeader record={record} />
+        </QueryBoundary>
+        {deferred && <LegacyActionsNote requisitionId={record.id} />}
+        <QueryBoundary
+          resetKey={record.id}
+          errorComponent={SectionError}
+          pendingFallback={<RequisitionCommentsSkeleton />}
+        >
+          <RequisitionComments
+            record={record}
+            history={search.history}
+            rejection={search.rejection}
+            onHistory={() => void openDialog({ history: true })}
+            onRejection={() => void openDialog({ rejection: true })}
+            onClose={closeDialog}
+          />
+        </QueryBoundary>
+        <QueryBoundary
+          resetKey={record.id}
+          errorComponent={SectionError}
+          pendingFallback={
+            <>
+              <RequisitionTabsSkeleton />
+              <RequisitionGridPending
+                hideSkipped={hidesSkipped(record.template, search.tab)}
+                canSwitch={canSwitch}
+              />
+            </>
+          }
+        >
+          <RequisitionTabs
+            record={record}
+            unit={unit}
+            setUnit={setUnit}
+            canSwitch={canSwitch}
+            tab={search.tab}
+            onTabChange={(tab) =>
+              updateSearch({
+                tab: tab === defaultRequisitionTab(record.template) ? undefined : tab,
+                detailPage: undefined,
+              })
+            }
+            search={search}
+            onSearchChange={updateSearch}
+            onAdjustments={onAdjustments}
+            onCloseAdjustments={closeDialog}
+            supplyingStock={
+              approver && !!record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed
+            }
+          />
+        </QueryBoundary>
+      </div>
+    </WorkspaceContent>
   );
 }
 
@@ -306,8 +327,8 @@ function useRequisitionPolicy(data: RequisitionData) {
       node.requisitionGroup ? [requisitionGroupOptions(node.requisitionGroup.id)] : [],
     ),
   });
-  const currentNodes = record.supervisoryNode?.id
-    ? [record.supervisoryNode.id]
+  const currentNodes = record.supervisoryNode
+    ? [record.supervisoryNode]
     : nodes
         .filter((node) =>
           groups.some(
@@ -340,58 +361,6 @@ function useRequisitionPolicy(data: RequisitionData) {
     deferred: policies.some((policy) => policy.deferred.length > 0),
     approver: policies.some((policy) => policy.approver),
   };
-}
-function RequisitionLegacyActions({ data }: { data: RequisitionData }) {
-  const { record } = data;
-  const { deferred } = useRequisitionPolicy(data);
-  return deferred ? <LegacyActionsNote requisitionId={record.id} /> : null;
-}
-
-function RequisitionDetailTabs({
-  unit,
-  setUnit,
-  canSwitch,
-  data,
-  search,
-  onSearchChange,
-  onAdjustments,
-  onCloseAdjustments,
-}: {
-  data: RequisitionData;
-  unit: QuantityUnit;
-  setUnit: (unit: QuantityUnit) => void;
-  canSwitch: boolean;
-  search: ReturnType<typeof Route.useSearch>;
-  onSearchChange: SearchChange<ReturnType<typeof Route.useSearch>>;
-  onAdjustments: (id: string) => void;
-  onCloseAdjustments: () => void;
-}) {
-  const { approver } = useRequisitionPolicy(data);
-  return (
-    <RequisitionTabs
-      record={data.record}
-      unit={unit}
-      setUnit={setUnit}
-      canSwitch={canSwitch}
-      tab={search.tab}
-      onTabChange={(tab) =>
-        onSearchChange({
-          tab:
-            tab === (data.record.template.patientsTabEnabled ? 'patients' : 'fullSupply')
-              ? undefined
-              : tab,
-          detailPage: undefined,
-        })
-      }
-      search={search}
-      onSearchChange={onSearchChange}
-      onAdjustments={onAdjustments}
-      onCloseAdjustments={onCloseAdjustments}
-      supplyingStock={
-        approver && !!data.record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed
-      }
-    />
-  );
 }
 
 function RequisitionPrint({

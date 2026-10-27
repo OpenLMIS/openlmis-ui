@@ -1,9 +1,9 @@
+import type { RequisitionTemplate } from '@/features/requisition-templates/lib/types';
 import type {
   ColumnDefinition,
-  RequisitionTemplate,
   TemplateColumn,
   TemplateColumnDefinition,
-} from '@/features/requisition-templates/lib/types';
+} from '@/lib/requisition-template';
 
 type CatalogRow = [
   string,

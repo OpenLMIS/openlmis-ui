@@ -35,7 +35,7 @@ export function RequisitionGridToolbar({
   setUnit: (unit: QuantityUnit) => void;
   canSwitch: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const id = useId();
   return (
     <DataTableToolbar>
@@ -57,6 +57,14 @@ export function RequisitionGridToolbar({
             onClear={() => onSearchChange({ skipped: undefined, detailPage: undefined })}
           >
             <Field orientation="horizontal">
+              <div className="flex min-h-8 min-w-0 flex-1 items-center gap-1">
+                <FieldLabel htmlFor={id}>
+                  {t('requisitions.requisition.show-skipped')}
+                  <Badge variant="secondary">
+                    {new Intl.NumberFormat(i18n.language).format(skippedCount)}
+                  </Badge>
+                </FieldLabel>
+              </div>
               <Switch
                 id={id}
                 checked={!!search.skipped}
@@ -64,15 +72,15 @@ export function RequisitionGridToolbar({
                   onSearchChange({ skipped: checked || undefined, detailPage: undefined })
                 }
               />
-              <FieldLabel htmlFor={id}>
-                {t('requisitions.requisition.show-skipped')}
-                <Badge variant="secondary">{skippedCount.toLocaleString()}</Badge>
-              </FieldLabel>
             </Field>
           </DataTableFilters>
         </div>
       )}
-      {canSwitch && <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />}
+      {canSwitch && (
+        <div className="flex-1 @2xl/main:flex-none">
+          <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
+        </div>
+      )}
       <div className={hideSkipped ? 'shrink-0' : 'ms-auto shrink-0'}>
         <DataTableViewOptions
           size="lg"

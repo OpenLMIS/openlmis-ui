@@ -1,17 +1,21 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQueries } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { programLookupOptions } from '@/features/reference-data/api/queries';
+import { requisitionGridQueries } from '@/features/requisitions/api/queries';
 import { PatientsGrid } from '@/features/requisitions/components/patients-grid';
 import {
   type GridSearch,
   RequisitionGrid,
 } from '@/features/requisitions/components/requisition-grid';
+import { RequisitionTotals } from '@/features/requisitions/components/requisition-totals';
+import { calculateLine, calculateTotals } from '@/features/requisitions/lib/calculations';
+import { buildLines } from '@/features/requisitions/lib/lines';
+import { defaultRequisitionTab, type RequisitionTab } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
 
-export type RequisitionTab = 'fullSupply' | 'nonFullSupply' | 'patients';
 export function RequisitionTabs({
   record,
   tab,
@@ -38,7 +42,23 @@ export function RequisitionTabs({
   onTabChange: (value: RequisitionTab) => void;
 }) {
   const { t } = useTranslation();
-  const { data: program } = useSuspenseQuery(programLookupOptions(record.program.id));
+  const [
+    { data: products },
+    { data: approvedProducts },
+    { data: period },
+    { data: currency },
+    { data: program },
+  ] = useSuspenseQueries({ queries: requisitionGridQueries(record) });
+  const totals = useMemo(
+    () =>
+      calculateTotals(
+        buildLines(record, products, approvedProducts).map((model) => ({
+          ...model,
+          line: calculateLine(model, record, period.durationInMonths ?? 1),
+        })),
+      ),
+    [record, products, approvedProducts, period.durationInMonths],
+  );
   const patients = record.template.patientsTabEnabled;
   const tabs: { value: RequisitionTab; label: string }[] = [
     ...(patients
@@ -65,43 +85,48 @@ export function RequisitionTabs({
   ];
   const active = tabs.some(({ value }) => value === tab)
     ? tab
-    : patients
-      ? 'patients'
-      : 'fullSupply';
+    : defaultRequisitionTab(record.template);
   return (
-    <Tabs
-      spacing="page"
-      value={active}
-      onValueChange={(value) => onTabChange(value as RequisitionTab)}
-    >
-      <TabsList size="lg" wrap="column" aria-label={t('requisitions.requisition.tabs')}>
-        {tabs.map(({ value, label }) => (
-          <TabsTrigger key={value} value={value}>
-            {label}
-          </TabsTrigger>
+    <>
+      <Tabs
+        spacing="page"
+        value={active}
+        onValueChange={(value) => onTabChange(value as RequisitionTab)}
+      >
+        <TabsList size="lg" wrap="column" aria-label={t('requisitions.requisition.tabs')}>
+          {tabs.map(({ value, label }) => (
+            <TabsTrigger key={value} value={value}>
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {tabs.map(({ value }) => (
+          <TabsContent key={value} value={value}>
+            {value === 'patients' ? (
+              <PatientsGrid patientsData={record.patientsData} />
+            ) : (
+              <RequisitionGrid
+                key={`${record.id}:${record.template.id ?? 'template'}`}
+                record={record}
+                tab={value}
+                search={search}
+                onSearchChange={onSearchChange}
+                onAdjustments={onAdjustments}
+                onCloseAdjustments={onCloseAdjustments}
+                unit={unit}
+                setUnit={setUnit}
+                canSwitch={canSwitch}
+                supplyingStock={supplyingStock}
+              />
+            )}
+          </TabsContent>
         ))}
-      </TabsList>
-      {tabs.map(({ value }) => (
-        <TabsContent key={value} value={value}>
-          {value === 'patients' ? (
-            <PatientsGrid patientsData={record.patientsData} />
-          ) : (
-            <RequisitionGrid
-              key={`${record.id}:${record.template.id ?? 'template'}`}
-              record={record}
-              tab={value}
-              search={search}
-              onSearchChange={onSearchChange}
-              onAdjustments={onAdjustments}
-              onCloseAdjustments={onCloseAdjustments}
-              unit={unit}
-              setUnit={setUnit}
-              canSwitch={canSwitch}
-              supplyingStock={supplyingStock}
-            />
-          )}
-        </TabsContent>
-      ))}
-    </Tabs>
+      </Tabs>
+      <RequisitionTotals
+        totals={totals}
+        currency={currency}
+        showNonFullSupply={!!program.showNonFullSupplyTab}
+      />
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import type { TemplateColumn } from '@/features/requisition-templates/lib/types';
+import type { TemplateColumn } from '@/lib/requisition-template';
 
 export function sortColumns(columnsMap: Record<string, TemplateColumn>) {
   return Object.values(columnsMap).sort((a, b) => a.displayOrder - b.displayOrder);

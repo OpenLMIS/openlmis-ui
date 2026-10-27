@@ -15,6 +15,7 @@ const products = Array.from({ length: 12 }, (_, index) =>
     id: `p${index}`,
     productCode: `P${index}`,
     fullProductName: `Medicine ${index}`,
+    dispensable: { displayUnit: 'Tablet' },
     programs: [
       {
         programId: 'program',
@@ -101,7 +102,6 @@ function Harness({
       approvedProducts={[]}
       monthsInPeriod={1}
       currency={currency}
-      showNonFullSupply
       tab={tab}
       search={search}
       onSearchChange={update}
@@ -136,7 +136,7 @@ it.each([1000, 390])(
     const user = userEvent.setup();
     render(<Harness />);
     expect(screen.getByText('Category A')).toBeInTheDocument();
-    expect(screen.getAllByText('$24.00')).toHaveLength(width >= 672 ? 2 : 1);
+    if (width >= 672) expect(screen.getAllByText('$24.00')).toHaveLength(1);
     if (width >= 672)
       expect(within(screen.getByRole('table')).getByText('$24.00')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Next Page' }));
@@ -144,7 +144,7 @@ it.each([1000, 390])(
     expect(screen.getByText(/Medicine 8/)).toBeInTheDocument();
     expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next Page' })).toBeDisabled();
-    expect(screen.getAllByText('$24.00')).toHaveLength(width >= 672 ? 2 : 1);
+    if (width >= 672) expect(screen.getAllByText('$24.00')).toHaveLength(1);
     if (width >= 672)
       expect(within(screen.getByRole('table')).getByText('$24.00')).toBeInTheDocument();
   },
@@ -187,36 +187,48 @@ it('shows skipped full-supply products through Filters and clears both filters f
   );
   await user.keyboard('{Escape}');
   expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
+  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0' })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
   await user.type(screen.getByRole('textbox'), 'absent');
   await user.click(await screen.findByRole('button', { name: 'data-table.clear-filters' }));
   expect(screen.getByRole('textbox')).toHaveValue('');
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
 });
-it.each(['nonFullSupply', 'noSkipColumn'] as const)(
-  'does not hide skipped products or offer Show Skipped on %s',
-  (mode) => {
-    const value = {
-      ...withSkipped,
-      template:
-        mode === 'noSkipColumn'
-          ? {
-              columnsMap: {
-                ...withSkipped.template.columnsMap,
-                skipped: column('skipped', 4, {
-                  isDisplayed: false,
-                  option: { optionName: 'hideSkippedLineItems' },
-                }),
-              },
-            }
-          : withSkipped.template,
-    };
+it('does not hide skipped non-full-supply products', () => {
+  render(<Harness value={withSkipped} tab="nonFullSupply" />);
+  expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^Filters/ })).not.toBeInTheDocument();
+});
+it.each([false, true])(
+  'hides skipped full-supply products even with a hidden skip column, emergency=%s',
+  (emergency) => {
     render(
-      <Harness value={value} tab={mode === 'nonFullSupply' ? 'nonFullSupply' : 'fullSupply'} />,
+      <Harness
+        value={{
+          ...withSkipped,
+          emergency,
+          template: {
+            columnsMap: {
+              ...withSkipped.template.columnsMap,
+              skipped: column('skipped', 4, {
+                isDisplayed: false,
+                option: { optionName: 'hideSkippedLineItems' },
+              }),
+            },
+          },
+        }}
+      />,
     );
-    expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Filters/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Filters/ })).toBeInTheDocument();
   },
 );
+it('shows the exact product name in the table without its display unit', () => {
+  render(<Harness />);
+  expect(screen.getByText('Medicine 0', { exact: true })).toBeInTheDocument();
+});
 it('shows only the access banner when supplying stock access is denied', () => {
   render(
     <Harness
@@ -239,4 +251,60 @@ it('shows only the access banner when supplying stock access is denied', () => {
   expect(
     screen.queryByRole('columnheader', { name: 'supplyingFacilityStockOnHand' }),
   ).not.toBeInTheDocument();
+});
+
+it('pins product columns using the measured inline widths for header, body and totals', () => {
+  const columns = ['orderable.productCode', 'orderable.fullProductName', 'requestedQuantity'];
+  render(
+    <Harness
+      value={{
+        ...requisition,
+        template: {
+          columnsMap: Object.fromEntries(columns.map((name, i) => [name, column(name, i)])),
+        },
+      }}
+    />,
+  );
+  const code = screen.getByRole('columnheader', { name: 'orderable.productCode' });
+  const name = screen.getByRole('columnheader', { name: 'orderable.fullProductName' });
+  expect(code.style.insetInlineStart).toBe('0');
+  expect(name.style.insetInlineStart).toBe('1000px');
+  expect(screen.getByText('P0').closest('td')?.style.insetInlineStart).toBe('0');
+  expect(
+    screen.getByText('Medicine 0', { exact: true }).closest('td')?.style.insetInlineStart,
+  ).toBe('1000px');
+});
+
+it('opens adjustments through a name that includes the visible quantity and product', async () => {
+  const user = userEvent.setup();
+  render(<Harness />);
+  await user.click(
+    screen.getByRole('button', { name: 'totalLossesAndAdjustments: 3, Medicine 0' }),
+  );
+  expect(await screen.findByRole('dialog')).toBeInTheDocument();
+});
+it.each([1000, 390])('labels shortfall beyond colour at width %s', (width) => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+  render(
+    <Harness
+      supplyingStock
+      value={{
+        ...requisition,
+        status: 'IN_APPROVAL',
+        supplyingFacilities: [{ id: 'supplier' }],
+        template: {
+          columnsMap: {
+            ...requisition.template.columnsMap,
+            supplyingFacilityStockOnHand: column('supplyingFacilityStockOnHand', 5),
+          },
+        },
+        requisitionLineItems: requisition.requisitionLineItems.map((l) => ({
+          ...l,
+          approvedQuantity: 5,
+          supplyingFacilityStockOnHand: 2,
+        })),
+      }}
+    />,
+  );
+  expect(screen.getAllByText('requisitions.requisition.stock-shortfall')).toHaveLength(10);
 });
