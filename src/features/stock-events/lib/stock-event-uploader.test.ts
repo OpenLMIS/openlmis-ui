@@ -567,8 +567,12 @@ it('excludes access preparation from the foreground sending start deadline', asy
       settled = true;
       return value;
     });
+    const reads = vi.spyOn(getLocalDb(), 'transaction');
     await vi.advanceTimersByTimeAsync(1600);
+    await Promise.allSettled(reads.mock.results.map((read) => read.value));
+    await vi.advanceTimersByTimeAsync(0);
     expect(settled).toBe(false);
+    reads.mockRestore();
     vi.useRealTimers();
     preparing.resolve(snapshot);
     expect((await result).kind).toBe('accepted');
