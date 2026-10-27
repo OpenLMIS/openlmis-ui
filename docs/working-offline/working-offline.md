@@ -4,8 +4,8 @@ Adjustments, Issue and Receive can use downloaded data, save drafts and submit e
 connection. Home, Offline Events, downloaded home-facility Stock On Hand, saved Stock Cards and
 Physical Inventory drafts opened online on this device also open offline. Unpack needs a
 connection. The old UI cannot open Unpack offline, though an already-open editor can queue.
-Transaction History, other stock pages, administration, printing and PDF downloads need a
-connection.
+Transaction History, other stock pages, requisitions, administration, printing and PDF downloads
+need a connection.
 
 ## Before You Disconnect
 
