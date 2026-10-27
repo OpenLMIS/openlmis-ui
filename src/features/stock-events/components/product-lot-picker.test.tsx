@@ -800,3 +800,42 @@ it('distinguishes an empty kit list from a search with no matching kits', async 
   expect(await screen.findByText(en['stock-events.no-matches-title'])).toBeVisible();
   expect(screen.queryByText('No kits with stock in this program.')).not.toBeInTheDocument();
 });
+
+it('limits stock product matches to 50 while searching the complete catalog', async () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  queryClient.setQueryData(
+    eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+    {
+      cards: Array.from({ length: 60 }, (_, index) => ({
+        ...card,
+        id: `card-${index}`,
+        orderable: {
+          ...card.orderable,
+          id: `product-${index}`,
+          fullProductName: `Product ${index}`,
+        },
+      })),
+      device: undefined,
+    },
+  );
+  const user = userEvent.setup();
+  renderPage(
+    <I18nextProvider i18n={i18n}>
+      <ProductLotPicker
+        kind="adjustment"
+        facilityId="facility"
+        programId="program"
+        disabled={false}
+        cardFilter={allEventCards}
+        onAdd={vi.fn()}
+      />
+    </I18nextProvider>,
+    { queryClient },
+  );
+  const input = await screen.findByRole('combobox', { name: 'Product' });
+  await user.click(input);
+  expect(await screen.findAllByRole('option')).toHaveLength(50);
+  await user.type(input, 'Product 59');
+  expect(await screen.findByRole('option', { name: 'Product 59' })).toBeVisible();
+  expect(screen.getAllByRole('option')).toHaveLength(1);
+});

@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
-import type { InternalAxiosRequestConfig } from 'axios';
+import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -172,4 +172,33 @@ it('selects the latest available version when approval has no version and accept
   expect(empty.approved).toEqual([]);
   expect(empty.products).toEqual([]);
   expect(empty.lots).toEqual([]);
+});
+
+it('starts GTIN lookup before the independent lots lookup finishes', async () => {
+  const adapter = client.defaults.adapter as AxiosAdapter;
+  let releaseLots!: () => void;
+  let lotsStarted!: () => void;
+  const lotsReady = new Promise<void>((resolve) => {
+    lotsStarted = resolve;
+  });
+  const lotsPending = new Promise<void>((resolve) => {
+    releaseLots = resolve;
+  });
+  let gtinStarted = false;
+  client.defaults.adapter = async (config) => {
+    if (config.url === '/lots') {
+      lotsStarted();
+      await lotsPending;
+    }
+    if (config.url === '/tradeItems') gtinStarted = true;
+    return adapter(config);
+  };
+  const download = fetchReceiveCatalog({ ...scope, scanning: true });
+  await lotsReady;
+  try {
+    expect(gtinStarted).toBe(true);
+  } finally {
+    releaseLots();
+    await download;
+  }
 });

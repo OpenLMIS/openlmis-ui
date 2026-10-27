@@ -20,6 +20,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { WrappingCell } from '@/components/data-table/wrapping-cell';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { stockEventLinesOptions } from '@/features/stock-events/api/queries';
@@ -74,15 +75,6 @@ type CellId = (typeof COLUMNS)[number][0];
 
 const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'product');
 
-function Wrapped({ children, empty }: { children: string | null | undefined; empty?: string }) {
-  if (empty !== undefined) return <bdi>{tableValue(children) ?? empty}</bdi>;
-  return (
-    <span className="whitespace-nowrap">
-      <bdi>{tableValue(children)}</bdi>
-    </span>
-  );
-}
-
 function LineCell({
   id,
   line,
@@ -98,11 +90,13 @@ function LineCell({
   switch (id) {
     case 'product':
       return (
-        <Wrapped>{`${line.orderable.fullProductName} (${line.orderable.productCode})`}</Wrapped>
+        <WrappingCell>{`${line.orderable.fullProductName} (${line.orderable.productCode})`}</WrappingCell>
       );
     case 'lot':
       return (
-        <Wrapped empty={empty}>{line.lot ? line.lot.lotCode : t('stock-event.no-lot')}</Wrapped>
+        <WrappingCell empty={empty}>
+          {line.lot ? line.lot.lotCode : t('stock-event.no-lot')}
+        </WrappingCell>
       );
     case 'expiry':
     case 'date':
@@ -119,15 +113,23 @@ function LineCell({
         </span>
       );
     case 'source':
-      return <Wrapped empty={empty}>{namedWithFreeText(line.source, line.sourceFreeText)}</Wrapped>;
+      return (
+        <WrappingCell empty={empty}>
+          {namedWithFreeText(line.source, line.sourceFreeText)}
+        </WrappingCell>
+      );
     case 'destination':
       return (
-        <Wrapped empty={empty}>
+        <WrappingCell empty={empty}>
           {namedWithFreeText(line.destination, line.destinationFreeText)}
-        </Wrapped>
+        </WrappingCell>
       );
     case 'reason':
-      return <Wrapped empty={empty}>{namedWithFreeText(line.reason, line.reasonFreeText)}</Wrapped>;
+      return (
+        <WrappingCell empty={empty}>
+          {namedWithFreeText(line.reason, line.reasonFreeText)}
+        </WrappingCell>
+      );
     case 'quantity':
     case 'balance':
       return (
@@ -146,7 +148,7 @@ function LineCell({
     case 'reversedBy': {
       const view = t('stock-event.view-event');
       const link = eventLinks(line, { noNumber: '', view })[id];
-      if (!link?.eventId) return <Wrapped empty={empty}>{link?.label}</Wrapped>;
+      if (!link?.eventId) return <WrappingCell empty={empty}>{link?.label}</WrappingCell>;
       return (
         <span className="whitespace-nowrap">
           <Link

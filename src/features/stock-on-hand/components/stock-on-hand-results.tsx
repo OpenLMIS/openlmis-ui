@@ -25,6 +25,7 @@ import {
   DataTablePagination,
   DataTablePaginationSkeleton,
 } from '@/components/data-table/data-table-pagination';
+import { WrappingCell } from '@/components/data-table/wrapping-cell';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { PendingWorkAlert, SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
@@ -307,14 +308,6 @@ function Code({ children }: { children: ReactNode }) {
   );
 }
 
-function Wrapped({ children }: { children: ReactNode }) {
-  return (
-    <span className="block whitespace-normal break-normal">
-      <bdi>{children}</bdi>
-    </span>
-  );
-}
-
 function ToggleIcon({ open }: { open: boolean }) {
   return <ChevronDownIcon className={open ? undefined : '-rotate-90 rtl:rotate-90'} />;
 }
@@ -424,7 +417,7 @@ function GroupedTable({
                           {text.productCode(group.product)}
                         </span>
                       ),
-                      product: <Wrapped>{name}</Wrapped>,
+                      product: <WrappingCell>{name}</WrappingCell>,
                       packSize: text.packSize(group.product),
                       stockOnHand: (
                         <Quantity
@@ -444,9 +437,9 @@ function GroupedTable({
                             productCode: (
                               <span className="flex ps-8">{text.productCode(card.product)}</span>
                             ),
-                            product: <Wrapped>{text.productLabel(card.product)}</Wrapped>,
+                            product: <WrappingCell>{text.productLabel(card.product)}</WrappingCell>,
                             packSize: text.packSize(card.product),
-                            lotCode: <Wrapped>{text.lotLabel(card)}</Wrapped>,
+                            lotCode: <WrappingCell>{text.lotLabel(card)}</WrappingCell>,
                             expiry: tableValue(text.date(card.lot?.expirationDate)),
                             lastUpdate: tableValue(text.date(card.occurredDate)),
                             stockOnHand: (
@@ -518,7 +511,7 @@ function GroupedCards({
               </Button>
               <div className="min-w-0 flex-1 wrap-anywhere">
                 <div className="font-semibold text-sm">
-                  <Wrapped>{name}</Wrapped>
+                  <WrappingCell>{name}</WrappingCell>
                 </div>
                 <div className="flex flex-wrap items-center gap-1 text-muted-foreground text-xs">
                   {text.productCode(group.product)}

@@ -29,10 +29,12 @@ export function filterEventLines(
       line.reasonFreeText,
       line.quantity.doses,
       lot?.lotCode ?? noLotLabel,
-      lot?.expirationDate ? formatDate(lot.expirationDate) : '',
-      line.occurredDate ? formatDate(line.occurredDate) : '',
     ];
-    return fields.some((value) => value?.toLowerCase().includes(query));
+    if (fields.some((value) => value?.toLowerCase().includes(query))) return true;
+    return (
+      (!!lot?.expirationDate && formatDate(lot.expirationDate).toLowerCase().includes(query)) ||
+      (!!line.occurredDate && formatDate(line.occurredDate).toLowerCase().includes(query))
+    );
   });
 }
 

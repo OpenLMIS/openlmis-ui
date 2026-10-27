@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { quantityValue } from '@/components/form/quantity-value';
 import type { Reason } from '@/features/reference-data/lib/types';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
@@ -124,3 +124,12 @@ it.each(['hospital', 'courier'])('matches Issue destination fields: %s', (keywor
     ),
   ).toEqual([]);
 });
+
+it.each(['c1', 'acetyl', 'lc2017a'])(
+  'skips date formatting when %s matches a cheap field',
+  (keyword) => {
+    const formatter = vi.fn(formatDate);
+    expect(filterEventLines([row], keyword, reasons, formatter)).toEqual([row]);
+    expect(formatter).not.toHaveBeenCalled();
+  },
+);
