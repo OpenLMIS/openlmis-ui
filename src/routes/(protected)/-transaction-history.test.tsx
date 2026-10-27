@@ -33,7 +33,7 @@ import { httpError, networkError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
-  fetchDeploymentTimeZone: vi.fn(async () => 'Pacific/Auckland'),
+  fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'Pacific/Auckland' })),
   storedTimeZone: vi.fn(() => null),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),

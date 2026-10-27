@@ -11,7 +11,10 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { fetchOrderablesByIdentities } from '@/features/reference-data/api/api';
+import {
+  fetchOrderablesByIdentities,
+  fetchSupervisoryNodesByIds,
+} from '@/features/reference-data/api/api';
 import { fetchRequisition } from '@/features/requisitions/api/api';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view_.$requisitionId';
@@ -20,7 +23,6 @@ import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
-  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
   storedTimeZone: vi.fn(() => null),
   fetchUserRecord: vi.fn(async () => ({
     id: 'u',
@@ -38,6 +40,7 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchProcessingPeriod: vi.fn(async () => ({ id: 'period', name: 'March', durationInMonths: 1 })),
   fetchProgramLookup: vi.fn(async () => ({ id: 'program', name: 'Family Planning' })),
   fetchCurrencySettings: vi.fn(async () => ({
+    timeZoneId: 'UTC',
     currencyCode: 'USD',
     currencySymbol: '$',
     currencySymbolSide: 'left',
@@ -49,6 +52,9 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchOrderablesByIdentities: vi.fn(async () => [product()]),
   fetchApprovedProductsByIdentities: vi.fn(async () => []),
   fetchSupervisoryNodesByIds: vi.fn(async () => []),
+  fetchRequisitionGroup: vi.fn(async () => {
+    throw new Error('Group lookup failed');
+  }),
   fetchUserPrograms: vi.fn(async () => [{ id: 'p', name: 'Family Planning' }]),
   fetchPrograms: vi.fn(async () => [{ id: 'p', name: 'Family Planning' }]),
   fetchMinimalFacilities: vi.fn(async () => [{ id: 'f', name: 'Comfort', code: 'HC01' }]),
@@ -186,5 +192,26 @@ it('keeps the skipped filter out of the pending default Patients tab', async () 
   await screen.findByRole('heading', { name: 'requisitions.requisition.comments' });
   expect(screen.getByRole('status', { name: 'pending-products' })).toBeInTheDocument();
   expect(screen.queryByRole('status', { name: 'pending-skipped-filter' })).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('keeps header facts and comments when approval group lookup fails', async () => {
+  useLoginData.setState({ referenceDataUserId: 'u' });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...patientRecord(),
+    status: 'AUTHORIZED',
+    supervisoryNode: null,
+  });
+  vi.mocked(fetchSupervisoryNodesByIds).mockResolvedValueOnce([
+    { id: 'node', code: 'NODE', name: 'Node', requisitionGroup: { id: 'group' } },
+  ]);
+  const { queryClient } = renderRoute('/requisitions/view/r');
+  await screen.findAllByText('requisitions.requisition.section-error-title');
+  expect(screen.getByText('HC01 - Comfort')).toBeInTheDocument();
+  expect(screen.getByText('requisitions.requisition.no-comments')).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: 'requisitions.requisition.comments' }),
+  ).toBeInTheDocument();
   queryClient.clear();
 });

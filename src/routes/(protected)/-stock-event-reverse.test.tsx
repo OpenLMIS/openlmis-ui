@@ -46,7 +46,7 @@ vi.mock('@/features/stock-events/api/api', () => ({
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchReasons: vi.fn(),
-  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
+  fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
   storedTimeZone: vi.fn(() => null),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

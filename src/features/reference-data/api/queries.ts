@@ -7,7 +7,6 @@ import {
   fetchApprovedProducts,
   fetchApprovedProductsByIdentities,
   fetchCurrencySettings,
-  fetchDeploymentTimeZone,
   fetchFacilitiesByIds,
   fetchFacility,
   fetchFacilityOperators,
@@ -51,6 +50,7 @@ import {
 } from '@/features/reference-data/api/api';
 import { uniqueIdentities } from '@/features/reference-data/lib/identities';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
+import { readDeploymentTimeZone } from '@/lib/deployment-time-zone';
 import { deviceQuery } from '@/lib/device-query';
 import {
   queryKeys,
@@ -302,9 +302,10 @@ type DeploymentTimeZone = { zone: string; read: boolean };
 export const deploymentTimeZoneOptions = () =>
   queryOptions({
     queryKey: queryKeys.localeSettings.all,
-    queryFn: async (): Promise<DeploymentTimeZone> => {
+    queryFn: async ({ client }): Promise<DeploymentTimeZone> => {
       try {
-        return { zone: await fetchDeploymentTimeZone(), read: true };
+        const settings = await client.fetchQuery(currencySettingsOptions());
+        return { zone: readDeploymentTimeZone(settings), read: true };
       } catch {
         return { zone: storedTimeZone() ?? 'UTC', read: false };
       }

@@ -68,7 +68,7 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   storedTimeZone: vi.fn().mockReturnValue('UTC'),
-  fetchDeploymentTimeZone: vi.fn().mockResolvedValue('UTC'),
+  fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),

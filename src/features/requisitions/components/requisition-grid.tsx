@@ -1,4 +1,3 @@
-import { useSuspenseQueries } from '@tanstack/react-query';
 import { createColumnHelper, FlexRender, functionalUpdate, useTable } from '@tanstack/react-table';
 import { ChevronRightIcon, TriangleAlertIcon } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -28,25 +27,15 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { productLabel } from '@/features/reference-data/lib/products';
 import type { CurrencySettings } from '@/features/reference-data/lib/types';
-import { requisitionGridQueries } from '@/features/requisitions/api/queries';
 import { AdjustmentsDialog } from '@/features/requisitions/components/adjustments-dialog';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
 import { SupplyingStockNote } from '@/features/requisitions/components/supplying-stock-note';
-import { calculateLine, calculateTotals } from '@/features/requisitions/lib/calculations';
+import type { calculateTotals } from '@/features/requisitions/lib/calculations';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
 import { gridRowTone } from '@/features/requisitions/lib/grid-row-tone';
-import {
-  buildLines,
-  filterLines,
-  type RequisitionLine,
-  splitLines,
-} from '@/features/requisitions/lib/lines';
+import { filterLines, type RequisitionLine, splitLines } from '@/features/requisitions/lib/lines';
 import { PATIENT_QUANTITY_COLUMNS } from '@/features/requisitions/lib/patients';
-import type {
-  RequisitionApprovedProduct,
-  RequisitionLineItem,
-  RequisitionProduct,
-} from '@/features/requisitions/lib/requisition';
+import type { RequisitionLineItem } from '@/features/requisitions/lib/requisition';
 import {
   compileColumns,
   type GridColumn,
@@ -86,22 +75,6 @@ type Props = {
   canSwitch: boolean;
 };
 const helper = createColumnHelper<DataTableFeatures, GridRow>();
-export function RequisitionGrid(props: Props) {
-  const { record } = props;
-  const [{ data: products }, { data: approvedProducts }, { data: period }, { data: currency }] =
-    useSuspenseQueries({
-      queries: requisitionGridQueries(record),
-    });
-  return (
-    <RequisitionGridView
-      {...props}
-      products={products}
-      approvedProducts={approvedProducts}
-      monthsInPeriod={period.durationInMonths ?? 1}
-      currency={currency}
-    />
-  );
-}
 export function RequisitionGridView({
   record,
   tab,
@@ -110,32 +83,21 @@ export function RequisitionGridView({
   onAdjustments,
   onCloseAdjustments,
   supplyingStock,
-  products,
-  approvedProducts,
-  monthsInPeriod,
+  models,
+  totals,
   currency,
   unit,
   setUnit,
   canSwitch,
 }: Props & {
-  products: readonly RequisitionProduct[];
-  approvedProducts: readonly RequisitionApprovedProduct[];
-  monthsInPeriod: number;
+  models: RequisitionLine[];
+  totals: ReturnType<typeof calculateTotals>;
   currency: CurrencySettings;
 }) {
   const { t, i18n } = useTranslation();
   const formatter = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const tableElement = useRef<HTMLTableElement>(null);
   const [pinnedWidths, setPinnedWidths] = useState<Record<string, number>>({});
-  const models = useMemo(
-    () =>
-      buildLines(record, products, approvedProducts).map((model) => ({
-        ...model,
-        line: calculateLine(model, record, monthsInPeriod),
-      })),
-    [record, products, approvedProducts, monthsInPeriod],
-  );
-  const totals = useMemo(() => calculateTotals(models), [models]);
   const columns = useMemo(
     () =>
       compileColumns(record.template, {
@@ -415,19 +377,20 @@ export function RequisitionGridView({
                 </TableRow>
               )}
             </TableBody>
-            <TableFooter>
-              <TableRow pinned surface="muted">
-                {visible.map((column, index) => (
-                  <TableCell key={column.id} {...pin(column.id)}>
-                    {index === 0 ? (
-                      t('requisitions.requisition.total')
-                    ) : column.id === 'totalCost' ? (
-                      <bdi>{formatCurrency(totals[tab], currency)}</bdi>
-                    ) : null}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableFooter>
+            {visible.some((column) => column.id === 'totalCost') && (
+              <TableFooter>
+                <TableRow pinned surface="muted">
+                  {visible.map((column, index) => (
+                    <TableCell key={column.id} {...pin(column.id)}>
+                      {index === 0 && t('requisitions.requisition.total')}
+                      {column.id === 'totalCost' && (
+                        <bdi>{formatCurrency(totals[tab], currency)}</bdi>
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableFooter>
+            )}
           </Table>
           <DataTableFooter>{footer}</DataTableFooter>
         </DataTableCard>

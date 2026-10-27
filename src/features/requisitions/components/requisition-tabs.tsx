@@ -6,7 +6,7 @@ import { requisitionGridQueries } from '@/features/requisitions/api/queries';
 import { PatientsGrid } from '@/features/requisitions/components/patients-grid';
 import {
   type GridSearch,
-  RequisitionGrid,
+  RequisitionGridView,
 } from '@/features/requisitions/components/requisition-grid';
 import { RequisitionTotals } from '@/features/requisitions/components/requisition-totals';
 import { calculateLine, calculateTotals } from '@/features/requisitions/lib/calculations';
@@ -49,16 +49,13 @@ export function RequisitionTabs({
     { data: currency },
     { data: program },
   ] = useSuspenseQueries({ queries: requisitionGridQueries(record) });
-  const totals = useMemo(
-    () =>
-      calculateTotals(
-        buildLines(record, products, approvedProducts).map((model) => ({
-          ...model,
-          line: calculateLine(model, record, period.durationInMonths ?? 1),
-        })),
-      ),
-    [record, products, approvedProducts, period.durationInMonths],
-  );
+  const { models, totals } = useMemo(() => {
+    const models = buildLines(record, products, approvedProducts).map((model) => ({
+      ...model,
+      line: calculateLine(model, record, period.durationInMonths ?? 1),
+    }));
+    return { models, totals: calculateTotals(models) };
+  }, [record, products, approvedProducts, period.durationInMonths]);
   const patients = record.template.patientsTabEnabled;
   const tabs: { value: RequisitionTab; label: string }[] = [
     ...(patients
@@ -105,9 +102,12 @@ export function RequisitionTabs({
             {value === 'patients' ? (
               <PatientsGrid patientsData={record.patientsData} />
             ) : (
-              <RequisitionGrid
+              <RequisitionGridView
                 key={`${record.id}:${record.template.id ?? 'template'}`}
                 record={record}
+                models={models}
+                totals={totals}
+                currency={currency}
                 tab={value}
                 search={search}
                 onSearchChange={onSearchChange}

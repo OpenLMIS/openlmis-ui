@@ -13,6 +13,10 @@ export async function fetchDeploymentTimeZone(config?: AxiosRequestConfig): Prom
     connectionStatus: false,
     timeout: 10_000,
   });
+  return readDeploymentTimeZone(data);
+}
+
+export function readDeploymentTimeZone(data: { timeZoneId?: string | null }): string {
   if (typeof data?.timeZoneId !== 'string' || !data.timeZoneId.trim())
     throw new Error('No time zone in the locale settings');
   new Intl.DateTimeFormat('en', { timeZone: data.timeZoneId });

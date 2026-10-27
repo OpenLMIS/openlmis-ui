@@ -6,7 +6,9 @@ import {
   type GridSearch,
   RequisitionGridView,
 } from '@/features/requisitions/components/requisition-grid';
+import { calculateLine, calculateTotals } from '@/features/requisitions/lib/calculations';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
+import { buildLines } from '@/features/requisitions/lib/lines';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import type { SearchChange } from '@/lib/table-search';
 
@@ -81,26 +83,25 @@ function Harness({
       ...previous,
       ...(typeof change === 'function' ? change(previous) : change),
     }));
+  const current = stockBased
+    ? { ...value, template: { ...value.template, populateStockOnHandFromStockCards: true } }
+    : value;
+  const hydrated =
+    tab === 'nonFullSupply'
+      ? products.map((p) => ({
+          ...p,
+          programs: p.programs?.map((entry) => ({ ...entry, fullSupply: false })),
+        }))
+      : products;
+  const models = buildLines(current, hydrated, []).map((model) => ({
+    ...model,
+    line: calculateLine(model, current, 1),
+  }));
   return (
     <RequisitionGridView
-      record={
-        stockBased
-          ? {
-              ...value,
-              template: { ...value.template, populateStockOnHandFromStockCards: true },
-            }
-          : value
-      }
-      products={
-        tab === 'nonFullSupply'
-          ? products.map((p) => ({
-              ...p,
-              programs: p.programs?.map((entry) => ({ ...entry, fullSupply: false })),
-            }))
-          : products
-      }
-      approvedProducts={[]}
-      monthsInPeriod={1}
+      record={current}
+      models={models}
+      totals={calculateTotals(models)}
       currency={currency}
       tab={tab}
       search={search}
@@ -307,4 +308,10 @@ it.each([1000, 390])('labels shortfall beyond colour at width %s', (width) => {
     />,
   );
   expect(screen.getAllByText('requisitions.requisition.stock-shortfall')).toHaveLength(10);
+});
+
+it('omits the summary row when the template has no cost column', () => {
+  const { totalCost: _cost, ...columnsMap } = requisition.template.columnsMap;
+  render(<Harness value={{ ...requisition, template: { columnsMap } }} />);
+  expect(screen.queryByText('requisitions.requisition.total')).not.toBeInTheDocument();
 });

@@ -1,7 +1,7 @@
 import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps } from '@tanstack/react-router';
 import { ClipboardListIcon, PrinterIcon } from 'lucide-react';
-import { useCallback } from 'react';
+import { type ComponentProps, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { ActionTooltip } from '@/components/action-tooltip';
@@ -124,7 +124,6 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
 function RequisitionPage() {
   const data = Route.useLoaderData();
   const quantity = useQuantityUnit();
-  const search = Route.useSearch();
   const userId = useReloadForUser(
     data?.userId,
     requisitionOptions(Route.useParams().requisitionId).queryKey,
@@ -145,25 +144,7 @@ function RequisitionPage() {
           <RequisitionPrint record={record} userId={userId} unit={quantity.unit} />
         </WorkspaceActions>
       </WorkspaceHeader>
-      <QueryBoundary
-        resetKey={record.id}
-        errorComponent={SectionError}
-        pendingFallback={
-          <WorkspaceContent>
-            <div aria-busy className="flex flex-col gap-4">
-              <RequisitionHeaderSkeleton record={record} />
-              <RequisitionCommentsSkeleton />
-              <RequisitionTabsSkeleton />
-              <RequisitionGridPending
-                hideSkipped={hidesSkipped(record.template, search.tab)}
-                canSwitch={quantity.canSwitch}
-              />
-            </div>
-          </WorkspaceContent>
-        }
-      >
-        <RequisitionBody data={data} quantity={quantity} />
-      </QueryBoundary>
+      <RequisitionBody data={data} quantity={quantity} />
     </Workspace>
   );
 }
@@ -186,7 +167,6 @@ function RequisitionBody({
     },
     [openDialog],
   );
-  const { approver, deferred } = useRequisitionPolicy(data);
   return (
     <WorkspaceContent>
       <div className="flex flex-col gap-4">
@@ -197,7 +177,9 @@ function RequisitionBody({
         >
           <RequisitionHeader record={record} />
         </QueryBoundary>
-        {deferred && <LegacyActionsNote requisitionId={record.id} />}
+        <QueryBoundary resetKey={record.id} errorComponent={SectionError} pendingFallback={null}>
+          <RequisitionLegacyNote data={data} />
+        </QueryBoundary>
         <QueryBoundary
           resetKey={record.id}
           errorComponent={SectionError}
@@ -217,16 +199,19 @@ function RequisitionBody({
           errorComponent={SectionError}
           pendingFallback={
             <>
-              <RequisitionTabsSkeleton />
+              <RequisitionTabsSkeleton record={record} />
               <RequisitionGridPending
+                record={record}
+                tab={search.tab}
+                unit={unit}
                 hideSkipped={hidesSkipped(record.template, search.tab)}
                 canSwitch={canSwitch}
               />
             </>
           }
         >
-          <RequisitionTabs
-            record={record}
+          <RequisitionPolicyTabs
+            data={data}
             unit={unit}
             setUnit={setUnit}
             canSwitch={canSwitch}
@@ -241,13 +226,34 @@ function RequisitionBody({
             onSearchChange={updateSearch}
             onAdjustments={onAdjustments}
             onCloseAdjustments={closeDialog}
-            supplyingStock={
-              approver && !!record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed
-            }
           />
         </QueryBoundary>
       </div>
     </WorkspaceContent>
+  );
+}
+
+function RequisitionLegacyNote({ data }: { data: RequisitionData }) {
+  const { deferred } = useRequisitionPolicy(data);
+  return deferred ? <LegacyActionsNote requisitionId={data.record.id} /> : null;
+}
+
+function RequisitionPolicyTabs({
+  data,
+  ...props
+}: { data: RequisitionData } & Omit<
+  ComponentProps<typeof RequisitionTabs>,
+  'record' | 'supplyingStock'
+>) {
+  const { approver } = useRequisitionPolicy(data);
+  return (
+    <RequisitionTabs
+      {...props}
+      record={data.record}
+      supplyingStock={
+        approver && !!data.record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed
+      }
+    />
   );
 }
 
@@ -429,17 +435,7 @@ function RequisitionPending() {
   return (
     <Workspace>
       <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <ClipboardListIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>
-            <TitleSkeleton />
-          </WorkspaceTitle>
-          <WorkspaceDescription>
-            <DescriptionSkeleton />
-          </WorkspaceDescription>
-        </WorkspaceHeading>
+        <RequisitionHeadingSkeleton />
         <WorkspaceActions>
           <div className="h-9 w-24">
             <Skeleton fill />

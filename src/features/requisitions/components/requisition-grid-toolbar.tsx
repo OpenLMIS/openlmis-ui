@@ -24,6 +24,7 @@ export function RequisitionGridToolbar({
   unit,
   setUnit,
   canSwitch,
+  disabled,
 }: {
   columns: GridColumn[];
   view: Pick<ReturnType<typeof useCardView>, 'layout' | 'columnView'>;
@@ -34,6 +35,7 @@ export function RequisitionGridToolbar({
   unit: QuantityUnit;
   setUnit: (unit: QuantityUnit) => void;
   canSwitch: boolean;
+  disabled?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const id = useId();
@@ -41,6 +43,7 @@ export function RequisitionGridToolbar({
     <DataTableToolbar>
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
+          disabled={disabled}
           size="lg"
           placeholder={t('requisitions.requisition.search-products')}
           value={search.product ?? ''}
@@ -52,6 +55,7 @@ export function RequisitionGridToolbar({
       {hideSkipped && (
         <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
           <DataTableFilters
+            disabled={disabled}
             size="lg"
             activeCount={search.skipped ? 1 : 0}
             onClear={() => onSearchChange({ skipped: undefined, detailPage: undefined })}
@@ -66,6 +70,7 @@ export function RequisitionGridToolbar({
                 </FieldLabel>
               </div>
               <Switch
+                disabled={disabled}
                 id={id}
                 checked={!!search.skipped}
                 onCheckedChange={(checked) =>
@@ -76,18 +81,21 @@ export function RequisitionGridToolbar({
           </DataTableFilters>
         </div>
       )}
-      {canSwitch && (
-        <div className="flex-1 @2xl/main:flex-none">
-          <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
+      <div className="flex w-full flex-wrap items-center gap-2 @2xl/main:ms-auto @2xl/main:w-auto">
+        {canSwitch && (
+          <div className="flex-1 @2xl/main:flex-none">
+            <QuantityUnitToggle disabled={disabled} unit={unit} onUnitChange={setUnit} />
+          </div>
+        )}
+        <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
+          <DataTableViewOptions
+            disabled={disabled}
+            size="lg"
+            layout={view.layout}
+            columns={columns.filter((c) => !c.sticky).map((c) => ({ id: c.name, label: c.label }))}
+            {...view.columnView}
+          />
         </div>
-      )}
-      <div className={hideSkipped ? 'shrink-0' : 'ms-auto shrink-0'}>
-        <DataTableViewOptions
-          size="lg"
-          layout={view.layout}
-          columns={columns.filter((c) => !c.sticky).map((c) => ({ id: c.name, label: c.label }))}
-          {...view.columnView}
-        />
       </div>
     </DataTableToolbar>
   );

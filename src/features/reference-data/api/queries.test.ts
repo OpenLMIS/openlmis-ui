@@ -2,8 +2,10 @@ import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { fetchOrderables } from '@/features/reference-data/api/api';
 import {
+  approvedProductsByIdentitiesOptions,
   lotsByIdsOptions,
   minimalFacilitiesOptions,
+  orderablesByIdentitiesOptions,
   orderablesByIdsOptions,
   orderablesByTradeItemsOptions,
   orderablesSearchOptions,
@@ -103,3 +105,20 @@ it('reuses server picker facilities across reconnects and isolates the offline h
     client.clear();
   }
 });
+
+it.each([orderablesByIdentitiesOptions, approvedProductsByIdentitiesOptions])(
+  'shares versioned lookups regardless of reference shape, order or duplicates',
+  (options) => {
+    const references = [
+      { id: 'b', versionNumber: 2, href: '/products/b' },
+      { id: 'a', versionNumber: 1, href: '/products/a' },
+      { id: 'b', versionNumber: 2, href: '/products/b' },
+    ];
+    expect(options(references).queryKey).toEqual(
+      options([
+        { id: 'a', versionNumber: 1 },
+        { id: 'b', versionNumber: 2 },
+      ]).queryKey,
+    );
+  },
+);

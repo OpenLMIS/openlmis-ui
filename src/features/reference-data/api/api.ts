@@ -457,11 +457,15 @@ export async function fetchProgramLookup(id: string) {
 }
 
 export async function fetchCurrencySettings() {
-  const { data } = await client.get<CurrencySettings>('/localeSettings', {
-    baseURL: '/',
-    anonymous: true,
-    connectionStatus: false,
-  });
+  const { data } = await client.get<CurrencySettings & { timeZoneId?: string | null }>(
+    '/localeSettings',
+    {
+      baseURL: '/',
+      anonymous: true,
+      connectionStatus: false,
+      timeout: 10_000,
+    },
+  );
   return data;
 }
 
