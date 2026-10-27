@@ -8,6 +8,7 @@ import { registerOfflinePages } from '@/lib/offline-pages';
 import { RIGHTS } from '@/lib/rights';
 
 registerOfflinePages(['/stock-management/stock-on-hand'], [RIGHTS.stockCardsView]);
+registerOfflinePages(['/stock-management/physical-inventory'], [RIGHTS.stockInventoriesEdit]);
 registerOfflinePages(
   OFFLINE_EVENT_KINDS.map((kind) => kind.listRoute),
   OFFLINE_EVENT_RIGHTS,

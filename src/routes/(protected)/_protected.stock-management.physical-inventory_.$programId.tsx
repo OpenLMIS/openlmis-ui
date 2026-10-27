@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { ClipboardListIcon } from 'lucide-react';
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
+import { ClipboardListIcon, WifiOffIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { DataTableEmpty } from '@/components/data-table/data-table';
+import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
+import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -19,6 +20,7 @@ import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  deploymentTimeZoneOptions,
   homeFacilityOptions,
   userRecordOptions,
   validReasonsOptions,
@@ -29,8 +31,11 @@ import {
   inventorySummariesOptions,
   physicalInventoryDraftOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
+import { InventoryOrphans } from '@/features/stock-events/components/inventory-orphans';
 import { PhysicalInventoryEditor } from '@/features/stock-events/components/physical-inventory-editor';
 import { PhysicalInventoryPendingBody } from '@/features/stock-events/components/physical-inventory-pending';
+import { inventorySavePayload } from '@/features/stock-events/lib/physical-inventory-form';
+import { readInventoryLocalByScope } from '@/features/stock-events/lib/physical-inventory-local';
 import {
   type InventorySearch,
   inventorySearchSchema,
@@ -40,6 +45,8 @@ import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
+import { deviceDataGeneration } from '@/lib/local-data';
+import { isOnline, useOnReconnect } from '@/lib/online';
 import { hasProgramGrant } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -48,10 +55,12 @@ export const Route = createFileRoute(
 )({
   validateSearch: inventorySearchSchema,
   preload: false,
+  shouldReload: ({ cause }) => cause === 'enter',
   staticData: { crumbKey: 'physical-inventory.editor-crumb' },
   loader: {
     staleReloadMode: 'blocking',
     handler: async ({ context: { queryClient }, params: { programId }, cause }) => {
+      queryClient.prefetchQuery(deploymentTimeZoneOptions());
       const eligibleUpdatedAfter = cause === 'enter' ? Date.now() : 0;
       const session = getSessionScope();
       const userId = useLoginData.getState().referenceDataUserId;
@@ -70,6 +79,30 @@ export const Route = createFileRoute(
       if (!program) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
       const selection = { facilityId: homeId, programId };
       const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
+      const fromDevice = async () => {
+        const deviceCopy = await readInventoryLocalByScope(selection);
+        assertSessionScope(session);
+        const base = {
+          eligibleUpdatedAfter: 0,
+          userId,
+          homeFacility,
+          program,
+          canViewStock,
+          canManageLots: permissions.rights.has(RIGHTS.lotsManage),
+        };
+        if (!deviceCopy) return { ...base, deviceCopy: undefined, draft: null, missingCopy: true };
+        return {
+          ...base,
+          deviceCopy,
+          draft: inventorySavePayload(
+            { id: deviceCopy.draftId, ...selection, lineItems: [] },
+            deviceCopy.lines,
+            [],
+          ),
+          missingCopy: false,
+        };
+      };
+      if (!isOnline()) return fromDevice();
       if (canViewStock) {
         void queryClient
           .prefetchQuery({
@@ -97,6 +130,7 @@ export const Route = createFileRoute(
           ? await queryClient.fetchQuery({ ...options, staleTime: 0 })
           : await queryClient.ensureQueryData(options);
       assertSessionScope(session);
+      if (deviceDataGeneration(draft) !== undefined || !isOnline()) return fromDevice();
       if (draft && canViewStock) {
         queryClient.prefetchQuery({
           ...inventoryStockLinesOptions(draft, eligibleUpdatedAfter),
@@ -104,6 +138,7 @@ export const Route = createFileRoute(
         });
       }
       return {
+        deviceCopy: undefined,
         eligibleUpdatedAfter,
         userId,
         homeFacility,
@@ -111,9 +146,11 @@ export const Route = createFileRoute(
         draft,
         canViewStock,
         canManageLots: permissions.rights.has(RIGHTS.lotsManage),
+        missingCopy: false,
       };
     },
   },
+  errorComponent: ErrorFallback,
   pendingComponent: InventoryPending,
   component: InventoryPage,
 });
@@ -128,7 +165,13 @@ function InventoryPage() {
     canViewStock,
     canManageLots,
     eligibleUpdatedAfter,
+    deviceCopy,
+    missingCopy,
   } = Route.useLoaderData();
+  const router = useRouter();
+  useOnReconnect(() => {
+    if (missingCopy) void router.invalidate();
+  });
   const currentUser = useReloadForUser(userId, queryKeys.physicalInventories.all);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -140,11 +183,31 @@ function InventoryPage() {
       <Workspace width="wide">
         <EditorHeader home={homeFacility} program={program} />
         <WorkspaceContent>
-          {draft ? (
+          <InventoryOrphans scope={{ facilityId: homeFacility.id, programId: program.id }} />
+          {missingCopy ? (
+            <DataTableCard>
+              <DataTableEmpty
+                icon={<WifiOffIcon />}
+                title={t('physical-inventory.not-on-device')}
+                description={t('physical-inventory.not-on-device-description')}
+                action={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link to="/stock-management/physical-inventory" />}
+                  >
+                    {t('physical-inventory.back')}
+                  </Button>
+                }
+              />
+            </DataTableCard>
+          ) : draft ? (
             canViewStock ? (
               <PhysicalInventoryEditor
                 key={draft.id}
                 draft={draft}
+                deviceCopy={deviceCopy}
                 eligibleUpdatedAfter={eligibleUpdatedAfter}
                 right={RIGHTS.stockInventoriesEdit}
                 userId={userId}

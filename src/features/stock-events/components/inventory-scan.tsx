@@ -23,6 +23,7 @@ import type {
   InventoryStockLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { useBarcodeScan } from '@/hooks/use-barcode-scan';
+import { isOnline } from '@/lib/online';
 import { scanMessage } from '@/lib/scan-messages';
 import { getSessionScope } from '@/lib/session-scope';
 
@@ -54,7 +55,7 @@ export function InventoryScan({
     onScan: async (scan, signal) => {
       if (!scan.ok) return scanMessage(scan.error);
       const current = () =>
-        !signal.aborted && getSessionScope() === scope && !latest.current.paused;
+        !signal.aborted && isOnline() && getSessionScope() === scope && !latest.current.paused;
       if (!current()) return;
       let tradeItem: TradeItem | null;
       try {

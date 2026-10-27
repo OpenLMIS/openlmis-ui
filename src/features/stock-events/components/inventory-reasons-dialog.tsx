@@ -56,7 +56,7 @@ type Props = {
   open?: boolean;
   onOpenChangeComplete?: (open: boolean) => void;
   line: InventoryLine;
-  reasons: readonly Reason[];
+  reasons: readonly Pick<Reason, 'id' | 'name' | 'reasonType'>[];
   unit: QuantityUnit;
   cards?: boolean;
   onClose: () => void;

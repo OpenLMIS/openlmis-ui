@@ -1,9 +1,11 @@
-import { QueryClient, QueryObserver } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryObserver } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { expect, it, vi } from 'vitest';
 import {
   fetchEligibleInventoryProducts,
   fetchInventoryStockLines,
   fetchInventorySummaries,
+  fetchPhysicalInventoryDraft,
 } from '@/features/stock-events/api/physical-inventory-api';
 import {
   eligibleInventoryProductsOptions,
@@ -14,6 +16,7 @@ import {
 } from '@/features/stock-events/api/physical-inventory-queries';
 
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
+  fetchPhysicalInventoryDraft: vi.fn(),
   fetchInventorySummaries: vi.fn().mockResolvedValue([]),
   fetchInventoryStockLines: vi.fn().mockResolvedValue([]),
   fetchEligibleInventoryProducts: vi.fn().mockResolvedValue([]),
@@ -139,4 +142,89 @@ it('shares normalized versioned orderable reads under the existing orderables li
   await Promise.all([client.fetchQuery({ ...a, queryFn }), client.fetchQuery({ ...b, queryFn })]);
   expect(queryFn).toHaveBeenCalledTimes(1);
   client.clear();
+});
+
+vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
+  reconcileInventoryCopies: vi.fn(),
+  readInventoryLocalByScope: vi.fn().mockResolvedValue(undefined),
+}));
+it('returns the server draft despite failed reconciliation', async () => {
+  const error = new Error('IndexedDB unavailable');
+  const { reconcileInventoryCopies } = await import(
+    '@/features/stock-events/lib/physical-inventory-local'
+  );
+  vi.mocked(reconcileInventoryCopies).mockRejectedValueOnce(error);
+  const draft = { id: 'd', facilityId: 'f', programId: 'p', lineItems: [] };
+  vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(draft);
+  await expect(new QueryClient().fetchQuery(physicalInventoryDraftOptions(draft))).resolves.toEqual(
+    draft,
+  );
+});
+
+it('lets in-flight reads finish after disconnection instead of guarding them as mutations', async () => {
+  const summaries = Promise.withResolvers<[]>();
+  vi.mocked(fetchInventorySummaries).mockReturnValueOnce(summaries.promise);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const pending = client.fetchQuery(
+    eligibleInventoryProductsOptions({ facilityId: 'f', programId: 'p' }),
+  );
+  onlineManager.setOnline(false);
+  summaries.resolve([]);
+  await expect(pending).resolves.toEqual([]);
+  client.clear();
+});
+
+async function gatewayDraft(available: boolean) {
+  const { readInventoryLocalByScope } = await import(
+    '@/features/stock-events/lib/physical-inventory-local'
+  );
+  onlineManager.setOnline(true);
+  const error = new AxiosError('Unavailable', undefined, undefined, undefined, {
+    status: 503,
+    data: '<html>Unavailable</html>',
+    statusText: 'Unavailable',
+    headers: {},
+    config: { headers: {} } as never,
+  });
+  vi.mocked(readInventoryLocalByScope).mockResolvedValueOnce(
+    available
+      ? { draftId: 'd', facilityId: 'f', programId: 'p', lines: [], modified: false, savedAt: 1 }
+      : undefined,
+  );
+  vi.mocked(fetchPhysicalInventoryDraft).mockRejectedValueOnce(error);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const result = client.fetchQuery(
+    physicalInventoryDraftOptions({ facilityId: 'f', programId: 'p' }),
+  );
+  return { result, error };
+}
+it('opens a device copy after a gateway page', async () => {
+  const { result } = await gatewayDraft(true);
+  await expect(result).resolves.toMatchObject({ id: 'd' });
+});
+it('rejects a gateway page when no device copy exists', async () => {
+  const { result, error } = await gatewayDraft(false);
+  await expect(result).rejects.toBe(error);
+});
+
+it('opens a device copy after a draft request times out', async () => {
+  const { readInventoryLocalByScope } = await import(
+    '@/features/stock-events/lib/physical-inventory-local'
+  );
+  onlineManager.setOnline(true);
+  vi.mocked(readInventoryLocalByScope).mockResolvedValueOnce({
+    draftId: 'd',
+    facilityId: 'f',
+    programId: 'p',
+    lines: [],
+    modified: false,
+    savedAt: 1,
+  });
+  vi.mocked(fetchPhysicalInventoryDraft).mockRejectedValueOnce(
+    new AxiosError('Timeout', AxiosError.ECONNABORTED),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  await expect(
+    client.fetchQuery(physicalInventoryDraftOptions({ facilityId: 'f', programId: 'p' })),
+  ).resolves.toMatchObject({ id: 'd' });
 });

@@ -4,6 +4,7 @@ import type { EventForm } from '@/features/stock-events/hooks/use-event-form';
 import type { useStockEventAutosave } from '@/features/stock-events/hooks/use-stock-event-autosave';
 import type { EventKindConfig } from '@/features/stock-events/lib/event-kinds';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { deviceDraftLeaveCopy } from '@/lib/device-draft-leave-copy';
 
 export function useDeviceDrafts({
   config,
@@ -63,17 +64,7 @@ export function useDeviceDrafts({
     dialog: {
       ...guard.dialog,
       pending: discarding,
-      title: enabled ? t('stock-events.draft-leave-title') : undefined,
-      actionLabel: enabled
-        ? t(guard.dialog.signingOut ? 'stock-events.draft-sign-out' : 'stock-events.draft-leave')
-        : undefined,
-      description: t(
-        enabled
-          ? guard.dialog.signingOut
-            ? 'stock-events.draft-sign-out-description'
-            : 'stock-events.draft-leave-description'
-          : 'stock-events.discard-description',
-      ),
+      ...deviceDraftLeaveCopy(t, enabled, guard.dialog.signingOut),
       async onDiscard() {
         if (discarding) return;
         if (enabled && !guard.dialog.signingOut) {

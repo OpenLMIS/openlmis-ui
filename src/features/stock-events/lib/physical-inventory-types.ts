@@ -50,3 +50,5 @@ export type InventoryLine = InventoryStockLine & {
 };
 export type InventoryProductGroup = { orderable: Orderable; lines: InventoryLine[] };
 export type InventoryCategoryBand = { category: string; groups: InventoryProductGroup[] };
+
+export const INVENTORY_FORMAT_VERSION = 1;

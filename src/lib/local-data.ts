@@ -15,11 +15,16 @@ export class LocalDataUnavailableError extends Error {
   }
 }
 
+export function requireOnline() {
+  if (!isOnline()) throw new LocalDataUnavailableError();
+}
+
 export async function onlineOrDevice<T>(
   online: () => Promise<T>,
-  device: () => Promise<T>,
+  device: (serverError?: unknown) => Promise<T>,
 ): Promise<T> {
   const scope = getSessionScope();
+  let serverError: unknown;
   if (isOnline()) {
     try {
       const result = await online();
@@ -28,9 +33,10 @@ export async function onlineOrDevice<T>(
     } catch (error) {
       assertSessionScope(scope);
       if (!isAccessFallbackError(error)) throw error;
+      serverError = error;
     }
   }
-  const result = await device();
+  const result = await device(serverError);
   assertSessionScope(scope);
   if (typeof result === 'object' && result !== null)
     deviceResults.set(result, getConnectionGeneration());

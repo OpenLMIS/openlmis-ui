@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { httpError, networkError } from '@/tests/http-error';
 
 vi.mock('sonner', () => ({ toast: { info: vi.fn() } }));
@@ -136,6 +137,13 @@ it('keeps offline chunk failures unavailable and retries on reconnect', () => {
   expect(screen.getByRole('heading', { name: 'offline.unavailable-title' })).toBeInTheDocument();
   act(() => onlineManager.setOnline(true));
   expect(chunk.reloadOnce).toHaveBeenCalledOnce();
+});
+
+it('says data this device has not stored is not available offline', () => {
+  onlineManager.setOnline(false);
+  renderFallback(new LocalDataUnavailableError());
+  expect(screen.getByRole('heading', { name: 'offline.unavailable-title' })).toBeInTheDocument();
+  expect(screen.getByText('offline.unavailable-description')).toBeInTheDocument();
 });
 
 it.each([new TypeError('Cannot read properties of undefined'), httpError(500)])(

@@ -24,29 +24,50 @@ describe('localDatabaseName', () => {
 });
 
 describe('getLocalDb', () => {
-  it.each([1, 2])('upgrades version %s without losing inventory drafts', async (version) => {
+  async function upgrade(version: 1 | 2 | 12) {
     signIn(`inventory-upgrade-${version}`);
     const old = new Dexie(getLocalDb().name);
     old.version(1).stores({});
     const draft = { draftId: 'existing-count', lines: [{ quantity: '12' }], savedAt: 123 };
-    if (version === 2) {
+    const catalog = { facilityId: 'f', programId: 'p', products: [] };
+    if (version >= 2) {
       old.version(2).stores({ physicalInventoryDrafts: 'draftId' });
+      if (version === 12) {
+        old.version(11).stores({ stockCardHistory: 'id' });
+        old.version(12).stores({ receiveCatalogDownloads: '[facilityId+programId]' });
+      }
       await old.table(LOCAL_TABLES.physicalInventoryDrafts).put(draft);
-    } else {
-      await old.open();
-    }
+      if (version === 12) await old.table(LOCAL_TABLES.receiveCatalogDownloads).put(catalog);
+    } else await old.open();
     old.close();
-
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(12);
-    if (version === 1) await db.table(LOCAL_TABLES.physicalInventoryDrafts).put(draft);
-    expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId)).toEqual(draft);
+    expect(db.verno).toBe(13);
+    expect(db.table(LOCAL_TABLES.physicalInventoryReference).schema.primKey.keyPath).toBe(
+      'draftId',
+    );
+    expect(
+      db.table(LOCAL_TABLES.physicalInventoryDrafts).schema.idxByName['[facilityId+programId]'],
+    ).toBeDefined();
     expect(db.table(LOCAL_TABLES.offlineAccess).schema.primKey.keyPath).toBe('userId');
     expect(db.table(LOCAL_TABLES.homeStockDownloads).schema.primKey.keyPath).toEqual([
       'facilityId',
       'programId',
     ]);
+    return { db, draft, catalog };
+  }
+  it('adds inventory storage when upgrading version 1', async () => {
+    const { db } = await upgrade(1);
+    expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).count()).toBe(0);
+  });
+  it('preserves inventory drafts when upgrading version 2', async () => {
+    const { db, draft } = await upgrade(2);
+    expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId)).toEqual(draft);
+  });
+  it('preserves inventory drafts and catalogs when upgrading version 12', async () => {
+    const { db, draft, catalog } = await upgrade(12);
+    expect(await db.table(LOCAL_TABLES.physicalInventoryDrafts).get(draft.draftId)).toEqual(draft);
+    expect(await db.table(LOCAL_TABLES.receiveCatalogDownloads).get(['f', 'p'])).toEqual(catalog);
   });
 
   it('needs someone signed in, since every database belongs to a user', () => {
@@ -135,7 +156,7 @@ it('opens an existing v6 database at v12 while preserving drafts, queues and rec
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(12);
+  expect(db.verno).toBe(13);
   for (const [table, row] of Object.entries(rows)) {
     if (table === 'adjustmentDownloads') continue;
     expect(await db.table(table).toArray()).toEqual([row]);
@@ -174,7 +195,7 @@ it('removes v9 card histories while preserving home stock and unresolved work', 
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(12);
+  expect(db.verno).toBe(13);
   expect(await db.table(LOCAL_TABLES.stockCardHistory).count()).toBe(0);
   for (const [table, row] of Object.entries(rows))
     expect(await db.table(table).toArray()).toEqual([row]);
@@ -207,7 +228,7 @@ it('adds the Receive catalog at v12 without losing any v11 records', async () =>
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(12);
+  expect(db.verno).toBe(13);
   for (const [table, row] of Object.entries(rows))
     expect(await db.table(table).toArray()).toEqual([row]);
   expect(await db.table(LOCAL_TABLES.receiveCatalogDownloads).count()).toBe(0);
