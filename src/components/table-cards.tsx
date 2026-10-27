@@ -29,6 +29,8 @@ type TableCardsProps<TData extends RowData> = {
   busy?: boolean;
   listRef?: Ref<HTMLUListElement>;
   heading?: (row: TData) => string | undefined;
+  tone?: (row: TData) => 'skipped' | 'shortfall' | undefined;
+  detailVisible?: (row: TData, columnId: string) => boolean;
   surface?: 'raised' | 'flat';
 };
 
@@ -40,6 +42,8 @@ export function TableCards<TData extends RowData>({
   busy = false,
   listRef,
   heading,
+  tone,
+  detailVisible,
   surface = 'raised',
 }: TableCardsProps<TData>) {
   const rows = table.getRowModel().rows;
@@ -64,6 +68,8 @@ export function TableCards<TData extends RowData>({
             row={row}
             selectId={`${ids}-${row.id}`}
             surface={surface}
+            tone={tone?.(row.original)}
+            detailVisible={detailVisible}
             title={title}
           />
         );
@@ -115,21 +121,28 @@ function TableCard<TData extends RowData>({
   title,
   selectId,
   surface,
+  detailVisible,
+  tone,
 }: {
   row: Row<DataTableFeatures, TData>;
   title: string;
   selectId: string;
   surface: 'raised' | 'flat';
+  tone?: 'skipped' | 'shortfall';
+  detailVisible?: (row: TData, columnId: string) => boolean;
 }) {
   const cells = row.getVisibleCells();
   const titleCell = cells.find((cell) => cell.column.id === title);
   const actions = cells.find((cell) => cell.column.id === ACTIONS);
   const select = cells.find((cell) => cell.column.id === SELECT);
-  const details = cells.filter((cell) => isDetail(cell.column.id, title));
+  const details = cells.filter(
+    (cell) =>
+      isDetail(cell.column.id, title) && (detailVisible?.(row.original, cell.column.id) ?? true),
+  );
   const actionContent = actions && cellContent(actions);
   const action = actionContent && <div className="shrink-0">{actionContent}</div>;
   return (
-    <CardListItem surface={surface}>
+    <CardListItem surface={surface} tone={tone}>
       {select ? (
         <CardSelectBand
           action={action}

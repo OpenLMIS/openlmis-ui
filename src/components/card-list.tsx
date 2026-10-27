@@ -37,20 +37,25 @@ export function CardList({ empty, footer, busy = false, listRef, children }: Car
 
 export function CardListItem({
   surface = 'raised',
+  tone,
   itemRef,
   drag,
   children,
 }: {
   surface?: 'raised' | 'flat';
+  tone?: 'skipped' | 'shortfall';
   itemRef?: Ref<HTMLLIElement>;
   drag?: { y: number; animate: boolean; dragging: boolean };
   children: ReactNode;
 }) {
-  const content = <div className="divide-y">{children}</div>;
+  const content = (
+    <div className={cn('divide-y', tone === 'shortfall' && 'bg-warning/10')}>{children}</div>
+  );
   return (
     <li
       className={cn(
         'scroll-mt-page-start',
+        tone === 'skipped' && 'opacity-50',
         drag && 'relative translate-y-(--card-y)',
         drag?.animate && 'transition-transform duration-150 ease-out',
       )}

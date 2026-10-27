@@ -58,7 +58,7 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { openReport } from '@/lib/open-report';
 import type { QuantityUnit } from '@/lib/quantity';
 import { RIGHTS } from '@/lib/rights';
-import { detailPagingSchema, textFilterSchema } from '@/lib/table-search';
+import { detailPagingSchema, type SearchChange, textFilterSchema } from '@/lib/table-search';
 
 const dialogFlag = z.boolean().optional().catch(undefined);
 const searchSchema = requisitionSearchSchema.extend({
@@ -145,7 +145,7 @@ function RequisitionPage() {
   const search = Route.useSearch();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<typeof search>(CLOSED_DIALOGS);
-  const { unit } = useQuantityUnit();
+  const { unit, setUnit, canSwitch } = useQuantityUnit();
   const userId = useReloadForUser(
     data?.userId,
     requisitionOptions(Route.useParams().requisitionId).queryKey,
@@ -202,10 +202,15 @@ function RequisitionPage() {
               </>
             }
           >
-            <RequisitionTabs
-              record={record}
-              tab={search.tab}
-              onTabChange={(tab) => updateSearch({ tab, detailPage: undefined })}
+            <RequisitionDetailTabs
+              data={data}
+              unit={unit}
+              setUnit={setUnit}
+              canSwitch={canSwitch}
+              search={search}
+              onSearchChange={updateSearch}
+              onAdjustments={(adjustments) => void openDialog({ adjustments })}
+              onCloseAdjustments={closeDialog}
             />
           </QueryBoundary>
         </div>
@@ -259,7 +264,7 @@ function RequisitionHeadingSkeleton() {
   );
 }
 
-function RequisitionLegacyActions({ data }: { data: RequisitionData }) {
+function useRequisitionPolicy(data: RequisitionData) {
   const { record, access } = data;
   const { data: program } = useSuspenseQuery(programLookupOptions(record.program.id));
   const approveRoles = new Set(
@@ -313,10 +318,57 @@ function RequisitionLegacyActions({ data }: { data: RequisitionData }) {
     approvalNodes,
     isSplit: !!record.extraData?.originalRequisition,
   };
-  const deferred = (currentNodes.length ? currentNodes : [undefined]).some(
-    (currentNodeId) => requisitionCapabilities({ ...context, currentNodeId }).deferred.length > 0,
+  const policies = (currentNodes.length ? currentNodes : [undefined]).map((currentNodeId) =>
+    requisitionCapabilities({ ...context, currentNodeId }),
   );
+  return {
+    deferred: policies.some((policy) => policy.deferred.length > 0),
+    approver: policies.some((policy) => policy.approver),
+  };
+}
+function RequisitionLegacyActions({ data }: { data: RequisitionData }) {
+  const { record } = data;
+  const { deferred } = useRequisitionPolicy(data);
   return deferred ? <LegacyActionsNote requisitionId={record.id} /> : null;
+}
+
+function RequisitionDetailTabs({
+  unit,
+  setUnit,
+  canSwitch,
+  data,
+  search,
+  onSearchChange,
+  onAdjustments,
+  onCloseAdjustments,
+}: {
+  data: RequisitionData;
+  unit: QuantityUnit;
+  setUnit: (unit: QuantityUnit) => void;
+  canSwitch: boolean;
+  search: ReturnType<typeof Route.useSearch>;
+  onSearchChange: SearchChange<ReturnType<typeof Route.useSearch>>;
+  onAdjustments: (id: string) => void;
+  onCloseAdjustments: () => void;
+}) {
+  const { approver } = useRequisitionPolicy(data);
+  return (
+    <RequisitionTabs
+      record={data.record}
+      unit={unit}
+      setUnit={setUnit}
+      canSwitch={canSwitch}
+      tab={search.tab}
+      onTabChange={(tab) => onSearchChange({ tab, detailPage: undefined })}
+      search={search}
+      onSearchChange={onSearchChange}
+      onAdjustments={onAdjustments}
+      onCloseAdjustments={onCloseAdjustments}
+      supplyingStock={
+        approver && !!data.record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed
+      }
+    />
+  );
 }
 
 function RequisitionPrint({

@@ -2,17 +2,39 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { programLookupOptions } from '@/features/reference-data/api/queries';
-import { RequisitionGridPending } from '@/features/requisitions/components/requisition-skeletons';
+import { PatientsGrid } from '@/features/requisitions/components/patients-grid';
+import {
+  type GridSearch,
+  RequisitionGrid,
+} from '@/features/requisitions/components/requisition-grid';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import type { QuantityUnit } from '@/lib/quantity';
+import type { SearchChange } from '@/lib/table-search';
 
 export type RequisitionTab = 'fullSupply' | 'nonFullSupply' | 'patients';
 export function RequisitionTabs({
   record,
   tab,
   onTabChange,
+  search,
+  onSearchChange,
+  onAdjustments,
+  onCloseAdjustments,
+  supplyingStock,
+  unit,
+  setUnit,
+  canSwitch,
 }: {
   record: RequisitionRecord;
   tab?: RequisitionTab;
+  search: GridSearch;
+  onSearchChange: SearchChange<GridSearch>;
+  onAdjustments: (id: string) => void;
+  onCloseAdjustments: () => void;
+  supplyingStock: boolean;
+  unit: QuantityUnit;
+  setUnit: (unit: QuantityUnit) => void;
+  canSwitch: boolean;
   onTabChange: (value: RequisitionTab) => void;
 }) {
   const { t } = useTranslation();
@@ -61,7 +83,23 @@ export function RequisitionTabs({
       </TabsList>
       {tabs.map(({ value }) => (
         <TabsContent key={value} value={value}>
-          <RequisitionGridPending />
+          {value === 'patients' ? (
+            <PatientsGrid patientsData={record.patientsData} />
+          ) : (
+            <RequisitionGrid
+              key={`${record.id}:${(record.template as { id?: string }).id ?? 'template'}`}
+              record={record}
+              tab={value}
+              search={search}
+              onSearchChange={onSearchChange}
+              onAdjustments={onAdjustments}
+              onCloseAdjustments={onCloseAdjustments}
+              unit={unit}
+              setUnit={setUnit}
+              canSwitch={canSwitch}
+              supplyingStock={supplyingStock}
+            />
+          )}
         </TabsContent>
       ))}
     </Tabs>
