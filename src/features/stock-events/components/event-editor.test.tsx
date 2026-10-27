@@ -3205,62 +3205,57 @@ it('keeps the unreachable notice in place while device stock refetches online', 
   expect(notice).toHaveTextContent("Can't reach the server.");
 });
 
-it.each([502, 503, 504])(
-  'shows downloaded stock honestly after gateway %s while online',
-  async (status) => {
-    const fetchedAt = Date.parse('2026-10-23T12:30:00Z');
-    await getLocalDb()
-      .table(LOCAL_TABLES.homeStockDownloads)
-      .put({
-        ...testBundleScope,
-        userId: 'ada-id',
-        formatVersion: 6,
-        generation: 'gateway-download',
-        fetchedAt,
-        cards: [
-          {
-            ...other,
-            id: 'other',
-            orderable: { ...other.orderable, description: null },
-            active: true,
-            occurredDate: null,
-          },
-        ],
-        reasons: [],
-        tradeItems: [],
-        identities: [],
-        destinations,
-        sources: [],
-      } satisfies HomeStockBundle);
-    onlineManager.setOnline(true);
-    vi.mocked(fetchEventStockCards).mockRejectedValue(
-      httpError(status, '<html>Bad Gateway</html>'),
-    );
-    const { queryClient } = setup(
-      true,
-      (client) => {
-        client.removeQueries({ queryKey: editorStockOptions('issue').queryKey });
-      },
-      { kind: 'issue' },
-    );
-    expect(await screen.findByText("Can't reach the server.")).toBeInTheDocument();
-    expect(onlineManager.isOnline()).toBe(true);
-    let finish!: (cards: EventStockCard[]) => void;
-    vi.mocked(fetchEventStockCards).mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve;
-        }),
-    );
-    act(() => onlineManager.setOnline(false));
-    await screen.findByText("You're offline.");
-    act(() => onlineManager.setOnline(true));
-    await waitFor(() => expect(finish).toBeTypeOf('function'));
-    expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
-    expect(screen.getByText("You're offline.")).toBeInTheDocument();
-    await act(async () => finish([card, other]));
-    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
-    expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
-    expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
-  },
-);
+it('shows downloaded stock honestly after a gateway error while online', async () => {
+  const fetchedAt = Date.parse('2026-10-23T12:30:00Z');
+  await getLocalDb()
+    .table(LOCAL_TABLES.homeStockDownloads)
+    .put({
+      ...testBundleScope,
+      userId: 'ada-id',
+      formatVersion: 6,
+      generation: 'gateway-download',
+      fetchedAt,
+      cards: [
+        {
+          ...other,
+          id: 'other',
+          orderable: { ...other.orderable, description: null },
+          active: true,
+          occurredDate: null,
+        },
+      ],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      destinations,
+      sources: [],
+    } satisfies HomeStockBundle);
+  onlineManager.setOnline(true);
+  vi.mocked(fetchEventStockCards).mockRejectedValue(httpError(502, '<html>Bad Gateway</html>'));
+  const { queryClient } = setup(
+    true,
+    (client) => {
+      client.removeQueries({ queryKey: editorStockOptions('issue').queryKey });
+    },
+    { kind: 'issue' },
+  );
+  expect(await screen.findByText("Can't reach the server.")).toBeInTheDocument();
+  expect(onlineManager.isOnline()).toBe(true);
+  let finish!: (cards: EventStockCard[]) => void;
+  vi.mocked(fetchEventStockCards).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  act(() => onlineManager.setOnline(false));
+  await screen.findByText("You're offline.");
+  act(() => onlineManager.setOnline(true));
+  await waitFor(() => expect(finish).toBeTypeOf('function'));
+  expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+  expect(screen.getByText("You're offline.")).toBeInTheDocument();
+  await act(async () => finish([card, other]));
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+  expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
+});

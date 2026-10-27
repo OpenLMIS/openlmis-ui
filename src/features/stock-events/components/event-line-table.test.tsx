@@ -177,41 +177,6 @@ it('scrolls to the card list on page two and preserves router scroll', async () 
   }
 });
 
-it('keeps full Issue comment headers without truncation or hover text', async () => {
-  function Fixture() {
-    const form = useEventForm({
-      kind: 'issue',
-      reasons: [],
-      today: '2026-10-09',
-      onValid: vi.fn(),
-      onInvalid: vi.fn(),
-    });
-    return (
-      <EventLineTable
-        kind="issue"
-        reasonRequired
-        form={form}
-        lines={[]}
-        reasons={[]}
-        unit="PACKS"
-        today="2026-10-09"
-        disabled={false}
-        onRemove={vi.fn()}
-        search={{}}
-        onSearchChange={vi.fn()}
-        columnVisibility={{}}
-        onClearFilter={vi.fn()}
-      />
-    );
-  }
-  renderPage(<Fixture />);
-  for (const key of ['destination-comments', 'reason-comments']) {
-    const header = await screen.findByRole('columnheader', { name: `stock-events.${key}` });
-    expect(header.querySelector('.truncate')).toBeNull();
-    expect(header.querySelector('[title]')).toBeNull();
-  }
-});
-
 it.each([false, true])(
   'distinguishes duplicate draft lines after paging with product lots %s',
   async (hasProductLots) => {

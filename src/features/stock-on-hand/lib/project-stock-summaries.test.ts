@@ -99,16 +99,32 @@ it('uses the newest product version for filtering and displayed stock metadata r
   }
 });
 
-it.each([7, null])('totals only matching lots, including unknown balances (%s)', (balance) => {
+it.each([
+  { balances: [7, 8], total: 15 },
+  { balances: [null, null], total: null },
+])('totals only matching lots, including unknown balances ($total)', ({ balances, total }) => {
   const entry = bundle.summaries[0].canFulfillForMe[0];
   setBundle({
     ...bundle,
+    cards: [
+      ...bundle.cards,
+      {
+        ...bundle.cards[0],
+        id: 'c2',
+        lot: { id: 'lot2', lotCode: 'L1-second', expirationDate: null },
+      },
+    ],
     summaries: [
       {
         ...bundle.summaries[0],
         stockOnHand: 99,
         canFulfillForMe: [
-          { ...entry, stockOnHand: balance },
+          ...balances.map((stockOnHand, index) => ({
+            ...entry,
+            stockCard: { id: index ? 'c2' : 'c' },
+            lot: { id: index ? 'lot2' : 'lot' },
+            stockOnHand,
+          })),
           { ...entry, lot: null, stockOnHand: 92 },
         ],
       },
@@ -116,6 +132,6 @@ it.each([7, null])('totals only matching lots, including unknown balances (%s)',
   });
   expect(project(query).content[0].stockOnHand).toBe(99);
   const page = project({ ...query, lotCode: 'L1' });
-  expect(page.content[0].stockOnHand).toBe(balance);
-  expect(page.content[0].canFulfillForMe).toHaveLength(1);
+  expect(page.content[0].stockOnHand).toBe(total);
+  expect(page.content[0].canFulfillForMe).toHaveLength(2);
 });

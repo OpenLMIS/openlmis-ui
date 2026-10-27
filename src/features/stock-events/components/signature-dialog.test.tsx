@@ -14,13 +14,13 @@ beforeAll(() =>
     .use(IsolatingICU)
     .init({ lng: 'en', resources: { en: { translation: en } }, keySeparator: false }),
 );
-function dialog(pending: boolean, onConfirm: (signature: string) => void) {
+function dialog(pending: boolean, onConfirm: (signature: string) => void, onOpenChange = vi.fn()) {
   return (
     <I18nextProvider i18n={i18n}>
       <FormMessagesProvider formatError={(key) => i18n.t(key, { defaultValue: key })}>
         <SignatureDialog
           onConfirm={onConfirm}
-          onOpenChange={vi.fn()}
+          onOpenChange={onOpenChange}
           open
           pending={pending}
           username="ada"
@@ -54,13 +54,17 @@ describe('SignatureDialog', () => {
   });
   it('blocks repeated submit and dismiss while pending', async () => {
     const onConfirm = vi.fn();
-    const { rerender } = render(dialog(false, onConfirm));
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(dialog(false, onConfirm, onOpenChange));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledOnce());
-    rerender(dialog(true, onConfirm));
+    rerender(dialog(true, onConfirm, onOpenChange));
     fireEvent.submit(screen.getByLabelText('Signature').closest('form') as HTMLFormElement);
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    await user.keyboard('{Escape}');
+    expect(onOpenChange).not.toHaveBeenCalled();
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 });

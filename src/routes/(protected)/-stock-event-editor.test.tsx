@@ -48,6 +48,7 @@ import {
   submitStockEvent,
 } from '@/features/stock-events/api/api';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
+import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search';
 import { LIVE_NAV_GROUPS } from '@/lib/config';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
@@ -693,21 +694,6 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       assertRouteWarning();
     });
 
-    it('keeps valid paging and keyword state in the URL', async () => {
-      const { router } = renderRoute(`${PICKER}/${FP}?page=2&size=20&keyword=lot`);
-
-      await screen.findByRole('heading', { name: `${copy}.editor-title` });
-      expect(router.state.location.search).toMatchObject({ page: 2, size: 20, keyword: 'lot' });
-    });
-
-    it('drops invalid paging and blank keywords to their defaults', async () => {
-      const { router } = renderRoute(`${PICKER}/${FP}?page=-1&size=101&keyword=%20`);
-
-      await screen.findByRole('heading', { name: `${copy}.editor-title` });
-      const search = router.state.matches.at(-1)?.search;
-      expect(search).toEqual({ page: undefined, size: undefined });
-    });
-
     it('leaves default paging and an empty keyword out of navigation links', async () => {
       const { router } = renderRoute(`${PICKER}/${FP}`);
       await screen.findByRole('heading', { name: `${copy}.editor-title` });
@@ -721,6 +707,22 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       );
 
       expect(router.state.location.searchStr).toBe('');
+    });
+  });
+});
+
+describe('stockEventSearchSchema', () => {
+  it('parses paging and keyword state', () => {
+    expect(stockEventSearchSchema.parse({ page: 2, size: 20, keyword: 'lot' })).toEqual({
+      page: 2,
+      size: 20,
+      keyword: 'lot',
+    });
+  });
+  it('defaults invalid paging and blank keywords', () => {
+    expect(stockEventSearchSchema.parse({ page: -1, size: 101, keyword: ' ' })).toEqual({
+      page: undefined,
+      size: undefined,
     });
   });
 });
