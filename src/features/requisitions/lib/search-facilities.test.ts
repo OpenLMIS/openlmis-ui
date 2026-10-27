@@ -1,6 +1,9 @@
 import { expect, it } from 'vitest';
 import type { RequisitionGroup } from '@/features/reference-data/lib/types';
-import { searchFacilityOptions } from '@/features/requisitions/lib/search-facilities';
+import {
+  partnerLookupIds,
+  searchFacilityOptions,
+} from '@/features/requisitions/lib/search-facilities';
 
 it('merges partner facilities after grants, keeps grant programs and sorts names ignoring case', () => {
   const options = searchFacilityOptions(
@@ -32,4 +35,25 @@ it('merges partner facilities after grants, keeps grant programs and sorts names
     { id: 'b', programs: [{ id: 'p', name: 'Program' }] },
     { id: 'z', programs: [] },
   ]);
+});
+
+it('derives groups from the partner nodes rather than the viewer nodes', () => {
+  const nodes = [
+    {
+      id: 'viewer',
+      code: 'V',
+      name: 'Viewer',
+      partnerNodeOf: { id: 'partner' },
+      requisitionGroup: { id: 'wrong' },
+    },
+    { id: 'duplicate', code: 'D', name: 'Duplicate', partnerNodeOf: { id: 'partner' } },
+    { id: 'unlinked', code: 'U', name: 'Unlinked', requisitionGroup: { id: 'also-wrong' } },
+  ];
+  const partners = [
+    { id: 'partner', code: 'P', name: 'Partner', requisitionGroup: { id: 'correct' } },
+  ];
+  expect(partnerLookupIds(nodes, partners)).toEqual({
+    partnerIds: ['partner'],
+    groupIds: ['correct'],
+  });
 });

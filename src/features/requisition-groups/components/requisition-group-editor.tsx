@@ -79,6 +79,11 @@ import {
   supervisoryNodesOptions,
 } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
+import type {
+  MemberFacility,
+  ProgramSchedule,
+  RequisitionGroup,
+} from '@/features/reference-data/lib/types';
 import {
   createRequisitionGroup,
   updateRequisitionGroup,
@@ -97,11 +102,6 @@ import {
   toFormValues,
   toRequisitionGroupBody,
 } from '@/features/requisition-groups/lib/requisition-group-form';
-import type {
-  MemberFacility,
-  ProgramSchedule,
-  RequisitionGroup,
-} from '@/features/requisition-groups/lib/types';
 import { useCardView } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { usePagedTableSearch } from '@/hooks/use-page-start';

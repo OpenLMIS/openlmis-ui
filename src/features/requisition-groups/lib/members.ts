@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { MemberFacility } from '@/features/requisition-groups/lib/types';
+import type { MemberFacility } from '@/features/reference-data/lib/types';
 import { tableSearchSchema, textFilterSchema } from '@/lib/table-search';
 import { fold } from '@/lib/text';
 

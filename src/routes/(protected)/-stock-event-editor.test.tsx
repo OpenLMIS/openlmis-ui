@@ -347,7 +347,11 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       renderRoute(PICKER, { onCaughtError });
 
       expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
-      expect(fetchUserRecord).not.toHaveBeenCalled();
+      expect(
+        vi
+          .mocked(fetchUserRecord)
+          .mock.calls.every(([, config]) => config?.connectionStatus === false),
+      ).toBe(true);
       expect(fetchUserPrograms).not.toHaveBeenCalled();
       expect(fetchFacility).not.toHaveBeenCalled();
       expect(onCaughtError).toHaveBeenCalled();

@@ -14,7 +14,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Workspace, WorkspaceContent } from '@/components/workspace';
-import { requisitionGroupOptions } from '@/features/requisition-groups/api/queries';
+import { requisitionGroupOptions } from '@/features/reference-data/api/queries';
 import type { RequisitionGroupEditorSearch } from '@/features/requisition-groups/lib/members';
 import { isNotFound } from '@/lib/http';
 import type { SearchChange } from '@/lib/table-search';

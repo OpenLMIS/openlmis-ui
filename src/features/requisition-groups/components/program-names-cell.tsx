@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { NamesPopover } from '@/components/names-popover';
-import type { ProgramSchedule } from '@/features/requisition-groups/lib/types';
+import type { ProgramSchedule } from '@/features/reference-data/lib/types';
 
 export function ProgramNamesCell({
   schedules,

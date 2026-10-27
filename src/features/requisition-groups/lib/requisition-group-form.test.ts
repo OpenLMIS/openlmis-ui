@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { ProgramSchedule, RequisitionGroup } from '@/features/reference-data/lib/types';
 import {
   addProgramSchema,
   availablePrograms,
@@ -7,7 +8,6 @@ import {
   toFormValues,
   toRequisitionGroupBody,
 } from '@/features/requisition-groups/lib/requisition-group-form';
-import type { ProgramSchedule, RequisitionGroup } from '@/features/requisition-groups/lib/types';
 
 const row = (program: string, id?: string): ProgramSchedule => ({
   ...(id && { id }),

@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
+import type { AxiosRequestConfig } from 'axios';
 import {
   type ApprovedProductsFilter,
   type FacilityProgramFilter,
@@ -103,10 +104,10 @@ export const facilitiesByIdsOptions = (ids: readonly string[]) =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const rolesOptions = () =>
+export const rolesOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
     queryKey: queryKeys.roles.list(),
-    queryFn: fetchRoles,
+    queryFn: () => fetchRoles(config),
     staleTime: LOOKUP_STALE_TIME,
   });
 
@@ -271,12 +272,12 @@ export const facilityOrderableFulfillsOptions = (filter: FacilityProgramFilter) 
   });
 
 /** The user as the reference data holds them; not `users.detail`, which holds the Users page's richer record. */
-export const userRecordOptions = (id: string) =>
+export const userRecordOptions = (id: string, config?: AxiosRequestConfig) =>
   queryOptions({
     queryKey: userRecordKey(id),
     queryFn: () =>
       withOfflineAccess(
-        () => fetchUserRecord(id),
+        () => fetchUserRecord(id, config),
         (saved) => (saved.userId === id ? saved.user : undefined),
       ),
     ...offlineAccessQuery(LOOKUP_STALE_TIME),

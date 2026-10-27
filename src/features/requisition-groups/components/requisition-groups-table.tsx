@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { facilitiesByIdsOptions } from '@/features/reference-data/api/queries';
+import type { RequisitionGroup } from '@/features/reference-data/lib/types';
 import {
   requisitionGroupNodeFacilityIds,
   requisitionGroupsSearchOptions,
@@ -38,7 +39,6 @@ import {
   toRequisitionGroupsQuery,
   toSearchBody,
 } from '@/features/requisition-groups/lib/search';
-import type { RequisitionGroup } from '@/features/requisition-groups/lib/types';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 

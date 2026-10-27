@@ -94,7 +94,7 @@ function ViewRequisition({
   if (cards)
     return (
       <CardActions
-        label={name}
+        label={t('card-actions.actions-for', { name })}
         actions={[
           {
             id: 'view',

@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchFacility } from '@/features/reference-data/api/api';
-import type { Facility } from '@/features/reference-data/lib/types';
+import type { Facility, RequisitionGroup } from '@/features/reference-data/lib/types';
 import {
   createRequisitionGroup,
   updateRequisitionGroup,
@@ -16,7 +16,6 @@ import {
   RequisitionGroupEditor,
 } from '@/features/requisition-groups/components/requisition-group-editor';
 import type { RequisitionGroupEditorSearch } from '@/features/requisition-groups/lib/members';
-import type { RequisitionGroup } from '@/features/requisition-groups/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 import { renderPage } from '@/tests/render-page';

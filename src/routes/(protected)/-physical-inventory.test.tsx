@@ -255,7 +255,11 @@ describe('physical inventory routes', () => {
     vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
     renderRoute(PICKER, undefined, { onCaughtError });
     expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
-    expect(fetchUserRecord).not.toHaveBeenCalled();
+    expect(
+      vi
+        .mocked(fetchUserRecord)
+        .mock.calls.every(([, config]) => config?.connectionStatus === false),
+    ).toBe(true);
     expect(canOpen(PICKER, new Set(['STOCK_CARDS_VIEW']))).toBe(false);
     expect(canOpen(PICKER, new Set(['STOCK_INVENTORIES_EDIT']))).toBe(true);
     expect(onCaughtError).toHaveBeenCalled();

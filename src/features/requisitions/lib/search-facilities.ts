@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import type { MinimalFacility, RequisitionGroup } from '@/features/reference-data/lib/types';
+import type {
+  MinimalFacility,
+  RequisitionGroup,
+  SupervisoryNode,
+} from '@/features/reference-data/lib/types';
 import type { RequisitionsQuery } from '@/features/requisitions/lib/types';
 import type { NamedRecord } from '@/lib/facility-program-selection';
 import type { ProgramGrant } from '@/lib/permissions';
@@ -14,6 +18,22 @@ import {
 
 export type SearchProgram = Pick<NamedRecord, 'id' | 'name'>;
 export type SearchFacility = NamedRecord & { programs: SearchProgram[] };
+
+export function partnerLookupIds(
+  nodes: readonly SupervisoryNode[],
+  partners: readonly SupervisoryNode[] = [],
+) {
+  return {
+    partnerIds: [
+      ...new Set(nodes.flatMap(({ partnerNodeOf }) => (partnerNodeOf ? [partnerNodeOf.id] : []))),
+    ],
+    groupIds: [
+      ...new Set(
+        partners.flatMap(({ requisitionGroup }) => (requisitionGroup ? [requisitionGroup.id] : [])),
+      ),
+    ],
+  };
+}
 
 export function searchFacilityOptions(
   grants: readonly ProgramGrant[],

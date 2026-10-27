@@ -1,9 +1,3 @@
-export type {
-  MemberFacility,
-  ProgramSchedule,
-  RequisitionGroup,
-} from '@/features/reference-data/lib/types';
-
 export type RequisitionGroupBody = {
   id?: string;
   code: string;

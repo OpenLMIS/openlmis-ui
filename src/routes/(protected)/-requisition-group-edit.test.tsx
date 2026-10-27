@@ -12,7 +12,7 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requireRight } from '@/features/auth/lib/access';
 import { fetchRequisitionGroup } from '@/features/reference-data/api/api';
-import { requisitionGroupOptions } from '@/features/requisition-groups/api/queries';
+import { requisitionGroupOptions } from '@/features/reference-data/api/queries';
 import { Route as ListRoute } from '@/routes/(protected)/_protected.administration.requisition-groups';
 import { Route as ViewRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.$id';
 import { Route as EditRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.$id_.edit';

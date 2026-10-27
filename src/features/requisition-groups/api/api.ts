@@ -1,5 +1,5 @@
+import type { RequisitionGroup } from '@/features/reference-data/lib/types';
 import type {
-  RequisitionGroup,
   RequisitionGroupBody,
   RequisitionGroupsSearch,
 } from '@/features/requisition-groups/lib/types';

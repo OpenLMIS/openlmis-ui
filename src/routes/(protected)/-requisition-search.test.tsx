@@ -83,6 +83,7 @@ afterEach(() => {
 it('does not search until the selected facility is applied', async () => {
   const { queryClient } = renderRoute('/requisitions/view');
   await screen.findByRole('button', { name: 'facility-program.search' });
+  expect(screen.queryByRole('button', { name: 'View' })).not.toBeInTheDocument();
   expect(searchRequisitions).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: 'facility-program.search' }));
   await waitFor(() =>
@@ -98,7 +99,7 @@ it('does not search until the selected facility is applied', async () => {
   queryClient.clear();
 });
 
-it('restores filters from the URL and returns to page one when a filter clears', async () => {
+it('restores filters from the URL and returns to page one when a status changes', async () => {
   const { router, queryClient } = renderRoute(
     '/requisitions/view?facility=f&program=p&status=AUTHORIZED&initiatedFrom=2026-01-01&initiatedTo=2026-02-01&page=3&dir=asc',
   );
@@ -115,9 +116,12 @@ it('restores filters from the URL and returns to page one when a filter clears',
     }),
   );
   await userEvent.click(await screen.findByRole('button', { name: /^Filters/ }));
-  await userEvent.click(await screen.findByRole('button', { name: 'Clear Filters' }));
+  await userEvent.click(screen.getByRole('combobox', { name: 'requisitions.filters.status' }));
+  await userEvent.click(
+    await screen.findByRole('option', { name: 'requisitions.status.approved' }),
+  );
   await waitFor(() => expect(router.state.location.search.page).toBeUndefined());
-  expect(router.state.location.search.program).toBeUndefined();
+  expect(router.state.location.search.status).toBe('APPROVED');
   await act(() => router.navigate({ search: { facility: 'forbidden' } as never }));
   await screen.findByText('requisitions.view.refused-title');
   expect(searchRequisitions).not.toHaveBeenCalledWith(
@@ -183,9 +187,7 @@ it.each([1200, 390])('keeps row details and navigation in the %ipx layout', asyn
     expect(router.state.location.search.page).toBeUndefined();
   } else {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'requisitions.view.action-name' })).toContainElement(
-      link,
-    );
+    expect(screen.getByRole('group', { name: 'card-actions.actions-for' })).toContainElement(link);
   }
   queryClient.clear();
 });

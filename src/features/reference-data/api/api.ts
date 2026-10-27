@@ -54,8 +54,8 @@ export function fetchFacilitiesByIds(ids: readonly string[]) {
   return fetchByIds<Facility>('/facilities', ids);
 }
 
-export async function fetchRoles(): Promise<Role[]> {
-  const { data } = await client.get<Role[]>('/roles');
+export async function fetchRoles(config?: AxiosRequestConfig): Promise<Role[]> {
+  const { data } = await client.get<Role[]>('/roles', config);
   return data;
 }
 

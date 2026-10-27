@@ -1,4 +1,4 @@
-import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { CalendarX2Icon, ClipboardListIcon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
@@ -19,6 +19,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace';
+import { permissionsOptions } from '@/features/auth/api/queries';
 import {
   requireRequisitionView,
   requisitionViewNodes,
@@ -29,8 +30,10 @@ import {
   minimalFacilitiesOptions,
   programsOptions,
   requisitionGroupOptions,
+  rolesOptions,
   supervisoryNodesByIdsOptions,
   userProgramsOptions,
+  userRecordOptions,
 } from '@/features/reference-data/api/queries';
 import { requisitionSearchOptions } from '@/features/requisitions/api/queries';
 import {
@@ -45,6 +48,7 @@ import {
 import { RequisitionsToolbar } from '@/features/requisitions/components/requisitions-toolbar';
 import {
   invalidDateRange,
+  partnerLookupIds,
   REQUISITIONS_SORT,
   type RequisitionSearch,
   requisitionSearchSchema,
@@ -98,7 +102,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view'
   component: RequisitionsPage,
 });
 
-type Access = NonNullable<ReturnType<typeof Route.useLoaderData>>;
+type Access = Awaited<ReturnType<typeof requireRequisitionView>> & { userId: string };
 
 function RequisitionsHeader() {
   const { t } = useTranslation();
@@ -210,7 +214,6 @@ function RequisitionsPending() {
 function RequisitionsPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
-  const access = Route.useLoaderData();
   const userId = useLoginData((state) => state.referenceDataUserId);
   const [measure, columnView] = useColumnView();
   const { updateSearch } = useSearchNavigation<RequisitionSearch>(NO_DIALOGS);
@@ -231,9 +234,9 @@ function RequisitionsPage() {
             pendingFallback={<PageSkeleton columnView={columnView} search={search} />}
             resetKey={userId}
           >
-            {access && access.userId === userId && (
+            {userId && (
               <RequisitionsBody
-                access={access}
+                userId={userId}
                 columnView={columnView}
                 onSearchChange={updateSearch}
                 search={search}
@@ -264,23 +267,15 @@ function useSearchFacilities(access: Access) {
   const nodes = useSuspenseQueries({
     queries: [nodeIds].filter((ids) => ids.length > 0).map(supervisoryNodesByIdsOptions),
   });
-  const partnerIds = [
-    ...new Set(
-      nodes.flatMap(({ data }) =>
-        data.flatMap(({ partnerNodeOf }) => (partnerNodeOf ? [partnerNodeOf.id] : [])),
-      ),
-    ),
-  ];
+  const viewerNodes = nodes.flatMap(({ data }) => data);
+  const { partnerIds } = partnerLookupIds(viewerNodes);
   const partners = useSuspenseQueries({
     queries: [partnerIds].filter((ids) => ids.length > 0).map(supervisoryNodesByIdsOptions),
   });
-  const groupIds = [
-    ...new Set(
-      partners.flatMap(({ data }) =>
-        data.flatMap(({ requisitionGroup }) => (requisitionGroup ? [requisitionGroup.id] : [])),
-      ),
-    ),
-  ];
+  const { groupIds } = partnerLookupIds(
+    viewerNodes,
+    partners.flatMap(({ data }) => data),
+  );
   const groups = useSuspenseQueries({ queries: groupIds.map(requisitionGroupOptions) });
   const programs = [
     ...userPrograms.data,
@@ -297,19 +292,22 @@ function useSearchFacilities(access: Access) {
 }
 
 function RequisitionsBody({
-  access,
+  userId,
   columnView,
   search,
   onSearchChange,
 }: {
-  access: Access;
+  userId: string;
   columnView: ColumnView;
   search: RequisitionSearch;
   onSearchChange: SearchChange<RequisitionSearch>;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const options = useSearchFacilities(access);
+  const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
+  const { data: user } = useSuspenseQuery(userRecordOptions(userId));
+  const { data: roles } = useSuspenseQuery(rolesOptions());
+  const options = useSearchFacilities({ userId, permissions, user, roles });
   const facility = options.find(({ id }) => id === search.facility);
   const [draft, setDraft] = useState<string | null>(null);
   const [draftOver, setDraftOver] = useState(search.facility);
@@ -355,7 +353,11 @@ function RequisitionsBody({
       programs={draftedFacility?.programs ?? []}
       search={search}
       onFilterChange={(patch) => onSearchChange(patch, true)}
-      view={<ColumnsMenu columnView={columnView} search={search} onSearchChange={onSearchChange} />}
+      view={
+        facility && !pending ? (
+          <ColumnsMenu columnView={columnView} search={search} onSearchChange={onSearchChange} />
+        ) : undefined
+      }
     />
   );
   let outcome: ReactNode;

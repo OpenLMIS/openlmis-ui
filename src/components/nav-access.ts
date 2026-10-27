@@ -50,12 +50,24 @@ export function navWithinRights(
 function useSignedInRights() {
   const userId = useLoginData((state) => state.referenceDataUserId);
   const { data: rights } = useQuery({ ...rightsOptions(userId ?? ''), enabled: Boolean(userId) });
-  const { data: user } = useQuery({ ...userRecordOptions(userId ?? ''), enabled: Boolean(userId) });
-  const { data: roles } = useQuery({ ...rolesOptions(), enabled: Boolean(userId) });
+  const lookup = Boolean(userId && rights && !rights.has(RIGHTS.requisitionView));
+  const user = useQuery({
+    ...userRecordOptions(userId ?? '', { connectionStatus: false }),
+    enabled: lookup,
+    retry: false,
+    throwOnError: false,
+  });
+  const roles = useQuery({
+    ...rolesOptions({ connectionStatus: false }),
+    enabled: lookup,
+    retry: false,
+    throwOnError: false,
+  });
   return useMemo(() => {
-    if (!user || !roles || !requisitionViewNodes(user, roles).length) return rights;
+    if (!lookup || !user.isSuccess || !roles.isSuccess) return rights;
+    if (!requisitionViewNodes(user.data, roles.data).length) return rights;
     return new Set([...(rights ?? []), RIGHTS.requisitionView]);
-  }, [rights, user, roles]);
+  }, [lookup, rights, user.isSuccess, user.data, roles.isSuccess, roles.data]);
 }
 
 /** The signed-in user's nav, for the sidebar and the command palette. */
