@@ -6,12 +6,13 @@ import { legacyHome } from '@/lib/legacy-home';
 export function useBackToLegacy() {
   const { t } = useTranslation();
   const appName = useAppName();
+  const url = legacyHome(import.meta.env.BASE_URL);
   return {
+    available: url !== import.meta.env.BASE_URL,
     label: t('legacy.label'),
     description: t('legacy.description', { appName }),
     onClick: () =>
       whenLeaveAllowed(() => {
-        const url = legacyHome(import.meta.env.BASE_URL);
         allowUnload();
         window.location.assign(url);
       }),

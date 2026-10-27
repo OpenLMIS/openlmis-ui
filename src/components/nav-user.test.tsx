@@ -45,12 +45,7 @@ describe('NavUser', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
 
     const items = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
-    expect(items).toEqual([
-      'nav-user.account',
-      'nav-user.settings',
-      'legacy.label',
-      'nav-user.log-out',
-    ]);
+    expect(items).toEqual(['nav-user.account', 'nav-user.settings', 'nav-user.log-out']);
     expect(screen.getByRole('menuitem', { name: 'nav-user.settings' })).toHaveAttribute(
       'href',
       '/settings',
@@ -173,6 +168,18 @@ it('waits for the leave flow before navigating to the legacy home', async () => 
   } finally {
     leave.mockRestore();
     allowUnload.mockRestore();
+    vi.unstubAllEnvs();
+  }
+});
+
+it('hides Back To Legacy when the app is not under a legacy prefix', async () => {
+  vi.stubEnv('BASE_URL', '/');
+  try {
+    await renderMenu([]);
+    await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
+    await screen.findByRole('menuitem', { name: 'nav-user.log-out' });
+    expect(screen.queryByRole('menuitem', { name: 'legacy.label' })).not.toBeInTheDocument();
+  } finally {
     vi.unstubAllEnvs();
   }
 });

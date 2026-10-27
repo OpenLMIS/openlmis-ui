@@ -9,12 +9,14 @@ export function BackToLegacyButton({
   tooltipSide?: 'top' | 'inline-end';
 }) {
   const legacy = useBackToLegacy();
+  if (!legacy.available) return null;
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <Button
             aria-label={legacy.label}
+            aria-description={legacy.description}
             onClick={legacy.onClick}
             size="icon-sm"
             tone="sidebar"

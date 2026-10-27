@@ -105,14 +105,16 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem
-              onClick={legacy.onClick}
-              variant="warning"
-              aria-description={legacy.description}
-            >
-              <HistoryIcon />
-              {legacy.label}
-            </DropdownMenuItem>
+            {legacy.available && (
+              <DropdownMenuItem
+                onClick={legacy.onClick}
+                variant="warning"
+                aria-description={legacy.description}
+              >
+                <HistoryIcon />
+                {legacy.label}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={() => offlineSignOut.confirm(() => void handleLogout())}
               variant="destructive"
