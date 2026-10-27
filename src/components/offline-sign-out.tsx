@@ -65,7 +65,7 @@ export function useOfflineSignOut() {
           setPending({ scope, proceed: guardedProceed, offline, count });
         else guardedProceed();
       })();
-    });
+    }, 'sign-out');
   };
 
   const target = useDialogTarget(pending ?? undefined, () => setPending(null));

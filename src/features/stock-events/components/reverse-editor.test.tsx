@@ -30,7 +30,13 @@ vi.mock('@/hooks/use-deployment-time-zone', () => ({ useDeploymentTimeZone: () =
 vi.mock('@/hooks/use-discard-guard', () => ({
   useDiscardGuard: () => ({
     leaveIfAsked: () => false,
-    dialog: { open: false, signingOut: false, onDiscard: vi.fn(), onKeepEditing: vi.fn() },
+    dialog: {
+      open: false,
+      signingOut: false,
+      external: false,
+      onDiscard: vi.fn(),
+      onKeepEditing: vi.fn(),
+    },
   }),
 }));
 vi.mock('@/features/stock-events/api/api', () => ({

@@ -1,6 +1,6 @@
 import { useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useState } from 'react';
-import { isUnloadAllowed, useLeaveGuard } from '@/hooks/use-leave-guard';
+import { isUnloadAllowed, type LeaveIntent, useLeaveGuard } from '@/hooks/use-leave-guard';
 
 export function useDialogDiscardGuard({
   dirty,
@@ -30,8 +30,14 @@ export function useDialogDiscardGuard({
   useEffect(() => {
     if (pending || !active || allowLeave()) blocker.reset?.();
   }, [pending, active, allowLeave, blocker.reset]);
-  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
-  const askToLeave = useCallback((proceed: () => void) => setPendingLeave(() => proceed), []);
+  const [pendingLeave, setPendingLeave] = useState<{
+    proceed: () => void;
+    intent: LeaveIntent;
+  } | null>(null);
+  const askToLeave = useCallback(
+    (proceed: () => void, intent: LeaveIntent) => setPendingLeave({ proceed, intent }),
+    [],
+  );
   useLeaveGuard(active && (dirty || pending) && !allowLeave(), askToLeave);
 
   return {
@@ -40,12 +46,12 @@ export function useDialogDiscardGuard({
       !pending &&
       !allowLeave() &&
       (blocker.status === 'blocked' || pendingLeave !== null),
-    signingOut: pendingLeave !== null,
+    signingOut: pendingLeave?.intent === 'sign-out',
     onDiscard: () => {
       if (pending) return;
       if (pendingLeave) {
         setPendingLeave(null);
-        pendingLeave();
+        pendingLeave.proceed();
       } else blocker.proceed?.();
     },
     onKeepEditing: () => {

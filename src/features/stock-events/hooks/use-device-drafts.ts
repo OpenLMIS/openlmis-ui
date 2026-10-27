@@ -64,10 +64,15 @@ export function useDeviceDrafts({
     dialog: {
       ...guard.dialog,
       pending: discarding,
-      ...deviceDraftLeaveCopy(t, enabled, guard.dialog.signingOut),
+      ...deviceDraftLeaveCopy(
+        t,
+        enabled,
+        guard.dialog.signingOut,
+        guard.dialog.external ? 'keep-draft' : 'delete',
+      ),
       async onDiscard() {
         if (discarding) return;
-        if (enabled && !guard.dialog.signingOut) {
+        if (enabled && !guard.dialog.external) {
           setDiscarding(true);
           const discarded = await draft.discard();
           if (!isCurrent()) return;

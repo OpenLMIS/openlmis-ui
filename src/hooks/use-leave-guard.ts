@@ -9,7 +9,7 @@ type AskToLeave = (proceed: () => void, intent: LeaveIntent) => void;
 const guards: AskToLeave[] = [];
 
 /** Runs `proceed` at once, or after the page with unsaved changes has asked and the user agreed. */
-export function whenLeaveAllowed(proceed: () => void, intent: LeaveIntent = 'sign-out') {
+export function whenLeaveAllowed(proceed: () => void, intent: LeaveIntent) {
   const ask = guards.at(-1);
   if (ask) ask(proceed, intent);
   else proceed();

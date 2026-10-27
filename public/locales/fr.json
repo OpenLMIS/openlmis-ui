@@ -1945,6 +1945,7 @@
   "stock-events.draft-delete-description": "Cette copie sera supprimée de cet appareil. Cette action est irréversible.",
   "stock-events.draft-delete-title": "Supprimer La Copie Archivée ?",
   "stock-events.draft-failed": "Impossible d’enregistrer sur cet appareil. Vos dernières modifications ne sont pas enregistrées.",
+  "stock-events.draft-kept-leave-description": "Vos dernières modifications n’ont pas pu être enregistrées. Abandonner Et Quitter conserve le dernier brouillon enregistré sur cet appareil, mais les modifications non enregistrées seront perdues.",
   "stock-events.draft-leave": "Abandonner Et Quitter",
   "stock-events.draft-leave-description": "Vos dernières modifications n’ont pas pu être enregistrées. Abandonner Et Quitter supprime ce brouillon de l’appareil, y compris ses lignes enregistrées.",
   "stock-events.draft-leave-title": "Les Dernières Modifications Ne Sont Pas Enregistrées",

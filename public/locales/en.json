@@ -1945,6 +1945,7 @@
   "stock-events.draft-delete-description": "This copy will be deleted from this device. This cannot be undone.",
   "stock-events.draft-delete-title": "Delete Archived Copy?",
   "stock-events.draft-failed": "Could not save on this device. Your latest edits are not saved.",
+  "stock-events.draft-kept-leave-description": "Your latest edits could not be saved. Discard And Leave keeps the last saved draft on this device, but loses unsaved edits.",
   "stock-events.draft-leave": "Discard And Leave",
   "stock-events.draft-leave-description": "Your latest edits could not be saved. Discard And Leave deletes this draft from the device, including its saved lines.",
   "stock-events.draft-leave-title": "Latest Edits Are Not Saved",

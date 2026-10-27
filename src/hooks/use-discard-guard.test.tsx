@@ -121,7 +121,7 @@ describe('useDiscardGuard', () => {
   it('holds a sign out until the changes are discarded', async () => {
     await renderAt(true);
     const signOut = vi.fn();
-    act(() => whenLeaveAllowed(signOut));
+    act(() => whenLeaveAllowed(signOut, 'sign-out'));
     expect(await screen.findByText('asking to sign out')).toBeInTheDocument();
     expect(signOut).not.toHaveBeenCalled();
     act(() => guard.dialog.onDiscard());
@@ -138,7 +138,7 @@ describe('useDiscardGuard', () => {
   it('runs a waiting sign out on request, e.g. once a save has kept the changes', async () => {
     await renderAt(true);
     const signOut = vi.fn();
-    act(() => whenLeaveAllowed(signOut));
+    act(() => whenLeaveAllowed(signOut, 'sign-out'));
     await screen.findByText('asking to sign out');
     let ran = false;
     act(() => {
@@ -182,7 +182,7 @@ it('blocks navigation while saving without offering a discard dialog', async () 
 it('blocks sign out while saving without allowing discard', async () => {
   await renderAt(true, true);
   const signOut = vi.fn();
-  act(() => whenLeaveAllowed(signOut));
+  act(() => whenLeaveAllowed(signOut, 'sign-out'));
   expect(guard.dialog.open).toBe(false);
   act(() => guard.dialog.onDiscard());
   expect(signOut).not.toHaveBeenCalled();
@@ -224,7 +224,7 @@ it.each(['navigation', 'sign-out'])(
     const signOut = vi.fn();
     act(() => {
       if (destination === 'navigation') void router.navigate({ to: '/profile/roles' });
-      else whenLeaveAllowed(signOut);
+      else whenLeaveAllowed(signOut, 'sign-out');
     });
     await waitFor(() => expect(flush).toHaveBeenCalledOnce());
     expect(guard.dialog.open).toBe(false);
@@ -239,7 +239,7 @@ it.each(['navigation', 'sign-out'])(
 it('offers leaving after a failed device flush', async () => {
   await renderAt(true, false, async () => false);
   const signOut = vi.fn();
-  act(() => whenLeaveAllowed(signOut));
+  act(() => whenLeaveAllowed(signOut, 'sign-out'));
   await screen.findByText('asking to sign out');
   expect(signOut).not.toHaveBeenCalled();
   act(() => guard.dialog.onDiscard());

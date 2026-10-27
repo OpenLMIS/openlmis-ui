@@ -78,7 +78,13 @@ vi.mock('@/features/stock-events/lib/physical-inventory-local', async (original)
 }));
 vi.mock('@/hooks/use-discard-guard', () => ({
   useDiscardGuard: vi.fn(() => ({
-    dialog: { open: false, signingOut: false, onDiscard: vi.fn(), onKeepEditing: vi.fn() },
+    dialog: {
+      open: false,
+      signingOut: false,
+      external: false,
+      onDiscard: vi.fn(),
+      onKeepEditing: vi.fn(),
+    },
   })),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
@@ -116,7 +122,13 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.clearAllMocks();
   vi.mocked(useDiscardGuard).mockImplementation(() => ({
-    dialog: { open: false, signingOut: false, onDiscard: vi.fn(), onKeepEditing: vi.fn() },
+    dialog: {
+      open: false,
+      signingOut: false,
+      external: false,
+      onDiscard: vi.fn(),
+      onKeepEditing: vi.fn(),
+    },
     leaveIfAsked: vi.fn(),
   }));
   vi.mocked(fetchInventoryStockLines).mockResolvedValue(stock);

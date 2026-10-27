@@ -10,7 +10,7 @@ import {
 describe('useLeaveGuard', () => {
   it('lets a leave through at once when no page guards it', () => {
     const proceed = vi.fn();
-    whenLeaveAllowed(proceed);
+    whenLeaveAllowed(proceed, 'sign-out');
     expect(proceed).toHaveBeenCalledOnce();
   });
 
@@ -21,12 +21,12 @@ describe('useLeaveGuard', () => {
     });
     const proceed = vi.fn();
 
-    whenLeaveAllowed(proceed);
+    whenLeaveAllowed(proceed, 'sign-out');
     expect(ask).toHaveBeenCalledWith(proceed, 'sign-out');
     expect(proceed).not.toHaveBeenCalled();
 
     rerender({ active: false });
-    whenLeaveAllowed(proceed);
+    whenLeaveAllowed(proceed, 'sign-out');
     expect(proceed).toHaveBeenCalledOnce();
     unmount();
   });
@@ -38,7 +38,7 @@ describe('useLeaveGuard', () => {
     const b = renderHook(() => useLeaveGuard(true, newer));
     const proceed = vi.fn();
 
-    whenLeaveAllowed(proceed);
+    whenLeaveAllowed(proceed, 'sign-out');
     expect(newer).toHaveBeenCalledWith(proceed, 'sign-out');
     expect(older).not.toHaveBeenCalled();
 
@@ -58,7 +58,7 @@ describe('useLeaveGuard', () => {
     const proceed = vi.fn();
 
     b.rerender({ active: false });
-    whenLeaveAllowed(proceed);
+    whenLeaveAllowed(proceed, 'sign-out');
     expect(first).toHaveBeenCalledWith(proceed, 'sign-out');
     expect(proceed).not.toHaveBeenCalled();
 

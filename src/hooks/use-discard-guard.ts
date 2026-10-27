@@ -75,6 +75,7 @@ export function useDiscardGuard(
         !allowLeave?.() &&
         (blocker.status === 'blocked' || pendingLeave !== null),
       signingOut: pendingLeave?.intent === 'sign-out',
+      external: pendingLeave !== null,
       onDiscard: () => {
         if (pending) return;
         if (!leaveIfAsked()) blocker.proceed?.();

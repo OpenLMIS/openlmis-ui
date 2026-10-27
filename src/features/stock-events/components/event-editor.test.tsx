@@ -2631,7 +2631,7 @@ it('flushes the final edit on unmount and restores exact quantities without a di
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
   await screen.findByText('Saved On This Device');
   const leave = vi.fn();
-  act(() => whenLeaveAllowed(leave));
+  act(() => whenLeaveAllowed(leave, 'sign-out'));
   await waitFor(() => expect(leave).toHaveBeenCalledOnce());
   fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
     target: { value: '0019' },
@@ -2647,21 +2647,28 @@ it('flushes the final edit on unmount and restores exact quantities without a di
   );
 });
 
-it('keeps committed lines when signing out after a failed device save', async () => {
-  const { user } = setup();
-  await add(user);
-  await screen.findByText('Saved On This Device');
-  const table = getLocalDb().table(LOCAL_TABLES.stockEventDrafts);
-  const before = await table.toArray();
-  vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
-  await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
-  await screen.findByText('Could not save on this device. Your latest edits are not saved.');
-  const leave = vi.fn();
-  act(() => whenLeaveAllowed(leave));
-  await user.click(await screen.findByRole('button', { name: 'Log Out' }));
-  await waitFor(() => expect(leave).toHaveBeenCalledOnce());
-  expect(await table.toArray()).toEqual(before);
-});
+it.each(['leave', 'sign-out'] as const)(
+  'keeps committed lines for %s after a failed device save',
+  async (intent) => {
+    const { user } = setup();
+    await add(user);
+    await screen.findByText('Saved On This Device');
+    const table = getLocalDb().table(LOCAL_TABLES.stockEventDrafts);
+    const before = await table.toArray();
+    vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
+    await screen.findByText('Could not save on this device. Your latest edits are not saved.');
+    const leave = vi.fn();
+    act(() => whenLeaveAllowed(leave, intent));
+    const discard = await screen.findByRole('button', {
+      name: intent === 'sign-out' ? 'Log Out' : 'Discard And Leave',
+    });
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('keeps the last saved draft');
+    await user.click(discard);
+    await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+    expect(await table.toArray()).toEqual(before);
+  },
+);
 
 it.each(['navigation', 'sign-out'])(
   'flushes an Adjustment edit during the debounce before %s',
@@ -2680,7 +2687,7 @@ it.each(['navigation', 'sign-out'])(
         await router.navigate({ to: '/settings' });
       });
     else {
-      act(() => whenLeaveAllowed(leave));
+      act(() => whenLeaveAllowed(leave, 'sign-out'));
       await waitFor(() => expect(leave).toHaveBeenCalledOnce());
     }
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
