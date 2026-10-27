@@ -1,10 +1,12 @@
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
+import { CircleDashedIcon, CircleXIcon, FilePenLineIcon, WifiOffIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ListError } from '@/components/list-error';
 import { StockProgramPicker } from '@/components/stock-program-picker/stock-program-picker';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { startPhysicalInventory } from '@/features/stock-events/api/physical-inventory-api';
@@ -122,9 +124,30 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
           <Skeleton fill />
         </div>
       ) : result.isError ? (
-        t('physical-inventory.status-error')
-      ) : missing ? null : (
-        t(result.data ? 'physical-inventory.draft' : 'physical-inventory.not-started')
+        <Badge variant="destructive">
+          <CircleXIcon aria-hidden="true" data-icon="inline-start" />
+          {t('physical-inventory.status-error')}
+        </Badge>
+      ) : missing ? (
+        <span className="flex flex-col items-start gap-1">
+          <Badge variant="warning">
+            <WifiOffIcon aria-hidden="true" data-icon="inline-start" />
+            {t('physical-inventory.not-on-device')}
+          </Badge>
+          <span className="text-muted-foreground text-xs">
+            {t('physical-inventory.open-online-first')}
+          </span>
+        </span>
+      ) : result.data ? (
+        <Badge variant="info">
+          <FilePenLineIcon aria-hidden="true" data-icon="inline-start" />
+          {t('physical-inventory.draft')}
+        </Badge>
+      ) : (
+        <Badge variant="secondary">
+          <CircleDashedIcon aria-hidden="true" data-icon="inline-start" />
+          {t('physical-inventory.not-started')}
+        </Badge>
       ),
       actionLabel: t(
         result.isError
@@ -134,8 +157,6 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
             : 'physical-inventory.start',
       ),
       disabled: result.isPending || mutation.isPending || missing,
-      disabledReason: missing ? t('physical-inventory.not-on-device') : undefined,
-      disabledDescription: missing ? t('physical-inventory.open-online-first') : undefined,
     };
   });
   const failed = drafts.filter((draft) => draft.isError);

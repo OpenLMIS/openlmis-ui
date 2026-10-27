@@ -616,7 +616,7 @@ it('lists granted home programs offline with a reason for missing copies and nev
   await screen.findAllByText('physical-inventory.not-on-device');
   const actions = screen.getAllByRole('button', { name: 'physical-inventory.continue' });
   expect(actions[0]).toBeEnabled();
-  expect(actions[1]).toHaveAttribute('aria-disabled', 'true');
+  expect(actions[1]).toBeDisabled();
   expect(screen.getByText('Family Planning')).toBeInTheDocument();
   expect(screen.queryByText('Essential Meds')).not.toBeInTheDocument();
   expect(screen.getByText('No Copy')).toBeInTheDocument();
