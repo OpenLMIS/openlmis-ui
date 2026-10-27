@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import { CircleDashedIcon, CircleXIcon, FilePenLineIcon, WifiOffIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { ListError } from '@/components/list-error';
 import { StockProgramPicker } from '@/components/stock-program-picker/stock-program-picker';
 import { Badge } from '@/components/ui/badge';
@@ -129,15 +130,13 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
           {t('physical-inventory.status-error')}
         </Badge>
       ) : missing ? (
-        <span className="flex flex-col items-start gap-1">
-          <Badge variant="warning">
+        <ActionTooltip reason={t('physical-inventory.open-online-first')}>
+          <Badge variant="warning" tabIndex={0}>
             <WifiOffIcon aria-hidden="true" data-icon="inline-start" />
             {t('physical-inventory.not-on-device')}
+            <span className="sr-only">{t('physical-inventory.open-online-first')}</span>
           </Badge>
-          <span className="text-muted-foreground text-xs">
-            {t('physical-inventory.open-online-first')}
-          </span>
-        </span>
+        </ActionTooltip>
       ) : result.data ? (
         <Badge variant="info">
           <FilePenLineIcon aria-hidden="true" data-icon="inline-start" />
