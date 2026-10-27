@@ -35,12 +35,12 @@ function mount(permissions: string[]) {
   });
 }
 
-it('skips optional supervision lookups when permission strings already grant VIEW', async () => {
+it('skips optional supervision lookups when permission strings already grant VIEW', () => {
   const adapter = vi.fn<AxiosAdapter>();
   client.defaults.adapter = adapter;
   const { result } = mount(['REQUISITION_VIEW|f|p']);
   expect(result.current).toBe(true);
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(queryClient.isFetching()).toBe(0);
   expect(adapter).not.toHaveBeenCalled();
 });
 

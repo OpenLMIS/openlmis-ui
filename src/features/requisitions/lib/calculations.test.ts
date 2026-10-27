@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   calculateLine,
   calculateTotals,
@@ -369,7 +369,7 @@ it.each([
     ).numberOfPatientsOnTreatmentNextMonth,
   ).toBe(['AUTHORIZED', 'IN_APPROVAL', 'APPROVED'].includes(status) ? 99 : 5);
 });
-it('parses patients data once across lines of the same record and keeps records separate', () => {
+it('refreshes patient quantities after data changes and keeps records separate', () => {
   const r = record({
     patientsData: JSON.stringify({ TBData: [[]], leprosyData: [[]] }),
     template: {
@@ -377,23 +377,18 @@ it('parses patients data once across lines of the same record and keeps records 
         numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth'),
       },
     },
-    requisitionLineItems: [line(), line({ id: 'second' })],
+    requisitionLineItems: [line()],
   });
-  const models = buildLines(r, [product()]);
-  const parse = vi.spyOn(JSON, 'parse');
-  for (const model of models) calculateLine(model, r, 1);
-  expect(parse).toHaveBeenCalledTimes(1);
-  const other = {
-    ...r,
-    patientsData: JSON.stringify({
-      TBData: [[{ key: 'numberOfAdultPatients', data: [{ value: 7 }] }]],
-      leprosyData: [[]],
-    }),
-  };
-  const model = buildLines(other, [product({ productCode: '10010510AE' })])[0];
+  const model = buildLines(r, [product({ productCode: '10010510AE' })])[0];
   if (!model) throw new Error('Missing model');
-  expect(calculateLine(model, other, 1).numberOfPatientsOnTreatmentNextMonth).toBe(7);
-  expect(parse).toHaveBeenCalledTimes(2);
+  expect(calculateLine(model, r, 1).numberOfPatientsOnTreatmentNextMonth).toBe(0);
+  const other = { ...r };
+  r.patientsData = JSON.stringify({
+    TBData: [[{ key: 'numberOfAdultPatients', data: [{ value: 7 }] }]],
+    leprosyData: [[]],
+  });
+  expect(calculateLine(model, r, 1).numberOfPatientsOnTreatmentNextMonth).toBe(7);
+  expect(calculateLine(model, other, 1).numberOfPatientsOnTreatmentNextMonth).toBe(0);
 });
 
 it.each([

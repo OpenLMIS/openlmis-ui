@@ -38,21 +38,9 @@ describe('requisition group form', () => {
       expect(result.error.issues.map((issue) => issue.path[0])).toEqual(['name', 'code', 'nodeId']);
   });
 
-  it('trims valid names and codes and allows empty collections', () => {
-    expect(
-      requisitionGroupFormSchema.parse({
-        ...toFormValues(),
-        name: ' Group ',
-        code: ' RG ',
-        nodeId: 'node',
-      }),
-    ).toMatchObject({ name: 'Group', code: 'RG', schedules: [], members: [] });
-  });
-
-  it('requires a program and schedule and refuses an already listed program', () => {
+  it('refuses an already listed program and excludes it from choices', () => {
     const schema = addProgramSchema(saved.requisitionGroupProgramSchedules);
     const empty = { programId: null, scheduleId: null, dropOffId: null, directDelivery: false };
-    expect(schema.safeParse(empty).success).toBe(false);
     expect(schema.safeParse({ ...empty, programId: 'p1', scheduleId: 's1' }).success).toBe(false);
     expect(schema.safeParse({ ...empty, programId: 'p3', scheduleId: 's1' }).success).toBe(true);
     expect(

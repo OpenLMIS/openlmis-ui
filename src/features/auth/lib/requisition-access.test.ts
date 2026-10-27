@@ -1,5 +1,13 @@
+import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
-import { canViewRequisitions } from '@/features/auth/lib/requisition-access';
+import { permissionsOptions } from '@/features/auth/api/queries';
+import { ForbiddenError } from '@/features/auth/lib/access';
+import {
+  canViewRequisitions,
+  requireRequisitionView,
+} from '@/features/auth/lib/requisition-access';
+import { useLoginData } from '@/features/auth/store/login-data';
+import { rolesOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import type { Role } from '@/features/reference-data/lib/types';
 import { parsePermissions } from '@/lib/permissions';
 
@@ -39,4 +47,26 @@ describe('canViewRequisitions', () => {
       ).toBe(false);
     }
   });
+});
+
+it('rejects a direct route load without a facility or assigned supervision VIEW grant', async () => {
+  const previous = useLoginData.getState().referenceDataUserId;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  useLoginData.setState({ referenceDataUserId: 'audit-user' });
+  client.setQueryData(permissionsOptions('audit-user').queryKey, parsePermissions([]));
+  client.setQueryData(userRecordOptions('audit-user').queryKey, {
+    id: 'audit-user',
+    username: 'audit',
+    firstName: 'Audit',
+    lastName: 'User',
+    active: true,
+    roleAssignments: [],
+  });
+  client.setQueryData(rolesOptions().queryKey, roles);
+  try {
+    await expect(requireRequisitionView(client)).rejects.toBeInstanceOf(ForbiddenError);
+  } finally {
+    client.clear();
+    useLoginData.setState({ referenceDataUserId: previous });
+  }
 });

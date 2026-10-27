@@ -126,3 +126,17 @@ it('keeps the backend dispensable column as Unit on emergency and non-full grids
     { name: 'dispensable', kind: 'unit' },
   ]);
 });
+
+it('omits hidden columns even after authorization', () => {
+  expect(
+    compileColumns(
+      {
+        columnsMap: {
+          approvedQuantity: column('approvedQuantity', 0, { isDisplayed: false }),
+          requestedQuantity: column('requestedQuantity', 1),
+        },
+      },
+      context,
+    ).map((column) => column.name),
+  ).toEqual(['requestedQuantity']);
+});
