@@ -1,0 +1,2290 @@
+[
+  {
+    "id": "790da33b",
+    "total": 723.5,
+    "requisition": {
+      "status": "APPROVED",
+      "emergency": false,
+      "program": {
+        "id": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a"
+      },
+      "stockAdjustmentReasons": [
+        {
+          "reasonType": "CREDIT"
+        },
+        {
+          "reasonType": "DEBIT"
+        },
+        {
+          "reasonType": "CREDIT"
+        },
+        {
+          "reasonType": "DEBIT"
+        },
+        {
+          "reasonType": "DEBIT"
+        },
+        {
+          "reasonType": "DEBIT"
+        },
+        {
+          "reasonType": "DEBIT"
+        },
+        {
+          "reasonType": "DEBIT"
+        },
+        {
+          "reasonType": "DEBIT"
+        },
+        {
+          "reasonType": "DEBIT"
+        },
+        {
+          "reasonType": "CREDIT"
+        },
+        {
+          "reasonType": "CREDIT"
+        },
+        {
+          "reasonType": "DEBIT"
+        }
+      ],
+      "template": {
+        "columnsMap": {
+          "adjustedConsumption": {
+            "name": "adjustedConsumption",
+            "indicator": "N",
+            "label": "Adjusted consumption",
+            "isDisplayed": true,
+            "displayOrder": 22,
+            "source": "CALCULATED"
+          },
+          "totalLossesAndAdjustments": {
+            "name": "totalLossesAndAdjustments",
+            "indicator": "D",
+            "label": "Total losses and adjustments",
+            "isDisplayed": true,
+            "displayOrder": 7,
+            "source": "USER_INPUT"
+          },
+          "totalStockoutDays": {
+            "name": "totalStockoutDays",
+            "indicator": "X",
+            "label": "Total stockout days",
+            "isDisplayed": true,
+            "displayOrder": 8,
+            "source": "USER_INPUT"
+          },
+          "packsToShip": {
+            "name": "packsToShip",
+            "indicator": "V",
+            "label": "Packs to ship",
+            "isDisplayed": false,
+            "displayOrder": 13,
+            "source": "CALCULATED"
+          },
+          "skipped": {
+            "name": "skipped",
+            "indicator": "S",
+            "label": "Skip",
+            "isDisplayed": true,
+            "displayOrder": 1,
+            "source": "USER_INPUT"
+          },
+          "orderable.productCode": {
+            "name": "orderable.productCode",
+            "indicator": "O",
+            "label": "Product code",
+            "isDisplayed": true,
+            "displayOrder": 2,
+            "source": "REFERENCE_DATA"
+          },
+          "totalConsumedQuantity": {
+            "name": "totalConsumedQuantity",
+            "indicator": "C",
+            "label": "Total consumed quantity",
+            "isDisplayed": true,
+            "displayOrder": 6,
+            "source": "USER_INPUT"
+          },
+          "stockOnHand": {
+            "name": "stockOnHand",
+            "indicator": "E",
+            "label": "Stock on hand",
+            "isDisplayed": true,
+            "displayOrder": 9,
+            "source": "CALCULATED"
+          },
+          "requestedQuantity": {
+            "name": "requestedQuantity",
+            "indicator": "J",
+            "label": "Requested quantity",
+            "isDisplayed": true,
+            "displayOrder": 15,
+            "source": "USER_INPUT"
+          },
+          "beginningBalance": {
+            "name": "beginningBalance",
+            "indicator": "A",
+            "label": "Beginning balance",
+            "isDisplayed": true,
+            "displayOrder": 4,
+            "source": "USER_INPUT"
+          },
+          "orderable.dispensable.displayUnit": {
+            "name": "orderable.dispensable.displayUnit",
+            "indicator": "U",
+            "label": "Display Unit",
+            "isDisplayed": true,
+            "displayOrder": 14,
+            "source": "REFERENCE_DATA"
+          },
+          "totalReceivedQuantity": {
+            "name": "totalReceivedQuantity",
+            "indicator": "B",
+            "label": "Total received quantity",
+            "isDisplayed": true,
+            "displayOrder": 5,
+            "source": "USER_INPUT"
+          },
+          "approvedQuantity": {
+            "name": "approvedQuantity",
+            "indicator": "K",
+            "label": "Approved quantity",
+            "isDisplayed": true,
+            "displayOrder": 17,
+            "source": "USER_INPUT"
+          },
+          "orderable.fullProductName": {
+            "name": "orderable.fullProductName",
+            "indicator": "R",
+            "label": "Product",
+            "isDisplayed": true,
+            "displayOrder": 3,
+            "source": "REFERENCE_DATA"
+          },
+          "pricePerPack": {
+            "name": "pricePerPack",
+            "indicator": "T",
+            "label": "Price per pack",
+            "isDisplayed": true,
+            "displayOrder": 12,
+            "source": "REFERENCE_DATA"
+          },
+          "averageConsumption": {
+            "name": "averageConsumption",
+            "indicator": "P",
+            "label": "Average consumption",
+            "isDisplayed": true,
+            "displayOrder": 10,
+            "source": "CALCULATED"
+          },
+          "requestedQuantityExplanation": {
+            "name": "requestedQuantityExplanation",
+            "indicator": "W",
+            "label": "Requested quantity explanation",
+            "isDisplayed": true,
+            "displayOrder": 16,
+            "source": "USER_INPUT"
+          },
+          "calculatedOrderQuantity": {
+            "name": "calculatedOrderQuantity",
+            "indicator": "I",
+            "label": "Calculated order quantity",
+            "isDisplayed": true,
+            "displayOrder": 11,
+            "source": "CALCULATED"
+          },
+          "remarks": {
+            "name": "remarks",
+            "indicator": "L",
+            "label": "Remarks",
+            "isDisplayed": true,
+            "displayOrder": 18,
+            "source": "USER_INPUT"
+          }
+        },
+        "populateStockOnHandFromStockCards": false,
+        "enableAvgConsumptionForCurrentPeriod": false,
+        "patientsTabEnabled": false
+      },
+      "requisitionLineItems": [
+        {
+          "id": "ed8344f4-cc30-4a0e-9274-aded1e5c1754",
+          "orderable": {
+            "id": "81dd320e-6d28-446a-8613-8bb899d6c206",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "903383c7-34b6-40c0-a5b8-676dedd78e11",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 17.28
+        },
+        {
+          "id": "d166c5d0-5d03-4685-ac47-fdfb5965fb90",
+          "orderable": {
+            "id": "7f0aac5f-582a-4a6a-a8e1-dd534200f257",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "7cab8f61-1f12-45f9-94ea-427675094756",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 95.29
+        },
+        {
+          "id": "b66483b3-e8ba-404c-99a3-5db450c3e941",
+          "orderable": {
+            "id": "3fecd8a4-d130-4e82-95ff-7d7620e24d8d",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "74c8f940-b33f-404e-97f6-aa05c96101f7",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 85.02
+        },
+        {
+          "id": "669133b3-7c77-42e5-8dfd-7ed0c19c9b1f",
+          "orderable": {
+            "id": "f7169041-733a-4279-bcbb-aee248e1b9dd",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "59448a61-e712-4c5d-8846-1e91fca83938",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 89.67
+        },
+        {
+          "id": "3b8a1336-23b9-4be9-b3a4-fdfc36ac0a9a",
+          "orderable": {
+            "id": "dc6e49d4-6fd8-49d0-ac4f-44d055c4b49d",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "67d0f040-6224-4ae4-ba9c-34757f22d983",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 45.64
+        },
+        {
+          "id": "ec8f1b8c-4215-453c-b5a9-52f8dc701677",
+          "orderable": {
+            "id": "d059457a-b7ec-4353-89c6-dde0fc7a0c4b",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "b66f2c91-e61e-4c12-af9c-7ea33b2fa576",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 63.91
+        },
+        {
+          "id": "1e81d739-7f46-4075-a0e4-7f3d0d976fba",
+          "orderable": {
+            "id": "a4460709-c908-4b94-b3c0-faf5eeefcc03",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "83920fd9-e39e-47ec-ac06-b881fbb4c911",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 50.35
+        },
+        {
+          "id": "8c08372e-2dfc-431e-ac59-fb27dd59a0a2",
+          "orderable": {
+            "id": "fd77b03e-5578-429b-9802-6d7e4d8cb91d",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "a26b18c3-b375-405c-8cf3-ff72a10ae5a2",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 33.67
+        },
+        {
+          "id": "a2d0f9b6-fb11-4540-942b-f16fc25b2673",
+          "orderable": {
+            "id": "952aabc6-ffa8-4e9a-ac4d-82b843704a82",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "77f9d0a8-23ec-4cd6-bd94-d0b80f3ffbf6",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 27.57
+        },
+        {
+          "id": "91b480b3-5301-4de5-a651-452faf68ab2c",
+          "orderable": {
+            "id": "e1e51f5a-1bda-4777-a074-d865206e546f",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "e58a8b04-29d1-418d-9b02-fff802d58f2d",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 35.94
+        },
+        {
+          "id": "1b31dc83-de50-4bf1-afb6-f3ef2ca4b6f1",
+          "orderable": {
+            "id": "65df9af9-dd9d-4df4-8157-bce65b4a42dd",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "866388d8-827d-44ac-9bd8-def59ea1dfba",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 96.61
+        },
+        {
+          "id": "d31a2a72-3cbe-41ec-afc9-2d9bf6386d0b",
+          "orderable": {
+            "id": "dc576f79-8d1c-4f4c-a94f-1ddda1065c85",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "7fb9b0c3-ae2d-4695-b046-ab71bb6aefbc",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 10,
+          "totalConsumedQuantity": 10,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 10,
+          "approvedQuantity": 10,
+          "calculatedOrderQuantity": 50,
+          "totalCost": 82.55
+        }
+      ]
+    },
+    "products": [
+      {
+        "id": "81dd320e-6d28-446a-8613-8bb899d6c206",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0007",
+        "fullProductName": "Nevirapine Tablets for Oral Susp 50mg",
+        "netContent": 32,
+        "packRoundingThreshold": 5,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 17.28,
+            "dosesPerPatient": 68,
+            "fullSupply": true,
+            "displayOrder": 7,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "7f0aac5f-582a-4a6a-a8e1-dd534200f257",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0009",
+        "fullProductName": "Tenofovir 300mg Tablets",
+        "netContent": 84,
+        "packRoundingThreshold": 8,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 95.29,
+            "dosesPerPatient": 75,
+            "fullSupply": true,
+            "displayOrder": 9,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "3fecd8a4-d130-4e82-95ff-7d7620e24d8d",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0002",
+        "fullProductName": "Lamivudine/Zidovudine/Nevirapine 30/60/50mg",
+        "netContent": 97,
+        "packRoundingThreshold": 5,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 85.02,
+            "dosesPerPatient": 82,
+            "fullSupply": true,
+            "displayOrder": 2,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "f7169041-733a-4279-bcbb-aee248e1b9dd",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0011",
+        "fullProductName": "Efavirenz 50mg",
+        "netContent": 68,
+        "packRoundingThreshold": 2,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 89.67,
+            "dosesPerPatient": 50,
+            "fullSupply": true,
+            "displayOrder": 11,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "dc6e49d4-6fd8-49d0-ac4f-44d055c4b49d",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0010",
+        "fullProductName": "Co-trimoxazole 120mg Tablets",
+        "netContent": 95,
+        "packRoundingThreshold": 7,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 45.64,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 10,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "d059457a-b7ec-4353-89c6-dde0fc7a0c4b",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0001",
+        "fullProductName": "Abacavir 300mg Tables",
+        "netContent": 51,
+        "packRoundingThreshold": 8,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 63.91,
+            "dosesPerPatient": 87,
+            "fullSupply": true,
+            "displayOrder": 1,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "a4460709-c908-4b94-b3c0-faf5eeefcc03",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0012",
+        "fullProductName": "Lamivudine/Zidovudine 30/60mg (Pead)",
+        "netContent": 32,
+        "packRoundingThreshold": 7,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 50.35,
+            "dosesPerPatient": 26,
+            "fullSupply": true,
+            "displayOrder": 12,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "fd77b03e-5578-429b-9802-6d7e4d8cb91d",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0005",
+        "fullProductName": "Zidovudine/Lamivudine 300/150mg Tablets",
+        "netContent": 40,
+        "packRoundingThreshold": 7,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 33.67,
+            "dosesPerPatient": 51,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "952aabc6-ffa8-4e9a-ac4d-82b843704a82",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0004",
+        "fullProductName": "Abacavir oral solution 20mg/ml",
+        "netContent": 87,
+        "packRoundingThreshold": 1,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 27.57,
+            "dosesPerPatient": 25,
+            "fullSupply": true,
+            "displayOrder": 4,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "e1e51f5a-1bda-4777-a074-d865206e546f",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0008",
+        "fullProductName": "Abacavir/Lamivudine 60/30mg",
+        "netContent": 91,
+        "packRoundingThreshold": 6,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 35.94,
+            "dosesPerPatient": 70,
+            "fullSupply": true,
+            "displayOrder": 8,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "65df9af9-dd9d-4df4-8157-bce65b4a42dd",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0003",
+        "fullProductName": "Tenofovir/Emitricitabine/Efavirenz 300mg/200mg/600mg",
+        "netContent": 24,
+        "packRoundingThreshold": 9,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 96.61,
+            "dosesPerPatient": 44,
+            "fullSupply": true,
+            "displayOrder": 3,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      },
+      {
+        "id": "dc576f79-8d1c-4f4c-a94f-1ddda1065c85",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ARV0006",
+        "fullProductName": "Efavirenz 200mg",
+        "netContent": 43,
+        "packRoundingThreshold": 6,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "ef9a2b39-e7ce-4ebe-930c-f5c6d15b578a",
+            "pricePerPack": 82.55,
+            "dosesPerPatient": 57,
+            "fullSupply": true,
+            "displayOrder": 6,
+            "orderableCategoryDisplayName": "Antiretroviral",
+            "orderableCategoryDisplayOrder": 10
+          }
+        ]
+      }
+    ],
+    "approvedProducts": [
+      {
+        "id": "903383c7-34b6-40c0-a5b8-676dedd78e11",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "7cab8f61-1f12-45f9-94ea-427675094756",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "74c8f940-b33f-404e-97f6-aa05c96101f7",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "59448a61-e712-4c5d-8846-1e91fca83938",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "67d0f040-6224-4ae4-ba9c-34757f22d983",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "b66f2c91-e61e-4c12-af9c-7ea33b2fa576",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "83920fd9-e39e-47ec-ac06-b881fbb4c911",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "a26b18c3-b375-405c-8cf3-ff72a10ae5a2",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "77f9d0a8-23ec-4cd6-bd94-d0b80f3ffbf6",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "e58a8b04-29d1-418d-9b02-fff802d58f2d",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "866388d8-827d-44ac-9bd8-def59ea1dfba",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      },
+      {
+        "id": "7fb9b0c3-ae2d-4695-b046-ab71bb6aefbc",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 5
+      }
+    ]
+  },
+  {
+    "id": "42e6e295",
+    "total": 0,
+    "requisition": {
+      "status": "APPROVED",
+      "emergency": false,
+      "program": {
+        "id": "418bdc1d-c303-4bd0-b2d3-d8901150a983"
+      },
+      "stockAdjustmentReasons": [],
+      "template": {
+        "columnsMap": {
+          "numberOfNewPatientsAdded": {
+            "name": "numberOfNewPatientsAdded",
+            "indicator": "F",
+            "label": "Number of new patients added",
+            "isDisplayed": true,
+            "displayOrder": 20,
+            "source": "USER_INPUT"
+          },
+          "adjustedConsumption": {
+            "name": "adjustedConsumption",
+            "indicator": "N",
+            "label": "Adjusted consumption",
+            "isDisplayed": true,
+            "displayOrder": 22,
+            "source": "CALCULATED"
+          },
+          "totalLossesAndAdjustments": {
+            "name": "totalLossesAndAdjustments",
+            "indicator": "D",
+            "label": "Total losses and adjustments",
+            "isDisplayed": true,
+            "displayOrder": 7,
+            "source": "STOCK_CARDS"
+          },
+          "totalStockoutDays": {
+            "name": "totalStockoutDays",
+            "indicator": "X",
+            "label": "Total stockout days",
+            "isDisplayed": true,
+            "displayOrder": 8,
+            "source": "STOCK_CARDS"
+          },
+          "packsToShip": {
+            "name": "packsToShip",
+            "indicator": "V",
+            "label": "Packs to ship",
+            "isDisplayed": false,
+            "displayOrder": 14,
+            "source": "CALCULATED"
+          },
+          "skipped": {
+            "name": "skipped",
+            "indicator": "S",
+            "label": "Skip",
+            "isDisplayed": true,
+            "displayOrder": 1,
+            "source": "USER_INPUT"
+          },
+          "orderable.productCode": {
+            "name": "orderable.productCode",
+            "indicator": "O",
+            "label": "Product code",
+            "isDisplayed": true,
+            "displayOrder": 2,
+            "source": "REFERENCE_DATA"
+          },
+          "idealStockAmount": {
+            "name": "idealStockAmount",
+            "indicator": "G",
+            "label": "Ideal Stock Amount",
+            "isDisplayed": true,
+            "displayOrder": 10,
+            "source": "REFERENCE_DATA"
+          },
+          "total": {
+            "name": "total",
+            "indicator": "Y",
+            "label": "Total",
+            "isDisplayed": true,
+            "displayOrder": 19,
+            "source": "CALCULATED"
+          },
+          "totalConsumedQuantity": {
+            "name": "totalConsumedQuantity",
+            "indicator": "C",
+            "label": "Total consumed quantity",
+            "isDisplayed": true,
+            "displayOrder": 6,
+            "source": "STOCK_CARDS"
+          },
+          "stockOnHand": {
+            "name": "stockOnHand",
+            "indicator": "E",
+            "label": "Stock on hand",
+            "isDisplayed": true,
+            "displayOrder": 9,
+            "source": "STOCK_CARDS"
+          },
+          "requestedQuantity": {
+            "name": "requestedQuantity",
+            "indicator": "J",
+            "label": "Requested quantity",
+            "isDisplayed": true,
+            "displayOrder": 15,
+            "source": "USER_INPUT"
+          },
+          "beginningBalance": {
+            "name": "beginningBalance",
+            "indicator": "A",
+            "label": "Beginning balance",
+            "isDisplayed": true,
+            "displayOrder": 4,
+            "source": "STOCK_CARDS"
+          },
+          "orderable.dispensable.displayUnit": {
+            "name": "orderable.dispensable.displayUnit",
+            "indicator": "U",
+            "label": "Display Unit",
+            "isDisplayed": true,
+            "displayOrder": 24,
+            "source": "REFERENCE_DATA"
+          },
+          "totalReceivedQuantity": {
+            "name": "totalReceivedQuantity",
+            "indicator": "B",
+            "label": "Total received quantity",
+            "isDisplayed": true,
+            "displayOrder": 5,
+            "source": "STOCK_CARDS"
+          },
+          "approvedQuantity": {
+            "name": "approvedQuantity",
+            "indicator": "K",
+            "label": "Approved quantity",
+            "isDisplayed": true,
+            "displayOrder": 17,
+            "source": "USER_INPUT"
+          },
+          "orderable.fullProductName": {
+            "name": "orderable.fullProductName",
+            "indicator": "R",
+            "label": "Product",
+            "isDisplayed": true,
+            "displayOrder": 3,
+            "source": "REFERENCE_DATA"
+          },
+          "pricePerPack": {
+            "name": "pricePerPack",
+            "indicator": "T",
+            "label": "Price per pack",
+            "isDisplayed": true,
+            "displayOrder": 23,
+            "source": "REFERENCE_DATA"
+          },
+          "calculatedOrderQuantityIsa": {
+            "name": "calculatedOrderQuantityIsa",
+            "indicator": "S",
+            "label": "Calc Order Qty ISA",
+            "isDisplayed": true,
+            "displayOrder": 11,
+            "source": "CALCULATED"
+          },
+          "averageConsumption": {
+            "name": "averageConsumption",
+            "indicator": "P",
+            "label": "Average consumption",
+            "isDisplayed": true,
+            "displayOrder": 12,
+            "source": "STOCK_CARDS"
+          },
+          "requestedQuantityExplanation": {
+            "name": "requestedQuantityExplanation",
+            "indicator": "W",
+            "label": "Requested quantity explanation",
+            "isDisplayed": true,
+            "displayOrder": 16,
+            "source": "USER_INPUT"
+          },
+          "calculatedOrderQuantity": {
+            "name": "calculatedOrderQuantity",
+            "indicator": "I",
+            "label": "Calculated order quantity",
+            "isDisplayed": true,
+            "displayOrder": 13,
+            "source": "CALCULATED"
+          },
+          "remarks": {
+            "name": "remarks",
+            "indicator": "L",
+            "label": "Remarks",
+            "isDisplayed": true,
+            "displayOrder": 18,
+            "source": "USER_INPUT"
+          },
+          "totalCost": {
+            "name": "totalCost",
+            "indicator": "Q",
+            "label": "Total cost",
+            "isDisplayed": true,
+            "displayOrder": 25,
+            "source": "CALCULATED"
+          },
+          "maximumStockQuantity": {
+            "name": "maximumStockQuantity",
+            "indicator": "H",
+            "label": "Maximum stock quantity",
+            "isDisplayed": true,
+            "displayOrder": 21,
+            "source": "CALCULATED"
+          }
+        },
+        "populateStockOnHandFromStockCards": true,
+        "enableAvgConsumptionForCurrentPeriod": false,
+        "patientsTabEnabled": false
+      },
+      "requisitionLineItems": [
+        {
+          "id": "a2eca48e-7929-4734-a5a5-5a05f5eff809",
+          "orderable": {
+            "id": "1a354c78-33e5-423d-a8d8-a8ebfa08e117",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "ca570bb3-8fb1-47b5-8c68-fbe9bbbe5715",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 400
+        },
+        {
+          "id": "607d8552-2584-48e7-9beb-56d99558aed4",
+          "orderable": {
+            "id": "b61c652d-2259-41d7-8bb6-fc5fcdd95626",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "8ab163cd-dc4f-41f7-9ace-14dab63e99db",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 425
+        },
+        {
+          "id": "1a368574-14c9-443c-bcfa-507afeb7abaf",
+          "orderable": {
+            "id": "b918c3a4-7d12-4be3-854d-d1792cf3b33b",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "4eb2e14f-9169-4402-b502-abdf2b2a7e77",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 125
+        },
+        {
+          "id": "34d44238-73a8-4133-b88d-56868d726db2",
+          "orderable": {
+            "id": "c0d41166-01fd-4a28-ae2f-46f867ffb368",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "4122ec06-60ed-4c22-8090-41de5ad66732",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 31.3
+        },
+        {
+          "id": "af67202d-e56f-4eee-bd1b-a3d5249539a5",
+          "orderable": {
+            "id": "22dbc5cf-2b86-4763-afc7-e730a2750146",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "b2534173-b5d9-4bb2-a47b-4f63a17666cb",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 420
+        },
+        {
+          "id": "521d9a25-5e0f-4b77-999d-f3435be4aa1c",
+          "orderable": {
+            "id": "72971f1d-dd20-4373-aa94-f9615777581b",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "c0e3659b-451a-429a-9369-f66a897aea50",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 230
+        },
+        {
+          "id": "03acb6d0-9387-44f4-823c-706b22026522",
+          "orderable": {
+            "id": "e217910c-3364-46b3-92cd-8dd8acf0c557",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "806aa1cf-f4e1-4035-b4ee-ddf923a1a7f9",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 60
+        },
+        {
+          "id": "45558b49-0262-4373-aa9f-62313c64409a",
+          "orderable": {
+            "id": "6fc0455a-d572-4503-bedf-f3872536c2ad",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "85d2baca-cf44-441a-93f5-58db6e60f031",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 135
+        },
+        {
+          "id": "a3c8fe68-53fc-4178-a93d-4cb98503d0e7",
+          "orderable": {
+            "id": "bb66a9c4-8443-42ee-b701-caf00061f4df",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "0b356601-ac1f-4fa9-883e-c731c990462c",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 900
+        },
+        {
+          "id": "4cb913f3-3d55-4779-9279-669c1ee49ae4",
+          "orderable": {
+            "id": "b8ff7c36-2003-46d6-a687-551bdd521a9e",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "6d512483-49dc-47f4-b6be-4bd7af203349",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 130
+        },
+        {
+          "id": "91e1746e-3a62-4a94-aa9b-c8f304b897cb",
+          "orderable": {
+            "id": "f8e6ea34-0ad8-43d5-96d7-a6f8b14ff210",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "5c843032-86f1-4beb-94e2-d4f0494aa81d",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 25
+        },
+        {
+          "id": "b342a8d6-b398-41a3-8ce2-8132cde4b908",
+          "orderable": {
+            "id": "5f0dd194-aae1-490c-8b51-3cf0c87af983",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "8de879ef-30d0-4dc6-ae71-7370fdface29",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 200
+        },
+        {
+          "id": "5f28d407-3253-4c2f-b456-1f02262dbd3c",
+          "orderable": {
+            "id": "8ef9d4da-b6e5-401c-b433-765a5fd8a0cc",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "fa220e5d-fb23-4e17-b4be-ec7be91c4fed",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "previousAdjustedConsumptions": [],
+          "calculatedOrderQuantityIsa": 28650,
+          "totalCost": 60
+        }
+      ]
+    },
+    "products": [
+      {
+        "id": "1a354c78-33e5-423d-a8d8-a8ebfa08e117",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "syringe05ml",
+        "fullProductName": "Syringe 0.5ml",
+        "netContent": 1,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 4,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "b61c652d-2259-41d7-8bb6-fc5fcdd95626",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "rota1",
+        "fullProductName": "Rotavirus",
+        "netContent": 1,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 8.5,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "b918c3a4-7d12-4be3-854d-d1792cf3b33b",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "measles10",
+        "fullProductName": "Measles",
+        "netContent": 10,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 12.5,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "c0d41166-01fd-4a28-ae2f-46f867ffb368",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "penta10",
+        "fullProductName": "Pentavalent (10 dose)",
+        "netContent": 10,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 3.13,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "22dbc5cf-2b86-4763-afc7-e730a2750146",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "syringe005ml",
+        "fullProductName": "Syringe 0.05ml",
+        "netContent": 1,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 4.2,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "72971f1d-dd20-4373-aa94-f9615777581b",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "pcv10",
+        "fullProductName": "PCV10",
+        "netContent": 2,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 4.6,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "e217910c-3364-46b3-92cd-8dd8acf0c557",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "tetanus10",
+        "fullProductName": "VAT",
+        "netContent": 10,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 6,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "6fc0455a-d572-4503-bedf-f3872536c2ad",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "safetybox",
+        "fullProductName": "Safety Box",
+        "netContent": 1,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 1.35,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "bb66a9c4-8443-42ee-b701-caf00061f4df",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "syringe5ml",
+        "fullProductName": "Syringe 5ml",
+        "netContent": 1,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 9,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "b8ff7c36-2003-46d6-a687-551bdd521a9e",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "ipv5",
+        "fullProductName": "IPV",
+        "netContent": 5,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 13,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "f8e6ea34-0ad8-43d5-96d7-a6f8b14ff210",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "polio20",
+        "fullProductName": "Polio (20 dose)",
+        "netContent": 20,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 5,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "5f0dd194-aae1-490c-8b51-3cf0c87af983",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "penta1",
+        "fullProductName": "Pentavalent (1 dose)",
+        "netContent": 1,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 2,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "8ef9d4da-b6e5-401c-b433-765a5fd8a0cc",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "bcg20",
+        "fullProductName": "BCG",
+        "netContent": 20,
+        "packRoundingThreshold": 1,
+        "roundToZero": true,
+        "programs": [
+          {
+            "programId": "418bdc1d-c303-4bd0-b2d3-d8901150a983",
+            "pricePerPack": 12,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      }
+    ],
+    "approvedProducts": [
+      {
+        "id": "ca570bb3-8fb1-47b5-8c68-fbe9bbbe5715",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "8ab163cd-dc4f-41f7-9ace-14dab63e99db",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "4eb2e14f-9169-4402-b502-abdf2b2a7e77",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "4122ec06-60ed-4c22-8090-41de5ad66732",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "b2534173-b5d9-4bb2-a47b-4f63a17666cb",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "c0e3659b-451a-429a-9369-f66a897aea50",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "806aa1cf-f4e1-4035-b4ee-ddf923a1a7f9",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "85d2baca-cf44-441a-93f5-58db6e60f031",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "0b356601-ac1f-4fa9-883e-c731c990462c",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "6d512483-49dc-47f4-b6be-4bd7af203349",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "5c843032-86f1-4beb-94e2-d4f0494aa81d",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "8de879ef-30d0-4dc6-ae71-7370fdface29",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "fa220e5d-fb23-4e17-b4be-ec7be91c4fed",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      }
+    ]
+  },
+  {
+    "id": "f152b9bb",
+    "total": 25434.54,
+    "requisition": {
+      "status": "RELEASED",
+      "emergency": true,
+      "program": {
+        "id": "dce17f2e-af3e-40ad-8e00-3496adef44c3"
+      },
+      "stockAdjustmentReasons": [],
+      "template": {
+        "columnsMap": {
+          "adjustedConsumption": {
+            "name": "adjustedConsumption",
+            "indicator": "N",
+            "label": "Adjusted consumption",
+            "isDisplayed": true,
+            "displayOrder": 22,
+            "source": "CALCULATED"
+          },
+          "totalLossesAndAdjustments": {
+            "name": "totalLossesAndAdjustments",
+            "indicator": "D",
+            "label": "Total losses and adjustments",
+            "isDisplayed": true,
+            "displayOrder": 7,
+            "source": "USER_INPUT"
+          },
+          "totalStockoutDays": {
+            "name": "totalStockoutDays",
+            "indicator": "X",
+            "label": "Total stockout days",
+            "isDisplayed": true,
+            "displayOrder": 8,
+            "source": "USER_INPUT"
+          },
+          "packsToShip": {
+            "name": "packsToShip",
+            "indicator": "V",
+            "label": "Packs to ship",
+            "isDisplayed": false,
+            "displayOrder": 13,
+            "source": "CALCULATED"
+          },
+          "skipped": {
+            "name": "skipped",
+            "indicator": "S",
+            "label": "Skip",
+            "isDisplayed": true,
+            "displayOrder": 1,
+            "source": "USER_INPUT"
+          },
+          "orderable.productCode": {
+            "name": "orderable.productCode",
+            "indicator": "O",
+            "label": "Product code",
+            "isDisplayed": true,
+            "displayOrder": 2,
+            "source": "REFERENCE_DATA"
+          },
+          "totalConsumedQuantity": {
+            "name": "totalConsumedQuantity",
+            "indicator": "C",
+            "label": "Total consumed quantity",
+            "isDisplayed": true,
+            "displayOrder": 6,
+            "source": "USER_INPUT"
+          },
+          "stockOnHand": {
+            "name": "stockOnHand",
+            "indicator": "E",
+            "label": "Stock on hand",
+            "isDisplayed": true,
+            "displayOrder": 9,
+            "source": "CALCULATED"
+          },
+          "requestedQuantity": {
+            "name": "requestedQuantity",
+            "indicator": "J",
+            "label": "Requested quantity",
+            "isDisplayed": true,
+            "displayOrder": 15,
+            "source": "USER_INPUT"
+          },
+          "beginningBalance": {
+            "name": "beginningBalance",
+            "indicator": "A",
+            "label": "Beginning balance",
+            "isDisplayed": true,
+            "displayOrder": 4,
+            "source": "USER_INPUT"
+          },
+          "orderable.dispensable.displayUnit": {
+            "name": "orderable.dispensable.displayUnit",
+            "indicator": "U",
+            "label": "Display Unit",
+            "isDisplayed": true,
+            "displayOrder": 14,
+            "source": "REFERENCE_DATA"
+          },
+          "totalReceivedQuantity": {
+            "name": "totalReceivedQuantity",
+            "indicator": "B",
+            "label": "Total received quantity",
+            "isDisplayed": true,
+            "displayOrder": 5,
+            "source": "USER_INPUT"
+          },
+          "approvedQuantity": {
+            "name": "approvedQuantity",
+            "indicator": "K",
+            "label": "Approved quantity",
+            "isDisplayed": true,
+            "displayOrder": 17,
+            "source": "USER_INPUT"
+          },
+          "orderable.fullProductName": {
+            "name": "orderable.fullProductName",
+            "indicator": "R",
+            "label": "Product",
+            "isDisplayed": true,
+            "displayOrder": 3,
+            "source": "REFERENCE_DATA"
+          },
+          "pricePerPack": {
+            "name": "pricePerPack",
+            "indicator": "T",
+            "label": "Price per pack",
+            "isDisplayed": true,
+            "displayOrder": 12,
+            "source": "REFERENCE_DATA"
+          },
+          "averageConsumption": {
+            "name": "averageConsumption",
+            "indicator": "P",
+            "label": "Average consumption",
+            "isDisplayed": true,
+            "displayOrder": 10,
+            "source": "CALCULATED"
+          },
+          "requestedQuantityExplanation": {
+            "name": "requestedQuantityExplanation",
+            "indicator": "W",
+            "label": "Requested quantity explanation",
+            "isDisplayed": true,
+            "displayOrder": 16,
+            "source": "USER_INPUT"
+          },
+          "calculatedOrderQuantity": {
+            "name": "calculatedOrderQuantity",
+            "indicator": "I",
+            "label": "Calculated order quantity",
+            "isDisplayed": true,
+            "displayOrder": 11,
+            "source": "CALCULATED"
+          },
+          "remarks": {
+            "name": "remarks",
+            "indicator": "L",
+            "label": "Remarks",
+            "isDisplayed": true,
+            "displayOrder": 18,
+            "source": "USER_INPUT"
+          }
+        },
+        "populateStockOnHandFromStockCards": false,
+        "enableAvgConsumptionForCurrentPeriod": false,
+        "patientsTabEnabled": false
+      },
+      "requisitionLineItems": [
+        {
+          "id": "a2ab1bea-5833-4fa6-9c8f-ea4cba43a6da",
+          "orderable": {
+            "id": "bfde33c3-83f1-4feb-a27c-842852f66b71",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "a7ef2398-052a-4e31-9a53-a5fbe702e39d",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 200,
+          "totalReceivedQuantity": 0,
+          "totalConsumedQuantity": 200,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 0,
+          "approvedQuantity": 999
+        },
+        {
+          "id": "682baaa0-9a68-40a2-97a4-a2cafb8fcce6",
+          "orderable": {
+            "id": "7b9b66e0-f008-4c38-93ec-7a5f4868cca9",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "3c3ef7ad-2447-4643-b1bd-de9c0c159da6",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 100,
+          "totalReceivedQuantity": 0,
+          "totalConsumedQuantity": 50,
+          "stockOnHand": 50,
+          "stockAdjustments": [],
+          "totalLossesAndAdjustments": 0,
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 50,
+          "approvedQuantity": 0
+        }
+      ]
+    },
+    "products": [
+      {
+        "id": "bfde33c3-83f1-4feb-a27c-842852f66b71",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "C400",
+        "fullProductName": "Male Condom",
+        "netContent": 1,
+        "packRoundingThreshold": 0,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "dce17f2e-af3e-40ad-8e00-3496adef44c3",
+            "pricePerPack": 25.46,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 3,
+            "orderableCategoryDisplayName": "Barrier method",
+            "orderableCategoryDisplayOrder": 7
+          }
+        ]
+      },
+      {
+        "id": "7b9b66e0-f008-4c38-93ec-7a5f4868cca9",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "C600",
+        "fullProductName": "Levonorgestrel",
+        "netContent": 1,
+        "packRoundingThreshold": 0,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "dce17f2e-af3e-40ad-8e00-3496adef44c3",
+            "pricePerPack": 5.1,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Implantable contraceptive",
+            "orderableCategoryDisplayOrder": 8
+          }
+        ]
+      }
+    ],
+    "approvedProducts": [
+      {
+        "id": "a7ef2398-052a-4e31-9a53-a5fbe702e39d",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "3c3ef7ad-2447-4643-b1bd-de9c0c159da6",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      }
+    ]
+  },
+  {
+    "id": "17542db8",
+    "total": 6673.92,
+    "requisition": {
+      "status": "APPROVED",
+      "emergency": false,
+      "program": {
+        "id": "10845cb9-d365-4aaa-badd-b4fa39c6a26a"
+      },
+      "stockAdjustmentReasons": [],
+      "template": {
+        "columnsMap": {
+          "adjustedConsumption": {
+            "name": "adjustedConsumption",
+            "indicator": "N",
+            "label": "Adj consumption",
+            "isDisplayed": true,
+            "displayOrder": 11,
+            "source": "CALCULATED"
+          },
+          "totalLossesAndAdjustments": {
+            "name": "totalLossesAndAdjustments",
+            "indicator": "D",
+            "label": "Loss/adj",
+            "isDisplayed": true,
+            "displayOrder": 6,
+            "source": "USER_INPUT"
+          },
+          "totalStockoutDays": {
+            "name": "totalStockoutDays",
+            "indicator": "X",
+            "label": "SOD",
+            "isDisplayed": true,
+            "displayOrder": 8,
+            "source": "USER_INPUT"
+          },
+          "packsToShip": {
+            "name": "packsToShip",
+            "indicator": "V",
+            "label": "Packs CMST",
+            "isDisplayed": true,
+            "displayOrder": 18,
+            "source": "CALCULATED"
+          },
+          "skipped": {
+            "name": "skipped",
+            "indicator": "S",
+            "label": "Skip",
+            "isDisplayed": true,
+            "displayOrder": 1,
+            "source": "USER_INPUT"
+          },
+          "orderable.productCode": {
+            "name": "orderable.productCode",
+            "indicator": "O",
+            "label": "Code",
+            "isDisplayed": true,
+            "displayOrder": 2,
+            "source": "REFERENCE_DATA"
+          },
+          "totalConsumedQuantity": {
+            "name": "totalConsumedQuantity",
+            "indicator": "C",
+            "label": "Qty used",
+            "isDisplayed": true,
+            "displayOrder": 7,
+            "source": "USER_INPUT"
+          },
+          "stockOnHand": {
+            "name": "stockOnHand",
+            "indicator": "E",
+            "label": "Close bal",
+            "isDisplayed": true,
+            "displayOrder": 5,
+            "source": "USER_INPUT"
+          },
+          "requestedQuantity": {
+            "name": "requestedQuantity",
+            "indicator": "J",
+            "label": "Qty req",
+            "isDisplayed": true,
+            "displayOrder": 13,
+            "source": "USER_INPUT"
+          },
+          "beginningBalance": {
+            "name": "beginningBalance",
+            "indicator": "A",
+            "label": "Open bal",
+            "isDisplayed": true,
+            "displayOrder": 10,
+            "source": "USER_INPUT"
+          },
+          "orderable.dispensable.displayUnit": {
+            "name": "orderable.dispensable.displayUnit",
+            "indicator": "U",
+            "label": "UoI",
+            "isDisplayed": true,
+            "displayOrder": 4,
+            "source": "REFERENCE_DATA"
+          },
+          "totalReceivedQuantity": {
+            "name": "totalReceivedQuantity",
+            "indicator": "B",
+            "label": "Qty rec",
+            "isDisplayed": true,
+            "displayOrder": 9,
+            "source": "USER_INPUT"
+          },
+          "approvedQuantity": {
+            "name": "approvedQuantity",
+            "indicator": "K",
+            "label": "Qty approved",
+            "isDisplayed": true,
+            "displayOrder": 15,
+            "source": "USER_INPUT"
+          },
+          "orderable.fullProductName": {
+            "name": "orderable.fullProductName",
+            "indicator": "R",
+            "label": "Product name",
+            "isDisplayed": true,
+            "displayOrder": 3,
+            "source": "REFERENCE_DATA"
+          },
+          "requestedQuantityExplanation": {
+            "name": "requestedQuantityExplanation",
+            "indicator": "W",
+            "label": "Qty req exp",
+            "isDisplayed": true,
+            "displayOrder": 14,
+            "source": "USER_INPUT"
+          },
+          "calculatedOrderQuantity": {
+            "name": "calculatedOrderQuantity",
+            "indicator": "I",
+            "label": "Order qty",
+            "isDisplayed": true,
+            "displayOrder": 12,
+            "source": "CALCULATED"
+          },
+          "remarks": {
+            "name": "remarks",
+            "indicator": "L",
+            "label": "Remarks",
+            "isDisplayed": true,
+            "displayOrder": 16,
+            "source": "USER_INPUT"
+          }
+        },
+        "populateStockOnHandFromStockCards": false,
+        "enableAvgConsumptionForCurrentPeriod": false,
+        "patientsTabEnabled": false
+      },
+      "requisitionLineItems": [
+        {
+          "id": "ac32f98e-878c-46f2-8660-4214ac668bc2",
+          "orderable": {
+            "id": "6be94307-c7f4-4782-ba83-45f496c8ac42",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "b945809a-2325-4ff3-afa1-1b976f99dcc0",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 0,
+          "totalConsumedQuantity": 0,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 2000,
+          "approvedQuantity": 2000
+        },
+        {
+          "id": "4163986f-6efc-4e69-bb79-2a7402a840c5",
+          "orderable": {
+            "id": "c9e65f02-f84f-4ba2-85f7-e2cb6f0989af",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "1125d62f-f9f3-40b8-8327-5204b64315ed",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 0,
+          "totalReceivedQuantity": 0,
+          "totalConsumedQuantity": 0,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 3000,
+          "approvedQuantity": 3000
+        },
+        {
+          "id": "23bb1dbd-679c-476b-aff7-d908e6db0921",
+          "orderable": {
+            "id": "2400e410-b8dd-4954-b1c0-80d8a8e785fc",
+            "versionNumber": 1
+          },
+          "approvedProduct": {
+            "id": "c5d4427b-7427-4209-ae35-1d5bd92ef3b8",
+            "versionNumber": 1
+          },
+          "skipped": false,
+          "beginningBalance": 90,
+          "totalReceivedQuantity": 0,
+          "totalConsumedQuantity": 90,
+          "stockOnHand": 0,
+          "stockAdjustments": [],
+          "totalStockoutDays": 0,
+          "previousAdjustedConsumptions": [],
+          "requestedQuantity": 1000,
+          "approvedQuantity": 1000
+        }
+      ]
+    },
+    "products": [
+      {
+        "id": "6be94307-c7f4-4782-ba83-45f496c8ac42",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "C5",
+        "fullProductName": "Streptococcus Pneumoniae Vaccine with VVM",
+        "netContent": 5,
+        "packRoundingThreshold": 2,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "10845cb9-d365-4aaa-badd-b4fa39c6a26a",
+            "pricePerPack": 2.13,
+            "dosesPerPatient": 3,
+            "fullSupply": true,
+            "displayOrder": 2,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          },
+          {
+            "programId": "10845cb9-d365-4aaa-badd-b4fa39c6a26a",
+            "pricePerPack": 10,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 5,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "c9e65f02-f84f-4ba2-85f7-e2cb6f0989af",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "C4",
+        "fullProductName": "Streptococcus Pneumoniae Vaccine II",
+        "netContent": 5,
+        "packRoundingThreshold": 2,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "10845cb9-d365-4aaa-badd-b4fa39c6a26a",
+            "pricePerPack": 4.13,
+            "dosesPerPatient": 1,
+            "fullSupply": true,
+            "displayOrder": 4,
+            "orderableCategoryDisplayName": "Vaccines",
+            "orderableCategoryDisplayOrder": 5
+          }
+        ]
+      },
+      {
+        "id": "2400e410-b8dd-4954-b1c0-80d8a8e785fc",
+        "meta": {
+          "versionNumber": 1
+        },
+        "productCode": "C1",
+        "fullProductName": "Acetylsalicylic Acid",
+        "netContent": 16,
+        "packRoundingThreshold": 8,
+        "roundToZero": false,
+        "programs": [
+          {
+            "programId": "10845cb9-d365-4aaa-badd-b4fa39c6a26a",
+            "pricePerPack": 3.16,
+            "dosesPerPatient": 10,
+            "fullSupply": true,
+            "displayOrder": 1,
+            "orderableCategoryDisplayName": "Antibiotics",
+            "orderableCategoryDisplayOrder": 1
+          }
+        ]
+      }
+    ],
+    "approvedProducts": [
+      {
+        "id": "b945809a-2325-4ff3-afa1-1b976f99dcc0",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "1125d62f-f9f3-40b8-8327-5204b64315ed",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      },
+      {
+        "id": "c5d4427b-7427-4209-ae35-1d5bd92ef3b8",
+        "meta": {
+          "versionNumber": 1
+        },
+        "maxPeriodsOfStock": 3
+      }
+    ]
+  }
+]
