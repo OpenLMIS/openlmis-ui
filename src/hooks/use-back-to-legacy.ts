@@ -15,6 +15,6 @@ export function useBackToLegacy() {
       whenLeaveAllowed(() => {
         allowUnload();
         window.location.assign(url);
-      }),
+      }, 'leave'),
   };
 }

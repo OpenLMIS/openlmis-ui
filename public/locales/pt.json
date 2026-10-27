@@ -1945,6 +1945,7 @@
   "stock-events.draft-delete-description": "Esta cópia será eliminada deste dispositivo. Esta ação não pode ser anulada.",
   "stock-events.draft-delete-title": "Eliminar A Cópia Arquivada?",
   "stock-events.draft-failed": "Não foi possível guardar neste dispositivo. As suas últimas alterações não estão guardadas.",
+  "stock-events.draft-kept-leave-description": "Não foi possível guardar as últimas alterações. Descartar E Sair mantém o último rascunho guardado neste dispositivo, mas perde as alterações não guardadas.",
   "stock-events.draft-leave": "Descartar E Sair",
   "stock-events.draft-leave-description": "Não foi possível guardar as últimas alterações. Descartar E Sair elimina este rascunho do dispositivo, incluindo as linhas guardadas.",
   "stock-events.draft-leave-title": "As Últimas Alterações Não Estão Guardadas",

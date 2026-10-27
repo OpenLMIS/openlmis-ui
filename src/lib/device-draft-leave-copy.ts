@@ -4,7 +4,7 @@ export function deviceDraftLeaveCopy(
   t: TFunction,
   enabled: boolean,
   signingOut: boolean,
-  deviceCopy: 'delete' | 'keep' = 'delete',
+  deviceCopy: 'delete' | 'keep' | 'keep-draft' = 'delete',
 ) {
   return {
     title: enabled ? t('stock-events.draft-leave-title') : undefined,
@@ -15,9 +15,11 @@ export function deviceDraftLeaveCopy(
       enabled
         ? signingOut
           ? 'stock-events.draft-sign-out-description'
-          : deviceCopy === 'keep'
-            ? 'physical-inventory.draft-leave-description'
-            : 'stock-events.draft-leave-description'
+          : deviceCopy === 'keep-draft'
+            ? 'stock-events.draft-kept-leave-description'
+            : deviceCopy === 'keep'
+              ? 'physical-inventory.draft-leave-description'
+              : 'stock-events.draft-leave-description'
         : 'stock-events.discard-description',
     ),
   };

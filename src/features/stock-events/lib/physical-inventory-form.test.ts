@@ -71,11 +71,13 @@ describe('inventory counts and differences', () => {
 
 describe('inventory payloads', () => {
   it('saves member lines, marks blanks -1 and falls back to placeholders for an empty draft', () => {
-    expect(inventorySavePayload(draft, [line()], []).lineItems[0]).toMatchObject({
-      orderableId: 'p',
-      lotId: null,
-      quantity: -1,
-    });
+    const saved = inventorySavePayload(
+      draft,
+      [{ ...line(), stockAdjustments: [reason('CREDIT', 2)] }],
+      [],
+    ).lineItems[0];
+    expect(saved).toMatchObject({ orderableId: 'p', lotId: null, quantity: -1 });
+    expect(saved.stockAdjustments).toEqual([{ reason: { id: 'CREDIT' }, quantity: 2 }]);
     const placeholders = [{ orderable: product, lot: null, stockOnHand: null }];
     expect(inventorySavePayload(draft, [], placeholders).lineItems[0]).toEqual({
       orderableId: 'p',

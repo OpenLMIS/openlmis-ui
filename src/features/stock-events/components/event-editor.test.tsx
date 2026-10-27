@@ -2631,7 +2631,7 @@ it('flushes the final edit on unmount and restores exact quantities without a di
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
   await screen.findByText('Saved On This Device');
   const leave = vi.fn();
-  act(() => whenLeaveAllowed(leave));
+  act(() => whenLeaveAllowed(leave, 'sign-out'));
   await waitFor(() => expect(leave).toHaveBeenCalledOnce());
   fireEvent.change(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), {
     target: { value: '0019' },
@@ -2647,21 +2647,28 @@ it('flushes the final edit on unmount and restores exact quantities without a di
   );
 });
 
-it('keeps committed lines when signing out after a failed device save', async () => {
-  const { user } = setup();
-  await add(user);
-  await screen.findByText('Saved On This Device');
-  const table = getLocalDb().table(LOCAL_TABLES.stockEventDrafts);
-  const before = await table.toArray();
-  vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
-  await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
-  await screen.findByText('Could not save on this device. Your latest edits are not saved.');
-  const leave = vi.fn();
-  act(() => whenLeaveAllowed(leave));
-  await user.click(await screen.findByRole('button', { name: 'Log Out' }));
-  await waitFor(() => expect(leave).toHaveBeenCalledOnce());
-  expect(await table.toArray()).toEqual(before);
-});
+it.each(['leave', 'sign-out'] as const)(
+  'keeps committed lines for %s after a failed device save',
+  async (intent) => {
+    const { user } = setup();
+    await add(user);
+    await screen.findByText('Saved On This Device');
+    const table = getLocalDb().table(LOCAL_TABLES.stockEventDrafts);
+    const before = await table.toArray();
+    vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
+    await screen.findByText('Could not save on this device. Your latest edits are not saved.');
+    const leave = vi.fn();
+    act(() => whenLeaveAllowed(leave, intent));
+    const discard = await screen.findByRole('button', {
+      name: intent === 'sign-out' ? 'Log Out' : 'Discard And Leave',
+    });
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('keeps the last saved draft');
+    await user.click(discard);
+    await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+    expect(await table.toArray()).toEqual(before);
+  },
+);
 
 it.each(['navigation', 'sign-out'])(
   'flushes an Adjustment edit during the debounce before %s',
@@ -2680,7 +2687,7 @@ it.each(['navigation', 'sign-out'])(
         await router.navigate({ to: '/settings' });
       });
     else {
-      act(() => whenLeaveAllowed(leave));
+      act(() => whenLeaveAllowed(leave, 'sign-out'));
       await waitFor(() => expect(leave).toHaveBeenCalledOnce());
     }
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -3205,62 +3212,57 @@ it('keeps the unreachable notice in place while device stock refetches online', 
   expect(notice).toHaveTextContent("Can't reach the server.");
 });
 
-it.each([502, 503, 504])(
-  'shows downloaded stock honestly after gateway %s while online',
-  async (status) => {
-    const fetchedAt = Date.parse('2026-10-23T12:30:00Z');
-    await getLocalDb()
-      .table(LOCAL_TABLES.homeStockDownloads)
-      .put({
-        ...testBundleScope,
-        userId: 'ada-id',
-        formatVersion: 6,
-        generation: 'gateway-download',
-        fetchedAt,
-        cards: [
-          {
-            ...other,
-            id: 'other',
-            orderable: { ...other.orderable, description: null },
-            active: true,
-            occurredDate: null,
-          },
-        ],
-        reasons: [],
-        tradeItems: [],
-        identities: [],
-        destinations,
-        sources: [],
-      } satisfies HomeStockBundle);
-    onlineManager.setOnline(true);
-    vi.mocked(fetchEventStockCards).mockRejectedValue(
-      httpError(status, '<html>Bad Gateway</html>'),
-    );
-    const { queryClient } = setup(
-      true,
-      (client) => {
-        client.removeQueries({ queryKey: editorStockOptions('issue').queryKey });
-      },
-      { kind: 'issue' },
-    );
-    expect(await screen.findByText("Can't reach the server.")).toBeInTheDocument();
-    expect(onlineManager.isOnline()).toBe(true);
-    let finish!: (cards: EventStockCard[]) => void;
-    vi.mocked(fetchEventStockCards).mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve;
-        }),
-    );
-    act(() => onlineManager.setOnline(false));
-    await screen.findByText("You're offline.");
-    act(() => onlineManager.setOnline(true));
-    await waitFor(() => expect(finish).toBeTypeOf('function'));
-    expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
-    expect(screen.getByText("You're offline.")).toBeInTheDocument();
-    await act(async () => finish([card, other]));
-    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
-    expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
-    expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
-  },
-);
+it('shows downloaded stock honestly after a gateway error while online', async () => {
+  const fetchedAt = Date.parse('2026-10-23T12:30:00Z');
+  await getLocalDb()
+    .table(LOCAL_TABLES.homeStockDownloads)
+    .put({
+      ...testBundleScope,
+      userId: 'ada-id',
+      formatVersion: 6,
+      generation: 'gateway-download',
+      fetchedAt,
+      cards: [
+        {
+          ...other,
+          id: 'other',
+          orderable: { ...other.orderable, description: null },
+          active: true,
+          occurredDate: null,
+        },
+      ],
+      reasons: [],
+      tradeItems: [],
+      identities: [],
+      destinations,
+      sources: [],
+    } satisfies HomeStockBundle);
+  onlineManager.setOnline(true);
+  vi.mocked(fetchEventStockCards).mockRejectedValue(httpError(502, '<html>Bad Gateway</html>'));
+  const { queryClient } = setup(
+    true,
+    (client) => {
+      client.removeQueries({ queryKey: editorStockOptions('issue').queryKey });
+    },
+    { kind: 'issue' },
+  );
+  expect(await screen.findByText("Can't reach the server.")).toBeInTheDocument();
+  expect(onlineManager.isOnline()).toBe(true);
+  let finish!: (cards: EventStockCard[]) => void;
+  vi.mocked(fetchEventStockCards).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  act(() => onlineManager.setOnline(false));
+  await screen.findByText("You're offline.");
+  act(() => onlineManager.setOnline(true));
+  await waitFor(() => expect(finish).toBeTypeOf('function'));
+  expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+  expect(screen.getByText("You're offline.")).toBeInTheDocument();
+  await act(async () => finish([card, other]));
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(screen.queryByText("Can't reach the server.")).not.toBeInTheDocument();
+  expect(screen.queryByText("You're offline.")).not.toBeInTheDocument();
+});

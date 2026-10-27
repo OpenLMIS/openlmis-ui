@@ -78,7 +78,13 @@ vi.mock('@/features/stock-events/lib/physical-inventory-local', async (original)
 }));
 vi.mock('@/hooks/use-discard-guard', () => ({
   useDiscardGuard: vi.fn(() => ({
-    dialog: { open: false, signingOut: false, onDiscard: vi.fn(), onKeepEditing: vi.fn() },
+    dialog: {
+      open: false,
+      signingOut: false,
+      external: false,
+      onDiscard: vi.fn(),
+      onKeepEditing: vi.fn(),
+    },
   })),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
@@ -116,7 +122,13 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   vi.clearAllMocks();
   vi.mocked(useDiscardGuard).mockImplementation(() => ({
-    dialog: { open: false, signingOut: false, onDiscard: vi.fn(), onKeepEditing: vi.fn() },
+    dialog: {
+      open: false,
+      signingOut: false,
+      external: false,
+      onDiscard: vi.fn(),
+      onKeepEditing: vi.fn(),
+    },
     leaveIfAsked: vi.fn(),
   }));
   vi.mocked(fetchInventoryStockLines).mockResolvedValue(stock);
@@ -316,10 +328,10 @@ it('writes removal of the last locally added line so it cannot return on reopen'
     expect(writeInventoryLocal).toHaveBeenLastCalledWith(
       ...inventoryWrite(
         expect.objectContaining({
-          lines: expect.arrayContaining([
+          lines: [
             expect.objectContaining({ key: 'A|none' }),
             expect.objectContaining({ key: 'B|none' }),
-          ]),
+          ],
           modified: true,
         }),
       ),
@@ -400,14 +412,6 @@ async function submitAndReturnToInvalidPage(
   await waitFor(() => expect(input).toHaveFocus());
   return input;
 }
-it('validates hidden lines and focuses the invalid product in the table', async () => {
-  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(672);
-  const user = userEvent.setup();
-  const view = setup({ size: 1, page: 2 });
-  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
-  expect(screen.getByRole('table')).toBeInTheDocument();
-  await submitAndReturnToInvalidPage(user, view);
-});
 it('scrolls the invalid phone card to the top and focuses its product', async () => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
   const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');

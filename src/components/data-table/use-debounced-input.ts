@@ -1,17 +1,21 @@
 import {
   type ChangeEvent,
   type KeyboardEvent,
+  useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from 'react';
+import { DataTableFilterFlushContext } from './data-table-filters-popover';
 
 export function useDebouncedInput(
   value: string,
   onValueChange: (value: string) => void,
   { delay = 300, resetKey }: { delay?: number; resetKey?: string | number } = {},
 ) {
+  const flushers = useContext(DataTableFilterFlushContext);
   const [draft, setDraft] = useState(value);
   const [synced, setSynced] = useState({ value, resetKey });
   const emittedValue = useRef<string | undefined>(undefined);
@@ -38,12 +42,12 @@ export function useDebouncedInput(
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  const emit = (next: string) => {
+  const emit = useCallback((next: string) => {
     clearTimeout(timer.current);
     pending.current = undefined;
     emittedValue.current = next;
     latestOnValueChange.current(next);
-  };
+  }, []);
 
   const change = (next: string) => {
     setDraft(next);
@@ -57,9 +61,16 @@ export function useDebouncedInput(
     emit(next);
   };
 
-  const flush = () => {
+  const flush = useCallback(() => {
     if (pending.current !== undefined) emit(pending.current);
-  };
+  }, [emit]);
+
+  useLayoutEffect(() => {
+    flushers?.add(flush);
+    return () => {
+      flushers?.delete(flush);
+    };
+  }, [flushers, flush]);
 
   const inputProps = {
     value: draft,

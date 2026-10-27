@@ -472,7 +472,7 @@ it('holds navigation and sign out during cancel POST and still delivers the summ
       }),
   );
   const signOut = vi.fn();
-  act(() => whenLeaveAllowed(signOut));
+  act(() => whenLeaveAllowed(signOut, 'sign-out'));
   expect(
     screen.queryByRole('alertdialog', { name: 'discard-changes.title' }),
   ).not.toBeInTheDocument();

@@ -9,13 +9,18 @@ import {
 } from '@tanstack/react-router';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
 import { useState } from 'react';
+import { I18nextProvider } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
+import en from '@/../public/locales/en.json';
+import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 
 let guard: ReturnType<typeof useDiscardGuard>;
 
+let showDialog = false;
 let leaving = false;
 let saving = false;
 let flushBeforeLeave: (() => Promise<boolean>) | undefined;
@@ -30,6 +35,7 @@ function Draft({ dirty }: { dirty: boolean }) {
   const { open, signingOut } = guard.dialog;
   return (
     <>
+      {showDialog && <DiscardChangesDialog {...guard.dialog} description="Unsaved edits" />}
       <p>{open ? `asking${signingOut ? ' to sign out' : ''}` : 'editing'}</p>
       <button type="button" onClick={() => setAllowed(true)}>
         Allow leaving
@@ -38,7 +44,13 @@ function Draft({ dirty }: { dirty: boolean }) {
   );
 }
 
-async function renderAt(dirty: boolean, pending = false, flush?: () => Promise<boolean>) {
+async function renderAt(
+  dirty: boolean,
+  pending = false,
+  flush?: () => Promise<boolean>,
+  dialog = false,
+) {
+  showDialog = dialog;
   flushBeforeLeave = flush;
   leaving = false;
   saving = pending;
@@ -54,7 +66,18 @@ async function renderAt(dirty: boolean, pending = false, flush?: () => Promise<b
     routeTree: root.addChildren(routes),
     history: createMemoryHistory({ initialEntries: ['/profile'] }),
   });
-  render(<RouterProvider router={router} />);
+  const language = createInstance();
+  await language.init({
+    lng: 'en',
+    keySeparator: false,
+    nsSeparator: false,
+    resources: { en: { translation: en } },
+  });
+  render(
+    <I18nextProvider i18n={language}>
+      <RouterProvider router={router} />
+    </I18nextProvider>,
+  );
   await screen.findByText('editing');
   return router;
 }
@@ -98,7 +121,7 @@ describe('useDiscardGuard', () => {
   it('holds a sign out until the changes are discarded', async () => {
     await renderAt(true);
     const signOut = vi.fn();
-    act(() => whenLeaveAllowed(signOut));
+    act(() => whenLeaveAllowed(signOut, 'sign-out'));
     expect(await screen.findByText('asking to sign out')).toBeInTheDocument();
     expect(signOut).not.toHaveBeenCalled();
     act(() => guard.dialog.onDiscard());
@@ -115,7 +138,7 @@ describe('useDiscardGuard', () => {
   it('runs a waiting sign out on request, e.g. once a save has kept the changes', async () => {
     await renderAt(true);
     const signOut = vi.fn();
-    act(() => whenLeaveAllowed(signOut));
+    act(() => whenLeaveAllowed(signOut, 'sign-out'));
     await screen.findByText('asking to sign out');
     let ran = false;
     act(() => {
@@ -159,7 +182,7 @@ it('blocks navigation while saving without offering a discard dialog', async () 
 it('blocks sign out while saving without allowing discard', async () => {
   await renderAt(true, true);
   const signOut = vi.fn();
-  act(() => whenLeaveAllowed(signOut));
+  act(() => whenLeaveAllowed(signOut, 'sign-out'));
   expect(guard.dialog.open).toBe(false);
   act(() => guard.dialog.onDiscard());
   expect(signOut).not.toHaveBeenCalled();
@@ -201,7 +224,7 @@ it.each(['navigation', 'sign-out'])(
     const signOut = vi.fn();
     act(() => {
       if (destination === 'navigation') void router.navigate({ to: '/profile/roles' });
-      else whenLeaveAllowed(signOut);
+      else whenLeaveAllowed(signOut, 'sign-out');
     });
     await waitFor(() => expect(flush).toHaveBeenCalledOnce());
     expect(guard.dialog.open).toBe(false);
@@ -216,9 +239,21 @@ it.each(['navigation', 'sign-out'])(
 it('offers leaving after a failed device flush', async () => {
   await renderAt(true, false, async () => false);
   const signOut = vi.fn();
-  act(() => whenLeaveAllowed(signOut));
+  act(() => whenLeaveAllowed(signOut, 'sign-out'));
   await screen.findByText('asking to sign out');
   expect(signOut).not.toHaveBeenCalled();
   act(() => guard.dialog.onDiscard());
   expect(signOut).toHaveBeenCalledOnce();
+});
+
+it.each(['leave', 'sign-out'] as const)('uses the discard label for %s intent', async (intent) => {
+  await renderAt(true, false, undefined, true);
+  const proceed = vi.fn();
+  act(() => whenLeaveAllowed(proceed, intent));
+  const label = intent === 'sign-out' ? 'Discard And Log Out' : 'Discard Changes';
+  const discard = await screen.findByRole('button', { name: label });
+  expect(guard.dialog.signingOut).toBe(intent === 'sign-out');
+  expect(proceed).not.toHaveBeenCalled();
+  await userEvent.click(discard);
+  expect(proceed).toHaveBeenCalledOnce();
 });

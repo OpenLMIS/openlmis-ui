@@ -1,6 +1,6 @@
 import { useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useEffectEvent, useState } from 'react';
-import { isUnloadAllowed, useLeaveGuard } from '@/hooks/use-leave-guard';
+import { isUnloadAllowed, type LeaveIntent, useLeaveGuard } from '@/hooks/use-leave-guard';
 
 type DiscardGuardOptions = {
   /** True once the page may be left without asking, e.g. right after a save. */
@@ -29,8 +29,10 @@ export function useDiscardGuard(
   useEffect(() => {
     if (pending || allowLeave?.()) blocker.reset?.();
   }, [pending, allowLeave, blocker.reset]);
-  // A sign out waiting on the dialog; signing out leaves without the router.
-  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const [pendingLeave, setPendingLeave] = useState<{
+    proceed: () => void;
+    intent: LeaveIntent;
+  } | null>(null);
   const [flushingLeave, setFlushingLeave] = useState(false);
   const flushLeave = useEffectEvent(async (proceed: () => void) => {
     setFlushingLeave(true);
@@ -45,26 +47,25 @@ export function useDiscardGuard(
   });
   const deviceDraft = !!flushBeforeLeave;
   const askToLeave = useCallback(
-    (proceed: () => void) => {
+    (proceed: () => void, intent: LeaveIntent) => {
       setFlushingLeave(deviceDraft);
-      setPendingLeave(() => proceed);
+      setPendingLeave({ proceed, intent });
     },
     [deviceDraft],
   );
   useLeaveGuard(!allowLeave?.() && (dirty || deviceDraft), askToLeave);
   useEffect(() => {
-    if (deviceDraft && pendingLeave && !pending) void flushLeave(pendingLeave);
+    if (deviceDraft && pendingLeave && !pending) void flushLeave(pendingLeave.proceed);
   }, [deviceDraft, pendingLeave, pending]);
 
   const leaveIfAsked = () => {
     if (!pendingLeave) return false;
     setPendingLeave(null);
-    pendingLeave();
+    pendingLeave.proceed();
     return true;
   };
 
   return {
-    /** Runs a sign out that is waiting on the dialog, e.g. once a save kept the changes. */
     leaveIfAsked,
     /** The props for `DiscardChangesDialog`. */
     dialog: {
@@ -73,7 +74,8 @@ export function useDiscardGuard(
         !flushingLeave &&
         !allowLeave?.() &&
         (blocker.status === 'blocked' || pendingLeave !== null),
-      signingOut: pendingLeave !== null,
+      signingOut: pendingLeave?.intent === 'sign-out',
+      external: pendingLeave !== null,
       onDiscard: () => {
         if (pending) return;
         if (!leaveIfAsked()) blocker.proceed?.();

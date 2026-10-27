@@ -1945,6 +1945,7 @@
   "stock-events.draft-delete-description": "Esta copia se eliminará de este dispositivo. Esta acción no se puede deshacer.",
   "stock-events.draft-delete-title": "¿Eliminar La Copia Archivada?",
   "stock-events.draft-failed": "No se pudo guardar en este dispositivo. Sus últimos cambios no están guardados.",
+  "stock-events.draft-kept-leave-description": "No se pudieron guardar los últimos cambios. Descartar Y Salir conserva el último borrador guardado en este dispositivo, pero pierde los cambios sin guardar.",
   "stock-events.draft-leave": "Descartar Y Salir",
   "stock-events.draft-leave-description": "No se pudieron guardar los últimos cambios. Descartar Y Salir elimina este borrador del dispositivo, incluidas sus líneas guardadas.",
   "stock-events.draft-leave-title": "Los Últimos Cambios No Están Guardados",

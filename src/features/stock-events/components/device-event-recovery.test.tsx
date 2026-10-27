@@ -236,6 +236,131 @@ it('closes a confirmation when another tab replaces the displayed attempt', asyn
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
 });
 
+it.each(['details', 'menu', 'cards'] as const)(
+  'closes stale Dismiss in %s without dismissing a newer refusal',
+  async (source) => {
+    const { uncertain, onClose } = await open(true, 'refused', 'adjustment', false);
+    if (!uncertain.error) throw new Error('Missing refusal');
+    const refused = { ...uncertain, attemptId: uncertain.error.event.attemptId };
+    const onRemoved = vi.fn();
+    let replaceEvent: (event: DeviceEvent) => void = () => {};
+    function Recovery() {
+      const [event, setEvent] = useState<DeviceEvent>(refused);
+      replaceEvent = setEvent;
+      return source === 'details' ? (
+        <DeviceEventRecovery event={event} canView={false} canSend onClose={onClose} />
+      ) : (
+        <InCardContext value={source === 'cards'}>
+          <DeviceEventActions
+            event={event}
+            canSend
+            label="View event"
+            removeLabel="Dismiss event"
+            onOpen={vi.fn()}
+            onRemoved={onRemoved}
+          />
+        </InCardContext>
+      );
+    }
+    renderPage(<Recovery />, { queryClient: new QueryClient() });
+    if (source === 'menu')
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'offline-events.actions-label' }),
+      );
+    await userEvent.click(
+      await screen.findByRole(source === 'menu' ? 'menuitem' : 'button', {
+        name: source === 'cards' ? 'Dismiss event' : 'offline-events.dismiss',
+      }),
+    );
+    const confirm = within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'offline-events.dismiss',
+    });
+    const error = {
+      ...uncertain.error,
+      event: { ...uncertain.error.event, attemptId: 'new-attempt' },
+    };
+    await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).put(error);
+    act(() => replaceEvent({ ...refused, attemptId: 'new-attempt', error }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    await userEvent.click(confirm);
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(
+      (await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).get(refused.localEventId))
+        .dismissedAt,
+    ).toBeUndefined();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onRemoved).not.toHaveBeenCalled();
+    expect(announceDeviceSave).not.toHaveBeenCalled();
+  },
+);
+
+it.each(['accepted', 'refused'] as const)(
+  'closes queued row Remove when another tab syncs it as %s',
+  async (status) => {
+    const { uncertain: queued } = await open(true, 'queued', 'adjustment', false);
+    const onRemoved = vi.fn();
+    let replaceEvent: (event: DeviceEvent) => void = () => {};
+    function Actions() {
+      const [event, setEvent] = useState(queued);
+      replaceEvent = setEvent;
+      return (
+        <DeviceEventActions
+          event={event}
+          canSend
+          label="View event"
+          removeLabel="Remove event"
+          onOpen={vi.fn()}
+          onRemoved={onRemoved}
+        />
+      );
+    }
+    renderPage(<Actions />, { queryClient: new QueryClient() });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'offline-events.actions-label' }),
+    );
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'offline-events.remove' }));
+    const confirm = within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'offline-events.remove',
+    });
+    await syncStockEvents(getLocalDb(), queued.userId, {
+      check: () => {},
+      canSend: () => true,
+      permitted: () => true,
+      send: async () =>
+        status === 'accepted'
+          ? { status: 201, data: { id: '11111111-1111-4111-8111-111111111111' } }
+          : { status: 400, data: { messageKey: 'bad', message: 'Human refusal' } },
+      retryReceipt: async () => {},
+      accepted: () => {},
+    });
+    const error = await getLocalDb()
+      .table(LOCAL_TABLES.stockEventSyncErrors)
+      .get(queued.localEventId);
+    const receipt = await getLocalDb()
+      .table(LOCAL_TABLES.stockEventReceipts)
+      .get([queued.draftId, queued.revision]);
+    act(() => replaceEvent({ ...queued, status, error, receipt }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    await userEvent.click(confirm);
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    if (status === 'accepted')
+      expect(
+        (
+          await getLocalDb()
+            .table(LOCAL_TABLES.stockEventReceipts)
+            .get([queued.draftId, queued.revision])
+        ).hiddenAt,
+      ).toBeUndefined();
+    else
+      expect(
+        (await getLocalDb().table(LOCAL_TABLES.stockEventSyncErrors).get(queued.localEventId))
+          .dismissedAt,
+      ).toBeUndefined();
+    expect(onRemoved).not.toHaveBeenCalled();
+    expect(announceDeviceSave).not.toHaveBeenCalled();
+  },
+);
+
 it('keeps recorded recovery available after losing adjustment grants but blocks Send Again', async () => {
   const { onClose } = await open(false);
   expect(screen.getByRole('button', { name: 'offline-events.send-again' })).toHaveAttribute(

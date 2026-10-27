@@ -3,7 +3,6 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import * as dexie from 'dexie';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { refreshAfterStockEventAccepted } from '@/features/stock-events/lib/refresh-after-stock-event-accepted';
 import {
   foregroundStockEvents,
   holdForegroundStockEvent,
@@ -143,8 +142,8 @@ it('keeps a slow online submission in progress and invalidates stock and lots be
   await waitFor(() => expect(observed).toHaveBeenCalled());
   await vi.advanceTimersByTimeAsync(1600);
   expect(settled).toBe(false);
-  const refresh = vi.fn();
-  refreshAfterStockEventAccepted(client, event, refresh);
+  expect(client.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated).toBe(false);
+  expect(client.getQueryState(queryKeys.lots.all)?.isInvalidated).toBe(false);
   const receipt = {
     draftId: event.draftId,
     revision: event.revision,
@@ -157,7 +156,6 @@ it('keeps a slow online submission in progress and invalidates stock and lots be
   expect(await result).toEqual({ kind: 'accepted', receipt });
   expect(client.getQueryState(queryKeys.stockCardSummaries.all)?.isInvalidated).toBe(true);
   expect(client.getQueryState(queryKeys.lots.all)?.isInvalidated).toBe(true);
-  expect(refresh).toHaveBeenCalledTimes(1);
 });
 
 it('returns queued after 1.5 seconds when the online uploader never starts', async () => {

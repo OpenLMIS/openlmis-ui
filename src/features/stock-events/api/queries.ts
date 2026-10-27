@@ -52,6 +52,7 @@ import {
   LocalDataUnavailableError,
   onlineOrDevice,
 } from '@/lib/local-data';
+import { offlineAccessQuery } from '@/lib/offline-access';
 
 export const homeStockScope = (
   filter: EventStockCardsFilter,
@@ -81,9 +82,10 @@ export const eventValidReasonsOptions = (
 ) =>
   queryOptions({
     queryKey: bundle ? homeStockBundleKeys.reasons(bundle) : queryKeys.validReasons.list(filter),
-    queryFn: async () =>
-      bundle ? (await getHomeStockBundle(bundle)).reasons : fetchValidReasons(filter),
+    queryFn: async () => (bundle ? getHomeStockBundle(bundle) : fetchValidReasons(filter)),
+    select: (result) => (Array.isArray(result) ? result : result.reasons),
     networkMode: 'always',
+    ...offlineAccessQuery(30_000),
   });
 
 export async function fetchHomeStockTradeItem(

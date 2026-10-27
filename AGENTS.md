@@ -549,7 +549,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   shadcn controls from a parent.
 - `DataTableFilters` badges the count of its own active filters and offers Clear Filters for
   them only, as a `destructive` Button. Fields apply live, without an Apply button. Pending
-  toolbars render it disabled.
+  toolbars render it disabled. Text typed in a Filters popover field still waiting to apply is
+  applied when the popover closes; page-level search drops unsent typing on navigation.
 - Short fixed lists use `DataTableSelectFilter`, with `allLabel` when legacy offers All.
   Long lists use searchable `DataTableComboboxFilter`; optional `description` follows labels
   in muted text.
@@ -805,12 +806,14 @@ home facility, user programs, all facilities and page grants, following legacy:
 (`src/lib/http.ts`) and a short in-place message, without importing auth.
 
 **Unsaved work:** draft pages use `useDiscardGuard` (`src/hooks/use-discard-guard.ts`) for
-router navigation. It registers `useLeaveGuard` for exits outside the router; sign-out,
-password changes and other deliberate sign-outs call `whenLeaveAllowed` before acting.
+router navigation. It registers `useLeaveGuard` for exits outside the router. Reloads, updates,
+chunk Try Again and Back To Legacy call `whenLeaveAllowed` with `'leave'` for neutral wording;
+sign-outs, including password changes, pass `'sign-out'` explicitly.
 Both use `src/components/discard-changes-dialog.tsx`. Its `pending` option keeps leaving blocked
 during a save without offering Discard. Device drafts pass `flushBeforeLeave` to commit staged edits
-before navigation/sign-out; only a failed flush asks first, and sign-out retains saved work.
-Reload/tab close uses only the browser's native prompt. External identity changes follow
+before navigation or external leave; only a failed flush asks first. Every external leave,
+including reload, update, Back To Legacy and sign-out, keeps the saved device draft.
+Browser reload and tab close use the native prompt. External identity changes follow
 Authentication below.
 
 **Charts:** use Recharts through `ChartContainer` and theme ramp `--chart-1`..`--chart-5`,
@@ -899,10 +902,14 @@ origin's localStorage on a `401`.
 - Login is one-way: never publish our token or any `openlmis.*` keys. Legacy needs its own
   login; publishing the token leaves its rights-guarded routes inaccessible. See the
   [deployment guide](docs/deployment/deployment.md) for evidence and SSO requirements.
-- Access auth through the store, never direct localStorage reads.
+- Auth internals access the store, never direct localStorage reads. Features use the shared
+  session accessors below.
 
 ### Identity isolation
 
+- Features read identity through `src/lib/session-scope.ts`: `getSessionUserId`,
+  `getSessionAccessToken`, `isSessionAuthenticated` and `subscribeSessionScope`. Import the
+  `SessionEndedError` re-export there too; never import auth from another feature.
 - `src/integrations/tanstack-query.ts` clears all queries when the user changes, including
   sign-out, another login and legacy identity changes. Keys need no user id except actual
   per-user data such as rights.
@@ -999,8 +1006,9 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   failures. Definitive service errors and cancellations never fall back. Missing local data raises
   `LocalDataUnavailableError`, never a server 404. Preserve device markers and freshness bounds.
   Use `withOfflineAccess` when a read must select the saved access snapshot offline.
-  Exception: Issue counterparties (`counterpartyOptions`) wrap `onlineOrDevice` in the server
-  query key with `offlineAccessQuery` freshness, so admin saves still invalidate that entry.
+  Exception: Issue counterparties (`counterpartyOptions`) and `eventValidReasonsOptions` wrap
+  `onlineOrDevice` in the server query key with `offlineAccessQuery` freshness, so admin saves
+  still invalidate those entries.
 - Device data shows `SnapshotAlert` with its download time unless a refetch is in flight:
   You're offline when offline, Can't reach the server when the app counts as online.
 - Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `homeStockPrograms`
@@ -1011,8 +1019,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   catalogs across reloads regardless of age. Refresh preserves typed and scanned new lots.
   Pickers derive readiness with `programReadiness` from `readScopeState` states
   (ready, ineligible, missing, outdated).
-  Offline, rows stay disabled without a reason while the device is read, then show Not
-  Downloaded with a visible reason, or Ready.
+  Offline, rows stay disabled without a reason while the device is read. Then enable rows
+  that can open; unavailable rows show Not Downloaded with a visible reason.
   Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home
   stock; Stock Card keeps viewed home histories per owner until replaced by a newer view. Check home
   scope and exact grants separately from route capability; show local absence, never a 404.

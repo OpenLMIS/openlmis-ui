@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   formatDateValue,
   formatTimestamp,
@@ -78,4 +78,19 @@ describe('formatTimestamp', () => {
       'Oct 8, 2026',
     );
   });
+});
+
+it('reuses date formatters by locale and timestamp options', () => {
+  const createFormatter = vi.spyOn(Intl, 'DateTimeFormat');
+  try {
+    formatDateValue('2026-10-01', 'en-GB');
+    formatDateValue('2026-10-02', 'en-GB');
+    formatDateValue('2026-10-01', 'de');
+    formatDateValue('2026-10-02', 'de');
+    formatTimestamp('2026-10-01T12:00:00Z', 'en-GB', { time: 'short' });
+    formatTimestamp('2026-10-02T12:00:00Z', 'en-GB', { time: 'short' });
+    expect(createFormatter).toHaveBeenCalledTimes(3);
+  } finally {
+    createFormatter.mockRestore();
+  }
 });

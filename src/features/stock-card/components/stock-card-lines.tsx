@@ -21,6 +21,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
+import { WrappingCell } from '@/components/wrapping-cell';
 import { toCardLines } from '@/features/stock-card/lib/card-lines';
 import {
   type CardPagingSearch,
@@ -29,7 +30,7 @@ import {
 } from '@/features/stock-card/lib/search';
 import type { CardLineRow, StockCard } from '@/features/stock-card/lib/types';
 import { usePageStart } from '@/hooks/use-page-start';
-import { EMPTY_VALUE, tableValue } from '@/lib/empty-value';
+import { EMPTY_VALUE } from '@/lib/empty-value';
 import type { FacilityProgramSelection } from '@/lib/facility-program-selection';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type EventLink, eventLinks, namedWithFreeText, reasonLabel } from '@/lib/stock-labels';
@@ -68,14 +69,6 @@ export const STOCK_CARD_HIDEABLE_COLUMNS = [
 type CellId = (typeof COLUMNS)[number][0];
 const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'date');
 
-function Wrapped({ children, empty }: { children: string | null | undefined; empty?: string }) {
-  return (
-    <span className="block max-w-60 whitespace-normal break-normal">
-      <bdi>{tableValue(children) ?? empty}</bdi>
-    </span>
-  );
-}
-
 type EventSearch = FacilityProgramSelection;
 
 function EventCell({
@@ -89,7 +82,12 @@ function EventCell({
   name?: string | undefined;
   empty?: string | undefined;
 }) {
-  if (!link?.eventId) return <Wrapped empty={empty}>{link?.label}</Wrapped>;
+  if (!link?.eventId)
+    return (
+      <WrappingCell width="bounded" empty={empty}>
+        {link?.label}
+      </WrappingCell>
+    );
   return (
     <span className="whitespace-nowrap">
       <Link
@@ -129,16 +127,22 @@ function LineCell({
         </span>
       );
     case 'receiveFrom':
-      return <Wrapped empty={empty}>{namedWithFreeText(line.source, line.sourceFreeText)}</Wrapped>;
+      return (
+        <WrappingCell width="bounded" empty={empty}>
+          {namedWithFreeText(line.source, line.sourceFreeText)}
+        </WrappingCell>
+      );
     case 'issueTo':
       return (
-        <Wrapped empty={empty}>
+        <WrappingCell width="bounded" empty={empty}>
           {namedWithFreeText(line.destination, line.destinationFreeText)}
-        </Wrapped>
+        </WrappingCell>
       );
     case 'reason':
       return (
-        <Wrapped empty={empty}>{reasonLabel(line, t('stock-card.physical-inventory'))}</Wrapped>
+        <WrappingCell width="bounded" empty={empty}>
+          {reasonLabel(line, t('stock-card.physical-inventory'))}
+        </WrappingCell>
       );
     case 'adjustment':
     case 'balance':
@@ -153,9 +157,17 @@ function LineCell({
         </span>
       );
     case 'performedBy':
-      return <Wrapped empty={empty}>{line.username}</Wrapped>;
+      return (
+        <WrappingCell width="bounded" empty={empty}>
+          {line.username}
+        </WrappingCell>
+      );
     case 'signature':
-      return <Wrapped empty={empty}>{line.signature}</Wrapped>;
+      return (
+        <WrappingCell width="bounded" empty={empty}>
+          {line.signature}
+        </WrappingCell>
+      );
     case 'document':
     case 'reversing':
     case 'reversedBy': {

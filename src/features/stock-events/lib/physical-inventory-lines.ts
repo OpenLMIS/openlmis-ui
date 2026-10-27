@@ -135,6 +135,10 @@ export function inventoryPage(
   const all = inventoryGroups(lines);
   const currentPage = Math.max(1, Math.min(page, Math.ceil(all.length / size)));
   const groups = all.slice((currentPage - 1) * size, currentPage * size);
+  return { groups, bands: inventoryBands(groups, programId), page: currentPage, total: all.length };
+}
+
+function inventoryBands(groups: readonly InventoryProductGroup[], programId: string) {
   const bands = new Map<string, InventoryCategoryBand>();
   for (const group of groups) {
     const category =
@@ -144,7 +148,7 @@ export function inventoryPage(
     band.groups.push(group);
     bands.set(category, band);
   }
-  return { groups, bands: [...bands.values()], page: currentPage, total: all.length };
+  return [...bands.values()];
 }
 
 export function inventoryProgress(lines: readonly InventoryLine[]) {
@@ -211,12 +215,14 @@ export function inventoryFirstInvalid(
 ) {
   const keys = new Set(invalid.map((line) => line.key));
   const visible = filterInventoryLines(lines, { includeInactive }, String);
-  const total = inventoryGroups(visible).length;
-  for (let page = 1; page <= Math.ceil(total / size); page++) {
-    const first = inventoryPage(visible, programId, page, size)
-      .bands.flatMap((band) => band.groups.flatMap((group) => group.lines))
-      .find((line) => keys.has(line.key));
-    if (first) return first;
+  const groups = inventoryGroups(visible);
+  for (let offset = 0; offset < groups.length; offset += size) {
+    for (const band of inventoryBands(groups.slice(offset, offset + size), programId)) {
+      for (const group of band.groups) {
+        const first = group.lines.find((line) => keys.has(line.key));
+        if (first) return first;
+      }
+    }
   }
 }
 

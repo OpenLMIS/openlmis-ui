@@ -559,18 +559,25 @@ it('excludes access preparation from the foreground sending start deadline', asy
   const send = vi.fn(async () => accepted);
   onlineManager.setOnline(true);
   stops.push(startStockEventUploader({ access, send }));
-  let settled = false;
-  const result = waitForStockEventReceipt(event).then((value) => {
-    settled = true;
-    return value;
-  });
   try {
     await waitFor(() => expect(access).toHaveBeenCalled());
-    await new Promise((resolve) => setTimeout(resolve, 1600));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    let settled = false;
+    const result = waitForStockEventReceipt(event).then((value) => {
+      settled = true;
+      return value;
+    });
+    const reads = vi.spyOn(getLocalDb(), 'transaction');
+    await vi.advanceTimersByTimeAsync(1600);
+    await Promise.allSettled(reads.mock.results.map((read) => read.value));
+    await vi.advanceTimersByTimeAsync(0);
     expect(settled).toBe(false);
+    reads.mockRestore();
+    vi.useRealTimers();
     preparing.resolve(snapshot);
     expect((await result).kind).toBe('accepted');
   } finally {
+    vi.useRealTimers();
     preparing.resolve(snapshot);
     foregroundStockEvents.delete(event.localEventId);
   }

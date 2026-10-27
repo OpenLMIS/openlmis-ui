@@ -47,6 +47,7 @@ import {
   copyRefusedEvent,
   type DeviceEvent,
   resolveUncertain,
+  sameDeviceAttempt,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { recordLabel } from '@/lib/facility-program-selection';
@@ -102,16 +103,10 @@ export function DeviceEventRecovery({
   const offlineNavigation = useOfflineNavigationDialog();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [removing, setRemoving] = useState(false);
+  const [removing, setRemoving] = useState<DeviceEvent | null>(null);
+  if (removing && !sameDeviceAttempt(removing, event)) setRemoving(null);
   const [confirmation, setConfirmation] = useState<RecoveryConfirmation | null>(null);
-  if (
-    confirmation &&
-    (confirmation.event.localEventId !== event.localEventId ||
-      confirmation.event.status !== event.status ||
-      confirmation.event.revision !== event.revision ||
-      confirmation.event.attemptId !== event.attemptId)
-  )
-    setConfirmation(null);
+  if (confirmation && !sameDeviceAttempt(confirmation.event, event)) setConfirmation(null);
   const confirmationTarget = useDialogTarget(confirmation ?? undefined, () =>
     setConfirmation(null),
   );
@@ -432,7 +427,7 @@ export function DeviceEventRecovery({
               </Button>
             )}
             {canRemoveDeviceEvent(event) && (
-              <Button variant="destructive" disabled={pending} onClick={() => setRemoving(true)}>
+              <Button variant="destructive" disabled={pending} onClick={() => setRemoving(event)}>
                 <Trash2Icon data-icon="inline-start" />
                 {t(removeKey(event))}
               </Button>
@@ -444,8 +439,8 @@ export function DeviceEventRecovery({
         </DialogContent>
         {removing && (
           <DeviceEventRemoval
-            event={event}
-            onClose={() => setRemoving(false)}
+            event={removing}
+            onClose={() => setRemoving(null)}
             onRemoved={() => {
               onRemoved?.();
               onClose();

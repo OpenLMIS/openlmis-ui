@@ -12,6 +12,7 @@ import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import { CategoryFormDialog } from '@/features/rejection-reasons/components/category-form-dialog';
 import { RejectionReasonFormDialog } from '@/features/rejection-reasons/components/rejection-reason-form-dialog';
 import type { CategoriesSearch } from '@/features/rejection-reasons/lib/search';
+import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { client } from '@/integrations/axios';
 import { queryKeys } from '@/lib/key-factory';
@@ -178,6 +179,26 @@ it.each([
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: /^Name/ })).toHaveValue('Fresh server name'),
     );
+    expect(client.post).not.toHaveBeenCalled();
+  },
+);
+
+it.each(['leave', 'sign-out'] as const)(
+  'uses %s wording when leaving an edited category outside the router',
+  async (intent) => {
+    vi.mocked(client.get).mockResolvedValueOnce({
+      data: { id: EDIT_ID, name: 'Original', code: 'C', active: true },
+    });
+    renderPage(<CategoryFormDialog target={EDIT_ID} onClose={vi.fn()} />);
+    await userEvent.type(await screen.findByRole('textbox', { name: /^Name/ }), ' changed');
+    const proceed = vi.fn();
+    act(() => whenLeaveAllowed(proceed, intent));
+    await userEvent.click(
+      await screen.findByRole('button', {
+        name: intent === 'sign-out' ? 'Discard And Log Out' : 'Discard Changes',
+      }),
+    );
+    expect(proceed).toHaveBeenCalledOnce();
     expect(client.post).not.toHaveBeenCalled();
   },
 );

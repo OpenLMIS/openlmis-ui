@@ -1,7 +1,5 @@
 import type { AxiosRequestConfig } from 'axios';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
-import { SessionEndedError } from '@/features/auth/lib/session';
-import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchTradeItemsByIds,
   fetchValidAssignments,
@@ -22,7 +20,13 @@ import { LOCAL_TABLES } from '@/integrations/local-db';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { requireOwnedRecord } from '@/lib/local-records';
 import { randomId } from '@/lib/random-id';
-import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import {
+  assertSessionScope,
+  getSessionAccessToken,
+  getSessionScope,
+  getSessionUserId,
+  SessionEndedError,
+} from '@/lib/session-scope';
 
 export const HOME_STOCK_FORMATS = [4, 5, 6] as const;
 export type HomeStockFormat = (typeof HOME_STOCK_FORMATS)[number];
@@ -128,7 +132,7 @@ async function fetchBundle(
   config: AxiosRequestConfig & { signal?: AbortSignal },
   counterparties: boolean,
 ): Promise<HomeStockBundle> {
-  const userId = useLoginData.getState().referenceDataUserId;
+  const userId = getSessionUserId();
   if (!userId) throw new LocalDataUnavailableError();
   const { check, read } = downloadReader(config);
   const assignments = (resource: 'validDestinations' | 'validSources') =>
@@ -229,7 +233,7 @@ const downloads = new Map<string, Promise<HomeStockBundle>>();
 const requestKeyFor = (filter: HomeStockScope) =>
   JSON.stringify([
     getSessionScope(),
-    useLoginData.getState().accessToken,
+    getSessionAccessToken(),
     filter.facilityId,
     filter.programId,
     filter.facilityTypeId,

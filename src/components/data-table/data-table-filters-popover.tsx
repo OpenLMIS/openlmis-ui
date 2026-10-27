@@ -1,9 +1,11 @@
 import { FilterIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { createContext, type ReactNode, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDataTableLabels } from './data-table-labels';
+
+export const DataTableFilterFlushContext = createContext<Set<() => void> | null>(null);
 
 type DataTableFiltersProps = {
   activeCount: number;
@@ -21,8 +23,13 @@ export function DataTableFilters({
   size = 'default',
 }: DataTableFiltersProps) {
   const labels = useDataTableLabels();
+  const [flushers] = useState(() => new Set<() => void>());
   return (
-    <Popover>
+    <Popover
+      onOpenChange={(open) => {
+        if (!open) for (const flush of flushers) flush();
+      }}
+    >
       <PopoverTrigger
         render={
           <Button disabled={disabled} size={size} type="button" variant="outline" width="full" />
@@ -41,7 +48,7 @@ export function DataTableFilters({
       </PopoverTrigger>
       <PopoverContent align="start" aria-label={labels.filters} side="bottom" width="wide">
         <div className="flex flex-col gap-3">
-          {children}
+          <DataTableFilterFlushContext value={flushers}>{children}</DataTableFilterFlushContext>
           <Button
             disabled={activeCount === 0}
             focusableWhenDisabled

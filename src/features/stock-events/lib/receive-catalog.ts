@@ -127,8 +127,10 @@ export async function fetchReceiveCatalog(
       ),
     ),
   ];
-  const lots = await read(() => fetchLotsByTradeItems(tradeIds, config));
-  const tradeItems = scope.scanning ? await read(() => fetchTradeItemsByIds(tradeIds, config)) : [];
+  const [lots, tradeItems] = await Promise.all([
+    read(() => fetchLotsByTradeItems(tradeIds, config)),
+    scope.scanning ? read(() => fetchTradeItemsByIds(tradeIds, config)) : [],
+  ]);
   check();
   return {
     ...filter,

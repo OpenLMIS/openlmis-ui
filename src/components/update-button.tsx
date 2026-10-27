@@ -18,7 +18,7 @@ export function UpdateButton({ tooltipSide = 'top' }: { tooltipSide?: 'top' | 'i
           <Button
             aria-label={label}
             indicator="info"
-            onClick={() => whenLeaveAllowed(() => void applyUpdate(allowUnload))}
+            onClick={() => whenLeaveAllowed(() => void applyUpdate(allowUnload), 'leave')}
             size="icon-sm"
             tone="sidebar"
             variant="ghost"

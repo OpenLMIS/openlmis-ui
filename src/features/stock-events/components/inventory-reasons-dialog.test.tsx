@@ -1,9 +1,13 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { quantityValue } from '@/components/form/quantity-value';
 import { InventoryReasonsDialog } from '@/features/stock-events/components/inventory-reasons-dialog';
 import { buildInventoryLines } from '@/features/stock-events/lib/physical-inventory-lines';
+
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
+});
 
 const line = {
   ...buildInventoryLines(
@@ -30,11 +34,11 @@ const reason = {
 it.each([false, true])(
   'adds, edits and removes reasons and confirms an unaccounted update with cards %s',
   async (cards) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(cards ? 390 : 1000);
     const user = userEvent.setup();
     const update = vi.fn();
     render(
       <InventoryReasonsDialog
-        cards={cards}
         line={line}
         reasons={[reason]}
         unit="DOSES"
@@ -42,11 +46,16 @@ it.each([false, true])(
         onUpdate={update}
       />,
     );
+    if (cards) expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    else expect(screen.getByRole('table')).toBeInTheDocument();
     await user.click(screen.getByRole('combobox'));
     await user.click(screen.getByRole('option', { name: 'Return' }));
     await user.type(screen.getByRole('textbox', { name: 'stock-events.quantity' }), '2');
     await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
     const edit = screen.getByRole('textbox', { name: 'Return' });
+    const body = screen.getByRole('combobox').closest('[data-slot=form-dialog-body]');
+    expect(body).toContainElement(edit);
+    expect(body).toContainElement(screen.getByText('physical-inventory.total'));
     const primary = screen.getByRole('dialog');
     await user.clear(edit);
     await user.type(edit, '1');

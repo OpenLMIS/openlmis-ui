@@ -1,9 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { useLoginData } from '@/features/auth/store/login-data';
 import { getLocalDb } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
 import { randomId } from '@/lib/random-id';
-import { getSessionScope } from '@/lib/session-scope';
+import { getSessionScope, getSessionUserId, subscribeSessionScope } from '@/lib/session-scope';
 
 type AcceptedScope = { facilityId: string; programId: string; userId?: string };
 const origin = randomId();
@@ -24,7 +23,7 @@ export function refreshAfterStockEventAccepted(
   event: AcceptedScope,
   refreshOfflineDownload?: (refreshKey: string) => void,
 ) {
-  const userId = useLoginData.getState().referenceDataUserId;
+  const userId = getSessionUserId();
   if (!userId || (event.userId && event.userId !== userId)) return;
   refreshOfflineDownload?.(`${event.facilityId}:${event.programId}`);
   invalidateAcceptedStockEvent(queryClient);
@@ -49,7 +48,7 @@ export function subscribeStockEventAcceptances(queryClient: QueryClient) {
   const watch = () => {
     channel?.close();
     channel = undefined;
-    const userId = useLoginData.getState().referenceDataUserId;
+    const userId = getSessionUserId();
     if (!userId || typeof BroadcastChannel === 'undefined') return;
     const scope = getSessionScope();
     try {
@@ -68,9 +67,7 @@ export function subscribeStockEventAcceptances(queryClient: QueryClient) {
       invalidateAcceptedStockEvent(queryClient);
     };
   };
-  const unsubscribe = useLoginData.subscribe((state, previous) => {
-    if (state.referenceDataUserId !== previous.referenceDataUserId) watch();
-  });
+  const unsubscribe = subscribeSessionScope(watch);
   watch();
   return () => {
     unsubscribe();

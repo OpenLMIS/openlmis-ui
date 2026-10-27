@@ -25,6 +25,7 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { formatTimestamp } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
+import { WrappingCell } from '@/components/wrapping-cell';
 import { stockEventsOptions } from '@/features/stock-events/api/queries';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import {
@@ -66,20 +67,6 @@ export const EVENT_HIDEABLE_COLUMNS = [
 type CellId = (typeof COLUMNS)[number][0];
 const CARD_ROWS = COLUMNS.filter(([id]) => id !== 'documentNumber');
 
-function Wrapped({
-  children,
-  empty,
-}: {
-  children: string | number | null | undefined;
-  empty?: string;
-}) {
-  return (
-    <span className="block max-w-60 whitespace-normal break-normal">
-      <bdi>{tableValue(children) ?? empty}</bdi>
-    </span>
-  );
-}
-
 type EventDay = (value: string | null | undefined) => string;
 
 function useEventDay(timeZone: string | undefined): EventDay {
@@ -111,7 +98,11 @@ function EventCell({
       );
     case 'type': {
       const key = eventTypeKey(event.type);
-      return <Wrapped empty={empty}>{key && t(key)}</Wrapped>;
+      return (
+        <WrappingCell width="bounded" empty={empty}>
+          {key && t(key)}
+        </WrappingCell>
+      );
     }
     case 'date':
       return (
@@ -126,9 +117,17 @@ function EventCell({
         </span>
       );
     case 'performedBy':
-      return <Wrapped empty={empty}>{event.username}</Wrapped>;
+      return (
+        <WrappingCell width="bounded" empty={empty}>
+          {event.username}
+        </WrappingCell>
+      );
     case 'signature':
-      return <Wrapped empty={empty}>{event.signature}</Wrapped>;
+      return (
+        <WrappingCell width="bounded" empty={empty}>
+          {event.signature}
+        </WrappingCell>
+      );
   }
 }
 

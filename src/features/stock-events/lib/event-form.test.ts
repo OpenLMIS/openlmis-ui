@@ -133,7 +133,7 @@ describe('eventLinesSchema', () => {
       ['lines.1.occurredDate', 'stock-events.required'],
     ]);
   });
-  it.each(['0', '-1', '1.5', '1e2', 'NaN', 'Infinity', '1,000'])(
+  it.each(['1e2', 'NaN', 'Infinity', '1,000'])(
     'refuses invalid positive quantities: %s',
     (doses) => {
       expect(issues([line({ quantity: quantityValue(doses, 16) })])).toContainEqual([

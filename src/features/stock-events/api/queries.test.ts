@@ -5,6 +5,7 @@ import { fetchOrderablesByIds, fetchTradeItemByGtin } from '@/features/reference
 import { fetchEventStockCards } from '@/features/stock-events/api/api';
 import {
   eventStockCardsOptions,
+  eventValidReasonsOptions,
   fetchHomeStockTradeItem,
   fetchReceiveTradeItem,
   receiveApprovedProductsOptions,
@@ -323,4 +324,20 @@ it('reads fulfils and lots for the requested trade items from the device catalog
   await expect(client.fetchQuery(receiveLotsOptions(client, ['t1'], device))).resolves.toEqual(
     t1Lots,
   );
+});
+
+it('refetches device reasons immediately after reconnecting', async () => {
+  const client = queryClient();
+  onlineManager.setOnline(false);
+  const device = await onlineOrDevice(
+    async () => saved,
+    async () => ({ ...saved }),
+  );
+  vi.mocked(getHomeStockBundle).mockResolvedValue(device);
+  const options = eventValidReasonsOptions({ program: 'program', facilityType: 'type' }, scope);
+  await client.fetchQuery(options);
+  onlineManager.setOnline(true);
+  vi.mocked(getHomeStockBundle).mockResolvedValue({ ...saved });
+  await client.fetchQuery(options);
+  expect(getHomeStockBundle).toHaveBeenCalledTimes(2);
 });

@@ -1,3 +1,15 @@
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function dateFormatter(locale: string, options: Intl.DateTimeFormatOptions) {
+  const key = JSON.stringify([locale, options]);
+  let formatter = dateFormatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    dateFormatters.set(key, formatter);
+  }
+  return formatter;
+}
+
 const DATE_VALUE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export function parseDateValue(value: string): Date | undefined {
@@ -17,13 +29,13 @@ export function toDateValue(date: Date): string {
 
 export function formatDateValue(value: string, locale: string): string {
   const date = parseDateValue(value);
-  return date ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date) : '';
+  return date ? dateFormatter(locale, { dateStyle: 'medium' }).format(date) : '';
 }
 
 const knownTimeZone = (timeZone: string | undefined) => {
   if (!timeZone) return undefined;
   try {
-    new Intl.DateTimeFormat('en', { timeZone });
+    dateFormatter('en', { timeZone });
     return timeZone;
   } catch {
     return undefined;
@@ -37,7 +49,7 @@ export function formatTimestamp(
 ): string {
   const date = value ? new Date(value) : undefined;
   if (!date || Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(locale, {
+  return dateFormatter(locale, {
     dateStyle: 'medium',
     ...(time && { timeStyle: time === 'short' ? 'short' : 'medium' }),
     timeZone: knownTimeZone(timeZone),

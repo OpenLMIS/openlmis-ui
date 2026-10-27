@@ -8,7 +8,7 @@ import {
   removeKey,
 } from '@/features/stock-events/components/device-event-removal';
 import { useRefusedEventRetry } from '@/features/stock-events/hooks/use-refused-event-retry';
-import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
+import { type DeviceEvent, sameDeviceAttempt } from '@/features/stock-events/lib/stock-event-sync';
 
 export function DeviceEventActions({
   event,
@@ -27,7 +27,8 @@ export function DeviceEventActions({
 }) {
   const { t } = useTranslation();
   const inCards = useInCards();
-  const [removing, setRemoving] = useState(false);
+  const [removing, setRemoving] = useState<DeviceEvent | null>(null);
+  if (removing && !sameDeviceAttempt(removing, event)) setRemoving(null);
   const retry = useRefusedEventRetry(event, canSend, onRemoved);
   const actions: CardAction[] = [
     ...(retry.available
@@ -60,7 +61,7 @@ export function DeviceEventActions({
             name: inCards ? removeLabel : undefined,
             destructive: true,
             disabled: retry.pending,
-            onSelect: () => setRemoving(true),
+            onSelect: () => setRemoving(event),
           },
         ]
       : []),
@@ -70,8 +71,8 @@ export function DeviceEventActions({
       <RowActions actions={actions} label={t('offline-events.actions-label', { event: label })} />
       {removing && (
         <DeviceEventRemoval
-          event={event}
-          onClose={() => setRemoving(false)}
+          event={removing}
+          onClose={() => setRemoving(null)}
           onRemoved={onRemoved}
         />
       )}
