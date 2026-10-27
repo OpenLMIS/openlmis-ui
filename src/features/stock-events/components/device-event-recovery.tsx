@@ -47,6 +47,7 @@ import {
   copyRefusedEvent,
   type DeviceEvent,
   resolveUncertain,
+  sameDeviceAttempt,
 } from '@/features/stock-events/lib/stock-event-sync';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { recordLabel } from '@/lib/facility-program-selection';
@@ -103,23 +104,9 @@ export function DeviceEventRecovery({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [removing, setRemoving] = useState<DeviceEvent | null>(null);
-  if (
-    removing &&
-    (removing.localEventId !== event.localEventId ||
-      removing.status !== event.status ||
-      removing.revision !== event.revision ||
-      removing.attemptId !== event.attemptId)
-  )
-    setRemoving(null);
+  if (removing && !sameDeviceAttempt(removing, event)) setRemoving(null);
   const [confirmation, setConfirmation] = useState<RecoveryConfirmation | null>(null);
-  if (
-    confirmation &&
-    (confirmation.event.localEventId !== event.localEventId ||
-      confirmation.event.status !== event.status ||
-      confirmation.event.revision !== event.revision ||
-      confirmation.event.attemptId !== event.attemptId)
-  )
-    setConfirmation(null);
+  if (confirmation && !sameDeviceAttempt(confirmation.event, event)) setConfirmation(null);
   const confirmationTarget = useDialogTarget(confirmation ?? undefined, () =>
     setConfirmation(null),
   );

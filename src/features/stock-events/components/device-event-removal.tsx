@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -31,7 +30,7 @@ export const removeKey = (event: DeviceEvent) =>
   event.status === 'refused' ? 'offline-events.dismiss' : 'offline-events.remove';
 
 export function DeviceEventRemoval({
-  event: initialEvent,
+  event,
   onClose,
   onRemoved,
 }: {
@@ -40,7 +39,6 @@ export function DeviceEventRemoval({
   onRemoved: () => void;
 }) {
   const { t } = useTranslation();
-  const [event] = useState(initialEvent);
   const mutation = useSessionMutation({
     mutationFn: async () => {
       const context = createStockEventContext(event);

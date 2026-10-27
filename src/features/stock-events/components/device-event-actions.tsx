@@ -8,7 +8,7 @@ import {
   removeKey,
 } from '@/features/stock-events/components/device-event-removal';
 import { useRefusedEventRetry } from '@/features/stock-events/hooks/use-refused-event-retry';
-import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
+import { type DeviceEvent, sameDeviceAttempt } from '@/features/stock-events/lib/stock-event-sync';
 
 export function DeviceEventActions({
   event,
@@ -28,14 +28,7 @@ export function DeviceEventActions({
   const { t } = useTranslation();
   const inCards = useInCards();
   const [removing, setRemoving] = useState<DeviceEvent | null>(null);
-  if (
-    removing &&
-    (removing.localEventId !== event.localEventId ||
-      removing.status !== event.status ||
-      removing.revision !== event.revision ||
-      removing.attemptId !== event.attemptId)
-  )
-    setRemoving(null);
+  if (removing && !sameDeviceAttempt(removing, event)) setRemoving(null);
   const retry = useRefusedEventRetry(event, canSend, onRemoved);
   const actions: CardAction[] = [
     ...(retry.available

@@ -141,6 +141,12 @@ async function matching(
     return undefined;
   return { row, draft };
 }
+export const sameDeviceAttempt = (a: DeviceEvent, b: DeviceEvent) =>
+  a.localEventId === b.localEventId &&
+  a.status === b.status &&
+  a.revision === b.revision &&
+  a.attemptId === b.attemptId;
+
 function history(
   draft: StockEventDraft,
   event: QueuedStockEvent,

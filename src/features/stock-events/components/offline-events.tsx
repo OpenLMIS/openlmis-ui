@@ -64,6 +64,7 @@ import {
   OfflineEventPendingState,
 } from '@/features/stock-events/components/offline-event-state';
 import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
+import { deviceEventItems } from '@/features/stock-events/lib/device-event-details';
 import { EVENT_KINDS, OFFLINE_EVENT_TYPES } from '@/features/stock-events/lib/event-kinds';
 import { tabOf } from '@/features/stock-events/lib/offline-event-tabs';
 import {
@@ -154,10 +155,7 @@ function ActionsCell({ event }: { event: DeviceEvent }) {
   );
 }
 
-const eventLineCount = (event: DeviceEvent) =>
-  event.lines.length
-    ? Math.min(event.lines.length, event.payload.lineItems.length)
-    : event.payload.lineItems.length;
+const eventLineCount = (event: DeviceEvent) => deviceEventItems(event).length;
 
 const occurredDate = (event: DeviceEvent) =>
   [...new Set(event.payload.lineItems.map((line) => line.occurredDate).filter(Boolean))].sort();
