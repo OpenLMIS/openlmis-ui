@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { useTranslation } from 'react-i18next';
 import { CardListSkeleton } from '@/components/card-list';
@@ -13,21 +14,38 @@ import {
   RecordSummaryHeading,
 } from '@/components/record-summary';
 import { Skeleton } from '@/components/ui/skeleton';
+import { facilityOptions } from '@/features/reference-data/api/queries';
+import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 
-export function RequisitionHeaderSkeleton() {
+export function RequisitionHeaderSkeleton({ record }: { record?: RequisitionRecord }) {
+  const { data: facility } = useQuery({
+    ...facilityOptions(record?.facility.id ?? ''),
+    enabled: !!record,
+  });
+  const fields = [
+    'operator',
+    'district',
+    'region',
+    ...(facility?.geographicZone?.parent?.parent ? ['province'] : []),
+    'period',
+    ...(record?.datePhysicalStockCountCompleted ? ['physical-count'] : []),
+  ];
   return (
     <RecordSummary aria-busy>
       <RecordSummaryHeading>
-        <div className="h-4 w-32">
+        <div className="h-4 w-16">
           <Skeleton fill />
         </div>
-        <div className="h-4 w-24">
+        <div className="h-5 w-32">
+          <Skeleton fill />
+        </div>
+        <div className="h-5 w-32">
           <Skeleton fill />
         </div>
       </RecordSummaryHeading>
       <RecordSummaryFields>
-        {['operator', 'district', 'region', 'period'].map((id) => (
+        {fields.map((id) => (
           <RecordSummaryFieldSkeleton key={id} />
         ))}
       </RecordSummaryFields>
@@ -37,10 +55,13 @@ export function RequisitionHeaderSkeleton() {
 export function RequisitionCommentsSkeleton() {
   return (
     <div aria-busy className="flex flex-col gap-2">
-      <div className="h-4 w-56">
+      <div className="h-5 w-56">
         <Skeleton fill />
       </div>
-      <div className="h-8 w-32">
+      <div className="h-5 w-56">
+        <Skeleton fill />
+      </div>
+      <div className="h-9 w-32">
         <Skeleton fill />
       </div>
     </div>

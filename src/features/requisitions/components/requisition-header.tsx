@@ -27,22 +27,27 @@ export function RequisitionHeader({ record }: { record: RequisitionRecord }) {
   return (
     <RecordSummary>
       <RecordSummaryHeading>
-        <span>
-          {facility.code} - {facility.name}
+        <span className="text-muted-foreground text-xs">
+          {t('requisitions.requisition.facility')}
         </span>
-        <Badge variant={status.tone}>
-          <StatusIcon data-icon="inline-start" />
-          {t(status.labelKey)}
-        </Badge>
-        <Badge variant="outline">
-          {t(
-            record.emergency
-              ? 'requisitions.requisition.emergency'
-              : record.reportOnly
-                ? 'requisitions.requisition.report-only'
-                : 'requisitions.requisition.regular',
-          )}
-        </Badge>
+        <bdi className="break-words">
+          {facility.code} - {facility.name}
+        </bdi>
+        <div className="flex flex-wrap gap-1">
+          <Badge variant={status.tone}>
+            <StatusIcon data-icon="inline-start" />
+            {t(status.labelKey)}
+          </Badge>
+          <Badge variant="outline">
+            {t(
+              record.emergency
+                ? 'requisitions.requisition.emergency'
+                : record.reportOnly
+                  ? 'requisitions.requisition.report-only'
+                  : 'requisitions.requisition.regular',
+            )}
+          </Badge>
+        </div>
       </RecordSummaryHeading>
       <RecordSummaryFields>
         <RecordSummaryField label={t('requisitions.requisition.operated-by')}>
@@ -60,8 +65,11 @@ export function RequisitionHeader({ record }: { record: RequisitionRecord }) {
           </RecordSummaryField>
         )}
         <RecordSummaryField label={t('requisitions.requisition.period')}>
-          {period.name}: {formatDateValue(period.startDate, i18n.language)} -{' '}
-          {formatDateValue(period.endDate, i18n.language)}
+          {t('requisitions.requisition.period-range', {
+            name: period.name,
+            start: formatDateValue(period.startDate, i18n.language),
+            end: formatDateValue(period.endDate, i18n.language),
+          })}
         </RecordSummaryField>
         {record.datePhysicalStockCountCompleted && (
           <RecordSummaryField label={t('requisitions.requisition.physical-count-date')}>

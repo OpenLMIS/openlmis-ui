@@ -3,6 +3,9 @@ import { formatTimestamp } from '@/components/form/date-value';
 import {
   FormDialog,
   FormDialogBody,
+  FormDialogCancel,
+  FormDialogDescription,
+  FormDialogFooter,
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
@@ -17,15 +20,12 @@ export function StatusMessage({ message }: { message: RequisitionStatusMessage }
   return (
     <div className="flex flex-col gap-1">
       <p className="text-muted-foreground text-sm">
-        {t(REQUISITION_STATUS[message.status].labelKey)}
-        {author && (
-          <>
-            {' '}
-            - <bdi>{author}</bdi>
-          </>
-        )}{' '}
-        {t('requisitions.requisition.on')}{' '}
-        {formatTimestamp(message.createdDate, i18n.language, { time: true, timeZone })}
+        {t('requisitions.requisition.status-message', {
+          status: t(REQUISITION_STATUS[message.status].labelKey),
+          hasAuthor: author ? 'yes' : 'no',
+          author,
+          date: formatTimestamp(message.createdDate, i18n.language, { time: true, timeZone }),
+        })}
       </p>
       {message.body && (
         <p className="whitespace-pre-wrap break-words text-sm">
@@ -54,6 +54,9 @@ export function RequisitionHistoryDialog({
     >
       <FormDialogHeader>
         <FormDialogTitle>{t('requisitions.requisition.history')}</FormDialogTitle>
+        <FormDialogDescription>
+          {t('requisitions.requisition.history-description')}
+        </FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
         <div className="flex flex-col gap-4">
@@ -66,6 +69,9 @@ export function RequisitionHistoryDialog({
           )}
         </div>
       </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
+      </FormDialogFooter>
     </FormDialog>
   );
 }

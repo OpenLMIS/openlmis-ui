@@ -69,7 +69,7 @@ afterEach(() => {
 
 it('shows a missing requisition with a link back to the list search', async () => {
   const assertWarning = expectRouteWarning(
-    '/(protected)/_protected/requisitions/view/$requisitionId/requisitions/view/missing{}',
+    '/(protected)/_protected/requisitions/view/$requisitionId/requisitions/view/missing',
   );
   useLoginData.setState({ referenceDataUserId: 'u' });
   vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|p']);

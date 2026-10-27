@@ -43,7 +43,8 @@ export type RequisitionRecord = Omit<Requisition, 'requisitionLineItems'> & {
   statusHistory?: {
     status: RequisitionStatus;
     createdDate: string;
-    rejections?: {
+    statusMessageDto?: RequisitionStatusMessage | null;
+    rejectionDtos?: {
       id: string;
       rejectionReason: { name?: string; rejectionReasonCategory?: { name?: string } };
     }[];

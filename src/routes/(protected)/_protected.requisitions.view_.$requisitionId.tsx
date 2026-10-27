@@ -86,11 +86,6 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
     crumbParentSearch: (search) => requisitionSearchSchema.parse(search),
   },
   preload: false,
-  loaderDeps: ({ search }) => ({
-    tab: search.tab,
-    detailPage: search.detailPage,
-    detailSize: search.detailSize,
-  }),
   loader: async ({ context: { queryClient }, params, cause }) => {
     const userId = useLoginData.getState().referenceDataUserId;
     const options = requisitionOptions(params.requisitionId);
@@ -171,7 +166,7 @@ function RequisitionPage() {
           <QueryBoundary
             resetKey={record.id}
             errorComponent={SectionError}
-            pendingFallback={<RequisitionHeaderSkeleton />}
+            pendingFallback={<RequisitionHeaderSkeleton record={record} />}
           >
             <RequisitionHeader record={record} />
           </QueryBoundary>
@@ -284,7 +279,11 @@ function useRequisitionPolicy(data: RequisitionData) {
     ),
   ];
   const { data: nodes } = useSuspenseQuery(
-    supervisoryNodesByIdsOptions(record.supervisoryNode?.id ? [] : approvalNodes),
+    supervisoryNodesByIdsOptions(
+      !record.supervisoryNode && ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status)
+        ? approvalNodes
+        : [],
+    ),
   );
   const groups = useSuspenseQueries({
     queries: nodes.flatMap((node) =>
@@ -359,7 +358,15 @@ function RequisitionDetailTabs({
       setUnit={setUnit}
       canSwitch={canSwitch}
       tab={search.tab}
-      onTabChange={(tab) => onSearchChange({ tab, detailPage: undefined })}
+      onTabChange={(tab) =>
+        onSearchChange({
+          tab:
+            tab === (data.record.template.patientsTabEnabled ? 'patients' : 'fullSupply')
+              ? undefined
+              : tab,
+          detailPage: undefined,
+        })
+      }
       search={search}
       onSearchChange={onSearchChange}
       onAdjustments={onAdjustments}
