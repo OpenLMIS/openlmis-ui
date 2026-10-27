@@ -21,7 +21,7 @@ import ICU from 'i18next-icu';
 import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { toast } from 'sonner';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import fr from '@/../public/locales/fr.json';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
@@ -439,6 +439,11 @@ async function seedAdjustmentDraft() {
 
 describe('EventEditor', () => {
   it('reveals a cached hidden line when scanning makes its quantity match the keyword', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-20T12:00:00Z'));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const { user } = setup();
     await add(user);
     await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '11');
@@ -521,18 +526,18 @@ describe('EventEditor', () => {
     },
   );
 
-  it('keeps a quantity match visible while replacing 27 with 28', async () => {
+  it('keeps a quantity match visible while replacing 93 with 94', async () => {
     const { user } = setup();
     await add(user);
-    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '27');
-    await filter(user, '27');
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '93');
+    await filter(user, '93');
     const quantity = screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ });
     await user.clear(quantity);
-    await user.type(quantity, '28');
-    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('28');
-    await filter(user, '28');
-    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('28');
-    await filter(user, '27');
+    await user.type(quantity, '94');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('94');
+    await filter(user, '94');
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('94');
+    await filter(user, '93');
     expect(await screen.findByText('No Matching Products')).toBeInTheDocument();
   });
   it('shows Keywords directly and clears the search without submitting', async () => {
