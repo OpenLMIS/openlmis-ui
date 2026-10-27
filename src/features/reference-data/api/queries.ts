@@ -5,6 +5,8 @@ import {
   type FacilityProgramFilter,
   type FacilityTypeApprovedOrderablesFilter,
   fetchApprovedProducts,
+  fetchApprovedProductsByIdentities,
+  fetchCurrencySettings,
   fetchDeploymentTimeZone,
   fetchFacilitiesByIds,
   fetchFacility,
@@ -24,7 +26,9 @@ import {
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
   fetchOrganizations,
+  fetchProcessingPeriod,
   fetchProcessingSchedules,
+  fetchProgramLookup,
   fetchPrograms,
   fetchReasons,
   fetchRejectionReasonCategories,
@@ -370,3 +374,32 @@ export const requisitionGroupOptions = (id: string) =>
     queryKey: queryKeys.requisitionGroups.detail(id),
     queryFn: () => fetchRequisitionGroup(id),
   });
+
+export const processingPeriodOptions = (id: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.processingPeriods.all, 'lookup', id] as const,
+    queryFn: () => fetchProcessingPeriod(id),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+export const programLookupOptions = (id: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.programs.all, 'lookup', id] as const,
+    queryFn: () => fetchProgramLookup(id),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+export const currencySettingsOptions = () =>
+  queryOptions({
+    queryKey: [...queryKeys.localeSettings.all, 'currency'] as const,
+    queryFn: fetchCurrencySettings,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+export const approvedProductsByIdentitiesOptions = (identities: readonly OrderableIdentity[]) => {
+  const unique = [
+    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
+  ].sort((a, b) => a.id.localeCompare(b.id) || a.versionNumber - b.versionNumber);
+  return queryOptions({
+    queryKey: [...queryKeys.facilityTypeApprovedProducts.all, 'identities', unique] as const,
+    queryFn: () => fetchApprovedProductsByIdentities(unique),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+};

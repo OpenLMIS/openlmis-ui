@@ -9,6 +9,7 @@ import {
 } from '@/features/reference-data/lib/rejection-reasons';
 import type {
   ApprovedProduct,
+  CurrencySettings,
   Facility,
   FacilityOperator,
   FacilityType,
@@ -20,6 +21,7 @@ import type {
   OrderableDisplayCategory,
   OrderableFulfills,
   Organization,
+  ProcessingPeriod,
   ProcessingSchedule,
   Program,
   Reason,
@@ -464,4 +466,49 @@ export async function fetchProgramOrderables(
 export async function fetchRequisitionGroup(id: string): Promise<RequisitionGroup> {
   const { data } = await client.get<RequisitionGroup>(`/requisitionGroups/${id}`);
   return data;
+}
+
+export async function fetchProcessingPeriod(id: string) {
+  const { data } = await client.get<ProcessingPeriod>(`/processingPeriods/${id}`);
+  return data;
+}
+
+export async function fetchProgramLookup(id: string) {
+  const { data } = await client.get<Program>(`/programs/${id}`);
+  return data;
+}
+
+export async function fetchCurrencySettings() {
+  const { data } = await client.get<CurrencySettings>('/localeSettings', {
+    baseURL: '/',
+    anonymous: true,
+    connectionStatus: false,
+  });
+  return data;
+}
+
+export async function fetchApprovedProductsByIdentities(identities: readonly OrderableIdentity[]) {
+  const scope = getSessionScope();
+  const unique = [
+    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
+  ];
+  const batches = await fetchIdBatches(unique, async (batch) => {
+    const found: ApprovedProduct[] = [];
+    for (let page = 0; ; page += 1) {
+      assertSessionScope(scope);
+      const { data } = await client.post<Page<ApprovedProduct>>(
+        '/facilityTypeApprovedProducts/search',
+        {
+          identities: batch,
+          page,
+          size: BY_IDS_BATCH,
+        },
+      );
+      assertSessionScope(scope);
+      found.push(...data.content);
+      if (page + 1 >= data.totalPages) break;
+    }
+    return found;
+  });
+  return batches.flat();
 }

@@ -1,3 +1,7 @@
+import { productLabel } from '@/features/reference-data/lib/products';
+
+export { productLabel } from '@/features/reference-data/lib/products';
+
 import type {
   ApprovedProduct,
   LotSummary,
@@ -29,12 +33,6 @@ export const ADD_NEW_LOT = 'add-new-lot';
 export type ReceiveLotOption =
   | EventLotOption
   | { value: typeof ADD_NEW_LOT; lot: null; labelKey: 'stock-events.add-new-lot'; card?: never };
-
-export function productLabel(orderable: EventStockCard['orderable']): string {
-  const name = orderable.fullProductName || orderable.productCode;
-  const unit = orderable.dispensable?.displayUnit;
-  return unit ? `${name} - ${unit}` : name;
-}
 
 export function eventProductOptions(cards: readonly EventStockCard[]): EventProductOption[] {
   const products = new Map<string, EventProductOption>();

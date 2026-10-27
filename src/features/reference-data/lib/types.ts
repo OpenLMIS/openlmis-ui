@@ -18,7 +18,7 @@ export type Facility = {
   comment?: string | null;
   openLmisAccessible?: boolean | null;
   type: Pick<FacilityType, 'id' | 'code' | 'name'>;
-  geographicZone: Pick<GeographicZone, 'id' | 'code' | 'name' | 'level'>;
+  geographicZone: Pick<GeographicZone, 'id' | 'code' | 'name' | 'level' | 'parent'>;
   operator?: FacilityOperator | null;
   supportedPrograms?: SupportedProgram[];
   location?: unknown;
@@ -149,10 +149,17 @@ export type Orderable = {
   dispensable?: { displayUnit?: string | null; [key: string]: unknown };
   /** How many dispensing units make a pack. */
   netContent?: number | null;
+  packRoundingThreshold?: number | null;
+  roundToZero?: boolean;
   identifiers?: Record<string, string>;
   extraData?: { useVVM?: string } | null;
   programs?: {
     programId: string;
+    pricePerPack?: number | null;
+    dosesPerPatient?: number | null;
+    fullSupply?: boolean;
+    displayOrder?: number | null;
+    orderableCategoryDisplayOrder?: number | null;
     orderableDisplayCategoryId?: string | null;
     orderableCategoryDisplayName?: string | null;
   }[];
@@ -179,7 +186,12 @@ export type ValidReasonsFilter = { program: string; facilityType: string };
 
 export type TradeItem = { id: string; gtin?: string | null };
 
-export type ApprovedProduct = { id: string; orderable: Orderable };
+export type ApprovedProduct = {
+  id: string;
+  orderable: Orderable;
+  meta?: { versionNumber?: number };
+  maxPeriodsOfStock?: number | null;
+};
 
 export type OrderableFulfills = Record<
   string,
@@ -239,4 +251,22 @@ export type MemberFacility = {
   supportedPrograms?: SupportedProgram[];
   type?: { name?: string };
   geographicZone?: { name?: string };
+};
+
+export type ProcessingPeriod = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  durationInMonths: number;
+};
+
+export type CurrencySettings = {
+  currencyCode: string;
+  currencySymbol: string;
+  currencySymbolSide: 'left' | 'right';
+  currencyDecimalPlaces: number;
+  groupingSize: number;
+  groupingSeparator: string;
+  decimalSeparator: string;
 };

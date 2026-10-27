@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardListIcon, EyeIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
@@ -79,16 +80,12 @@ function ViewRequisition({
     program: record.program?.name ?? '',
     period: record.processingPeriod?.name ?? '',
   });
-  const params = new URLSearchParams(
-    Object.entries(search)
-      .filter(([, value]) => value !== undefined)
-      .map(([key, value]) => [key, String(value)]),
-  );
   const link = (
-    // biome-ignore lint/a11y/useAnchorContent: Button supplies the anchor content.
-    <a
+    <Link
       aria-label={name}
-      href={`${import.meta.env.BASE_URL}requisitions/view/${encodeURIComponent(record.id)}?${params}`}
+      to="/requisitions/view/$requisitionId"
+      params={{ requisitionId: record.id }}
+      search={search}
     />
   );
   if (cards)

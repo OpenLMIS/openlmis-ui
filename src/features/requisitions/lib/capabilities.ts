@@ -3,6 +3,7 @@ import type {
   RequisitionStatus,
   RequisitionTemplate,
 } from '@/features/requisitions/lib/requisition';
+import { RIGHTS } from '@/lib/rights';
 
 export type RequisitionAction =
   | 'sync'
@@ -34,9 +35,10 @@ export function requisitionCapabilities(
   gate: CapabilityGate = { actions: SHIPPED_ACTIONS, editing: SHIPPED_EDITING },
 ) {
   const { status, emergency, template, program, grants } = context;
-  const has = (right: string) => grants.includes(`REQUISITION_${right}`);
-  const creator = (status === 'INITIATED' || status === 'REJECTED') && has('CREATE');
-  const authorizer = status === 'SUBMITTED' && has('AUTHORIZE');
+  const has = (right: string) => grants.includes(right);
+  const creator =
+    (status === 'INITIATED' || status === 'REJECTED') && has(RIGHTS.requisitionCreate);
+  const authorizer = status === 'SUBMITTED' && has(RIGHTS.requisitionAuthorize);
   const approver =
     (status === 'AUTHORIZED' || status === 'IN_APPROVAL') &&
     !!context.currentNodeId &&
@@ -45,11 +47,11 @@ export function requisitionCapabilities(
   const skipColumn = template.columnsMap.skipped;
   const hasSkip = !!skipColumn?.isDisplayed;
   const canDelete =
-    has('DELETE') &&
-    ((['INITIATED', 'REJECTED', 'SKIPPED'].includes(status) && has('CREATE')) ||
-      (status === 'SUBMITTED' && has('AUTHORIZE')));
+    has(RIGHTS.requisitionDelete) &&
+    ((['INITIATED', 'REJECTED', 'SKIPPED'].includes(status) && has(RIGHTS.requisitionCreate)) ||
+      (status === 'SUBMITTED' && has(RIGHTS.requisitionAuthorize)));
   const allowed: RequisitionAction[] = [];
-  if (creator || authorizer || (approver && has('APPROVE'))) allowed.push('sync');
+  if (creator || authorizer || (approver && has(RIGHTS.requisitionApprove))) allowed.push('sync');
   if (creator) allowed.push(program.skipAuthorization ? 'submitAndAuthorize' : 'submit');
   if (authorizer) allowed.push('authorize');
   if (approver) {

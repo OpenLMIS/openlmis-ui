@@ -176,8 +176,7 @@ it.each([1200, 390])('keeps row details and navigation in the %ipx layout', asyn
   const link = screen.getByRole('button', { name: 'requisitions.view.action-name' });
   const destination = new URL(link.getAttribute('href') ?? '', 'http://localhost');
   expect(destination.pathname).toBe('/requisitions/view/r1');
-  expect(destination.searchParams.get('facility')).toBe('f');
-  expect(destination.searchParams.get('page')).toBe('3');
+  expect(Object.fromEntries(destination.searchParams)).toEqual({ facility: 'f', page: '3' });
   if (width === 1200) {
     const table = screen.getByRole('table');
     await userEvent.click(
