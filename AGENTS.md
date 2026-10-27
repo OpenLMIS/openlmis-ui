@@ -1011,8 +1011,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   catalogs across reloads regardless of age. Refresh preserves typed and scanned new lots.
   Pickers derive readiness with `programReadiness` from `readScopeState` states
   (ready, ineligible, missing, outdated).
-  Offline, rows stay disabled without a reason while the device is read, then show Not
-  Downloaded with a visible reason, or Ready.
+  Offline, rows stay disabled without a reason while the device is read. Then enable rows
+  that can open; unavailable rows show Not Downloaded with a visible reason.
   Keep downloaded balances separate from queued events. Stock On Hand reads downloaded home
   stock; Stock Card keeps viewed home histories per owner until replaced by a newer view. Check home
   scope and exact grants separately from route capability; show local absence, never a 404.
