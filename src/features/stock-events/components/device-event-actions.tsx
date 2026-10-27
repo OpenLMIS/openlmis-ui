@@ -27,7 +27,15 @@ export function DeviceEventActions({
 }) {
   const { t } = useTranslation();
   const inCards = useInCards();
-  const [removing, setRemoving] = useState(false);
+  const [removing, setRemoving] = useState<DeviceEvent | null>(null);
+  if (
+    removing &&
+    (removing.localEventId !== event.localEventId ||
+      removing.status !== event.status ||
+      removing.revision !== event.revision ||
+      removing.attemptId !== event.attemptId)
+  )
+    setRemoving(null);
   const retry = useRefusedEventRetry(event, canSend, onRemoved);
   const actions: CardAction[] = [
     ...(retry.available
@@ -60,7 +68,7 @@ export function DeviceEventActions({
             name: inCards ? removeLabel : undefined,
             destructive: true,
             disabled: retry.pending,
-            onSelect: () => setRemoving(true),
+            onSelect: () => setRemoving(event),
           },
         ]
       : []),
@@ -70,8 +78,8 @@ export function DeviceEventActions({
       <RowActions actions={actions} label={t('offline-events.actions-label', { event: label })} />
       {removing && (
         <DeviceEventRemoval
-          event={event}
-          onClose={() => setRemoving(false)}
+          event={removing}
+          onClose={() => setRemoving(null)}
           onRemoved={onRemoved}
         />
       )}

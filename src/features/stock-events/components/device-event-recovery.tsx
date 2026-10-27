@@ -102,7 +102,15 @@ export function DeviceEventRecovery({
   const offlineNavigation = useOfflineNavigationDialog();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [removing, setRemoving] = useState(false);
+  const [removing, setRemoving] = useState<DeviceEvent | null>(null);
+  if (
+    removing &&
+    (removing.localEventId !== event.localEventId ||
+      removing.status !== event.status ||
+      removing.revision !== event.revision ||
+      removing.attemptId !== event.attemptId)
+  )
+    setRemoving(null);
   const [confirmation, setConfirmation] = useState<RecoveryConfirmation | null>(null);
   if (
     confirmation &&
@@ -432,7 +440,7 @@ export function DeviceEventRecovery({
               </Button>
             )}
             {canRemoveDeviceEvent(event) && (
-              <Button variant="destructive" disabled={pending} onClick={() => setRemoving(true)}>
+              <Button variant="destructive" disabled={pending} onClick={() => setRemoving(event)}>
                 <Trash2Icon data-icon="inline-start" />
                 {t(removeKey(event))}
               </Button>
@@ -444,8 +452,8 @@ export function DeviceEventRecovery({
         </DialogContent>
         {removing && (
           <DeviceEventRemoval
-            event={event}
-            onClose={() => setRemoving(false)}
+            event={removing}
+            onClose={() => setRemoving(null)}
             onRemoved={() => {
               onRemoved?.();
               onClose();

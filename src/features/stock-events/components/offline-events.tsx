@@ -64,7 +64,6 @@ import {
   OfflineEventPendingState,
 } from '@/features/stock-events/components/offline-event-state';
 import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
-import { deviceEventDetails } from '@/features/stock-events/lib/device-event-details';
 import { EVENT_KINDS, OFFLINE_EVENT_TYPES } from '@/features/stock-events/lib/event-kinds';
 import { tabOf } from '@/features/stock-events/lib/offline-event-tabs';
 import {
@@ -155,6 +154,11 @@ function ActionsCell({ event }: { event: DeviceEvent }) {
   );
 }
 
+const eventLineCount = (event: DeviceEvent) =>
+  event.lines.length
+    ? Math.min(event.lines.length, event.payload.lineItems.length)
+    : event.payload.lineItems.length;
+
 const occurredDate = (event: DeviceEvent) =>
   [...new Set(event.payload.lineItems.map((line) => line.occurredDate).filter(Boolean))].sort();
 
@@ -178,7 +182,7 @@ function DetailsCell({ event }: { event: DeviceEvent }) {
   const context = use(EventCellsContext);
   const inCards = useInCards();
   const { t } = useTranslation();
-  const count = deviceEventDetails(event).length;
+  const count = eventLineCount(event);
   if (!context) return null;
   return (
     <Popover>
@@ -510,7 +514,7 @@ function OfflineEventsTable({
           timeZone,
         }),
         status: t(`offline-events.status-${event.status}`),
-        count: deviceEventDetails(event).length,
+        count: eventLineCount(event),
       }),
     [t, i18n.language, timeZone],
   );
