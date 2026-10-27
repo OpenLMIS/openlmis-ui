@@ -56,18 +56,18 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
   };
   const retry = () => {
     if (staleApp && canReloadIntoWorker()) {
-      whenLeaveAllowed(reloadPage);
+      whenLeaveAllowed(reloadPage, 'leave');
       return true;
     }
     const wasOnline = isOnline();
     seedOnline();
     if (offline && !(wasOnline && isOnline())) return;
-    if (staleApp) whenLeaveAllowed(() => reloadOnce(reloadPage) || rerun());
+    if (staleApp) whenLeaveAllowed(() => reloadOnce(reloadPage) || rerun(), 'leave');
     else rerun();
   };
   const offline = useOfflineFailure(error, retry, failedOffline && staleApp);
   useEffect(() => {
-    if (staleApp && isOnline()) whenLeaveAllowed(() => reloadOnce(reloadPage));
+    if (staleApp && isOnline()) whenLeaveAllowed(() => reloadOnce(reloadPage), 'leave');
   }, [staleApp]);
   // A route that needs a right it lacks, or a refusal from the server, is not an error.
   if (isForbidden(error)) return <NoAccessPage />;

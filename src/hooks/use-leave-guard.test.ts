@@ -22,7 +22,7 @@ describe('useLeaveGuard', () => {
     const proceed = vi.fn();
 
     whenLeaveAllowed(proceed);
-    expect(ask).toHaveBeenCalledWith(proceed);
+    expect(ask).toHaveBeenCalledWith(proceed, 'sign-out');
     expect(proceed).not.toHaveBeenCalled();
 
     rerender({ active: false });
@@ -39,7 +39,7 @@ describe('useLeaveGuard', () => {
     const proceed = vi.fn();
 
     whenLeaveAllowed(proceed);
-    expect(newer).toHaveBeenCalledWith(proceed);
+    expect(newer).toHaveBeenCalledWith(proceed, 'sign-out');
     expect(older).not.toHaveBeenCalled();
 
     a.unmount();
@@ -59,7 +59,7 @@ describe('useLeaveGuard', () => {
 
     b.rerender({ active: false });
     whenLeaveAllowed(proceed);
-    expect(first).toHaveBeenCalledWith(proceed);
+    expect(first).toHaveBeenCalledWith(proceed, 'sign-out');
     expect(proceed).not.toHaveBeenCalled();
 
     a.unmount();

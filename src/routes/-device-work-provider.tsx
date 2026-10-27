@@ -142,7 +142,7 @@ export function startDeviceWorkServices(
           allowUnload();
           window.location.reload();
         });
-      });
+      }, 'leave');
     }
   };
   const start = async () => {

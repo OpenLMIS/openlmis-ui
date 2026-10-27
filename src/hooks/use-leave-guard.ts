@@ -1,15 +1,17 @@
 import { useEffect } from 'react';
 
+export type LeaveIntent = 'sign-out' | 'leave';
+
 /** Asks the user, then calls `proceed` only if they agree to lose their changes. */
-type AskToLeave = (proceed: () => void) => void;
+type AskToLeave = (proceed: () => void, intent: LeaveIntent) => void;
 
 // Newest last, so the page registered most recently asks; one leaving takes its guard with it.
 const guards: AskToLeave[] = [];
 
 /** Runs `proceed` at once, or after the page with unsaved changes has asked and the user agreed. */
-export function whenLeaveAllowed(proceed: () => void) {
+export function whenLeaveAllowed(proceed: () => void, intent: LeaveIntent = 'sign-out') {
   const ask = guards.at(-1);
-  if (ask) ask(proceed);
+  if (ask) ask(proceed, intent);
   else proceed();
 }
 
