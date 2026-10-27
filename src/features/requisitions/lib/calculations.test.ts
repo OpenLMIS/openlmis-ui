@@ -1,8 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   calculateLine,
   calculateTotals,
-  displayQuantity,
   packsToShip,
 } from '@/features/requisitions/lib/calculations';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
@@ -43,6 +42,7 @@ function calculate(
 
 describe('server display calculations', () => {
   it.each([
+    [20, 10, -1, false, 2],
     [15, 10, 5, false, 1],
     [16, 10, 5, false, 2],
     [5, 10, 5, false, 1],
@@ -152,7 +152,7 @@ describe('server display calculations', () => {
       ),
     };
     expect(
-      calculate({ calculatedOrderQuantityIsa: 16, totalLossesAndAdjustments: 88 }, { template: t }),
+      calculate({ idealStockAmount: 16, totalLossesAndAdjustments: 88 }, { template: t }),
     ).toMatchObject({ totalLossesAndAdjustments: 88, packsToShip: 2 });
     expect(
       calculate({ adjustedConsumption: 99, requestedQuantity: 16 }, { emergency: true }),
@@ -194,12 +194,16 @@ describe('server display calculations', () => {
     const t = {
       columnsMap: Object.fromEntries(
         [
+          'stockOnHand',
           'numberOfPatientsOnTreatmentNextMonth',
           'totalRequirement',
           'totalQuantityNeededByHf',
           'quantityToIssue',
           'convertedQuantityToIssue',
-        ].map((name) => [name, column(name)]),
+        ].map((name) => [
+          name,
+          column(name, 0, name === 'stockOnHand' ? { source: 'USER_INPUT' } : {}),
+        ]),
       ),
     };
     expect(
@@ -233,6 +237,7 @@ describe('server display calculations', () => {
   it('uses each displayed patients input when deriving the next column', () => {
     const t = {
       columnsMap: {
+        stockOnHand: column('stockOnHand', 0, { source: 'USER_INPUT' }),
         totalRequirement: column('totalRequirement', 0, { source: 'USER_INPUT' }),
         totalQuantityNeededByHf: column('totalQuantityNeededByHf'),
         quantityToIssue: column('quantityToIssue'),
@@ -257,8 +262,172 @@ describe('server display calculations', () => {
       calculate({ totalConsumedQuantity: 11, totalStockoutDays: 19 }).adjustedConsumption,
     ).toBe(31);
   });
-  it('uses shared packs display and preserves empty values', () => {
-    expect(displayQuantity(-15, 10, 'PACKS')).toBe('-1 ( -5 )');
-    expect(displayQuantity(null, 10, 'PACKS')).toBeNull();
+});
+
+it('recalculates D even with a user-input source', () => {
+  expect(
+    calculate(
+      { totalLossesAndAdjustments: 99, stockAdjustments: [{ reasonId: 'credit', quantity: 4 }] },
+      {
+        template: {
+          columnsMap: {
+            totalLossesAndAdjustments: column('totalLossesAndAdjustments', 0, {
+              source: 'USER_INPUT',
+            }),
+          },
+        },
+        stockAdjustmentReasons: [{ reasonId: 'credit', reasonType: 'CREDIT' }],
+      },
+    ).totalLossesAndAdjustments,
+  ).toBe(4);
+});
+it.each(['stockOnHand', 'totalConsumedQuantity'] as const)(
+  'nulls hidden %s even when its source is calculated',
+  (name) => {
+    expect(
+      calculate(
+        { stockOnHand: 9, totalConsumedQuantity: 3, beginningBalance: 20 },
+        {
+          template: { columnsMap: { [name]: column(name, 0, { isDisplayed: false }) } },
+        },
+      )[name],
+    ).toBeNull();
+  },
+);
+it('calculates S from ISA minus zero when E is hidden', () => {
+  expect(
+    calculate(
+      { idealStockAmount: 30, stockOnHand: 99 },
+      {
+        template: {
+          columnsMap: {
+            stockOnHand: column('stockOnHand', 0, { isDisplayed: false, source: 'USER_INPUT' }),
+            calculatedOrderQuantityIsa: column('calculatedOrderQuantityIsa'),
+          },
+        },
+      },
+    ),
+  ).toMatchObject({ stockOnHand: null, calculatedOrderQuantityIsa: 30 });
+});
+it('recalculates displayed Y H I S regardless of their source', () => {
+  expect(
+    calculate(
+      {
+        beginningBalance: 10,
+        totalReceivedQuantity: 4,
+        averageConsumption: 5,
+        idealStockAmount: 30,
+        stockOnHand: 2,
+      },
+      {
+        template: {
+          columnsMap: Object.fromEntries(
+            [
+              'total',
+              'maximumStockQuantity',
+              'calculatedOrderQuantity',
+              'calculatedOrderQuantityIsa',
+              'stockOnHand',
+            ].map((name) => [name, column(name, 0, { source: 'USER_INPUT' })]),
+          ),
+        },
+      },
+    ),
+  ).toMatchObject({
+    total: 14,
+    maximumStockQuantity: 13,
+    calculatedOrderQuantity: 11,
+    calculatedOrderQuantityIsa: 28,
   });
+});
+it.each([
+  'AUTHORIZED',
+  'IN_APPROVAL',
+  'APPROVED',
+  'INITIATED',
+  'REJECTED',
+  'SUBMITTED',
+  'RELEASED',
+  'RELEASED_WITHOUT_ORDER',
+] as const)('limits stored TC overrides in %s', (status) => {
+  expect(
+    calculate(
+      { numberOfPatientsOnTreatmentNextMonth: 99 },
+      {
+        status,
+        patientsData: JSON.stringify({
+          TBData: [[{ key: 'numberOfAdultPatients', data: [{ value: 2 }, { value: 3 }] }]],
+          leprosyData: [[]],
+        }),
+        template: {
+          columnsMap: {
+            numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth'),
+          },
+        },
+      },
+      { productCode: '10010510AE' },
+    ).numberOfPatientsOnTreatmentNextMonth,
+  ).toBe(['AUTHORIZED', 'IN_APPROVAL', 'APPROVED'].includes(status) ? 99 : 5);
+});
+it('parses patients data once across lines of the same record and keeps records separate', () => {
+  const r = record({
+    patientsData: JSON.stringify({ TBData: [[]], leprosyData: [[]] }),
+    template: {
+      columnsMap: {
+        numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth'),
+      },
+    },
+    requisitionLineItems: [line(), line({ id: 'second' })],
+  });
+  const models = buildLines(r, [product()]);
+  const parse = vi.spyOn(JSON, 'parse');
+  for (const model of models) calculateLine(model, r, 1);
+  expect(parse).toHaveBeenCalledTimes(1);
+  const other = {
+    ...r,
+    patientsData: JSON.stringify({
+      TBData: [[{ key: 'numberOfAdultPatients', data: [{ value: 7 }] }]],
+      leprosyData: [[]],
+    }),
+  };
+  const model = buildLines(other, [product({ productCode: '10010510AE' })])[0];
+  if (!model) throw new Error('Missing model');
+  expect(calculateLine(model, other, 1).numberOfPatientsOnTreatmentNextMonth).toBe(7);
+  expect(parse).toHaveBeenCalledTimes(2);
+});
+
+it.each([
+  'total',
+  'maximumStockQuantity',
+  'calculatedOrderQuantity',
+  'calculatedOrderQuantityIsa',
+] as const)('keeps hidden %s stored', (name) => {
+  expect(
+    calculate(
+      { [name]: 99 },
+      { template: { columnsMap: { [name]: column(name, 0, { isDisplayed: false }) } } },
+    )[name],
+  ).toBe(99);
+});
+it('recalculates N and P when present regardless of display or source', () => {
+  expect(
+    calculate(
+      { totalConsumedQuantity: 5, adjustedConsumption: 99, averageConsumption: 99 },
+      {
+        template: {
+          columnsMap: {
+            totalConsumedQuantity: column('totalConsumedQuantity', 0, { source: 'USER_INPUT' }),
+            adjustedConsumption: column('adjustedConsumption', 0, {
+              source: 'USER_INPUT',
+              isDisplayed: false,
+            }),
+            averageConsumption: column('averageConsumption', 0, {
+              source: 'USER_INPUT',
+              isDisplayed: false,
+            }),
+          },
+        },
+      },
+    ),
+  ).toMatchObject({ adjustedConsumption: 5, averageConsumption: 5 });
 });

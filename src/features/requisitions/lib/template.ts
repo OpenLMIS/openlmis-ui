@@ -32,7 +32,6 @@ export type ColumnContext = {
   status: RequisitionStatus;
   emergency?: boolean;
   stockBased?: boolean;
-  patients?: boolean;
   supplyingStock?: boolean;
 };
 
@@ -91,8 +90,7 @@ export function compileColumns(
 ): GridColumn[] {
   if (context.tab === 'patients') return [];
   const afterAuthorization = approvalStatuses.has(context.status);
-  const patients = context.patients ?? template.patientsTabEnabled;
-  const approvalColumn = patients ? 'totalReceivedQuantity' : 'approvedQuantity';
+  const approvalColumn = template.patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity';
   const columns = Object.values(template.columnsMap)
     .filter((column) => {
       if (!column.isDisplayed) return false;

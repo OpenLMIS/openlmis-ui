@@ -66,26 +66,54 @@ export function patientsForProduct(data: PatientsData, code: string): number {
   }
 }
 
+export type PatientQuantities = {
+  totalRequirement: number | null;
+  totalQuantityNeededByHf: number | null;
+  quantityToIssue: number | null;
+  convertedQuantityToIssue: number | null;
+};
+
 export function calculatePatientQuantities(
   patients: number | null | undefined,
   doses: number | null | undefined,
   stockOnHand: number | null | undefined,
   netContent: number | null | undefined,
-) {
+  stored: Partial<PatientQuantities> = {},
+): PatientQuantities & { notAvailable: boolean } {
   if (!doses)
     return {
+      notAvailable: true,
       totalRequirement: null,
       totalQuantityNeededByHf: null,
       quantityToIssue: null,
       convertedQuantityToIssue: null,
     };
-  const totalRequirement = stockOnHand == null ? 0 : (patients ?? 0) * doses;
-  const totalQuantityNeededByHf = 2 * totalRequirement;
-  const quantityToIssue = Math.max(totalQuantityNeededByHf - (stockOnHand ?? 0), 0);
+  const totalRequirement =
+    stored.totalRequirement !== undefined
+      ? stored.totalRequirement
+      : stockOnHand == null
+        ? 0
+        : (patients ?? 0) * doses;
+  const totalQuantityNeededByHf =
+    stored.totalQuantityNeededByHf !== undefined
+      ? stored.totalQuantityNeededByHf
+      : stockOnHand == null
+        ? 0
+        : 2 * (totalRequirement ?? 0);
+  const quantityToIssue =
+    stored.quantityToIssue !== undefined
+      ? stored.quantityToIssue
+      : Math.max((totalQuantityNeededByHf ?? 0) - (stockOnHand ?? 0), 0);
   return {
+    notAvailable: false,
     totalRequirement,
     totalQuantityNeededByHf,
     quantityToIssue,
-    convertedQuantityToIssue: netContent ? Math.floor(quantityToIssue / netContent) : 0,
+    convertedQuantityToIssue:
+      stored.convertedQuantityToIssue !== undefined
+        ? stored.convertedQuantityToIssue
+        : netContent
+          ? Math.floor((quantityToIssue ?? 0) / netContent)
+          : 0,
   };
 }

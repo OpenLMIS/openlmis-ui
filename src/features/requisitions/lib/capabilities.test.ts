@@ -93,7 +93,12 @@ it('predicts approval at the current node, independently from facility APPROVE u
   expect(policy({ ...approval, isSplit: true }).actions).not.toContain('reject');
   expect(
     policy({ ...approval, program: { id: 'program', name: 'TB Monthly' } }).editableColumns,
-  ).toEqual(['totalReceivedQuantity', 'numberOfPatientsOnTreatmentNextMonth', 'remarks']);
+  ).toEqual([
+    'approvedQuantity',
+    'remarks',
+    'numberOfPatientsOnTreatmentNextMonth',
+    'totalReceivedQuantity',
+  ]);
 });
 it('limits product additions and line skipping, including approver unskip', () => {
   expect(policy({ emergency: true })).toMatchObject({
@@ -120,4 +125,55 @@ it('limits product additions and line skipping, including approver unskip', () =
       unskipWhenApproving: true,
     }).skipLines,
   ).toBe(false);
+});
+
+it.each([false, true])(
+  'uses patientsTabEnabled=%s for approval columns independently of the program name',
+  (patientsTabEnabled) => {
+    expect(
+      policy({ status: 'AUTHORIZED', template: { columnsMap: {}, patientsTabEnabled } })
+        .editableColumns,
+    ).toEqual([patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity', 'remarks']);
+    expect(
+      policy({
+        status: 'AUTHORIZED',
+        template: { columnsMap: {}, patientsTabEnabled },
+        program: { id: 'program', name: 'TB Monthly' },
+      }).editableColumns,
+    ).toEqual(
+      patientsTabEnabled
+        ? ['totalReceivedQuantity', 'remarks', 'numberOfPatientsOnTreatmentNextMonth']
+        : [
+            'approvedQuantity',
+            'remarks',
+            'numberOfPatientsOnTreatmentNextMonth',
+            'totalReceivedQuantity',
+          ],
+    );
+  },
+);
+it.each(['INITIATED', 'SUBMITTED'] as const)(
+  'excludes approval fields for the editor in %s',
+  (status) => {
+    expect(
+      policy({
+        status,
+        grants: ['REQUISITION_CREATE', 'REQUISITION_AUTHORIZE'],
+        template: {
+          columnsMap: Object.fromEntries(
+            ['requestedQuantity', 'approvedQuantity', 'remarks'].map((name) => [
+              name,
+              column(name, 0, { source: 'USER_INPUT' }),
+            ]),
+          ),
+        },
+      }).editableColumns,
+    ).toEqual(['requestedQuantity']);
+  },
+);
+it('denies delete on INITIATED with only CREATE', () => {
+  expect(policy({ grants: ['REQUISITION_CREATE'] }).actions).not.toContain('delete');
+  expect(
+    requisitionCapabilities({ ...context, grants: ['REQUISITION_CREATE'] }).deferred,
+  ).not.toContain('delete');
 });

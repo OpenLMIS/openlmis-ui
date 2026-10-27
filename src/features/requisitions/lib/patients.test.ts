@@ -61,6 +61,7 @@ it('preserves stored skip and enabled months without writing or sharing defaults
 });
 it('derives TE to TH, including empty E, shortage clamps and zero doses not available', () => {
   expect(calculatePatientQuantities(3, 10, 5, 10)).toEqual({
+    notAvailable: false,
     totalRequirement: 30,
     totalQuantityNeededByHf: 60,
     quantityToIssue: 55,
@@ -69,9 +70,31 @@ it('derives TE to TH, including empty E, shortage clamps and zero doses not avai
   expect(calculatePatientQuantities(3, 10, null, 10).totalRequirement).toBe(0);
   expect(calculatePatientQuantities(3, 10, 100, 10).quantityToIssue).toBe(0);
   expect(calculatePatientQuantities(3, 0, 5, 10)).toEqual({
+    notAvailable: true,
     totalRequirement: null,
     totalQuantityNeededByHf: null,
     quantityToIssue: null,
     convertedQuantityToIssue: null,
+  });
+});
+
+it('uses stored patient inputs for each subsequent calculation and preserves empty inputs', () => {
+  expect(calculatePatientQuantities(3, 10, 5, 10, { totalRequirement: 40 })).toMatchObject({
+    totalRequirement: 40,
+    totalQuantityNeededByHf: 80,
+    quantityToIssue: 75,
+    convertedQuantityToIssue: 7,
+  });
+  expect(calculatePatientQuantities(3, 10, 5, 10, { totalQuantityNeededByHf: 90 })).toMatchObject({
+    quantityToIssue: 85,
+    convertedQuantityToIssue: 8,
+  });
+  expect(calculatePatientQuantities(3, 10, 5, 10, { quantityToIssue: 105 })).toMatchObject({
+    convertedQuantityToIssue: 10,
+  });
+  expect(calculatePatientQuantities(3, 10, 5, 10, { totalRequirement: null })).toMatchObject({
+    notAvailable: false,
+    totalRequirement: null,
+    totalQuantityNeededByHf: 0,
   });
 });

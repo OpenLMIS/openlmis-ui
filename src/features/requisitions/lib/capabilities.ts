@@ -60,10 +60,13 @@ export function requisitionCapabilities(
   if (creator && !emergency && program.periodsSkippable && hasSkip) allowed.push('skip');
   allowed.push('print');
   const editable = gate.editing && canEdit;
-  const approvalColumns =
-    program.name === 'TB Monthly'
-      ? ['totalReceivedQuantity', 'numberOfPatientsOnTreatmentNextMonth', 'remarks']
-      : ['approvedQuantity', 'remarks'];
+  const approvalColumn = template.patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity';
+  const approvalColumns = [approvalColumn, 'remarks'];
+  if (program.name === 'TB Monthly') {
+    for (const name of ['numberOfPatientsOnTreatmentNextMonth', 'totalReceivedQuantity']) {
+      if (!approvalColumns.includes(name)) approvalColumns.push(name);
+    }
+  }
   return {
     editable,
     editableColumns: editable
@@ -74,6 +77,9 @@ export function requisitionCapabilities(
               (c) =>
                 c.isDisplayed &&
                 c.source === 'USER_INPUT' &&
+                c.name !== 'approvedQuantity' &&
+                c.name !== approvalColumn &&
+                c.name !== 'remarks' &&
                 !(
                   program.name === 'TB Monthly' &&
                   (c.name === 'totalReceivedQuantity' ||

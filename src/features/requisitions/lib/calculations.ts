@@ -1,22 +1,29 @@
 import type { RequisitionLine } from '@/features/requisitions/lib/lines';
 import {
   calculatePatientQuantities,
+  type PatientQuantities,
+  type PatientsData,
   parsePatients,
   patientsForProduct,
 } from '@/features/requisitions/lib/patients';
 import type { Requisition, RequisitionLineItem } from '@/features/requisitions/lib/requisition';
-import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 
 const preAuthorization = new Set(['INITIATED', 'REJECTED', 'SUBMITTED']);
 const patientOverrideStatuses = new Set(['AUTHORIZED', 'IN_APPROVAL', 'APPROVED']);
 const ratioScale = 10n ** 1000n;
 
-export const displayQuantity = (
-  quantity: number | null | undefined,
-  netContent: number | null | undefined,
-  unit: QuantityUnit,
-  language?: string,
-) => cardQuantity(quantity, netContent, unit, language);
+const patientsByRecord = new WeakMap<
+  Requisition,
+  { json: Requisition['patientsData']; data: PatientsData }
+>();
+
+function recordPatients(requisition: Requisition): PatientsData {
+  const cached = patientsByRecord.get(requisition);
+  if (cached && cached.json === requisition.patientsData) return cached.data;
+  const data = parsePatients(requisition.patientsData);
+  patientsByRecord.set(requisition, { json: requisition.patientsData, data });
+  return data;
+}
 
 export function packsToShip(
   quantity: number,
@@ -25,7 +32,9 @@ export function packsToShip(
   roundToZero = false,
 ): number {
   if (quantity <= 0 || !netContent || netContent < 0) return 0;
-  const packs = Math.floor(quantity / netContent) + (quantity % netContent > threshold ? 1 : 0);
+  const remainder = quantity % netContent;
+  const packs =
+    Math.floor(quantity / netContent) + (remainder > 0 && remainder > threshold ? 1 : 0);
   return packs === 0 && !roundToZero ? 1 : packs;
 }
 
@@ -90,9 +99,9 @@ export function calculateLine(
   if (line.skipped) return line;
   const { template } = requisition;
   const calculated = (name: string) => template.columnsMap[name]?.source === 'CALCULATED';
-  const stockBased = template.populateStockOnHandFromStockCards;
+  const displayed = (name: string) => template.columnsMap[name]?.isDisplayed;
   if (model.fullSupply && !requisition.emergency) {
-    if (calculated('totalLossesAndAdjustments') && !stockBased) {
+    if (!template.populateStockOnHandFromStockCards) {
       const reasons = new Map(
         requisition.stockAdjustmentReasons?.map((reason) => [reason.reasonId, reason]),
       );
@@ -105,12 +114,15 @@ export function calculateLine(
       (line.beginningBalance ?? 0) +
       (line.totalReceivedQuantity ?? 0) +
       (line.totalLossesAndAdjustments ?? 0);
-    if (calculated('stockOnHand')) line.stockOnHand = stock() - (line.totalConsumedQuantity ?? 0);
-    if (calculated('totalConsumedQuantity'))
+    if (!displayed('stockOnHand')) line.stockOnHand = null;
+    else if (calculated('stockOnHand'))
+      line.stockOnHand = stock() - (line.totalConsumedQuantity ?? 0);
+    if (!displayed('totalConsumedQuantity')) line.totalConsumedQuantity = null;
+    else if (calculated('totalConsumedQuantity'))
       line.totalConsumedQuantity = stock() - (line.stockOnHand ?? 0);
-    if (calculated('total'))
+    if (displayed('total'))
       line.total = (line.beginningBalance ?? 0) + (line.totalReceivedQuantity ?? 0);
-    if (calculated('adjustedConsumption')) {
+    if (template.columnsMap.adjustedConsumption) {
       line.adjustedConsumption = adjustedConsumption(
         line.totalConsumedQuantity ?? 0,
         30 * monthsInPeriod,
@@ -120,7 +132,7 @@ export function calculateLine(
           : 0,
       );
     }
-    if (calculated('averageConsumption')) {
+    if (template.columnsMap.averageConsumption) {
       const previous = line.previousAdjustedConsumptions ?? [];
       line.averageConsumption = template.enableAvgConsumptionForCurrentPeriod
         ? Math.ceil((line.adjustedConsumption ?? 0) / 2)
@@ -131,14 +143,14 @@ export function calculateLine(
     }
     const maxStock = () =>
       maximumStock(line.averageConsumption ?? 0, model.approvedProduct?.maxPeriodsOfStock ?? 0);
-    if (calculated('maximumStockQuantity')) line.maximumStockQuantity = maxStock();
-    if (calculated('calculatedOrderQuantity'))
+    if (displayed('maximumStockQuantity')) line.maximumStockQuantity = maxStock();
+    if (displayed('calculatedOrderQuantity'))
       line.calculatedOrderQuantity = Math.max(
         (line.maximumStockQuantity ?? maxStock()) -
           (line.stockOnHand ?? stock() - (line.totalConsumedQuantity ?? 0)),
         0,
       );
-    if (calculated('calculatedOrderQuantityIsa'))
+    if (displayed('calculatedOrderQuantityIsa'))
       line.calculatedOrderQuantityIsa =
         line.idealStockAmount == null
           ? null
@@ -148,7 +160,7 @@ export function calculateLine(
   line.dosesPerPatient = model.program?.dosesPerPatient ?? 0;
   if (calculated('numberOfPatientsOnTreatmentNextMonth')) {
     const patients = patientsForProduct(
-      parsePatients(requisition.patientsData),
+      recordPatients(requisition),
       model.product?.productCode ?? '',
     );
     line.numberOfPatientsOnTreatmentNextMonth =
@@ -157,29 +169,27 @@ export function calculateLine(
         ? line.numberOfPatientsOnTreatmentNextMonth
         : patients;
   }
+  const patientColumns = [
+    'totalRequirement',
+    'totalQuantityNeededByHf',
+    'quantityToIssue',
+    'convertedQuantityToIssue',
+  ] as const;
+  const stored: Partial<PatientQuantities> = {};
+  for (const name of patientColumns) {
+    if (!calculated(name)) stored[name] = line[name] ?? null;
+  }
   const patientValues = calculatePatientQuantities(
     line.numberOfPatientsOnTreatmentNextMonth,
     line.dosesPerPatient,
     line.stockOnHand,
     model.product?.netContent,
+    stored,
   );
-  if (calculated('totalRequirement')) line.totalRequirement = patientValues.totalRequirement;
-  if (calculated('totalQuantityNeededByHf'))
-    line.totalQuantityNeededByHf = !line.dosesPerPatient
-      ? null
-      : line.stockOnHand == null
-        ? 0
-        : 2 * (line.totalRequirement ?? 0);
-  if (calculated('quantityToIssue'))
-    line.quantityToIssue = !line.dosesPerPatient
-      ? null
-      : Math.max((line.totalQuantityNeededByHf ?? 0) - (line.stockOnHand ?? 0), 0);
-  if (calculated('convertedQuantityToIssue'))
-    line.convertedQuantityToIssue = !line.dosesPerPatient
-      ? null
-      : model.product?.netContent
-        ? Math.floor((line.quantityToIssue ?? 0) / model.product.netContent)
-        : 0;
+  line.patientQuantitiesNotAvailable = patientValues.notAvailable;
+  for (const name of patientColumns) {
+    if (calculated(name)) line[name] = patientValues[name];
+  }
   line.packsToShip = packsToShip(
     orderQuantity(line, requisition),
     model.product?.netContent,

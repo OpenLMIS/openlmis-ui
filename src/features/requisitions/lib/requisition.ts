@@ -103,6 +103,7 @@ export type RequisitionLineItem = {
   totalCost?: number | null;
   dosesPerPatient?: number | null;
   numberOfPatientsOnTreatmentNextMonth?: number | null;
+  patientQuantitiesNotAvailable?: boolean;
   totalRequirement?: number | null;
   totalQuantityNeededByHf?: number | null;
   quantityToIssue?: number | null;

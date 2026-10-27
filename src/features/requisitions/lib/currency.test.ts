@@ -26,7 +26,10 @@ it('uses deployment separators, grouping size, precision and symbol side', () =>
   ).toBe('1 23 45,678\u00a0€');
   expect(formatCurrency(12345.6, { ...settings, currencyDecimalPlaces: 0 })).toBe('$12,346');
 });
-it('uses the currency code when no symbol is configured and keeps missing amounts empty', () => {
-  expect(formatCurrency(12, { ...settings, currencySymbol: '' })).toBe('USD12.00');
+it('keeps an empty symbol when none is configured and keeps missing amounts empty', () => {
+  expect(formatCurrency(12, { ...settings, currencySymbol: '' })).toBe('12.00');
+  expect(formatCurrency(12, { ...settings, currencySymbol: '', currencySymbolSide: 'right' })).toBe(
+    '12.00\u00a0',
+  );
   expect(formatCurrency(null, settings)).toBeNull();
 });

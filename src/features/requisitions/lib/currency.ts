@@ -23,7 +23,7 @@ export function formatCurrency(
         )
       : integer;
   const amount = fraction == null ? grouped : `${grouped}${settings.decimalSeparator}${fraction}`;
-  const symbol = settings.currencySymbol || settings.currencyCode;
+  const symbol = settings.currencySymbol;
   return settings.currencySymbolSide === 'right'
     ? `${amount}\u00a0${symbol}`
     : `${symbol}${amount}`;
