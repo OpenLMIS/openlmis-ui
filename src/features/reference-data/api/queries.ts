@@ -28,6 +28,7 @@ import {
   fetchReasons,
   fetchRejectionReasonCategories,
   fetchRejectionReasons,
+  fetchRequisitionGroup,
   fetchRoles,
   fetchSupervisedFacilities,
   fetchSupervisoryNodes,
@@ -361,4 +362,10 @@ export const rejectionReasonsOptions = () =>
     queryKey: queryKeys.rejectionReasons.list(),
     queryFn: fetchRejectionReasons,
     staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const requisitionGroupOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.requisitionGroups.detail(id),
+    queryFn: () => fetchRequisitionGroup(id),
   });

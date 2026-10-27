@@ -1,10 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { facilitiesByIdsOptions } from '@/features/reference-data/api/queries';
-import {
-  fetchRequisitionGroup,
-  searchRequisitionGroups,
-} from '@/features/requisition-groups/api/api';
+import { searchRequisitionGroups } from '@/features/requisition-groups/api/api';
 import type {
   RequisitionGroup,
   RequisitionGroupsQuery,
@@ -57,8 +54,4 @@ export function requisitionGroupNodeFacilityIds(groups: RequisitionGroup[]) {
   ].sort();
 }
 
-export const requisitionGroupOptions = (id: string) =>
-  queryOptions({
-    queryKey: queryKeys.requisitionGroups.detail(id),
-    queryFn: () => fetchRequisitionGroup(id),
-  });
+export { requisitionGroupOptions } from '@/features/reference-data/api/queries';

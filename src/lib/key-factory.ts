@@ -30,6 +30,7 @@ export const queryKeys = {
   reasons: createQueryKeys('reasons'),
   rejectionReasonCategories: createQueryKeys('rejectionReasonCategories'),
   rejectionReasons: createQueryKeys('rejectionReasons'),
+  requisitions: createQueryKeys('requisitions'),
   requisitionGroups: createQueryKeys('requisitionGroups'),
   requisitionTemplates: createQueryKeys('requisitionTemplates'),
   rights: createQueryKeys('rights'),

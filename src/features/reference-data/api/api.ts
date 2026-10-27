@@ -25,6 +25,7 @@ import type {
   Reason,
   RejectionReason,
   RejectionReasonCategory,
+  RequisitionGroup,
   Role,
   SupervisoryNode,
   TradeItem,
@@ -458,4 +459,9 @@ export async function fetchProgramOrderables(
     if (page + 1 >= data.totalPages) break;
   }
   return products;
+}
+
+export async function fetchRequisitionGroup(id: string): Promise<RequisitionGroup> {
+  const { data } = await client.get<RequisitionGroup>(`/requisitionGroups/${id}`);
+  return data;
 }

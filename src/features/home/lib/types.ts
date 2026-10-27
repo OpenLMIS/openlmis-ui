@@ -1,13 +1,6 @@
-export type RequisitionStatus =
-  | 'INITIATED'
-  | 'REJECTED'
-  | 'SUBMITTED'
-  | 'AUTHORIZED'
-  | 'IN_APPROVAL'
-  | 'APPROVED'
-  | 'RELEASED'
-  | 'RELEASED_WITHOUT_ORDER'
-  | 'SKIPPED';
+import type { RequisitionStatus } from '@/lib/requisition-status';
+
+export type { RequisitionStatus } from '@/lib/requisition-status';
 
 export type RequisitionSummary = {
   id: string;

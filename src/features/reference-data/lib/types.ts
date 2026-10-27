@@ -103,6 +103,7 @@ export type SupervisoryNode = {
   name: string;
   facility?: { id: string } | null;
   partnerNodeOf?: { id: string } | null;
+  requisitionGroup?: { id: string } | null;
 };
 
 export type FacilityType = {
@@ -205,4 +206,37 @@ export type RejectionReason = {
   name: string;
   active: boolean;
   rejectionReasonCategory: RejectionReasonCategory;
+};
+
+export type RequisitionGroup = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  supervisoryNode: {
+    id: string;
+    code?: string;
+    name: string;
+    facility?: { id: string } | null;
+  };
+  requisitionGroupProgramSchedules: ProgramSchedule[];
+  memberFacilities: MemberFacility[];
+};
+
+export type ProgramSchedule = {
+  id?: string;
+  program: { id: string; name?: string };
+  processingSchedule: { id: string; code?: string; name?: string };
+  directDelivery: boolean;
+  dropOffFacility?: { id: string } | null;
+};
+
+export type MemberFacility = {
+  id: string;
+  code: string;
+  name: string;
+  enabled: boolean;
+  supportedPrograms?: SupportedProgram[];
+  type?: { name?: string };
+  geographicZone?: { name?: string };
 };

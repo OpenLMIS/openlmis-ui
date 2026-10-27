@@ -16,11 +16,6 @@ export async function searchRequisitionGroups(
   return data;
 }
 
-export async function fetchRequisitionGroup(id: string): Promise<RequisitionGroup> {
-  const { data } = await client.get<RequisitionGroup>(`/requisitionGroups/${id}`);
-  return data;
-}
-
 export async function createRequisitionGroup(body: RequisitionGroupBody) {
   const { data } = await client.post<RequisitionGroup>('/requisitionGroups', body);
   return data;
