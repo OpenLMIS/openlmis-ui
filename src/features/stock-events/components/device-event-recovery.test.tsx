@@ -41,6 +41,13 @@ vi.mock('@tanstack/react-router', async (original) => ({
   useNavigate: () => navigation,
 }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+vi.mock('@/components/data-table/responsive-columns', async (original) => ({
+  ...(await original<typeof import('@/components/data-table/responsive-columns')>()),
+  useElementWidth: () => {
+    const [element, measure] = useState<HTMLElement | null>(null);
+    return [measure, element?.closest('[role=dialog]') ? 736 : 0];
+  },
+}));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), warning: vi.fn() } }));
 vi.mock('@/features/stock-events/lib/device-event-status', () => ({
   wakeStockEventSync: vi.fn(),

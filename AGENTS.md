@@ -1011,6 +1011,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   still invalidate those entries.
 - Device data shows `SnapshotAlert` with its download time unless a refetch is in flight:
   You're offline when offline, Can't reach the server when the app counts as online.
+  Its times omit seconds. Pending-work notices pass `OfflineAlert` a `short` text shown below
+  `@2xl/main`. Event Details on phones keeps one main action and Close, with the rest in "...".
 - Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `homeStockPrograms`
   with event grants for event pickers. `useDownloadedScopes` applies caller acceptance offline.
   A kind's `download` lists datasets with acceptance: home stock takes a minimum format through
