@@ -29,6 +29,7 @@ export type RequisitionColumn = {
 };
 
 export type RequisitionTemplate = {
+  id?: string;
   columnsMap: Readonly<Record<string, RequisitionColumn>>;
   patientsTabEnabled?: boolean;
   populateStockOnHandFromStockCards?: boolean;

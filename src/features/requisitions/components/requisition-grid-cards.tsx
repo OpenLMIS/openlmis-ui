@@ -7,8 +7,8 @@ export const gridRowTone = (row: GridRow, supplyingStock: boolean) =>
   row.model?.line.skipped
     ? ('skipped' as const)
     : supplyingStock &&
-        row.model?.line.supplyingFacilityStockOnHand != null &&
-        (row.model.line.approvedQuantity ?? 0) > row.model.line.supplyingFacilityStockOnHand
+        (row.model?.line.approvedQuantity ?? 0) >
+          (row.model?.line.supplyingFacilityStockOnHand ?? 0)
       ? ('shortfall' as const)
       : undefined;
 
@@ -31,6 +31,7 @@ export function RequisitionGridCards({
       title="orderable.fullProductName"
       heading={(row) => row.category}
       tone={(row) => gridRowTone(row, supplyingStock)}
+      detailVisible={(_, id) => id !== 'orderable.productCode'}
       footer={footer}
       empty={empty}
       listRef={listRef}

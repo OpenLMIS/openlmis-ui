@@ -5,6 +5,7 @@ import { DataTableFilters } from '@/components/data-table/data-table-filters-pop
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
+import { Badge } from '@/components/ui/badge';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import type { GridSearch } from '@/features/requisitions/components/requisition-grid';
@@ -37,8 +38,8 @@ export function RequisitionGridToolbar({
   const { t } = useTranslation();
   const id = useId();
   return (
-    <DataTableToolbar align="end">
-      <div className="w-full @2xl/main:min-w-64 @2xl/main:flex-1">
+    <DataTableToolbar>
+      <div className="w-full @2xl/main:w-72">
         <DataTableSearch
           size="lg"
           placeholder={t('requisitions.requisition.search-products')}
@@ -49,7 +50,7 @@ export function RequisitionGridToolbar({
         />
       </div>
       {hideSkipped && (
-        <div className="flex-1 @2xl/main:flex-none">
+        <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
           <DataTableFilters
             size="lg"
             activeCount={search.skipped ? 1 : 0}
@@ -64,14 +65,15 @@ export function RequisitionGridToolbar({
                 }
               />
               <FieldLabel htmlFor={id}>
-                {t('requisitions.requisition.show-skipped', { count: skippedCount })}
+                {t('requisitions.requisition.show-skipped')}
+                <Badge variant="secondary">{skippedCount.toLocaleString()}</Badge>
               </FieldLabel>
             </Field>
           </DataTableFilters>
         </div>
       )}
       {canSwitch && <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />}
-      <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
+      <div className={hideSkipped ? 'shrink-0' : 'ms-auto shrink-0'}>
         <DataTableViewOptions
           size="lg"
           layout={view.layout}

@@ -87,7 +87,7 @@ export function RequisitionTabs({
             <PatientsGrid patientsData={record.patientsData} />
           ) : (
             <RequisitionGrid
-              key={`${record.id}:${(record.template as { id?: string }).id ?? 'template'}`}
+              key={`${record.id}:${record.template.id ?? 'template'}`}
               record={record}
               tab={value}
               search={search}

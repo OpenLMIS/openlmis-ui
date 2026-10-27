@@ -160,37 +160,36 @@ export function RequisitionGridView({
         tab,
         status: record.status,
         emergency: record.emergency,
-        supplyingStock,
-      }).map((column) =>
-        column.kind === 'packSize'
-          ? { ...column, label: t('requisitions.requisition.pack-size') }
-          : {
-              ...column,
-              definition: column.definition.replace(
-                'Total losses and adjustments modal is disabled for stock based requisitions.',
-                t('requisitions.adjustments.stock-based-note'),
-              ),
-            },
-      ),
+        supplyingStock: supplyingStock && !record.supplyingFacilityAccessDenied,
+      }).map((column) => ({
+        ...column,
+        label: column.kind === 'packSize' ? t('requisitions.requisition.pack-size') : column.label,
+        definition: column.stockBasedNote
+          ? [column.definition, t('requisitions.adjustments.stock-based-note')]
+              .filter(Boolean)
+              .join(' ')
+          : column.definition,
+      })),
     [record, tab, supplyingStock, t],
   );
   const hideable = useMemo(
     () => columns.filter((column) => !column.sticky).map((column) => ({ id: column.name })),
     [columns],
   );
-  const templateId =
-    (record.template as { id?: string }).id ??
-    Object.keys(record.template.columnsMap).sort().join(':');
+  const templateId = record.template.id ?? Object.keys(record.template.columnsMap).sort().join(':');
   const view = useCardView(hideable, `requisition-columns:${templateId}`);
   const selected = useMemo(() => splitLines(models)[tab], [models, tab]);
   const filtered = useMemo(
     () =>
       filterLines(selected, {
-        template: record.template,
+        template:
+          tab === 'fullSupply' && columns.some((column) => column.kind === 'skip')
+            ? record.template
+            : undefined,
         product: search.product,
         showSkipped: search.skipped,
       }),
-    [selected, record.template, search.product, search.skipped],
+    [selected, record.template, tab, columns, search.product, search.skipped],
   );
   const pagination = toPaginationState(detailTableSearch(search));
   const pageIndex = Math.min(
@@ -278,20 +277,30 @@ export function RequisitionGridView({
       ),
     ),
   });
+  const supplyingHasStock =
+    supplyingStock &&
+    !record.supplyingFacilityAccessDenied &&
+    !!record.supplyingFacilities?.length &&
+    models.some((model) => model.line.supplyingFacilityStockOnHand != null);
   const empty = (
     <DataTableEmpty
       action={
-        search.product ? (
+        search.product || search.skipped ? (
           <Button
-            variant="outline"
-            onClick={() => onSearchChange({ product: undefined, detailPage: undefined }, true)}
+            variant="destructive"
+            onClick={() =>
+              onSearchChange(
+                { product: undefined, skipped: undefined, detailPage: undefined },
+                true,
+              )
+            }
           >
             {t('data-table.clear-filters')}
           </Button>
         ) : undefined
       }
       title={t(
-        search.product
+        search.product || search.skipped
           ? 'requisitions.requisition.no-matching-products'
           : tab === 'fullSupply'
             ? 'requisitions.requisition.empty-full-supply'
@@ -311,6 +320,8 @@ export function RequisitionGridView({
         search={search}
         onSearchChange={onSearchChange}
         hideSkipped={
+          tab === 'fullSupply' &&
+          columns.some((column) => column.kind === 'skip') &&
           record.template.columnsMap.skipped?.option?.optionName === 'hideSkippedLineItems'
         }
         skippedCount={selected.filter((model) => model.line.skipped).length}
@@ -324,7 +335,7 @@ export function RequisitionGridView({
           footer={footer}
           empty={empty}
           listRef={pageStart.ref}
-          supplyingStock={supplyingStock}
+          supplyingStock={supplyingHasStock}
         />
       ) : (
         <DataTableCard>
@@ -368,7 +379,7 @@ export function RequisitionGridView({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    <TableRow key={row.id} tone={gridRowTone(row.original, supplyingStock)}>
+                    <TableRow key={row.id} tone={gridRowTone(row.original, supplyingHasStock)}>
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
                           <FlexRender cell={cell} />
@@ -478,6 +489,14 @@ function renderValue(
           : number == null
             ? null
             : new Intl.NumberFormat(context.language).format(number);
+      const quantity =
+        text != null &&
+        context.unit === 'PACKS' &&
+        (column.convertsToPacks || column.kind === 'supplyingStock') ? (
+          <bdi dir="ltr">{text}</bdi>
+        ) : (
+          text
+        );
       return column.kind === 'adjustments' && !context.stockBased && text != null ? (
         <Button
           size="sm"
@@ -485,11 +504,11 @@ function renderValue(
           onClick={() => context.onAdjustments(line.id)}
           aria-label={`${column.label}: ${product?.fullProductName ?? product?.productCode ?? ''}`}
         >
-          {text}
+          {quantity}
           <ChevronRightIcon data-icon="inline-end" className="rtl:rotate-180" />
         </Button>
       ) : (
-        text
+        quantity
       );
     }
   }

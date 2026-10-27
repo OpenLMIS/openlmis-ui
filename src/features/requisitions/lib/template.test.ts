@@ -113,7 +113,7 @@ describe('compileColumns', () => {
       convertsToPacks: true,
       userInput: true,
     });
-    expect(result[0]?.definition).toContain('stock based requisitions');
+    expect(result[0]).toMatchObject({ definition: 'Snapshot', stockBasedNote: true });
   });
 });
 

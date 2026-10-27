@@ -5,6 +5,7 @@ import { CardListSkeleton } from '@/components/card-list';
 import {
   type DataTableFeatures,
   DataTableSkeleton,
+  DataTableToolbar,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import {
@@ -84,7 +85,13 @@ const PENDING_COLUMNS = [
   'remarks',
 ] as const;
 const NO_LINES: never[] = [];
-export function RequisitionGridPending() {
+export function RequisitionGridPending({
+  hideSkipped = false,
+  canSwitch = false,
+}: {
+  hideSkipped?: boolean;
+  canSwitch?: boolean;
+}) {
   const { t } = useTranslation();
   const table = useTable({
     columns: PENDING_COLUMNS.map((id) =>
@@ -96,20 +103,24 @@ export function RequisitionGridPending() {
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <div aria-busy ref={measure} className="flex flex-col gap-4">
-      <div className="flex flex-wrap justify-end gap-2">
-        <div className="h-9 flex-1">
+      <DataTableToolbar>
+        <div className="h-9 w-full @2xl/main:w-72">
           <Skeleton fill />
         </div>
-        <div className="h-9 w-20">
+        {hideSkipped && (
+          <div className="h-9 flex-1 @2xl/main:me-auto @2xl/main:w-24 @2xl/main:flex-none">
+            <Skeleton fill />
+          </div>
+        )}
+        {canSwitch && (
+          <div className="h-9 w-36">
+            <Skeleton fill />
+          </div>
+        )}
+        <div className={hideSkipped ? 'h-9 w-20' : 'ms-auto h-9 w-20'}>
           <Skeleton fill />
         </div>
-        <div className="h-9 w-36">
-          <Skeleton fill />
-        </div>
-        <div className="h-9 w-20">
-          <Skeleton fill />
-        </div>
-      </div>
+      </DataTableToolbar>
       {cards ? (
         <CardListSkeleton count={10} rows={5} />
       ) : (

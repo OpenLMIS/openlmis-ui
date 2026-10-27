@@ -1,6 +1,7 @@
 import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps } from '@tanstack/react-router';
 import { ClipboardListIcon, PrinterIcon } from 'lucide-react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { ActionTooltip } from '@/components/action-tooltip';
@@ -141,6 +142,12 @@ function RequisitionPage() {
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<typeof search>(CLOSED_DIALOGS);
   const { unit, setUnit, canSwitch } = useQuantityUnit();
+  const onAdjustments = useCallback(
+    (adjustments: string) => {
+      void openDialog({ adjustments });
+    },
+    [openDialog],
+  );
   const userId = useReloadForUser(
     data?.userId,
     requisitionOptions(Route.useParams().requisitionId).queryKey,
@@ -193,7 +200,16 @@ function RequisitionPage() {
             pendingFallback={
               <>
                 <RequisitionTabsSkeleton />
-                <RequisitionGridPending />
+                <RequisitionGridPending
+                  hideSkipped={
+                    search.tab !== 'nonFullSupply' &&
+                    !record.emergency &&
+                    !!record.template.columnsMap.skipped?.isDisplayed &&
+                    record.template.columnsMap.skipped?.option?.optionName ===
+                      'hideSkippedLineItems'
+                  }
+                  canSwitch={canSwitch}
+                />
               </>
             }
           >
@@ -204,7 +220,7 @@ function RequisitionPage() {
               canSwitch={canSwitch}
               search={search}
               onSearchChange={updateSearch}
-              onAdjustments={(adjustments) => void openDialog({ adjustments })}
+              onAdjustments={onAdjustments}
               onCloseAdjustments={closeDialog}
             />
           </QueryBoundary>

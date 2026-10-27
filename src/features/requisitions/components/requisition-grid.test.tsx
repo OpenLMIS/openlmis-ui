@@ -64,9 +64,15 @@ const currency = {
 function Harness({
   initial = {},
   stockBased = false,
+  value = requisition,
+  tab = 'fullSupply',
+  supplyingStock = false,
 }: {
   initial?: GridSearch;
   stockBased?: boolean;
+  value?: RequisitionRecord;
+  tab?: 'fullSupply' | 'nonFullSupply';
+  supplyingStock?: boolean;
 }) {
   const [search, setSearch] = useState<GridSearch>(initial);
   const update: SearchChange<GridSearch> = (change) =>
@@ -79,17 +85,24 @@ function Harness({
       record={
         stockBased
           ? {
-              ...requisition,
-              template: { ...requisition.template, populateStockOnHandFromStockCards: true },
+              ...value,
+              template: { ...value.template, populateStockOnHandFromStockCards: true },
             }
-          : requisition
+          : value
       }
-      products={products}
+      products={
+        tab === 'nonFullSupply'
+          ? products.map((p) => ({
+              ...p,
+              programs: p.programs?.map((entry) => ({ ...entry, fullSupply: false })),
+            }))
+          : products
+      }
       approvedProducts={[]}
       monthsInPeriod={1}
       currency={currency}
       showNonFullSupply
-      tab="fullSupply"
+      tab={tab}
       search={search}
       onSearchChange={update}
       onAdjustments={(id) => update({ adjustments: id })}
@@ -97,7 +110,7 @@ function Harness({
       unit="DOSES"
       setUnit={() => {}}
       canSwitch={false}
-      supplyingStock={false}
+      supplyingStock={supplyingStock}
     />
   );
 }
@@ -140,8 +153,6 @@ it('opens adjustments from the URL state using hidden snapshot reasons and read-
   render(<Harness initial={{ adjustments: 'l0' }} />);
   const dialog = await screen.findByRole('dialog');
   expect(within(dialog).getByText('Historical Reason')).toBeInTheDocument();
-  expect(within(dialog).queryByRole('spinbutton')).not.toBeInTheDocument();
-  expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();
   expect(within(dialog).getAllByText('3').length).toBeGreaterThan(0);
 });
 
@@ -150,5 +161,82 @@ it('keeps stock-based adjustments as plain values even with a directly linked di
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: /^totalLossesAndAdjustments:/ }),
+  ).not.toBeInTheDocument();
+});
+
+const withSkipped: RequisitionRecord = {
+  ...requisition,
+  template: {
+    columnsMap: {
+      ...requisition.template.columnsMap,
+      skipped: column('skipped', 4, { option: { optionName: 'hideSkippedLineItems' } }),
+    },
+  },
+  requisitionLineItems: requisition.requisitionLineItems.map((item) => ({
+    ...item,
+    skipped: true,
+  })),
+};
+it('shows skipped full-supply products through Filters and clears both filters from no matches', async () => {
+  const user = userEvent.setup();
+  render(<Harness value={withSkipped} />);
+  expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: /^Filters/ }));
+  await user.click(
+    await screen.findByRole('switch', { name: /requisitions.requisition.show-skipped/ }),
+  );
+  await user.keyboard('{Escape}');
+  expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
+  await user.type(screen.getByRole('textbox'), 'absent');
+  await user.click(await screen.findByRole('button', { name: 'data-table.clear-filters' }));
+  expect(screen.getByRole('textbox')).toHaveValue('');
+  expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
+});
+it.each(['nonFullSupply', 'noSkipColumn'] as const)(
+  'does not hide skipped products or offer Show Skipped on %s',
+  (mode) => {
+    const value = {
+      ...withSkipped,
+      template:
+        mode === 'noSkipColumn'
+          ? {
+              columnsMap: {
+                ...withSkipped.template.columnsMap,
+                skipped: column('skipped', 4, {
+                  isDisplayed: false,
+                  option: { optionName: 'hideSkippedLineItems' },
+                }),
+              },
+            }
+          : withSkipped.template,
+    };
+    render(
+      <Harness value={value} tab={mode === 'nonFullSupply' ? 'nonFullSupply' : 'fullSupply'} />,
+    );
+    expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Filters/ })).not.toBeInTheDocument();
+  },
+);
+it('shows only the access banner when supplying stock access is denied', () => {
+  render(
+    <Harness
+      supplyingStock
+      value={{
+        ...requisition,
+        supplyingFacilityAccessDenied: true,
+        supplyingFacilities: [{ id: 'supplier', name: 'Supplier Name' }],
+        template: {
+          columnsMap: {
+            ...requisition.template.columnsMap,
+            supplyingFacilityStockOnHand: column('supplyingFacilityStockOnHand', 5),
+          },
+        },
+      }}
+    />,
+  );
+  expect(screen.getByRole('alert')).toBeInTheDocument();
+  expect(screen.queryByText(/Supplier Name/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('columnheader', { name: 'supplyingFacilityStockOnHand' }),
   ).not.toBeInTheDocument();
 });

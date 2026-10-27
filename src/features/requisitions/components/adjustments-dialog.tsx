@@ -1,15 +1,19 @@
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { useTranslation } from 'react-i18next';
+import { CardRows } from '@/components/card-list';
 import {
   DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DialogTable } from '@/components/dialog-table';
+import { SettingsItem } from '@/components/form/settings-list';
 import {
   FormDialog,
   FormDialogBody,
+  FormDialogCancel,
   FormDialogDescription,
+  FormDialogFooter,
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
@@ -33,8 +37,9 @@ export function AdjustmentsDialog({
 }) {
   const { t, i18n } = useTranslation();
   const { measure, cards } = useDialogCardLayout('table');
-  const quantity = (value: number | null | undefined) =>
-    cardQuantity(value, model.product?.netContent, unit, i18n.language);
+  const quantity = (value: number | null | undefined) => (
+    <bdi dir="ltr">{cardQuantity(value, model.product?.netContent, unit, i18n.language)}</bdi>
+  );
   const table = useTable({
     features: dataTableFeatures,
     columns: helper.columns([
@@ -79,12 +84,27 @@ export function AdjustmentsDialog({
               layout="auto"
               empty={<DataTableEmpty title={t('requisitions.adjustments.empty')} />}
             />
-            <div className="flex shrink-0 justify-end gap-2 text-sm">
-              <strong>{t('requisitions.requisition.total')}</strong>
-              <bdi>{quantity(model.line.totalLossesAndAdjustments)}</bdi>
-            </div>
+            {cards ? (
+              <div className="shrink-0 overflow-hidden rounded-xl border bg-card">
+                <CardRows>
+                  <SettingsItem label={<strong>{t('requisitions.requisition.total')}</strong>}>
+                    <strong>{quantity(model.line.totalLossesAndAdjustments)}</strong>
+                  </SettingsItem>
+                </CardRows>
+              </div>
+            ) : (
+              <div className="flex shrink-0 flex-wrap justify-end gap-2 text-sm">
+                <span>
+                  <strong>{t('requisitions.requisition.total')}</strong>{' '}
+                  {quantity(model.line.totalLossesAndAdjustments)}
+                </span>
+              </div>
+            )}
           </div>
         </FormDialogBody>
+        <FormDialogFooter>
+          <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
+        </FormDialogFooter>
       </div>
     </FormDialog>
   );

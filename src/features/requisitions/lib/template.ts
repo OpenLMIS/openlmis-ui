@@ -21,6 +21,7 @@ export type GridColumn = {
   indicator: string;
   label: string;
   definition: string;
+  stockBasedNote?: boolean;
   source: ColumnSource;
   kind: GridColumnKind;
   convertsToPacks: boolean;
@@ -119,7 +120,7 @@ export function compileColumns(
           {
             name: 'packSize',
             indicator: '',
-            label: 'Pack Size',
+            label: '',
             definition: '',
             source: 'REFERENCE_DATA' as const,
             kind: 'packSize' as const,
@@ -138,14 +139,8 @@ function compileColumn(column: RequisitionColumn, stockBased: boolean): GridColu
     name: column.name,
     indicator: column.indicator ?? '',
     label: column.label,
-    definition: [
-      column.definition,
-      stockBased && column.name === 'totalLossesAndAdjustments'
-        ? 'Total losses and adjustments modal is disabled for stock based requisitions.'
-        : null,
-    ]
-      .filter(Boolean)
-      .join(' '),
+    definition: column.definition ?? '',
+    stockBasedNote: stockBased && column.name === 'totalLossesAndAdjustments',
     source: column.source,
     kind:
       kinds[column.name] ??
