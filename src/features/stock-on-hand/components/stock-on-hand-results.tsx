@@ -25,7 +25,6 @@ import {
   DataTablePagination,
   DataTablePaginationSkeleton,
 } from '@/components/data-table/data-table-pagination';
-import { WrappingCell } from '@/components/data-table/wrapping-cell';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { PendingWorkAlert, SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
@@ -39,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { WrappingCell } from '@/components/wrapping-cell';
 import { productName } from '@/features/reference-data/lib/product-name';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import {

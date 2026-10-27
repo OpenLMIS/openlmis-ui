@@ -22,10 +22,10 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { WrappingCell } from '@/components/data-table/wrapping-cell';
 import { formatTimestamp } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
+import { WrappingCell } from '@/components/wrapping-cell';
 import { stockEventsOptions } from '@/features/stock-events/api/queries';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import {

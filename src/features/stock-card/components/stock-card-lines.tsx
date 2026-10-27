@@ -19,9 +19,9 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { WrappingCell } from '@/components/data-table/wrapping-cell';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
+import { WrappingCell } from '@/components/wrapping-cell';
 import { toCardLines } from '@/features/stock-card/lib/card-lines';
 import {
   type CardPagingSearch,
