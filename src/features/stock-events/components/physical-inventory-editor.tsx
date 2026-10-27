@@ -979,7 +979,6 @@ function InventoryDraftRows({
             open={dialogOpen}
             onOpenChangeComplete={onOpenChangeComplete}
             line={dialogLine}
-            cards={cards}
             reasons={reasons}
             unit={quantityUnit.unit}
             onClose={closeDialog}
@@ -1060,6 +1059,8 @@ function InventoryDraftRows({
   );
 }
 
+const EMPTY_INVALID_KEYS: string[] = [];
+
 function InventoryPagination({
   table,
   form,
@@ -1078,13 +1079,15 @@ function InventoryPagination({
   const invalid = useStore(
     form.store,
     (state) =>
-      Object.values(state.values.lines)
-        .filter(
-          (line) =>
-            (includeInactive || !(!line.active && line.stockOnHand === 0)) &&
-            inventoryLineError(line),
-        )
-        .map((line) => line.key),
+      validationAttempted
+        ? Object.values(state.values.lines)
+            .filter(
+              (line) =>
+                (includeInactive || !(!line.active && line.stockOnHand === 0)) &&
+                inventoryLineError(line),
+            )
+            .map((line) => line.key)
+        : EMPTY_INVALID_KEYS,
     (previous, next) => previous.join() === next.join(),
   );
   const keys = new Set(invalid);

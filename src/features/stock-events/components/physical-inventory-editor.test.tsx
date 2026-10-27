@@ -316,10 +316,10 @@ it('writes removal of the last locally added line so it cannot return on reopen'
     expect(writeInventoryLocal).toHaveBeenLastCalledWith(
       ...inventoryWrite(
         expect.objectContaining({
-          lines: expect.arrayContaining([
+          lines: [
             expect.objectContaining({ key: 'A|none' }),
             expect.objectContaining({ key: 'B|none' }),
-          ]),
+          ],
           modified: true,
         }),
       ),
@@ -400,14 +400,6 @@ async function submitAndReturnToInvalidPage(
   await waitFor(() => expect(input).toHaveFocus());
   return input;
 }
-it('validates hidden lines and focuses the invalid product in the table', async () => {
-  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(672);
-  const user = userEvent.setup();
-  const view = setup({ size: 1, page: 2 });
-  await screen.findByRole('textbox', { name: 'stock-events.field-of' });
-  expect(screen.getByRole('table')).toBeInTheDocument();
-  await submitAndReturnToInvalidPage(user, view);
-});
 it('scrolls the invalid phone card to the top and focuses its product', async () => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
   const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');

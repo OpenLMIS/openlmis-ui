@@ -255,3 +255,28 @@ it('preserves the stored offline baseline when removed lines are absent from the
   expect(result.baselineKeys).toEqual(baselineKeys);
   expect(result.removedKeys).toEqual(['removed|none']);
 });
+
+it('finds the first invalid line in category display order on a late page', () => {
+  const items = Array.from({ length: 100 }, (_, index) => {
+    const id = String(index).padStart(3, '0');
+    return {
+      ...lines()[0],
+      key: id,
+      orderable: {
+        ...product,
+        id,
+        productCode: id,
+        programs: [
+          {
+            programId: 'program',
+            orderableCategoryDisplayName: index % 2 ? 'Second' : 'First',
+          },
+        ],
+      },
+    };
+  });
+  const invalid = [items[99], items[98], items[97]];
+  const first = inventoryFirstInvalid([...items].reverse(), invalid, 'program', false, 20);
+  expect(first).toBe(items[98]);
+  expect(first && inventoryPageOf(items, first, 20)).toBe(5);
+});
