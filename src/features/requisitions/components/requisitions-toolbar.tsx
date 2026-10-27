@@ -5,6 +5,7 @@ import { DataTableSelectFilter } from '@/components/data-table/data-table-filter
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DatePicker } from '@/components/form/form-fields';
 import {
+  activeRequisitionFilterCount,
   CLEARED_REQUISITION_FILTERS,
   type RequisitionSearch,
   type SearchProgram,
@@ -23,7 +24,7 @@ export function RequisitionsToolbar({
   disabled = false,
 }: {
   search: RequisitionSearch;
-  programs: readonly SearchProgram[];
+  programs?: readonly SearchProgram[];
   onFilterChange: (patch: Partial<RequisitionSearch>) => void;
   view?: ReactNode;
   disabled?: boolean;
@@ -36,15 +37,11 @@ export function RequisitionsToolbar({
       <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
         <DataTableFilters
           size="lg"
-          activeCount={
-            [search.program, search.status, search.initiatedFrom, search.initiatedTo].filter(
-              Boolean,
-            ).length
-          }
+          activeCount={activeRequisitionFilterCount(search)}
           disabled={disabled}
           onClear={() => change(CLEARED_REQUISITION_FILTERS)}
         >
-          {programs.length ? (
+          {programs?.length ? (
             <DataTableSelectFilter
               label={t('requisitions.filters.program')}
               allLabel={t('requisitions.filters.all-programs')}
@@ -52,9 +49,9 @@ export function RequisitionsToolbar({
               options={programs.map(({ id, name }) => ({ value: id, label: name ?? id }))}
               onValueChange={(program) => change({ program: program || undefined })}
             />
-          ) : (
+          ) : programs ? (
             <p className="text-muted-foreground text-sm">{t('requisitions.view.no-programs')}</p>
-          )}
+          ) : null}
           <DataTableSelectFilter
             label={t('requisitions.filters.status')}
             value={search.status ?? ''}

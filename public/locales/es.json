@@ -1680,7 +1680,6 @@
   "requisitions.view.action-name": "Ver requisición: {program}, {period}",
   "requisitions.view.applied": "Requisiciones de {facility}",
   "requisitions.view.clear-dates": "Borrar fechas",
-  "requisitions.view.clear-filters": "Borrar filtros",
   "requisitions.view.date-range-description": "La fecha de inicio debe ser anterior o igual a la fecha final.",
   "requisitions.view.date-range-title": "Revise el intervalo de fechas",
   "requisitions.view.description": "Busque requisiciones por establecimiento, programa, estado y fecha.",

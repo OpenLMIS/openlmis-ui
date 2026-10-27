@@ -76,14 +76,19 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view'
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
     queryClient.prefetchQuery(minimalFacilitiesOptions());
-    queryClient.prefetchQuery(userProgramsOptions(userId));
     const grants = programGrants(access.permissions, RIGHTS.requisitionView);
-    if (
-      search.facility &&
-      !invalidDateRange(search) &&
-      grants.some(({ facilityId }) => facilityId === search.facility)
-    ) {
-      const facilityPrograms = grants.filter(({ facilityId }) => facilityId === search.facility);
+    queryClient.prefetchQuery(
+      supervisoryNodesByIdsOptions(requisitionViewNodes(access.user, access.roles)),
+    );
+    const userProgramsQuery = userProgramsOptions(userId);
+    queryClient.prefetchQuery(userProgramsQuery).then(() => {
+      if (useLoginData.getState().referenceDataUserId !== userId) return;
+      const programs = queryClient.getQueryData(userProgramsQuery.queryKey);
+      if (programs && grants.some(({ programId }) => !programs.some(({ id }) => id === programId)))
+        queryClient.prefetchQuery(programsOptions());
+    });
+    const facilityPrograms = grants.filter(({ facilityId }) => facilityId === search.facility);
+    if (search.facility && !invalidDateRange(search) && facilityPrograms.length > 0) {
       queryClient.prefetchQuery(
         requisitionSearchOptions(
           toRequisitionQuery({
@@ -119,14 +124,7 @@ function RequisitionsHeader() {
   );
 }
 
-function useColumnView() {
-  const { measure, cards, columnView, layout } = useCardView(
-    REQUISITION_HIDEABLE_COLUMNS,
-    'requisitions.column-visibility',
-  );
-  return [measure, { ...columnView, cards, layout }] as const;
-}
-type ColumnView = ReturnType<typeof useColumnView>[1];
+type ColumnView = ReturnType<typeof useCardView<HTMLDivElement>>;
 
 function ColumnsMenu({
   columnView,
@@ -139,23 +137,21 @@ function ColumnsMenu({
 }) {
   const { t } = useTranslation();
   return (
-    <div>
-      <DataTableViewOptions
-        size="lg"
-        layout={columnView.layout}
-        columns={REQUISITION_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
-          id,
-          label: t(labelKey),
-        }))}
-        onReset={columnView.onReset}
-        onVisibilityChange={columnView.onVisibilityChange}
-        visibility={columnView.visibility}
-        sort={{
-          ...searchSort(search, REQUISITIONS_SORT, onSearchChange),
-          columns: [{ id: 'createdDate', label: t('requisitions.columns.date-initiated') }],
-        }}
-      />
-    </div>
+    <DataTableViewOptions
+      size="lg"
+      layout={columnView.layout}
+      columns={REQUISITION_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
+        id,
+        label: t(labelKey),
+      }))}
+      onReset={columnView.columnView.onReset}
+      onVisibilityChange={columnView.columnView.onVisibilityChange}
+      visibility={columnView.columnView.visibility}
+      sort={{
+        ...searchSort(search, REQUISITIONS_SORT, onSearchChange),
+        columns: [{ id: 'createdDate', label: t('requisitions.columns.date-initiated') }],
+      }}
+    />
   );
 }
 
@@ -179,7 +175,6 @@ function PageSkeleton({
           <fieldset className="min-w-0" disabled>
             <RequisitionsToolbar
               disabled
-              programs={[]}
               onFilterChange={noop}
               search={search}
               view={<ColumnsMenu columnView={columnView} search={search} onSearchChange={noop} />}
@@ -187,7 +182,7 @@ function PageSkeleton({
           </fieldset>
           <RequisitionsTableSkeleton
             cards={columnView.cards}
-            columns={columnView.visibility}
+            columns={columnView.columnView.visibility}
             search={search}
           />
         </div>
@@ -198,12 +193,12 @@ function PageSkeleton({
 
 function RequisitionsPending() {
   const search = Route.useSearch();
-  const [measure, columnView] = useColumnView();
+  const columnView = useCardView(REQUISITION_HIDEABLE_COLUMNS, 'requisitions.column-visibility');
   return (
     <Workspace>
       <RequisitionsHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={columnView.measure}>
           <PageSkeleton columnView={columnView} search={search} />
         </div>
       </WorkspaceContent>
@@ -215,13 +210,13 @@ function RequisitionsPage() {
   const { t } = useTranslation();
   const search = Route.useSearch();
   const userId = useLoginData((state) => state.referenceDataUserId);
-  const [measure, columnView] = useColumnView();
+  const columnView = useCardView(REQUISITION_HIDEABLE_COLUMNS, 'requisitions.column-visibility');
   const { updateSearch } = useSearchNavigation<RequisitionSearch>(NO_DIALOGS);
   return (
     <Workspace>
       <RequisitionsHeader />
       <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={columnView.measure}>
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <LoadError
@@ -276,19 +271,17 @@ function useSearchFacilities(access: Access) {
     viewerNodes,
     partners.flatMap(({ data }) => data),
   );
-  const groups = useSuspenseQueries({ queries: groupIds.map(requisitionGroupOptions) });
-  const programs = [
-    ...userPrograms.data,
-    ...(fallback[0]?.data ?? []).filter(
-      ({ id }) => !userPrograms.data.some((program) => program.id === id),
-    ),
-  ];
-  return searchFacilityOptions(
-    grants,
-    facilities.data,
-    programs,
-    groups.map(({ data }) => data),
-  );
+  const groups = useSuspenseQueries({
+    queries: groupIds.map(requisitionGroupOptions),
+    combine: (results) => results.map(({ data }) => data),
+  });
+  const fallbackPrograms = fallback[0]?.data;
+  return useMemo(() => {
+    const programsById = new Map(
+      [...(fallbackPrograms ?? []), ...userPrograms.data].map((program) => [program.id, program]),
+    );
+    return searchFacilityOptions(grants, facilities.data, [...programsById.values()], groups);
+  }, [grants, facilities.data, userPrograms.data, fallbackPrograms, groups]);
 }
 
 function RequisitionsBody({
@@ -350,7 +343,7 @@ function RequisitionsBody({
   );
   const toolbar = (
     <RequisitionsToolbar
-      programs={draftedFacility?.programs ?? []}
+      programs={draftedFacility?.programs}
       search={search}
       onFilterChange={(patch) => onSearchChange(patch, true)}
       view={
@@ -478,7 +471,7 @@ function RequisitionsResults({
       pendingFallback={
         <RequisitionsTableSkeleton
           cards={columnView.cards}
-          columns={columnView.visibility}
+          columns={columnView.columnView.visibility}
           search={search}
         />
       }
@@ -486,7 +479,7 @@ function RequisitionsResults({
     >
       <RequisitionsTable
         cards={columnView.cards}
-        columns={columnView.visibility}
+        columns={columnView.columnView.visibility}
         search={applied}
         onSearchChange={onSearchChange}
       />

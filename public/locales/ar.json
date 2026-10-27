@@ -1680,7 +1680,6 @@
   "requisitions.view.action-name": "عرض طلب الإمداد: {program}، {period}",
   "requisitions.view.applied": "طلبات الإمداد للمنشأة {facility}",
   "requisitions.view.clear-dates": "مسح التواريخ",
-  "requisitions.view.clear-filters": "مسح عوامل التصفية",
   "requisitions.view.date-range-description": "يجب أن يكون تاريخ البدء الأول قبل تاريخ البدء الأخير أو مساوياً له.",
   "requisitions.view.date-range-title": "تحقق من نطاق التاريخ",
   "requisitions.view.description": "ابحث عن طلبات الإمداد حسب المنشأة والبرنامج والحالة والتاريخ.",

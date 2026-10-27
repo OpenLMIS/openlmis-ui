@@ -42,15 +42,17 @@ export function searchFacilityOptions(
   partnerGroups: readonly RequisitionGroup[],
 ): SearchFacility[] {
   const result = new Map<string, SearchFacility>();
+  const facilitiesById = new Map(facilities.map((facility) => [facility.id, facility]));
+  const programsById = new Map(programs.map((program) => [program.id, program]));
   for (const grant of grants) {
-    const facility = facilities.find(({ id }) => id === grant.facilityId);
+    const facility = facilitiesById.get(grant.facilityId);
     if (!facility) continue;
     let option = result.get(facility.id);
     if (!option) {
       option = { id: facility.id, code: facility.code, name: facility.name, programs: [] };
       result.set(facility.id, option);
     }
-    const program = programs.find(({ id }) => id === grant.programId);
+    const program = programsById.get(grant.programId);
     if (program && !option.programs.some(({ id }) => id === program.id))
       option.programs.push({ id: program.id, name: program.name });
   }
@@ -88,8 +90,10 @@ export const CLEARED_REQUISITION_FILTERS = {
   initiatedTo: undefined,
   page: undefined,
 };
+export const activeRequisitionFilterCount = (search: RequisitionSearch) =>
+  [search.program, search.status, search.initiatedFrom, search.initiatedTo].filter(Boolean).length;
 export const hasRequisitionFilters = (search: RequisitionSearch) =>
-  Boolean(search.program || search.status || search.initiatedFrom || search.initiatedTo);
+  activeRequisitionFilterCount(search) > 0;
 
 export function toRequisitionQuery(
   search: RequisitionSearch & { facility: string },

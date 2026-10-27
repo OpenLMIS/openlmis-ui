@@ -12,6 +12,11 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  fetchMinimalFacilities,
+  fetchPrograms,
+  fetchUserPrograms,
+} from '@/features/reference-data/api/api';
 import { searchRequisitions } from '@/features/requisitions/api/api';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view';
 import { httpError } from '@/tests/http-error';
@@ -188,5 +193,28 @@ it.each([1200, 390])('keeps row details and navigation in the %ipx layout', asyn
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'card-actions.actions-for' })).toContainElement(link);
   }
+  queryClient.clear();
+});
+
+it('only warns about missing programs after a facility has been selected', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|p',
+    'REQUISITION_VIEW|other|p',
+  ]);
+  vi.mocked(fetchMinimalFacilities).mockResolvedValueOnce([
+    { id: 'f', name: 'Comfort', code: 'HC01', active: true },
+    { id: 'other', name: 'Other', code: 'HC02', active: true },
+  ]);
+  vi.mocked(fetchUserPrograms).mockResolvedValueOnce([]);
+  vi.mocked(fetchPrograms).mockResolvedValueOnce([]);
+  const { router, queryClient } = renderRoute('/requisitions/view');
+  await screen.findByRole('button', { name: 'facility-program.search' });
+  await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+  expect(screen.queryByText('requisitions.view.no-programs')).not.toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  await act(() => router.navigate({ search: { facility: 'f' } as never }));
+  await screen.findByText('requisitions.view.empty-title');
+  await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+  expect(screen.getByText('requisitions.view.no-programs')).toBeVisible();
   queryClient.clear();
 });

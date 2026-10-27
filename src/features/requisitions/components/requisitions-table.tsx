@@ -54,6 +54,19 @@ export const REQUISITION_HIDEABLE_COLUMNS = COLUMNS.filter(([id]) => id !== 'pro
     ...((id === 'startDate' || id === 'endDate') && { hideBelow: 1024 }),
   }),
 );
+const CARD_COLUMN_ORDER = [
+  'program',
+  'period',
+  'facility',
+  'startDate',
+  'endDate',
+  'createdDate',
+  'status',
+  'emergency',
+];
+const CARD_COLUMNS = [...COLUMNS].sort(
+  ([a], [b]) => CARD_COLUMN_ORDER.indexOf(a) - CARD_COLUMN_ORDER.indexOf(b),
+);
 const NO_ROWS: RequisitionSearchResult[] = [];
 const noop = () => {};
 const rowId = (row: RequisitionSearchResult) => row.id;
@@ -91,7 +104,9 @@ function ViewRequisition({
   if (cards)
     return (
       <CardActions
-        label={t('card-actions.actions-for', { name })}
+        label={t('card-actions.actions-for', {
+          name: [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
+        })}
         actions={[
           {
             id: 'view',
@@ -117,72 +132,71 @@ function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
   return useMemo(
     () =>
       helper.columns([
-        ...(cards ? [COLUMNS[0], COLUMNS[2], COLUMNS[1], ...COLUMNS.slice(3)] : COLUMNS).map(
-          ([id, key]) =>
-            helper.display({
-              id,
-              ...(id === 'createdDate' && {
-                accessorFn: (record: RequisitionSearchResult) => record.createdDate,
-              }),
-              meta: { label: t(key) },
-              enableSorting: id === 'createdDate',
-              sortDescFirst: true,
-              header: ({ column }) =>
-                id === 'createdDate' ? (
-                  <DataTableColumnHeader column={column} title={t(key)} />
-                ) : (
-                  <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
-                ),
-              cell: ({ row: { original: record } }) => {
-                switch (id) {
-                  case 'program':
-                    return tableValue(record.program?.name) ? (
-                      <WrappingCell width="bounded">{record.program?.name}</WrappingCell>
-                    ) : null;
-                  case 'facility':
-                    return (
-                      record.facility && (
-                        <WrappingCell width="bounded">
-                          {[record.facility.code, record.facility.name].filter(Boolean).join(' - ')}
-                        </WrappingCell>
-                      )
-                    );
-                  case 'period':
-                    return tableValue(record.processingPeriod?.name);
-                  case 'startDate':
-                    return tableValue(
-                      formatDateValue(record.processingPeriod?.startDate ?? '', i18n.language),
-                    );
-                  case 'endDate':
-                    return tableValue(
-                      formatDateValue(record.processingPeriod?.endDate ?? '', i18n.language),
-                    );
-                  case 'createdDate':
-                    return tableValue(
-                      formatTimestamp(record.createdDate, i18n.language, { timeZone }),
-                    );
-                  case 'status': {
-                    const status = REQUISITION_STATUS[record.status];
-                    if (!status) return tableValue(record.status);
-                    const Icon = status.icon;
-                    return (
-                      <Badge variant={status.tone}>
-                        <Icon data-icon="inline-start" />
-                        {t(status.labelKey)}
-                      </Badge>
-                    );
-                  }
-                  case 'emergency':
-                    return (
-                      <FlagBadge
-                        value={record.emergency}
-                        trueLabel={t('requisitions.yes')}
-                        falseLabel={t('requisitions.no')}
-                      />
-                    );
-                }
-              },
+        ...(cards ? CARD_COLUMNS : COLUMNS).map(([id, key]) =>
+          helper.display({
+            id,
+            ...(id === 'createdDate' && {
+              accessorFn: (record: RequisitionSearchResult) => record.createdDate,
             }),
+            meta: { label: t(key) },
+            enableSorting: id === 'createdDate',
+            sortDescFirst: true,
+            header: ({ column }) =>
+              id === 'createdDate' ? (
+                <DataTableColumnHeader column={column} title={t(key)} />
+              ) : (
+                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+              ),
+            cell: ({ row: { original: record } }) => {
+              switch (id) {
+                case 'program':
+                  return tableValue(record.program?.name) ? (
+                    <WrappingCell width="bounded">{record.program?.name}</WrappingCell>
+                  ) : null;
+                case 'facility':
+                  return (
+                    record.facility && (
+                      <WrappingCell width="bounded">
+                        {[record.facility.code, record.facility.name].filter(Boolean).join(' - ')}
+                      </WrappingCell>
+                    )
+                  );
+                case 'period':
+                  return tableValue(record.processingPeriod?.name);
+                case 'startDate':
+                  return tableValue(
+                    formatDateValue(record.processingPeriod?.startDate ?? '', i18n.language),
+                  );
+                case 'endDate':
+                  return tableValue(
+                    formatDateValue(record.processingPeriod?.endDate ?? '', i18n.language),
+                  );
+                case 'createdDate':
+                  return tableValue(
+                    formatTimestamp(record.createdDate, i18n.language, { timeZone }),
+                  );
+                case 'status': {
+                  const status = REQUISITION_STATUS[record.status];
+                  if (!status) return tableValue(record.status);
+                  const Icon = status.icon;
+                  return (
+                    <Badge variant={status.tone}>
+                      <Icon data-icon="inline-start" />
+                      {t(status.labelKey)}
+                    </Badge>
+                  );
+                }
+                case 'emergency':
+                  return (
+                    <FlagBadge
+                      value={record.emergency}
+                      trueLabel={t('requisitions.yes')}
+                      falseLabel={t('requisitions.no')}
+                    />
+                  );
+              }
+            },
+          }),
         ),
         helper.display({
           id: 'actions',
@@ -256,7 +270,7 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange }: Pr
     <DataTableEmpty
       action={
         <Button variant="destructive" onClick={() => onSearchChange(CLEARED_REQUISITION_FILTERS)}>
-          {t('requisitions.view.clear-filters')}
+          {t('data-table.clear-filters')}
         </Button>
       }
       description={t('requisitions.view.no-matches-description')}
