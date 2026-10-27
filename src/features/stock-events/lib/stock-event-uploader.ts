@@ -2,7 +2,6 @@ import { onlineManager } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { liveQuery } from 'dexie';
 import { toast } from 'sonner';
-import { useLoginData } from '@/features/auth/store/login-data';
 import {
   beginSyncPreparation,
   getSyncPhase,
@@ -35,7 +34,14 @@ import type { OfflineAccess } from '@/lib/offline-access';
 import { isOnline, reportConnectionFailure } from '@/lib/online';
 import { hasProgramGrant, parsePermissions } from '@/lib/permissions';
 import { onSessionResumed } from '@/lib/session-resumed';
-import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import {
+  assertSessionScope,
+  getSessionAccessToken,
+  getSessionScope,
+  getSessionUserId,
+  isSessionAuthenticated,
+  isSessionExpired,
+} from '@/lib/session-scope';
 import { uploadAccessEpoch } from '@/lib/upload-access';
 
 export function startStockEventUploader(dependencies: {
@@ -57,24 +63,23 @@ export function startStockEventUploader(dependencies: {
   let retryDelay = 1000;
   const pruned = new Set<string>();
   const valid = () => {
-    const state = useLoginData.getState();
     return (
       !stopped &&
       isOnline() &&
-      state.isAuthenticated &&
-      !state.expired &&
-      !!state.accessToken &&
+      isSessionAuthenticated() &&
+      !isSessionExpired() &&
+      !!getSessionAccessToken() &&
       pausedEpoch !== uploadAccessEpoch()
     );
   };
   const restingPhase = () =>
-    useLoginData.getState().expired || pausedEpoch === uploadAccessEpoch() ? 'session' : 'idle';
+    isSessionExpired() || pausedEpoch === uploadAccessEpoch() ? 'session' : 'idle';
   const run = async () => {
     if (running) {
       pending = true;
       return;
     }
-    const userId = useLoginData.getState().referenceDataUserId;
+    const userId = getSessionUserId();
     if (stopped || !userId) return;
     if (!navigator.locks) {
       setSyncPhase('unsupported');
@@ -229,8 +234,8 @@ export function startStockEventUploader(dependencies: {
     } catch (error) {
       if (scope === getSessionScope() && !stopped) {
         reportConnectionFailure(error);
-        setSyncPhase(useLoginData.getState().expired ? 'session' : 'failed');
-        if (!useLoginData.getState().expired && !retryTimer) {
+        setSyncPhase(isSessionExpired() ? 'session' : 'failed');
+        if (!isSessionExpired() && !retryTimer) {
           retryTimer = setTimeout(() => {
             retryTimer = undefined;
             void run();
@@ -252,7 +257,7 @@ export function startStockEventUploader(dependencies: {
     clearInterval(accessTimer);
     accessTimer = undefined;
     accessPaused = false;
-    if (!useLoginData.getState().referenceDataUserId) return;
+    if (!getSessionUserId()) return;
     const scope = getSessionScope();
     const db = getLocalDb();
     subscription = liveQuery(() =>
