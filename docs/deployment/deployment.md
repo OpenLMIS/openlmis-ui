@@ -152,6 +152,8 @@ passes those headers through. A deployment then shows open tabs an update button
 dot beside the theme and language buttons at the bottom of the sidebar, and the new version
 loads when the user clicks it.
 
+Use Back To Legacy in the account menu or beside these sidebar buttons to open the previous UI.
+
 The legacy UI has its own worker for the whole site. The two keep separate caches and do not
 touch each other's.
 

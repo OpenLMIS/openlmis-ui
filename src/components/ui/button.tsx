@@ -70,6 +70,13 @@ const buttonVariants = cva(
         sidebar: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
       },
     },
+    compoundVariants: [
+      {
+        variant: "warning",
+        tone: "sidebar",
+        className: "hover:bg-warning/20 hover:text-warning-strong dark:hover:bg-warning/30",
+      },
+    ],
     defaultVariants: {
       variant: "default",
       size: "default",

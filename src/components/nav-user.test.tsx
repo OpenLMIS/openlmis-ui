@@ -9,6 +9,7 @@ import { DeviceWorkContext } from '@/components/device-work';
 import { NavUser } from '@/components/nav-user';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
+import * as leaveGuard from '@/hooks/use-leave-guard';
 import { parsePermissions } from '@/lib/permissions';
 import { loadRuntimeConfig } from '@/lib/runtime-config';
 import { renderPage } from '@/tests/render-page';
@@ -44,7 +45,12 @@ describe('NavUser', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
 
     const items = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
-    expect(items).toEqual(['nav-user.account', 'nav-user.settings', 'nav-user.log-out']);
+    expect(items).toEqual([
+      'nav-user.account',
+      'nav-user.settings',
+      'legacy.label',
+      'nav-user.log-out',
+    ]);
     expect(screen.getByRole('menuitem', { name: 'nav-user.settings' })).toHaveAttribute(
       'href',
       '/settings',
@@ -141,3 +147,32 @@ it.each([
     } else expect(event).toBeNull();
   },
 );
+
+it('waits for the leave flow before navigating to the legacy home', async () => {
+  vi.stubEnv('BASE_URL', '/a/b/');
+  let proceed: (() => void) | undefined;
+  const leave = vi.spyOn(leaveGuard, 'whenLeaveAllowed').mockImplementationOnce((next) => {
+    proceed = next;
+  });
+  const allowUnload = vi.spyOn(leaveGuard, 'allowUnload').mockImplementationOnce(() => {});
+  const assign = vi.fn();
+  vi.stubGlobal('location', { ...window.location, assign });
+  try {
+    await renderMenu([]);
+    await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'legacy.label' }));
+    expect(leave).toHaveBeenCalledOnce();
+    expect(allowUnload).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    proceed?.();
+    expect(allowUnload).toHaveBeenCalledOnce();
+    expect(assign).toHaveBeenCalledExactlyOnceWith('/a/');
+    expect(allowUnload.mock.invocationCallOrder[0]).toBeLessThan(
+      assign.mock.invocationCallOrder[0],
+    );
+  } finally {
+    leave.mockRestore();
+    allowUnload.mockRestore();
+    vi.unstubAllEnvs();
+  }
+});

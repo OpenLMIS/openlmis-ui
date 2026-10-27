@@ -98,7 +98,7 @@ function DropdownMenuItem({
   ...props
 }: MenuPrimitive.Item.Props & {
   inset?: boolean
-  variant?: "default" | "destructive"
+  variant?: "default" | "destructive" | "warning"
 }) {
   return (
     <MenuPrimitive.Item
@@ -106,7 +106,7 @@ function DropdownMenuItem({
       data-inset={inset}
       data-variant={variant}
       className={cn(
-        "group/dropdown-menu-item relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none not-data-unavailable:focus:bg-accent not-data-unavailable:focus:text-accent-foreground not-data-[variant=destructive]:not-data-unavailable:focus:**:text-accent-foreground data-inset:ps-7 data-[variant=destructive]:text-destructive data-[variant=destructive]:not-data-unavailable:focus:bg-destructive/10 data-[variant=destructive]:not-data-unavailable:focus:text-destructive dark:data-[variant=destructive]:not-data-unavailable:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 data-unavailable:opacity-50 data-unavailable:focus-visible:ring-2 data-unavailable:focus-visible:ring-inset data-unavailable:focus-visible:ring-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive",
+        "group/dropdown-menu-item relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none not-data-unavailable:focus:bg-accent not-data-unavailable:focus:text-accent-foreground data-[variant=default]:not-data-unavailable:focus:**:text-accent-foreground data-inset:ps-7 data-[variant=destructive]:text-destructive data-[variant=destructive]:not-data-unavailable:focus:bg-destructive/10 data-[variant=destructive]:not-data-unavailable:focus:text-destructive dark:data-[variant=destructive]:not-data-unavailable:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 data-unavailable:opacity-50 data-unavailable:focus-visible:ring-2 data-unavailable:focus-visible:ring-inset data-unavailable:focus-visible:ring-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive data-[variant=warning]:text-warning-strong data-[variant=warning]:not-data-unavailable:focus:bg-warning/10 data-[variant=warning]:not-data-unavailable:focus:text-warning-strong dark:data-[variant=warning]:not-data-unavailable:focus:bg-warning/20 data-[variant=warning]:*:[svg]:text-warning-strong",
         className
       )}
       {...props}

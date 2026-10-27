@@ -2,6 +2,7 @@ import { Link, useLocation } from '@tanstack/react-router';
 import { ChevronRightIcon, WifiOffIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BackToLegacyButton } from '@/components/back-to-legacy-button';
 import { CustomTrigger } from '@/components/custom-trigger';
 import { useDeviceWork } from '@/components/device-work';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -134,8 +135,9 @@ export function AppSidebar() {
         <div className="flex items-center group-data-[collapsible=icon]:flex-col">
           <ThemeSwitcher tone="sidebar" tooltipSide={railTooltipSide} />
           <LanguageSwitcher tone="sidebar" tooltipSide={railTooltipSide} />
-          <div className="ms-auto group-data-[collapsible=icon]:ms-0">
+          <div className="ms-auto flex items-center group-data-[collapsible=icon]:ms-0 group-data-[collapsible=icon]:flex-col">
             <UpdateButton tooltipSide={railTooltipSide} />
+            <BackToLegacyButton tooltipSide={railTooltipSide} />
           </div>
         </div>
       </SidebarFooter>
