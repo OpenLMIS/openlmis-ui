@@ -72,6 +72,7 @@ export function searchFacilityOptions(
   );
 }
 
+export const REQUISITIONS_PAGE_SIZE = 20;
 export const REQUISITIONS_SORT = { id: 'createdDate', desc: true };
 export const requisitionSearchSchema = tableSearchSchema(['createdDate']).extend({
   facility: textFilterSchema,
@@ -98,7 +99,7 @@ export const hasRequisitionFilters = (search: RequisitionSearch) =>
 export function toRequisitionQuery(
   search: RequisitionSearch & { facility: string },
 ): RequisitionsQuery {
-  const { pageIndex, pageSize } = toPaginationState(search);
+  const { pageIndex, pageSize } = toPaginationState(search, REQUISITIONS_PAGE_SIZE);
   return {
     facility: search.facility,
     ...(search.program && { program: search.program }),

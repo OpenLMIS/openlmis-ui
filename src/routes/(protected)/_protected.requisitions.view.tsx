@@ -1,4 +1,9 @@
-import { useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  type UseSuspenseQueryResult,
+  useQueryClient,
+  useSuspenseQueries,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { CalendarX2Icon, ClipboardListIcon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
@@ -35,6 +40,7 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import type { RequisitionGroup } from '@/features/reference-data/lib/types';
 import { requisitionSearchOptions } from '@/features/requisitions/api/queries';
 import {
   RequisitionSearchPicker,
@@ -66,6 +72,8 @@ import { type SearchChange, searchSort } from '@/lib/table-search';
 
 const NO_DIALOGS = {} satisfies Partial<RequisitionSearch>;
 const noop = () => {};
+const combineGroups = (results: UseSuspenseQueryResult<RequisitionGroup>[]) =>
+  results.map(({ data }) => data);
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/view')({
   validateSearch: requisitionSearchSchema,
@@ -273,7 +281,7 @@ function useSearchFacilities(access: Access) {
   );
   const groups = useSuspenseQueries({
     queries: groupIds.map(requisitionGroupOptions),
-    combine: (results) => results.map(({ data }) => data),
+    combine: combineGroups,
   });
   const fallbackPrograms = fallback[0]?.data;
   return useMemo(() => {
@@ -359,14 +367,20 @@ function RequisitionsBody({
       <OutcomeMessage
         icon={search.facility ? <ShieldAlertIcon /> : <ClipboardListIcon />}
         title={t(
-          search.facility ? 'requisitions.view.refused-title' : 'requisitions.view.pick-title',
+          search.facility
+            ? 'requisitions.view.refused-title'
+            : draftedFacility
+              ? 'requisitions.view.search-pending-title'
+              : 'requisitions.view.pick-title',
         )}
         description={t(
           options.length === 0
             ? 'requisitions.view.no-facilities'
             : search.facility
               ? 'requisitions.view.refused-description'
-              : 'requisitions.view.pick-description',
+              : draftedFacility
+                ? 'requisitions.view.search-pending-description'
+                : 'requisitions.view.pick-description',
         )}
       />
     );

@@ -23,7 +23,7 @@ import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
-  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
+  fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
   storedTimeZone: vi.fn(() => null),
   fetchUserRecord: vi.fn(async () => ({ id: 'u', roleAssignments: [] })),
   fetchRoles: vi.fn(async () => []),
@@ -90,13 +90,15 @@ it('does not search until the selected facility is applied', async () => {
   await screen.findByRole('button', { name: 'facility-program.search' });
   expect(screen.queryByRole('button', { name: 'View' })).not.toBeInTheDocument();
   expect(searchRequisitions).not.toHaveBeenCalled();
+  expect(screen.getByText('requisitions.view.search-pending-title')).toBeInTheDocument();
+  expect(screen.queryByText('requisitions.view.pick-title')).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'facility-program.search' }));
   await waitFor(() =>
     expect(searchRequisitions).toHaveBeenCalledWith(
       expect.objectContaining({
         facility: 'f',
         page: 0,
-        size: 10,
+        size: 20,
         sort: ['createdDate,desc', 'id'],
       }),
     ),
@@ -116,7 +118,7 @@ it('restores filters from the URL and returns to page one when a status changes'
       initiatedDateFrom: '2026-01-01',
       initiatedDateTo: '2026-02-01',
       page: 2,
-      size: 10,
+      size: 20,
       sort: ['createdDate,asc', 'id'],
     }),
   );

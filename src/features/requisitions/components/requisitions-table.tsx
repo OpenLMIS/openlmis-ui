@@ -25,6 +25,7 @@ import { requisitionSearchOptions } from '@/features/requisitions/api/queries';
 import {
   CLEARED_REQUISITION_FILTERS,
   hasRequisitionFilters,
+  REQUISITIONS_PAGE_SIZE,
   REQUISITIONS_SORT,
   type RequisitionSearch,
   toRequisitionQuery,
@@ -232,6 +233,7 @@ function useResultsTable({
     cards,
     search,
     defaultSort: REQUISITIONS_SORT,
+    defaultPageSize: REQUISITIONS_PAGE_SIZE,
     onSearchChange,
   });
   const table = useTable({
@@ -320,7 +322,7 @@ export function RequisitionsTableSkeleton({
     rowCount: 0,
     stale: false,
   });
-  const rowCount = toPaginationState(search).pageSize;
+  const rowCount = toPaginationState(search, REQUISITIONS_PAGE_SIZE).pageSize;
   return cards ? (
     <TableCardsSkeleton actions={1} rowCount={rowCount} table={table} title="program" />
   ) : (
