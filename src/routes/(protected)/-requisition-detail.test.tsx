@@ -521,6 +521,49 @@ it('locks editing during Sync and uses the refetched ETag next time', async () =
   expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
   queryClient.clear();
 });
+it('refetches after a saved PUT loses its GET before sending the next PUT', async () => {
+  const { base, queryClient } = await openEditor();
+  const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.change(input, { target: { value: '12' } });
+  const calls: string[] = [];
+  const put = vi.spyOn(client, 'put').mockImplementation(async () => {
+    calls.push('put');
+    return { data: base, headers: { etag: base.eTag } };
+  });
+  vi.mocked(fetchRequisition).mockImplementationOnce(async () => {
+    calls.push('get-failed');
+    throw new AxiosError('Connection lost');
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(put).toHaveBeenCalledOnce();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  fireEvent.change(input, { target: { value: '14' } });
+  vi.mocked(fetchRequisition).mockImplementation(async () => {
+    calls.push('get');
+    return {
+      ...base,
+      eTag: '"fresh"',
+      modifiedDate: 'fresh',
+      requisitionLineItems: base.requisitionLineItems.map((line) => ({
+        ...line,
+        beginningBalance: 12,
+      })),
+    };
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(calls).toHaveLength(5));
+  expect(calls).toEqual(['put', 'get-failed', 'get', 'put', 'get']);
+  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': '"fresh"' } });
+  expect(put.mock.calls[1][1]).toMatchObject({
+    modifiedDate: 'fresh',
+    requisitionLineItems: [expect.objectContaining({ beginningBalance: 14 }), expect.anything()],
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeEnabled(),
+  );
+  queryClient.clear();
+});
 it('deletes only after confirmation and toasts before returning to the list', async () => {
   const { router, queryClient } = await openEditor();
   const success = vi.spyOn(toast, 'success');
@@ -999,34 +1042,64 @@ it.each(['submit', 'authorize'] as const)('uses the GET base for %s after Sync',
   expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
   queryClient.clear();
 });
-it('loads invalid numeric text from a stored draft with a cell error', async () => {
-  useLoginData
-    .getState()
-    .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
-  const base = editingRecord();
-  await getLocalDb().table('requisitionDrafts').clear();
-  await getLocalDb()
-    .table('requisitionDrafts')
-    .put({
-      draftId: 'r',
-      userId: 'u',
-      formatVersion: 1,
-      modifiedDate: base.modifiedDate,
-      eTag: base.eTag,
-      draft: { ...buildRequisitionDraft(base), lines: { line: { beginningBalance: '-' } } },
-    });
-  vi.mocked(fetchPermissionStrings).mockResolvedValue([
-    'REQUISITION_VIEW|f|program',
-    'REQUISITION_CREATE|f|program',
-  ]);
-  vi.mocked(fetchRequisition).mockResolvedValue(base);
-  const { queryClient } = renderRoute('/requisitions/view/r?detailSize=1');
-  const input = await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
-  await waitFor(() => expect(input).toBeEnabled());
-  await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'));
-  expect(input).toHaveAccessibleDescription('stock-events.positive-number');
-  queryClient.clear();
-});
+it.each([1000, 390])(
+  'loads invalid numeric text from a stored draft at width %s with a cell error',
+  async (width) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+    const base: RequisitionRecord = editingRecord();
+    base.template = {
+      ...base.template,
+      columnsMap: {
+        ...base.template.columnsMap,
+        totalReceivedQuantity: column('totalReceivedQuantity', 2, {
+          source: 'USER_INPUT',
+          columnDefinition: { columnType: 'NUMERIC' },
+        }),
+        totalStockoutDays: column('totalStockoutDays', 3, {
+          source: 'USER_INPUT',
+          columnDefinition: { columnType: 'NUMERIC' },
+        }),
+      },
+    };
+    await getLocalDb().table('requisitionDrafts').clear();
+    await getLocalDb()
+      .table('requisitionDrafts')
+      .put({
+        draftId: 'r',
+        userId: 'u',
+        formatVersion: 1,
+        modifiedDate: base.modifiedDate,
+        eTag: base.eTag,
+        draft: {
+          ...buildRequisitionDraft(base),
+          lines: {
+            line: { beginningBalance: '-', totalReceivedQuantity: '1x', totalStockoutDays: '1x' },
+          },
+        },
+      });
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([
+      'REQUISITION_VIEW|f|program',
+      'REQUISITION_CREATE|f|program',
+    ]);
+    vi.mocked(fetchRequisition).mockResolvedValue(base);
+    const { queryClient } = renderRoute('/requisitions/view/r?detailSize=1');
+    const input = await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+    await waitFor(() => expect(input).toBeEnabled());
+    await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'));
+    expect(input).toHaveAccessibleDescription('stock-events.positive-number');
+    expect(input).toHaveValue('-');
+    expect(
+      screen.getByRole('textbox', { name: 'totalReceivedQuantity: Product (P1)' }),
+    ).toHaveValue('1x');
+    expect(screen.getByRole('textbox', { name: 'totalStockoutDays: Product (P1)' })).toHaveValue(
+      '1x',
+    );
+    queryClient.clear();
+  },
+);
 it.each(['-', '1x'])('keeps invalid typed %s editable with a cell error', async (value) => {
   const { queryClient } = await openEditor();
   const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
@@ -1067,10 +1140,30 @@ it('does not show device save status for a read-only requisition', async () => {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+  const base = editingRecord();
+  const table = getLocalDb().table('requisitionDrafts');
+  await table.clear();
+  await table.put({
+    draftId: 'r',
+    userId: 'u',
+    formatVersion: 1,
+    modifiedDate: base.modifiedDate,
+    eTag: base.eTag,
+    draft: { ...buildRequisitionDraft(base), lines: { line: { beginningBalance: '42' } } },
+  });
   vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
-  vi.mocked(fetchRequisition).mockResolvedValue(editingRecord());
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
   const { queryClient } = renderRoute('/requisitions/view/r');
   await screen.findByRole('tab', { name: 'requisitions.requisition.full-supply', selected: true });
-  expect(screen.queryByText('stock-events.draft-saved')).not.toBeInTheDocument();
+  await screen.findAllByText('10');
+  await waitFor(() =>
+    expect(screen.queryByRole('status', { name: 'pending-products' })).not.toBeInTheDocument(),
+  );
+  expect(await table.get('r')).toBeDefined();
+  expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/stock-events\.draft-(saved|saving|loading|failed|conflict)/),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText(/Saved On This Device/i)).not.toBeInTheDocument();
   queryClient.clear();
 });

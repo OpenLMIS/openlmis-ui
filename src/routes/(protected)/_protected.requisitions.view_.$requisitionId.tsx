@@ -298,6 +298,7 @@ function RequisitionBody({
   const [serverStatus, setServerStatus] = useState<RequisitionRecord['status'] | null>(null);
   const [failure, setFailure] = useState<RequisitionFailure | null>(null);
   const posting = useRef(false);
+  const refreshPending = useRef(false);
   const finished = useRef(false);
   const [attempt] = useState(createRequisitionActionAttempt);
   const [busy, setBusy] = useState(false);
@@ -325,15 +326,37 @@ function RequisitionBody({
     setFailure(null);
     setServerStatus(null);
     uncertain.current = null;
+    refreshPending.current = false;
     setSynced(false);
     attempt.key = randomId();
     return fresh;
+  };
+  const refreshSaved = async () => {
+    const scope = getSessionScope();
+    const saved = await fetchRequisition(record.id);
+    assertSessionScope(scope);
+    const next = rebaseRequisitionDraft(saved, latest.current.editor.form.state.values.draft);
+    editor.form.setFieldValue('draft', next);
+    editor.device.write(next, saved);
+    setRecord(saved);
+    setSynced(true);
+    latest.current = { record: saved, editor };
+    refreshPending.current = false;
+    queryClient.setQueryData(requisitionOptions(saved.id).queryKey, saved);
+    await editor.device.flush();
+    assertSessionScope(scope);
+    return saved;
   };
   const sync = async () => {
     const scope = getSessionScope();
     await editor.device.flush();
     assertSessionScope(scope);
     requireOnline();
+    if (refreshPending.current) {
+      await refreshSaved();
+      assertSessionScope(scope);
+      requireOnline();
+    }
     const sent = applyRequisitionDraft(
       latest.current.record,
       latest.current.editor.form.state.values.draft,
@@ -343,18 +366,8 @@ function RequisitionBody({
       latest.current.editor.draft.addedLines.map((line) => line.id),
     );
     assertSessionScope(scope);
-    const saved = await fetchRequisition(sent.id);
-    assertSessionScope(scope);
-    const next = rebaseRequisitionDraft(saved, latest.current.editor.form.state.values.draft);
-    editor.form.setFieldValue('draft', next);
-    editor.device.write(next, saved);
-    setRecord(saved);
-    setSynced(true);
-    latest.current = { record: saved, editor };
-    queryClient.setQueryData(requisitionOptions(saved.id).queryKey, saved);
-    await editor.device.flush();
-    assertSessionScope(scope);
-    return saved;
+    refreshPending.current = true;
+    return refreshSaved();
   };
   const mutation = useSessionMutation({
     retry: false,

@@ -801,6 +801,11 @@ function RequisitionEditCell({
   const { form } = editor;
   const id = model.line.id;
   const label = `${column.label}: ${model.product?.fullProductName ?? ''} (${model.product?.productCode ?? id})`;
+  const field = column.name as keyof LineDraft;
+  const draft = editor.draft.lines[id];
+  const value = String(
+    (draft && Object.hasOwn(draft, field) ? draft[field] : model.line[field]) ?? '',
+  );
   const quantity = column.kind === 'quantity';
   const name = `${quantity ? 'quantities' : 'texts'}.${id}:${column.name}` as const;
   const input =
@@ -831,10 +836,7 @@ function RequisitionEditCell({
           {quantity ? (
             <form.AppField
               name={`quantities.${id}:${column.name}`}
-              defaultValue={quantityValue(
-                String(model.line[column.name as keyof typeof model.line] ?? ''),
-                model.product?.netContent,
-              )}
+              defaultValue={quantityValue(value, model.product?.netContent)}
               listeners={{
                 onChange: ({ value }) =>
                   editor.setLine(id, { [column.name]: value.doses } as LineDraft),
@@ -858,7 +860,7 @@ function RequisitionEditCell({
           ) : (
             <form.AppField
               name={`texts.${id}:${column.name}`}
-              defaultValue={String(model.line[column.name as keyof typeof model.line] ?? '')}
+              defaultValue={value}
               listeners={{
                 onChange: ({ value }) => editor.setLine(id, { [column.name]: value } as LineDraft),
               }}
