@@ -71,3 +71,27 @@ it('cuts identities, nulls hidden/calculated cells and removes client data witho
     expect(body).not.toHaveProperty(key);
   expect(input.requisitionLineItems[0].stockOnHand).toBe(5);
 });
+
+it('keeps stored emergency values outside the emergency column subset', () => {
+  const input = {
+    ...record({ emergency: true }),
+    id: 'r',
+    facility: { id: 'f' },
+    processingPeriod: { id: 'p' },
+    template: {
+      columnsMap: {
+        stockOnHand: column('stockOnHand'),
+        totalConsumedQuantity: column('totalConsumedQuantity', 1, { isDisplayed: false }),
+        requestedQuantity: column('requestedQuantity', 2, { source: 'USER_INPUT' }),
+      },
+    },
+    requisitionLineItems: [
+      line({ stockOnHand: 5, totalConsumedQuantity: 4, requestedQuantity: 3 }),
+    ],
+  } as RequisitionRecord;
+  expect(transformRequisition(input).requisitionLineItems[0]).toMatchObject({
+    stockOnHand: 5,
+    totalConsumedQuantity: 4,
+    requestedQuantity: 3,
+  });
+});

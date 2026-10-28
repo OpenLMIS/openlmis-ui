@@ -36,11 +36,10 @@ export function fetchRequisitionReport(id: string, params: { showInDoses: boolea
 
 export async function saveRequisition(record: RequisitionRecord): Promise<RequisitionRecord> {
   const scope = getSessionScope();
-  if (!record.eTag) throw new Error('Missing requisition ETag');
   const { data, headers } = await client.put<RequisitionRecord>(
     `/v2/requisitions/${record.id}`,
     transformRequisition(record),
-    { headers: { 'If-Match': record.eTag } },
+    { headers: record.eTag ? { 'If-Match': record.eTag } : {} },
   );
   assertSessionScope(scope);
   return { ...data, eTag: headers.etag as string | undefined };
@@ -66,7 +65,8 @@ async function transition(
     return response.data;
   } catch (error) {
     assertSessionScope(attempt.sessionScope);
-    if (!isAxiosError(error) || error.response?.status !== 409) attempt.key = randomId();
+    if (isAxiosError(error) && error.response && error.response.status !== 409)
+      attempt.key = randomId();
     throw error;
   }
 }

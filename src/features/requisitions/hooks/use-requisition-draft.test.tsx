@@ -4,7 +4,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { useRequisitionDraft } from '@/features/requisitions/hooks/use-requisition-draft';
 import { buildRequisitionDraft } from '@/features/requisitions/lib/draft';
-import { record } from '@/features/requisitions/lib/fixtures/builders';
+import { column, line, record } from '@/features/requisitions/lib/fixtures/builders';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { getLocalDb } from '@/integrations/local-db';
 import { DraftConflictError } from '@/lib/draft-store';
@@ -166,17 +166,23 @@ it('keeps autosaving after Strict Mode replays the mounting effect', async () =>
 
 it('preserves an outdated copy until the user explicitly discards it', async () => {
   await store('2026-10-27T10:00:00Z');
-  const { result } = renderHook(() => useRequisitionDraft(base));
+  const onLoad = vi.fn();
+  const { result } = renderHook(() => useRequisitionDraft(base, onLoad));
   await waitFor(() => expect(result.current.outdated).toBe(true));
-  act(() => result.current.write({ ...draft, draftStatusMessage: 'Server form' }));
+  act(() => {
+    result.current.write({ ...draft, draftStatusMessage: 'Server form' });
+    result.current.write(draft, base);
+  });
   await act(async () => {
-    await expect(result.current.flush()).rejects.toThrow('outdated');
+    await result.current.flush();
   });
   expect((await getLocalDb().table('requisitionDrafts').get('r')).draft).toEqual(draft);
   await act(async () => {
-    await result.current.discard(base);
+    await result.current.update(base);
   });
   expect(result.current.outdated).toBe(false);
+  expect(result.current.status.status).toBe('saved');
+  expect(onLoad).toHaveBeenCalledWith(buildRequisitionDraft(base));
   act(() => result.current.write({ ...draft, draftStatusMessage: 'Chosen server base' }));
   await act(async () => {
     await result.current.flush();
@@ -184,5 +190,48 @@ it('preserves an outdated copy until the user explicitly discards it', async () 
   expect(await getLocalDb().table('requisitionDrafts').get('r')).toMatchObject({
     modifiedDate: base.modifiedDate,
     draft: { draftStatusMessage: 'Chosen server base' },
+  });
+});
+
+it('stores only remaining edits after Sync adopts the saved added line and server calculations', async () => {
+  const original = {
+    ...base,
+    template: {
+      columnsMap: {
+        requestedQuantity: column('requestedQuantity', 0, { source: 'USER_INPUT' }),
+        stockOnHand: column('stockOnHand'),
+      },
+    },
+    requisitionLineItems: [line({ id: 'a', requestedQuantity: 1, stockOnHand: 10 })],
+  } as RequisitionRecord;
+  const { result } = renderHook(() => useRequisitionDraft(original));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const added = {
+    ...line({ id: 'added', requestedQuantity: 3 }),
+    approvedProduct: { id: 'approved', versionNumber: 1 },
+    orderable: { id: 'p', versionNumber: 1 },
+  };
+  const pending = {
+    ...buildRequisitionDraft(original),
+    lines: { a: { requestedQuantity: '7', stockOnHand: 10 } },
+    addedLines: [added],
+  };
+  const response = {
+    ...original,
+    modifiedDate: 'synced',
+    eTag: 'new',
+    requisitionLineItems: [
+      { ...original.requisitionLineItems[0], requestedQuantity: 5, stockOnHand: 20 },
+      added,
+    ],
+  };
+  act(() => result.current.write(pending, response));
+  await act(async () => {
+    await result.current.flush();
+  });
+  expect((await getLocalDb().table('requisitionDrafts').get('r')).draft).toMatchObject({
+    lines: { a: { requestedQuantity: '7' } },
+    addedLines: [],
+    removedLineIds: [],
   });
 });

@@ -49,7 +49,12 @@ it.each([submitRequisition, authorizeRequisition, skipRequisition])(
     );
     await expect(action('r', attempt)).rejects.toThrow();
     expect(attempt.key).toBe(original);
-    vi.mocked(transport).mockRejectedValueOnce(new Error('timeout'));
+    vi.mocked(transport).mockRejectedValueOnce(new AxiosError('timeout', 'ECONNABORTED'));
+    await expect(action('r', attempt)).rejects.toThrow();
+    expect(attempt.key).toBe(original);
+    vi.mocked(transport).mockRejectedValueOnce(
+      new AxiosError('server error', undefined, undefined, undefined, { status: 500 } as never),
+    );
     await expect(action('r', attempt)).rejects.toThrow();
     expect(attempt.key).not.toBe(original);
     vi.mocked(transport).mockResolvedValueOnce({ data: {} });
@@ -66,4 +71,14 @@ it('deletes without a PUT first', async () => {
   await deleteRequisition('r');
   expect(client.delete).toHaveBeenCalledWith('/requisitions/r');
   expect(client.put).not.toHaveBeenCalled();
+});
+
+it('saves without If-Match when the server did not expose an ETag', async () => {
+  vi.mocked(client.put).mockResolvedValue({ data: req, headers: {} });
+  await saveRequisition({ ...req, eTag: undefined, modifiedDate: 'original' });
+  expect(client.put).toHaveBeenCalledWith(
+    '/v2/requisitions/r',
+    expect.objectContaining({ modifiedDate: 'original' }),
+    { headers: {} },
+  );
 });

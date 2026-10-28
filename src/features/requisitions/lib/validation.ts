@@ -1,3 +1,5 @@
+import type { ParseKeys } from 'i18next';
+import { calculateLine } from '@/features/requisitions/lib/calculations';
 import type { RequisitionLine } from '@/features/requisitions/lib/lines';
 import type { Requisition, RequisitionLineItem } from '@/features/requisitions/lib/requisition';
 import { compileColumns } from '@/features/requisitions/lib/template';
@@ -25,8 +27,8 @@ const adjustmentSchema = wholeNumberText(
   { min: { value: 1, tooSmall: 'physical-inventory.reason-positive' } },
 );
 export type RequisitionValidation = {
-  lines: Record<string, Record<string, string>>;
-  errors: string[];
+  lines: Record<string, Record<string, ParseKeys>>;
+  errors: ParseKeys[];
 };
 export type ValidationOptions = {
   monthsInPeriod: number;
@@ -64,8 +66,8 @@ export function validateRequisition(
 }
 
 export function validateLine(model: RequisitionLine, record: Requisition, monthsInPeriod: number) {
-  const errors: Record<string, string> = {};
-  const { line } = model;
+  const errors: Record<string, ParseKeys> = {};
+  const line = calculateLine(model, record, monthsInPeriod);
   if (line.skipped) return errors;
   const columns = compileColumns(record.template, {
     status: record.status,
@@ -99,7 +101,7 @@ export function validateLine(model: RequisitionLine, record: Requisition, months
       definition.columnDefinition?.columnType !== 'BOOLEAN'
     ) {
       const checked = numberSchema.safeParse(String(value));
-      if (!checked.success) errors[name] = checked.error.issues[0].message;
+      if (!checked.success) errors[name] = checked.error.issues[0].message as ParseKeys;
     }
     if (errors[name]) continue;
     if (
@@ -138,7 +140,7 @@ export function validateLine(model: RequisitionLine, record: Requisition, months
     for (const adjustment of line.stockAdjustments ?? []) {
       const checked = adjustmentSchema.safeParse(String(adjustment.quantity));
       if (!checked.success) {
-        errors.stockAdjustments = checked.error.issues[0].message;
+        errors.stockAdjustments = checked.error.issues[0].message as ParseKeys;
         break;
       }
     }

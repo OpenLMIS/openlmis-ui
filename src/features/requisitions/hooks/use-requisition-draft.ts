@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { RequisitionDraft } from '@/features/requisitions/lib/draft';
+import {
+  buildRequisitionDraft,
+  type RequisitionDraft,
+  rebaseRequisitionDraft,
+} from '@/features/requisitions/lib/draft';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { saveRevisionedDraft } from '@/lib/draft-store';
@@ -64,7 +68,8 @@ export function useRequisitionDraft(
         assertSessionScope(scope);
         expected = stored;
         outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;
-        if (active && stored && !outdated) adopt.current?.(stored.draft);
+        if (active && stored && !outdated)
+          adopt.current?.(rebaseRequisitionDraft(baseline, stored.draft));
         status = { status: 'saved' };
         publish();
       });
@@ -75,7 +80,7 @@ export function useRequisitionDraft(
         await load();
         assertSessionScope(scope);
         if (!db || !table || !userId || !active) return;
-        if (outdated && !base) throw new Error('This requisition draft is outdated');
+        if (outdated) return;
         expected = await saveRevisionedDraft({
           db,
           table,
@@ -87,7 +92,7 @@ export function useRequisitionDraft(
             userId,
             formatVersion: 1,
             revision: (stored?.revision ?? 0) + 1,
-            draft,
+            draft: rebaseRequisitionDraft(base ?? baseline, draft),
             modifiedDate: base
               ? base.modifiedDate
               : stored
@@ -122,7 +127,7 @@ export function useRequisitionDraft(
       },
       write(draft: RequisitionDraft, base?: RequisitionRecord) {
         assertSessionScope(scope);
-        if (!closed && db) {
+        if (!closed && !outdated && db) {
           pendingBase = base ?? pendingBase;
           writer.enqueue({ draft: structuredClone(draft), base: pendingBase });
         }
@@ -157,11 +162,12 @@ export function useRequisitionDraft(
         outdated = false;
         writer.reset();
       },
-      async discard(base: RequisitionRecord) {
+      async update(base: RequisitionRecord) {
         await api.clear();
         assertSessionScope(scope);
         baseline = base;
         closed = false;
+        adopt.current?.(buildRequisitionDraft(base));
       },
       dispose() {
         active = false;
@@ -184,6 +190,7 @@ export function useRequisitionDraft(
     flush: controller.flush,
     retry: controller.retry,
     clear: controller.clear,
-    discard: controller.discard,
+    update: controller.update,
+    discard: controller.update,
   };
 }

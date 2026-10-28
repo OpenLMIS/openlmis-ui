@@ -36,7 +36,7 @@ const approvalStatuses = new Set<RequisitionStatus>([
   'RELEASED',
   'RELEASED_WITHOUT_ORDER',
 ]);
-const subset = new Set([
+export const SUBSET_COLUMNS = new Set([
   'requestedQuantity',
   'requestedQuantityExplanation',
   'orderable.productCode',
@@ -90,7 +90,10 @@ export function compileColumns(
     .filter((column) => {
       if (!column.isDisplayed) return false;
       if (column.name === 'supplyingFacilityStockOnHand') return !!context.supplyingStock;
-      if ((context.emergency || context.tab === 'nonFullSupply') && !subset.has(column.name))
+      if (
+        (context.emergency || context.tab === 'nonFullSupply') &&
+        !SUBSET_COLUMNS.has(column.name)
+      )
         return false;
       if ((column.name === approvalColumn || column.name === 'remarks') && !afterAuthorization)
         return false;

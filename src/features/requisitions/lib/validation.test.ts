@@ -42,6 +42,7 @@ function validate(
         ]),
       ),
     },
+    stockAdjustmentReasons: [{ reasonId: 'credit', reasonType: 'CREDIT' }],
     requisitionLineItems: [
       line({
         beginningBalance: 10,
@@ -85,9 +86,10 @@ it.each(['stockOnHand', 'totalConsumedQuantity'] as const)(
     expect(validate({ [name]: -1 }).lines.line[name]).toBe('requisitions.edit.validation.negative');
     expect(validate({ [name]: 9 }).lines.line[name]).toBe('requisitions.edit.validation.balance');
     expect(validate({ [name]: 9 }, { stockBased: true }).lines).toEqual({});
-    expect(validate({ [name]: -1 }, { calculated: [name] }).lines.line[name]).toBe(
-      'requisitions.edit.validation.negative',
-    );
+    expect(
+      validate({ beginningBalance: 0, totalReceivedQuantity: 0 }, { calculated: [name] }).lines
+        .line[name],
+    ).toBe('requisitions.edit.validation.negative');
   },
 );
 it('requires requested quantity by supply, emergency and visible calculated columns', () => {
@@ -157,7 +159,7 @@ it('requires a valid stock count date only for regular requisitions, never in th
 
 it('checks the integer range on calculated cells as well as inputs', () => {
   expect(
-    validate({ calculatedOrderQuantity: 2147483648 }, { calculated: ['calculatedOrderQuantity'] })
+    validate({ maximumStockQuantity: 2147483658 }, { calculated: ['calculatedOrderQuantity'] })
       .lines.line.calculatedOrderQuantity,
   ).toBe('stock-events.number-too-large');
 });
@@ -180,4 +182,32 @@ it('limits displayed remarks to 250 characters', () => {
       today: '2026-10-28',
     }).lines.line.remarks,
   ).toBe('requisitions.edit.validation.remarks-length');
+});
+
+it('validates balance against the adjustments as edited rather than the stored total', () => {
+  const values = {
+    totalLossesAndAdjustments: 0,
+    stockAdjustments: [{ reasonId: 'credit', quantity: 2 }],
+  };
+  expect(validate(values).lines.line.stockOnHand).toBe('requisitions.edit.validation.balance');
+  expect(validate({ ...values, stockOnHand: 12 }).lines).toEqual({});
+});
+it('requires explanation against the newly calculated quantity', () => {
+  const options = { calculated: ['calculatedOrderQuantity'] };
+  expect(
+    validate({ requestedQuantity: 2, calculatedOrderQuantity: 2 }, options).lines.line
+      .requestedQuantityExplanation,
+  ).toBe('stock-events.required');
+  expect(validate({ requestedQuantity: 0, calculatedOrderQuantity: 2 }, options).lines).toEqual({});
+});
+it('accepts a positive adjustment and ignores adjustments outside the non-full column subset', () => {
+  expect(
+    validate({ stockAdjustments: [{ reasonId: 'credit', quantity: 2 }], stockOnHand: 12 }).lines,
+  ).toEqual({});
+  expect(
+    validate(
+      { beginningBalance: null, stockAdjustments: [{ reasonId: 'credit', quantity: 0 }] },
+      { fullSupply: false },
+    ).lines,
+  ).toEqual({});
 });

@@ -1,4 +1,4 @@
-import { compileColumns } from '@/features/requisitions/lib/template';
+import { compileColumns, SUBSET_COLUMNS } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 
 const clientFields = new Set([
@@ -37,6 +37,7 @@ export function transformRequisition(record: RequisitionRecord) {
       const next = withoutClientFields(line);
       for (const column of Object.values(record.template.columnsMap)) {
         if (column.name === 'numberOfPatientsOnTreatmentNextMonth') continue;
+        if (record.emergency && !SUBSET_COLUMNS.has(column.name)) continue;
         if (!displayed.has(column.name) || column.source === 'CALCULATED') next[column.name] = null;
       }
       next.orderable = { id: line.orderable.id, versionNumber: line.orderable.versionNumber };
