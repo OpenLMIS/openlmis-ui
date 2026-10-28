@@ -1,7 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { expect, it } from 'vitest';
-import { useRequisitionComment } from '@/features/requisitions/components/requisition-comment-field';
+import {
+  RequisitionCommentDialog,
+  useDraftComment,
+} from '@/features/requisitions/components/requisition-comment-field';
 import { useRequisitionForm } from '@/features/requisitions/hooks/use-requisition-form';
 import { record } from '@/features/requisitions/lib/fixtures/builders';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
@@ -16,30 +20,67 @@ const value: RequisitionRecord = {
 };
 function Editor({ pending = false }: { pending?: boolean }) {
   const editor = useRequisitionForm(value);
-  const comment = useRequisitionComment(editor, pending);
+  const draft = useDraftComment(editor);
+  const [open, setOpen] = useState(true);
   return (
     <>
-      {comment.action}
-      {comment.field}
+      <output aria-label="draft">{draft}</output>
+      <button type="button" onClick={() => setOpen(true)}>
+        open
+      </button>
+      <RequisitionCommentDialog
+        editor={editor}
+        open={open}
+        pending={pending}
+        onClose={() => setOpen(false)}
+      />
     </>
   );
 }
-it('keeps the comment box and focus when its existing text is cleared until Remove Comment', async () => {
+const dialog = () => screen.findByRole('dialog');
+const closed = () => waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+it('writes the comment only on Save and clears blank or removed comments', async () => {
+  const user = userEvent.setup();
   render(<Editor />);
-  const input = screen.getByRole('textbox', { name: 'requisitions.edit.comment-label' });
-  await userEvent.clear(input);
-  expect(input).toBeInTheDocument();
-  expect(input).toHaveFocus();
-  await userEvent.type(input, 'replacement');
-  expect(input).toHaveValue('replacement');
-  await userEvent.click(screen.getByRole('button', { name: 'requisitions.edit.remove-comment' }));
-  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  const input = within(await dialog()).getByRole('textbox', {
+    name: 'requisitions.edit.comment-label',
+  });
+  expect(input).toHaveValue('ab');
+  await user.clear(input);
+  await user.type(input, 'replacement');
+  expect(screen.getByLabelText('draft')).toHaveTextContent('ab');
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.save-comment' }));
+  await closed();
+  expect(screen.getByLabelText('draft')).toHaveTextContent('replacement');
+
+  await user.click(screen.getByRole('button', { name: 'open' }));
+  const edit = within(await dialog()).getByRole('textbox');
+  await user.clear(edit);
+  await user.type(edit, '   ');
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.save-comment' }));
+  await closed();
+  expect(screen.getByLabelText('draft')).toBeEmptyDOMElement();
 });
-it('retains the comment box disabled during a pending action', () => {
-  const { rerender } = render(<Editor />);
-  const input = screen.getByRole('textbox');
-  rerender(<Editor pending />);
-  expect(screen.getByRole('textbox')).toBe(input);
-  expect(input).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'requisitions.edit.remove-comment' })).toBeDisabled();
+
+it('removes an existing comment from the dialog without confirmation', async () => {
+  const user = userEvent.setup();
+  render(<Editor />);
+  await user.click(
+    within(await dialog()).getByRole('button', { name: 'requisitions.edit.remove-comment' }),
+  );
+  await closed();
+  expect(screen.getByLabelText('draft')).toBeEmptyDOMElement();
+});
+
+it('disables saving and removing during a pending action', async () => {
+  render(<Editor pending />);
+  const open = await dialog();
+  expect(within(open).getByRole('textbox')).toBeDisabled();
+  expect(
+    within(open).getByRole('button', { name: 'requisitions.edit.save-comment' }),
+  ).toBeDisabled();
+  expect(
+    within(open).getByRole('button', { name: 'requisitions.edit.remove-comment' }),
+  ).toBeDisabled();
 });

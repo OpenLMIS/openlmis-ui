@@ -544,6 +544,7 @@ export function RequisitionGridView({
                       <RequisitionGridHeader
                         label={column.columnDef.meta?.label ?? ''}
                         definition={columnsById.get(column.id)?.definition}
+                        align={columnsById.get(column.id)?.kind === 'skip' ? 'center' : 'start'}
                       />
                       {editing?.editable &&
                         columnsById.get(column.id)?.kind === 'quantity' &&
@@ -560,7 +561,7 @@ export function RequisitionGridView({
                     row.original.category !== undefined ? (
                       <TableRow key={row.id} pinned surface="primary">
                         <TableCell colSpan={visible.length}>
-                          <div className="sticky start-0 w-fit ps-6">
+                          <div className="sticky start-1.5 w-fit ps-6">
                             <bdi>{row.original.category}</bdi>
                           </div>
                         </TableCell>
@@ -820,8 +821,8 @@ function RequisitionEditCell({
         errorMap: { onChange: error },
       }));
   }, [form, name, input, error]);
-  if (editing.editable && column.kind === 'skip')
-    return (
+  if (editing.editable && column.kind === 'skip') {
+    const checkbox = (
       <Checkbox
         checked={!!model.line.skipped}
         disabled={editing.pending || !editing.skipLines || (!model.line.skipped && !model.canSkip)}
@@ -829,6 +830,8 @@ function RequisitionEditCell({
         onCheckedChange={(skipped) => editor.setLine(id, { skipped })}
       />
     );
+    return cards ? checkbox : <div className="flex justify-center">{checkbox}</div>;
+  }
   if (input)
     return (
       <div className={cards ? 'w-full min-w-0' : 'w-full min-w-20 whitespace-normal'}>

@@ -117,6 +117,7 @@ const searchSchema = requisitionSearchSchema.extend({
   skipped: dialogFlag,
   history: dialogFlag,
   rejection: dialogFlag,
+  comment: dialogFlag,
   adjustments: textFilterSchema,
   addProduct: dialogFlag,
 });
@@ -130,6 +131,7 @@ type RequisitionData = {
 const CLOSED_DIALOGS = {
   history: undefined,
   rejection: undefined,
+  comment: undefined,
   adjustments: undefined,
   addProduct: undefined,
 };
@@ -682,8 +684,10 @@ function RequisitionBody({
                 record={record}
                 history={search.history}
                 rejection={search.rejection}
+                comment={search.comment}
                 onHistory={() => void openDialog({ history: true })}
                 onRejection={() => void openDialog({ rejection: true })}
+                onComment={() => void openDialog({ comment: true })}
                 onClose={closeDialog}
               />
             </QueryBoundary>

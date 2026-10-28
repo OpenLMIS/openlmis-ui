@@ -397,6 +397,10 @@ it.each([1000, 390])(
   },
 );
 
+async function skip(user: ReturnType<typeof userEvent.setup>, item: string) {
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-lines' }));
+  await user.click(await screen.findByRole('menuitem', { name: item }));
+}
 it('skips only empty lines and unskips populated lines with None or their checkbox', async () => {
   const user = userEvent.setup();
   render(
@@ -422,12 +426,12 @@ it('skips only empty lines and unskips populated lines with None or their checkb
       }}
     />,
   );
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-all' }));
+  await skip(user, 'requisitions.edit.skip-all');
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0 (P0)' })).toBeChecked();
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).not.toBeChecked();
   await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 2 (P2)' }));
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 2 (P2)' })).not.toBeChecked();
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-none' }));
+  await skip(user, 'requisitions.edit.skip-none');
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 3 (P3)' })).not.toBeChecked();
 });
 it.each([1000, 390])('removes saved non-full supply lines instantly at width %s', async (width) => {
@@ -467,11 +471,11 @@ it('limits This Page to the current page while All includes later pages', async 
       }}
     />,
   );
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-page' }));
+  await skip(user, 'requisitions.edit.skip-page');
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0 (P0)' })).toBeChecked();
   await user.click(screen.getByRole('button', { name: 'Next Page' }));
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).not.toBeChecked();
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-all' }));
+  await skip(user, 'requisitions.edit.skip-all');
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).toBeChecked();
 });
 
@@ -507,7 +511,7 @@ it.each([1000, 390])(
       'aria-disabled',
       'true',
     );
-    expect(screen.getByRole('button', { name: 'requisitions.edit.skip-none' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'requisitions.edit.skip-lines' })).toBeDisabled();
   },
 );
 

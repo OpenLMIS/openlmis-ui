@@ -106,7 +106,8 @@ it('lists the latest rejected record’s backend rejectionDtos', async () => {
   expect(within(dialog).getByText('Missing explanation')).toBeInTheDocument();
   expect(within(dialog).queryByText('Old reason')).not.toBeInTheDocument();
   expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
-  expect(within(dialog).getByText(/Rejected - Jane Doe on Oct 27, 2026/)).toBeInTheDocument();
+  expect(within(dialog).getByText('Rejected')).toBeInTheDocument();
+  expect(within(dialog).getByText(/Jane Doe on Oct 27, 2026/)).toBeInTheDocument();
 });
 
 it('hides history and rejection actions when there are no messages or latest reasons', () => {
@@ -127,5 +128,5 @@ it('shows the rejection date without an author when the server omits names', asy
   renderComments([{ ...rejection, statusMessageDto: null }], []);
   await userEvent.click(screen.getByRole('button', { name: 'View Rejection Reason(s)' }));
   const dialog = await screen.findByRole('dialog');
-  expect(within(dialog).getByText('Rejected on Oct 27, 2026, 10:00:00 AM')).toBeInTheDocument();
+  expect(within(dialog).getByText('Oct 27, 2026, 10:00:00 AM')).toBeInTheDocument();
 });

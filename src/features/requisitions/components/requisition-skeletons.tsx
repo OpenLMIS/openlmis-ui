@@ -55,7 +55,7 @@ export function RequisitionHeaderSkeleton({ record }: { record?: RequisitionReco
 }
 export function RequisitionCommentsSkeleton() {
   return (
-    <div aria-busy className="flex flex-col gap-2">
+    <div aria-busy className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <div className="h-5 w-20">
           <Skeleton fill />
@@ -67,7 +67,15 @@ export function RequisitionCommentsSkeleton() {
           <Skeleton fill />
         </div>
       </div>
-      <div className="rounded-lg border bg-muted/50 px-4 py-3">
+      <div className="flex flex-col gap-2 rounded-xl border bg-card px-4 py-3 shadow-xs">
+        <div className="flex min-h-7 items-center gap-2">
+          <div className="h-5 w-20">
+            <Skeleton fill />
+          </div>
+          <div className="h-3 w-44 max-w-full">
+            <Skeleton fill />
+          </div>
+        </div>
         <div className="flex h-5 items-center">
           <div className="h-4 w-56 max-w-full">
             <Skeleton fill />
@@ -143,13 +151,14 @@ export function RequisitionGridPending({
     `requisition-columns:${templateId}`,
   );
   const table = useTable({
-    columns: columns.map(({ name, label, definition }) =>
+    columns: columns.map(({ name, label, definition, kind }) =>
       helper.display({
         id: name,
         header: () => (
           <RequisitionGridHeader
             label={name === 'packSize' ? t('requisitions.requisition.pack-size') : label}
             definition={definition}
+            align={kind === 'skip' ? 'center' : 'start'}
           />
         ),
       }),

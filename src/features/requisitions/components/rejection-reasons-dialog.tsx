@@ -8,7 +8,7 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import { StatusMessage } from '@/features/requisitions/components/requisition-history-dialog';
+import { StatusMessage } from '@/features/requisitions/components/status-message';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 
 export function latestRejection(record: RequisitionRecord) {

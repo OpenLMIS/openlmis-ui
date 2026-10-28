@@ -378,6 +378,19 @@ function editingRecord() {
     ],
   };
 }
+async function addComment(text: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.add-comment' }));
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.change(
+    within(dialog).getByRole('textbox', { name: 'requisitions.edit.comment-label' }),
+    {
+      target: { value: text },
+    },
+  );
+  fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.save-comment' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByText(text)).toBeInTheDocument();
+}
 async function openEditor(invalid = false, fromList = false, authorize = false) {
   useLoginData
     .getState()
@@ -469,14 +482,9 @@ it.each(['sync', 'submit'] as const)(
 );
 it('locks editing during Sync and uses the refetched ETag next time', async () => {
   const { base, queryClient } = await openEditor();
-  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.add-comment' }));
-  fireEvent.change(screen.getByRole('textbox', { name: 'requisitions.edit.comment-label' }), {
-    target: { value: 'Temporary comment' },
-  });
+  await addComment('Temporary comment');
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.remove-comment' }));
-  expect(
-    screen.queryByRole('textbox', { name: 'requisitions.edit.comment-label' }),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByText('Temporary comment')).not.toBeInTheDocument();
   let resolve!: (value: unknown) => void;
   const put = vi.spyOn(client, 'put').mockImplementationOnce(
     () =>
@@ -793,7 +801,7 @@ async function confirmAction(kind: 'submit' | 'authorize' = 'submit') {
 }
 it('locks grid and comment editing while Submit is pending', async () => {
   const { base, queryClient } = await openEditor();
-  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.add-comment' }));
+  await addComment('Pending comment');
   vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
   let complete!: (value: unknown) => void;
   const post = vi.spyOn(client, 'post').mockImplementation(
@@ -808,7 +816,10 @@ it('locks grid and comment editing while Submit is pending', async () => {
     screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)', hidden: true }),
   ).toBeDisabled();
   expect(
-    screen.getByRole('textbox', { name: 'requisitions.edit.comment-label', hidden: true }),
+    screen.getByRole('button', { name: 'requisitions.edit.edit-comment', hidden: true }),
+  ).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: 'requisitions.edit.remove-comment', hidden: true }),
   ).toBeDisabled();
   complete({ data: {} });
   await screen.findByText('Opening List');

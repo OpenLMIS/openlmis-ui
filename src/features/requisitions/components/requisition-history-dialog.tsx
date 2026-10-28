@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { formatTimestamp } from '@/components/form/date-value';
 import {
   FormDialog,
   FormDialogBody,
@@ -9,32 +8,9 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { StatusMessage } from '@/features/requisitions/components/status-message';
 import type { RequisitionStatusMessage } from '@/features/requisitions/lib/types';
-import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
-import { REQUISITION_STATUS } from '@/lib/requisition-status';
 
-export function StatusMessage({ message }: { message: RequisitionStatusMessage }) {
-  const { t, i18n } = useTranslation();
-  const timeZone = useDeploymentTimeZone();
-  const author = [message.authorFirstName, message.authorLastName].filter(Boolean).join(' ');
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="text-muted-foreground text-sm">
-        {t('requisitions.requisition.status-message', {
-          status: t(REQUISITION_STATUS[message.status].labelKey),
-          hasAuthor: author ? 'yes' : 'no',
-          author,
-          date: formatTimestamp(message.createdDate, i18n.language, { time: true, timeZone }),
-        })}
-      </p>
-      {message.body && (
-        <p className="whitespace-pre-wrap break-words text-sm">
-          <bdi>{message.body}</bdi>
-        </p>
-      )}
-    </div>
-  );
-}
 export function RequisitionHistoryDialog({
   messages,
   open,
@@ -59,15 +35,17 @@ export function RequisitionHistoryDialog({
         </FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
-        <div className="flex flex-col gap-4">
-          {messages.length ? (
-            messages.map((message, index) => (
-              <StatusMessage key={message.id ?? index} message={message} />
-            ))
-          ) : (
-            <p>{t('requisitions.requisition.no-comments')}</p>
-          )}
-        </div>
+        {messages.length ? (
+          <ol className="flex flex-col gap-3">
+            {messages.map((message, index) => (
+              <li key={message.id ?? index}>
+                <StatusMessage message={message} />
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p>{t('requisitions.requisition.no-comments')}</p>
+        )}
       </FormDialogBody>
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>

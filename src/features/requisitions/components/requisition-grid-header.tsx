@@ -7,13 +7,21 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 export function RequisitionGridHeader({
   label,
   definition,
+  align = 'start',
 }: {
   label: string;
   definition?: string;
+  align?: 'start' | 'center';
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-between gap-1 py-1.5">
+    <div
+      className={
+        align === 'center'
+          ? 'flex items-center justify-center gap-1 py-1.5'
+          : 'flex items-center justify-between gap-1 py-1.5'
+      }
+    >
       <span
         className="min-w-(--label-width) text-balance whitespace-normal font-medium text-2xs text-muted-foreground uppercase tracking-table-label"
         style={{ '--label-width': `${Math.ceil(label.length / 3) + 1}ch` } as CSSProperties}
