@@ -13,6 +13,7 @@ import {
   RecordSummaryFields,
   RecordSummaryHeading,
 } from '@/components/record-summary';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { facilityOptions } from '@/features/reference-data/api/queries';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
@@ -32,24 +33,22 @@ export function RequisitionHeaderSkeleton({ record }: { record?: RequisitionReco
     enabled: !!record,
   });
   const fields = [
+    'facility',
     'operator',
     'district',
     'region',
     ...(facility?.geographicZone?.parent?.parent ? ['province'] : []),
     'period',
     ...(record?.datePhysicalStockCountCompleted ? ['physical-count'] : []),
+    'status',
   ];
   return (
     <RecordSummary aria-busy>
       <RecordSummaryHeading>
-        <div className="h-4 w-16">
-          <Skeleton fill />
-        </div>
-        <div className="h-5 w-32">
-          <Skeleton fill />
-        </div>
-        <div className="h-5 w-32">
-          <Skeleton fill />
+        <div className="flex h-5 items-center">
+          <div className="h-4 w-16">
+            <Skeleton fill />
+          </div>
         </div>
       </RecordSummaryHeading>
       <RecordSummaryFields>
@@ -63,14 +62,23 @@ export function RequisitionHeaderSkeleton({ record }: { record?: RequisitionReco
 export function RequisitionCommentsSkeleton() {
   return (
     <div aria-busy className="flex flex-col gap-2">
-      <div className="h-5 w-56">
-        <Skeleton fill />
+      <div className="flex items-center gap-3">
+        <div className="h-5 w-20">
+          <Skeleton fill />
+        </div>
+        <div className="min-w-8 flex-1">
+          <Separator />
+        </div>
+        <div className="h-9 w-28">
+          <Skeleton fill />
+        </div>
       </div>
-      <div className="h-5 w-56">
-        <Skeleton fill />
-      </div>
-      <div className="h-9 w-32">
-        <Skeleton fill />
+      <div className="rounded-lg border bg-muted/50 px-4 py-3">
+        <div className="flex h-5 items-center">
+          <div className="h-4 w-56 max-w-full">
+            <Skeleton fill />
+          </div>
+        </div>
       </div>
     </div>
   );

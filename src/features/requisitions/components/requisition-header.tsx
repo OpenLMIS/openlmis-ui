@@ -27,29 +27,18 @@ export function RequisitionHeader({ record }: { record: RequisitionRecord }) {
   return (
     <RecordSummary>
       <RecordSummaryHeading>
-        <span className="text-muted-foreground text-xs">
-          {t('requisitions.requisition.facility')}
-        </span>
-        <bdi className="break-words">
-          {facility.code} - {facility.name}
-        </bdi>
-        <div className="flex flex-wrap gap-1">
-          <Badge variant={status.tone}>
-            <StatusIcon data-icon="inline-start" />
-            {t(status.labelKey)}
-          </Badge>
-          <Badge variant="outline">
-            {t(
-              record.emergency
-                ? 'requisitions.requisition.emergency'
-                : record.reportOnly
-                  ? 'requisitions.requisition.report-only'
-                  : 'requisitions.requisition.regular',
-            )}
-          </Badge>
-        </div>
+        {t(
+          record.emergency
+            ? 'requisitions.requisition.emergency'
+            : record.reportOnly
+              ? 'requisitions.requisition.report-only'
+              : 'requisitions.requisition.regular',
+        )}
       </RecordSummaryHeading>
       <RecordSummaryFields>
+        <RecordSummaryField label={t('requisitions.requisition.facility')}>
+          {facility.code} - {facility.name}
+        </RecordSummaryField>
         <RecordSummaryField label={t('requisitions.requisition.operated-by')}>
           {orEmpty(facility.operator?.name)}
         </RecordSummaryField>
@@ -66,7 +55,6 @@ export function RequisitionHeader({ record }: { record: RequisitionRecord }) {
         )}
         <RecordSummaryField label={t('requisitions.requisition.period')}>
           {t('requisitions.requisition.period-range', {
-            name: period.name,
             start: formatDateValue(period.startDate, i18n.language),
             end: formatDateValue(period.endDate, i18n.language),
           })}
@@ -76,6 +64,12 @@ export function RequisitionHeader({ record }: { record: RequisitionRecord }) {
             {formatDateValue(record.datePhysicalStockCountCompleted, i18n.language)}
           </RecordSummaryField>
         )}
+        <RecordSummaryField label={t('requisitions.requisition.status')}>
+          <Badge variant={status.tone}>
+            <StatusIcon data-icon="inline-start" />
+            {t(status.labelKey)}
+          </Badge>
+        </RecordSummaryField>
       </RecordSummaryFields>
     </RecordSummary>
   );

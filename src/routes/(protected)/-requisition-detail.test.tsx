@@ -110,6 +110,7 @@ afterEach(() => {
   cleanup();
   useLoginData.setState({ referenceDataUserId: null });
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 it('shows a missing requisition with a link back to the list search', async () => {
@@ -158,19 +159,34 @@ const patientRecord = () => ({
     },
   ],
 });
-it('recognizes a string supervisory node as the current approval node', async () => {
-  useLoginData.setState({ referenceDataUserId: 'u' });
-  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
-  vi.mocked(fetchRequisition).mockResolvedValue({
+function approvalRecord() {
+  return {
     ...patientRecord(),
     template: { ...patientRecord().template, patientsTabEnabled: false },
-    status: 'IN_APPROVAL',
+    status: 'IN_APPROVAL' as const,
     supervisoryNode: 'node',
-  });
+  };
+}
+it('recognizes a string supervisory node as the current approval node', async () => {
+  vi.stubEnv('BASE_URL', '/v2/');
+  useLoginData.setState({ referenceDataUserId: 'u' });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
+  vi.mocked(fetchRequisition).mockResolvedValue(approvalRecord());
   const { queryClient } = renderRoute('/requisitions/view/r');
   await screen.findByRole('tab', { name: 'requisitions.requisition.full-supply', selected: true });
   expect(screen.getByText('requisitions.requisition.legacy-description')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'legacy.label' })).toBeInTheDocument();
   expect(screen.getByText('requisitions.requisition.supplying-facility')).toBeInTheDocument();
+  queryClient.clear();
+});
+it('hides the legacy actions note when no legacy UI sits beside the app', async () => {
+  vi.stubEnv('BASE_URL', '/');
+  useLoginData.setState({ referenceDataUserId: 'u' });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
+  vi.mocked(fetchRequisition).mockResolvedValue(approvalRecord());
+  const { queryClient } = renderRoute('/requisitions/view/r');
+  await screen.findByText('requisitions.requisition.supplying-facility');
+  expect(screen.queryByText('requisitions.requisition.legacy-description')).not.toBeInTheDocument();
   queryClient.clear();
 });
 it('shows total requisition cost on the default Patients tab', async () => {

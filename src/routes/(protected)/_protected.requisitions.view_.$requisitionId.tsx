@@ -131,7 +131,7 @@ function RequisitionPage() {
   if (!data || data.userId !== userId) return null;
   const { record } = data;
   return (
-    <Workspace>
+    <Workspace width="wide">
       <WorkspaceHeader>
         <QueryBoundary
           resetKey={record.id}
@@ -433,7 +433,7 @@ function RequisitionPending() {
     requisitionOptions(Route.useParams().requisitionId).queryKey,
   );
   return (
-    <Workspace>
+    <Workspace width="wide">
       <WorkspaceHeader>
         <RequisitionHeadingSkeleton />
         <WorkspaceActions>

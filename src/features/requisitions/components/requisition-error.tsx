@@ -8,6 +8,7 @@ export function RequisitionError({ search, ...props }: ErrorComponentProps & { s
   return (
     <RecordError
       {...props}
+      width="wide"
       backLink={<Link search={requisitionSearchSchema.parse(search)} to="/requisitions/view" />}
       labels={{
         back: t('requisitions.requisition.back'),
