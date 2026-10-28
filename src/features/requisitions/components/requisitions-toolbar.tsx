@@ -33,8 +33,8 @@ export function RequisitionsToolbar({
   const change = (patch: Partial<RequisitionSearch>) =>
     onFilterChange({ ...patch, page: undefined });
   return (
-    <DataTableToolbar align="end">
-      <div className="flex-1 @2xl/main:flex-none">
+    <DataTableToolbar>
+      <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
         <DataTableFilters
           size="lg"
           activeCount={activeRequisitionFilterCount(search)}
