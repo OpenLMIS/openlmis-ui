@@ -381,12 +381,9 @@ function editingRecord() {
 async function addComment(text: string) {
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.add-comment' }));
   const dialog = await screen.findByRole('dialog');
-  fireEvent.change(
-    within(dialog).getByRole('textbox', { name: 'requisitions.edit.comment-label' }),
-    {
-      target: { value: text },
-    },
-  );
+  fireEvent.change(within(dialog).getByRole('textbox', { name: 'requisitions.edit.comment' }), {
+    target: { value: text },
+  });
   fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.save-comment' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(screen.getByText(text)).toBeInTheDocument();

@@ -1,14 +1,6 @@
-import { ChevronDownIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { ButtonGroup } from '@/components/ui/button-group';
 import type { GridEditing, GridModel } from '@/features/requisitions/components/requisition-grid';
 
 export function SkipControls({
@@ -32,30 +24,32 @@ export function SkipControls({
   };
   return (
     <div className="w-full @2xl/main:w-auto">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button disabled={editing.pending} size="lg" variant="outline" width="full" />}
+      <ButtonGroup aria-label={t('requisitions.edit.skip-lines')} width="full">
+        <Button
+          disabled={editing.pending}
+          size="lg"
+          variant="outline"
+          onClick={() => set(all, true)}
         >
-          {t('requisitions.edit.skip-lines')}
-          <ChevronDownIcon data-icon="inline-end" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" width="auto">
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => set(all, true)}>
-              {t('requisitions.edit.skip-all')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => set(page, true)}>
-              {t('requisitions.edit.skip-page')}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => set(all, false)}>
-              {t('requisitions.edit.skip-none')}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          {t('requisitions.edit.skip-all')}
+        </Button>
+        <Button
+          disabled={editing.pending}
+          size="lg"
+          variant="outline"
+          onClick={() => set(page, true)}
+        >
+          {t('requisitions.edit.skip-page')}
+        </Button>
+        <Button
+          disabled={editing.pending}
+          size="lg"
+          variant="outline"
+          onClick={() => set(all, false)}
+        >
+          {t('requisitions.edit.skip-none')}
+        </Button>
+      </ButtonGroup>
     </div>
   );
 }

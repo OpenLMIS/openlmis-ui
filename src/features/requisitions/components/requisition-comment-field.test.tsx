@@ -44,7 +44,7 @@ it('writes the comment only on Save and clears blank or removed comments', async
   const user = userEvent.setup();
   render(<Editor />);
   const input = within(await dialog()).getByRole('textbox', {
-    name: 'requisitions.edit.comment-label',
+    name: 'requisitions.edit.comment',
   });
   expect(input).toHaveValue('ab');
   await user.clear(input);

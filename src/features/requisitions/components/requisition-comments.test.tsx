@@ -107,7 +107,8 @@ it('lists the latest rejected record’s backend rejectionDtos', async () => {
   expect(within(dialog).queryByText('Old reason')).not.toBeInTheDocument();
   expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
   expect(within(dialog).getByText('Rejected')).toBeInTheDocument();
-  expect(within(dialog).getByText(/Jane Doe on Oct 27, 2026/)).toBeInTheDocument();
+  expect(within(dialog).getByText('Jane Doe')).toBeInTheDocument();
+  expect(within(dialog).getByText(/^Oct 27, 2026/)).toBeInTheDocument();
 });
 
 it('hides history and rejection actions when there are no messages or latest reasons', () => {

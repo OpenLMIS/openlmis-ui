@@ -71,6 +71,7 @@ export function RequisitionGridToolbar({
         </div>
       )}
       <div className="flex w-full flex-wrap items-center gap-2 @2xl/main:ms-auto @2xl/main:w-auto">
+        {status && <div className="flex w-full @2xl/main:w-auto">{status}</div>}
         {canSwitch && (
           <div className="flex-1 @2xl/main:flex-none">
             <QuantityUnitToggle disabled={disabled} unit={unit} onUnitChange={setUnit} />
@@ -87,7 +88,6 @@ export function RequisitionGridToolbar({
         </div>
         {action}
       </div>
-      {status}
     </DataTableToolbar>
   );
 }

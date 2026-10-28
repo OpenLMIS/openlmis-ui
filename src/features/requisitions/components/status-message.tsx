@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardBand } from '@/components/card-list';
+import { DataTableCard } from '@/components/data-table/data-table';
 import { formatTimestamp } from '@/components/form/date-value';
 import { Badge } from '@/components/ui/badge';
 import type { RequisitionStatusMessage } from '@/features/requisitions/lib/types';
@@ -9,51 +11,76 @@ import { REQUISITION_STATUS } from '@/lib/requisition-status';
 export function CommentEntry({
   badge,
   meta,
-  action,
+  note,
   children,
 }: {
   badge: ReactNode;
   meta?: ReactNode;
-  action?: ReactNode;
+  note?: ReactNode;
   children?: ReactNode;
 }) {
   return (
-    <article className="flex min-w-0 flex-col gap-2 rounded-xl border bg-card px-4 py-3 shadow-xs">
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="flex min-h-7 min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-          {badge}
-          {meta && <p className="min-w-0 text-muted-foreground text-xs">{meta}</p>}
+    <article>
+      <DataTableCard>
+        <div className="divide-y">
+          <CardBand>
+            <div className="flex shrink-0 items-center">{badge}</div>
+            {meta && (
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-end">
+                {meta}
+              </div>
+            )}
+          </CardBand>
+          {(children || note) && (
+            <div className="flex flex-col gap-1 px-4 py-3">
+              {children && (
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                  <bdi>{children}</bdi>
+                </p>
+              )}
+              {note && <p className="text-muted-foreground text-xs">{note}</p>}
+            </div>
+          )}
         </div>
-        {action}
-      </div>
-      {children && (
-        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-          <bdi>{children}</bdi>
-        </p>
-      )}
+      </DataTableCard>
     </article>
   );
 }
 
+export function StatusBadge({ status }: { status: RequisitionStatusMessage['status'] }) {
+  const { t } = useTranslation();
+  const tone = REQUISITION_STATUS[status];
+  const StatusIcon = tone.icon;
+  return (
+    <Badge variant={tone.tone}>
+      <StatusIcon data-icon="inline-start" />
+      {t(tone.labelKey)}
+    </Badge>
+  );
+}
+
+export function messageAuthor(message: RequisitionStatusMessage) {
+  return [message.authorFirstName, message.authorLastName].filter(Boolean).join(' ');
+}
+
 export function StatusMessage({ message }: { message: RequisitionStatusMessage }) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
-  const author = [message.authorFirstName, message.authorLastName].filter(Boolean).join(' ');
-  const status = REQUISITION_STATUS[message.status];
-  const StatusIcon = status.icon;
+  const author = messageAuthor(message);
   return (
     <CommentEntry
-      badge={
-        <Badge variant={status.tone}>
-          <StatusIcon data-icon="inline-start" />
-          {t(status.labelKey)}
-        </Badge>
+      badge={<StatusBadge status={message.status} />}
+      meta={
+        <>
+          {author && <bdi>{author}</bdi>}
+          <time
+            className="font-normal text-muted-foreground text-xs"
+            dateTime={message.createdDate}
+          >
+            {formatTimestamp(message.createdDate, i18n.language, { time: true, timeZone })}
+          </time>
+        </>
       }
-      meta={t('requisitions.requisition.comment-byline', {
-        hasAuthor: author ? 'yes' : 'no',
-        author,
-        date: formatTimestamp(message.createdDate, i18n.language, { time: true, timeZone }),
-      })}
     >
       {message.body}
     </CommentEntry>

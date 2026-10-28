@@ -45,13 +45,13 @@ export function DraftComment({
   return (
     <CommentEntry
       badge={
-        <Badge variant="outline">
+        <Badge variant="secondary">
           <MessageSquareDashedIcon data-icon="inline-start" />
           {t('requisitions.edit.draft-comment')}
         </Badge>
       }
-      meta={t('requisitions.edit.draft-comment-note')}
-      action={
+      note={t('requisitions.edit.draft-comment-note')}
+      meta={
         <CardActions
           label={t('requisitions.edit.draft-comment')}
           actions={[
@@ -138,7 +138,7 @@ function CommentForm({
         <form.AppField name="message">
           {(field) => (
             <field.TextareaField
-              label={t('requisitions.edit.comment-label')}
+              label={t('requisitions.edit.comment')}
               dir="auto"
               disabled={pending}
             />
