@@ -108,13 +108,24 @@ it('starts with no overrides and rebases edits over the server response without 
   const draft = buildRequisitionDraft(original);
   expect(draft.lines).toEqual({});
   draft.lines.a = { requestedQuantity: '7' };
-  draft.addedLines = [recordLine({ id: 'c', requestedQuantity: 3 })];
+  draft.addedLines = [
+    {
+      ...{
+        ...recordLine({ id: 'server-c', requestedQuantity: 3 }),
+        orderable: { id: 'new-product', versionNumber: 1 },
+      },
+      orderable: { id: 'new-product', versionNumber: 1 },
+    },
+  ];
   draft.removedLineIds = ['b'];
   const response = {
     ...original,
     requisitionLineItems: [
       recordLine({ id: 'a', requestedQuantity: 5, stockOnHand: 20 }),
-      recordLine({ id: 'c', requestedQuantity: 3 }),
+      {
+        ...recordLine({ id: 'server-c', requestedQuantity: 3 }),
+        orderable: { id: 'new-product', versionNumber: 1 },
+      },
     ],
   };
   const rebased = rebaseRequisitionDraft(response, draft);
@@ -125,7 +136,7 @@ it('starts with no overrides and rebases edits over the server response without 
   });
   expect(applyRequisitionDraft(response, rebased).requisitionLineItems).toMatchObject([
     { id: 'a', requestedQuantity: 7, stockOnHand: 20 },
-    { id: 'c', requestedQuantity: 3 },
+    { id: 'server-c', requestedQuantity: 3 },
   ]);
 });
 it('only retains changed editable values from a saved line', () => {
@@ -173,4 +184,17 @@ it('retains invalid numeric input in the device draft until it is corrected', ()
   const draft = buildRequisitionDraft(base);
   draft.lines.a = { requestedQuantity: 'invalid' };
   expect(rebaseRequisitionDraft(base, draft).lines.a).toEqual({ requestedQuantity: 'invalid' });
+});
+
+it('rebases a synced addition by product when the server assigns a new line id', () => {
+  const original = { ...base, requisitionLineItems: [] };
+  const draft = buildRequisitionDraft(original);
+  draft.addedLines = [recordLine({ id: 'local', requestedQuantity: 3 })];
+  draft.lines.local = { requestedQuantity: '3' };
+  const saved = {
+    ...original,
+    requisitionLineItems: [recordLine({ id: 'server', requestedQuantity: 3 })],
+  };
+  expect(rebaseRequisitionDraft(saved, draft)).toEqual(buildRequisitionDraft(saved));
+  expect(applyRequisitionDraft(saved, draft).requisitionLineItems).toHaveLength(1);
 });

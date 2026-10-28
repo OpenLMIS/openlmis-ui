@@ -30,7 +30,10 @@ export type RequisitionProduct = Pick<
 export type RequisitionApprovedProduct = Pick<ApprovedProduct, 'id' | 'meta' | 'maxPeriodsOfStock'>;
 
 export type RequisitionReason = {
-  reasonId: string;
+  id: string;
+  description?: string;
+  isFreeTextAllowed?: boolean;
+  reasonCategory?: string;
   name?: string;
   reasonType: 'CREDIT' | 'DEBIT' | 'BALANCE_ADJUSTMENT';
   hidden?: boolean;

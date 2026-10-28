@@ -349,7 +349,10 @@ function RequisitionBody({
       latest.current.record,
       latest.current.editor.form.state.values.draft,
     );
-    const saved = await saveRequisition(sent);
+    const saved = await saveRequisition(
+      sent,
+      latest.current.editor.draft.addedLines.map((line) => line.id),
+    );
     assertSessionScope(scope);
     const next = rebaseRequisitionDraft(saved, latest.current.editor.form.state.values.draft);
     editor.form.setFieldValue('draft', next);

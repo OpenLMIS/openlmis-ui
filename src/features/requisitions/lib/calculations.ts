@@ -104,7 +104,7 @@ export function calculateLine(
   if (model.fullSupply && !requisition.emergency) {
     if (!template.populateStockOnHandFromStockCards) {
       const reasons = new Map(
-        requisition.stockAdjustmentReasons?.map((reason) => [reason.reasonId, reason]),
+        requisition.stockAdjustmentReasons?.map((reason) => [reason.id, reason]),
       );
       line.totalLossesAndAdjustments = (line.stockAdjustments ?? []).reduce((sum, adjustment) => {
         const reason = reasons.get(adjustment.reasonId);

@@ -14,9 +14,16 @@ import {
 } from './adjustments-editor-dialog';
 
 const reasons = [
-  { reasonId: 'credit', name: 'Found', reasonType: 'CREDIT' as const },
-  { reasonId: 'debit', name: 'Lost', reasonType: 'DEBIT' as const },
-  { reasonId: 'hidden', reasonType: 'CREDIT' as const, hidden: true },
+  {
+    id: 'credit',
+    name: 'Found',
+    description: 'Found stock',
+    isFreeTextAllowed: false,
+    reasonCategory: 'ADJUSTMENT',
+    reasonType: 'CREDIT' as const,
+  },
+  { id: 'debit', name: 'Lost', reasonType: 'DEBIT' as const },
+  { id: 'hidden', reasonType: 'CREDIT' as const, hidden: true },
 ];
 it('excludes hidden and already used reasons without discarding their totals', () => {
   const adjustments = [
@@ -51,11 +58,11 @@ it.each([1000, 390])(
   async (width) => {
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
     const reasons = Array.from({ length: 3 }, (_, index) => ({
-      reasonId: `r${index}`,
+      id: `r${index}`,
       name: `Reason ${index}`,
       reasonType: 'CREDIT' as const,
     }));
-    const stockAdjustments = reasons.map((r) => ({ reasonId: r.reasonId, quantity: 1 }));
+    const stockAdjustments = reasons.map((r) => ({ reasonId: r.id, quantity: 1 }));
     const onSave = vi.fn();
     const user = userEvent.setup();
     renderPage(

@@ -58,9 +58,10 @@ export function rebaseRequisitionDraft(
   draft: RequisitionDraft,
 ): RequisitionDraft {
   const saved = new Map(record.requisitionLineItems.map((line) => [line.id, line]));
+  const savedProducts = new Set(record.requisitionLineItems.map((line) => line.orderable.id));
   const removed = new Set(draft.removedLineIds);
   const addedLines = draft.addedLines.filter(
-    (line) => !saved.has(line.id) && !removed.has(line.id),
+    (line) => !savedProducts.has(line.orderable.id) && !removed.has(line.id),
   );
   const available = new Map([...saved, ...addedLines.map((line) => [line.id, line] as const)]);
   const lines = Object.fromEntries(

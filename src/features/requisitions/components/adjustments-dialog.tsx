@@ -55,7 +55,7 @@ export function AdjustmentsDialog({
       }),
     ]),
     data: (model.line.stockAdjustments ?? []).map((item) => ({
-      reason: reasons.find((r) => r.reasonId === item.reasonId)?.name ?? item.reasonId,
+      reason: reasons.find((r) => r.id === item.reasonId)?.name ?? item.reasonId,
       quantity: item.quantity,
     })),
   });

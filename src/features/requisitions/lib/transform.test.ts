@@ -96,3 +96,16 @@ it('keeps stored emergency values outside the emergency column subset', () => {
     requestedQuantity: 3,
   });
 });
+
+it('omits local ids from new lines while retaining saved line ids', () => {
+  const input = {
+    ...record(),
+    id: 'r',
+    facility: { id: 'f' },
+    processingPeriod: { id: 'p' },
+    requisitionLineItems: [line({ id: 'saved' }), line({ id: 'local' })],
+  } as RequisitionRecord;
+  const body = transformRequisition(input, ['local']);
+  expect(body.requisitionLineItems[0]).toHaveProperty('id', 'saved');
+  expect(body.requisitionLineItems[1]).not.toHaveProperty('id');
+});

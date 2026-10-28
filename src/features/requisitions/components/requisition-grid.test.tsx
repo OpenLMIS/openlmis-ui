@@ -42,7 +42,7 @@ const requisition: RequisitionRecord = {
       ),
     },
     stockAdjustmentReasons: [
-      { reasonId: 'hidden', name: 'Historical Reason', reasonType: 'CREDIT', hidden: true },
+      { id: 'hidden', name: 'Historical Reason', reasonType: 'CREDIT', hidden: true },
     ],
   }),
   id: 'record',

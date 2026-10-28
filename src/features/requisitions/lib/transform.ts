@@ -20,7 +20,10 @@ function withoutClientFields(value: object): Record<string, unknown> {
   );
 }
 
-export function transformRequisition(record: RequisitionRecord) {
+export function transformRequisition(
+  record: RequisitionRecord,
+  addedLineIds: readonly string[] = [],
+) {
   const body = withoutClientFields(record);
   const displayed = new Set(
     compileColumns(record.template, {
@@ -35,6 +38,7 @@ export function transformRequisition(record: RequisitionRecord) {
     facility: { id: record.facility.id },
     requisitionLineItems: record.requisitionLineItems.map((line) => {
       const next = withoutClientFields(line);
+      if (addedLineIds.includes(line.id)) delete next.id;
       for (const column of Object.values(record.template.columnsMap)) {
         if (column.name === 'numberOfPatientsOnTreatmentNextMonth') continue;
         if (record.emergency && !SUBSET_COLUMNS.has(column.name)) continue;

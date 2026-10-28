@@ -69,8 +69,8 @@ describe('server display calculations', () => {
     };
     const result = calculate(input, {
       stockAdjustmentReasons: [
-        { reasonId: 'credit', reasonType: 'CREDIT', name: 'Hidden Credit', hidden: true },
-        { reasonId: 'debit', reasonType: 'DEBIT' },
+        { id: 'credit', reasonType: 'CREDIT', name: 'Hidden Credit', hidden: true },
+        { id: 'debit', reasonType: 'DEBIT' },
       ],
     });
     expect(result).toMatchObject({
@@ -276,7 +276,7 @@ it('recalculates D even with a user-input source', () => {
             }),
           },
         },
-        stockAdjustmentReasons: [{ reasonId: 'credit', reasonType: 'CREDIT' }],
+        stockAdjustmentReasons: [{ id: 'credit', reasonType: 'CREDIT' }],
       },
     ).totalLossesAndAdjustments,
   ).toBe(4);

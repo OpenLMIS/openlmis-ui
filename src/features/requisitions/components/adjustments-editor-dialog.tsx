@@ -51,14 +51,14 @@ export const availableAdjustmentReasons = (
   adjustments: readonly Adjustment[],
 ) =>
   reasons.filter(
-    (reason) => !reason.hidden && !adjustments.some((item) => item.reasonId === reason.reasonId),
+    (reason) => !reason.hidden && !adjustments.some((item) => item.reasonId === reason.id),
   );
 export const adjustmentTotal = (
   adjustments: readonly Adjustment[],
   reasons: readonly RequisitionReason[],
 ) =>
   adjustments.reduce((total, item) => {
-    const reason = reasons.find((reason) => reason.reasonId === item.reasonId);
+    const reason = reasons.find((reason) => reason.id === item.reasonId);
     return total + (reason ? item.quantity * (reason.reasonType === 'CREDIT' ? 1 : -1) : 0);
   }, 0);
 export type AdjustmentsEditorDialogProps = {
@@ -120,13 +120,13 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
       }),
     },
     onSubmit: ({ value }) => {
-      if (!offered.some((r) => r.reasonId === value.reasonId)) return;
+      if (!offered.some((r) => r.id === value.reasonId)) return;
       form.setFieldValue('adjustments', (current) => [value, ...current]);
       add.reset();
     },
   });
   const columns = useMemo(() => {
-    const reasonName = (id: string) => reasons.find((r) => r.reasonId === id)?.name ?? id;
+    const reasonName = (id: string) => reasons.find((r) => r.id === id)?.name ?? id;
     return helper.columns([
       helper.accessor('reasonId', {
         id: 'reason',
@@ -244,8 +244,8 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
                         label={t('requisitions.adjustments.reason')}
                         placeholder={t('stock-event-reverse.select-option')}
                         items={offered.map((r) => ({
-                          value: r.reasonId,
-                          label: r.name ?? r.reasonId,
+                          value: r.id,
+                          label: r.name ?? r.id,
                         }))}
                         required
                       />

@@ -42,7 +42,7 @@ function validate(
         ]),
       ),
     },
-    stockAdjustmentReasons: [{ reasonId: 'credit', reasonType: 'CREDIT' }],
+    stockAdjustmentReasons: [{ id: 'credit', reasonType: 'CREDIT' }],
     requisitionLineItems: [
       line({
         beginningBalance: 10,

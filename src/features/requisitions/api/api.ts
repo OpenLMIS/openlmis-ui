@@ -34,11 +34,14 @@ export function fetchRequisitionReport(id: string, params: { showInDoses: boolea
   return fetchReport(`/requisitions/${id}/print`, params);
 }
 
-export async function saveRequisition(record: RequisitionRecord): Promise<RequisitionRecord> {
+export async function saveRequisition(
+  record: RequisitionRecord,
+  addedLineIds: readonly string[] = [],
+): Promise<RequisitionRecord> {
   const scope = getSessionScope();
   const { data, headers } = await client.put<RequisitionRecord>(
     `/v2/requisitions/${record.id}`,
-    transformRequisition(record),
+    transformRequisition(record, addedLineIds),
     { headers: record.eTag ? { 'If-Match': record.eTag } : {} },
   );
   assertSessionScope(scope);
