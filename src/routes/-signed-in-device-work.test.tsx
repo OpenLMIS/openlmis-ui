@@ -139,3 +139,44 @@ it('publishes sync and save status from sibling services and clears it after log
   act(() => useLoginData.getState().clearLoginData());
   expect(screen.getByText('idle/0/')).toBeVisible();
 });
+
+it('warns before logout when a requisition has unsynced device edits', async () => {
+  login();
+  const onSignOut = vi.fn();
+  function SignOut() {
+    const { confirm, dialog } = useOfflineSignOut();
+    return (
+      <>
+        <button type="button" onClick={() => confirm(onSignOut)}>
+          Log Out
+        </button>
+        {dialog}
+      </>
+    );
+  }
+  const db = getLocalDb();
+  await db.table(LOCAL_TABLES.requisitionDrafts).put({
+    draftId: 'requisition',
+    userId: 'device-work',
+    formatVersion: 1,
+    modifiedDate: '2026-10-28T10:00:00Z',
+    eTag: '"base"',
+    draft: {
+      lines: { line: { requestedQuantity: '12' } },
+      addedLines: [],
+      removedLineIds: [],
+      draftStatusMessage: '',
+      datePhysicalStockCountCompleted: null,
+    },
+  });
+  render(
+    <SignedInDeviceWork>
+      <SignOut />
+    </SignedInDeviceWork>,
+  );
+  act(() => screen.getByRole('button', { name: 'Log Out' }).click());
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('sign-out-device.description');
+  expect(onSignOut).not.toHaveBeenCalled();
+  expect(await db.table(LOCAL_TABLES.requisitionDrafts).count()).toBe(1);
+  await db.delete();
+});

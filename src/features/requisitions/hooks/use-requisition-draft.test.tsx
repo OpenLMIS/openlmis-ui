@@ -262,3 +262,24 @@ it('loads the newer device draft on conflict and resumes autosave', async () => 
     draft: { draftStatusMessage: 'Resolved' },
   });
 });
+
+it('silently adopts the server and deletes an empty outdated row', async () => {
+  await store('old');
+  const table = getLocalDb().table('requisitionDrafts');
+  await table.put({ ...(await table.get('r')), draft: buildRequisitionDraft(base) });
+  const onLoad = vi.fn();
+  const { result } = renderHook(() => useRequisitionDraft(base, onLoad));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  expect(result.current.outdated).toBe(false);
+  expect(await table.get('r')).toBeUndefined();
+});
+it('removes the device row when Sync leaves no local changes', async () => {
+  const { result } = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  act(() => result.current.write(draft));
+  await act(() => result.current.flush());
+  const saved = { ...base, modifiedDate: 'saved', draftStatusMessage: draft.draftStatusMessage };
+  act(() => result.current.write(buildRequisitionDraft(saved), saved));
+  await act(() => result.current.flush());
+  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
+});

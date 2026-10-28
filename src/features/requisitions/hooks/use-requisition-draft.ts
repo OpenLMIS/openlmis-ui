@@ -5,6 +5,7 @@ import {
   rebaseRequisitionDraft,
 } from '@/features/requisitions/lib/draft';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import { hasUnsyncedRequisitionDraft } from '@/features/requisitions/lib/unsynced-device-work';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { saveRevisionedDraft } from '@/lib/draft-store';
 import { createDraftWriter, type DraftSaveState } from '@/lib/draft-writer';
@@ -25,6 +26,7 @@ export type RequisitionLocalDraft = {
   draft: RequisitionDraft;
   modifiedDate: RequisitionRecord['modifiedDate'];
   eTag: RequisitionRecord['eTag'];
+  baseHeaders?: Pick<RequisitionDraft, 'draftStatusMessage' | 'datePhysicalStockCountCompleted'>;
 };
 
 export function useRequisitionDraft(
@@ -64,9 +66,29 @@ export function useRequisitionDraft(
               formats: [1],
             })
           : Promise.resolve(undefined)
-      ).then((stored) => {
+      ).then(async (stored) => {
         assertSessionScope(scope);
         expected = stored;
+        if (
+          stored &&
+          db &&
+          table &&
+          (!hasUnsyncedRequisitionDraft(stored) ||
+            JSON.stringify(rebaseRequisitionDraft(baseline, stored.draft)) ===
+              JSON.stringify(buildRequisitionDraft(baseline)))
+        ) {
+          await saveRevisionedDraft({
+            db,
+            table,
+            sessionScope: scope,
+            expected,
+            read: () => table.get(draftId),
+            next: () => undefined,
+          });
+          assertSessionScope(scope);
+          expected = undefined;
+          stored = undefined;
+        }
         outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;
         if (active && stored && !outdated)
           adopt.current?.(rebaseRequisitionDraft(baseline, stored.draft));
@@ -87,19 +109,25 @@ export function useRequisitionDraft(
           sessionScope: scope,
           expected,
           read: () => table.get(draftId),
-          next: (stored) => ({
-            draftId: draftId,
-            userId,
-            formatVersion: 1,
-            revision: (stored?.revision ?? 0) + 1,
-            draft: rebaseRequisitionDraft(base ?? baseline, draft),
-            modifiedDate: base
-              ? base.modifiedDate
-              : stored
-                ? stored.modifiedDate
-                : baseline.modifiedDate,
-            eTag: base ? base.eTag : stored ? stored.eTag : baseline.eTag,
-          }),
+          next: (stored) => {
+            const currentBase = base ?? baseline;
+            const rebased = rebaseRequisitionDraft(currentBase, draft);
+            const headers = buildRequisitionDraft(currentBase);
+            if (JSON.stringify(rebased) === JSON.stringify(headers)) return undefined;
+            return {
+              draftId,
+              userId,
+              formatVersion: 1,
+              revision: (stored?.revision ?? 0) + 1,
+              draft: rebased,
+              baseHeaders: {
+                draftStatusMessage: headers.draftStatusMessage,
+                datePhysicalStockCountCompleted: headers.datePhysicalStockCountCompleted,
+              },
+              modifiedDate: (base ?? stored ?? baseline).modifiedDate,
+              eTag: (base ?? stored ?? baseline).eTag,
+            };
+          },
         });
         assertSessionScope(scope);
         if (base) baseline = base;
@@ -212,7 +240,6 @@ export function useRequisitionDraft(
     retry: controller.retry,
     clear: controller.clear,
     update: controller.update,
-    discard: controller.update,
     resolve: controller.resolve,
   };
 }
