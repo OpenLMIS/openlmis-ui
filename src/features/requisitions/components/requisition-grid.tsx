@@ -287,7 +287,7 @@ export function RequisitionGridView({
       return row.model && editing ? (
         <ActionTooltip reason={t('requisitions.edit.remove-product')}>
           <Button
-            variant="destructive"
+            variant="destructive-ghost"
             size="icon-sm"
             aria-label={`${t('requisitions.edit.remove-product')}: ${row.model.product?.fullProductName}`}
             onClick={() => editing.editor.removeLine(row.id)}
@@ -419,24 +419,24 @@ export function RequisitionGridView({
           )}
         <RequisitionGridToolbar
           extra={
-            editing?.editable ? (
-              <>
-                {editing.skipLines && tab === 'fullSupply' && !record.emergency && (
+            editing?.editable
+              ? editing.skipLines &&
+                tab === 'fullSupply' &&
+                !record.emergency && (
                   <SkipControls
                     editing={editing}
                     record={record}
                     all={selected}
                     page={data.flatMap((row) => (row.model ? [row.model] : []))}
                   />
-                )}
-                {editing.editor.device.deviceAvailable && (
+                )
+              : undefined
+          }
+          status={
+            editing
+              ? editing.editor.device.deviceAvailable && (
                   <DraftStatus
                     {...editing.editor.device.status}
-                    status={
-                      editing.editor.device.status.status === 'conflict'
-                        ? 'failed'
-                        : editing.editor.device.status.status
-                    }
                     labels={{
                       saved: t('stock-events.draft-saved'),
                       saving: t('stock-events.draft-saving'),
@@ -445,18 +445,15 @@ export function RequisitionGridView({
                       retry: t('stock-events.draft-retry'),
                       conflict: t('stock-events.draft-conflict'),
                       conflictTitle: t('stock-events.draft-conflict-title'),
-                      conflictDescription: t('stock-events.draft-conflict-description'),
-                      copy: t('stock-events.draft-copy'),
+                      conflictDescription: t('requisitions.edit.draft-conflict-description'),
+                      copy: t('requisitions.edit.draft-copy'),
                       load: t('stock-events.draft-load'),
                     }}
                     onRetry={editing.editor.device.retry}
-                    onResolve={async () => {
-                      await editing.editor.device.flush();
-                    }}
+                    onResolve={editing.editor.resolveConflict}
                   />
-                )}
-              </>
-            ) : undefined
+                )
+              : undefined
           }
           columns={columns}
           view={view}
@@ -477,6 +474,12 @@ export function RequisitionGridView({
             listRef={pageStart.ref}
             remove={removable ? editing.editor.removeLine : undefined}
             invalid={(id) => !!errors[id]}
+            unit={unit}
+            isControl={(column) =>
+              editing.editableColumns.includes(column.name) ||
+              column.kind === 'skip' ||
+              (column.kind === 'adjustments' && !record.template.populateStockOnHandFromStockCards)
+            }
           />
         ) : view.cards ? (
           <TableCards
@@ -513,7 +516,11 @@ export function RequisitionGridView({
                       {editing?.editable &&
                         columnsById.get(column.id)?.kind === 'quantity' &&
                         editing.editableColumns.includes(column.id) && (
-                          <div className="flex items-center gap-1" aria-hidden>
+                          <div
+                            className="invisible flex h-0 w-max overflow-hidden"
+                            dir="ltr"
+                            aria-hidden
+                          >
                             <InputSizer
                               placeholder={t(
                                 unit === 'PACKS' ? 'quantity-unit.packs' : 'quantity-unit.doses',
@@ -754,11 +761,12 @@ export function RequisitionEditCell({
         checked={!!model.line.skipped}
         disabled={
           !editing.skipLines ||
-          !canSkipLine({ ...model.line, ...editor.draft.lines[id] }, record.template, {
-            tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
-            status: record.status,
-            emergency: record.emergency,
-          })
+          (!model.line.skipped &&
+            !canSkipLine({ ...model.line, ...editor.draft.lines[id] }, record.template, {
+              tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
+              status: record.status,
+              emergency: record.emergency,
+            }))
         }
         aria-label={label}
         onCheckedChange={(skipped) => editor.setLine(id, { skipped })}
@@ -790,7 +798,7 @@ export function RequisitionEditCell({
                   netContent={model.product?.netContent}
                   packsLabel={t('quantity-unit.packs')}
                   dosesLabel={t('quantity-unit.doses')}
-                  sizing={cards && unit === 'PACKS' ? 'fill' : 'minimum'}
+                  sizing={cards ? (unit === 'PACKS' ? 'fill' : 'full') : 'minimum'}
                   notation={cards ? 'plus' : 'brackets'}
                 />
               )}
@@ -810,7 +818,13 @@ export function RequisitionEditCell({
                     layout="inline"
                     hideErrors
                     disabled={!!model.line.skipped}
-                    maxLength={column.name === 'requestedQuantityExplanation' ? 255 : 250}
+                    maxLength={
+                      column.name === 'requestedQuantityExplanation'
+                        ? 255
+                        : column.name === 'remarks'
+                          ? 250
+                          : undefined
+                    }
                     dir="auto"
                   />
                 ) : (

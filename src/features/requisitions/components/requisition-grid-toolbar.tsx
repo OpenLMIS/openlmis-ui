@@ -15,6 +15,7 @@ import type { SearchChange } from '@/lib/table-search';
 export function RequisitionGridToolbar({
   columns,
   extra,
+  status,
   view,
   search,
   onSearchChange,
@@ -26,6 +27,7 @@ export function RequisitionGridToolbar({
 }: {
   columns: GridColumn[];
   extra?: ReactNode;
+  status?: ReactNode;
   view: Pick<ReturnType<typeof useCardView>, 'layout' | 'columnView'>;
   search: GridSearch;
   onSearchChange: SearchChange<GridSearch>;
@@ -82,6 +84,7 @@ export function RequisitionGridToolbar({
           />
         </div>
       </div>
+      {status}
     </DataTableToolbar>
   );
 }

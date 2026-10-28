@@ -1,3 +1,4 @@
+import { useStore } from '@tanstack/react-form';
 import { useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps, useRouter } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
@@ -267,6 +268,7 @@ function RequisitionBody({
   const [record, setRecord] = useState(data.record);
   const currentData = { ...data, record };
   const editor = useRequisitionForm(record);
+  useStore(editor.form.store, (state) => state.values.showAllErrors);
   const gridRecord = useMemo(
     () => ({
       ...record,
@@ -515,6 +517,7 @@ function RequisitionBody({
       return;
     }
     if (kind === 'submit' || kind === 'submit-and-authorize' || kind === 'authorize') {
+      editor.form.setFieldValue('showAllErrors', true);
       const result = validateRequisition(current, models, {
         monthsInPeriod: period.durationInMonths ?? 1,
         today: new Date().toISOString().slice(0, 10),

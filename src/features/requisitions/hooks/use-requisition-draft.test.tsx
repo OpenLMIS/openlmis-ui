@@ -7,7 +7,10 @@ import { buildRequisitionDraft } from '@/features/requisitions/lib/draft';
 import { column, line, record } from '@/features/requisitions/lib/fixtures/builders';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { getLocalDb } from '@/integrations/local-db';
+import { downloadFile } from '@/lib/download-file';
 import { DraftConflictError } from '@/lib/draft-store';
+
+vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
 
 const security = vi.hoisted(() => ({ secure: true }));
 vi.mock('@/lib/secure-context', () => ({
@@ -235,3 +238,36 @@ it('stores only remaining edits after Sync adopts the saved added line and serve
     removedLineIds: [],
   });
 });
+
+it.each(['load', 'copy'] as const)(
+  'resolves a device conflict with %s and resumes autosave',
+  async (choice) => {
+    await store();
+    const onLoad = vi.fn();
+    const { result } = renderHook(() => useRequisitionDraft(base, onLoad));
+    await waitFor(() => expect(onLoad).toHaveBeenCalledOnce());
+    const latest = { ...draft, draftStatusMessage: 'Other tab' };
+    const table = getLocalDb().table('requisitionDrafts');
+    await table.put({ ...(await table.get('r')), revision: 2, draft: latest });
+    act(() => result.current.write(draft));
+    await act(async () => {
+      await expect(result.current.flush()).rejects.toBeInstanceOf(DraftConflictError);
+    });
+    await act(async () => {
+      await result.current.resolve(choice, draft);
+    });
+    expect(result.current.status.status).toBe('saved');
+    expect(onLoad).toHaveBeenLastCalledWith(latest);
+    if (choice === 'copy')
+      expect(downloadFile).toHaveBeenCalledWith(expect.any(Blob), 'requisition-r-copy.json');
+    else expect(downloadFile).not.toHaveBeenCalled();
+    act(() => result.current.write({ ...latest, draftStatusMessage: 'Resolved' }));
+    await act(async () => {
+      await result.current.flush();
+    });
+    expect(await table.get('r')).toMatchObject({
+      revision: 3,
+      draft: { draftStatusMessage: 'Resolved' },
+    });
+  },
+);

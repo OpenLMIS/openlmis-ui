@@ -18,21 +18,28 @@ export function SkipControls({
 }) {
   const { t } = useTranslation();
   const set = (lines: RequisitionLine[], skipped: boolean) => {
-    for (const model of lines)
-      if (
-        canSkipLine(
-          { ...model.line, ...editing.editor.draft.lines[model.line.id] },
-          record.template,
-          { tab: 'fullSupply', status: record.status, emergency: record.emergency },
+    editing.editor.setLines(
+      lines
+        .filter(
+          (model) =>
+            model.fullSupply &&
+            (!skipped ||
+              canSkipLine(
+                { ...model.line, ...editing.editor.draft.lines[model.line.id] },
+                record.template,
+                { tab: 'fullSupply', status: record.status, emergency: record.emergency },
+              )),
         )
-      )
-        editing.editor.setLine(model.line.id, { skipped });
+        .map((model) => model.line.id),
+      { skipped },
+    );
   };
   return (
     <fieldset
       className="flex flex-wrap items-center gap-2"
       aria-label={t('requisitions.edit.skip-lines')}
     >
+      <span>{t('requisitions.edit.skip-label')}</span>
       <Button size="sm" variant="outline" onClick={() => set(all, true)}>
         {t('requisitions.edit.skip-all')}
       </Button>

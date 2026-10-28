@@ -6,6 +6,7 @@ import {
 } from '@/features/requisitions/lib/draft';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
+import { downloadFile } from '@/lib/download-file';
 import { saveRevisionedDraft } from '@/lib/draft-store';
 import { createDraftWriter, type DraftSaveState } from '@/lib/draft-writer';
 import { readOwnedRecord } from '@/lib/local-records';
@@ -169,6 +170,32 @@ export function useRequisitionDraft(
         closed = false;
         adopt.current?.(buildRequisitionDraft(base));
       },
+      async resolve(choice: 'load' | 'copy', draft: RequisitionDraft) {
+        await writer.wait();
+        assertSessionScope(scope);
+        try {
+          const stored = db
+            ? await readOwnedRecord<RequisitionLocalDraft>(
+                LOCAL_TABLES.requisitionDrafts,
+                draftId,
+                { formats: [1] },
+              )
+            : undefined;
+          assertSessionScope(scope);
+          if (choice === 'copy')
+            downloadFile(
+              new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' }),
+              `requisition-${draftId}-copy.json`,
+            );
+          expected = stored;
+          pendingBase = undefined;
+          outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;
+          if (!outdated) adopt.current?.(stored?.draft ?? buildRequisitionDraft(baseline));
+          writer.reset();
+        } catch (error) {
+          writer.fail(error, true);
+        }
+      },
       dispose() {
         active = false;
         closed = true;
@@ -192,5 +219,6 @@ export function useRequisitionDraft(
     clear: controller.clear,
     update: controller.update,
     discard: controller.update,
+    resolve: controller.resolve,
   };
 }

@@ -32,3 +32,15 @@ it('keeps keyed edits across rerenders and stages each change without waiting fo
   act(() => hook.result.current.removeLine('line'));
   expect(hook.result.current.draft.removedLineIds).toEqual(['line']);
 });
+
+it('stages a bulk line change once and preserves other edited fields', () => {
+  const hook = renderHook(() => useRequisitionForm(base));
+  act(() => hook.result.current.setLine('line', { beginningBalance: '25' }));
+  write.mockClear();
+  act(() => hook.result.current.setLines(['line', 'second'], { skipped: true }));
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(hook.result.current.draft.lines).toEqual({
+    line: { beginningBalance: '25', skipped: true },
+    second: { skipped: true },
+  });
+});

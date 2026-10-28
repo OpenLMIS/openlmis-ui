@@ -63,6 +63,7 @@ export function RequisitionTabs({
     { data: program },
   ] = useSuspenseQueries({ queries: requisitionGridQueries(record) });
   const draft = editor?.draft;
+  const showAllErrors = editor?.form.state.values.showAllErrors;
   const current = useMemo(
     () => (draft ? applyRequisitionDraft(record, draft) : record),
     [record, draft],
@@ -115,12 +116,24 @@ export function RequisitionTabs({
     const errors = editing?.editable
       ? Object.fromEntries(
           [...next]
-            .filter(([, entry]) => Object.keys(entry.errors).length)
+            .filter(
+              ([id, entry]) =>
+                (showAllErrors || draft?.lines[id]) && Object.keys(entry.errors).length,
+            )
             .map(([id, entry]) => [id, entry.errors]),
         )
       : {};
     return { models, totals: calculateTotals(models), errors };
-  }, [record, current, products, approvedProducts, period.durationInMonths, editing?.editable]);
+  }, [
+    record,
+    current,
+    products,
+    approvedProducts,
+    period.durationInMonths,
+    editing?.editable,
+    showAllErrors,
+    draft,
+  ]);
   const patients = record.template.patientsTabEnabled;
   const tabs: { value: RequisitionTab; label: string }[] = [
     ...(patients

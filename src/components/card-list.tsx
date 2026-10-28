@@ -43,7 +43,7 @@ export function CardListItem({
   children,
 }: {
   surface?: 'raised' | 'flat';
-  tone?: 'skipped' | 'shortfall';
+  tone?: 'skipped' | 'shortfall' | 'invalid';
   itemRef?: Ref<HTMLLIElement>;
   drag?: { y: number; animate: boolean; dragging: boolean };
   children: ReactNode;
@@ -54,6 +54,7 @@ export function CardListItem({
         'divide-y',
         tone === 'skipped' && 'bg-muted text-foreground',
         tone === 'shortfall' && 'bg-warning/10',
+        tone === 'invalid' && 'bg-destructive/10',
       )}
     >
       {children}

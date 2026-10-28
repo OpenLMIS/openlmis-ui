@@ -19,6 +19,7 @@ import {
 } from '@/features/reference-data/api/api';
 import { fetchRequisition } from '@/features/requisitions/api/api';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
+import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view_.$requisitionId';
@@ -418,6 +419,7 @@ it('syncs with If-Match before submitting with an idempotency key and returns to
 });
 it('jumps to the first invalid cell on another page after closing validation', async () => {
   const { router, queryClient } = await openEditor(true);
+  expect(screen.queryByRole('button', { name: /Page 2:/ })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' }));
   const dialog = await screen.findByRole('alertdialog');
   expect(within(dialog).getByText('requisitions.edit.validation-description')).toBeInTheDocument();
@@ -562,7 +564,8 @@ it('adds an available emergency full-supply product to its tab with the program 
   };
   vi.mocked(fetchRequisition).mockResolvedValue(base);
   const user = userEvent.setup();
-  const { router, queryClient } = renderRoute('/requisitions/view/r?addProduct=true');
+  const { router, queryClient } = renderRoute('/requisitions/view/r');
+  await user.click(await screen.findByRole('button', { name: 'requisitions.edit.add-product' }));
   const dialog = await screen.findByRole('dialog');
   await user.click(await within(dialog).findByRole('checkbox', { name: /P2 - Added/ }));
   await user.click(
@@ -585,5 +588,97 @@ it('adds an available emergency full-supply product to its tab with the program 
       }),
     ]),
   });
+  queryClient.clear();
+});
+
+it('does not mark untouched lines until editing or a submit attempt', async () => {
+  const { router, queryClient } = await openEditor(true);
+  expect(screen.queryByLabelText('requisitions.edit.invalid-lines')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Page 2:/ })).not.toBeInTheDocument();
+  await router.navigate({
+    to: '/requisitions/view/r',
+    search: { detailSize: 1, detailPage: 2 },
+  } as never);
+  const input = await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  expect(input).not.toHaveAttribute('aria-invalid', 'true');
+  fireEvent.change(input, { target: { value: '1' } });
+  fireEvent.change(input, { target: { value: '' } });
+  await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'));
+  queryClient.clear();
+});
+it('clears removed comments from the save body', async () => {
+  const { base, queryClient } = await openEditor();
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.add-comment' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'requisitions.edit.comment-label' }), {
+    target: { value: 'Temporary comment' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.remove-comment' }));
+  expect(
+    screen.queryByRole('textbox', { name: 'requisitions.edit.comment-label' }),
+  ).not.toBeInTheDocument();
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledOnce());
+  expect(put.mock.calls[0][1]).toMatchObject({ draftStatusMessage: '' });
+  queryClient.clear();
+});
+it('keeps an outdated device draft read-only until Update', async () => {
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+  const base = editingRecord();
+  await getLocalDb()
+    .table('requisitionDrafts')
+    .put({
+      draftId: 'r',
+      userId: 'u',
+      formatVersion: 1,
+      modifiedDate: 'older',
+      draft: {
+        lines: { line: { beginningBalance: '42' } },
+        addedLines: [],
+        removedLineIds: [],
+        draftStatusMessage: '',
+        datePhysicalStockCountCompleted: null,
+      },
+    });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|program',
+    'REQUISITION_CREATE|f|program',
+  ]);
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
+  const { queryClient } = renderRoute('/requisitions/view/r');
+  await screen.findByText('requisitions.edit.outdated-title');
+  expect(
+    screen.queryByRole('textbox', { name: 'beginningBalance: Product (P1)' }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeDisabled();
+  queryClient.clear();
+});
+
+it('opens the editable adjustments dialog from its grid button', async () => {
+  const base: RequisitionRecord = editingRecord();
+  base.template.columnsMap = {
+    ...base.template.columnsMap,
+    totalLossesAndAdjustments: column('totalLossesAndAdjustments', 2),
+  };
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+  await getLocalDb().table('requisitionDrafts').clear();
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|program',
+    'REQUISITION_CREATE|f|program',
+  ]);
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
+  const { queryClient } = renderRoute('/requisitions/view/r');
+  fireEvent.click(
+    (await screen.findAllByRole('button', { name: 'totalLossesAndAdjustments: Product (P1)' }))[0],
+  );
+  expect(
+    within(await screen.findByRole('dialog')).getByRole('button', {
+      name: 'requisitions.edit.update',
+    }),
+  ).toBeInTheDocument();
   queryClient.clear();
 });

@@ -113,7 +113,7 @@ function Harness({
               editor,
               editable: true,
               editableColumns: ['requestedQuantity'],
-              skipLines: false,
+              skipLines: true,
               addFullSupplyProduct: false,
               addNonFullSupplyProduct: true,
             }
@@ -378,3 +378,72 @@ it.each([1000, 390])(
     expect(screen.getByRole('textbox', { name: label })).toHaveValue('27');
   },
 );
+
+it('skips only empty lines and unskips populated lines with None or their checkbox', async () => {
+  const user = userEvent.setup();
+  render(
+    <Harness
+      editable
+      value={{
+        ...requisition,
+        template: {
+          columnsMap: {
+            'orderable.fullProductName': column('orderable.fullProductName', 0),
+            requestedQuantity: column('requestedQuantity', 1, {
+              source: 'USER_INPUT',
+              columnDefinition: { columnType: 'NUMERIC' },
+            }),
+            skipped: column('skipped', 2, { source: 'USER_INPUT' }),
+          },
+        },
+        requisitionLineItems: requisition.requisitionLineItems.slice(0, 4).map((item, i) => ({
+          ...item,
+          requestedQuantity: i === 0 ? null : 10,
+          skipped: i >= 2,
+        })),
+      }}
+    />,
+  );
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-all' }));
+  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0 (P0)' })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).not.toBeChecked();
+  await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 2 (P2)' }));
+  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 2 (P2)' })).not.toBeChecked();
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-none' }));
+  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 3 (P3)' })).not.toBeChecked();
+});
+it.each([1000, 390])('removes saved non-full supply lines instantly at width %s', async (width) => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+  const user = userEvent.setup();
+  render(<Harness editable tab="nonFullSupply" />);
+  await user.click(
+    screen.getByRole('button', { name: 'requisitions.edit.remove-product: Medicine 0' }),
+  );
+  expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+});
+
+it('limits This Page to the current page while All includes later pages', async () => {
+  const user = userEvent.setup();
+  render(
+    <Harness
+      editable
+      initial={{ detailSize: 1 }}
+      value={{
+        ...requisition,
+        template: {
+          columnsMap: {
+            'orderable.fullProductName': column('orderable.fullProductName', 0),
+            skipped: column('skipped', 1, { source: 'USER_INPUT' }),
+          },
+        },
+      }}
+    />,
+  );
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-page' }));
+  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0 (P0)' })).toBeChecked();
+  await user.click(screen.getByRole('button', { name: 'Next Page' }));
+  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).not.toBeChecked();
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-all' }));
+  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).toBeChecked();
+});

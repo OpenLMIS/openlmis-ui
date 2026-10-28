@@ -19,12 +19,13 @@ export function useRequisitionForm(record: RequisitionRecord) {
       draft: buildRequisitionDraft(record),
       quantities: {} as Record<string, QuantityValue>,
       texts: {} as Record<string, string>,
+      showAllErrors: false,
     },
   });
   staged.current ??= form.state.values.draft;
   adopt.current = (draft) => {
     staged.current = draft;
-    form.reset({ draft, quantities: {}, texts: {} });
+    form.reset({ draft, quantities: {}, texts: {}, showAllErrors: false });
   };
   const write = useRef(device.write);
   write.current = device.write;
@@ -43,12 +44,23 @@ export function useRequisitionForm(record: RequisitionRecord) {
     form,
     draft,
     device,
+    resolveConflict(choice: 'load' | 'copy') {
+      return device.resolve(choice, form.state.values.draft);
+    },
     setLine(id: string, changes: LineDraft) {
       if (device.outdated || device.status.status === 'loading') return;
       form.setFieldValue('draft.lines', (lines) => ({
         ...lines,
         [id]: { ...lines[id], ...changes },
       }));
+    },
+    setLines(ids: string[], changes: LineDraft) {
+      if (device.outdated || device.status.status === 'loading') return;
+      form.setFieldValue('draft.lines', (lines) => {
+        const next = { ...lines };
+        for (const id of ids) next[id] = { ...lines[id], ...changes };
+        return next;
+      });
     },
     removeLine(id: string) {
       if (device.outdated || device.status.status === 'loading') return;
