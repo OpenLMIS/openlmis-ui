@@ -917,23 +917,7 @@ export function EventEditor({
                   {drafts.enabled && (
                     <EventLineToolbarStatus>
                       {(lines.length > 0 || draft.status !== 'saved') && (
-                        <DraftStatus
-                          labels={{
-                            saved: t('stock-events.draft-saved'),
-                            saving: t('stock-events.draft-saving'),
-                            loading: t('stock-events.draft-loading'),
-                            failed: t('stock-events.draft-failed'),
-                            retry: t('stock-events.draft-retry'),
-                            conflict: t('stock-events.draft-conflict'),
-                            conflictTitle: t('stock-events.draft-conflict-title'),
-                            conflictDescription: t('stock-events.draft-conflict-description'),
-                            copy: t('stock-events.draft-copy'),
-                            load: t('stock-events.draft-load'),
-                          }}
-                          {...draft}
-                          onRetry={draft.retry}
-                          onResolve={draft.resolve}
-                        />
+                        <DraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
                       )}
                       <EventArchivedCopies
                         kind={kind}

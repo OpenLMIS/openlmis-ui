@@ -26,8 +26,8 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
+import { QuantityHeaderSizer } from '@/components/quantity-header-sizer';
 import { Button } from '@/components/ui/button';
-import { InputSizer } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import { productLabel } from '@/features/reference-data/lib/products';
@@ -667,28 +667,10 @@ export function EventLineTable({
                     />
                   )}
                   {id === 'quantity' && (
-                    <div
-                      aria-hidden
-                      className="invisible flex h-0 w-max items-center gap-1 overflow-hidden"
-                      dir="ltr"
-                    >
-                      <InputSizer
-                        sizing={measured ? 'minimum' : 'full-minimum'}
-                        placeholder={t(
-                          unit === 'PACKS' ? 'quantity-unit.packs' : 'quantity-unit.doses',
-                        )}
-                      />
-                      {unit === 'PACKS' && (
-                        <>
-                          <span className="shrink-0 whitespace-nowrap">( +</span>
-                          <InputSizer
-                            sizing={measured ? 'minimum' : 'full-minimum'}
-                            placeholder={t('quantity-unit.doses')}
-                          />
-                          <span>)</span>
-                        </>
-                      )}
-                    </div>
+                    <QuantityHeaderSizer
+                      unit={unit}
+                      sizing={measured ? 'minimum' : 'full-minimum'}
+                    />
                   )}
                   {measured && id === 'vvm' && (
                     <SelectSizer

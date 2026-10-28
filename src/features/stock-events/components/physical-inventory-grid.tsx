@@ -32,9 +32,10 @@ import { HiddenFromView } from '@/components/form/form-fields';
 import type { QuantityValue } from '@/components/form/quantity-value';
 import { updateQuantityValue } from '@/components/form/quantity-value';
 import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
+import { QuantityHeaderSizer } from '@/components/quantity-header-sizer';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
-import { Input, InputSizer } from '@/components/ui/input';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -317,26 +318,7 @@ function InventoryHead({
             <TableHead key={id} data-inventory-column={id}>
               <InventoryColumnContent id={id} unit={unit}>
                 <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
-                {id === 'count' && (
-                  <div
-                    aria-hidden
-                    className="invisible flex h-0 w-max items-center gap-1 overflow-hidden font-normal"
-                    dir="ltr"
-                  >
-                    <InputSizer
-                      placeholder={t(
-                        unit === 'PACKS' ? 'quantity-unit.packs' : 'quantity-unit.doses',
-                      )}
-                    />
-                    {unit === 'PACKS' && (
-                      <>
-                        <span>( +</span>
-                        <InputSizer placeholder={t('quantity-unit.doses')} />
-                        <span>)</span>
-                      </>
-                    )}
-                  </div>
-                )}
+                {id === 'count' && <QuantityHeaderSizer unit={unit} />}
                 {id === 'vvm' && (
                   <div
                     aria-hidden

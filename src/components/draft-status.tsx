@@ -1,5 +1,6 @@
 import { CheckIcon, Loader2Icon, TriangleAlertIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -14,7 +15,7 @@ import { DraftConflictError } from '@/lib/draft-store';
 import type { DraftSaveState } from '@/lib/draft-writer';
 
 type Props = DraftSaveState & {
-  labels: {
+  labels?: Partial<{
     saved: string;
     saving: string;
     loading: string;
@@ -23,14 +24,35 @@ type Props = DraftSaveState & {
     conflict: string;
     conflictTitle: string;
     conflictDescription: string;
-    copy?: string;
+    copy: string | null;
     load: string;
-  };
+  }>;
   onRetry: () => void;
   onResolve: (choice: 'load' | 'copy') => Promise<void>;
   conflict?: { description: string; keep: string; failed?: string };
 };
-export function DraftStatus({ status, error, labels, onRetry, onResolve, conflict }: Props) {
+export function DraftStatus({
+  status,
+  error,
+  labels: overrides,
+  onRetry,
+  onResolve,
+  conflict,
+}: Props) {
+  const { t } = useTranslation();
+  const labels = {
+    saved: t('stock-events.draft-saved'),
+    saving: t('stock-events.draft-saving'),
+    loading: t('stock-events.draft-loading'),
+    failed: t('stock-events.draft-failed'),
+    retry: t('stock-events.draft-retry'),
+    conflict: t('stock-events.draft-conflict'),
+    conflictTitle: t('stock-events.draft-conflict-title'),
+    conflictDescription: t('stock-events.draft-conflict-description'),
+    copy: t('stock-events.draft-copy'),
+    load: t('stock-events.draft-load'),
+    ...overrides,
+  };
   const loadButton = useRef<HTMLButtonElement>(null);
   const [resolving, setResolving] = useState(false);
   const resolveFailure = conflict
