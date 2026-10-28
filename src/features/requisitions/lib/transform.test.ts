@@ -15,6 +15,7 @@ it('cuts identities, nulls hidden/calculated cells and removes client data witho
         stockOnHand: column('stockOnHand'),
         requestedQuantityExplanation: column('requestedQuantityExplanation', 1, {
           isDisplayed: false,
+          source: 'USER_INPUT',
         }),
         numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth'),
       },

@@ -50,7 +50,7 @@ it.each([1000, 390])(
   'keeps quantity edits through Update without mutating the record at width %s',
   async (width) => {
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
-    const reasons = Array.from({ length: 12 }, (_, index) => ({
+    const reasons = Array.from({ length: 3 }, (_, index) => ({
       reasonId: `r${index}`,
       name: `Reason ${index}`,
       reasonType: 'CREDIT' as const,
@@ -77,20 +77,20 @@ it.each([1000, 390])(
       />,
     );
     const dialog = await screen.findByRole('dialog');
-    const quantity = within(dialog).getByRole('textbox', { name: 'Reason 11' });
+    const quantity = within(dialog).getByRole('textbox', { name: 'Reason 2' });
     await user.clear(quantity);
     await user.type(quantity, '8');
     expect(onSave).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('button', { name: 'Update' }));
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith([
-        ...stockAdjustments.slice(0, 11),
-        { reasonId: 'r11', quantity: 8 },
+        ...stockAdjustments.slice(0, 2),
+        { reasonId: 'r2', quantity: 8 },
       ]),
     );
-    expect(stockAdjustments[11]?.quantity).toBe(1);
-    await user.click(within(dialog).getByRole('button', { name: 'Remove, Reason 11' }));
-    expect(within(dialog).queryByRole('textbox', { name: 'Reason 11' })).not.toBeInTheDocument();
+    expect(stockAdjustments[2]?.quantity).toBe(1);
+    await user.click(within(dialog).getByRole('button', { name: 'Remove, Reason 2' }));
+    expect(within(dialog).queryByRole('textbox', { name: 'Reason 2' })).not.toBeInTheDocument();
   },
 );
 

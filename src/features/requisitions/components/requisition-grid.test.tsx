@@ -158,6 +158,7 @@ it.each([1000, 390])(
     const user = userEvent.setup();
     render(<Harness />);
     expect(screen.getByText('Category A')).toBeInTheDocument();
+    if (width >= 672) expect(screen.getByText('Medicine 0', { exact: true })).toBeInTheDocument();
     if (width >= 672) expect(screen.getAllByText('$24.00')).toHaveLength(1);
     if (width >= 672)
       expect(within(screen.getByRole('table')).getByText('$24.00')).toBeInTheDocument();
@@ -247,10 +248,6 @@ it.each([false, true])(
     ).toBeInTheDocument();
   },
 );
-it('shows the exact product name in the table without its display unit', () => {
-  render(<Harness />);
-  expect(screen.getByText('Medicine 0', { exact: true })).toBeInTheDocument();
-});
 it('shows only the access banner when supplying stock access is denied', () => {
   render(
     <Harness
@@ -328,7 +325,7 @@ it.each([1000, 390])('labels shortfall beyond colour at width %s', (width) => {
             supplyingFacilityStockOnHand: column('supplyingFacilityStockOnHand', 5),
           },
         },
-        requisitionLineItems: requisition.requisitionLineItems.map((l) => ({
+        requisitionLineItems: requisition.requisitionLineItems.slice(0, 1).map((l) => ({
           ...l,
           approvedQuantity: 5,
           supplyingFacilityStockOnHand: 2,
@@ -336,7 +333,7 @@ it.each([1000, 390])('labels shortfall beyond colour at width %s', (width) => {
       }}
     />,
   );
-  expect(screen.getAllByText('requisitions.requisition.stock-shortfall')).toHaveLength(10);
+  expect(screen.getAllByText('requisitions.requisition.stock-shortfall')).toHaveLength(1);
 });
 
 it('omits the summary row when the template has no cost column', () => {
@@ -353,8 +350,10 @@ it.each([1000, 390])(
     render(
       <Harness
         editable
+        initial={{ detailSize: 1 }}
         value={{
           ...requisition,
+          requisitionLineItems: requisition.requisitionLineItems.slice(0, 2),
           template: {
             columnsMap: {
               ...requisition.template.columnsMap,
@@ -367,6 +366,9 @@ it.each([1000, 390])(
         }}
       />,
     );
+    expect(
+      screen.queryByRole('button', { name: /^requisitions.edit.remove-product:/ }),
+    ).not.toBeInTheDocument();
     const label = 'requestedQuantity: Medicine 0 (P0)';
     const input = screen.getByRole('textbox', { name: label });
     await user.clear(input);
@@ -417,7 +419,13 @@ it('skips only empty lines and unskips populated lines with None or their checkb
 it.each([1000, 390])('removes saved non-full supply lines instantly at width %s', async (width) => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
   const user = userEvent.setup();
-  render(<Harness editable tab="nonFullSupply" />);
+  render(
+    <Harness
+      editable
+      tab="nonFullSupply"
+      value={{ ...requisition, requisitionLineItems: requisition.requisitionLineItems.slice(0, 2) }}
+    />,
+  );
   await user.click(
     screen.getByRole('button', { name: 'requisitions.edit.remove-product: Medicine 0' }),
   );

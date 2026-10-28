@@ -436,26 +436,43 @@ it('jumps to the first invalid cell on another page after closing validation', a
   );
   queryClient.clear();
 });
-it('keeps the device draft on a Sync conflict and offers Update', async () => {
-  const { queryClient } = await openEditor();
-  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
-    target: { value: '42' },
-  });
-  vi.spyOn(client, 'put').mockRejectedValue(httpError(409));
-  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
-  const dialog = await screen.findByRole('alertdialog');
-  expect(
-    within(dialog).getByRole('button', { name: 'requisitions.edit.update' }),
-  ).toBeInTheDocument();
-  expect(
-    (await getLocalDb().table('requisitionDrafts').get('r')).draft.lines.line.beginningBalance,
-  ).toBe('42');
-  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
-  expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue('42');
-  queryClient.clear();
-});
+it.each(['sync', 'submit'] as const)(
+  'keeps device edits and offers Update when the save before %s fails',
+  async (kind) => {
+    const { queryClient } = await openEditor();
+    fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+      target: { value: '42' },
+    });
+    vi.spyOn(client, 'put').mockRejectedValue(httpError(409));
+    const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+    if (kind === 'submit') await confirmAction();
+    else fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+    await screen.findByText('requisitions.edit.error.conflict');
+    expect(post).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      within(dialog).getByRole('button', { name: 'requisitions.edit.update' }),
+    ).toBeInTheDocument();
+    expect(
+      (await getLocalDb().table('requisitionDrafts').get('r')).draft.lines.line.beginningBalance,
+    ).toBe('42');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+    expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue(
+      '42',
+    );
+    queryClient.clear();
+  },
+);
 it('locks editing during Sync and uses the returned ETag next time', async () => {
   const { base, queryClient } = await openEditor();
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.add-comment' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'requisitions.edit.comment-label' }), {
+    target: { value: 'Temporary comment' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.remove-comment' }));
+  expect(
+    screen.queryByRole('textbox', { name: 'requisitions.edit.comment-label' }),
+  ).not.toBeInTheDocument();
   let resolve!: (value: unknown) => void;
   const put = vi.spyOn(client, 'put').mockImplementationOnce(
     () =>
@@ -468,6 +485,7 @@ it('locks editing during Sync and uses the returned ETag next time', async () =>
   });
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   await waitFor(() => expect(put).toHaveBeenCalledOnce());
+  expect(put.mock.calls[0][1]).toMatchObject({ draftStatusMessage: '' });
   expect(
     screen.queryByRole('textbox', { name: 'beginningBalance: Product (P1)' }),
   ).not.toBeInTheDocument();
@@ -624,22 +642,6 @@ it('does not mark untouched lines until editing or a submit attempt', async () =
   fireEvent.change(input, { target: { value: '1' } });
   fireEvent.change(input, { target: { value: '' } });
   await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'));
-  queryClient.clear();
-});
-it('clears removed comments from the save body', async () => {
-  const { base, queryClient } = await openEditor();
-  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.add-comment' }));
-  fireEvent.change(screen.getByRole('textbox', { name: 'requisitions.edit.comment-label' }), {
-    target: { value: 'Temporary comment' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.remove-comment' }));
-  expect(
-    screen.queryByRole('textbox', { name: 'requisitions.edit.comment-label' }),
-  ).not.toBeInTheDocument();
-  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
-  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
-  await waitFor(() => expect(put).toHaveBeenCalledOnce());
-  expect(put.mock.calls[0][1]).toMatchObject({ draftStatusMessage: '' });
   queryClient.clear();
 });
 it('keeps an outdated device draft read-only until Update', async () => {

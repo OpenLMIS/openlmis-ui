@@ -38,9 +38,13 @@ it('reads the ETag and sends it on save, adopting the response record and new ET
     { headers: { 'If-Match': '"old"' } },
   );
 });
-it.each([submitRequisition, authorizeRequisition, skipRequisition])(
-  'keeps action keys for 409 but rotates after other failures',
-  async (action) => {
+it.each([
+  ['submit', submitRequisition],
+  ['authorize', authorizeRequisition],
+  ['skip', skipRequisition],
+] as const)(
+  'reuses %s keys after conflict or timeout and rotates after a definitive failure',
+  async (name, action) => {
     const attempt = createRequisitionActionAttempt();
     const original = attempt.key;
     const transport = action === skipRequisition ? client.put : client.post;
@@ -60,7 +64,7 @@ it.each([submitRequisition, authorizeRequisition, skipRequisition])(
     vi.mocked(transport).mockResolvedValueOnce({ data: {} });
     await action('r', attempt);
     expect(transport).toHaveBeenLastCalledWith(
-      expect.stringMatching(/\/requisitions\/r\/(submit|authorize|skip)$/),
+      `/requisitions/r/${name}`,
       {},
       { headers: { 'Idempotency-Key': attempt.key } },
     );

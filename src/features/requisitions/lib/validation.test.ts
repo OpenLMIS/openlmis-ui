@@ -126,6 +126,7 @@ it('requires an explanation only for differing full-supply requests with both co
   ).toBe('requisitions.edit.validation.explanation-length');
 });
 it('limits stockout days to the period and non-full validation to its subset', () => {
+  expect(validate({ totalStockoutDays: 60 }, { months: 2 }).lines).toEqual({});
   expect(validate({ totalStockoutDays: 61 }, { months: 2 }).lines.line.totalStockoutDays).toBe(
     'requisitions.edit.validation.stockout-days',
   );

@@ -2,7 +2,6 @@ import { expect, it } from 'vitest';
 import {
   applyRequisitionDraft,
   buildRequisitionDraft,
-  canRemoveLine,
   canSkipLine,
   rebaseRequisitionDraft,
 } from '@/features/requisitions/lib/draft';
@@ -72,12 +71,6 @@ it('allows skip for zero and ignores boolean, hidden and calculated cells', () =
     }),
   ).toBe(false);
 });
-it('allows removal of saved or added non-full lines only while editable', () => {
-  expect(canRemoveLine(false, true)).toBe(true);
-  expect(canRemoveLine(true, true)).toBe(false);
-  expect(canRemoveLine(false, false)).toBe(false);
-});
-
 it('treats zero in a numeric text editor as empty while retaining text content', () => {
   const template = {
     columnsMap: {
