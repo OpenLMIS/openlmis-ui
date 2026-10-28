@@ -1012,7 +1012,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Device data shows `SnapshotAlert` with its download time unless a refetch is in flight:
   You're offline when offline, Can't reach the server when the app counts as online.
   Its times omit seconds. Pending-work notices pass `OfflineAlert` a `short` text shown below
-  `@2xl/main`. Event Details on phones keeps one main action and Close, with the rest in "...".
+  `@2xl/main`.
 - Use `homeStockScopes`/`isHomeStockScope` for home-stock eligibility and `homeStockPrograms`
   with event grants for event pickers. `useDownloadedScopes` applies caller acceptance offline.
   A kind's `download` lists datasets with acceptance: home stock takes a minimum format through
@@ -1085,6 +1085,9 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   and quantity: an item-count button opens a scrolling `PopoverContent width="table"` with
   `DeviceEventLines` (table, or cards below 672px) in a `ScrollArea`. Types reuse
   `transaction-history.type-*` labels; Unpack keeps its own.
+  Event Details puts status notices above the lines. In its `useDialogCardLayout` cards layout the
+  footer shows Retry, Copy For Correction or Transaction History, then Close; other actions go in
+  "...", except a lone Remove or Dismiss, which stays a trash icon button.
 - Hidden pages retain drafts/guards only for a valid protected match in the same session scope.
   Persistent overlay drafts stay mounted behind the visibility gate; transient overlays close.
   Discard decisions opt out so navigation and Log Out remain answerable.

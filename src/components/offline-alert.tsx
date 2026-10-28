@@ -96,25 +96,14 @@ export function SnapshotAlert({ snapshot, message, pending, online }: SnapshotAl
     time: 'short',
     timeZone,
   });
-  if (pending) {
-    const key = pendingMessages[online ? 'online' : 'offline'];
-    const values = { time, count: pending };
+  if (pending)
     return (
-      <OfflineAlert
-        short={
-          <Trans
-            t={t}
-            i18nKey={shortMessages[key]}
-            count={pending}
-            values={values}
-            components={alertTags}
-          />
-        }
-      >
-        <Trans t={t} i18nKey={key} count={pending} values={values} components={alertTags} />
-      </OfflineAlert>
+      <PendingNotice
+        i18nKey={pendingMessages[online ? 'online' : 'offline']}
+        count={pending}
+        values={{ time }}
+      />
     );
-  }
   return (
     <OfflineAlert>
       <Trans
@@ -140,24 +129,31 @@ export function PendingWorkAlert({
   count: number;
   message: { online: PendingWorkMessage; offline: PendingWorkMessage; values?: { kind: string } };
 }) {
-  const { t } = useTranslation();
   const online = useOnline();
   if (!count) return null;
-  const key = online ? message.online : message.offline;
-  const values = { count, ...message.values };
   return (
-    <OfflineAlert
-      short={
-        <Trans
-          t={t}
-          i18nKey={shortMessages[key]}
-          count={count}
-          values={values}
-          components={alertTags}
-        />
-      }
-    >
-      <Trans t={t} i18nKey={key} count={count} values={values} components={alertTags} />
+    <PendingNotice
+      i18nKey={online ? message.online : message.offline}
+      count={count}
+      values={message.values}
+    />
+  );
+}
+
+function PendingNotice({
+  i18nKey,
+  count,
+  values,
+}: {
+  i18nKey: keyof typeof shortMessages;
+  count: number;
+  values?: Record<string, string>;
+}) {
+  const { t } = useTranslation();
+  const props = { t, count, values: { count, ...values }, components: alertTags };
+  return (
+    <OfflineAlert short={<Trans {...props} i18nKey={shortMessages[i18nKey]} />}>
+      <Trans {...props} i18nKey={i18nKey} />
     </OfflineAlert>
   );
 }

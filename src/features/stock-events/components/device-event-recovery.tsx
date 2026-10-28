@@ -32,6 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DeviceEventLines,
   EventDetailItem,
@@ -208,6 +209,7 @@ export function DeviceEventRecovery({
             id: 'history',
             label: t('offline-events.history'),
             link: historyLink,
+            unavailable: !online,
             describedBy: !online ? connectionId : undefined,
             onSelect: online
               ? undefined
@@ -273,6 +275,8 @@ export function DeviceEventRecovery({
     .map((id) => actions.find((action) => action.id === id))
     .find((action) => action !== undefined);
   const menuActions = actions.filter((action) => action !== mainAction);
+  const loneRemoval =
+    menuActions.length === 1 && menuActions[0].destructive ? menuActions[0] : undefined;
   return (
     <>
       <Dialog
@@ -446,19 +450,20 @@ export function DeviceEventRecovery({
           )}
           <DialogFooter wrap>
             {compact ? (
-              <div className="flex min-w-0 items-center gap-2">
-                {menuActions.length > 0 && (
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {menuActions.length > 0 && !loneRemoval && (
                   <RecoveryActionsMenu
                     actions={menuActions}
                     label={t('offline-events.more-actions')}
                   />
                 )}
+                {loneRemoval && <RemovalIconButton action={loneRemoval} />}
                 {mainAction && (
-                  <div className="min-w-0 flex-1">
+                  <div className="flex-auto">
                     <RecoveryActionButton action={mainAction} fill />
                   </div>
                 )}
-                <div className="min-w-0 flex-1">
+                <div className="flex-auto">
                   <Button ref={closeRef} disabled={pending} onClick={onClose} width="full">
                     {t('offline-events.close')}
                   </Button>
@@ -522,6 +527,7 @@ type RecoveryAction = {
   destructive?: boolean;
   disabled?: boolean;
   focusableWhenDisabled?: boolean;
+  unavailable?: boolean;
   describedBy?: string;
   link?: ReactElement;
   onSelect?: (target: HTMLElement | null) => void;
@@ -550,6 +556,29 @@ function RecoveryActionButton({ action, fill }: { action: RecoveryAction; fill?:
   );
 }
 
+function RemovalIconButton({ action }: { action: RecoveryAction }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-label={action.label}
+            aria-describedby={action.describedBy}
+            disabled={action.disabled}
+            focusableWhenDisabled={action.focusableWhenDisabled}
+            size="icon"
+            variant="destructive"
+            onClick={(click) => action.onSelect?.(click.currentTarget)}
+          />
+        }
+      >
+        <Trash2Icon />
+      </TooltipTrigger>
+      <TooltipContent>{action.label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function RecoveryActionsMenu({ actions, label }: { actions: RecoveryAction[]; label: string }) {
   const menu = useMenuOpensDialog();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -561,20 +590,19 @@ function RecoveryActionsMenu({ actions, label }: { actions: RecoveryAction[]; la
         <EllipsisIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" finalFocus={menu.finalFocus} width="auto">
-        {[
-          ...actions.filter((action) => !action.destructive),
-          ...actions.filter((action) => action.destructive),
-        ].map((action) => (
+        {actions.map((action) => (
           <DropdownMenuItem
             key={action.id}
             disabled={action.disabled}
             aria-describedby={action.describedBy}
+            data-unavailable={action.unavailable || undefined}
             render={action.link}
             variant={action.destructive ? 'destructive' : 'default'}
             onClick={(click) => {
-              if (!action.onSelect) return;
+              const select = action.onSelect;
+              if (!select) return;
               click.preventDefault();
-              menu.opensDialog(() => action.onSelect?.(trigger.current))();
+              menu.opensDialog(() => select(trigger.current))();
             }}
           >
             {action.destructive && <Trash2Icon />}

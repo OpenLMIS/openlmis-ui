@@ -41,12 +41,10 @@ vi.mock('@tanstack/react-router', async (original) => ({
   useNavigate: () => navigation,
 }));
 vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
-vi.mock('@/components/data-table/responsive-columns', async (original) => ({
-  ...(await original<typeof import('@/components/data-table/responsive-columns')>()),
-  useElementWidth: () => {
-    const [element, measure] = useState<HTMLElement | null>(null);
-    return [measure, element?.closest('[role=dialog]') ? 736 : 0];
-  },
+const layout = vi.hoisted(() => ({ cards: false }));
+vi.mock('@/hooks/use-card-view', async (original) => ({
+  ...(await original<typeof import('@/hooks/use-card-view')>()),
+  useDialogCardLayout: () => ({ measure: () => {}, width: undefined, cards: layout.cards }),
 }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), warning: vi.fn() } }));
 vi.mock('@/features/stock-events/lib/device-event-status', () => ({
@@ -64,6 +62,7 @@ const line = newEventLine(
   { kind: 'adjustment', productHasLots: false },
 );
 beforeEach(async () => {
+  layout.cards = false;
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'recovery', username: 'Ada', accessToken: 'token' });
@@ -147,6 +146,15 @@ async function open(
   await screen.findByRole('dialog');
   return { uncertain, onClose };
 }
+it('keeps a lone extra action as a phone button instead of a More Actions menu', async () => {
+  layout.cards = true;
+  await open(true, 'queued');
+  expect(
+    screen.queryByRole('button', { name: 'offline-events.more-actions' }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'offline-events.remove' }));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('offline-events.remove-warning');
+});
 it('no-view recovery calls no history, cancel keeps uncertainty, only confirmed Send Again releases it', async () => {
   const { uncertain, onClose } = await open();
   expect(screen.getByText('offline-events.no-view')).toBeVisible();
