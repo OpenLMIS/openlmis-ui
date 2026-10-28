@@ -96,6 +96,7 @@ function TableRow({
       className={cn(
         "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted data-[invalid]:bg-destructive/10",
         pinned && "bg-card hover:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))] has-aria-expanded:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))]",
+        pinned && "data-[invalid]:bg-[color-mix(in_srgb,var(--destructive)_10%,var(--card))] data-[invalid]:hover:bg-[color-mix(in_srgb,var(--destructive)_15%,var(--card))]",
         tone === "skipped" && "bg-muted text-foreground hover:bg-muted",
         tone === "shortfall" && "bg-[color-mix(in_srgb,var(--warning)_10%,var(--card))] hover:bg-[color-mix(in_srgb,var(--warning)_15%,var(--card))]",
         drag === true && "relative z-1 border-b-0 bg-card shadow-[inset_0_-1px_0_var(--color-border)] [transform:var(--row-transform)] [transition:var(--row-transition)] hover:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))] data-[dragging=true]:z-0 data-[dragging=true]:bg-muted data-[dragging=true]:hover:bg-muted [&[data-dragging=true]>td>*]:invisible",
