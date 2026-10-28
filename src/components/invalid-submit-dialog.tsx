@@ -18,8 +18,7 @@ type Props = Pick<
   Pick<ComponentProps<typeof AlertDialogContent>, 'finalFocus' | 'size'> & {
     title: ReactNode;
     description: ReactNode;
-    closeLabel: string;
-    pending?: boolean;
+    closeLabel?: string;
     media?: ReactNode;
     children?: ReactNode;
   };
@@ -33,7 +32,6 @@ export function InvalidSubmitDialog({
   title,
   description,
   closeLabel,
-  pending,
   media = <CircleAlertIcon className="text-destructive" />,
   children,
 }: Props) {
@@ -50,7 +48,7 @@ export function InvalidSubmitDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          {children ?? <AlertDialogCancel disabled={pending}>{closeLabel}</AlertDialogCancel>}
+          {children ?? <AlertDialogCancel>{closeLabel}</AlertDialogCancel>}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

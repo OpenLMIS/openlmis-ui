@@ -1074,8 +1074,6 @@ export function EventEditor({
             {refusal && <span className="block pt-2">{t('offline-events.copy-warning')}</span>}
           </>
         }
-        closeLabel={t('dialog.close')}
-        pending={pending}
       >
         <div className={refusal ? '@container w-full' : 'contents'}>
           <div
