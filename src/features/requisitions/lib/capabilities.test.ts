@@ -22,6 +22,8 @@ const context: CapabilityContext = {
 };
 const future = {
   editing: true,
+  approverEditing: true,
+  patientsEditing: true,
   actions: [
     'sync',
     'submit',
@@ -37,18 +39,33 @@ const future = {
 const policy = (overrides: Partial<CapabilityContext> = {}) =>
   requisitionCapabilities({ ...context, ...overrides }, future);
 
-it('gates every editing capability and exposes allowed actions as deferred', () => {
+it('ships creator and authorizer editing while keeping approvers and patients closed', () => {
   expect(requisitionCapabilities(context)).toMatchObject({
-    editable: false,
-    editableColumns: [],
-    actions: ['print'],
-    comments: false,
-    addFullSupplyProduct: false,
-    addNonFullSupplyProduct: false,
-    skipLines: false,
-    deferred: ['sync', 'submit', 'delete', 'skip'],
+    editable: true,
+    actions: ['sync', 'submit', 'delete', 'skip', 'print'],
+    comments: true,
   });
-  expect(requisitionCapabilities({ ...context, status: 'SKIPPED' }).deferred).toEqual(['delete']);
+  expect(
+    requisitionCapabilities({ ...context, status: 'SUBMITTED', grants: ['REQUISITION_AUTHORIZE'] }),
+  ).toMatchObject({ editable: true, actions: ['sync', 'authorize', 'print'] });
+  expect(requisitionCapabilities({ ...context, status: 'AUTHORIZED' })).toMatchObject({
+    editable: false,
+    actions: ['print'],
+  });
+  expect(
+    requisitionCapabilities({
+      ...context,
+      template: { ...context.template, patientsTabEnabled: true },
+    }),
+  ).toMatchObject({ editable: false, actions: ['print'] });
+});
+it('allows whole-record skip without a skip column and comments for an initiated authorizer', () => {
+  expect(policy({ template: { columnsMap: {} } }).actions).toContain('skip');
+  expect(requisitionCapabilities({ ...context, grants: ['REQUISITION_AUTHORIZE'] })).toMatchObject({
+    editable: false,
+    comments: true,
+    actions: ['print'],
+  });
 });
 it.each(['INITIATED', 'REJECTED'])(
   'allows creators in %s and honors skip authorization',
@@ -89,7 +106,12 @@ it('predicts approval at the current node, independently from facility APPROVE u
     editable: false,
     actions: ['print'],
   });
-  expect(policy({ ...approval, grants: [] }).actions).toEqual(['approve', 'reject', 'print']);
+  expect(policy({ ...approval, grants: [] }).actions).toEqual([
+    'sync',
+    'approve',
+    'reject',
+    'print',
+  ]);
   expect(policy({ ...approval, isSplit: true }).actions).not.toContain('reject');
   expect(
     policy({ ...approval, program: { id: 'program', name: 'TB Monthly' } }).editableColumns,

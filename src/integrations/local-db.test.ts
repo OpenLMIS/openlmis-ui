@@ -42,7 +42,7 @@ describe('getLocalDb', () => {
     old.close();
     const db = getLocalDb();
     await db.open();
-    expect(db.verno).toBe(13);
+    expect(db.verno).toBe(14);
     expect(db.table(LOCAL_TABLES.physicalInventoryReference).schema.primKey.keyPath).toBe(
       'draftId',
     );
@@ -156,7 +156,7 @@ it('opens an existing v6 database at v12 while preserving drafts, queues and rec
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(13);
+  expect(db.verno).toBe(14);
   for (const [table, row] of Object.entries(rows)) {
     if (table === 'adjustmentDownloads') continue;
     expect(await db.table(table).toArray()).toEqual([row]);
@@ -195,7 +195,7 @@ it('removes v9 card histories while preserving home stock and unresolved work', 
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(13);
+  expect(db.verno).toBe(14);
   expect(await db.table(LOCAL_TABLES.stockCardHistory).count()).toBe(0);
   for (const [table, row] of Object.entries(rows))
     expect(await db.table(table).toArray()).toEqual([row]);
@@ -228,7 +228,7 @@ it('adds the Receive catalog at v12 without losing any v11 records', async () =>
   old.close();
   const db = getLocalDb();
   await db.open();
-  expect(db.verno).toBe(13);
+  expect(db.verno).toBe(14);
   for (const [table, row] of Object.entries(rows))
     expect(await db.table(table).toArray()).toEqual([row]);
   expect(await db.table(LOCAL_TABLES.receiveCatalogDownloads).count()).toBe(0);

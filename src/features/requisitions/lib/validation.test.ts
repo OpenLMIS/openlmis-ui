@@ -1,0 +1,183 @@
+import { expect, it } from 'vitest';
+import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
+import { buildLines } from '@/features/requisitions/lib/lines';
+import type { RequisitionLineItem } from '@/features/requisitions/lib/requisition';
+import { validateRequisition } from '@/features/requisitions/lib/validation';
+
+const names = [
+  'beginningBalance',
+  'totalReceivedQuantity',
+  'stockOnHand',
+  'totalConsumedQuantity',
+  'requestedQuantity',
+  'requestedQuantityExplanation',
+  'totalStockoutDays',
+  'numberOfNewPatientsAdded',
+];
+function validate(
+  values: Partial<RequisitionLineItem> = {},
+  options: {
+    fullSupply?: boolean;
+    emergency?: boolean;
+    stockBased?: boolean;
+    calculated?: string[];
+    hidden?: string[];
+    months?: number;
+    dateRequired?: boolean;
+    date?: string | null;
+  } = {},
+) {
+  const req = record({
+    emergency: options.emergency ?? false,
+    template: {
+      populateStockOnHandFromStockCards: options.stockBased,
+      columnsMap: Object.fromEntries(
+        [...names, ...(options.calculated ?? [])].map((name) => [
+          name,
+          column(name, 0, {
+            source: options.calculated?.includes(name) ? 'CALCULATED' : 'USER_INPUT',
+            isDisplayed: !options.hidden?.includes(name),
+            columnDefinition: { columnType: name.endsWith('Explanation') ? 'TEXT' : 'NUMERIC' },
+          }),
+        ]),
+      ),
+    },
+    requisitionLineItems: [
+      line({
+        beginningBalance: 10,
+        totalReceivedQuantity: 5,
+        stockOnHand: 10,
+        totalConsumedQuantity: 5,
+        totalStockoutDays: 0,
+        requestedQuantity: 0,
+        ...values,
+      }),
+    ],
+  });
+  return validateRequisition(
+    { ...req, datePhysicalStockCountCompleted: options.date },
+    buildLines(req, [
+      product({ programs: [{ programId: 'program', fullSupply: options.fullSupply ?? true }] }),
+    ]),
+    {
+      monthsInPeriod: options.months ?? 1,
+      stockCountDateRequired: options.dateRequired,
+      today: '2026-10-28',
+    },
+  );
+}
+it('requires shown input cells but not optional columns or skipped lines', () => {
+  expect(validate({ beginningBalance: null }).lines.line.beginningBalance).toBe(
+    'stock-events.required',
+  );
+  expect(
+    validate({ beginningBalance: null }, { hidden: ['beginningBalance'] }).lines.line,
+  ).not.toHaveProperty('beginningBalance');
+  expect(validate({ skipped: true, beginningBalance: null })).toMatchObject({
+    lines: {},
+    errors: ['requisitions.edit.validation.all-skipped'],
+  });
+  expect(validate().lines).toEqual({});
+});
+it.each(['stockOnHand', 'totalConsumedQuantity'] as const)(
+  'checks negative and balance on %s',
+  (name) => {
+    expect(validate({ [name]: -1 }).lines.line[name]).toBe('requisitions.edit.validation.negative');
+    expect(validate({ [name]: 9 }).lines.line[name]).toBe('requisitions.edit.validation.balance');
+    expect(validate({ [name]: 9 }, { stockBased: true }).lines).toEqual({});
+    expect(validate({ [name]: -1 }, { calculated: [name] }).lines.line[name]).toBe(
+      'requisitions.edit.validation.negative',
+    );
+  },
+);
+it('requires requested quantity by supply, emergency and visible calculated columns', () => {
+  expect(validate({ requestedQuantity: null }).lines.line.requestedQuantity).toBe(
+    'stock-events.required',
+  );
+  expect(
+    validate({ requestedQuantity: null }, { calculated: ['calculatedOrderQuantity'] }).lines,
+  ).toEqual({});
+  for (const options of [{ fullSupply: false }, { emergency: true }])
+    expect(
+      validate({ requestedQuantity: null }, { ...options, calculated: ['calculatedOrderQuantity'] })
+        .lines.line.requestedQuantity,
+    ).toBe('stock-events.required');
+});
+it('requires an explanation only for differing full-supply requests with both columns shown', () => {
+  const values = { requestedQuantity: 2, calculatedOrderQuantity: 1 };
+  expect(
+    validate(values, { calculated: ['calculatedOrderQuantity'] }).lines.line
+      .requestedQuantityExplanation,
+  ).toBe('stock-events.required');
+  expect(
+    validate(values, { fullSupply: false, calculated: ['calculatedOrderQuantity'] }).lines,
+  ).toEqual({});
+  expect(
+    validate(values, {
+      hidden: ['requestedQuantityExplanation'],
+      calculated: ['calculatedOrderQuantity'],
+    }).lines,
+  ).toEqual({});
+  expect(
+    validate({ requestedQuantityExplanation: 'x'.repeat(256) }).lines.line
+      .requestedQuantityExplanation,
+  ).toBe('requisitions.edit.validation.explanation-length');
+});
+it('limits stockout days to the period and non-full validation to its subset', () => {
+  expect(validate({ totalStockoutDays: 61 }, { months: 2 }).lines.line.totalStockoutDays).toBe(
+    'requisitions.edit.validation.stockout-days',
+  );
+  expect(
+    validate({ beginningBalance: null, totalStockoutDays: 61 }, { fullSupply: false }).lines,
+  ).toEqual({});
+});
+it.each([1.5, 2147483648, Number.NaN])('rejects invalid whole numbers: %s', (requestedQuantity) => {
+  expect(validate({ requestedQuantity }).lines.line.requestedQuantity).toBeTruthy();
+});
+it('requires adjustment quantities above zero and within the whole-number range', () => {
+  for (const quantity of [0, -1, 1.5, 2147483648])
+    expect(
+      validate({ stockAdjustments: [{ reasonId: 'reason', quantity }] }).lines.line
+        .stockAdjustments,
+    ).toBeTruthy();
+});
+it('requires a valid stock count date only for regular requisitions, never in the future', () => {
+  expect(validate({}, { dateRequired: true }).errors).toContain(
+    'requisitions.edit.validation.stock-count-date',
+  );
+  expect(validate({}, { dateRequired: true, date: '2026-10-29' }).errors).toContain(
+    'requisitions.edit.validation.stock-count-date',
+  );
+  expect(validate({}, { dateRequired: true, date: '2026-02-30' }).errors).toContain(
+    'requisitions.edit.validation.stock-count-date',
+  );
+  expect(validate({}, { dateRequired: true, date: '2026-10-28' }).errors).toEqual([]);
+  expect(validate({}, { dateRequired: true, emergency: true }).errors).toEqual([]);
+});
+
+it('checks the integer range on calculated cells as well as inputs', () => {
+  expect(
+    validate({ calculatedOrderQuantity: 2147483648 }, { calculated: ['calculatedOrderQuantity'] })
+      .lines.line.calculatedOrderQuantity,
+  ).toBe('stock-events.number-too-large');
+});
+it('limits displayed remarks to 250 characters', () => {
+  const req = record({
+    status: 'AUTHORIZED',
+    template: {
+      columnsMap: {
+        remarks: column('remarks', 0, {
+          source: 'USER_INPUT',
+          columnDefinition: { columnType: 'TEXT' },
+        }),
+      },
+    },
+    requisitionLineItems: [line({ remarks: 'x'.repeat(251) })],
+  });
+  expect(
+    validateRequisition(req, buildLines(req, [product()]), {
+      monthsInPeriod: 1,
+      today: '2026-10-28',
+    }).lines.line.remarks,
+  ).toBe('requisitions.edit.validation.remarks-length');
+});
