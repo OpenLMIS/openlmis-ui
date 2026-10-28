@@ -1,6 +1,5 @@
 import { CheckIcon, Loader2Icon, TriangleAlertIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -15,18 +14,29 @@ import { DraftConflictError } from '@/lib/draft-store';
 import type { DraftSaveState } from '@/lib/draft-writer';
 
 type Props = DraftSaveState & {
+  labels: {
+    saved: string;
+    saving: string;
+    loading: string;
+    failed: string;
+    retry: string;
+    conflict: string;
+    conflictTitle: string;
+    conflictDescription: string;
+    copy: string;
+    load: string;
+  };
   onRetry: () => void;
   onResolve: (choice: 'load' | 'copy') => Promise<void>;
   conflict?: { description: string; keep: string; failed?: string };
 };
-export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }: Props) {
-  const { t } = useTranslation();
+export function DraftStatus({ status, error, labels, onRetry, onResolve, conflict }: Props) {
   const loadButton = useRef<HTMLButtonElement>(null);
   const [resolving, setResolving] = useState(false);
   const resolveFailure = conflict
     ? conflict.failed
     : error !== undefined && !(error instanceof DraftConflictError)
-      ? t('stock-events.draft-failed')
+      ? labels.failed
       : undefined;
   const resolve = async (choice: 'load' | 'copy') => {
     if (resolving) return;
@@ -54,13 +64,7 @@ export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }
                 data-icon="inline-start"
               />
             )}
-            {t(
-              status === 'saved'
-                ? 'stock-events.draft-saved'
-                : status === 'saving'
-                  ? 'stock-events.draft-saving'
-                  : 'stock-events.draft-loading',
-            )}
+            {labels[status]}
           </Badge>
         ) : (
           <span className="flex min-w-0 items-start gap-2">
@@ -68,37 +72,31 @@ export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }
               aria-hidden="true"
               className="mt-0.5 size-4 shrink-0 text-destructive"
             />
-            <span>
-              {t(
-                status === 'conflict' ? 'stock-events.draft-conflict' : 'stock-events.draft-failed',
-              )}
-            </span>
+            <span>{status === 'conflict' ? labels.conflict : labels.failed}</span>
           </span>
         )}
-        {status === 'saving' && error !== undefined && (
-          <span>{t('stock-events.draft-failed')}</span>
-        )}
+        {status === 'saving' && error !== undefined && <span>{labels.failed}</span>}
         {status === 'failed' && (
           <Button size="lg" variant="outline" onClick={onRetry}>
-            {t('stock-events.draft-retry')}
+            {labels.retry}
           </Button>
         )}
       </div>
       <AlertDialog open={status === 'conflict'}>
         <AlertDialogContent initialFocus={loadButton}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('stock-events.draft-conflict-title')}</AlertDialogTitle>
+            <AlertDialogTitle>{labels.conflictTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              {conflict?.description ?? t('stock-events.draft-conflict-description')}
+              {conflict?.description ?? labels.conflictDescription}
               {resolveFailure && <span className="block text-destructive">{resolveFailure}</span>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button variant="outline" disabled={resolving} onClick={() => void resolve('copy')}>
-              {conflict?.keep ?? t('stock-events.draft-copy')}
+              {conflict?.keep ?? labels.copy}
             </Button>
             <Button ref={loadButton} disabled={resolving} onClick={() => void resolve('load')}>
-              {t('stock-events.draft-load')}
+              {labels.load}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

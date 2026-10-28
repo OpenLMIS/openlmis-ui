@@ -24,6 +24,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { DraftStatus } from '@/components/draft-status';
 import {
   FormDialog,
   FormDialogBody,
@@ -49,7 +50,6 @@ import {
   inventoryRefreshFilters,
   inventoryStockLinesOptions,
 } from '@/features/stock-events/api/physical-inventory-queries';
-import { EventDraftStatus } from '@/features/stock-events/components/event-draft-status';
 import { InventoryActions } from '@/features/stock-events/components/inventory-actions';
 import { InventoryAddProductsDialog } from '@/features/stock-events/components/inventory-add-products-dialog';
 import { InventoryDeactivateDialog } from '@/features/stock-events/components/inventory-deactivate-dialog';
@@ -801,7 +801,19 @@ function InventoryDraftRows({
         ))}
       {saveSlot &&
         createPortal(
-          <EventDraftStatus
+          <DraftStatus
+            labels={{
+              saved: t('stock-events.draft-saved'),
+              saving: t('stock-events.draft-saving'),
+              loading: t('stock-events.draft-loading'),
+              failed: t('stock-events.draft-failed'),
+              retry: t('stock-events.draft-retry'),
+              conflict: t('stock-events.draft-conflict'),
+              conflictTitle: t('stock-events.draft-conflict-title'),
+              conflictDescription: t('stock-events.draft-conflict-description'),
+              copy: t('stock-events.draft-copy'),
+              load: t('stock-events.draft-load'),
+            }}
             status={status}
             onRetry={retrySave}
             onResolve={resolveConflict}

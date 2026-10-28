@@ -1,6 +1,6 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import { CircleAlertIcon, WifiOffIcon } from 'lucide-react';
+import { WifiOffIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -16,16 +16,7 @@ import {
   FormDialogSubmit,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogMedia,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { InvalidSubmitDialog } from '@/components/invalid-submit-dialog';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
 import {
@@ -446,40 +437,26 @@ export function InventoryActions(props: Props) {
           </ActionTooltip>
         </div>
       </WorkspaceFooterPortal>
-      <AlertDialog
+      <InvalidSubmitDialog
         open={!!failure}
         onOpenChange={(open) => {
           if (!open) setFailure(null);
         }}
-      >
-        <AlertDialogContent
-          finalFocus={() => {
-            const invalid = invalidLines.current;
-            if (invalid) {
-              if (failure) return false;
-              invalidLines.current = null;
-              props.onInvalid(invalid);
-              return false;
-            }
-            return unknown ? saveButton.current : submitButton.current;
-          }}
-        >
-          <AlertDialogHeader>
-            <AlertDialogMedia>
-              {failureCopy?.offline ? (
-                <WifiOffIcon />
-              ) : (
-                <CircleAlertIcon className="text-destructive" />
-              )}
-            </AlertDialogMedia>
-            <AlertDialogTitle>{failureCopy?.title}</AlertDialogTitle>
-            <AlertDialogDescription>{failureCopy?.description}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('dialog.close')}</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        finalFocus={() => {
+          const invalid = invalidLines.current;
+          if (invalid) {
+            if (failure) return false;
+            invalidLines.current = null;
+            props.onInvalid(invalid);
+            return false;
+          }
+          return unknown ? saveButton.current : submitButton.current;
+        }}
+        title={failureCopy?.title}
+        description={failureCopy?.description}
+        closeLabel={t('dialog.close')}
+        media={failureCopy?.offline ? <WifiOffIcon /> : undefined}
+      />
       <FormDialog
         open={dialog === 'save' || dialog === 'delete'}
         closeButton={!mutation.isPending}
