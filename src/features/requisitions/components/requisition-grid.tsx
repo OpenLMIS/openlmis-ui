@@ -1,7 +1,24 @@
-import { createColumnHelper, FlexRender, functionalUpdate, useTable } from '@tanstack/react-table';
-import { ChevronRightIcon, TriangleAlertIcon } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  type CellContext,
+  createColumnHelper,
+  FlexRender,
+  functionalUpdate,
+  useTable,
+} from '@tanstack/react-table';
+import type { ParseKeys } from 'i18next';
+import { ChevronRightIcon, CircleAlertIcon, Trash2Icon, TriangleAlertIcon } from 'lucide-react';
+import {
+  createContext,
+  type ReactNode,
+  use,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import {
   DataTableCard,
   DataTableEmpty,
@@ -10,10 +27,14 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { DraftStatus } from '@/components/draft-status';
 import { FlagBadge } from '@/components/flag-badge';
+import { quantityValue } from '@/components/form/quantity-value';
 import { TableCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
+import { InputSizer } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -23,14 +44,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { productLabel } from '@/features/reference-data/lib/products';
 import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { AdjustmentsDialog } from '@/features/requisitions/components/adjustments-dialog';
+import { RequisitionEditCards } from '@/features/requisitions/components/requisition-edit-cards';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
+import { SkipControls } from '@/features/requisitions/components/skip-controls';
 import { SupplyingStockNote } from '@/features/requisitions/components/supplying-stock-note';
+import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 import type { calculateTotals } from '@/features/requisitions/lib/calculations';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
+import { canSkipLine, type LineDraft } from '@/features/requisitions/lib/draft';
 import { gridRowTone } from '@/features/requisitions/lib/grid-row-tone';
 import { filterLines, type RequisitionLine, splitLines } from '@/features/requisitions/lib/lines';
 import { PATIENT_QUANTITY_COLUMNS } from '@/features/requisitions/lib/patients';
@@ -59,10 +85,14 @@ export type GridSearch = {
   product?: string;
   skipped?: boolean;
   adjustments?: string;
+  addProduct?: boolean;
 };
 export type GridRow = { id: string; category?: string; model?: RequisitionLine };
 type Props = {
   record: RequisitionRecord;
+  editing?: GridEditing;
+  errors?: Record<string, Record<string, ParseKeys>>;
+  onAddProduct?: () => void;
   tab: 'fullSupply' | 'nonFullSupply';
   search: GridSearch;
   onSearchChange: SearchChange<GridSearch>;
@@ -76,6 +106,9 @@ type Props = {
 const helper = createColumnHelper<DataTableFeatures, GridRow>();
 export function RequisitionGridView({
   record,
+  editing,
+  errors = {},
+  onAddProduct,
   tab,
   search,
   onSearchChange,
@@ -187,14 +220,49 @@ export function RequisitionGridView({
       onAdjustments,
     ],
   );
-  const defs = useMemo(
-    () =>
-      columns.map((column) =>
-        helper.display({
-          id: column.name,
-          header: column.label,
-          meta: { label: column.label },
-          cell: ({ row }) =>
+  const renderCell = (column: GridColumn, row: GridRow) => {
+    if (!row.model) return null;
+    const value = renderValue(
+      column,
+      row.model,
+      cellContext,
+      supplyingHasStock && gridRowTone(row, true) === 'shortfall',
+    );
+    return editing ? (
+      <RequisitionEditCell
+        column={column}
+        model={row.model}
+        record={record}
+        editing={editing}
+        unit={unit}
+        error={errors[row.id]?.[column.name]}
+        cards={view.cards}
+        onAdjustments={onAdjustments}
+      >
+        {column.kind === 'adjustments' &&
+        editing.editable &&
+        !record.template.populateStockOnHandFromStockCards
+          ? cardQuantity(
+              row.model.line.totalLossesAndAdjustments ?? 0,
+              row.model.product?.netContent,
+              unit,
+              undefined,
+              formatter,
+            )
+          : value}
+      </RequisitionEditCell>
+    ) : (
+      value
+    );
+  };
+  const removable = editing?.editable && tab === 'nonFullSupply';
+  const defs = columns.map((column) =>
+    helper.display({
+      id: column.name,
+      header: column.label,
+      meta: { label: column.label },
+      cell: view.cards
+        ? ({ row }) =>
             row.original.model
               ? renderValue(
                   column,
@@ -202,11 +270,35 @@ export function RequisitionGridView({
                   cellContext,
                   supplyingHasStock && gridRowTone(row.original, true) === 'shortfall',
                 )
-              : null,
-        }),
-      ),
-    [columns, cellContext, supplyingHasStock],
+              : null
+        : RequisitionTableCell,
+    }),
   );
+  if (removable)
+    defs.push(
+      helper.display({
+        id: 'actions',
+        meta: { label: t('requisitions.edit.line-actions') },
+        cell: RequisitionTableCell,
+      }),
+    );
+  const renderColumn = (id: string, row: GridRow) => {
+    if (id === 'actions')
+      return row.model && editing ? (
+        <ActionTooltip reason={t('requisitions.edit.remove-product')}>
+          <Button
+            variant="destructive"
+            size="icon-sm"
+            aria-label={`${t('requisitions.edit.remove-product')}: ${row.model.product?.fullProductName}`}
+            onClick={() => editing.editor.removeLine(row.id)}
+          >
+            <Trash2Icon />
+          </Button>
+        </ActionTooltip>
+      ) : null;
+    const column = columns.find((column) => column.name === id);
+    return column ? renderCell(column, row) : null;
+  };
   const table = useTable({
     features: dataTableFeatures,
     columns: defs,
@@ -258,7 +350,16 @@ export function RequisitionGridView({
       )}
     />
   );
-  const footer = <DataTablePagination table={table} />;
+  const footer = (
+    <DataTablePagination
+      table={table}
+      isPageInvalid={(index) =>
+        filtered
+          .slice(index * pagination.pageSize, (index + 1) * pagination.pageSize)
+          .some((model) => !!errors[model.line.id])
+      }
+    />
+  );
   const visible = table.getVisibleLeafColumns();
   const columnsById = useMemo(
     () => new Map(columns.map((column) => [column.name, column])),
@@ -303,121 +404,207 @@ export function RequisitionGridView({
   const totalSpan = Math.max(1, leadingPinned === -1 ? visible.length : leadingPinned);
   const adjustment = models.find((model) => model.line.id === search.adjustments);
   return (
-    <div ref={view.measure} className="flex min-w-0 flex-col gap-4">
-      {supplyingStock && <SupplyingStockNote record={record} />}
-      <RequisitionGridToolbar
-        columns={columns}
-        view={view}
-        search={search}
-        onSearchChange={onSearchChange}
-        hideSkipped={hidesSkipped(record.template, tab)}
-        unit={unit}
-        setUnit={setUnit}
-        canSwitch={canSwitch}
-      />
-      {view.cards ? (
-        <TableCards
-          table={table}
-          footer={footer}
-          empty={empty}
-          listRef={pageStart.ref}
-          title="orderable.fullProductName"
-          heading={(row) => row.category}
-          tone={(row) => gridRowTone(row, supplyingHasStock)}
+    <RequisitionCells value={renderColumn}>
+      <div ref={view.measure} className="flex min-w-0 flex-col gap-4">
+        {supplyingStock && <SupplyingStockNote record={record} />}
+        {editing?.editable &&
+          (tab === 'nonFullSupply'
+            ? editing.addNonFullSupplyProduct
+            : editing.addFullSupplyProduct) && (
+            <div>
+              <Button size="lg" variant="outline" onClick={onAddProduct}>
+                {t('requisitions.edit.add-product')}
+              </Button>
+            </div>
+          )}
+        <RequisitionGridToolbar
+          extra={
+            editing?.editable ? (
+              <>
+                {editing.skipLines && tab === 'fullSupply' && !record.emergency && (
+                  <SkipControls
+                    editing={editing}
+                    record={record}
+                    all={selected}
+                    page={data.flatMap((row) => (row.model ? [row.model] : []))}
+                  />
+                )}
+                {editing.editor.device.deviceAvailable && (
+                  <DraftStatus
+                    {...editing.editor.device.status}
+                    status={
+                      editing.editor.device.status.status === 'conflict'
+                        ? 'failed'
+                        : editing.editor.device.status.status
+                    }
+                    labels={{
+                      saved: t('stock-events.draft-saved'),
+                      saving: t('stock-events.draft-saving'),
+                      loading: t('stock-events.draft-loading'),
+                      failed: t('stock-events.draft-failed'),
+                      retry: t('stock-events.draft-retry'),
+                      conflict: t('stock-events.draft-conflict'),
+                      conflictTitle: t('stock-events.draft-conflict-title'),
+                      conflictDescription: t('stock-events.draft-conflict-description'),
+                      copy: t('stock-events.draft-copy'),
+                      load: t('stock-events.draft-load'),
+                    }}
+                    onRetry={editing.editor.device.retry}
+                    onResolve={async () => {
+                      await editing.editor.device.flush();
+                    }}
+                  />
+                )}
+              </>
+            ) : undefined
+          }
+          columns={columns}
+          view={view}
+          search={search}
+          onSearchChange={onSearchChange}
+          hideSkipped={hidesSkipped(record.template, tab)}
+          unit={unit}
+          setUnit={setUnit}
+          canSwitch={canSwitch}
         />
-      ) : (
-        <DataTableCard>
-          <Table
-            ref={tableElement}
-            density="compact"
-            layout="auto"
-            tabIndex={-1}
-            aria-label={t('requisitions.requisition.products')}
-          >
-            <TableHeader>
-              <TableRow pinned surface="muted">
-                {visible.map((column) => (
-                  <TableHead
-                    key={column.id}
-                    data-pinned={pinnedColumns.has(column.id) ? column.id : undefined}
-                    width={columnsById.get(column.id)?.kind === 'skip' ? 'fit' : undefined}
-                    {...pin(column.id)}
-                  >
-                    <RequisitionGridHeader
-                      label={column.columnDef.meta?.label ?? ''}
-                      definition={columnsById.get(column.id)?.definition}
-                    />
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.length ? (
-                table.getRowModel().rows.map((row) =>
-                  row.original.category !== undefined ? (
-                    <TableRow key={row.id} pinned surface="primary">
-                      <TableCell colSpan={visible.length}>
-                        <div className="sticky start-0 w-fit ps-6">
-                          <bdi>{row.original.category}</bdi>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <TableRow
-                      key={row.id}
-                      pinned
-                      tone={gridRowTone(row.original, supplyingHasStock)}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} {...pin(cell.column.id)}>
-                          <FlexRender cell={cell} />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ),
-                )
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={visible.length}>{empty}</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-            {visible.some((column) => column.id === 'totalCost') && (
-              <TableFooter>
+        {view.cards && editing?.editable ? (
+          <RequisitionEditCards
+            rows={data}
+            columns={columns.filter((column) => view.columnView.visibility[column.name] !== false)}
+            renderCell={renderCell}
+            footer={footer}
+            empty={empty}
+            listRef={pageStart.ref}
+            remove={removable ? editing.editor.removeLine : undefined}
+            invalid={(id) => !!errors[id]}
+          />
+        ) : view.cards ? (
+          <TableCards
+            table={table}
+            footer={footer}
+            empty={empty}
+            listRef={pageStart.ref}
+            title="orderable.fullProductName"
+            heading={(row) => row.category}
+            tone={(row) => gridRowTone(row, supplyingHasStock)}
+          />
+        ) : (
+          <DataTableCard>
+            <Table
+              ref={tableElement}
+              density="compact"
+              layout="auto"
+              tabIndex={-1}
+              aria-label={t('requisitions.requisition.products')}
+            >
+              <TableHeader>
                 <TableRow pinned surface="muted">
-                  <TableCell
-                    colSpan={totalSpan}
-                    {...(pinnedColumns.size ? { sticky: true, stickyOffset: 0 } : {})}
-                  >
-                    {t('requisitions.requisition.total')}
-                    {visible[0]?.id === 'totalCost' && (
-                      <bdi>{formatCurrency(totals[tab], currency)}</bdi>
-                    )}
-                  </TableCell>
-                  {visible.slice(totalSpan).map((column) => (
-                    <TableCell key={column.id}>
-                      {column.id === 'totalCost' && (
+                  {visible.map((column) => (
+                    <TableHead
+                      key={column.id}
+                      data-pinned={pinnedColumns.has(column.id) ? column.id : undefined}
+                      width={columnsById.get(column.id)?.kind === 'skip' ? 'fit' : undefined}
+                      {...pin(column.id)}
+                    >
+                      <RequisitionGridHeader
+                        label={column.columnDef.meta?.label ?? ''}
+                        definition={columnsById.get(column.id)?.definition}
+                      />
+                      {editing?.editable &&
+                        columnsById.get(column.id)?.kind === 'quantity' &&
+                        editing.editableColumns.includes(column.id) && (
+                          <div className="flex items-center gap-1" aria-hidden>
+                            <InputSizer
+                              placeholder={t(
+                                unit === 'PACKS' ? 'quantity-unit.packs' : 'quantity-unit.doses',
+                              )}
+                            />
+                            {unit === 'PACKS' && (
+                              <>
+                                <span>( +</span>
+                                <InputSizer placeholder={t('quantity-unit.doses')} />
+                                <span>)</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.length ? (
+                  table.getRowModel().rows.map((row) =>
+                    row.original.category !== undefined ? (
+                      <TableRow key={row.id} pinned surface="primary">
+                        <TableCell colSpan={visible.length}>
+                          <div className="sticky start-0 w-fit ps-6">
+                            <bdi>{row.original.category}</bdi>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      <TableRow
+                        key={row.id}
+                        pinned
+                        data-invalid={!!errors[row.id] || undefined}
+                        tone={gridRowTone(row.original, supplyingHasStock)}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id} {...pin(cell.column.id)}>
+                            <FlexRender cell={cell} />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ),
+                  )
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={visible.length}>{empty}</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+              {visible.some((column) => column.id === 'totalCost') && (
+                <TableFooter>
+                  <TableRow pinned surface="muted">
+                    <TableCell
+                      colSpan={totalSpan}
+                      {...(pinnedColumns.size ? { sticky: true, stickyOffset: 0 } : {})}
+                    >
+                      {t('requisitions.requisition.total')}
+                      {visible[0]?.id === 'totalCost' && (
                         <bdi>{formatCurrency(totals[tab], currency)}</bdi>
                       )}
                     </TableCell>
-                  ))}
-                </TableRow>
-              </TableFooter>
-            )}
-          </Table>
-          <DataTableFooter>{footer}</DataTableFooter>
-        </DataTableCard>
-      )}
-      {adjustment && !record.template.populateStockOnHandFromStockCards && (
-        <AdjustmentsDialog
-          model={adjustment}
-          reasons={record.stockAdjustmentReasons ?? []}
-          unit={unit}
-          onClose={onCloseAdjustments}
-        />
-      )}
-    </div>
+                    {visible.slice(totalSpan).map((column) => (
+                      <TableCell key={column.id}>
+                        {column.id === 'totalCost' && (
+                          <bdi>{formatCurrency(totals[tab], currency)}</bdi>
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableFooter>
+              )}
+            </Table>
+            <DataTableFooter>{footer}</DataTableFooter>
+          </DataTableCard>
+        )}
+        {adjustment && !editing?.editable && !record.template.populateStockOnHandFromStockCards && (
+          <AdjustmentsDialog
+            model={adjustment}
+            reasons={record.stockAdjustmentReasons ?? []}
+            unit={unit}
+            onClose={onCloseAdjustments}
+          />
+        )}
+      </div>
+    </RequisitionCells>
   );
+}
+const RequisitionCells = createContext<(id: string, row: GridRow) => ReactNode>(() => null);
+function RequisitionTableCell({ row, column }: CellContext<DataTableFeatures, GridRow, unknown>) {
+  return use(RequisitionCells)(column.id, row.original);
 }
 function renderValue(
   column: GridColumn,
@@ -511,4 +698,168 @@ function renderValue(
       );
     }
   }
+}
+
+export type GridEditing = {
+  editor: RequisitionEditor;
+  editable: boolean;
+  editableColumns: readonly string[];
+  skipLines: boolean;
+  addFullSupplyProduct: boolean;
+  addNonFullSupplyProduct: boolean;
+};
+export function RequisitionEditCell({
+  column,
+  model,
+  record,
+  editing,
+  unit,
+  error,
+  cards,
+  children,
+  onAdjustments,
+}: {
+  column: GridColumn;
+  model: RequisitionLine;
+  record: RequisitionRecord;
+  editing: GridEditing;
+  unit: QuantityUnit;
+  error?: ParseKeys;
+  cards?: boolean;
+  children?: ReactNode;
+  onAdjustments: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const { editor } = editing;
+  const { form } = editor;
+  const id = model.line.id;
+  const label = `${column.label}: ${model.product?.fullProductName ?? ''} (${model.product?.productCode ?? id})`;
+  const quantity = column.kind === 'quantity';
+  const name = `${quantity ? 'quantities' : 'texts'}.${id}:${column.name}` as const;
+  const input =
+    editing.editable &&
+    editing.editableColumns.includes(column.name) &&
+    ['quantity', 'count', 'text'].includes(column.kind);
+  useEffect(() => {
+    if (input)
+      form.setFieldMeta(name, (meta) => ({
+        ...meta,
+        isTouched: !!error,
+        errorMap: { onChange: error },
+      }));
+  }, [form, name, input, error]);
+  if (editing.editable && column.kind === 'skip')
+    return (
+      <Checkbox
+        checked={!!model.line.skipped}
+        disabled={
+          !editing.skipLines ||
+          !canSkipLine({ ...model.line, ...editor.draft.lines[id] }, record.template, {
+            tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
+            status: record.status,
+            emergency: record.emergency,
+          })
+        }
+        aria-label={label}
+        onCheckedChange={(skipped) => editor.setLine(id, { skipped })}
+      />
+    );
+  if (input)
+    return (
+      <div className={cards ? 'w-full min-w-0' : 'w-full min-w-20 whitespace-normal'}>
+        <Field surface="background">
+          {quantity ? (
+            <form.AppField
+              name={`quantities.${id}:${column.name}`}
+              defaultValue={quantityValue(
+                String(model.line[column.name as keyof typeof model.line] ?? ''),
+                model.product?.netContent,
+              )}
+              listeners={{
+                onChange: ({ value }) =>
+                  editor.setLine(id, { [column.name]: value.doses } as LineDraft),
+              }}
+            >
+              {(field) => (
+                <field.QuantityField
+                  label={label}
+                  layout="inline"
+                  hideErrors
+                  disabled={!!model.line.skipped}
+                  unit={unit}
+                  netContent={model.product?.netContent}
+                  packsLabel={t('quantity-unit.packs')}
+                  dosesLabel={t('quantity-unit.doses')}
+                  sizing={cards && unit === 'PACKS' ? 'fill' : 'minimum'}
+                  notation={cards ? 'plus' : 'brackets'}
+                />
+              )}
+            </form.AppField>
+          ) : (
+            <form.AppField
+              name={`texts.${id}:${column.name}`}
+              defaultValue={String(model.line[column.name as keyof typeof model.line] ?? '')}
+              listeners={{
+                onChange: ({ value }) => editor.setLine(id, { [column.name]: value } as LineDraft),
+              }}
+            >
+              {(field) =>
+                column.kind === 'text' ? (
+                  <field.TextareaField
+                    label={label}
+                    layout="inline"
+                    hideErrors
+                    disabled={!!model.line.skipped}
+                    maxLength={column.name === 'requestedQuantityExplanation' ? 255 : 250}
+                    dir="auto"
+                  />
+                ) : (
+                  <field.NumberField
+                    label={label}
+                    layout="inline"
+                    hideErrors
+                    controlSize="sm"
+                    disabled={!!model.line.skipped}
+                  />
+                )
+              }
+            </form.AppField>
+          )}
+        </Field>
+      </div>
+    );
+  if (
+    editing.editable &&
+    column.kind === 'adjustments' &&
+    !record.template.populateStockOnHandFromStockCards
+  )
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={!!model.line.skipped}
+        onClick={() => onAdjustments(id)}
+        aria-label={label}
+      >
+        {children ?? '0'}
+      </Button>
+    );
+  return (
+    <CalculatedError error={error}>{children ?? (cards ? EMPTY_VALUE : null)}</CalculatedError>
+  );
+}
+export function CalculatedError({ error, children }: { error?: ParseKeys; children?: ReactNode }) {
+  const { t } = useTranslation();
+  if (!error) return children;
+  return (
+    <span className="inline-flex items-center gap-1 text-destructive">
+      {children}
+      <Tooltip>
+        <TooltipTrigger render={<Button variant="ghost" size="icon-xs" aria-label={t(error)} />}>
+          <CircleAlertIcon className="size-4" aria-hidden />
+        </TooltipTrigger>
+        <TooltipContent>{t(error)}</TooltipContent>
+      </Tooltip>
+    </span>
+  );
 }

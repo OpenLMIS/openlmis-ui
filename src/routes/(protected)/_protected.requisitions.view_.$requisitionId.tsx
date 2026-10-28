@@ -47,6 +47,10 @@ import {
   RequisitionTabsSkeleton,
 } from '@/features/requisitions/components/requisition-skeletons';
 import { RequisitionTabs } from '@/features/requisitions/components/requisition-tabs';
+import {
+  type RequisitionEditor,
+  useRequisitionForm,
+} from '@/features/requisitions/hooks/use-requisition-form';
 import { requisitionCapabilities } from '@/features/requisitions/lib/capabilities';
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
 import { defaultRequisitionTab, hidesSkipped } from '@/features/requisitions/lib/template';
@@ -69,6 +73,7 @@ const searchSchema = requisitionSearchSchema.extend({
   history: dialogFlag,
   rejection: dialogFlag,
   adjustments: textFilterSchema,
+  addProduct: dialogFlag,
 });
 type RequisitionData = {
   record: RequisitionRecord;
@@ -76,7 +81,12 @@ type RequisitionData = {
   access: Awaited<ReturnType<typeof requireRequisitionView>>;
 };
 
-const CLOSED_DIALOGS = { history: undefined, rejection: undefined, adjustments: undefined };
+const CLOSED_DIALOGS = {
+  history: undefined,
+  rejection: undefined,
+  adjustments: undefined,
+  addProduct: undefined,
+};
 let shownRequisitionId: string | undefined;
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/view_/$requisitionId')({
@@ -144,7 +154,7 @@ function RequisitionPage() {
           <RequisitionPrint record={record} userId={userId} unit={quantity.unit} />
         </WorkspaceActions>
       </WorkspaceHeader>
-      <RequisitionBody data={data} quantity={quantity} />
+      <RequisitionBody key={`${userId}:${record.id}`} data={data} quantity={quantity} />
     </Workspace>
   );
 }
@@ -157,6 +167,7 @@ function RequisitionBody({
   quantity: ReturnType<typeof useQuantityUnit>;
 }) {
   const { record } = data;
+  const editor = useRequisitionForm(record);
   const { unit, setUnit, canSwitch } = quantity;
   const search = Route.useSearch();
   const { updateSearch, openDialog, closeDialog } =
@@ -185,7 +196,9 @@ function RequisitionBody({
           errorComponent={SectionError}
           pendingFallback={<RequisitionCommentsSkeleton />}
         >
-          <RequisitionComments
+          <RequisitionEditableComments
+            data={data}
+            editor={editor}
             record={record}
             history={search.history}
             rejection={search.rejection}
@@ -212,6 +225,8 @@ function RequisitionBody({
         >
           <RequisitionPolicyTabs
             data={data}
+            editor={editor}
+            onAddProduct={() => void openDialog({ addProduct: true })}
             unit={unit}
             setUnit={setUnit}
             canSwitch={canSwitch}
@@ -233,6 +248,43 @@ function RequisitionBody({
   );
 }
 
+function RequisitionEditableComments({
+  data,
+  editor,
+  ...props
+}: { data: RequisitionData; editor: RequisitionEditor } & ComponentProps<
+  typeof RequisitionComments
+>) {
+  return (
+    <QueryBoundary
+      resetKey={data.record.id}
+      pendingFallback={<RequisitionComments {...props} />}
+      errorComponent={() => <RequisitionComments {...props} />}
+    >
+      <PolicyComments data={data} editor={editor} {...props} />
+    </QueryBoundary>
+  );
+}
+function PolicyComments({
+  data,
+  editor,
+  ...props
+}: { data: RequisitionData; editor: RequisitionEditor } & ComponentProps<
+  typeof RequisitionComments
+>) {
+  const policy = useRequisitionPolicy(data);
+  return (
+    <RequisitionComments
+      {...props}
+      editor={
+        policy.comments && !editor.device.outdated && editor.device.status.status !== 'loading'
+          ? editor
+          : undefined
+      }
+    />
+  );
+}
+
 function RequisitionLegacyNote({ data }: { data: RequisitionData }) {
   const { deferred } = useRequisitionPolicy(data);
   return deferred ? <LegacyActionsNote requisitionId={data.record.id} /> : null;
@@ -243,13 +295,26 @@ function RequisitionPolicyTabs({
   ...props
 }: { data: RequisitionData } & Omit<
   ComponentProps<typeof RequisitionTabs>,
-  'record' | 'supplyingStock'
+  'record' | 'supplyingStock' | 'editing'
 >) {
-  const { approver } = useRequisitionPolicy(data);
+  const policy = useRequisitionPolicy(data);
+  const { approver } = policy;
   return (
     <RequisitionTabs
       {...props}
       record={data.record}
+      editing={
+        props.editor
+          ? {
+              ...policy,
+              editor: props.editor,
+              editable:
+                policy.editable &&
+                !props.editor.device.outdated &&
+                props.editor.device.status.status !== 'loading',
+            }
+          : undefined
+      }
       supplyingStock={
         approver && !!data.record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed
       }
@@ -364,6 +429,7 @@ function useRequisitionPolicy(data: RequisitionData) {
     requisitionCapabilities({ ...context, currentNodeId }),
   );
   return {
+    ...(policies.find((policy) => policy.editable) ?? policies[0]),
     deferred: policies.some((policy) => policy.deferred.length > 0),
     approver: policies.some((policy) => policy.approver),
   };

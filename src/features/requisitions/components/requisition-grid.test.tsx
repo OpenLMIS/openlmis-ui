@@ -6,7 +6,9 @@ import {
   type GridSearch,
   RequisitionGridView,
 } from '@/features/requisitions/components/requisition-grid';
+import { useRequisitionForm } from '@/features/requisitions/hooks/use-requisition-form';
 import { calculateLine, calculateTotals } from '@/features/requisitions/lib/calculations';
+import { applyRequisitionDraft } from '@/features/requisitions/lib/draft';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
 import { buildLines } from '@/features/requisitions/lib/lines';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
@@ -70,12 +72,14 @@ function Harness({
   value = requisition,
   tab = 'fullSupply',
   supplyingStock = false,
+  editable = false,
 }: {
   initial?: GridSearch;
   stockBased?: boolean;
   value?: RequisitionRecord;
   tab?: 'fullSupply' | 'nonFullSupply';
   supplyingStock?: boolean;
+  editable?: boolean;
 }) {
   const [search, setSearch] = useState<GridSearch>(initial);
   const update: SearchChange<GridSearch> = (change) =>
@@ -93,13 +97,28 @@ function Harness({
           programs: p.programs?.map((entry) => ({ ...entry, fullSupply: false })),
         }))
       : products;
-  const models = buildLines(current, hydrated, []).map((model) => ({
+  const editor = useRequisitionForm(current);
+  const [unit, setUnit] = useState<'DOSES' | 'PACKS'>('DOSES');
+  const draftRecord = editable ? applyRequisitionDraft(current, editor.draft) : current;
+  const models = buildLines(draftRecord, hydrated, []).map((model) => ({
     ...model,
     line: calculateLine(model, current, 1),
   }));
   return (
     <RequisitionGridView
-      record={current}
+      record={draftRecord}
+      editing={
+        editable
+          ? {
+              editor,
+              editable: true,
+              editableColumns: ['requestedQuantity'],
+              skipLines: false,
+              addFullSupplyProduct: false,
+              addNonFullSupplyProduct: true,
+            }
+          : undefined
+      }
       models={models}
       totals={calculateTotals(models)}
       currency={currency}
@@ -108,9 +127,9 @@ function Harness({
       onSearchChange={update}
       onAdjustments={(id) => update({ adjustments: id })}
       onCloseAdjustments={() => update({ adjustments: undefined })}
-      unit="DOSES"
-      setUnit={() => {}}
-      canSwitch={false}
+      unit={unit}
+      setUnit={setUnit}
+      canSwitch={editable}
       supplyingStock={supplyingStock}
     />
   );
@@ -323,3 +342,39 @@ it('omits the summary row when the template has no cost column', () => {
   render(<Harness value={{ ...requisition, template: { columnsMap } }} />);
   expect(screen.queryByText('requisitions.requisition.total')).not.toBeInTheDocument();
 });
+
+it.each([1000, 390])(
+  'keeps editable quantities across unit switches and paging at width %s',
+  async (width) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+    const user = userEvent.setup();
+    render(
+      <Harness
+        editable
+        value={{
+          ...requisition,
+          template: {
+            columnsMap: {
+              ...requisition.template.columnsMap,
+              requestedQuantity: column('requestedQuantity', 3, {
+                source: 'USER_INPUT',
+                columnDefinition: { columnType: 'NUMERIC' },
+              }),
+            },
+          },
+        }}
+      />,
+    );
+    const label = 'requestedQuantity: Medicine 0 (P0)';
+    const input = screen.getByRole('textbox', { name: label });
+    await user.clear(input);
+    await user.type(input, '27');
+    await user.click(screen.getByRole('radio', { name: 'quantity-unit.packs' }));
+    expect(screen.getByRole('textbox', { name: `${label} quantity-unit.packs` })).toHaveValue('2');
+    expect(screen.getByRole('textbox', { name: `${label} quantity-unit.doses` })).toHaveValue('7');
+    await user.click(screen.getByRole('button', { name: 'Next Page' }));
+    await user.click(screen.getByRole('button', { name: 'Previous Page' }));
+    await user.click(screen.getByRole('radio', { name: 'quantity-unit.doses' }));
+    expect(screen.getByRole('textbox', { name: label })).toHaveValue('27');
+  },
+);

@@ -7,12 +7,13 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchOrderablesByIdentities,
+  fetchProgramLookup,
   fetchSupervisoryNodesByIds,
 } from '@/features/reference-data/api/api';
 import { fetchRequisition } from '@/features/requisitions/api/api';
@@ -229,5 +230,97 @@ it('keeps header facts and comments when approval group lookup fails', async () 
   expect(
     screen.getByRole('heading', { name: 'requisitions.requisition.comments' }),
   ).toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('retains edits through tabs and pages and marks calculated errors live', async () => {
+  vi.mocked(fetchProgramLookup).mockResolvedValueOnce({
+    id: 'program',
+    code: 'FP',
+    name: 'Family Planning',
+    active: true,
+    showNonFullSupplyTab: true,
+  });
+  useLoginData.setState({ referenceDataUserId: 'u' });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|program',
+    'REQUISITION_CREATE|f|program',
+  ]);
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...patientRecord(),
+    template: {
+      columnsMap: Object.fromEntries(
+        [
+          column('orderable.fullProductName', 0),
+          column('beginningBalance', 1, {
+            source: 'USER_INPUT',
+            columnDefinition: { columnType: 'NUMERIC' },
+          }),
+          column('totalConsumedQuantity', 2, {
+            source: 'USER_INPUT',
+            columnDefinition: { columnType: 'NUMERIC' },
+          }),
+          column('stockOnHand', 3),
+          column('skipped', 4, { source: 'USER_INPUT' }),
+        ].map((c) => [c.name, c]),
+      ),
+    },
+    requisitionLineItems: [
+      {
+        ...line({ beginningBalance: 10, totalConsumedQuantity: 5 }),
+        orderable: { id: 'product', versionNumber: 1 },
+        approvedProduct: { id: 'approved', versionNumber: 1 },
+      },
+      {
+        ...line({ id: 'second', beginningBalance: 2, totalConsumedQuantity: 1 }),
+        orderable: { id: 'product', versionNumber: 1 },
+        approvedProduct: { id: 'approved', versionNumber: 1 },
+      },
+    ],
+  });
+  const { router, queryClient } = renderRoute('/requisitions/view/r?detailSize=1');
+  const input = await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.change(input, { target: { value: '1' } });
+  await waitFor(() => expect(screen.getByRole('button', { name: /Page 1:/ })).toBeInTheDocument());
+  expect(screen.getByRole('checkbox', { name: 'skipped: Product (P1)' })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  expect(screen.getByLabelText('requisitions.edit.validation.negative')).toBeInTheDocument();
+  await router.navigate({
+    to: '/requisitions/view/r',
+    search: { detailSize: 1, detailPage: 2 },
+  } as never);
+  expect(
+    await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' }),
+  ).toHaveValue('2');
+  await router.navigate({ to: '/requisitions/view/r', search: { detailSize: 1 } } as never);
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue(
+      '1',
+    ),
+  );
+  fireEvent.click(screen.getByRole('tab', { name: 'requisitions.requisition.non-full-supply' }));
+  await screen.findByRole('button', { name: 'requisitions.edit.add-product' });
+  fireEvent.click(screen.getByRole('tab', { name: /requisitions.requisition.full-supply/ }));
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue(
+      '1',
+    ),
+  );
+  expect(
+    within(screen.getByRole('tab', { selected: true })).getByLabelText(
+      'requisitions.edit.invalid-lines',
+    ),
+  ).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '10' },
+  });
+  await waitFor(() =>
+    expect(
+      screen.queryByLabelText('requisitions.edit.validation.negative'),
+    ).not.toBeInTheDocument(),
+  );
+  expect(screen.queryByRole('button', { name: /Page 1:/ })).not.toBeInTheDocument();
   queryClient.clear();
 });

@@ -8,14 +8,17 @@ import {
   latestRejection,
   RejectionReasonsDialog,
 } from '@/features/requisitions/components/rejection-reasons-dialog';
+import { useRequisitionComment } from '@/features/requisitions/components/requisition-comment-field';
 import {
   RequisitionHistoryDialog,
   StatusMessage,
 } from '@/features/requisitions/components/requisition-history-dialog';
+import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 
 export function RequisitionComments({
   record,
+  editor,
   history,
   rejection,
   onHistory,
@@ -23,6 +26,7 @@ export function RequisitionComments({
   onClose,
 }: {
   record: RequisitionRecord;
+  editor?: RequisitionEditor;
   history?: boolean;
   rejection?: boolean;
   onHistory: () => void;
@@ -31,6 +35,7 @@ export function RequisitionComments({
 }) {
   const { t } = useTranslation();
   const headingId = useId();
+  const comment = useRequisitionComment(editor);
   const { data } = useSuspenseQuery(requisitionStatusMessagesOptions(record.id));
   const messages = data.toSorted((a, b) => b.createdDate.localeCompare(a.createdDate));
   const latest = messages[0];
@@ -55,7 +60,9 @@ export function RequisitionComments({
             {t('requisitions.requisition.view-rejection')}
           </Button>
         )}
+        {comment.action}
       </div>
+      {comment.field}
       <div className="rounded-lg border bg-muted/50 px-4 py-3">
         {latest ? (
           <StatusMessage message={latest} />

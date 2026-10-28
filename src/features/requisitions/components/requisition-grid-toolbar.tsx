@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { type ReactNode, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
@@ -14,6 +14,7 @@ import type { SearchChange } from '@/lib/table-search';
 
 export function RequisitionGridToolbar({
   columns,
+  extra,
   view,
   search,
   onSearchChange,
@@ -24,6 +25,7 @@ export function RequisitionGridToolbar({
   disabled,
 }: {
   columns: GridColumn[];
+  extra?: ReactNode;
   view: Pick<ReturnType<typeof useCardView>, 'layout' | 'columnView'>;
   search: GridSearch;
   onSearchChange: SearchChange<GridSearch>;
@@ -37,6 +39,7 @@ export function RequisitionGridToolbar({
   const id = useId();
   return (
     <DataTableToolbar>
+      {extra}
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
           disabled={disabled}
