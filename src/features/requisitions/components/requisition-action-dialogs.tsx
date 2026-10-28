@@ -1,6 +1,7 @@
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ActionTooltip } from '@/components/action-tooltip';
 import { InvalidSubmitDialog } from '@/components/invalid-submit-dialog';
 import {
   AlertDialog,
@@ -13,6 +14,7 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useOnline } from '@/lib/online';
 
 export type RequisitionAction = 'submit' | 'submit-and-authorize' | 'authorize' | 'skip' | 'delete';
 export type RequisitionActionDialogProps = {
@@ -87,6 +89,8 @@ export function RequisitionErrorDialog({
 }: RequisitionErrorDialogProps) {
   const { t } = useTranslation();
   const update = error.kind !== 'server';
+  const online = useOnline();
+  const reason = online ? undefined : t('offline.action-description');
   return (
     <InvalidSubmitDialog
       open
@@ -100,16 +104,19 @@ export function RequisitionErrorDialog({
     >
       <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
       {update && (
-        <AlertDialogAction
-          disabled={pending}
-          focusableWhenDisabled={pending}
-          onClick={() => {
-            if (!pending) onUpdate();
-          }}
-        >
-          {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
-          {t('requisitions.edit.update')}
-        </AlertDialogAction>
+        <ActionTooltip reason={reason}>
+          <AlertDialogAction
+            disabled={pending || !online}
+            focusableWhenDisabled={pending || !online}
+            aria-description={reason}
+            onClick={() => {
+              if (!pending && online) onUpdate();
+            }}
+          >
+            {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
+            {t('requisitions.edit.update')}
+          </AlertDialogAction>
+        </ActionTooltip>
       )}
     </InvalidSubmitDialog>
   );

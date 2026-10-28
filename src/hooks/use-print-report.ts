@@ -19,6 +19,7 @@ type PrintReportOptions = {
   facilityId: string;
   programId: string;
   right: string;
+  beforeRequest?: () => Promise<boolean>;
   request: (language: string) => Promise<Blob>;
   onReport: () => ReportDelivery;
   successTitle: string;
@@ -54,9 +55,16 @@ export function usePrintReport(options: PrintReportOptions) {
           }
         }
         if (sent.device || !isOnline()) throw new Error(t('offline.print-description'));
+        if (sent.beforeRequest && !(await sent.beforeRequest())) {
+          sent.delivery.close();
+          return false;
+        }
+        if (!sent.isCurrent()) throw new SessionEndedError();
+        if (sent.device || !isOnline()) throw new Error(t('offline.print-description'));
         const report = await sent.request(sent.language);
         if (!sent.isCurrent()) throw new SessionEndedError();
         sent.delivery.deliver(report);
+        return true;
       } catch (error) {
         sent.delivery.close();
         throw error;
@@ -64,8 +72,8 @@ export function usePrintReport(options: PrintReportOptions) {
         sent.unsubscribe();
       }
     },
-    onSuccess: (_, sent) => {
-      if (!sent.isCurrent()) return;
+    onSuccess: (delivered, sent) => {
+      if (!delivered || !sent.isCurrent()) return;
       toast.success(sent.successTitle, { description: sent.successDescription });
     },
     onError: (error, sent) => {

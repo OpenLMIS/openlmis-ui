@@ -46,6 +46,7 @@ import {
   requisitionGroupOptions,
   supervisoryNodesByIdsOptions,
 } from '@/features/reference-data/api/queries';
+import type { Orderable } from '@/features/reference-data/lib/types';
 import {
   authorizeRequisition,
   createRequisitionActionAttempt,
@@ -109,6 +110,7 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
+import { useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import type { QuantityUnit } from '@/lib/quantity';
 import { randomId } from '@/lib/random-id';
@@ -141,6 +143,7 @@ const CLOSED_DIALOGS = {
   adjustments: undefined,
   addProduct: undefined,
 };
+class RequisitionRetryConflict extends Error {}
 let shownRequisitionId: string | undefined;
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/view_/$requisitionId')({
@@ -292,13 +295,6 @@ function RequisitionBody({
   );
   const [{ data: products }, { data: approved }, { data: period }, , { data: program }] =
     useSuspenseQueries({ queries: requisitionGridQueries(current) });
-  const { data: available } = useSuspenseQuery(
-    orderablesByIdentitiesOptions(
-      search.addProduct && (policy.addFullSupplyProduct || policy.addNonFullSupplyProduct)
-        ? (record.availableProducts ?? [])
-        : [],
-    ),
-  );
   const models = useMemo(
     () => buildLines(current, products, approved),
     [current, products, approved],
@@ -317,22 +313,17 @@ function RequisitionBody({
   const [attempt] = useState(createRequisitionActionAttempt);
   const [busy, setBusy] = useState(false);
   const [synced, setSynced] = useState(false);
+  const uncertain = useRef<{
+    kind: 'submit' | 'submit-and-authorize' | 'authorize';
+    status: RequisitionRecord['status'];
+    modifiedDate: RequisitionRecord['modifiedDate'];
+  } | null>(null);
   const latest = useRef({ record, editor });
   latest.current = { record, editor };
-  const [opening] = useState(() => {
-    const state = router.state.location.state as {
-      requisitionsReturnTo?: { to: string; search?: Record<string, unknown> };
-      requisitionsListSearch?: Record<string, unknown>;
-    };
-    return (
-      state.requisitionsReturnTo ?? {
-        to: '/requisitions/view' as const,
-        search:
-          state.requisitionsListSearch ??
-          requisitionSearchSchema.parse(router.state.location.search),
-      }
-    );
-  });
+  const [opening] = useState(() => ({
+    to: '/requisitions/view' as const,
+    search: requisitionSearchSchema.parse(router.state.location.search),
+  }));
   const reload = async () => {
     const scope = getSessionScope();
     requireOnline();
@@ -344,6 +335,7 @@ function RequisitionBody({
     queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
     setFailure(null);
     setServerStatus(null);
+    uncertain.current = null;
     setSynced(false);
     attempt.key = randomId();
     return fresh;
@@ -368,6 +360,7 @@ function RequisitionBody({
     queryClient.setQueryData(requisitionOptions(saved.id).queryKey, saved);
     await editor.device.flush();
     assertSessionScope(scope);
+    return saved;
   };
   const mutation = useSessionMutation({
     retry: false,
@@ -397,22 +390,63 @@ function RequisitionBody({
         return;
       }
       requireOnline();
-      if (
+      let advanced = false;
+      let saved: RequisitionRecord | undefined;
+      const retry = uncertain.current;
+      if (retry) {
+        if (kind !== retry.kind) throw new RequisitionRetryConflict();
+        const fresh = await fetchRequisition(record.id);
+        assertSessionScope(scope);
+        const progressed =
+          retry.kind === 'authorize'
+            ? ['AUTHORIZED', 'IN_APPROVAL', 'APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER']
+            : [
+                'SUBMITTED',
+                'AUTHORIZED',
+                'IN_APPROVAL',
+                'APPROVED',
+                'RELEASED',
+                'RELEASED_WITHOUT_ORDER',
+              ];
+        advanced = progressed.includes(fresh.status);
+        if (advanced) {
+          setRecord(fresh);
+          queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
+        } else if (
+          fresh.status !== retry.status ||
+          !retry.modifiedDate ||
+          fresh.modifiedDate !== retry.modifiedDate
+        ) {
+          throw new RequisitionRetryConflict();
+        }
+      } else if (
         kind === 'sync' ||
         kind === 'print' ||
         kind === 'submit' ||
         kind === 'submit-and-authorize' ||
         kind === 'authorize'
       ) {
-        await sync();
+        saved = await sync();
         assertSessionScope(scope);
       }
       requireOnline();
-      if (kind === 'submit' || kind === 'submit-and-authorize')
-        await submitRequisition(record.id, attempt);
-      else if (kind === 'authorize') await authorizeRequisition(record.id, attempt);
-      else if (kind === 'skip') await skipRequisition(record.id, attempt);
-      else if (kind === 'delete') await deleteRequisition(record.id);
+      if (!advanced) {
+        if (kind === 'submit' || kind === 'submit-and-authorize' || kind === 'authorize') {
+          const base = saved ?? latest.current.record;
+          try {
+            if (kind === 'authorize') await authorizeRequisition(record.id, attempt);
+            else await submitRequisition(record.id, attempt);
+          } catch (error) {
+            assertSessionScope(scope);
+            if (isAxiosError(error) && !error.response)
+              uncertain.current = { kind, status: base.status, modifiedDate: base.modifiedDate };
+            else uncertain.current = null;
+            throw error;
+          }
+          uncertain.current = null;
+        } else if (kind === 'skip') await skipRequisition(record.id, attempt);
+        else if (kind === 'delete') await deleteRequisition(record.id);
+      }
       assertSessionScope(scope);
       if (kind === 'sync' || kind === 'print') {
         if (kind === 'sync')
@@ -436,8 +470,10 @@ function RequisitionBody({
         queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),
       ]);
       assertSessionScope(scope);
-      toast.success(t(`requisitions.edit.success.${kind}`));
-      await router.navigate(opening as never);
+      toast.success(t(`requisitions.edit.success.${kind}`), {
+        description: t(`requisitions.edit.success.${kind}-description`),
+      });
+      await router.navigate(opening);
       assertSessionScope(scope);
     },
   });
@@ -460,15 +496,13 @@ function RequisitionBody({
           JSON.stringify(isAxiosError(error) ? error.response?.data : ''),
         );
       if (keyUsed) {
-        const scope = getSessionScope();
         const fresh = await fetchRequisition(record.id).catch(() => undefined);
-        assertSessionScope(scope);
         if (!mutation.isCurrent()) return false;
         if (fresh) setServerStatus(fresh.status);
         setFailure({ kind: 'key-used' });
       } else
         setFailure(
-          status === 409
+          status === 409 || error instanceof RequisitionRetryConflict
             ? { kind: 'conflict' }
             : status === 403
               ? { kind: 'forbidden' }
@@ -498,6 +532,7 @@ function RequisitionBody({
     }
   };
   const pending = busy || mutation.isPending || printPending;
+  const editingBlocked = pending || !!uncertain.current;
   const baseline = useMemo(() => JSON.stringify(buildRequisitionDraft(record)), [record]);
   const dirty = useStore(
     editor.form.store,
@@ -563,7 +598,7 @@ function RequisitionBody({
   );
   const fullSupply = (search.tab ?? defaultRequisitionTab(record.template)) === 'fullSupply';
   const canAdd = fullSupply ? policy.addFullSupplyProduct : policy.addNonFullSupplyProduct;
-  const offered = useMemo(() => {
+  const selectOffered = (available: readonly Orderable[]) => {
     if (!canAdd || editor.device.outdated) return [];
     const existing = new Map(
       models.flatMap((model) => (model.product ? [[model.product.id, model] as const] : [])),
@@ -588,7 +623,7 @@ function RequisitionBody({
         );
       return !fullSupply || record.emergency;
     });
-  }, [canAdd, editor.device.outdated, models, available, record, fullSupply]);
+  };
   return (
     <>
       <Workspace width="wide">
@@ -600,7 +635,7 @@ function RequisitionBody({
               userId={data.userId}
               unit={unit}
               disabled={
-                pending ||
+                editingBlocked ||
                 !!serverStatus ||
                 editor.device.outdated ||
                 editor.device.status.status === 'loading'
@@ -616,14 +651,16 @@ function RequisitionBody({
               <AlertTitle>{t('requisitions.edit.error.key-used')}</AlertTitle>
               <AlertDescription>{t(REQUISITION_STATUS[serverStatus].labelKey)}</AlertDescription>
               <AlertAction>
-                <Button variant="info" disabled={pending} onClick={() => void run('update')}>
-                  {t('requisitions.edit.update')}
-                </Button>
+                <RequisitionUpdate
+                  tone="info"
+                  pending={pending}
+                  onUpdate={() => void run('update')}
+                />
               </AlertAction>
             </Alert>
           )}
           {synced && !dirty && (
-            <p role="status" className="text-muted-foreground text-sm">
+            <p role="note" className="text-muted-foreground text-sm">
               {t('requisitions.edit.synced-title')}
             </p>
           )}
@@ -632,9 +669,11 @@ function RequisitionBody({
               <AlertTitle>{t('requisitions.edit.outdated-title')}</AlertTitle>
               <AlertDescription>{t('requisitions.edit.outdated-description')}</AlertDescription>
               <AlertAction>
-                <Button variant="warning" disabled={pending} onClick={() => void run('update')}>
-                  {t('requisitions.edit.update')}
-                </Button>
+                <RequisitionUpdate
+                  tone="warning"
+                  pending={pending}
+                  onUpdate={() => void run('update')}
+                />
               </AlertAction>
             </Alert>
           )}
@@ -661,6 +700,7 @@ function RequisitionBody({
             >
               <RequisitionEditableComments
                 data={currentData}
+                pending={editingBlocked}
                 editor={editor}
                 record={record}
                 history={search.history}
@@ -688,6 +728,7 @@ function RequisitionBody({
             >
               <RequisitionPolicyTabs
                 data={{ ...data, record: gridRecord }}
+                pending={editingBlocked}
                 editor={editor}
                 onAddProduct={() => void openDialog({ addProduct: true })}
                 unit={unit}
@@ -796,6 +837,7 @@ function RequisitionBody({
       )}
       {search.adjustments &&
         policy.editable &&
+        !editingBlocked &&
         !editor.device.outdated &&
         editor.device.status.status !== 'loading' &&
         (() => {
@@ -820,12 +862,27 @@ function RequisitionBody({
         })()}
       {search.addProduct &&
         canAdd &&
+        !editingBlocked &&
         !editor.device.outdated &&
         editor.device.status.status !== 'loading' && (
           <AddProductsDialog
-            products={offered}
+            products={[]}
+            load={{ identities: record.availableProducts ?? [], select: selectOffered }}
             onClose={closeDialog}
             onSave={(picked) => {
+              const nextLines = [
+                ...gridRecord.requisitionLineItems,
+                ...picked.map((product) => ({
+                  orderable: { id: product.id, versionNumber: product.meta?.versionNumber ?? 1 },
+                })),
+              ];
+              const options = orderablesByIdentitiesOptions(
+                nextLines.map((line) => line.orderable),
+              );
+              const combined = new Map(
+                [...products, ...picked].map((product) => [product.id, product]),
+              );
+              queryClient.setQueryData(options.queryKey, [...combined.values()]);
               for (const product of picked) {
                 const hidden = models.find(
                   (model) => model.product?.id === product.id && model.line.skipped,
@@ -856,11 +913,39 @@ function RequisitionBody({
   );
 }
 
+function RequisitionUpdate({
+  tone,
+  pending,
+  onUpdate,
+}: {
+  tone: 'warning' | 'info';
+  pending: boolean;
+  onUpdate: () => void;
+}) {
+  const { t } = useTranslation();
+  const online = useOnline();
+  const reason = online ? undefined : t('offline.action-description');
+  return (
+    <ActionTooltip reason={reason}>
+      <Button
+        variant={tone}
+        disabled={pending || !online}
+        focusableWhenDisabled={!online}
+        aria-description={reason}
+        onClick={onUpdate}
+      >
+        {t('requisitions.edit.update')}
+      </Button>
+    </ActionTooltip>
+  );
+}
+
 function RequisitionEditableComments({
   data,
   editor,
+  pending,
   ...props
-}: { data: RequisitionData; editor: RequisitionEditor } & ComponentProps<
+}: { data: RequisitionData; editor: RequisitionEditor; pending: boolean } & ComponentProps<
   typeof RequisitionComments
 >) {
   return (
@@ -869,15 +954,16 @@ function RequisitionEditableComments({
       pendingFallback={<RequisitionComments {...props} />}
       errorComponent={() => <RequisitionComments {...props} />}
     >
-      <PolicyComments data={data} editor={editor} {...props} />
+      <PolicyComments data={data} editor={editor} pending={pending} {...props} />
     </QueryBoundary>
   );
 }
 function PolicyComments({
   data,
   editor,
+  pending,
   ...props
-}: { data: RequisitionData; editor: RequisitionEditor } & ComponentProps<
+}: { data: RequisitionData; editor: RequisitionEditor; pending: boolean } & ComponentProps<
   typeof RequisitionComments
 >) {
   const policy = useRequisitionPolicy(data);
@@ -885,7 +971,10 @@ function PolicyComments({
     <RequisitionComments
       {...props}
       editor={
-        policy.comments && !editor.device.outdated && editor.device.status.status !== 'loading'
+        !pending &&
+        policy.comments &&
+        !editor.device.outdated &&
+        editor.device.status.status !== 'loading'
           ? editor
           : undefined
       }
@@ -900,8 +989,9 @@ function RequisitionLegacyNote({ data }: { data: RequisitionData }) {
 
 function RequisitionPolicyTabs({
   data,
+  pending,
   ...props
-}: { data: RequisitionData } & Omit<
+}: { data: RequisitionData; pending: boolean } & Omit<
   ComponentProps<typeof RequisitionTabs>,
   'record' | 'supplyingStock' | 'editing'
 >) {
@@ -912,6 +1002,7 @@ function RequisitionPolicyTabs({
   const editor = props.editor;
   const editable =
     !!editor &&
+    !pending &&
     policy.editable &&
     !editor.device.outdated &&
     editor.device.status.status !== 'loading';
@@ -1083,13 +1174,8 @@ function RequisitionPrint({
     right: RIGHTS.requisitionView,
     facilityId: record.facility.id,
     programId: record.program.id,
-    request: async (lang) => {
-      const scope = getSessionScope();
-      if (beforePrint && !(await beforePrint()))
-        throw new Error(t('requisitions.edit.error-description'));
-      assertSessionScope(scope);
-      return fetchRequisitionReport(record.id, { showInDoses: unit === 'DOSES', lang });
-    },
+    beforeRequest: beforePrint,
+    request: (lang) => fetchRequisitionReport(record.id, { showInDoses: unit === 'DOSES', lang }),
     onReport: () =>
       openReport(`requisition_${record.id}.pdf`, t('requisitions.requisition.print-loading')),
     successTitle: t('requisitions.requisition.printed-title'),

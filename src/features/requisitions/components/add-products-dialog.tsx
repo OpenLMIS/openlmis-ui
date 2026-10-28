@@ -1,3 +1,5 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
+import type { ErrorComponentProps } from '@tanstack/react-router';
 import { type PaginationState, type RowSelectionState, useTable } from '@tanstack/react-table';
 import { PackageSearchIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -17,8 +19,13 @@ import {
   FormDialogSubmit,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { ListError } from '@/components/list-error';
 import { productPickColumns, productPickVisibility } from '@/components/product-pick-columns';
+import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { OrderableIdentity } from '@/features/reference-data/api/api';
+import { orderablesByIdentitiesOptions } from '@/features/reference-data/api/queries';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 
@@ -29,6 +36,10 @@ const productLabel = (product: Orderable) =>
 export type AddProductsDialogProps = {
   open?: boolean;
   products: readonly Orderable[];
+  load?: {
+    identities: readonly OrderableIdentity[];
+    select: (products: readonly Orderable[]) => readonly Orderable[];
+  };
   onSave: (products: Orderable[]) => void;
   onClose: () => void;
 };
@@ -41,9 +52,75 @@ export function AddProductsDialog({ open = true, onClose, ...props }: AddProduct
       }}
       size="table"
     >
-      {open && <ProductsForm {...props} />}
+      {open && (
+        <QueryBoundary
+          resetKey="requisition-products"
+          errorComponent={ProductsError}
+          pendingFallback={<ProductsPending />}
+        >
+          {props.load ? (
+            <AvailableProductsForm {...props} load={props.load} />
+          ) : (
+            <ProductsForm {...props} />
+          )}
+        </QueryBoundary>
+      )}
     </FormDialog>
   );
+}
+function ProductsPending() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>{t('requisitions.edit.products.add-products')}</FormDialogTitle>
+        <FormDialogDescription>
+          {t('requisitions.edit.products.selection-description')}
+        </FormDialogDescription>
+      </FormDialogHeader>
+      <FormDialogBody>
+        <div className="h-48">
+          <Skeleton fill />
+        </div>
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+      </FormDialogFooter>
+    </>
+  );
+}
+function ProductsError({ error, reset }: ErrorComponentProps) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>{t('requisitions.edit.products.add-products')}</FormDialogTitle>
+        <FormDialogDescription>
+          {t('requisitions.edit.products.selection-description')}
+        </FormDialogDescription>
+      </FormDialogHeader>
+      <FormDialogBody>
+        <ListError
+          error={error}
+          reset={reset}
+          description={t('requisitions.requisition.section-error-description')}
+          title={t('requisitions.requisition.section-error-title')}
+        />
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+      </FormDialogFooter>
+    </>
+  );
+}
+function AvailableProductsForm({
+  load,
+  ...props
+}: Omit<AddProductsDialogProps, 'open' | 'onClose'> & {
+  load: NonNullable<AddProductsDialogProps['load']>;
+}) {
+  const { data } = useSuspenseQuery(orderablesByIdentitiesOptions(load.identities));
+  return <ProductsForm {...props} products={load.select(data)} />;
 }
 function ProductsForm({
   products: options,
