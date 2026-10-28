@@ -7,9 +7,10 @@ import {
 } from '@tanstack/react-table';
 import type { ParseKeys } from 'i18next';
 import {
-  ChevronRightIcon,
   CircleAlertIcon,
+  EyeIcon,
   PlusIcon,
+  SquarePenIcon,
   Trash2Icon,
   TriangleAlertIcon,
 } from 'lucide-react';
@@ -745,15 +746,14 @@ function renderValue(
           text
         );
       return column.kind === 'adjustments' && !context.stockBased && text != null ? (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => context.onAdjustments(line.id)}
-          aria-label={`${column.label}: ${text}, ${product?.fullProductName ?? product?.productCode ?? ''}`}
+        <AdjustmentsCell
+          mode="view"
+          cards={context.cards}
+          name={`${column.label}: ${text}, ${product?.fullProductName ?? product?.productCode ?? ''}`}
+          onOpen={() => context.onAdjustments(line.id)}
         >
           {quantity}
-          <ChevronRightIcon data-icon="inline-end" className="rtl:rotate-180" />
-        </Button>
+        </AdjustmentsCell>
       ) : column.kind === 'supplyingStock' && shortfall ? (
         <span className="inline-flex items-center gap-1">
           {quantity ?? (context.cards ? EMPTY_VALUE : null)}
@@ -905,18 +905,65 @@ function RequisitionEditCell({
     !record.template.populateStockOnHandFromStockCards
   )
     return (
-      <Button
-        size="sm"
-        variant="outline"
+      <AdjustmentsCell
+        mode="edit"
+        cards={cards}
         disabled={editing.pending || !!model.line.skipped}
-        onClick={() => onAdjustments(id)}
-        aria-label={`${column.label}: ${cardQuantity(model.line.totalLossesAndAdjustments ?? 0, model.product?.netContent, unit, i18n.language)}, ${model.product?.fullProductName ?? ''} (${model.product?.productCode ?? id})`}
+        name={`${column.label}: ${cardQuantity(model.line.totalLossesAndAdjustments ?? 0, model.product?.netContent, unit, i18n.language)}, ${model.product?.fullProductName ?? ''} (${model.product?.productCode ?? id})`}
+        onOpen={() => onAdjustments(id)}
       >
         {children ?? '0'}
-      </Button>
+      </AdjustmentsCell>
     );
   return (
     <CalculatedError error={error}>{children ?? (cards ? EMPTY_VALUE : null)}</CalculatedError>
+  );
+}
+function AdjustmentsCell({
+  mode,
+  cards = false,
+  disabled = false,
+  name,
+  onOpen,
+  children,
+}: {
+  mode: 'edit' | 'view';
+  cards?: boolean;
+  disabled?: boolean;
+  name: string;
+  onOpen: () => void;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const Icon = mode === 'edit' ? SquarePenIcon : EyeIcon;
+  return (
+    <div
+      className={
+        cards ? 'flex items-center justify-end gap-2' : 'flex items-center justify-between gap-2'
+      }
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label={name}
+              disabled={disabled}
+              size={cards ? 'icon-sm' : 'icon-xs'}
+              variant="ghost"
+              onClick={onOpen}
+            />
+          }
+        >
+          <Icon />
+        </TooltipTrigger>
+        <TooltipContent>
+          {t(mode === 'edit' ? 'requisitions.adjustments.edit' : 'requisitions.adjustments.view')}
+        </TooltipContent>
+      </Tooltip>
+      <span className={cards ? 'font-medium text-sm tabular-nums' : 'tabular-nums'}>
+        {children}
+      </span>
+    </div>
   );
 }
 function CalculatedError({ error, children }: { error?: ParseKeys; children?: ReactNode }) {
