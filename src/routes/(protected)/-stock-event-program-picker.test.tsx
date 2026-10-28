@@ -105,11 +105,11 @@ it.each([
         ? `1 ${eventName} is waiting to sync or needs review.`
         : `You're offline. 1 ${eventName} is waiting to sync.`,
     );
-    if (!online) expect(screen.getByText("You're offline.").tagName).toBe('STRONG');
-    expect(screen.getByRole('link', { name: 'Offline Events' })).toHaveAttribute(
-      'href',
-      '/offline-events',
-    );
+    if (!online)
+      for (const label of screen.getAllByText("You're offline."))
+        expect(label.tagName).toBe('STRONG');
+    for (const link of screen.getAllByRole('link', { name: 'Offline Events' }))
+      expect(link).toHaveAttribute('href', '/offline-events');
     const action = await screen.findByRole('link', { name: 'Edit' });
     if (online) {
       expect(action).not.toHaveAttribute('aria-disabled', 'true');

@@ -1055,7 +1055,7 @@ describe('EventEditor', () => {
       .first();
     expect(details).toHaveTextContent(
       formatTimestamp(new Date(error.event.queuedAt).toISOString(), 'en', {
-        time: true,
+        time: 'short',
         timeZone: 'Pacific/Auckland',
       }),
     );
@@ -2202,7 +2202,7 @@ describe('Receive editor', () => {
           await screen.findByRole('textbox', { name: /^Quantity, Aspirin Box LOT-1/ }),
         ).toBeInTheDocument();
         const time = formatTimestamp(new Date(catalogTime).toISOString(), 'en', {
-          time: true,
+          time: 'short',
           timeZone: 'UTC',
         });
         expect(await screen.findByText(time)).toBeInTheDocument();
@@ -3079,7 +3079,7 @@ it('queues an offline Issue using the destination node from the downloaded bundl
     { kind: 'issue' },
   );
   const time = formatTimestamp(new Date(fetchedAt).toISOString(), 'en', {
-    time: true,
+    time: 'short',
     timeZone: 'UTC',
   });
   expect(await screen.findByText(time)).toBeInTheDocument();
@@ -3155,7 +3155,7 @@ it('does not describe live cards as downloaded data after going offline', async 
   await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   expect(
     screen.queryByText(
-      formatTimestamp('2026-10-23T12:30:00Z', 'en', { time: true, timeZone: 'UTC' }),
+      formatTimestamp('2026-10-23T12:30:00Z', 'en', { time: 'short', timeZone: 'UTC' }),
     ),
   ).not.toBeInTheDocument();
 });

@@ -8,11 +8,20 @@ import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import type { DeviceSnapshot } from '@/lib/local-data';
 import { useOnline } from '@/lib/online';
 
-export function OfflineAlert({ children }: { children: ReactNode }) {
+export function OfflineAlert({ children, short }: { children: ReactNode; short?: ReactNode }) {
   return (
     <Alert role="note" variant="offline">
       <ZapIcon aria-hidden="true" />
-      <AlertDescription>{children}</AlertDescription>
+      <AlertDescription>
+        {short ? (
+          <>
+            <span className="@2xl/main:hidden">{short}</span>
+            <span className="hidden @2xl/main:inline">{children}</span>
+          </>
+        ) : (
+          children
+        )}
+      </AlertDescription>
     </Alert>
   );
 }
@@ -38,6 +47,17 @@ const pendingMessages = {
   offline: 'stock-on-hand.offline-snapshot-pending',
   online: 'stock-on-hand.unreachable-snapshot-pending',
 } as const;
+
+const shortMessages = {
+  'stock-on-hand.offline-snapshot-pending': 'stock-on-hand.offline-snapshot-pending-short',
+  'stock-on-hand.unreachable-snapshot-pending': 'stock-on-hand.unreachable-snapshot-pending-short',
+  'offline-events.program-pending-online': 'offline-events.program-pending-online-short',
+  'offline-events.program-pending-offline': 'offline-events.program-pending-offline-short',
+  'offline-events.stock-pending-online': 'offline-events.stock-pending-short',
+  'offline-events.stock-pending-offline': 'offline-events.stock-pending-short',
+} as const;
+
+const alertTags = { strong: <strong />, eventLink: <Link to="/offline-events" /> };
 
 type SnapshotNotice = { online?: boolean; reconnectedAt?: number };
 
@@ -73,22 +93,24 @@ export function SnapshotAlert({ snapshot, message, pending, online }: SnapshotAl
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
   const time = formatTimestamp(new Date(snapshot.fetchedAt).toISOString(), i18n.language, {
-    time: true,
+    time: 'short',
     timeZone,
   });
-  const key = pending
-    ? pendingMessages[online ? 'online' : 'offline']
-    : online
-      ? unreachableMessages[message]
-      : message;
+  if (pending)
+    return (
+      <PendingNotice
+        i18nKey={pendingMessages[online ? 'online' : 'offline']}
+        count={pending}
+        values={{ time }}
+      />
+    );
   return (
     <OfflineAlert>
       <Trans
         t={t}
-        i18nKey={key}
-        count={pending}
-        values={{ time, count: pending }}
-        components={{ strong: <strong />, eventLink: <Link to="/offline-events" /> }}
+        i18nKey={online ? unreachableMessages[message] : message}
+        values={{ time }}
+        components={alertTags}
       />
     </OfflineAlert>
   );
@@ -107,18 +129,31 @@ export function PendingWorkAlert({
   count: number;
   message: { online: PendingWorkMessage; offline: PendingWorkMessage; values?: { kind: string } };
 }) {
-  const { t } = useTranslation();
   const online = useOnline();
   if (!count) return null;
   return (
-    <OfflineAlert>
-      <Trans
-        t={t}
-        i18nKey={online ? message.online : message.offline}
-        count={count}
-        values={{ count, ...message.values }}
-        components={{ strong: <strong />, eventLink: <Link to="/offline-events" /> }}
-      />
+    <PendingNotice
+      i18nKey={online ? message.online : message.offline}
+      count={count}
+      values={message.values}
+    />
+  );
+}
+
+function PendingNotice({
+  i18nKey,
+  count,
+  values,
+}: {
+  i18nKey: keyof typeof shortMessages;
+  count: number;
+  values?: Record<string, string>;
+}) {
+  const { t } = useTranslation();
+  const props = { t, count, values: { count, ...values }, components: alertTags };
+  return (
+    <OfflineAlert short={<Trans {...props} i18nKey={shortMessages[i18nKey]} />}>
+      <Trans {...props} i18nKey={i18nKey} />
     </OfflineAlert>
   );
 }

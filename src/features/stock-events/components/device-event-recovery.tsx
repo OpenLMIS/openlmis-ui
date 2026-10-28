@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { AlertTriangleIcon, CircleXIcon, Trash2Icon } from 'lucide-react';
-import { useId, useRef, useState } from 'react';
+import { AlertTriangleIcon, CircleXIcon, EllipsisIcon, Trash2Icon } from 'lucide-react';
+import { type ReactElement, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { formatTimestamp } from '@/components/form/date-value';
@@ -27,6 +27,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
   DeviceEventLines,
   EventDetailItem,
 } from '@/features/stock-events/components/device-event-lines';
@@ -49,6 +56,8 @@ import {
   resolveUncertain,
   sameDeviceAttempt,
 } from '@/features/stock-events/lib/stock-event-sync';
+import { useDialogCardLayout } from '@/hooks/use-card-view';
+import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
@@ -131,6 +140,7 @@ export function DeviceEventRecovery({
     onClose,
   );
   const pending = operation.isPending || retry.pending;
+  const { measure, cards: compact } = useDialogCardLayout('xl');
   const act = async (confirmation: RecoveryConfirmation) => {
     const { choice, event } = confirmation;
     try {
@@ -172,8 +182,101 @@ export function DeviceEventRecovery({
   const reason = refusalMessage(event.error, t);
   const timestamp = (value?: number) =>
     value
-      ? formatTimestamp(new Date(value).toISOString(), i18n.language, { time: true, timeZone })
+      ? formatTimestamp(new Date(value).toISOString(), i18n.language, { time: 'short', timeZone })
       : '';
+  const historyLink = event.receipt?.serverEventId ? (
+    <Link
+      to="/stock-management/transaction-history/$eventId"
+      params={{ eventId: event.receipt.serverEventId }}
+      preload={false}
+    />
+  ) : (
+    <Link
+      to="/stock-management/transaction-history"
+      search={{
+        mode: 'my',
+        facilityId: event.facilityId,
+        programId: event.programId,
+        type: EVENT_KINDS[event.kind].historyType,
+      }}
+      preload={false}
+    />
+  );
+  const actions: RecoveryAction[] = [
+    ...(canView
+      ? [
+          {
+            id: 'history',
+            label: t('offline-events.history'),
+            link: historyLink,
+            unavailable: !online,
+            describedBy: !online ? connectionId : undefined,
+            onSelect: online
+              ? undefined
+              : (target: HTMLElement | null) => offlineNavigation.show(target),
+          },
+        ]
+      : []),
+    ...(retry.available
+      ? [
+          {
+            id: 'retry',
+            label: t('offline-events.retry-refused'),
+            disabled: pending || !canSend,
+            focusableWhenDisabled: true,
+            describedBy: !canSend ? sendReasonId : undefined,
+            onSelect: () => void retry.retry(),
+          },
+        ]
+      : []),
+    ...(event.status === 'uncertain'
+      ? [
+          {
+            id: 'recorded',
+            label: t('offline-events.recorded'),
+            disabled: pending,
+            onSelect: () => setConfirmation({ choice: 'recorded', event }),
+          },
+          {
+            id: 'resend',
+            label: t('offline-events.send-again'),
+            disabled: pending || !canSend,
+            focusableWhenDisabled: true,
+            describedBy: !canSend ? sendReasonId : undefined,
+            onSelect: () => setConfirmation({ choice: 'resend', event }),
+          },
+        ]
+      : []),
+    ...(event.status === 'refused'
+      ? [
+          {
+            id: 'copy',
+            label: t('offline-events.copy'),
+            disabled: pending || !!event.error?.resolvedAt,
+            focusableWhenDisabled: true,
+            describedBy: event.error?.resolvedAt ? copyReasonId : undefined,
+            onSelect: () => setConfirmation({ choice: 'copy', event }),
+          },
+        ]
+      : []),
+    ...(canRemoveDeviceEvent(event)
+      ? [
+          {
+            id: 'remove',
+            label: t(removeKey(event)),
+            destructive: true,
+            disabled: pending,
+            onSelect: () => setRemoving(event),
+          },
+        ]
+      : []),
+  ];
+  const mainAction = ['retry', 'copy', 'history']
+    .map((id) => actions.find((action) => action.id === id))
+    .find((action) => action !== undefined);
+  const menuActions = actions.filter((action) => action !== mainAction);
+  const loneRemoval =
+    menuActions.length === 1 && menuActions[0].destructive ? menuActions[0] : undefined;
   return (
     <>
       <Dialog
@@ -199,7 +302,7 @@ export function DeviceEventRecovery({
               )}
             </p>
           </DialogHeader>
-          <div className="shrink-0 min-w-0">
+          <div className="shrink-0 min-w-0" ref={measure}>
             <SettingsList density="compact">
               <EventDetailItem label={t('offline-events.pending-event')}>
                 <span className="inline-flex flex-wrap items-center justify-end gap-2">
@@ -232,7 +335,6 @@ export function DeviceEventRecovery({
             data-event-lines-region
             className="min-h-0 min-w-0 flex flex-col gap-3 overflow-y-auto"
           >
-            <DeviceEventLines event={event} />
             {(stockChanged || event.status === 'refused') && (
               <Alert variant={stockChanged ? 'warning' : 'destructive'}>
                 {stockChanged ? <AlertTriangleIcon /> : <CircleXIcon />}
@@ -329,6 +431,7 @@ export function DeviceEventRecovery({
                 )}
               </>
             )}
+            <DeviceEventLines event={event} />
           </div>
           {!online && canView && (
             <p id={connectionId} className="sr-only">
@@ -346,95 +449,36 @@ export function DeviceEventRecovery({
             </p>
           )}
           <DialogFooter wrap>
-            {canView && (
-              <Button
-                variant="outline"
-                nativeButton={false}
-                role="link"
-                onClick={(click) => {
-                  if (!online) {
-                    click.preventDefault();
-                    offlineNavigation.show(click.currentTarget);
-                  }
-                }}
-                aria-describedby={!online ? connectionId : undefined}
-                render={
-                  event.receipt?.serverEventId ? (
-                    <Link
-                      to="/stock-management/transaction-history/$eventId"
-                      params={{ eventId: event.receipt.serverEventId }}
-                      preload={false}
-                    />
-                  ) : (
-                    <Link
-                      to="/stock-management/transaction-history"
-                      search={{
-                        mode: 'my',
-                        facilityId: event.facilityId,
-                        programId: event.programId,
-                        type: EVENT_KINDS[event.kind].historyType,
-                      }}
-                      preload={false}
-                    />
-                  )
-                }
-              >
-                {t('offline-events.history')}
-              </Button>
-            )}
-            {retry.available && (
-              <Button
-                variant="outline"
-                disabled={pending || !canSend}
-                focusableWhenDisabled
-                aria-describedby={!canSend ? sendReasonId : undefined}
-                onClick={() => {
-                  void retry.retry();
-                }}
-              >
-                {t('offline-events.retry-refused')}
-              </Button>
-            )}
-            {event.status === 'uncertain' && (
+            {compact ? (
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {menuActions.length > 0 && !loneRemoval && (
+                  <RecoveryActionsMenu
+                    actions={menuActions}
+                    label={t('offline-events.more-actions')}
+                  />
+                )}
+                {loneRemoval && <RemovalIconButton action={loneRemoval} />}
+                {mainAction && (
+                  <div className="flex-auto">
+                    <RecoveryActionButton action={mainAction} fill />
+                  </div>
+                )}
+                <div className="flex-auto">
+                  <Button ref={closeRef} disabled={pending} onClick={onClose} width="full">
+                    {t('offline-events.close')}
+                  </Button>
+                </div>
+              </div>
+            ) : (
               <>
-                <Button
-                  disabled={pending}
-                  variant="outline"
-                  onClick={() => setConfirmation({ choice: 'recorded', event })}
-                >
-                  {t('offline-events.recorded')}
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={pending || !canSend}
-                  focusableWhenDisabled
-                  aria-describedby={!canSend ? sendReasonId : undefined}
-                  onClick={() => setConfirmation({ choice: 'resend', event })}
-                >
-                  {t('offline-events.send-again')}
+                {actions.map((action) => (
+                  <RecoveryActionButton action={action} key={action.id} />
+                ))}
+                <Button ref={closeRef} disabled={pending} onClick={onClose}>
+                  {t('offline-events.close')}
                 </Button>
               </>
             )}
-            {event.status === 'refused' && (
-              <Button
-                variant="outline"
-                disabled={pending || !!event.error?.resolvedAt}
-                focusableWhenDisabled
-                aria-describedby={event.error?.resolvedAt ? copyReasonId : undefined}
-                onClick={() => setConfirmation({ choice: 'copy', event })}
-              >
-                {t('offline-events.copy')}
-              </Button>
-            )}
-            {canRemoveDeviceEvent(event) && (
-              <Button variant="destructive" disabled={pending} onClick={() => setRemoving(event)}>
-                <Trash2Icon data-icon="inline-start" />
-                {t(removeKey(event))}
-              </Button>
-            )}
-            <Button ref={closeRef} disabled={pending} onClick={onClose}>
-              {t('offline-events.close')}
-            </Button>
           </DialogFooter>
         </DialogContent>
         {removing && (
@@ -474,5 +518,98 @@ export function DeviceEventRecovery({
       </Dialog>
       {offlineNavigation.dialog}
     </>
+  );
+}
+
+type RecoveryAction = {
+  id: string;
+  label: string;
+  destructive?: boolean;
+  disabled?: boolean;
+  focusableWhenDisabled?: boolean;
+  unavailable?: boolean;
+  describedBy?: string;
+  link?: ReactElement;
+  onSelect?: (target: HTMLElement | null) => void;
+};
+
+function RecoveryActionButton({ action, fill }: { action: RecoveryAction; fill?: boolean }) {
+  return (
+    <Button
+      variant={action.destructive ? 'destructive' : 'outline'}
+      width={fill ? 'full' : 'default'}
+      disabled={action.disabled}
+      focusableWhenDisabled={action.focusableWhenDisabled}
+      aria-describedby={action.describedBy}
+      nativeButton={!action.link}
+      role={action.link ? 'link' : undefined}
+      render={action.link}
+      onClick={(click) => {
+        if (!action.onSelect) return;
+        click.preventDefault();
+        action.onSelect(click.currentTarget);
+      }}
+    >
+      {action.destructive && <Trash2Icon data-icon="inline-start" />}
+      {action.label}
+    </Button>
+  );
+}
+
+function RemovalIconButton({ action }: { action: RecoveryAction }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-label={action.label}
+            aria-describedby={action.describedBy}
+            disabled={action.disabled}
+            focusableWhenDisabled={action.focusableWhenDisabled}
+            size="icon"
+            variant="destructive"
+            onClick={(click) => action.onSelect?.(click.currentTarget)}
+          />
+        }
+      >
+        <Trash2Icon />
+      </TooltipTrigger>
+      <TooltipContent>{action.label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function RecoveryActionsMenu({ actions, label }: { actions: RecoveryAction[]; label: string }) {
+  const menu = useMenuOpensDialog();
+  const trigger = useRef<HTMLButtonElement>(null);
+  return (
+    <DropdownMenu onOpenChange={menu.onOpenChange}>
+      <DropdownMenuTrigger
+        render={<Button aria-label={label} ref={trigger} size="icon" variant="outline" />}
+      >
+        <EllipsisIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" finalFocus={menu.finalFocus} width="auto">
+        {actions.map((action) => (
+          <DropdownMenuItem
+            key={action.id}
+            disabled={action.disabled}
+            aria-describedby={action.describedBy}
+            data-unavailable={action.unavailable || undefined}
+            render={action.link}
+            variant={action.destructive ? 'destructive' : 'default'}
+            onClick={(click) => {
+              const select = action.onSelect;
+              if (!select) return;
+              click.preventDefault();
+              menu.opensDialog(() => select(trigger.current))();
+            }}
+          >
+            {action.destructive && <Trash2Icon />}
+            {action.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

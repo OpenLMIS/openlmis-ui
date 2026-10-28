@@ -233,20 +233,31 @@ it.each([
       expect(lines[0]).toHaveTextContent('Damaged');
       expect(lines[1]).toHaveTextContent('Lost');
     }
+    if (width === 390) {
+      if (status === 'refused')
+        expect(dialog.getByRole('button', { name: 'offline-events.retry-refused' })).toBeVisible();
+      await userEvent.click(dialog.getByRole('button', { name: 'offline-events.more-actions' }));
+      const items = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
+      expect(items).toEqual(
+        status === 'refused'
+          ? ['offline-events.copy', 'offline-events.dismiss']
+          : ['offline-events.recorded', 'offline-events.send-again'],
+      );
+    }
+    const actionRole = width === 390 ? 'menuitem' : 'button';
     if (status === 'uncertain') {
-      const resend = screen.getByRole('button', { name: 'offline-events.send-again' });
+      const resend = screen.getByRole(actionRole, { name: 'offline-events.send-again' });
       expect(resend).toHaveAttribute('aria-disabled', 'true');
       expect(resend).toHaveAccessibleDescription('offline-events.no-send');
-      resend.focus();
-      expect(resend).toHaveFocus();
       await userEvent.click(resend);
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     } else if (status === 'queued' || status === 'refused')
       expect(
-        screen.getByRole('button', {
+        screen.getByRole(actionRole, {
           name: status === 'refused' ? 'offline-events.dismiss' : 'offline-events.remove',
         }),
-      ).toBeEnabled();
+      ).not.toHaveAttribute('aria-disabled', 'true');
+    if (width === 390) await userEvent.keyboard('{Escape}');
     expect(router.state.location.search).toMatchObject({ event: 'e' });
     const retained = local.events;
     await act(async () => {
