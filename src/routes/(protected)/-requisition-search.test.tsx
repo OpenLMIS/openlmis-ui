@@ -212,6 +212,7 @@ it('only warns about missing programs after a facility has been selected', async
   const { router, queryClient } = renderRoute('/requisitions/view');
   await screen.findByRole('button', { name: 'facility-program.search' });
   await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+  expect(screen.getByRole('combobox', { name: 'requisitions.filters.program' })).toBeDisabled();
   expect(screen.queryByText('requisitions.view.no-programs')).not.toBeInTheDocument();
   await userEvent.keyboard('{Escape}');
   await act(() => router.navigate({ search: { facility: 'f' } as never }));

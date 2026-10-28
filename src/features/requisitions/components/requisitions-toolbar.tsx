@@ -41,15 +41,15 @@ export function RequisitionsToolbar({
           disabled={disabled}
           onClear={() => change(CLEARED_REQUISITION_FILTERS)}
         >
-          {programs?.length ? (
-            <DataTableSelectFilter
-              label={t('requisitions.filters.program')}
-              allLabel={t('requisitions.filters.all-programs')}
-              value={search.program ?? ''}
-              options={programs.map(({ id, name }) => ({ value: id, label: name ?? id }))}
-              onValueChange={(program) => change({ program: program || undefined })}
-            />
-          ) : programs ? (
+          <DataTableSelectFilter
+            label={t('requisitions.filters.program')}
+            allLabel={t('requisitions.filters.all-programs')}
+            disabled={!programs?.length}
+            value={search.program ?? ''}
+            options={(programs ?? []).map(({ id, name }) => ({ value: id, label: name ?? id }))}
+            onValueChange={(program) => change({ program: program || undefined })}
+          />
+          {programs && !programs.length ? (
             <p className="text-muted-foreground text-sm">{t('requisitions.view.no-programs')}</p>
           ) : null}
           <DataTableSelectFilter
