@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { useTranslation } from 'react-i18next';
 import { CardListSkeleton } from '@/components/card-list';
@@ -15,7 +14,6 @@ import {
 } from '@/components/record-summary';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { facilityOptions } from '@/features/reference-data/api/queries';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
 import {
@@ -29,16 +27,11 @@ import { useCardView } from '@/hooks/use-card-view';
 import type { QuantityUnit } from '@/lib/quantity';
 
 export function RequisitionHeaderSkeleton({ record }: { record?: RequisitionRecord }) {
-  const { data: facility } = useQuery({
-    ...facilityOptions(record?.facility.id ?? ''),
-    enabled: !!record,
-  });
   const fields = [
     'facility',
     'operator',
     'district',
     'region',
-    ...(facility?.geographicZone?.parent?.parent ? ['province'] : []),
     'period',
     ...(record?.datePhysicalStockCountCompleted ? ['physical-count'] : []),
     'status',

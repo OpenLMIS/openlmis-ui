@@ -48,11 +48,6 @@ export function RequisitionHeader({ record }: { record: RequisitionRecord }) {
         <RecordSummaryField label={t('requisitions.requisition.region')}>
           {orEmpty(zone?.parent?.name)}
         </RecordSummaryField>
-        {zone?.parent?.parent && (
-          <RecordSummaryField label={t('requisitions.requisition.province')}>
-            {orEmpty(zone.parent.parent.name)}
-          </RecordSummaryField>
-        )}
         <RecordSummaryField label={t('requisitions.requisition.period')}>
           {t('requisitions.requisition.period-range', {
             start: formatDateValue(period.startDate, i18n.language),
