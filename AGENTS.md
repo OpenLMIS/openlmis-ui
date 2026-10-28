@@ -743,6 +743,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`: first submit, then
   every correction. `TranslatedFormMessages` in the shell supplies `FormMessagesProvider`
   with the translation-key messages described under Internationalization.
+- Requisition editors validate live from the first change, matching legacy, instead of submit-first validation.
 - Row `SwitchField`/`SelectField` accept a label-row `action`; `TextField` accepts `badge`.
   Stacked `PasswordField` puts `action` at the label's end but after the input in tab order.
   Password/confirmation pairs share `visible` and `onVisibleChange`.
@@ -1054,6 +1055,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 
 ### Drafts, queue and recovery
 
+- Requisition device drafts retain their server modified date and ETag; Sync rebases concurrent edits and conflicts keep the local copy until Update.
 - Enable downloads/drafts through kind policy. Use the shared revisioned draft store and serial
   writer; inventory supplies revision-aware write/clear callbacks. Stage immediately for leave
   protection; announce a save only after commit. Failed saves remain visible during retries.
