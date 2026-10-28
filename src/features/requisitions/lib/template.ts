@@ -63,6 +63,7 @@ const packColumns = new Set([
   'quantityToIssue',
   'totalLossesAndAdjustments',
 ]);
+const pinnedColumns = new Set(['skipped', 'orderable.productCode', 'orderable.fullProductName']);
 const kinds: Record<string, GridColumnKind> = {
   'orderable.productCode': 'product',
   'orderable.fullProductName': 'product',
@@ -135,7 +136,7 @@ function compileColumn(column: RequisitionColumn, stockBased: boolean): GridColu
           ? 'text'
           : 'count'),
     convertsToPacks,
-    sticky: column.name === 'orderable.productCode' || column.name === 'orderable.fullProductName',
+    sticky: pinnedColumns.has(column.name),
   };
 }
 

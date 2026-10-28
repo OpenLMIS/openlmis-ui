@@ -16,6 +16,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { facilityOptions } from '@/features/reference-data/api/queries';
+import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
 import {
   compileColumns,
@@ -149,10 +150,15 @@ export function RequisitionGridPending({
     `requisition-columns:${templateId}`,
   );
   const table = useTable({
-    columns: columns.map(({ name, label }) =>
+    columns: columns.map(({ name, label, definition }) =>
       helper.display({
         id: name,
-        header: name === 'packSize' ? t('requisitions.requisition.pack-size') : label,
+        header: () => (
+          <RequisitionGridHeader
+            label={name === 'packSize' ? t('requisitions.requisition.pack-size') : label}
+            definition={definition}
+          />
+        ),
       }),
     ),
     data: NO_LINES,
@@ -168,7 +174,6 @@ export function RequisitionGridPending({
         search={{}}
         onSearchChange={noop}
         hideSkipped={hideSkipped}
-        skippedCount={0}
         unit={unit}
         setUnit={noop}
         canSwitch={canSwitch}

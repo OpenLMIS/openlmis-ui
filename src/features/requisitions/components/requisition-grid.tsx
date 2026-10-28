@@ -7,7 +7,6 @@ import {
   DataTableEmpty,
   type DataTableFeatures,
   DataTableFooter,
-  DataTableHeaderLabel,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
@@ -24,10 +23,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { productLabel } from '@/features/reference-data/lib/products';
 import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { AdjustmentsDialog } from '@/features/requisitions/components/adjustments-dialog';
+import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
 import { SupplyingStockNote } from '@/features/requisitions/components/supplying-stock-note';
 import type { calculateTotals } from '@/features/requisitions/lib/calculations';
@@ -261,13 +260,21 @@ export function RequisitionGridView({
   );
   const footer = <DataTablePagination table={table} />;
   const visible = table.getVisibleLeafColumns();
+  const columnsById = useMemo(
+    () => new Map(columns.map((column) => [column.name, column])),
+    [columns],
+  );
+  const pinnedIds = visible
+    .filter((column) => columnsById.get(column.id)?.sticky)
+    .map((column) => column.id);
+  const pinnedKey = pinnedIds.join('|');
   useLayoutEffect(() => {
-    if (view.cards || !columns.some((column) => column.sticky)) return;
+    if (view.cards || !pinnedKey) return;
     const headers = tableElement.current?.querySelectorAll<HTMLTableCellElement>('th[data-pinned]');
     if (!headers?.length) return;
     const update = () => {
       const widths = Object.fromEntries(
-        Array.from(headers, (h) => [h.dataset.pinned as string, h.offsetWidth]),
+        Array.from(headers, (h) => [h.dataset.pinned as string, h.getBoundingClientRect().width]),
       );
       setPinnedWidths((previous) =>
         JSON.stringify(previous) === JSON.stringify(widths) ? previous : widths,
@@ -277,22 +284,23 @@ export function RequisitionGridView({
     const observer = new ResizeObserver(update);
     for (const header of headers) observer.observe(header);
     return () => observer.disconnect();
-  }, [columns, view.cards]);
-  const columnsById = useMemo(
-    () => new Map(columns.map((column) => [column.name, column])),
-    [columns],
-  );
+  }, [pinnedKey, view.cards]);
   const pinnedColumns = useMemo(() => {
-    const pinned = new Map<string, { sticky: true; stickyOffset: number }>();
+    const ids = pinnedKey ? pinnedKey.split('|') : [];
+    const pinned = new Map<string, { sticky: true | 'edge'; stickyOffset: number }>();
     let offset = 0;
-    for (const column of visible) {
-      if (!columnsById.get(column.id)?.sticky) continue;
-      pinned.set(column.id, { sticky: true, stickyOffset: offset });
-      offset += pinnedWidths[column.id] ?? 0;
+    for (const [index, id] of ids.entries()) {
+      pinned.set(id, {
+        sticky: index === ids.length - 1 ? 'edge' : true,
+        stickyOffset: Math.floor(offset),
+      });
+      offset += pinnedWidths[id] ?? 0;
     }
     return pinned;
-  }, [visible, columnsById, pinnedWidths]);
+  }, [pinnedKey, pinnedWidths]);
   const pin = (id: string) => pinnedColumns.get(id);
+  const leadingPinned = visible.findIndex((column) => !pinnedColumns.has(column.id));
+  const totalSpan = Math.max(1, leadingPinned === -1 ? visible.length : leadingPinned);
   const adjustment = models.find((model) => model.line.id === search.adjustments);
   return (
     <div ref={view.measure} className="flex min-w-0 flex-col gap-4">
@@ -303,7 +311,6 @@ export function RequisitionGridView({
         search={search}
         onSearchChange={onSearchChange}
         hideSkipped={hidesSkipped(record.template, tab)}
-        skippedCount={selected.filter((model) => model.line.skipped).length}
         unit={unit}
         setUnit={setUnit}
         canSwitch={canSwitch}
@@ -329,28 +336,18 @@ export function RequisitionGridView({
           >
             <TableHeader>
               <TableRow pinned surface="muted">
-                {visible.map((column) => {
-                  const definition = columnsById.get(column.id)?.definition;
-                  const label = (
-                    <DataTableHeaderLabel>{column.columnDef.meta?.label}</DataTableHeaderLabel>
-                  );
-                  return (
-                    <TableHead
-                      key={column.id}
-                      data-pinned={columnsById.get(column.id)?.sticky ? column.id : undefined}
-                      {...pin(column.id)}
-                    >
-                      {definition ? (
-                        <Tooltip>
-                          <TooltipTrigger render={<button type="button" />}>{label}</TooltipTrigger>
-                          <TooltipContent>{definition}</TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        label
-                      )}
-                    </TableHead>
-                  );
-                })}
+                {visible.map((column) => (
+                  <TableHead
+                    key={column.id}
+                    data-pinned={pinnedColumns.has(column.id) ? column.id : undefined}
+                    {...pin(column.id)}
+                  >
+                    <RequisitionGridHeader
+                      label={column.columnDef.meta?.label ?? ''}
+                      definition={columnsById.get(column.id)?.definition}
+                    />
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -387,9 +384,17 @@ export function RequisitionGridView({
             {visible.some((column) => column.id === 'totalCost') && (
               <TableFooter>
                 <TableRow pinned surface="muted">
-                  {visible.map((column, index) => (
-                    <TableCell key={column.id} {...pin(column.id)}>
-                      {index === 0 && t('requisitions.requisition.total')}
+                  <TableCell
+                    colSpan={totalSpan}
+                    {...(pinnedColumns.size ? { sticky: 'edge', stickyOffset: 0 } : {})}
+                  >
+                    {t('requisitions.requisition.total')}
+                    {visible[0]?.id === 'totalCost' && (
+                      <bdi>{formatCurrency(totals[tab], currency)}</bdi>
+                    )}
+                  </TableCell>
+                  {visible.slice(totalSpan).map((column) => (
+                    <TableCell key={column.id}>
                       {column.id === 'totalCost' && (
                         <bdi>{formatCurrency(totals[tab], currency)}</bdi>
                       )}

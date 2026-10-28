@@ -464,6 +464,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 - Tables draw vertical column dividers by default.
 
+- Exception to one-line headers: the requisition grid wraps header labels between words, up to three lines, with an info icon tooltip for template definitions.
+
 - Yes/no and active/inactive cells use `FlagBadge` (`src/components/flag-badge.tsx`): a success
   check or destructive cross, always with its label.
 

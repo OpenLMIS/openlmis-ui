@@ -1,13 +1,11 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
-import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
-import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldLabel } from '@/components/ui/field';
-import { Switch } from '@/components/ui/switch';
 import type { GridSearch } from '@/features/requisitions/components/requisition-grid';
 import type { GridColumn } from '@/features/requisitions/lib/template';
 import type { useCardView } from '@/hooks/use-card-view';
@@ -20,7 +18,6 @@ export function RequisitionGridToolbar({
   search,
   onSearchChange,
   hideSkipped,
-  skippedCount,
   unit,
   setUnit,
   canSwitch,
@@ -31,13 +28,12 @@ export function RequisitionGridToolbar({
   search: GridSearch;
   onSearchChange: SearchChange<GridSearch>;
   hideSkipped: boolean;
-  skippedCount: number;
   unit: QuantityUnit;
   setUnit: (unit: QuantityUnit) => void;
   canSwitch: boolean;
   disabled?: boolean;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const id = useId();
   return (
     <DataTableToolbar>
@@ -53,32 +49,18 @@ export function RequisitionGridToolbar({
         />
       </div>
       {hideSkipped && (
-        <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
-          <DataTableFilters
-            disabled={disabled}
-            size="lg"
-            activeCount={search.skipped ? 1 : 0}
-            onClear={() => onSearchChange({ skipped: undefined, detailPage: undefined })}
-          >
-            <Field orientation="horizontal">
-              <div className="flex min-h-8 min-w-0 flex-1 items-center gap-1">
-                <FieldLabel htmlFor={id}>
-                  {t('requisitions.requisition.show-skipped')}
-                  <Badge variant="secondary">
-                    {new Intl.NumberFormat(i18n.language).format(skippedCount)}
-                  </Badge>
-                </FieldLabel>
-              </div>
-              <Switch
-                disabled={disabled}
-                id={id}
-                checked={!!search.skipped}
-                onCheckedChange={(checked) =>
-                  onSearchChange({ skipped: checked || undefined, detailPage: undefined })
-                }
-              />
-            </Field>
-          </DataTableFilters>
+        <div className="flex h-9 items-center">
+          <Field orientation="horizontal">
+            <Checkbox
+              disabled={disabled}
+              id={id}
+              checked={!!search.skipped}
+              onCheckedChange={(checked) =>
+                onSearchChange({ skipped: checked || undefined, detailPage: undefined })
+              }
+            />
+            <FieldLabel htmlFor={id}>{t('requisitions.requisition.show-skipped')}</FieldLabel>
+          </Field>
         </div>
       )}
       <div className="flex w-full flex-wrap items-center gap-2 @2xl/main:ms-auto @2xl/main:w-auto">

@@ -1601,6 +1601,7 @@
   "requisitions.requisition.additional": "Médicaments et Fournitures Médicales Supplémentaires",
   "requisitions.requisition.approved": "Quantité Approuvée",
   "requisitions.requisition.back": "Retour à la Liste des Réquisitions",
+  "requisitions.requisition.column-definition": "À propos de {column}",
   "requisitions.requisition.comments": "Commentaires",
   "requisitions.requisition.description": "{facility} - {period}",
   "requisitions.requisition.district": "District",

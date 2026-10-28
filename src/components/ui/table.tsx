@@ -110,6 +110,14 @@ function TableRow({
   )
 }
 
+const stickyClasses = (sticky: boolean | "edge") =>
+  sticky &&
+  cn(
+    "sticky border-e-0! bg-inherit after:pointer-events-none after:absolute after:inset-y-0 after:end-0 after:w-px after:bg-border",
+    sticky === "edge" &&
+      "before:pointer-events-none before:absolute before:inset-y-0 before:-end-2 before:w-2 before:bg-linear-to-r before:from-foreground/10 before:to-transparent rtl:before:bg-linear-to-l"
+  )
+
 function TableHead({
   className,
   width = "default",
@@ -117,7 +125,7 @@ function TableHead({
   stickyOffset = 0,
   style,
   ...props
-}: React.ComponentProps<"th"> & { width?: "default" | "icon"; sticky?: boolean; stickyOffset?: number }) {
+}: React.ComponentProps<"th"> & { width?: "default" | "icon"; sticky?: boolean | "edge"; stickyOffset?: number }) {
   return (
     <th
       data-slot="table-head"
@@ -125,7 +133,8 @@ function TableHead({
       className={cn(
         "h-10 px-2 text-start align-middle font-medium whitespace-nowrap text-foreground",
         width === "icon" && "w-16",
-        sticky && "sticky z-2 bg-inherit",
+        stickyClasses(sticky),
+        sticky && "z-2",
         className
       )}
       {...props}
@@ -140,14 +149,15 @@ function TableCell({
   stickyOffset = 0,
   style,
   ...props
-}: React.ComponentProps<"td"> & { tone?: "default" | "danger"; sticky?: boolean; stickyOffset?: number }) {
+}: React.ComponentProps<"td"> & { tone?: "default" | "danger"; sticky?: boolean | "edge"; stickyOffset?: number }) {
   return (
     <td
       data-slot="table-cell"
       style={sticky ? { ...style, insetInlineStart: stickyOffset } : style}
       className={cn(
         "p-2 align-middle whitespace-nowrap",
-        sticky && "sticky z-1 bg-inherit",
+        stickyClasses(sticky),
+        sticky && "z-1",
         tone === "danger" && "bg-destructive/10 text-destructive",
         className
       )}

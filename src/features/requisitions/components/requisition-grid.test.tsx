@@ -178,15 +178,11 @@ const withSkipped: RequisitionRecord = {
     skipped: true,
   })),
 };
-it('shows skipped full-supply products through Filters and clears both filters from no matches', async () => {
+it('shows skipped full-supply products from the toolbar checkbox and clears both filters from no matches', async () => {
   const user = userEvent.setup();
   render(<Harness value={withSkipped} />);
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: /^Filters/ }));
-  await user.click(
-    await screen.findByRole('switch', { name: /requisitions.requisition.show-skipped/ }),
-  );
-  await user.keyboard('{Escape}');
+  await user.click(screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' }));
   expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0' })).toHaveAttribute(
     'aria-disabled',
@@ -200,7 +196,9 @@ it('shows skipped full-supply products through Filters and clears both filters f
 it('does not hide skipped non-full-supply products', () => {
   render(<Harness value={withSkipped} tab="nonFullSupply" />);
   expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: /^Filters/ })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('checkbox', { name: 'requisitions.requisition.show-skipped' }),
+  ).not.toBeInTheDocument();
 });
 it.each([false, true])(
   'hides skipped full-supply products even with a hidden skip column, emergency=%s',
@@ -223,7 +221,9 @@ it.each([false, true])(
       />,
     );
     expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Filters/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' }),
+    ).toBeInTheDocument();
   },
 );
 it('shows the exact product name in the table without its display unit', () => {
@@ -254,8 +254,16 @@ it('shows only the access banner when supplying stock access is denied', () => {
   ).not.toBeInTheDocument();
 });
 
-it('pins product columns using the measured inline widths for header, body and totals', () => {
-  const columns = ['orderable.productCode', 'orderable.fullProductName', 'requestedQuantity'];
+it('pins skip, code and product at cumulative measured widths in header and body', () => {
+  vi.spyOn(HTMLTableCellElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 120.5,
+  } as DOMRect);
+  const columns = [
+    'skipped',
+    'orderable.productCode',
+    'orderable.fullProductName',
+    'requestedQuantity',
+  ];
   render(
     <Harness
       value={{
@@ -266,14 +274,14 @@ it('pins product columns using the measured inline widths for header, body and t
       }}
     />,
   );
-  const code = screen.getByRole('columnheader', { name: 'orderable.productCode' });
-  const name = screen.getByRole('columnheader', { name: 'orderable.fullProductName' });
-  expect(code.style.insetInlineStart).toBe('0');
-  expect(name.style.insetInlineStart).toBe('1000px');
-  expect(screen.getByText('P0').closest('td')?.style.insetInlineStart).toBe('0');
+  const offsets = columns.map(
+    (name) => screen.getByRole('columnheader', { name }).style.insetInlineStart,
+  );
+  expect(offsets).toEqual(['0', '120px', '241px', '']);
+  expect(screen.getByText('P0').closest('td')?.style.insetInlineStart).toBe('120px');
   expect(
     screen.getByText('Medicine 0', { exact: true }).closest('td')?.style.insetInlineStart,
-  ).toBe('1000px');
+  ).toBe('241px');
 });
 
 it('opens adjustments through a name that includes the visible quantity and product', async () => {
