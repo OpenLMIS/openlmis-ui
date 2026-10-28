@@ -1114,6 +1114,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   Event Details puts status notices above the lines. In its `useDialogCardLayout` cards layout the
   footer shows Retry, Copy For Correction or Transaction History, then Close; other actions go in
   "...", except a lone Remove or Dismiss, which stays a trash icon button.
+- Already-open requisition details remain editable offline through the shell retention policy; cold offline opens stay blocked.
 - Hidden pages retain drafts/guards only for a valid protected match in the same session scope.
   Persistent overlay drafts stay mounted behind the visibility gate; transient overlays close.
   Discard decisions opt out so navigation and Log Out remain answerable.

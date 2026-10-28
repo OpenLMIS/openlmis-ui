@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import {
   fetchSupervisoryNodesByIds,
 } from '@/features/reference-data/api/api';
 import { fetchRequisition } from '@/features/requisitions/api/api';
+import { buildRequisitionDraft } from '@/features/requisitions/lib/draft';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { client } from '@/integrations/axios';
@@ -466,7 +467,7 @@ it.each(['sync', 'submit'] as const)(
     queryClient.clear();
   },
 );
-it('locks editing during Sync and uses the returned ETag next time', async () => {
+it('locks editing during Sync and uses the refetched ETag next time', async () => {
   const { base, queryClient } = await openEditor();
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.add-comment' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'requisitions.edit.comment-label' }), {
@@ -490,6 +491,15 @@ it('locks editing during Sync and uses the returned ETag next time', async () =>
   await waitFor(() => expect(put).toHaveBeenCalledOnce());
   expect(put.mock.calls[0][1]).toMatchObject({ draftStatusMessage: '' });
   expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toBeDisabled();
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    eTag: '"fresh"',
+    modifiedDate: 'fresh',
+    requisitionLineItems: [
+      { ...base.requisitionLineItems[0], beginningBalance: 12 },
+      base.requisitionLineItems[1],
+    ],
+  });
   resolve({
     data: {
       ...base,
@@ -507,27 +517,38 @@ it('locks editing during Sync and uses the returned ETag next time', async () =>
   put.mockResolvedValue({ data: base, headers: { etag: '"next"' } });
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
-  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': '"saved"' } });
+  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': '"fresh"' } });
+  expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
   queryClient.clear();
 });
-it('deletes only after confirmation', async () => {
-  const { queryClient } = await openEditor();
-  const remove = vi.spyOn(client, 'delete').mockResolvedValue({ data: undefined });
+it('deletes only after confirmation and toasts before returning to the list', async () => {
+  const { router, queryClient } = await openEditor();
+  const success = vi.spyOn(toast, 'success');
+  const navigate = vi.spyOn(router, 'navigate');
+  const remove = vi.spyOn(client, 'delete').mockImplementation(async () => {
+    expect(success).not.toHaveBeenCalled();
+    return { data: undefined };
+  });
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.delete' }));
   const dialog = await screen.findByRole('alertdialog');
   expect(remove).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.actions.delete' }));
   await screen.findByText('Opening List');
   expect(remove).toHaveBeenCalledWith('/requisitions/r');
+  expect(success).toHaveBeenCalledWith('requisitions.edit.success.delete', {
+    description: 'requisitions.edit.success.delete-description',
+  });
+  expect(success.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0]);
   queryClient.clear();
 });
 
 it('checks a reused action key and retains saved values before Update', async () => {
   const { base, queryClient } = await openEditor();
-  vi.spyOn(client, 'put').mockImplementation(async (_path, body) => ({
-    data: { ...base, ...(body as object) },
-    headers: { etag: '"saved"' },
-  }));
+  vi.spyOn(client, 'put').mockImplementation(async (_path, body) => {
+    const saved = { ...base, ...(body as object) };
+    vi.mocked(fetchRequisition).mockResolvedValue({ ...saved, eTag: '"fresh"' });
+    return { data: saved, headers: { etag: '"saved"' } };
+  });
   const reads = vi.mocked(fetchRequisition).mock.calls.length;
   vi.spyOn(client, 'post').mockRejectedValue(
     httpError(409, { messageKey: 'requisition.error.validation.idempotencyKey.alreadyUsed' }),
@@ -548,7 +569,7 @@ it('checks a reused action key and retains saved values before Update', async ()
   );
   const dialog = screen.getByRole('alertdialog');
   expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
-  expect(fetchRequisition).toHaveBeenCalledTimes(reads + 1);
+  expect(fetchRequisition).toHaveBeenCalledTimes(reads + 2);
   expect(
     within(dialog).getByRole('button', { name: 'requisitions.edit.update' }),
   ).toBeInTheDocument();
@@ -755,6 +776,7 @@ it.each(['submit', 'authorize'] as const)(
   async (kind) => {
     const { base, queryClient } = await openEditor(false, false, kind === 'authorize');
     const saved = { ...base, modifiedDate: 'saved' };
+    vi.mocked(fetchRequisition).mockResolvedValue(saved);
     const put = vi.spyOn(client, 'put').mockResolvedValue({ data: saved, headers: {} });
     const post = vi
       .spyOn(client, 'post')
@@ -952,3 +974,103 @@ it.each([true, false])(
     queryClient.clear();
   },
 );
+
+it.each(['submit', 'authorize'] as const)('uses the GET base for %s after Sync', async (kind) => {
+  const { base, queryClient } = await openEditor(false, false, kind === 'authorize');
+  vi.spyOn(toast, 'success');
+  const put = vi.spyOn(client, 'put').mockResolvedValue({
+    data: base,
+    headers: { etag: base.eTag },
+  });
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    eTag: 'W/"2"',
+    modifiedDate: 'fresh',
+  });
+  const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() =>
+    expect(toast.success).toHaveBeenCalledWith('requisitions.edit.synced-title', expect.anything()),
+  );
+  await confirmAction(kind);
+  await screen.findByText('Opening List');
+  expect(post).toHaveBeenCalledOnce();
+  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': 'W/"2"' } });
+  expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
+  queryClient.clear();
+});
+it('loads invalid numeric text from a stored draft with a cell error', async () => {
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+  const base = editingRecord();
+  await getLocalDb().table('requisitionDrafts').clear();
+  await getLocalDb()
+    .table('requisitionDrafts')
+    .put({
+      draftId: 'r',
+      userId: 'u',
+      formatVersion: 1,
+      modifiedDate: base.modifiedDate,
+      eTag: base.eTag,
+      draft: { ...buildRequisitionDraft(base), lines: { line: { beginningBalance: '-' } } },
+    });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|program',
+    'REQUISITION_CREATE|f|program',
+  ]);
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
+  const { queryClient } = renderRoute('/requisitions/view/r?detailSize=1');
+  const input = await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  await waitFor(() => expect(input).toBeEnabled());
+  await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'));
+  expect(input).toHaveAccessibleDescription('stock-events.positive-number');
+  queryClient.clear();
+});
+it.each(['-', '1x'])('keeps invalid typed %s editable with a cell error', async (value) => {
+  const { queryClient } = await openEditor();
+  const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.change(input, { target: { value } });
+  await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'));
+  expect(input).toHaveValue(value);
+  queryClient.clear();
+});
+it('keeps open editor inputs and device autosave working offline while server actions are disabled', async () => {
+  const { queryClient } = await openEditor();
+  act(() => onlineManager.setOnline(false));
+  const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  expect(input).toBeEnabled();
+  fireEvent.change(input, { target: { value: '42' } });
+  await waitFor(async () =>
+    expect(
+      (await getLocalDb().table('requisitionDrafts').get('r')).draft.lines.line.beginningBalance,
+    ).toBe('42'),
+  );
+  for (const name of [
+    'requisitions.edit.actions.sync',
+    'requisitions.edit.actions.submit',
+    'requisitions.edit.actions.delete',
+    'requisitions.requisition.print',
+  ]) {
+    const button = screen.getByRole('button', { name });
+    await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'true'));
+    expect(button).toHaveAttribute(
+      'aria-description',
+      name === 'requisitions.requisition.print'
+        ? 'offline.print-description'
+        : 'offline.action-description',
+    );
+  }
+  queryClient.clear();
+});
+it('does not show device save status for a read-only requisition', async () => {
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
+  vi.mocked(fetchRequisition).mockResolvedValue(editingRecord());
+  const { queryClient } = renderRoute('/requisitions/view/r');
+  await screen.findByRole('tab', { name: 'requisitions.requisition.full-supply', selected: true });
+  expect(screen.queryByText('stock-events.draft-saved')).not.toBeInTheDocument();
+  queryClient.clear();
+});

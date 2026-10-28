@@ -11,9 +11,10 @@ export type RequisitionFailure =
 export function toRequisitionFailure(error: unknown): RequisitionFailure {
   const status = isAxiosError(error) ? error.response?.status : undefined;
   if (status === 409) {
-    const keyUsed = /key.*(already|used)|already.*key/i.test(
-      JSON.stringify(isAxiosError(error) ? error.response?.data : ''),
-    );
+    const keyUsed =
+      isAxiosError(error) &&
+      error.response?.data?.messageKey ===
+        'requisition.error.validation.idempotencyKey.alreadyUsed';
     return { kind: keyUsed ? 'key-used' : 'conflict' };
   }
   if (error instanceof RequisitionRetryConflict) return { kind: 'conflict' };

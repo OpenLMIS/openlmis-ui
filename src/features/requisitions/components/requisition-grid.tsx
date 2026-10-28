@@ -472,7 +472,7 @@ export function RequisitionGridView({
               : undefined
           }
           status={
-            editing
+            editing?.editable
               ? editing.editor.device.deviceAvailable && (
                   <DraftStatus
                     {...editing.editor.device.status}
@@ -844,7 +844,7 @@ function RequisitionEditCell({
                 <field.QuantityField
                   label={label}
                   layout="inline"
-                  hideErrors
+                  hideErrors={!cards}
                   disabled={editing.pending || !!model.line.skipped}
                   unit={unit}
                   netContent={model.product?.netContent}
@@ -868,7 +868,7 @@ function RequisitionEditCell({
                   <field.TextareaField
                     label={label}
                     layout="inline"
-                    hideErrors
+                    hideErrors={!cards}
                     disabled={editing.pending || !!model.line.skipped}
                     maxLength={
                       column.name === 'requestedQuantityExplanation'
@@ -883,7 +883,7 @@ function RequisitionEditCell({
                   <field.NumberField
                     label={label}
                     layout="inline"
-                    hideErrors
+                    hideErrors={!cards}
                     controlSize={cards ? 'default' : 'sm'}
                     disabled={editing.pending || !!model.line.skipped}
                   />

@@ -338,6 +338,7 @@ type TextFieldProps = FieldProps &
 export function TextField({
   label,
   layout,
+  hideErrors,
   badge,
   description,
   errorDescriptionId,
@@ -362,6 +363,7 @@ export function TextField({
       disabled={disabled}
       label={label}
       layout={layout}
+      hideErrors={hideErrors}
       required={required}
       state={state}
     >

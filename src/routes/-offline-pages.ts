@@ -4,8 +4,10 @@ import {
   OFFLINE_EVENT_RIGHTS,
 } from '@/features/stock-events/lib/event-kinds';
 import { registerNavRights } from '@/lib/nav-rights';
-import { registerOfflinePages } from '@/lib/offline-pages';
+import { registerOfflinePages, registerOpenOfflinePages } from '@/lib/offline-pages';
 import { RIGHTS } from '@/lib/rights';
+
+registerOpenOfflinePages(['/requisitions/view/']);
 
 registerOfflinePages(['/stock-management/stock-on-hand'], [RIGHTS.stockCardsView]);
 registerOfflinePages(['/stock-management/physical-inventory'], [RIGHTS.stockInventoriesEdit]);

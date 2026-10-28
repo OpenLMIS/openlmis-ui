@@ -1,5 +1,5 @@
 import { useStore } from '@tanstack/react-form';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -13,6 +13,7 @@ import { applyRequisitionDraft, canSkipLine } from '@/features/requisitions/lib/
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
 import { buildLines } from '@/features/requisitions/lib/lines';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import { validateRequisition } from '@/features/requisitions/lib/validation';
 import type { SearchChange } from '@/lib/table-search';
 
 const products = Array.from({ length: 12 }, (_, index) =>
@@ -122,7 +123,7 @@ function Harness({
               editor,
               editable: true,
               pending,
-              editableColumns: ['requestedQuantity'],
+              editableColumns: ['requestedQuantity', 'totalStockoutDays'],
               skipLines: true,
               addFullSupplyProduct: false,
               addNonFullSupplyProduct: true,
@@ -130,6 +131,11 @@ function Harness({
           : undefined
       }
       models={models}
+      errors={
+        editable
+          ? validateRequisition(current, models, { monthsInPeriod: 1 }, draft.lines).lines
+          : undefined
+      }
       totals={calculateTotals(models)}
       currency={currency}
       tab={tab}
@@ -511,4 +517,37 @@ it('includes the visible packs total in editable adjustment button names', async
   expect(
     screen.getByRole('button', { name: 'totalLossesAndAdjustments: 0 ( +3 ), Medicine 0 (P0)' }),
   ).toBeInTheDocument();
+});
+
+it.each([1000, 390])('keeps stockout-day errors accessible in the %s layout', async (width) => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+  render(
+    <Harness
+      editable
+      value={{
+        ...requisition,
+        template: {
+          columnsMap: {
+            'orderable.fullProductName': column('orderable.fullProductName', 0),
+            totalStockoutDays: column('totalStockoutDays', 1, {
+              source: 'USER_INPUT',
+              columnDefinition: { columnType: 'NUMERIC' },
+            }),
+          },
+        },
+        requisitionLineItems: requisition.requisitionLineItems.slice(0, 1),
+      }}
+    />,
+  );
+  const input = screen.getByRole('textbox', { name: 'totalStockoutDays: Medicine 0 (P0)' });
+  await userEvent.type(input, '31');
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+  expect(input).toHaveAccessibleDescription('requisitions.edit.validation.stockout-days');
+  await userEvent.tab();
+  fireEvent.focus(input);
+  if (width >= 672)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'requisitions.edit.validation.stockout-days',
+    );
+  else expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 });

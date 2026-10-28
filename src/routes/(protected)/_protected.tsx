@@ -8,7 +8,7 @@ import { OfflineNotice } from '@/components/offline-notice';
 import { PageVisibility } from '@/components/page-visibility';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
-import { isOfflineCapable } from '@/lib/offline-pages';
+import { canRetainPageOffline, isOfflineCapable } from '@/lib/offline-pages';
 import { isOnline, seedOnline, useOnline } from '@/lib/online';
 import { loginSearch } from '@/lib/redirect';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
@@ -38,7 +38,7 @@ export const Route = createFileRoute('/(protected)/_protected')({
 function ProtectedLayout() {
   const online = useOnline();
   const { pathname } = useLocation();
-  const available = online || isOfflineCapable(pathname);
+  const available = online || canRetainPageOffline(pathname);
   const scope = useSessionScope();
   const context = Route.useRouteContext();
   const [loadedScope, setLoadedScope] = useState(context.sessionScope);
