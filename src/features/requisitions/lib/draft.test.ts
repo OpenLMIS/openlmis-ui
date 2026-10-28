@@ -213,3 +213,24 @@ it('rebases a synced addition by product when the server assigns a new line id',
   expect(rebaseRequisitionDraft(saved, draft)).toEqual(buildRequisitionDraft(saved));
   expect(applyRequisitionDraft(saved, draft).requisitionLineItems).toHaveLength(1);
 });
+
+it('keeps a re-added product and its saved line removal during rebase', () => {
+  const original = {
+    ...base,
+    requisitionLineItems: [recordLine({ id: 'saved' })],
+  };
+  const draft = buildRequisitionDraft(original);
+  draft.removedLineIds = ['saved'];
+  const added = recordLine({ id: 're-added' });
+  draft.addedLines = [added];
+  draft.lines['re-added'] = { requestedQuantity: '7' };
+
+  const rebased = rebaseRequisitionDraft(original, draft);
+
+  expect(rebased.addedLines).toEqual([added]);
+  expect(rebased.removedLineIds).toEqual(['saved']);
+  expect(rebased.lines).toEqual({ 're-added': { requestedQuantity: '7' } });
+  expect(applyRequisitionDraft(original, rebased).requisitionLineItems).toEqual([
+    { ...added, requestedQuantity: 7 },
+  ]);
+});

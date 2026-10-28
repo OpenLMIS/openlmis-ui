@@ -1648,7 +1648,6 @@
   "requisitions.edit.validation.explanation-length": "Explanation cannot exceed 255 characters.",
   "requisitions.edit.validation.negative": "This field is calculated to be negative, please validate entries.",
   "requisitions.edit.validation.remarks-length": "Remarks cannot exceed 250 characters.",
-  "requisitions.edit.validation.stock-count-date": "Enter a valid physical stock count completion date that is not in the future.",
   "requisitions.edit.validation.stockout-days": "This value cannot exceed the number of days in the period.",
   "requisitions.filters.all-programs": "All Programs",
   "requisitions.filters.initiated-from": "Date Initiated From",

@@ -1648,7 +1648,6 @@
   "requisitions.edit.validation.explanation-length": "لا يمكن أن يتجاوز التوضيح 255 حرفًا.",
   "requisitions.edit.validation.negative": "القيمة المحسوبة لهذا الحقل سالبة، يرجى التحقق من المدخلات.",
   "requisitions.edit.validation.remarks-length": "لا يمكن أن تتجاوز الملاحظات 250 حرفًا.",
-  "requisitions.edit.validation.stock-count-date": "أدخل تاريخًا صالحًا لإتمام الجرد الفعلي لا يقع في المستقبل.",
   "requisitions.edit.validation.stockout-days": "لا يمكن أن تتجاوز هذه القيمة عدد أيام الفترة.",
   "requisitions.filters.all-programs": "جميع البرامج",
   "requisitions.filters.initiated-from": "تاريخ الإنشاء من",

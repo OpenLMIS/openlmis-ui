@@ -1648,7 +1648,6 @@
   "requisitions.edit.validation.explanation-length": "A justificação não pode exceder 255 caracteres.",
   "requisitions.edit.validation.negative": "O valor calculado deste campo é negativo, verifique os dados introduzidos.",
   "requisitions.edit.validation.remarks-length": "As observações não podem exceder 250 caracteres.",
-  "requisitions.edit.validation.stock-count-date": "Introduza uma data válida de conclusão do inventário físico que não seja futura.",
   "requisitions.edit.validation.stockout-days": "Este valor não pode exceder o número de dias do período.",
   "requisitions.filters.all-programs": "Todos os programas",
   "requisitions.filters.initiated-from": "Data de criação de",

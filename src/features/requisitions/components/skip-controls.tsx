@@ -22,8 +22,11 @@ export function SkipControls({
     );
   };
   return (
-    <fieldset disabled={editing.pending} className="flex flex-wrap items-center gap-2">
-      <legend>{t('requisitions.edit.skip-label')}</legend>
+    <fieldset disabled={editing.pending} className="flex items-center gap-2">
+      <legend className="sr-only">{t('requisitions.edit.skip-label')}</legend>
+      <span aria-hidden="true" className="whitespace-nowrap">
+        {t('requisitions.edit.skip-label')}
+      </span>
       <Button size="lg" variant="outline" onClick={() => set(all, true)}>
         {t('requisitions.edit.skip-all')}
       </Button>

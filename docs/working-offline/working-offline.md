@@ -115,8 +115,8 @@ Requisitions need a connection to open. Once open, edits save automatically on t
 Wait for Saved On This Device before closing the browser. Reopen the requisition online in the
 same browser profile, signed in as the same user, to continue your saved draft.
 
-Sync With Server, Submit and Authorize need a connection. Saved On This Device confirms local
-storage; Sync With Server sends your changes to the server. Changes are not sent automatically
+Save/Sync With Server, Submit and Authorize need a connection. Saved On This Device confirms local
+storage; Save/Sync With Server sends your changes to the server. Changes are not sent automatically
 when you reconnect.
 
 If the server copy changes while you have local edits, an outdated draft notice offers Update.
