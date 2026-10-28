@@ -287,11 +287,11 @@ export function RequisitionGridView({
   }, [pinnedKey, view.cards]);
   const pinnedColumns = useMemo(() => {
     const ids = pinnedKey ? pinnedKey.split('|') : [];
-    const pinned = new Map<string, { sticky: true | 'edge'; stickyOffset: number }>();
+    const pinned = new Map<string, { sticky: true; stickyOffset: number }>();
     let offset = 0;
-    for (const [index, id] of ids.entries()) {
+    for (const id of ids) {
       pinned.set(id, {
-        sticky: index === ids.length - 1 ? 'edge' : true,
+        sticky: true,
         stickyOffset: Math.floor(offset),
       });
       offset += pinnedWidths[id] ?? 0;
@@ -340,6 +340,7 @@ export function RequisitionGridView({
                   <TableHead
                     key={column.id}
                     data-pinned={pinnedColumns.has(column.id) ? column.id : undefined}
+                    width={columnsById.get(column.id)?.kind === 'skip' ? 'fit' : undefined}
                     {...pin(column.id)}
                   >
                     <RequisitionGridHeader
@@ -386,7 +387,7 @@ export function RequisitionGridView({
                 <TableRow pinned surface="muted">
                   <TableCell
                     colSpan={totalSpan}
-                    {...(pinnedColumns.size ? { sticky: 'edge', stickyOffset: 0 } : {})}
+                    {...(pinnedColumns.size ? { sticky: true, stickyOffset: 0 } : {})}
                   >
                     {t('requisitions.requisition.total')}
                     {visible[0]?.id === 'totalCost' && (
@@ -461,11 +462,13 @@ function renderValue(
       return context.cards ? (
         <FlagBadge value={!!line.skipped} trueLabel={context.yes} falseLabel={context.no} />
       ) : (
-        <Checkbox
-          disabled
-          checked={!!line.skipped}
-          aria-label={`${column.label}: ${product?.fullProductName ?? product?.productCode ?? ''}`}
-        />
+        <div className="flex justify-center">
+          <Checkbox
+            disabled
+            checked={!!line.skipped}
+            aria-label={`${column.label}: ${product?.fullProductName ?? product?.productCode ?? ''}`}
+          />
+        </div>
       );
     case 'currency':
       return formatCurrency(value as number | null | undefined, context.currency);
