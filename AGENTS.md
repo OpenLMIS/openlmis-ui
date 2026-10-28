@@ -464,7 +464,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 - Tables draw vertical column dividers by default.
 
-- Exception to one-line headers: the requisition grid wraps header labels between words, up to three lines, with an info icon tooltip for template definitions.
+- Exception to one-line headers: the requisition grid wraps header labels between words, up to
+  three lines, with an info icon tooltip for template definitions.
 
 - Yes/no and active/inactive cells use `FlagBadge` (`src/components/flag-badge.tsx`): a success
   check or destructive cross, always with its label.
@@ -743,7 +744,8 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`: first submit, then
   every correction. `TranslatedFormMessages` in the shell supplies `FormMessagesProvider`
   with the translation-key messages described under Internationalization.
-- Requisition editors validate live from the first change, matching legacy, instead of submit-first validation.
+- Requisition editors validate live from the first change, matching legacy, instead of
+  submit-first validation.
 - Row `SwitchField`/`SelectField` accept a label-row `action`; `TextField` accepts `badge`.
   Stacked `PasswordField` puts `action` at the label's end but after the input in tab order.
   Password/confirmation pairs share `visible` and `onVisibleChange`.
@@ -1055,7 +1057,9 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 
 ### Drafts, queue and recovery
 
-- Requisition device drafts retain their server modified date and ETag; Sync rebases concurrent edits and conflicts keep the local copy until Update.
+- Requisition device drafts retain their server modified date and ETag; Sync rebases concurrent
+  edits and conflicts keep the local copy until a confirmed Update. Store baseline comment/date
+  values for unsynced draft counting; register feature counters through route composition.
 - Enable downloads/drafts through kind policy. Use the shared revisioned draft store and serial
   writer; inventory supplies revision-aware write/clear callbacks. Stage immediately for leave
   protection; announce a save only after commit. Failed saves remain visible during retries.
