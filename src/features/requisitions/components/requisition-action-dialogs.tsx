@@ -132,7 +132,7 @@ export function RequisitionValidationDialog({
       title={t('requisitions.edit.validation-title')}
       description={
         allSkipped
-          ? t('requisitions.edit.all-skipped')
+          ? t('requisitions.edit.validation.all-skipped')
           : (description ?? t('requisitions.edit.validation-description'))
       }
       closeLabel={t('dialog.close')}

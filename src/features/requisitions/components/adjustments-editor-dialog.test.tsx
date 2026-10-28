@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from 'i18next';
+import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, expect, it, vi } from 'vitest';
 import { renderPage } from '@/tests/render-page';
@@ -35,12 +36,15 @@ it('requires positive whole quantities within the server integer limit', () => {
 });
 
 beforeAll(async () => {
-  await i18n.use(initReactI18next).init({
-    lng: 'en',
-    keySeparator: false,
-    nsSeparator: false,
-    resources: { en: { translation: en } },
-  });
+  await i18n
+    .use(ICU)
+    .use(initReactI18next)
+    .init({
+      lng: 'en',
+      keySeparator: false,
+      nsSeparator: false,
+      resources: { en: { translation: en } },
+    });
 });
 it.each([1000, 390])(
   'keeps quantity edits through Update without mutating the record at width %s',
@@ -85,5 +89,50 @@ it.each([1000, 390])(
       ]),
     );
     expect(stockAdjustments[11]?.quantity).toBe(1);
+    await user.click(within(dialog).getByRole('button', { name: 'Remove, Reason 11' }));
+    expect(within(dialog).queryByRole('textbox', { name: 'Reason 11' })).not.toBeInTheDocument();
+  },
+);
+
+it.each([1000, 390])(
+  'adds newest first and removes the named reason at width %s',
+  async (width) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    renderPage(
+      <AdjustmentsEditorDialog
+        model={{
+          line: {
+            id: 'line',
+            orderable: { id: 'product' },
+            stockAdjustments: [{ reasonId: 'credit', quantity: 3 }],
+          },
+          product: undefined,
+          program: undefined,
+          approvedProduct: undefined,
+          fullSupply: true,
+          categoryName: '',
+          categoryOrder: 0,
+          productOrder: 0,
+        }}
+        reasons={reasons}
+        unit="DOSES"
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    );
+    await user.click(await screen.findByRole('combobox'));
+    await user.click(screen.getByRole('option', { name: 'Lost' }));
+    await user.type(screen.getByRole('textbox', { name: 'Quantity' }), '2');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    const lost = screen.getByRole('textbox', { name: 'Lost' });
+    const found = screen.getByRole('textbox', { name: 'Found' });
+    expect(lost.compareDocumentPosition(found) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Remove, Found' }));
+    expect(screen.queryByRole('textbox', { name: 'Found' })).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Lost' })).toHaveValue('2');
+    await user.click(screen.getByRole('button', { name: 'Update' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith([{ reasonId: 'debit', quantity: 2 }]));
   },
 );

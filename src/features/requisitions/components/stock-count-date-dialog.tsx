@@ -27,11 +27,13 @@ export const stockCountDateSchema = (today: string) =>
       ),
   });
 export function StockCountDateDialog({
+  action,
   pending = false,
   value = '',
   onClose,
   onConfirm,
 }: {
+  action: 'submit' | 'authorize';
   pending?: boolean;
   value?: string;
   onClose: () => void;
@@ -61,7 +63,7 @@ export function StockCountDateDialog({
         }}
       >
         <FormDialogHeader>
-          <FormDialogTitle>{t('requisitions.edit.stock-count-title')}</FormDialogTitle>
+          <FormDialogTitle>{t(`requisitions.edit.stock-count-title.${action}`)}</FormDialogTitle>
           <FormDialogDescription>
             {t('requisitions.edit.stock-count-description')}
           </FormDialogDescription>
@@ -83,7 +85,9 @@ export function StockCountDateDialog({
         </FormDialogBody>
         <FormDialogFooter>
           <FormDialogCancel disabled={pending}>{t('stock-events.cancel')}</FormDialogCancel>
-          <FormDialogSubmit pending={pending}>{t('stock-events.confirm')}</FormDialogSubmit>
+          <FormDialogSubmit pending={pending}>
+            {t(`requisitions.edit.actions.${action}`)}
+          </FormDialogSubmit>
         </FormDialogFooter>
       </FormDialogForm>
     </FormDialog>

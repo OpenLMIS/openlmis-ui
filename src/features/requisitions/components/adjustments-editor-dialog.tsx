@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { CardActions } from '@/components/card-actions';
+import { CardRows } from '@/components/card-list';
 import {
   DataTableEmpty,
   type DataTableFeatures,
@@ -13,6 +14,7 @@ import {
 import { DialogTable } from '@/components/dialog-table';
 import { useAppForm } from '@/components/form/form';
 import { quantityValue } from '@/components/form/quantity-value';
+import { SettingsItem } from '@/components/form/settings-list';
 import {
   FormDialog,
   FormDialogBody,
@@ -119,7 +121,7 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
     },
     onSubmit: ({ value }) => {
       if (!offered.some((r) => r.reasonId === value.reasonId)) return;
-      form.setFieldValue('adjustments', (current) => [...current, value]);
+      form.setFieldValue('adjustments', (current) => [value, ...current]);
       add.reset();
     },
   });
@@ -141,6 +143,8 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
               <field.QuantityField
                 label={reasonName(row.original.reasonId)}
                 layout="inline"
+                hideErrors={!cards}
+                sizing={cards ? 'fill' : undefined}
                 unit={unit}
                 netContent={model.product?.netContent}
                 dosesLabel={t('quantity-unit.doses')}
@@ -155,27 +159,56 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
       helper.display({
         id: 'actions',
         header: t('stock-events.actions'),
-        cell: ({ row }) => (
-          <CardActions
-            label={t('card-actions.actions-for', { name: reasonName(row.original.reasonId) })}
-            actions={[
-              {
-                id: 'remove',
-                label: t('stock-events.remove'),
-                icon: <Trash2Icon />,
-                destructive: true,
-                onSelect: () =>
-                  form.setFieldValue('adjustments', (current) =>
-                    current.filter((_, index) => index !== row.original.index),
-                  ),
-              },
-            ]}
-          />
-        ),
+        cell: ({ row }) => {
+          const name = reasonName(row.original.reasonId);
+          const removeName = t('stock-events.field-of', {
+            field: t('stock-events.remove'),
+            row: name,
+          });
+          const remove = () =>
+            form.setFieldValue('adjustments', (current) =>
+              current.filter((_, index) => index !== row.original.index),
+            );
+          return cards ? (
+            <CardActions
+              label={t('card-actions.actions-for', { name })}
+              actions={[
+                {
+                  id: 'remove',
+                  label: t('stock-events.remove'),
+                  name: removeName,
+                  icon: <Trash2Icon />,
+                  destructive: true,
+                  onSelect: remove,
+                },
+              ]}
+            />
+          ) : (
+            <Button
+              type="button"
+              variant="destructive-ghost"
+              size="icon-sm"
+              aria-label={removeName}
+              onClick={remove}
+            >
+              <Trash2Icon />
+            </Button>
+          );
+        },
       }),
     ]);
-  }, [t, reasons, unit, model.product?.netContent, form]);
+  }, [t, reasons, unit, model.product?.netContent, form, cards]);
   const table = useTable({ features: dataTableFeatures, data: adjustments, columns });
+  const total = (
+    <bdi dir="ltr">
+      {cardQuantity(
+        adjustmentTotal(adjustments, reasons),
+        model.product?.netContent,
+        unit,
+        i18n.language,
+      )}
+    </bdi>
+  );
   return (
     <FormDialog
       open
@@ -195,7 +228,7 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
           <FormDialogBody>
             <div className="flex flex-col gap-4">
               <fieldset
-                className={cards ? 'flex flex-col gap-3' : 'flex items-end gap-3'}
+                className={cards ? 'flex flex-col gap-3' : 'flex items-start gap-3'}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
                     event.preventDefault();
@@ -234,10 +267,17 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
                     )}
                   </add.AppField>
                 </div>
-                <Button type="button" variant="secondary" onClick={() => void add.handleSubmit()}>
-                  <PlusIcon />
-                  {t('stock-events.add')}
-                </Button>
+                <div className="flex flex-col gap-1">
+                  {!cards && (
+                    <span aria-hidden className="invisible text-sm leading-snug">
+                      &nbsp;
+                    </span>
+                  )}
+                  <Button type="button" variant="secondary" onClick={() => void add.handleSubmit()}>
+                    <PlusIcon />
+                    {t('stock-events.add')}
+                  </Button>
+                </div>
               </fieldset>
               <DialogTable
                 table={table}
@@ -247,17 +287,20 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
                 layout="auto"
                 empty={<DataTableEmpty title={t('requisitions.adjustments.empty')} />}
               />
-              <div className="flex justify-end gap-2 text-sm">
-                <strong>{t('requisitions.requisition.total')}</strong>
-                <bdi dir="ltr">
-                  {cardQuantity(
-                    adjustmentTotal(adjustments, reasons),
-                    model.product?.netContent,
-                    unit,
-                    i18n.language,
-                  )}
-                </bdi>
-              </div>
+              {cards ? (
+                <div className="shrink-0 overflow-hidden rounded-xl border bg-card">
+                  <CardRows>
+                    <SettingsItem label={<strong>{t('requisitions.requisition.total')}</strong>}>
+                      <strong>{total}</strong>
+                    </SettingsItem>
+                  </CardRows>
+                </div>
+              ) : (
+                <div className="flex justify-end gap-2 text-sm">
+                  <strong>{t('requisitions.requisition.total')}</strong>
+                  {total}
+                </div>
+              )}
             </div>
           </FormDialogBody>
           <FormDialogFooter>

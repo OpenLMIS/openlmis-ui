@@ -29,7 +29,6 @@ const productLabel = (product: Orderable) =>
 export type AddProductsDialogProps = {
   open?: boolean;
   products: readonly Orderable[];
-  pending?: boolean;
   onSave: (products: Orderable[]) => void;
   onClose: () => void;
 };
@@ -37,9 +36,8 @@ export function AddProductsDialog({ open = true, onClose, ...props }: AddProduct
   return (
     <FormDialog
       open={open}
-      closeButton={!props.pending}
       onOpenChange={(value) => {
-        if (!value && !props.pending) onClose();
+        if (!value) onClose();
       }}
       size="table"
     >
@@ -50,7 +48,6 @@ export function AddProductsDialog({ open = true, onClose, ...props }: AddProduct
 function ProductsForm({
   products: options,
   onSave,
-  pending = false,
 }: Omit<AddProductsDialogProps, 'open' | 'onClose'>) {
   const { t } = useTranslation();
   const [picked, setPicked] = useState(new Map<string, true>());
@@ -89,7 +86,6 @@ function ProductsForm({
     rowCount: filtered.length,
     manualPagination: true,
     enableSorting: false,
-    enableRowSelection: !pending,
     state: {
       pagination: { ...pagination, pageIndex },
       rowSelection,
@@ -106,7 +102,7 @@ function ProductsForm({
     <div className="flex min-h-0 flex-1 flex-col" ref={measure}>
       <FormDialogForm
         onSubmit={() => {
-          if (!pending && picked.size) onSave(options.filter((item) => picked.has(item.id)));
+          if (picked.size) onSave(options.filter((item) => picked.has(item.id)));
         }}
       >
         <FormDialogHeader>
@@ -161,17 +157,10 @@ function ProductsForm({
           </div>
         </FormDialogBody>
         <FormDialogFooter>
-          <div className="flex w-full flex-wrap items-center justify-between gap-3">
-            <p className="text-muted-foreground text-sm" role="status">
-              {t('requisitions.edit.products.selected-count', { count: picked.size })}
-            </p>
-            <div className="ms-auto flex max-w-full flex-wrap justify-end gap-2">
-              <FormDialogCancel disabled={pending}>{t('dialog.cancel')}</FormDialogCancel>
-              <FormDialogSubmit pending={pending} disabled={!picked.size}>
-                {t('requisitions.edit.products.add-products')}
-              </FormDialogSubmit>
-            </div>
-          </div>
+          <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+          <FormDialogSubmit disabled={!picked.size}>
+            {t('requisitions.edit.products.add-picked', { count: picked.size })}
+          </FormDialogSubmit>
         </FormDialogFooter>
       </FormDialogForm>
     </div>

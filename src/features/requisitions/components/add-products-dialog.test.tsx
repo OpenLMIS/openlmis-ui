@@ -44,7 +44,7 @@ it('returns ticked products across pages and name or code searches', async () =>
   await user.type(search, 'Product 2');
   await user.click(await within(dialog).findByRole('checkbox', { name: /P02/ }));
   expect(onSave).not.toHaveBeenCalled();
-  await user.click(within(dialog).getByRole('button', { name: 'Add Products' }));
+  await user.click(within(dialog).getByRole('button', { name: 'Add 2 Products' }));
   expect(onSave).toHaveBeenCalledOnce();
   expect(onSave).toHaveBeenCalledWith([options[10], options[22]]);
 });
