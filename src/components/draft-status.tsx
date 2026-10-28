@@ -23,7 +23,7 @@ type Props = DraftSaveState & {
     conflict: string;
     conflictTitle: string;
     conflictDescription: string;
-    copy: string;
+    copy?: string;
     load: string;
   };
   onRetry: () => void;
@@ -92,9 +92,11 @@ export function DraftStatus({ status, error, labels, onRetry, onResolve, conflic
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <Button variant="outline" disabled={resolving} onClick={() => void resolve('copy')}>
-              {conflict?.keep ?? labels.copy}
-            </Button>
+            {(conflict?.keep ?? labels.copy) && (
+              <Button variant="outline" disabled={resolving} onClick={() => void resolve('copy')}>
+                {conflict?.keep ?? labels.copy}
+              </Button>
+            )}
             <Button ref={loadButton} disabled={resolving} onClick={() => void resolve('load')}>
               {labels.load}
             </Button>

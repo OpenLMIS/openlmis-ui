@@ -442,7 +442,6 @@ export function RequisitionGridView({
                       conflict: t('stock-events.draft-conflict'),
                       conflictTitle: t('stock-events.draft-conflict-title'),
                       conflictDescription: t('requisitions.edit.draft-conflict-description'),
-                      copy: t('requisitions.edit.draft-copy'),
                       load: t('stock-events.draft-load'),
                     }}
                     onRetry={editing.editor.device.retry}

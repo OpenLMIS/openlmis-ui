@@ -6,7 +6,6 @@ import {
 } from '@/features/requisitions/lib/draft';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
-import { downloadFile } from '@/lib/download-file';
 import { saveRevisionedDraft } from '@/lib/draft-store';
 import { createDraftWriter, type DraftSaveState } from '@/lib/draft-writer';
 import { readOwnedRecord } from '@/lib/local-records';
@@ -170,7 +169,7 @@ export function useRequisitionDraft(
         closed = false;
         adopt.current?.(buildRequisitionDraft(base));
       },
-      async resolve(choice: 'load' | 'copy', draft: RequisitionDraft) {
+      async resolve() {
         await writer.wait();
         assertSessionScope(scope);
         try {
@@ -182,11 +181,6 @@ export function useRequisitionDraft(
               )
             : undefined;
           assertSessionScope(scope);
-          if (choice === 'copy')
-            downloadFile(
-              new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' }),
-              `requisition-${draftId}-copy.json`,
-            );
           expected = stored;
           pendingBase = undefined;
           outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;

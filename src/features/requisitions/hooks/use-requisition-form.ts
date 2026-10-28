@@ -13,18 +13,18 @@ export function useRequisitionForm(record: RequisitionRecord) {
   const adopt = useRef<(draft: RequisitionDraft) => void>(() => {});
   const device = useRequisitionDraft(record, (draft) => adopt.current(draft));
   const staged = useRef<RequisitionDraft | undefined>(undefined);
-  const form = useAppForm({
-    defaultValues: {
-      draft: buildRequisitionDraft(record),
-      quantities: {} as Record<string, QuantityValue>,
-      texts: {} as Record<string, string>,
-      showAllErrors: false,
-    },
+  const defaults = useRef({
+    draft: buildRequisitionDraft(record),
+    quantities: {} as Record<string, QuantityValue>,
+    texts: {} as Record<string, string>,
+    showAllErrors: false,
   });
+  const form = useAppForm({ defaultValues: defaults.current });
   staged.current ??= form.state.values.draft;
   adopt.current = (draft) => {
     staged.current = draft;
-    form.reset({ draft, quantities: {}, texts: {}, showAllErrors: false });
+    defaults.current = { draft, quantities: {}, texts: {}, showAllErrors: false };
+    form.reset(defaults.current);
   };
   const write = useRef(device.write);
   write.current = device.write;
@@ -49,8 +49,8 @@ export function useRequisitionForm(record: RequisitionRecord) {
       get device() {
         return latestDevice.current;
       },
-      resolveConflict(choice: 'load' | 'copy') {
-        return latestDevice.current.resolve(choice, form.state.values.draft);
+      resolveConflict() {
+        return latestDevice.current.resolve();
       },
       setLine(id: string, changes: LineDraft) {
         if (latestDevice.current.outdated || latestDevice.current.status.status === 'loading')

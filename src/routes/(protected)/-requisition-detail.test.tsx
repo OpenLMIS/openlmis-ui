@@ -693,3 +693,34 @@ it('validates the latest cell edits after the draft is already dirty', async () 
   expect(within(dialog).getByText('requisitions.edit.validation-description')).toBeInTheDocument();
   queryClient.clear();
 });
+
+it('offers only Load for a newer device draft and adopts it without overwriting it', async () => {
+  const { queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  const table = getLocalDb().table('requisitionDrafts');
+  await waitFor(async () => expect(await table.get('r')).toBeDefined());
+  const stored = await table.get('r');
+  await table.put({
+    ...stored,
+    revision: stored.revision + 1,
+    draft: { ...stored.draft, lines: { line: { beginningBalance: '99' } } },
+  });
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '13' },
+  });
+  const dialog = await screen.findByRole('alertdialog');
+  expect(
+    within(dialog).getByText('requisitions.edit.draft-conflict-description'),
+  ).toBeInTheDocument();
+  expect(within(dialog).getAllByRole('button')).toHaveLength(1);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'stock-events.draft-load' }));
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue(
+      '99',
+    ),
+  );
+  expect((await table.get('r')).revision).toBe(stored.revision + 1);
+  queryClient.clear();
+});
