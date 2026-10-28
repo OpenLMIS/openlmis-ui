@@ -1,7 +1,8 @@
+import { useStore } from '@tanstack/react-form';
 import { useSuspenseQueries } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { CircleAlertIcon } from 'lucide-react';
-import { useMemo, useRef } from 'react';
+import { type ComponentProps, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { requisitionGridQueries } from '@/features/requisitions/api/queries';
@@ -14,7 +15,12 @@ import {
 import { RequisitionTotals } from '@/features/requisitions/components/requisition-totals';
 import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 import { calculateLine, calculateTotals } from '@/features/requisitions/lib/calculations';
-import { applyRequisitionDraft } from '@/features/requisitions/lib/draft';
+import {
+  applyRequisitionDraft,
+  canSkipLine,
+  type LineDraft,
+  type RequisitionDraft,
+} from '@/features/requisitions/lib/draft';
 import type { RequisitionLine } from '@/features/requisitions/lib/lines';
 import { buildLines } from '@/features/requisitions/lib/lines';
 import { defaultRequisitionTab, type RequisitionTab } from '@/features/requisitions/lib/template';
@@ -23,9 +29,8 @@ import { validateLine } from '@/features/requisitions/lib/validation';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
 
-export function RequisitionTabs({
+function RequisitionTabsView({
   record,
-  editor,
   editing,
   onAddProduct,
   tab,
@@ -38,7 +43,11 @@ export function RequisitionTabs({
   unit,
   setUnit,
   canSwitch,
+  draft,
+  showAllErrors,
 }: {
+  draft?: RequisitionDraft;
+  showAllErrors?: boolean;
   record: RequisitionRecord;
   editor?: RequisitionEditor;
   editing?: GridEditing;
@@ -62,8 +71,6 @@ export function RequisitionTabs({
     { data: currency },
     { data: program },
   ] = useSuspenseQueries({ queries: requisitionGridQueries(record) });
-  const draft = editor?.draft;
-  const showAllErrors = editor?.form.state.values.showAllErrors;
   const current = useMemo(
     () => (draft ? applyRequisitionDraft(record, draft) : record),
     [record, draft],
@@ -73,10 +80,19 @@ export function RequisitionTabs({
     months: period.durationInMonths,
     editable: editing?.editable,
   });
+  const sources = useMemo(
+    () => new Map(record.requisitionLineItems.map((line) => [line.id, line])),
+    [record],
+  );
   const cache = useRef(
     new Map<
       string,
-      { signature: string; model: RequisitionLine; errors: Record<string, ParseKeys> }
+      {
+        source: RequisitionLine['line'] | undefined;
+        changes?: LineDraft;
+        model: RequisitionLine;
+        errors: Record<string, ParseKeys>;
+      }
     >(),
   );
   const { models, totals, errors } = useMemo(() => {
@@ -94,17 +110,36 @@ export function RequisitionTabs({
     }
     const next = new Map<
       string,
-      { signature: string; model: RequisitionLine; errors: Record<string, ParseKeys> }
+      {
+        source: RequisitionLine['line'] | undefined;
+        changes?: LineDraft;
+        model: RequisitionLine;
+        errors: Record<string, ParseKeys>;
+      }
     >();
     const models = buildLines(current, products, approvedProducts).map((model) => {
-      const signature = JSON.stringify(model);
+      const source = sources.get(model.line.id);
+      const changes = draft?.lines[model.line.id];
       const previous = cache.current.get(model.line.id);
       const entry =
-        previous?.signature === signature
+        previous &&
+        previous.source === source &&
+        previous.changes === changes &&
+        previous.model.product === model.product &&
+        previous.model.approvedProduct === model.approvedProduct
           ? previous
           : {
-              signature,
-              model: { ...model, line: calculateLine(model, record, period.durationInMonths ?? 1) },
+              source,
+              changes,
+              model: {
+                ...model,
+                line: calculateLine(model, record, period.durationInMonths ?? 1),
+                canSkip: canSkipLine({ ...model.line, ...changes }, record.template, {
+                  tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
+                  status: record.status,
+                  emergency: record.emergency,
+                }),
+              },
               errors: editing?.editable
                 ? validateLine(model, record, period.durationInMonths ?? 1)
                 : {},
@@ -126,6 +161,7 @@ export function RequisitionTabs({
     return { models, totals: calculateTotals(models), errors };
   }, [
     record,
+    sources,
     current,
     products,
     approvedProducts,
@@ -193,7 +229,7 @@ export function RequisitionTabs({
             ) : (
               <RequisitionGridView
                 key={`${record.id}:${record.template.id ?? 'template'}`}
-                record={current}
+                record={record}
                 editing={editing}
                 errors={errors}
                 onAddProduct={onAddProduct}
@@ -221,4 +257,18 @@ export function RequisitionTabs({
       />
     </>
   );
+}
+
+type TabsProps = Omit<ComponentProps<typeof RequisitionTabsView>, 'draft' | 'showAllErrors'>;
+export function RequisitionTabs(props: TabsProps) {
+  return props.editor ? (
+    <RequisitionDraftTabs {...props} editor={props.editor} />
+  ) : (
+    <RequisitionTabsView {...props} />
+  );
+}
+function RequisitionDraftTabs(props: TabsProps & { editor: RequisitionEditor }) {
+  const draft = useStore(props.editor.form.store, (state) => state.values.draft);
+  const showAllErrors = useStore(props.editor.form.store, (state) => state.values.showAllErrors);
+  return <RequisitionTabsView {...props} draft={draft} showAllErrors={showAllErrors} />;
 }

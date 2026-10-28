@@ -682,3 +682,14 @@ it('opens the editable adjustments dialog from its grid button', async () => {
   ).toBeInTheDocument();
   queryClient.clear();
 });
+
+it('validates the latest cell edits after the draft is already dirty', async () => {
+  const { queryClient } = await openEditor();
+  const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.change(input, { target: { value: '12' } });
+  fireEvent.change(input, { target: { value: '' } });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(within(dialog).getByText('requisitions.edit.validation-description')).toBeInTheDocument();
+  queryClient.clear();
+});

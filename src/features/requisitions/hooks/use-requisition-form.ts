@@ -1,5 +1,4 @@
-import { useStore } from '@tanstack/react-form';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useAppForm } from '@/components/form/form';
 import type { QuantityValue } from '@/components/form/quantity-value';
 import { useRequisitionDraft } from '@/features/requisitions/hooks/use-requisition-draft';
@@ -39,33 +38,46 @@ export function useRequisitionForm(record: RequisitionRecord) {
     });
     return () => subscription.unsubscribe();
   }, [form]);
-  const draft = useStore(form.store, (state) => state.values.draft);
-  return {
-    form,
-    draft,
-    device,
-    resolveConflict(choice: 'load' | 'copy') {
-      return device.resolve(choice, form.state.values.draft);
-    },
-    setLine(id: string, changes: LineDraft) {
-      if (device.outdated || device.status.status === 'loading') return;
-      form.setFieldValue('draft.lines', (lines) => ({
-        ...lines,
-        [id]: { ...lines[id], ...changes },
-      }));
-    },
-    setLines(ids: string[], changes: LineDraft) {
-      if (device.outdated || device.status.status === 'loading') return;
-      form.setFieldValue('draft.lines', (lines) => {
-        const next = { ...lines };
-        for (const id of ids) next[id] = { ...lines[id], ...changes };
-        return next;
-      });
-    },
-    removeLine(id: string) {
-      if (device.outdated || device.status.status === 'loading') return;
-      form.setFieldValue('draft.removedLineIds', (ids) => (ids.includes(id) ? ids : [...ids, id]));
-    },
-  };
+  const latestDevice = useRef(device);
+  latestDevice.current = device;
+  return useMemo(
+    () => ({
+      form,
+      get draft() {
+        return form.state.values.draft;
+      },
+      get device() {
+        return latestDevice.current;
+      },
+      resolveConflict(choice: 'load' | 'copy') {
+        return latestDevice.current.resolve(choice, form.state.values.draft);
+      },
+      setLine(id: string, changes: LineDraft) {
+        if (latestDevice.current.outdated || latestDevice.current.status.status === 'loading')
+          return;
+        form.setFieldValue('draft.lines', (lines) => ({
+          ...lines,
+          [id]: { ...lines[id], ...changes },
+        }));
+      },
+      setLines(ids: string[], changes: LineDraft) {
+        if (latestDevice.current.outdated || latestDevice.current.status.status === 'loading')
+          return;
+        form.setFieldValue('draft.lines', (lines) => {
+          const next = { ...lines };
+          for (const id of ids) next[id] = { ...lines[id], ...changes };
+          return next;
+        });
+      },
+      removeLine(id: string) {
+        if (latestDevice.current.outdated || latestDevice.current.status.status === 'loading')
+          return;
+        form.setFieldValue('draft.removedLineIds', (ids) =>
+          ids.includes(id) ? ids : [...ids, id],
+        );
+      },
+    }),
+    [form],
+  );
 }
 export type RequisitionEditor = ReturnType<typeof useRequisitionForm>;

@@ -24,11 +24,12 @@ export function SkipControls({
           (model) =>
             model.fullSupply &&
             (!skipped ||
-              canSkipLine(
-                { ...model.line, ...editing.editor.draft.lines[model.line.id] },
-                record.template,
-                { tab: 'fullSupply', status: record.status, emergency: record.emergency },
-              )),
+              (model.canSkip ??
+                canSkipLine(
+                  { ...model.line, ...editing.editor.draft.lines[model.line.id] },
+                  record.template,
+                  { tab: 'fullSupply', status: record.status, emergency: record.emergency },
+                ))),
         )
         .map((model) => model.line.id),
       { skipped },

@@ -1,3 +1,4 @@
+import { useStore } from '@tanstack/react-form';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -98,8 +99,9 @@ function Harness({
         }))
       : products;
   const editor = useRequisitionForm(current);
+  const draft = useStore(editor.form.store, (state) => state.values.draft);
   const [unit, setUnit] = useState<'DOSES' | 'PACKS'>('DOSES');
-  const draftRecord = editable ? applyRequisitionDraft(current, editor.draft) : current;
+  const draftRecord = editable ? applyRequisitionDraft(current, draft) : current;
   const models = buildLines(draftRecord, hydrated, []).map((model) => ({
     ...model,
     line: calculateLine(model, current, 1),

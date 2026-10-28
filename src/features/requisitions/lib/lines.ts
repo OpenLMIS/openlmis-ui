@@ -8,6 +8,7 @@ import type {
 } from '@/features/requisitions/lib/requisition';
 
 export type RequisitionLine = {
+  canSkip?: boolean;
   line: RequisitionLineItem;
   product: RequisitionProduct | undefined;
   approvedProduct: RequisitionApprovedProduct | undefined;

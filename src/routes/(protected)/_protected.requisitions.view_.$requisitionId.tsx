@@ -268,13 +268,13 @@ function RequisitionBody({
   const [record, setRecord] = useState(data.record);
   const currentData = { ...data, record };
   const editor = useRequisitionForm(record);
-  useStore(editor.form.store, (state) => state.values.showAllErrors);
+  const addedLines = useStore(editor.form.store, (state) => state.values.draft.addedLines);
   const gridRecord = useMemo(
     () => ({
       ...record,
-      requisitionLineItems: [...record.requisitionLineItems, ...editor.draft.addedLines],
+      requisitionLineItems: [...record.requisitionLineItems, ...addedLines],
     }),
-    [record, editor.draft.addedLines],
+    [record, addedLines],
   );
 
   const search = Route.useSearch();
@@ -283,9 +283,12 @@ function RequisitionBody({
   const router = useRouter();
   const queryClient = useQueryClient();
   const policy = useRequisitionPolicy(currentData);
+  const dialogDraft = useStore(editor.form.store, (state) =>
+    search.addProduct || search.adjustments ? state.values.draft : null,
+  );
   const current = useMemo(
-    () => applyRequisitionDraft(record, editor.draft),
-    [record, editor.draft],
+    () => applyRequisitionDraft(gridRecord, dialogDraft ?? editor.draft),
+    [gridRecord, editor, dialogDraft],
   );
   const [{ data: products }, { data: approved }, { data: period }, , { data: program }] =
     useSuspenseQueries({ queries: requisitionGridQueries(current) });
@@ -495,7 +498,11 @@ function RequisitionBody({
     }
   };
   const pending = busy || mutation.isPending || printPending;
-  const dirty = JSON.stringify(editor.draft) !== JSON.stringify(buildRequisitionDraft(record));
+  const baseline = useMemo(() => JSON.stringify(buildRequisitionDraft(record)), [record]);
+  const dirty = useStore(
+    editor.form.store,
+    (state) => JSON.stringify(state.values.draft) !== baseline,
+  );
   const guard = useDiscardGuard(dirty, {
     pending,
     allowLeave: () => finished.current,
@@ -518,6 +525,8 @@ function RequisitionBody({
     }
     if (kind === 'submit' || kind === 'submit-and-authorize' || kind === 'authorize') {
       editor.form.setFieldValue('showAllErrors', true);
+      const current = applyRequisitionDraft(record, editor.draft);
+      const models = buildLines(current, products, approved);
       const result = validateRequisition(current, models, {
         monthsInPeriod: period.durationInMonths ?? 1,
         today: new Date().toISOString().slice(0, 10),
@@ -753,7 +762,9 @@ function RequisitionBody({
             if (!target) return;
             const tab = target.fullSupply ? 'fullSupply' : 'nonFullSupply';
             const lines = filterLines(
-              models.filter((model) => model.fullSupply === target.fullSupply),
+              buildLines(applyRequisitionDraft(record, editor.draft), products, approved).filter(
+                (model) => model.fullSupply === target.fullSupply,
+              ),
               { hideSkipped: hidesSkipped(record.template, tab) },
             );
             const page =
@@ -896,22 +907,40 @@ function RequisitionPolicyTabs({
 >) {
   const policy = useRequisitionPolicy(data);
   const { approver } = policy;
+  const columnsKey = policy.editableColumns.join('|');
+  const editableColumns = useMemo(() => columnsKey.split('|'), [columnsKey]);
+  const editor = props.editor;
+  const editable =
+    !!editor &&
+    policy.editable &&
+    !editor.device.outdated &&
+    editor.device.status.status !== 'loading';
+  const editing = useMemo(
+    () =>
+      editor
+        ? {
+            editor,
+            editable,
+            editableColumns,
+            skipLines: policy.skipLines,
+            addFullSupplyProduct: policy.addFullSupplyProduct,
+            addNonFullSupplyProduct: policy.addNonFullSupplyProduct,
+          }
+        : undefined,
+    [
+      editor,
+      editable,
+      editableColumns,
+      policy.skipLines,
+      policy.addFullSupplyProduct,
+      policy.addNonFullSupplyProduct,
+    ],
+  );
   return (
     <RequisitionTabs
       {...props}
       record={data.record}
-      editing={
-        props.editor
-          ? {
-              ...policy,
-              editor: props.editor,
-              editable:
-                policy.editable &&
-                !props.editor.device.outdated &&
-                props.editor.device.status.status !== 'loading',
-            }
-          : undefined
-      }
+      editing={editing}
       supplyingStock={
         approver && !!data.record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed
       }

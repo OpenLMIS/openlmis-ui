@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
@@ -6,7 +6,14 @@ import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requis
 export function useRequisitionComment(editor?: RequisitionEditor) {
   const { t } = useTranslation();
   const [opened, setOpened] = useState(false);
-  const open = opened || !!editor?.draft.draftStatusMessage;
+  const hasComment = useSyncExternalStore(
+    (notify) => {
+      const sub = editor?.form.store.subscribe(notify);
+      return () => sub?.unsubscribe();
+    },
+    () => !!editor?.draft.draftStatusMessage,
+  );
+  const open = opened || hasComment;
   return {
     action:
       editor && !open ? (

@@ -9,8 +9,10 @@ import type { ParseKeys } from 'i18next';
 import { ChevronRightIcon, CircleAlertIcon, Trash2Icon, TriangleAlertIcon } from 'lucide-react';
 import {
   createContext,
+  memo,
   type ReactNode,
   use,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -146,7 +148,15 @@ export function RequisitionGridView({
               .join(' ')
           : column.definition,
       })),
-    [record, tab, supplyingStock, t],
+    [
+      record.template,
+      record.status,
+      record.emergency,
+      record.supplyingFacilityAccessDenied,
+      tab,
+      supplyingStock,
+      t,
+    ],
   );
   const hideable = useMemo(
     () => columns.filter((column) => !column.sticky).map((column) => ({ id: column.name })),
@@ -220,85 +230,71 @@ export function RequisitionGridView({
       onAdjustments,
     ],
   );
-  const renderCell = (column: GridColumn, row: GridRow) => {
-    if (!row.model) return null;
-    const value = renderValue(
-      column,
-      row.model,
-      cellContext,
-      supplyingHasStock && gridRowTone(row, true) === 'shortfall',
-    );
-    return editing ? (
-      <RequisitionEditCell
-        column={column}
-        model={row.model}
-        record={record}
-        editing={editing}
-        unit={unit}
-        error={errors[row.id]?.[column.name]}
-        cards={view.cards}
-        onAdjustments={onAdjustments}
-      >
-        {column.kind === 'adjustments' &&
-        editing.editable &&
-        !record.template.populateStockOnHandFromStockCards
-          ? cardQuantity(
-              row.model.line.totalLossesAndAdjustments ?? 0,
-              row.model.product?.netContent,
-              unit,
-              undefined,
-              formatter,
-            )
-          : value}
-      </RequisitionEditCell>
-    ) : (
-      value
-    );
-  };
-  const removable = editing?.editable && tab === 'nonFullSupply';
-  const defs = columns.map((column) =>
-    helper.display({
-      id: column.name,
-      header: column.label,
-      meta: { label: column.label },
-      cell: view.cards
-        ? ({ row }) =>
-            row.original.model
-              ? renderValue(
-                  column,
-                  row.original.model,
-                  cellContext,
-                  supplyingHasStock && gridRowTone(row.original, true) === 'shortfall',
-                )
-              : null
-        : RequisitionTableCell,
-    }),
+  const renderCell = useCallback(
+    (column: GridColumn, row: GridRow) =>
+      row.model ? (
+        <RequisitionLineCell
+          column={column}
+          model={row.model}
+          context={cellContext}
+          shortfall={supplyingHasStock && gridRowTone(row, true) === 'shortfall'}
+          record={record}
+          editing={editing}
+          error={errors[row.id]?.[column.name]}
+        />
+      ) : null,
+    [cellContext, supplyingHasStock, record, editing, errors],
   );
-  if (removable)
-    defs.push(
+  const removable = editing?.editable && tab === 'nonFullSupply';
+  const defs = useMemo(() => {
+    const defs = columns.map((column) =>
       helper.display({
-        id: 'actions',
-        meta: { label: t('requisitions.edit.line-actions') },
-        cell: RequisitionTableCell,
+        id: column.name,
+        header: column.label,
+        meta: { label: column.label },
+        cell: view.cards
+          ? ({ row }) =>
+              row.original.model
+                ? renderValue(
+                    column,
+                    row.original.model,
+                    cellContext,
+                    supplyingHasStock && gridRowTone(row.original, true) === 'shortfall',
+                  )
+                : null
+          : RequisitionTableCell,
       }),
     );
-  const renderColumn = (id: string, row: GridRow) => {
-    if (id === 'actions')
-      return row.model && editing ? (
-        <ActionTooltip reason={t('requisitions.edit.remove-product')}>
-          <Button
-            variant="destructive-ghost"
-            size="icon-sm"
-            aria-label={`${t('requisitions.edit.remove-product')}: ${row.model.product?.fullProductName}`}
-            onClick={() => editing.editor.removeLine(row.id)}
-          >
-            <Trash2Icon />
-          </Button>
-        </ActionTooltip>
-      ) : null;
-    const column = columns.find((column) => column.name === id);
-    return column ? renderCell(column, row) : null;
-  };
+    if (removable)
+      defs.push(
+        helper.display({
+          id: 'actions',
+          meta: { label: t('requisitions.edit.line-actions') },
+          cell: RequisitionTableCell,
+        }),
+      );
+    return defs;
+  }, [columns, view.cards, cellContext, supplyingHasStock, removable, t]);
+  const renderColumn = useCallback(
+    (id: string, row: GridRow) => {
+      if (id === 'actions')
+        return row.model && editing ? (
+          <ActionTooltip reason={t('requisitions.edit.remove-product')}>
+            <Button
+              variant="destructive-ghost"
+              size="icon-sm"
+              aria-label={`${t('requisitions.edit.remove-product')}: ${row.model.product?.fullProductName}`}
+              onClick={() => editing.editor.removeLine(row.id)}
+            >
+              <Trash2Icon />
+            </Button>
+          </ActionTooltip>
+        ) : null;
+      const column = columns.find((column) => column.name === id);
+      return column ? renderCell(column, row) : null;
+    },
+    [columns, renderCell, editing, t],
+  );
   const table = useTable({
     features: dataTableFeatures,
     columns: defs,
@@ -609,6 +605,50 @@ export function RequisitionGridView({
     </RequisitionCells>
   );
 }
+const RequisitionLineCell = memo(function RequisitionLineCell({
+  column,
+  model,
+  context,
+  shortfall,
+  record,
+  editing,
+  error,
+}: {
+  column: GridColumn;
+  model: RequisitionLine;
+  context: Parameters<typeof renderValue>[2];
+  shortfall: boolean;
+  record: RequisitionRecord;
+  editing?: GridEditing;
+  error?: ParseKeys;
+}) {
+  const value = renderValue(column, model, context, shortfall);
+  return editing ? (
+    <RequisitionEditCell
+      column={column}
+      model={model}
+      record={record}
+      editing={editing}
+      unit={context.unit}
+      error={error}
+      cards={context.cards}
+      onAdjustments={context.onAdjustments}
+    >
+      {column.kind === 'adjustments' && editing.editable && !context.stockBased
+        ? cardQuantity(
+            model.line.totalLossesAndAdjustments ?? 0,
+            model.product?.netContent,
+            context.unit,
+            undefined,
+            context.formatter,
+          )
+        : value}
+    </RequisitionEditCell>
+  ) : (
+    value
+  );
+});
+
 const RequisitionCells = createContext<(id: string, row: GridRow) => ReactNode>(() => null);
 function RequisitionTableCell({ row, column }: CellContext<DataTableFeatures, GridRow, unknown>) {
   return use(RequisitionCells)(column.id, row.original);
@@ -762,11 +802,14 @@ export function RequisitionEditCell({
         disabled={
           !editing.skipLines ||
           (!model.line.skipped &&
-            !canSkipLine({ ...model.line, ...editor.draft.lines[id] }, record.template, {
-              tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
-              status: record.status,
-              emergency: record.emergency,
-            }))
+            !(
+              model.canSkip ??
+              canSkipLine({ ...model.line, ...editor.draft.lines[id] }, record.template, {
+                tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
+                status: record.status,
+                emergency: record.emergency,
+              })
+            ))
         }
         aria-label={label}
         onCheckedChange={(skipped) => editor.setLine(id, { skipped })}
