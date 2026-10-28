@@ -8,6 +8,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -18,6 +19,8 @@ import {
 } from '@/features/reference-data/api/api';
 import { fetchRequisition } from '@/features/requisitions/api/api';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
+import { client } from '@/integrations/axios';
+import { getLocalDb } from '@/integrations/local-db';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view_.$requisitionId';
 import { expectRouteWarning } from '@/tests/expect-route-warning';
 import { httpError } from '@/tests/http-error';
@@ -60,7 +63,8 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchPrograms: vi.fn(async () => [{ id: 'p', name: 'Family Planning' }]),
   fetchMinimalFacilities: vi.fn(async () => [{ id: 'f', name: 'Comfort', code: 'HC01' }]),
 }));
-vi.mock('@/features/requisitions/api/api', () => ({
+vi.mock('@/features/requisitions/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/requisitions/api/api')>()),
   fetchRequisition: vi.fn(),
   fetchStatusMessages: vi.fn(async () => []),
 }));
@@ -74,7 +78,7 @@ vi.mock('@/features/requisitions/components/requisition-skeletons', async (impor
   ),
 }));
 
-function renderRoute(path: string) {
+function renderRoute(path: string, initialState?: Record<string, unknown>) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -91,12 +95,23 @@ function renderRoute(path: string) {
     errorComponent: Route.options.errorComponent as never,
     pendingComponent: Route.options.pendingComponent as never,
   });
+  const history = createMemoryHistory({ initialEntries: [path] });
+  if (initialState) history.replace(path, initialState as never);
   const router = createRouter({
     routeTree: root.addChildren([
-      group.addChildren([layout.addChildren([list] as never)] as never),
+      group.addChildren([
+        layout.addChildren([
+          list,
+          createRoute({
+            getParentRoute: () => layout,
+            path: 'requisitions/view',
+            component: () => <p>Opening List</p>,
+          }),
+        ] as never),
+      ] as never),
     ] as never),
     context: { queryClient },
-    history: createMemoryHistory({ initialEntries: [path] }),
+    history,
   } as never) as AnyRouter;
   render(
     <QueryClientProvider client={queryClient}>
@@ -322,5 +337,253 @@ it('retains edits through tabs and pages and marks calculated errors live', asyn
     ).not.toBeInTheDocument(),
   );
   expect(screen.queryByRole('button', { name: /Page 1:/ })).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+function editingRecord() {
+  return {
+    ...patientRecord(),
+    eTag: '"base"',
+    modifiedDate: '2026-10-28T10:00:00Z',
+    template: {
+      columnsMap: {
+        'orderable.fullProductName': column('orderable.fullProductName', 0),
+        beginningBalance: column('beginningBalance', 1, {
+          source: 'USER_INPUT',
+          columnDefinition: { columnType: 'NUMERIC' },
+        }),
+      },
+    },
+    requisitionLineItems: [
+      {
+        ...line({ beginningBalance: 10 }),
+        approvedProduct: { id: 'approved', versionNumber: 1 },
+        orderable: { id: 'product', versionNumber: 1 },
+      },
+      {
+        ...line({ id: 'second', beginningBalance: 20 }),
+        approvedProduct: { id: 'approved', versionNumber: 1 },
+        orderable: { id: 'product', versionNumber: 1 },
+      },
+    ],
+  };
+}
+async function openEditor(invalid = false, fromList = false) {
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+  await getLocalDb().table('requisitionDrafts').clear();
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|program',
+    'REQUISITION_CREATE|f|program',
+    'REQUISITION_DELETE|f|program',
+  ]);
+  const base = editingRecord();
+  if (invalid) base.requisitionLineItems[1].beginningBalance = null;
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
+  const rendered = renderRoute(
+    '/requisitions/view/r?detailSize=1',
+    fromList
+      ? { requisitionsReturnTo: { to: '/requisitions/view', search: { facility: 'f', page: 3 } } }
+      : undefined,
+  );
+  await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  return { ...rendered, base };
+}
+it('syncs with If-Match before submitting with an idempotency key and returns to the list', async () => {
+  const { base, router, queryClient } = await openEditor(false, true);
+  const calls: string[] = [];
+  const put = vi.spyOn(client, 'put').mockImplementation(async () => {
+    calls.push('put');
+    return { data: base, headers: { etag: '"saved"' } };
+  });
+  const post = vi.spyOn(client, 'post').mockImplementation(async () => {
+    calls.push('post');
+    return { data: {} };
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' }));
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'requisitions.edit.actions.submit',
+    }),
+  );
+  await screen.findByText('Opening List');
+  expect(calls).toEqual(['put', 'post']);
+  expect(put.mock.calls[0][2]).toEqual({ headers: { 'If-Match': '"base"' } });
+  expect(post.mock.calls[0][2]).toEqual({ headers: { 'Idempotency-Key': expect.any(String) } });
+  expect(router.state.location.pathname).toBe('/requisitions/view');
+  expect(router.state.location.search).toMatchObject({ facility: 'f', page: 3 });
+  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
+  queryClient.clear();
+});
+it('jumps to the first invalid cell on another page after closing validation', async () => {
+  const { router, queryClient } = await openEditor(true);
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(within(dialog).getByText('requisitions.edit.validation-description')).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() => expect(router.state.location.search).toMatchObject({ detailPage: 2 }));
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveFocus(),
+  );
+  queryClient.clear();
+});
+it('keeps the device draft on a Sync conflict and offers Update', async () => {
+  const { queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '42' },
+  });
+  vi.spyOn(client, 'put').mockRejectedValue(httpError(409));
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(
+    within(dialog).getByRole('button', { name: 'requisitions.edit.update' }),
+  ).toBeInTheDocument();
+  expect(
+    (await getLocalDb().table('requisitionDrafts').get('r')).draft.lines.line.beginningBalance,
+  ).toBe('42');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue('42');
+  queryClient.clear();
+});
+it('preserves edits made while Sync runs and uses the returned ETag next time', async () => {
+  const { base, queryClient } = await openEditor();
+  let resolve!: (value: unknown) => void;
+  const put = vi.spyOn(client, 'put').mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledOnce());
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '19' },
+  });
+  resolve({
+    data: {
+      ...base,
+      requisitionLineItems: [
+        { ...base.requisitionLineItems[0], beginningBalance: 12 },
+        base.requisitionLineItems[1],
+      ],
+    },
+    headers: { etag: '"saved"' },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeEnabled(),
+  );
+  expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue('19');
+  put.mockResolvedValue({ data: base, headers: { etag: '"next"' } });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': '"saved"' } });
+  queryClient.clear();
+});
+it('deletes only after confirmation', async () => {
+  const { queryClient } = await openEditor();
+  const remove = vi.spyOn(client, 'delete').mockResolvedValue({ data: undefined });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.delete' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(remove).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.actions.delete' }));
+  await screen.findByText('Opening List');
+  expect(remove).toHaveBeenCalledWith('/requisitions/r');
+  queryClient.clear();
+});
+
+it('checks a reused action key without clearing the local draft before Update', async () => {
+  const { base, queryClient } = await openEditor();
+  vi.spyOn(client, 'put').mockImplementation(async (_path, body) => ({
+    data: { ...base, ...(body as object) },
+    headers: { etag: '"saved"' },
+  }));
+  const reads = vi.mocked(fetchRequisition).mock.calls.length;
+  vi.spyOn(client, 'post').mockRejectedValue(
+    httpError(409, { messageKey: 'requisition.error.validation.idempotencyKey.alreadyUsed' }),
+  );
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' }));
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'requisitions.edit.actions.submit',
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole('alertdialog')).getByText('requisitions.edit.error.key-used'),
+    ).toBeInTheDocument(),
+  );
+  const dialog = screen.getByRole('alertdialog');
+  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeDefined();
+  expect(fetchRequisition).toHaveBeenCalledTimes(reads + 1);
+  expect(
+    within(dialog).getByRole('button', { name: 'requisitions.edit.update' }),
+  ).toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('adds an available emergency full-supply product to its tab with the program price', async () => {
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+  await getLocalDb().table('requisitionDrafts').clear();
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|program',
+    'REQUISITION_CREATE|f|program',
+  ]);
+  const added = product({
+    id: 'added',
+    productCode: 'P2',
+    fullProductName: 'Added',
+    programs: [{ programId: 'program', fullSupply: true, pricePerPack: 7 }],
+  });
+  vi.mocked(fetchOrderablesByIdentities).mockImplementation(async (identities) =>
+    identities.map(({ id }) => ({ ...(id === 'added' ? added : product()), description: null })),
+  );
+  const base = {
+    ...editingRecord(),
+    emergency: true,
+    availableProducts: [{ id: 'added', versionNumber: 1 }],
+    template: {
+      columnsMap: {
+        'orderable.fullProductName': column('orderable.fullProductName', 0),
+        requestedQuantity: column('requestedQuantity', 1, {
+          source: 'USER_INPUT',
+          columnDefinition: { columnType: 'NUMERIC' },
+        }),
+      },
+    },
+  };
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
+  const user = userEvent.setup();
+  const { router, queryClient } = renderRoute('/requisitions/view/r?addProduct=true');
+  const dialog = await screen.findByRole('dialog');
+  await user.click(await within(dialog).findByRole('checkbox', { name: /P2 - Added/ }));
+  await user.click(
+    within(dialog).getByRole('button', { name: 'requisitions.edit.products.add-picked' }),
+  );
+  await waitFor(() => expect(router.state.location.search.addProduct).toBeUndefined());
+  const input = await screen.findByRole('textbox', { name: 'requestedQuantity: Added (P2)' });
+  fireEvent.change(input, { target: { value: '30' } });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockResolvedValue({ data: base, headers: { etag: '"saved"' } });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledOnce());
+  expect(put.mock.calls[0][1]).toMatchObject({
+    requisitionLineItems: expect.arrayContaining([
+      expect.objectContaining({
+        orderable: { id: 'added', versionNumber: 1 },
+        pricePerPack: 7,
+        requestedQuantity: 30,
+      }),
+    ]),
+  });
   queryClient.clear();
 });
