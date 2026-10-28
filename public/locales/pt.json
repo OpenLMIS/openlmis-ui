@@ -1678,7 +1678,6 @@
   "requisitions.status.submitted": "Submetida",
   "requisitions.view.action": "Ver requisição",
   "requisitions.view.action-name": "Ver requisição: {program}, {period}",
-  "requisitions.view.applied": "Requisições de {facility}",
   "requisitions.view.clear-dates": "Limpar datas",
   "requisitions.view.date-range-description": "A data inicial deve ser anterior ou igual à data final.",
   "requisitions.view.date-range-title": "Verificar o intervalo de datas",

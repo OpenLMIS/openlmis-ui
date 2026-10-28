@@ -1678,7 +1678,6 @@
   "requisitions.status.submitted": "Submitted",
   "requisitions.view.action": "View Requisition",
   "requisitions.view.action-name": "View Requisition: {program}, {period}",
-  "requisitions.view.applied": "Requisitions For {facility}",
   "requisitions.view.clear-dates": "Clear Dates",
   "requisitions.view.date-range-description": "Date Initiated From must be on or before Date Initiated To.",
   "requisitions.view.date-range-title": "Check The Date Range",

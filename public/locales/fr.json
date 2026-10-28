@@ -1678,7 +1678,6 @@
   "requisitions.status.submitted": "Soumise",
   "requisitions.view.action": "Consulter la réquisition",
   "requisitions.view.action-name": "Consulter la réquisition : {program}, {period}",
-  "requisitions.view.applied": "Réquisitions de {facility}",
   "requisitions.view.clear-dates": "Effacer les dates",
   "requisitions.view.date-range-description": "La date de début doit être antérieure ou égale à la date de fin.",
   "requisitions.view.date-range-title": "Vérifier les dates",

@@ -64,7 +64,6 @@ import {
 } from '@/features/requisitions/lib/search-facilities';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { recordLabel } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
 import { programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
@@ -429,11 +428,6 @@ function RequisitionsBody({
         options={options}
       />
       <div className="flex flex-col gap-4">
-        {facility && !pending && (
-          <h2 className="font-semibold text-base">
-            {t('requisitions.view.applied', { facility: recordLabel(facility) })}
-          </h2>
-        )}
         {toolbar}
         {outcome}
       </div>

@@ -1678,7 +1678,6 @@
   "requisitions.status.submitted": "تم التقديم",
   "requisitions.view.action": "عرض طلب الإمداد",
   "requisitions.view.action-name": "عرض طلب الإمداد: {program}، {period}",
-  "requisitions.view.applied": "طلبات الإمداد للمنشأة {facility}",
   "requisitions.view.clear-dates": "مسح التواريخ",
   "requisitions.view.date-range-description": "يجب أن يكون تاريخ البدء الأول قبل تاريخ البدء الأخير أو مساوياً له.",
   "requisitions.view.date-range-title": "تحقق من نطاق التاريخ",
