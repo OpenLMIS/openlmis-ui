@@ -15,8 +15,16 @@ export type RequisitionAction =
   | 'delete'
   | 'skip'
   | 'print';
-export const SHIPPED_ACTIONS: readonly RequisitionAction[] = ['print'];
-export const SHIPPED_EDITING = false;
+export const SHIPPED_ACTIONS: readonly RequisitionAction[] = [
+  'sync',
+  'submit',
+  'submitAndAuthorize',
+  'authorize',
+  'skip',
+  'delete',
+  'print',
+];
+export const SHIPPED_EDITING = true;
 export type CapabilityContext = {
   status: RequisitionStatus;
   emergency: boolean;
@@ -28,11 +36,21 @@ export type CapabilityContext = {
   unskipWhenApproving?: boolean;
   isSplit?: boolean;
 };
-export type CapabilityGate = { actions: readonly RequisitionAction[]; editing: boolean };
+export type CapabilityGate = {
+  actions: readonly RequisitionAction[];
+  editing: boolean;
+  approverEditing?: boolean;
+  patientsEditing?: boolean;
+};
 
 export function requisitionCapabilities(
   context: CapabilityContext,
-  gate: CapabilityGate = { actions: SHIPPED_ACTIONS, editing: SHIPPED_EDITING },
+  gate: CapabilityGate = {
+    actions: SHIPPED_ACTIONS,
+    editing: SHIPPED_EDITING,
+    approverEditing: false,
+    patientsEditing: false,
+  },
 ) {
   const { status, emergency, template, program, grants } = context;
   const has = (right: string) => grants.includes(right);
@@ -51,7 +69,7 @@ export function requisitionCapabilities(
     ((['INITIATED', 'REJECTED', 'SKIPPED'].includes(status) && has(RIGHTS.requisitionCreate)) ||
       (status === 'SUBMITTED' && has(RIGHTS.requisitionAuthorize)));
   const allowed: RequisitionAction[] = [];
-  if (creator || authorizer || (approver && has(RIGHTS.requisitionApprove))) allowed.push('sync');
+  if (creator || authorizer || approver) allowed.push('sync');
   if (creator) allowed.push(program.skipAuthorization ? 'submitAndAuthorize' : 'submit');
   if (authorizer) allowed.push('authorize');
   if (approver) {
@@ -59,9 +77,12 @@ export function requisitionCapabilities(
     if (!context.isSplit) allowed.push('reject');
   }
   if (canDelete) allowed.push('delete');
-  if (creator && !emergency && program.periodsSkippable && hasSkip) allowed.push('skip');
+  if (creator && !emergency && program.periodsSkippable) allowed.push('skip');
   allowed.push('print');
-  const editable = gate.editing && canEdit;
+  const editingOpen =
+    gate.editing && (!template.patientsTabEnabled || gate.patientsEditing === true);
+  const editable = editingOpen && canEdit && (!approver || gate.approverEditing === true);
+  const actionsOpen = editingOpen && (!approver || gate.approverEditing === true);
   const approvalColumn = template.patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity';
   const approvalColumns = [approvalColumn, 'remarks'];
   if (program.name === 'TB Monthly') {
@@ -90,8 +111,14 @@ export function requisitionCapabilities(
             )
             .map((c) => c.name)
       : [],
-    actions: allowed.filter((action) => gate.actions.includes(action)),
-    comments: editable,
+    actions: allowed.filter(
+      (action) => gate.actions.includes(action) && (action === 'print' || actionsOpen),
+    ),
+    comments:
+      editingOpen &&
+      (canEdit ||
+        ((status === 'INITIATED' || status === 'REJECTED') && has(RIGHTS.requisitionAuthorize))) &&
+      (!approver || gate.approverEditing === true),
     addFullSupplyProduct:
       editable &&
       (creator || authorizer) &&
@@ -103,6 +130,8 @@ export function requisitionCapabilities(
       hasSkip &&
       (creator || authorizer || (approver && !!context.unskipWhenApproving)),
     approver,
-    deferred: allowed.filter((action) => !gate.actions.includes(action)),
+    deferred: allowed.filter(
+      (action) => !gate.actions.includes(action) || (action !== 'print' && !actionsOpen),
+    ),
   };
 }

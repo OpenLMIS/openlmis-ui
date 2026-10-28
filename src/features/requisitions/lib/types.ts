@@ -31,6 +31,10 @@ export type RequisitionRecord = Omit<Requisition, 'requisitionLineItems'> & {
     orderable: { id: string; versionNumber: number };
     approvedProduct?: { id: string; versionNumber: number };
   })[];
+  draftStatusMessage?: string | null;
+  availableProducts?: readonly { id: string; versionNumber: number }[];
+  modifiedDate?: string | null;
+  eTag?: string;
   id: string;
   facility: { id: string };
   processingPeriod: { id: string };

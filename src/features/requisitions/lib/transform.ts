@@ -1,0 +1,46 @@
+import { compileColumns } from '@/features/requisitions/lib/template';
+import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+
+const clientFields = new Set([
+  'template',
+  'availableProducts',
+  'availableFullSupplyProducts',
+  'availableNonFullSupplyProducts',
+  'stockAdjustmentReasons',
+  'eTag',
+  'useQuantityUnit',
+  'quantityUnit',
+  'idempotencyKey',
+  'patientQuantitiesNotAvailable',
+  'quantities',
+]);
+function withoutClientFields(value: object): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([key]) => !key.startsWith('$') && !clientFields.has(key)),
+  );
+}
+
+export function transformRequisition(record: RequisitionRecord) {
+  const body = withoutClientFields(record);
+  const displayed = new Set(
+    compileColumns(record.template, {
+      status: record.status,
+      emergency: record.emergency,
+      tab: 'fullSupply',
+    }).map((column) => column.name),
+  );
+  return {
+    ...body,
+    program: { id: record.program.id },
+    facility: { id: record.facility.id },
+    requisitionLineItems: record.requisitionLineItems.map((line) => {
+      const next = withoutClientFields(line);
+      for (const column of Object.values(record.template.columnsMap)) {
+        if (column.name === 'numberOfPatientsOnTreatmentNextMonth') continue;
+        if (!displayed.has(column.name) || column.source === 'CALCULATED') next[column.name] = null;
+      }
+      next.orderable = { id: line.orderable.id, versionNumber: line.orderable.versionNumber };
+      return next;
+    }),
+  };
+}
