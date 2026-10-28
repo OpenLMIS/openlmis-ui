@@ -303,6 +303,7 @@ it('retains edits through tabs and pages and marks calculated errors live', asyn
   });
   const { router, queryClient } = renderRoute('/requisitions/view/r?detailSize=1');
   const input = await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  await waitFor(() => expect(input).toBeEnabled());
   fireEvent.change(input, { target: { value: '1' } });
   await waitFor(() => expect(screen.getByRole('button', { name: /Page 1:/ })).toBeInTheDocument());
   expect(screen.getByRole('checkbox', { name: 'skipped: Product (P1)' })).toHaveAttribute(
@@ -394,7 +395,9 @@ async function openEditor(invalid = false, fromList = false, authorize = false) 
   const rendered = renderRoute(
     `/requisitions/view/r?detailSize=1${fromList ? '&facility=f&page=3' : ''}`,
   );
-  await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toBeEnabled(),
+  );
   return { ...rendered, base };
 }
 it('syncs with If-Match before submitting with an idempotency key and returns to the list', async () => {
@@ -486,9 +489,7 @@ it('locks editing during Sync and uses the returned ETag next time', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   await waitFor(() => expect(put).toHaveBeenCalledOnce());
   expect(put.mock.calls[0][1]).toMatchObject({ draftStatusMessage: '' });
-  expect(
-    screen.queryByRole('textbox', { name: 'beginningBalance: Product (P1)' }),
-  ).not.toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toBeDisabled();
   resolve({
     data: {
       ...base,
@@ -521,7 +522,7 @@ it('deletes only after confirmation', async () => {
   queryClient.clear();
 });
 
-it('checks a reused action key without clearing the local draft before Update', async () => {
+it('checks a reused action key and retains saved values before Update', async () => {
   const { base, queryClient } = await openEditor();
   vi.spyOn(client, 'put').mockImplementation(async (_path, body) => ({
     data: { ...base, ...(body as object) },
@@ -546,7 +547,7 @@ it('checks a reused action key without clearing the local draft before Update', 
     ).toBeInTheDocument(),
   );
   const dialog = screen.getByRole('alertdialog');
-  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeDefined();
+  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
   expect(fetchRequisition).toHaveBeenCalledTimes(reads + 1);
   expect(
     within(dialog).getByRole('button', { name: 'requisitions.edit.update' }),
@@ -605,7 +606,7 @@ it('adds an available emergency full-supply product to its tab with the program 
   ).not.toBeInTheDocument();
   await waitFor(() => expect(offer).toBeDefined());
   offer([{ ...added, description: null }]);
-  await user.click(await within(dialog).findByRole('checkbox', { name: /P2 - Added/ }));
+  await user.click(await within(dialog).findByRole('checkbox', { name: /Added/ }));
   await user.click(
     within(dialog).getByRole('button', { name: 'requisitions.edit.products.add-picked' }),
   );
@@ -639,6 +640,7 @@ it('does not mark untouched lines until editing or a submit attempt', async () =
   } as never);
   const input = await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
   expect(input).not.toHaveAttribute('aria-invalid', 'true');
+  await waitFor(() => expect(input).toBeEnabled());
   fireEvent.change(input, { target: { value: '1' } });
   fireEvent.change(input, { target: { value: '' } });
   await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'));
@@ -671,9 +673,8 @@ it('keeps an outdated device draft read-only until Update', async () => {
   vi.mocked(fetchRequisition).mockResolvedValue(base);
   const { queryClient } = renderRoute('/requisitions/view/r');
   await screen.findByText('requisitions.edit.outdated-title');
-  expect(
-    screen.queryByRole('textbox', { name: 'beginningBalance: Product (P1)' }),
-  ).not.toBeInTheDocument();
+  for (const input of screen.getAllByRole('textbox', { name: 'beginningBalance: Product (P1)' }))
+    expect(input).toBeDisabled();
   expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeDisabled();
   queryClient.clear();
 });
@@ -694,9 +695,11 @@ it('opens the editable adjustments dialog from its grid button', async () => {
   ]);
   vi.mocked(fetchRequisition).mockResolvedValue(base);
   const { queryClient } = renderRoute('/requisitions/view/r');
-  fireEvent.click(
-    (await screen.findAllByRole('button', { name: 'totalLossesAndAdjustments: Product (P1)' }))[0],
-  );
+  const adjustmentButton = (
+    await screen.findAllByRole('button', { name: /^totalLossesAndAdjustments: .*Product \(P1\)/ })
+  )[0];
+  await waitFor(() => expect(adjustmentButton).toBeEnabled());
+  fireEvent.click(adjustmentButton);
   expect(
     within(await screen.findByRole('dialog')).getByRole('button', {
       name: 'requisitions.edit.update',
@@ -738,11 +741,11 @@ it('locks grid and comment editing while Submit is pending', async () => {
   await confirmAction();
   await waitFor(() => expect(post).toHaveBeenCalledOnce());
   expect(
-    screen.queryByRole('textbox', { name: 'beginningBalance: Product (P1)', hidden: true }),
-  ).not.toBeInTheDocument();
+    screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)', hidden: true }),
+  ).toBeDisabled();
   expect(
-    screen.queryByRole('textbox', { name: 'requisitions.edit.comment-label', hidden: true }),
-  ).not.toBeInTheDocument();
+    screen.getByRole('textbox', { name: 'requisitions.edit.comment-label', hidden: true }),
+  ).toBeDisabled();
   complete({ data: {} });
   await screen.findByText('Opening List');
   queryClient.clear();
@@ -892,3 +895,60 @@ it('disables conflict Update offline with the footer action explanation', async 
   expect(update).toHaveAttribute('aria-description', 'offline.action-description');
   queryClient.clear();
 });
+
+it('confirms Update before discarding a conflicting device draft', async () => {
+  const { base, queryClient } = await openEditor();
+  const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.change(input, { target: { value: '42' } });
+  vi.spyOn(client, 'put').mockRejectedValue(httpError(409));
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  const error = await screen.findByRole('alertdialog');
+  const reads = vi.mocked(fetchRequisition).mock.calls.length;
+  fireEvent.click(within(error).getByRole('button', { name: 'requisitions.edit.update' }));
+  await waitFor(() =>
+    expect(screen.getByText('requisitions.edit.actions.update-confirm')).toBeInTheDocument(),
+  );
+  expect(fetchRequisition).toHaveBeenCalledTimes(reads);
+  fireEvent.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.cancel' }),
+  );
+  expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue('42');
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'requisitions.edit.update',
+    }),
+  );
+  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: 'fresh' });
+  fireEvent.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', {
+      name: 'requisitions.edit.actions.update',
+    }),
+  );
+  await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(reads + 1));
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue(
+      '10',
+    ),
+  );
+  queryClient.clear();
+});
+
+it.each([true, false])(
+  'reserves the pending footer only for editable requisitions: %s',
+  async (editable) => {
+    useLoginData
+      .getState()
+      .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([
+      'REQUISITION_VIEW|f|program',
+      ...(editable ? ['REQUISITION_CREATE|f|program'] : []),
+    ]);
+    vi.mocked(fetchRequisition).mockResolvedValue(editingRecord());
+    vi.mocked(fetchOrderablesByIdentities).mockImplementationOnce(() => new Promise(() => {}));
+    const { queryClient } = renderRoute('/requisitions/view/r');
+    await screen.findByRole('status', { name: 'pending-products' });
+    expect(!!document.querySelector('[data-slot="workspace-footer"]')).toBe(editable);
+    queryClient.clear();
+  },
+);

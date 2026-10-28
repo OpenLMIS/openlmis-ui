@@ -9,7 +9,7 @@ import {
 } from '@/features/requisitions/components/requisition-grid';
 import { useRequisitionForm } from '@/features/requisitions/hooks/use-requisition-form';
 import { calculateLine, calculateTotals } from '@/features/requisitions/lib/calculations';
-import { applyRequisitionDraft } from '@/features/requisitions/lib/draft';
+import { applyRequisitionDraft, canSkipLine } from '@/features/requisitions/lib/draft';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
 import { buildLines } from '@/features/requisitions/lib/lines';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
@@ -74,6 +74,7 @@ function Harness({
   tab = 'fullSupply',
   supplyingStock = false,
   editable = false,
+  pending = false,
 }: {
   initial?: GridSearch;
   stockBased?: boolean;
@@ -81,6 +82,7 @@ function Harness({
   tab?: 'fullSupply' | 'nonFullSupply';
   supplyingStock?: boolean;
   editable?: boolean;
+  pending?: boolean;
 }) {
   const [search, setSearch] = useState<GridSearch>(initial);
   const update: SearchChange<GridSearch> = (change) =>
@@ -105,6 +107,11 @@ function Harness({
   const models = buildLines(draftRecord, hydrated, []).map((model) => ({
     ...model,
     line: calculateLine(model, current, 1),
+    canSkip: canSkipLine(calculateLine(model, current, 1), current.template, {
+      tab,
+      status: current.status,
+      emergency: current.emergency,
+    }),
   }));
   return (
     <RequisitionGridView
@@ -114,6 +121,7 @@ function Harness({
           ? {
               editor,
               editable: true,
+              pending,
               editableColumns: ['requestedQuantity'],
               skipLines: true,
               addFullSupplyProduct: false,
@@ -431,6 +439,9 @@ it.each([1000, 390])('removes saved non-full supply lines instantly at width %s'
   );
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'requisitions.edit.remove-product: Medicine 1' }),
+  ).toHaveFocus();
 });
 
 it('limits This Page to the current page while All includes later pages', async () => {
@@ -456,4 +467,48 @@ it('limits This Page to the current page while All includes later pages', async 
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).not.toBeChecked();
   await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-all' }));
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).toBeChecked();
+});
+
+it('includes the visible total in editable adjustment button names', () => {
+  render(<Harness editable />);
+  expect(
+    screen.getByRole('button', { name: 'totalLossesAndAdjustments: 3, Medicine 0 (P0)' }),
+  ).toBeInTheDocument();
+});
+it.each([1000, 390])(
+  'retains disabled editing controls during pending actions at width %s',
+  (width) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+    const value = {
+      ...requisition,
+      template: {
+        columnsMap: {
+          ...requisition.template.columnsMap,
+          requestedQuantity: column('requestedQuantity', 3, {
+            source: 'USER_INPUT',
+            columnDefinition: { columnType: 'NUMERIC' },
+          }),
+          skipped: column('skipped', 4, { source: 'USER_INPUT' }),
+        },
+      },
+    };
+    const { rerender } = render(<Harness editable value={value} />);
+    const input = screen.getByRole('textbox', { name: 'requestedQuantity: Medicine 0 (P0)' });
+    rerender(<Harness editable pending value={value} />);
+    expect(screen.getByRole('textbox', { name: 'requestedQuantity: Medicine 0 (P0)' })).toBe(input);
+    expect(input).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0 (P0)' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'requisitions.edit.skip-none' })).toBeDisabled();
+  },
+);
+
+it('includes the visible packs total in editable adjustment button names', async () => {
+  render(<Harness editable />);
+  await userEvent.click(screen.getByRole('radio', { name: 'quantity-unit.packs' }));
+  expect(
+    screen.getByRole('button', { name: 'totalLossesAndAdjustments: 0 ( +3 ), Medicine 0 (P0)' }),
+  ).toBeInTheDocument();
 });

@@ -52,17 +52,14 @@ export function useRequisitionForm(record: RequisitionRecord) {
       resolveConflict() {
         return latestDevice.current.resolve();
       },
+      get locked() {
+        return latestDevice.current.outdated || latestDevice.current.status.status === 'loading';
+      },
       setLine(id: string, changes: LineDraft) {
-        if (latestDevice.current.outdated || latestDevice.current.status.status === 'loading')
-          return;
-        form.setFieldValue('draft.lines', (lines) => ({
-          ...lines,
-          [id]: { ...lines[id], ...changes },
-        }));
+        this.setLines([id], changes);
       },
       setLines(ids: string[], changes: LineDraft) {
-        if (latestDevice.current.outdated || latestDevice.current.status.status === 'loading')
-          return;
+        if (this.locked) return;
         form.setFieldValue('draft.lines', (lines) => {
           const next = { ...lines };
           for (const id of ids) next[id] = { ...lines[id], ...changes };
@@ -70,8 +67,7 @@ export function useRequisitionForm(record: RequisitionRecord) {
         });
       },
       removeLine(id: string) {
-        if (latestDevice.current.outdated || latestDevice.current.status.status === 'loading')
-          return;
+        if (this.locked) return;
         form.setFieldValue('draft.removedLineIds', (ids) =>
           ids.includes(id) ? ids : [...ids, id],
         );

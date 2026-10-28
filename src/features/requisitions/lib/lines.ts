@@ -63,8 +63,8 @@ export function splitLines(lines: readonly RequisitionLine[]) {
   };
 }
 
-export function filterLines(
-  lines: readonly RequisitionLine[],
+export function filterLines<T extends RequisitionLine>(
+  lines: readonly T[],
   options: { hideSkipped?: boolean; product?: string; showSkipped?: boolean } = {},
 ) {
   const hideSkipped = options.hideSkipped && !options.showSkipped;

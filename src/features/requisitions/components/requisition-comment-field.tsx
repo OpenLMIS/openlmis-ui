@@ -1,23 +1,25 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 
-export function useRequisitionComment(editor?: RequisitionEditor) {
+export function useRequisitionComment(editor?: RequisitionEditor, pending = false) {
   const { t } = useTranslation();
-  const [opened, setOpened] = useState(false);
-  const hasComment = useSyncExternalStore(
-    (notify) => {
+  const [opened, setOpened] = useState(() => !!editor?.draft.draftStatusMessage);
+  const subscribe = useCallback(
+    (notify: () => void) => {
       const sub = editor?.form.store.subscribe(notify);
       return () => sub?.unsubscribe();
     },
-    () => !!editor?.draft.draftStatusMessage,
+    [editor?.form.store],
   );
+  const hasComment = useSyncExternalStore(subscribe, () => !!editor?.draft.draftStatusMessage);
+  if (hasComment && !opened) setOpened(true);
   const open = opened || hasComment;
   return {
     action:
       editor && !open ? (
-        <Button size="lg" variant="outline" onClick={() => setOpened(true)}>
+        <Button size="lg" variant="outline" disabled={pending} onClick={() => setOpened(true)}>
           {t('requisitions.edit.add-comment')}
         </Button>
       ) : null,
@@ -25,10 +27,17 @@ export function useRequisitionComment(editor?: RequisitionEditor) {
       editor && open ? (
         <div className="flex flex-col gap-2">
           <editor.form.AppField name="draft.draftStatusMessage">
-            {(field) => <field.TextareaField label={t('requisitions.edit.comment-label')} />}
+            {(field) => (
+              <field.TextareaField
+                label={t('requisitions.edit.comment-label')}
+                disabled={pending}
+              />
+            )}
           </editor.form.AppField>
           <div>
             <Button
+              size="lg"
+              disabled={pending}
               variant="outline"
               onClick={() => {
                 editor.form.setFieldValue('draft.draftStatusMessage', '');

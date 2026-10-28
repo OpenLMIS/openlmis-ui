@@ -21,7 +21,9 @@ export function RequisitionEditCards({
   invalid,
   unit,
   isControl,
+  pending,
 }: {
+  pending: boolean;
   rows: GridRow[];
   columns: GridColumn[];
   renderCell: (column: GridColumn, row: GridRow) => ReactNode;
@@ -39,7 +41,9 @@ export function RequisitionEditCards({
       {rows.map((row) =>
         row.category !== undefined ? (
           <li key={row.id}>
-            <h3 className="font-semibold text-sm">{row.category}</h3>
+            <h2 className="px-1 pt-2 font-semibold text-base">
+              <bdi>{row.category}</bdi>
+            </h2>
           </li>
         ) : (
           row.model && (
@@ -61,6 +65,8 @@ export function RequisitionEditCards({
                     actions={[
                       {
                         id: 'remove',
+                        disabled: pending,
+                        data: { 'data-requisition-remove': row.id },
                         label: t('requisitions.edit.remove-product'),
                         name: `${t('requisitions.edit.remove-product')}: ${row.model.product?.fullProductName}`,
                         icon: <Trash2Icon />,

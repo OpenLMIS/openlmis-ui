@@ -6,7 +6,13 @@ import {
   useTable,
 } from '@tanstack/react-table';
 import type { ParseKeys } from 'i18next';
-import { ChevronRightIcon, CircleAlertIcon, Trash2Icon, TriangleAlertIcon } from 'lucide-react';
+import {
+  ChevronRightIcon,
+  CircleAlertIcon,
+  PlusIcon,
+  Trash2Icon,
+  TriangleAlertIcon,
+} from 'lucide-react';
 import {
   createContext,
   memo,
@@ -32,11 +38,11 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { DraftStatus } from '@/components/draft-status';
 import { FlagBadge } from '@/components/flag-badge';
 import { quantityValue } from '@/components/form/quantity-value';
+import { QuantityHeaderSizer } from '@/components/quantity-header-sizer';
 import { TableCards } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field } from '@/components/ui/field';
-import { InputSizer } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -58,9 +64,9 @@ import { SupplyingStockNote } from '@/features/requisitions/components/supplying
 import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 import type { calculateTotals } from '@/features/requisitions/lib/calculations';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
-import { canSkipLine, type LineDraft } from '@/features/requisitions/lib/draft';
+import { canRemoveLine, type LineDraft } from '@/features/requisitions/lib/draft';
 import { gridRowTone } from '@/features/requisitions/lib/grid-row-tone';
-import { filterLines, type RequisitionLine, splitLines } from '@/features/requisitions/lib/lines';
+import { filterLines, type RequisitionLine } from '@/features/requisitions/lib/lines';
 import { PATIENT_QUANTITY_COLUMNS } from '@/features/requisitions/lib/patients';
 import type { RequisitionLineItem } from '@/features/requisitions/lib/requisition';
 import {
@@ -89,7 +95,8 @@ export type GridSearch = {
   adjustments?: string;
   addProduct?: boolean;
 };
-export type GridRow = { id: string; category?: string; model?: RequisitionLine };
+export type GridModel = RequisitionLine & { canSkip: boolean };
+export type GridRow = { id: string; category?: string; model?: GridModel };
 type Props = {
   record: RequisitionRecord;
   editing?: GridEditing;
@@ -124,13 +131,15 @@ export function RequisitionGridView({
   setUnit,
   canSwitch,
 }: Props & {
-  models: RequisitionLine[];
+  models: GridModel[];
   totals: ReturnType<typeof calculateTotals>;
   currency: CurrencySettings;
 }) {
   const { t, i18n } = useTranslation();
   const formatter = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const tableElement = useRef<HTMLTableElement>(null);
+  const region = useRef<HTMLDivElement>(null);
+  const [focusAfterRemoval, setFocusAfterRemoval] = useState<string | null>(null);
   const [pinnedWidths, setPinnedWidths] = useState<Record<string, number>>({});
   const columns = useMemo(
     () =>
@@ -164,7 +173,17 @@ export function RequisitionGridView({
   );
   const templateId = record.template.id ?? Object.keys(record.template.columnsMap).sort().join(':');
   const view = useCardView(hideable, `requisition-columns:${templateId}`);
-  const selected = useMemo(() => splitLines(models)[tab], [models, tab]);
+  const measure = useCallback(
+    (element: HTMLDivElement | null) => {
+      region.current = element;
+      view.measure(element);
+    },
+    [view.measure],
+  );
+  const selected = useMemo(
+    () => models.filter((model) => model.fullSupply === (tab === 'fullSupply')),
+    [models, tab],
+  );
   const filtered = useMemo(
     () =>
       filterLines(selected, {
@@ -245,7 +264,28 @@ export function RequisitionGridView({
       ) : null,
     [cellContext, supplyingHasStock, record, editing, errors],
   );
-  const removable = editing?.editable && tab === 'nonFullSupply';
+  const removable = canRemoveLine(tab === 'fullSupply', !!editing?.editable);
+  const removeLine = useCallback(
+    (id: string) => {
+      if (!editing || editing.pending) return;
+      const ids = data.flatMap((row) => (row.model ? [row.id] : []));
+      const index = ids.indexOf(id);
+      setFocusAfterRemoval(ids[index + 1] ?? ids[index - 1] ?? '__grid');
+      editing.editor.removeLine(id);
+    },
+    [editing, data],
+  );
+  useLayoutEffect(() => {
+    if (!focusAfterRemoval) return;
+    const target =
+      region.current?.querySelector<HTMLElement>(
+        `[data-requisition-remove="${CSS.escape(focusAfterRemoval)}"]`,
+      ) ??
+      region.current?.querySelector<HTMLElement>(view.cards ? 'ul' : 'table') ??
+      region.current;
+    target?.focus();
+    setFocusAfterRemoval(null);
+  }, [focusAfterRemoval, view.cards]);
   const defs = useMemo(() => {
     const defs = columns.map((column) =>
       helper.display({
@@ -284,7 +324,9 @@ export function RequisitionGridView({
               variant="destructive-ghost"
               size="icon-sm"
               aria-label={`${t('requisitions.edit.remove-product')}: ${row.model.product?.fullProductName}`}
-              onClick={() => editing.editor.removeLine(row.id)}
+              data-requisition-remove={row.id}
+              disabled={editing.pending}
+              onClick={() => removeLine(row.id)}
             >
               <Trash2Icon />
             </Button>
@@ -293,7 +335,7 @@ export function RequisitionGridView({
       const column = columns.find((column) => column.name === id);
       return column ? renderCell(column, row) : null;
     },
-    [columns, renderCell, editing, t],
+    [columns, renderCell, editing, removeLine, t],
   );
   const table = useTable({
     features: dataTableFeatures,
@@ -401,19 +443,21 @@ export function RequisitionGridView({
   const adjustment = models.find((model) => model.line.id === search.adjustments);
   return (
     <RequisitionCells value={renderColumn}>
-      <div ref={view.measure} className="flex min-w-0 flex-col gap-4">
+      <div ref={measure} tabIndex={-1} className="flex min-w-0 flex-col gap-4 outline-none">
         {supplyingStock && <SupplyingStockNote record={record} />}
-        {editing?.editable &&
-          (tab === 'nonFullSupply'
-            ? editing.addNonFullSupplyProduct
-            : editing.addFullSupplyProduct) && (
-            <div>
-              <Button size="lg" variant="outline" onClick={onAddProduct}>
+        <RequisitionGridToolbar
+          disabled={editing?.pending}
+          action={
+            editing?.editable &&
+            (tab === 'nonFullSupply'
+              ? editing.addNonFullSupplyProduct
+              : editing.addFullSupplyProduct) && (
+              <Button size="lg" disabled={editing.pending} onClick={onAddProduct}>
+                <PlusIcon />
                 {t('requisitions.edit.add-product')}
               </Button>
-            </div>
-          )}
-        <RequisitionGridToolbar
+            )
+          }
           extra={
             editing?.editable
               ? editing.skipLines &&
@@ -421,7 +465,6 @@ export function RequisitionGridView({
                 !record.emergency && (
                   <SkipControls
                     editing={editing}
-                    record={record}
                     all={selected}
                     page={data.flatMap((row) => (row.model ? [row.model] : []))}
                   />
@@ -434,15 +477,8 @@ export function RequisitionGridView({
                   <DraftStatus
                     {...editing.editor.device.status}
                     labels={{
-                      saved: t('stock-events.draft-saved'),
-                      saving: t('stock-events.draft-saving'),
-                      loading: t('stock-events.draft-loading'),
-                      failed: t('stock-events.draft-failed'),
-                      retry: t('stock-events.draft-retry'),
-                      conflict: t('stock-events.draft-conflict'),
-                      conflictTitle: t('stock-events.draft-conflict-title'),
+                      copy: null,
                       conflictDescription: t('requisitions.edit.draft-conflict-description'),
-                      load: t('stock-events.draft-load'),
                     }}
                     onRetry={editing.editor.device.retry}
                     onResolve={editing.editor.resolveConflict}
@@ -467,7 +503,8 @@ export function RequisitionGridView({
             footer={footer}
             empty={empty}
             listRef={pageStart.ref}
-            remove={removable ? editing.editor.removeLine : undefined}
+            remove={removable ? removeLine : undefined}
+            pending={editing.pending}
             invalid={(id) => !!errors[id]}
             unit={unit}
             isControl={(column) =>
@@ -511,24 +548,7 @@ export function RequisitionGridView({
                       {editing?.editable &&
                         columnsById.get(column.id)?.kind === 'quantity' &&
                         editing.editableColumns.includes(column.id) && (
-                          <div
-                            className="invisible flex h-0 w-max overflow-hidden"
-                            dir="ltr"
-                            aria-hidden
-                          >
-                            <InputSizer
-                              placeholder={t(
-                                unit === 'PACKS' ? 'quantity-unit.packs' : 'quantity-unit.doses',
-                              )}
-                            />
-                            {unit === 'PACKS' && (
-                              <>
-                                <span>( +</span>
-                                <InputSizer placeholder={t('quantity-unit.doses')} />
-                                <span>)</span>
-                              </>
-                            )}
-                          </div>
+                          <QuantityHeaderSizer unit={unit} />
                         )}
                     </TableHead>
                   ))}
@@ -614,7 +634,7 @@ const RequisitionLineCell = memo(function RequisitionLineCell({
   error,
 }: {
   column: GridColumn;
-  model: RequisitionLine;
+  model: GridModel;
   context: Parameters<typeof renderValue>[2];
   shortfall: boolean;
   record: RequisitionRecord;
@@ -749,12 +769,13 @@ function renderValue(
 export type GridEditing = {
   editor: RequisitionEditor;
   editable: boolean;
+  pending: boolean;
   editableColumns: readonly string[];
   skipLines: boolean;
   addFullSupplyProduct: boolean;
   addNonFullSupplyProduct: boolean;
 };
-export function RequisitionEditCell({
+function RequisitionEditCell({
   column,
   model,
   record,
@@ -766,7 +787,7 @@ export function RequisitionEditCell({
   onAdjustments,
 }: {
   column: GridColumn;
-  model: RequisitionLine;
+  model: GridModel;
   record: RequisitionRecord;
   editing: GridEditing;
   unit: QuantityUnit;
@@ -775,7 +796,7 @@ export function RequisitionEditCell({
   children?: ReactNode;
   onAdjustments: (id: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { editor } = editing;
   const { form } = editor;
   const id = model.line.id;
@@ -798,18 +819,7 @@ export function RequisitionEditCell({
     return (
       <Checkbox
         checked={!!model.line.skipped}
-        disabled={
-          !editing.skipLines ||
-          (!model.line.skipped &&
-            !(
-              model.canSkip ??
-              canSkipLine({ ...model.line, ...editor.draft.lines[id] }, record.template, {
-                tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
-                status: record.status,
-                emergency: record.emergency,
-              })
-            ))
-        }
+        disabled={editing.pending || !editing.skipLines || (!model.line.skipped && !model.canSkip)}
         aria-label={label}
         onCheckedChange={(skipped) => editor.setLine(id, { skipped })}
       />
@@ -835,7 +845,7 @@ export function RequisitionEditCell({
                   label={label}
                   layout="inline"
                   hideErrors
-                  disabled={!!model.line.skipped}
+                  disabled={editing.pending || !!model.line.skipped}
                   unit={unit}
                   netContent={model.product?.netContent}
                   packsLabel={t('quantity-unit.packs')}
@@ -859,7 +869,7 @@ export function RequisitionEditCell({
                     label={label}
                     layout="inline"
                     hideErrors
-                    disabled={!!model.line.skipped}
+                    disabled={editing.pending || !!model.line.skipped}
                     maxLength={
                       column.name === 'requestedQuantityExplanation'
                         ? 255
@@ -874,8 +884,8 @@ export function RequisitionEditCell({
                     label={label}
                     layout="inline"
                     hideErrors
-                    controlSize="sm"
-                    disabled={!!model.line.skipped}
+                    controlSize={cards ? 'default' : 'sm'}
+                    disabled={editing.pending || !!model.line.skipped}
                   />
                 )
               }
@@ -893,9 +903,9 @@ export function RequisitionEditCell({
       <Button
         size="sm"
         variant="outline"
-        disabled={!!model.line.skipped}
+        disabled={editing.pending || !!model.line.skipped}
         onClick={() => onAdjustments(id)}
-        aria-label={label}
+        aria-label={`${column.label}: ${cardQuantity(model.line.totalLossesAndAdjustments ?? 0, model.product?.netContent, unit, i18n.language)}, ${model.product?.fullProductName ?? ''} (${model.product?.productCode ?? id})`}
       >
         {children ?? '0'}
       </Button>
@@ -904,7 +914,7 @@ export function RequisitionEditCell({
     <CalculatedError error={error}>{children ?? (cards ? EMPTY_VALUE : null)}</CalculatedError>
   );
 }
-export function CalculatedError({ error, children }: { error?: ParseKeys; children?: ReactNode }) {
+function CalculatedError({ error, children }: { error?: ParseKeys; children?: ReactNode }) {
   const { t } = useTranslation();
   if (!error) return children;
   return (

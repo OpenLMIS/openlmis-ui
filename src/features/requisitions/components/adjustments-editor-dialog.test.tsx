@@ -4,14 +4,10 @@ import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, expect, it, vi } from 'vitest';
+import { adjustmentQuantitySchema, adjustmentTotal } from '@/features/requisitions/lib/adjustments';
 import { renderPage } from '@/tests/render-page';
 import en from '../../../../public/locales/en.json';
-import {
-  AdjustmentsEditorDialog,
-  adjustmentQuantitySchema,
-  adjustmentTotal,
-  availableAdjustmentReasons,
-} from './adjustments-editor-dialog';
+import { AdjustmentsEditorDialog, availableAdjustmentReasons } from './adjustments-editor-dialog';
 
 const reasons = [
   {
@@ -139,7 +135,10 @@ it.each([1000, 390])(
     await user.click(screen.getByRole('button', { name: 'Remove, Found' }));
     expect(screen.queryByRole('textbox', { name: 'Found' })).not.toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Lost' })).toHaveValue('2');
+    expect(screen.getByRole('button', { name: 'Remove, Lost' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Remove, Lost' }));
+    expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
     await user.click(screen.getByRole('button', { name: 'Update' }));
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith([{ reasonId: 'debit', quantity: 2 }]));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith([]));
   },
 );

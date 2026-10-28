@@ -41,6 +41,3 @@ export const requisitionGridQueries = (record: RequisitionRecord) =>
     currencySettingsOptions(),
     programLookupOptions(record.program.id),
   ] as const;
-
-export const requisitionAvailableProductsOptions = (record: RequisitionRecord) =>
-  orderablesByIdentitiesOptions(record.availableProducts ?? []);

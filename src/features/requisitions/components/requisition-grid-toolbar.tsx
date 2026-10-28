@@ -15,6 +15,7 @@ import type { SearchChange } from '@/lib/table-search';
 export function RequisitionGridToolbar({
   columns,
   extra,
+  action,
   status,
   view,
   search,
@@ -27,6 +28,7 @@ export function RequisitionGridToolbar({
 }: {
   columns: GridColumn[];
   extra?: ReactNode;
+  action?: ReactNode;
   status?: ReactNode;
   view: Pick<ReturnType<typeof useCardView>, 'layout' | 'columnView'>;
   search: GridSearch;
@@ -41,7 +43,6 @@ export function RequisitionGridToolbar({
   const id = useId();
   return (
     <DataTableToolbar>
-      {extra}
       <div className="w-full @2xl/main:w-72">
         <DataTableSearch
           disabled={disabled}
@@ -53,6 +54,7 @@ export function RequisitionGridToolbar({
           }
         />
       </div>
+      {extra}
       {hideSkipped && (
         <div className="flex h-9 items-center">
           <Field orientation="horizontal">
@@ -83,6 +85,7 @@ export function RequisitionGridToolbar({
             {...view.columnView}
           />
         </div>
+        {action}
       </div>
       {status}
     </DataTableToolbar>

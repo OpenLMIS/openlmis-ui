@@ -22,7 +22,14 @@ export function parseDateValue(value: string): Date | undefined {
   return isSameDay ? date : undefined;
 }
 
-export function toDateValue(date: Date): string {
+export function toDateValue(date: Date, timeZone?: string): string {
+  if (timeZone)
+    return dateFormatter('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: knownTimeZone(timeZone),
+    }).format(date);
   const pad = (part: number) => String(part).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }

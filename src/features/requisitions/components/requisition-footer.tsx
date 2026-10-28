@@ -2,16 +2,16 @@ import { useTranslation } from 'react-i18next';
 import { ActionTooltip } from '@/components/action-tooltip';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFooter } from '@/components/workspace';
-import type { requisitionCapabilities } from '@/features/requisitions/lib/capabilities';
+import type {
+  RequisitionAction,
+  requisitionCapabilities,
+} from '@/features/requisitions/lib/capabilities';
 import { useOnline } from '@/lib/online';
 
-export type FooterAction =
-  | 'sync'
-  | 'submit'
-  | 'submit-and-authorize'
-  | 'authorize'
-  | 'skip'
-  | 'delete';
+type FooterAction = Extract<
+  RequisitionAction,
+  'sync' | 'submit' | 'submitAndAuthorize' | 'authorize' | 'skip' | 'delete'
+>;
 export function RequisitionFooter({
   policy,
   pending,
@@ -27,8 +27,7 @@ export function RequisitionFooter({
   const online = useOnline();
   const reason = online ? undefined : t('offline.action-description');
   const button = (action: FooterAction) => {
-    const capability = action === 'submit-and-authorize' ? 'submitAndAuthorize' : action;
-    if (!policy.actions.includes(capability)) return null;
+    if (!policy.actions.includes(action)) return null;
     return (
       <ActionTooltip key={action} reason={reason}>
         <Button
@@ -60,7 +59,7 @@ export function RequisitionFooter({
       <div className="flex flex-wrap justify-end gap-2">
         {button('sync')}
         {button('submit')}
-        {button('submit-and-authorize')}
+        {button('submitAndAuthorize')}
         {button('authorize')}
       </div>
     </WorkspaceFooter>

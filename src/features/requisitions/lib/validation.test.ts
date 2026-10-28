@@ -23,8 +23,6 @@ function validate(
     calculated?: string[];
     hidden?: string[];
     months?: number;
-    dateRequired?: boolean;
-    date?: string | null;
   } = {},
 ) {
   const req = record({
@@ -56,14 +54,12 @@ function validate(
     ],
   });
   return validateRequisition(
-    { ...req, datePhysicalStockCountCompleted: options.date },
+    req,
     buildLines(req, [
       product({ programs: [{ programId: 'program', fullSupply: options.fullSupply ?? true }] }),
     ]),
     {
       monthsInPeriod: options.months ?? 1,
-      stockCountDateRequired: options.dateRequired,
-      today: '2026-10-28',
     },
   );
 }
@@ -144,20 +140,6 @@ it('requires adjustment quantities above zero and within the whole-number range'
         .stockAdjustments,
     ).toBeTruthy();
 });
-it('requires a valid stock count date only for regular requisitions, never in the future', () => {
-  expect(validate({}, { dateRequired: true }).errors).toContain(
-    'requisitions.edit.validation.stock-count-date',
-  );
-  expect(validate({}, { dateRequired: true, date: '2026-10-29' }).errors).toContain(
-    'requisitions.edit.validation.stock-count-date',
-  );
-  expect(validate({}, { dateRequired: true, date: '2026-02-30' }).errors).toContain(
-    'requisitions.edit.validation.stock-count-date',
-  );
-  expect(validate({}, { dateRequired: true, date: '2026-10-28' }).errors).toEqual([]);
-  expect(validate({}, { dateRequired: true, emergency: true }).errors).toEqual([]);
-});
-
 it('checks the integer range on calculated cells as well as inputs', () => {
   expect(
     validate({ maximumStockQuantity: 2147483658 }, { calculated: ['calculatedOrderQuantity'] })
@@ -180,7 +162,6 @@ it('limits displayed remarks to 250 characters', () => {
   expect(
     validateRequisition(req, buildLines(req, [product()]), {
       monthsInPeriod: 1,
-      today: '2026-10-28',
     }).lines.line.remarks,
   ).toBe('requisitions.edit.validation.remarks-length');
 });
@@ -211,4 +192,26 @@ it('accepts a positive adjustment and ignores adjustments outside the non-full c
       { fullSupply: false },
     ).lines,
   ).toEqual({});
+});
+
+it('refuses invalid optional numeric draft text even when calculations normalize it to null', () => {
+  const req = record({
+    template: {
+      columnsMap: {
+        requestedQuantity: column('requestedQuantity', 0, {
+          source: 'USER_INPUT',
+          columnDefinition: { columnType: 'NUMERIC' },
+        }),
+        calculatedOrderQuantity: column('calculatedOrderQuantity', 1),
+      },
+    },
+    requisitionLineItems: [line({ requestedQuantity: null })],
+  });
+  const result = validateRequisition(
+    req,
+    buildLines(req, [product()]),
+    { monthsInPeriod: 1 },
+    { line: { requestedQuantity: 'abc' } },
+  );
+  expect(result.lines.line.requestedQuantity).toBe('stock-events.positive-number');
 });

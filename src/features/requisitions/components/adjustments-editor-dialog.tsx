@@ -1,7 +1,7 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { CardActions } from '@/components/card-actions';
@@ -27,7 +27,7 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { Button } from '@/components/ui/button';
-import { AdjustmentsDialog } from '@/features/requisitions/components/adjustments-dialog';
+import { adjustmentQuantitySchema, adjustmentTotal } from '@/features/requisitions/lib/adjustments';
 import type { RequisitionLine } from '@/features/requisitions/lib/lines';
 import type {
   RequisitionLineItem,
@@ -35,17 +35,9 @@ import type {
 } from '@/features/requisitions/lib/requisition';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
-import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
+import { toWholeNumber } from '@/lib/whole-number';
 
 type Adjustment = NonNullable<RequisitionLineItem['stockAdjustments']>[number];
-export const adjustmentQuantitySchema = wholeNumberText(
-  {
-    required: 'stock-events.required',
-    invalid: 'requisitions.edit.adjustment-positive',
-    tooLarge: 'stock-events.number-too-large',
-  },
-  { min: { value: 1, tooSmall: 'requisitions.edit.adjustment-positive' } },
-);
 export const availableAdjustmentReasons = (
   reasons: readonly RequisitionReason[],
   adjustments: readonly Adjustment[],
@@ -53,28 +45,33 @@ export const availableAdjustmentReasons = (
   reasons.filter(
     (reason) => !reason.hidden && !adjustments.some((item) => item.reasonId === reason.id),
   );
-export const adjustmentTotal = (
-  adjustments: readonly Adjustment[],
-  reasons: readonly RequisitionReason[],
-) =>
-  adjustments.reduce((total, item) => {
-    const reason = reasons.find((reason) => reason.id === item.reasonId);
-    return total + (reason ? item.quantity * (reason.reasonType === 'CREDIT' ? 1 : -1) : 0);
-  }, 0);
 export type AdjustmentsEditorDialogProps = {
   model: RequisitionLine;
   reasons: readonly RequisitionReason[];
   unit: QuantityUnit;
-  readOnly?: boolean;
   onSave: (adjustments: Adjustment[]) => void;
   onClose: () => void;
 };
-export function AdjustmentsEditorDialog(props: AdjustmentsEditorDialogProps) {
-  return props.readOnly ? <AdjustmentsDialog {...props} /> : <Editor {...props} />;
-}
 const helper = createColumnHelper<DataTableFeatures, Adjustment & { index: number }>();
-function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDialogProps) {
+export function AdjustmentsEditorDialog({
+  model,
+  reasons,
+  unit,
+  onSave,
+  onClose,
+}: AdjustmentsEditorDialogProps) {
   const { t, i18n } = useTranslation();
+  const region = useRef<HTMLDivElement>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
+  const [focusReason, setFocusReason] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    if (focusReason === null) return;
+    const target = Array.from(
+      region.current?.querySelectorAll<HTMLButtonElement>('button[aria-label]') ?? [],
+    ).find((button) => button.getAttribute('aria-label') === focusReason);
+    (target ?? addButton.current)?.focus();
+    setFocusReason(null);
+  }, [focusReason]);
   const { measure, cards } = useDialogCardLayout('table');
   const [initial] = useState(() => ({
     adjustments: (model.line.stockAdjustments ?? []).map((item) => ({
@@ -165,10 +162,23 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
             field: t('stock-events.remove'),
             row: name,
           });
-          const remove = () =>
+          const remove = () => {
+            const remaining = form.state.values.adjustments.filter(
+              (_, index) => index !== row.original.index,
+            );
+            const next = remaining[Math.min(row.original.index, remaining.length - 1)];
+            setFocusReason(
+              next
+                ? t('stock-events.field-of', {
+                    field: t('stock-events.remove'),
+                    row: reasonName(next.reasonId),
+                  })
+                : '',
+            );
             form.setFieldValue('adjustments', (current) =>
               current.filter((_, index) => index !== row.original.index),
             );
+          };
           return cards ? (
             <CardActions
               label={t('card-actions.actions-for', { name })}
@@ -226,7 +236,7 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
             </FormDialogDescription>
           </FormDialogHeader>
           <FormDialogBody>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4" ref={region}>
               <fieldset
                 className={cards ? 'flex flex-col gap-3' : 'flex items-start gap-3'}
                 onKeyDown={(event) => {
@@ -273,7 +283,12 @@ function Editor({ model, reasons, unit, onSave, onClose }: AdjustmentsEditorDial
                       &nbsp;
                     </span>
                   )}
-                  <Button type="button" variant="secondary" onClick={() => void add.handleSubmit()}>
+                  <Button
+                    ref={addButton}
+                    type="button"
+                    variant="secondary"
+                    onClick={() => void add.handleSubmit()}
+                  >
                     <PlusIcon />
                     {t('stock-events.add')}
                   </Button>

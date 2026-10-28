@@ -4,7 +4,7 @@ import type {
 } from '@/features/requisitions/lib/requisition';
 import { type ColumnContext, compileColumns } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
-import { toLatinDigits, toOptionalWholeNumber } from '@/lib/whole-number';
+import { MAX_WHOLE_NUMBER, toLatinDigits, toOptionalWholeNumber } from '@/lib/whole-number';
 
 type EditableLine = Omit<RequisitionLineItem, 'id' | 'orderable' | 'approvedProduct'>;
 export type LineDraft = {
@@ -49,7 +49,17 @@ function normalizedChanges(record: RequisitionRecord, changes: LineDraft) {
           !['requestedQuantityExplanation', 'remarks', 'remarksForTBDispensedQuantity'].includes(
             key,
           ));
-      return [key, numeric && typeof value === 'string' ? toOptionalWholeNumber(value) : value];
+      if (!numeric || typeof value !== 'string') return [key, value];
+      const parsed = toOptionalWholeNumber(value);
+      return [
+        key,
+        parsed !== null &&
+        Number.isInteger(parsed) &&
+        Math.abs(parsed) <= MAX_WHOLE_NUMBER &&
+        /^-?[0-9]+$/.test(toLatinDigits(value.trim()))
+          ? parsed
+          : null,
+      ];
     }),
   ) as Partial<EditableLine>;
 }
@@ -71,8 +81,9 @@ export function rebaseRequisitionDraft(
       const editable = editableChanges(record, values);
       const normalized = normalizedChanges(record, editable);
       const changed = Object.fromEntries(
-        Object.entries(editable).filter(([key]) => {
+        Object.entries(editable).filter(([key, raw]) => {
           const value = normalized[key as keyof EditableLine] ?? null;
+          if (value === null && typeof raw === 'string' && raw.trim()) return true;
           const savedValue = base[key as keyof RequisitionLineItem] ?? null;
           return Array.isArray(value)
             ? JSON.stringify(value) !== JSON.stringify(savedValue)

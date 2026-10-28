@@ -19,6 +19,7 @@ import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 export function RequisitionComments({
   record,
   editor,
+  pending = false,
   history,
   rejection,
   onHistory,
@@ -27,6 +28,7 @@ export function RequisitionComments({
 }: {
   record: RequisitionRecord;
   editor?: RequisitionEditor;
+  pending?: boolean;
   history?: boolean;
   rejection?: boolean;
   onHistory: () => void;
@@ -35,7 +37,7 @@ export function RequisitionComments({
 }) {
   const { t } = useTranslation();
   const headingId = useId();
-  const comment = useRequisitionComment(editor);
+  const comment = useRequisitionComment(editor, pending);
   const { data } = useSuspenseQuery(requisitionStatusMessagesOptions(record.id));
   const messages = data.toSorted((a, b) => b.createdDate.localeCompare(a.createdDate));
   const latest = messages[0];

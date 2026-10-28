@@ -1,5 +1,7 @@
 import type { ParseKeys } from 'i18next';
+import { adjustmentQuantitySchema } from '@/features/requisitions/lib/adjustments';
 import { calculateLine } from '@/features/requisitions/lib/calculations';
+import type { LineDraft } from '@/features/requisitions/lib/draft';
 import type { RequisitionLine } from '@/features/requisitions/lib/lines';
 import type { Requisition, RequisitionLineItem } from '@/features/requisitions/lib/requisition';
 import { compileColumns } from '@/features/requisitions/lib/template';
@@ -22,50 +24,37 @@ const numberSchema = wholeNumberText(
   },
   { optional: true },
 );
-const adjustmentSchema = wholeNumberText(
-  { invalid: 'stock-events.positive-number', tooLarge: 'stock-events.number-too-large' },
-  { min: { value: 1, tooSmall: 'physical-inventory.reason-positive' } },
-);
 export type RequisitionValidation = {
   lines: Record<string, Record<string, ParseKeys>>;
   errors: ParseKeys[];
 };
 export type ValidationOptions = {
   monthsInPeriod: number;
-  stockCountDateRequired?: boolean;
-  today: string;
 };
 const empty = (value: unknown) => value == null || (typeof value === 'string' && !value.trim());
 
 export function validateRequisition(
-  record: Requisition & { datePhysicalStockCountCompleted?: string | null },
+  record: Requisition,
   lines: readonly RequisitionLine[],
   options: ValidationOptions,
+  changes: Record<string, LineDraft> = {},
 ): RequisitionValidation {
   const result: RequisitionValidation = { lines: {}, errors: [] };
   for (const model of lines) {
-    const errors = validateLine(model, record, options.monthsInPeriod);
+    const errors = validateLine(model, record, options.monthsInPeriod, changes[model.line.id]);
     if (Object.keys(errors).length) result.lines[model.line.id] = errors;
   }
   if (!lines.some((model) => !model.line.skipped))
     result.errors.push('requisitions.edit.validation.all-skipped');
-  if (!record.emergency && options.stockCountDateRequired) {
-    const date = record.datePhysicalStockCountCompleted;
-    const parsed = date ? new Date(`${date}T00:00:00Z`) : undefined;
-    if (
-      !date ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-      !parsed ||
-      !Number.isFinite(parsed.getTime()) ||
-      parsed.toISOString().slice(0, 10) !== date ||
-      date > options.today
-    )
-      result.errors.push('requisitions.edit.validation.stock-count-date');
-  }
   return result;
 }
 
-export function validateLine(model: RequisitionLine, record: Requisition, monthsInPeriod: number) {
+export function validateLine(
+  model: RequisitionLine,
+  record: Requisition,
+  monthsInPeriod: number,
+  changes: LineDraft = {},
+) {
   const errors: Record<string, ParseKeys> = {};
   const line = calculateLine(model, record, monthsInPeriod);
   if (line.skipped) return errors;
@@ -138,12 +127,24 @@ export function validateLine(model: RequisitionLine, record: Requisition, months
   }
   if (model.fullSupply && !record.emergency && !record.template.populateStockOnHandFromStockCards) {
     for (const adjustment of line.stockAdjustments ?? []) {
-      const checked = adjustmentSchema.safeParse(String(adjustment.quantity));
+      const checked = adjustmentQuantitySchema.safeParse(String(adjustment.quantity));
       if (!checked.success) {
         errors.stockAdjustments = checked.error.issues[0].message as ParseKeys;
         break;
       }
     }
+  }
+  for (const column of columns) {
+    const value = changes[column.name as keyof LineDraft];
+    if (
+      typeof value !== 'string' ||
+      record.template.columnsMap[column.name]?.source !== 'USER_INPUT' ||
+      !['quantity', 'count'].includes(column.kind)
+    )
+      continue;
+    const checked = numberSchema.safeParse(value);
+    if (!checked.success && errors[column.name] !== 'requisitions.edit.validation.negative')
+      errors[column.name] = checked.error.issues[0].message as ParseKeys;
   }
   return errors;
 }

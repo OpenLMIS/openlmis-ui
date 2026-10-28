@@ -1,3 +1,4 @@
+import { adjustmentTotal } from '@/features/requisitions/lib/adjustments';
 import type { RequisitionLine } from '@/features/requisitions/lib/lines';
 import {
   calculatePatientQuantities,
@@ -103,13 +104,10 @@ export function calculateLine(
   const displayed = (name: string) => template.columnsMap[name]?.isDisplayed;
   if (model.fullSupply && !requisition.emergency) {
     if (!template.populateStockOnHandFromStockCards) {
-      const reasons = new Map(
-        requisition.stockAdjustmentReasons?.map((reason) => [reason.id, reason]),
+      line.totalLossesAndAdjustments = adjustmentTotal(
+        line.stockAdjustments ?? [],
+        requisition.stockAdjustmentReasons ?? [],
       );
-      line.totalLossesAndAdjustments = (line.stockAdjustments ?? []).reduce((sum, adjustment) => {
-        const reason = reasons.get(adjustment.reasonId);
-        return sum + (reason ? adjustment.quantity * (reason.reasonType === 'CREDIT' ? 1 : -1) : 0);
-      }, 0);
     }
     const stock = () =>
       (line.beginningBalance ?? 0) +

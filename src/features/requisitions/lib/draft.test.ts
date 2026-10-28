@@ -180,11 +180,26 @@ it('does not resurrect an unsaved added line removed before Sync', () => {
   ]);
 });
 
-it('retains invalid numeric input in the device draft until it is corrected', () => {
-  const draft = buildRequisitionDraft(base);
-  draft.lines.a = { requestedQuantity: 'invalid' };
-  expect(rebaseRequisitionDraft(base, draft).lines.a).toEqual({ requestedQuantity: 'invalid' });
-});
+it.each([10, null])(
+  'retains invalid numeric input with baseline %s until it is corrected',
+  (quantity) => {
+    const original = {
+      ...base,
+      requisitionLineItems: base.requisitionLineItems.map((line) => ({
+        ...line,
+        requestedQuantity: quantity,
+      })),
+    };
+    const draft = buildRequisitionDraft(original);
+    draft.lines.a = { requestedQuantity: 'invalid' };
+    expect(rebaseRequisitionDraft(original, draft).lines.a).toEqual({
+      requestedQuantity: 'invalid',
+    });
+    expect(
+      applyRequisitionDraft(original, draft).requisitionLineItems[0].requestedQuantity,
+    ).toBeNull();
+  },
+);
 
 it('rebases a synced addition by product when the server assigns a new line id', () => {
   const original = { ...base, requisitionLineItems: [] };

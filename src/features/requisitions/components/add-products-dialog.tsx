@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { DataTableEmpty, dataTableFeatures } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
+import { DialogLoadError } from '@/components/dialog-parts';
 import { DialogTable } from '@/components/dialog-table';
 import {
   FormDialog,
@@ -19,52 +20,40 @@ import {
   FormDialogSubmit,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import { ListError } from '@/components/list-error';
 import { productPickColumns, productPickVisibility } from '@/components/product-pick-columns';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { OrderableIdentity } from '@/features/reference-data/api/api';
 import { orderablesByIdentitiesOptions } from '@/features/reference-data/api/queries';
+import { productLabel } from '@/features/reference-data/lib/products';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 
-const productLabel = (product: Orderable) =>
-  product.fullProductName
-    ? `${product.productCode} - ${product.fullProductName}`
-    : product.productCode;
 export type AddProductsDialogProps = {
-  open?: boolean;
-  products: readonly Orderable[];
-  load?: {
+  load: {
     identities: readonly OrderableIdentity[];
     select: (products: readonly Orderable[]) => readonly Orderable[];
   };
   onSave: (products: Orderable[]) => void;
   onClose: () => void;
 };
-export function AddProductsDialog({ open = true, onClose, ...props }: AddProductsDialogProps) {
+export function AddProductsDialog({ onClose, ...props }: AddProductsDialogProps) {
   return (
     <FormDialog
-      open={open}
+      open
       onOpenChange={(value) => {
         if (!value) onClose();
       }}
       size="table"
     >
-      {open && (
-        <QueryBoundary
-          resetKey="requisition-products"
-          errorComponent={ProductsError}
-          pendingFallback={<ProductsPending />}
-        >
-          {props.load ? (
-            <AvailableProductsForm {...props} load={props.load} />
-          ) : (
-            <ProductsForm {...props} />
-          )}
-        </QueryBoundary>
-      )}
+      <QueryBoundary
+        resetKey="requisition-products"
+        errorComponent={ProductsError}
+        pendingFallback={<ProductsPending />}
+      >
+        <AvailableProductsForm {...props} />
+      </QueryBoundary>
     </FormDialog>
   );
 }
@@ -92,40 +81,23 @@ function ProductsPending() {
 function ProductsError({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation();
   return (
-    <>
-      <FormDialogHeader>
-        <FormDialogTitle>{t('requisitions.edit.products.add-products')}</FormDialogTitle>
-        <FormDialogDescription>
-          {t('requisitions.edit.products.selection-description')}
-        </FormDialogDescription>
-      </FormDialogHeader>
-      <FormDialogBody>
-        <ListError
-          error={error}
-          reset={reset}
-          description={t('requisitions.requisition.section-error-description')}
-          title={t('requisitions.requisition.section-error-title')}
-        />
-      </FormDialogBody>
-      <FormDialogFooter>
-        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
-      </FormDialogFooter>
-    </>
+    <DialogLoadError
+      title={t('requisitions.edit.products.add-products')}
+      errorTitle={t('requisitions.requisition.section-error-title')}
+      error={error}
+      onRetry={reset}
+    />
   );
 }
-function AvailableProductsForm({
-  load,
-  ...props
-}: Omit<AddProductsDialogProps, 'open' | 'onClose'> & {
-  load: NonNullable<AddProductsDialogProps['load']>;
-}) {
+
+function AvailableProductsForm({ load, ...props }: Omit<AddProductsDialogProps, 'onClose'>) {
   const { data } = useSuspenseQuery(orderablesByIdentitiesOptions(load.identities));
   return <ProductsForm {...props} products={load.select(data)} />;
 }
 function ProductsForm({
   products: options,
   onSave,
-}: Omit<AddProductsDialogProps, 'open' | 'onClose'>) {
+}: Pick<AddProductsDialogProps, 'onSave'> & { products: readonly Orderable[] }) {
   const { t } = useTranslation();
   const [picked, setPicked] = useState(new Map<string, true>());
   const [query, setQuery] = useState('');

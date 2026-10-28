@@ -29,6 +29,12 @@ import { validateLine } from '@/features/requisitions/lib/validation';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
 
+type LineCacheEntry = {
+  source: RequisitionLine['line'] | undefined;
+  changes?: LineDraft;
+  model: RequisitionLine & { canSkip: boolean };
+  errors: Record<string, ParseKeys>;
+};
 function RequisitionTabsView({
   record,
   editing,
@@ -84,17 +90,7 @@ function RequisitionTabsView({
     () => new Map(record.requisitionLineItems.map((line) => [line.id, line])),
     [record],
   );
-  const cache = useRef(
-    new Map<
-      string,
-      {
-        source: RequisitionLine['line'] | undefined;
-        changes?: LineDraft;
-        model: RequisitionLine;
-        errors: Record<string, ParseKeys>;
-      }
-    >(),
-  );
+  const cache = useRef(new Map<string, LineCacheEntry>());
   const { models, totals, errors } = useMemo(() => {
     if (
       cacheContext.current.record !== record ||
@@ -108,42 +104,38 @@ function RequisitionTabsView({
         editable: editing?.editable,
       };
     }
-    const next = new Map<
-      string,
-      {
-        source: RequisitionLine['line'] | undefined;
-        changes?: LineDraft;
-        model: RequisitionLine;
-        errors: Record<string, ParseKeys>;
-      }
-    >();
+    const next = new Map<string, LineCacheEntry>();
     const models = buildLines(current, products, approvedProducts).map((model) => {
       const source = sources.get(model.line.id);
       const changes = draft?.lines[model.line.id];
       const previous = cache.current.get(model.line.id);
-      const entry =
-        previous &&
-        previous.source === source &&
-        previous.changes === changes &&
-        previous.model.product === model.product &&
-        previous.model.approvedProduct === model.approvedProduct
-          ? previous
-          : {
-              source,
-              changes,
-              model: {
-                ...model,
-                line: calculateLine(model, record, period.durationInMonths ?? 1),
-                canSkip: canSkipLine({ ...model.line, ...changes }, record.template, {
-                  tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
-                  status: record.status,
-                  emergency: record.emergency,
-                }),
-              },
-              errors: editing?.editable
-                ? validateLine(model, record, period.durationInMonths ?? 1)
-                : {},
-            };
+      let entry = previous;
+      if (
+        !entry ||
+        entry.source !== source ||
+        entry.changes !== changes ||
+        entry.model.product !== model.product ||
+        entry.model.approvedProduct !== model.approvedProduct
+      ) {
+        const line = calculateLine(model, record, period.durationInMonths ?? 1);
+        const errors: Record<string, ParseKeys> = editing?.editable
+          ? validateLine(model, record, period.durationInMonths ?? 1, changes)
+          : {};
+        entry = {
+          source,
+          changes,
+          model: {
+            ...model,
+            line,
+            canSkip: canSkipLine({ ...line, ...changes }, record.template, {
+              tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
+              status: record.status,
+              emergency: record.emergency,
+            }),
+          },
+          errors,
+        };
+      }
       next.set(model.line.id, entry);
       return entry.model;
     });

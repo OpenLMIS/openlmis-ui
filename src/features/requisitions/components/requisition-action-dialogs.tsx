@@ -1,5 +1,5 @@
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActionTooltip } from '@/components/action-tooltip';
 import { InvalidSubmitDialog } from '@/components/invalid-submit-dialog';
@@ -14,11 +14,15 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import type { RequisitionAction } from '@/features/requisitions/lib/capabilities';
+import type { RequisitionFailure } from '@/features/requisitions/lib/failure';
 import { useOnline } from '@/lib/online';
 
-export type RequisitionAction = 'submit' | 'submit-and-authorize' | 'authorize' | 'skip' | 'delete';
+type ConfirmAction =
+  | Extract<RequisitionAction, 'submit' | 'submitAndAuthorize' | 'authorize' | 'skip' | 'delete'>
+  | 'update';
 export type RequisitionActionDialogProps = {
-  action: RequisitionAction;
+  action: ConfirmAction;
   pending?: boolean;
   onConfirm: () => void;
   onClose: () => void;
@@ -48,7 +52,7 @@ export function RequisitionActionDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
             {t(
-              `requisitions.edit.actions.${action === 'submit-and-authorize' ? 'submit' : action}-confirm`,
+              `requisitions.edit.actions.${action === 'submitAndAuthorize' ? 'submit' : action}-confirm`,
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -70,11 +74,6 @@ export function RequisitionActionDialog({
     </AlertDialog>
   );
 }
-export type RequisitionFailure =
-  | { kind: 'server'; message: string }
-  | { kind: 'forbidden' }
-  | { kind: 'conflict' }
-  | { kind: 'key-used' };
 export type RequisitionErrorDialogProps = {
   error: RequisitionFailure;
   pending?: boolean;
@@ -96,7 +95,9 @@ export function RequisitionErrorDialog({
       open
       title={t('requisitions.edit.error-title')}
       description={
-        error.kind === 'server' ? error.message : t(`requisitions.edit.error.${error.kind}`)
+        error.kind === 'server'
+          ? (error.message ?? t('requisitions.edit.error-description'))
+          : t(`requisitions.edit.error.${error.kind}`)
       }
       onOpenChange={(open) => {
         if (!open && !pending) onClose();
@@ -123,12 +124,10 @@ export function RequisitionErrorDialog({
 }
 export function RequisitionValidationDialog({
   allSkipped = false,
-  description,
   onClose,
   finalFocus,
 }: {
   allSkipped?: boolean;
-  description?: ReactNode;
   onClose: () => void;
   finalFocus?: ComponentProps<typeof InvalidSubmitDialog>['finalFocus'];
 }) {
@@ -140,7 +139,7 @@ export function RequisitionValidationDialog({
       description={
         allSkipped
           ? t('requisitions.edit.validation.all-skipped')
-          : (description ?? t('requisitions.edit.validation-description'))
+          : t('requisitions.edit.validation-description')
       }
       closeLabel={t('dialog.close')}
       finalFocus={finalFocus}
