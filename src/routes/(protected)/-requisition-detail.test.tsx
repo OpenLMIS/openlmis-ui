@@ -82,7 +82,7 @@ vi.mock('@/features/requisitions/components/requisition-skeletons', async (impor
   ...(await importOriginal<
     typeof import('@/features/requisitions/components/requisition-skeletons')
   >()),
-  RequisitionGridPending: ({ hideSkipped }: { hideSkipped?: boolean }) => (
+  RequisitionTabsPending: ({ hideSkipped }: { hideSkipped?: boolean }) => (
     <div role="status" aria-label={hideSkipped ? 'pending-skipped-filter' : 'pending-products'} />
   ),
 }));

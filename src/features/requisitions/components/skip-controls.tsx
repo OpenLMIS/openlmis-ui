@@ -12,7 +12,6 @@ export function SkipControls({
   all: GridModel[];
   page: GridModel[];
 }) {
-  const { t } = useTranslation();
   const set = (lines: GridModel[], skipped: boolean) => {
     if (editing.pending) return;
     editing.editor.setLines(
@@ -23,30 +22,31 @@ export function SkipControls({
     );
   };
   return (
+    <SkipButtons
+      disabled={editing.pending}
+      onSet={(target, skipped) => set(target === 'page' ? page : all, skipped)}
+    />
+  );
+}
+
+export function SkipButtons({
+  disabled,
+  onSet = () => {},
+}: {
+  disabled: boolean;
+  onSet?: (target: 'all' | 'page', skipped: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  return (
     <div className="w-full @2xl/main:w-auto">
       <ButtonGroup aria-label={t('requisitions.edit.skip-lines')} width="full">
-        <Button
-          disabled={editing.pending}
-          size="lg"
-          variant="outline"
-          onClick={() => set(all, true)}
-        >
+        <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('all', true)}>
           {t('requisitions.edit.skip-all')}
         </Button>
-        <Button
-          disabled={editing.pending}
-          size="lg"
-          variant="outline"
-          onClick={() => set(page, true)}
-        >
+        <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('page', true)}>
           {t('requisitions.edit.skip-page')}
         </Button>
-        <Button
-          disabled={editing.pending}
-          size="lg"
-          variant="outline"
-          onClick={() => set(all, false)}
-        >
+        <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('all', false)}>
           {t('requisitions.edit.skip-none')}
         </Button>
       </ButtonGroup>

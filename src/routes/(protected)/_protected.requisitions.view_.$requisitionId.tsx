@@ -1,5 +1,10 @@
 import { useStore } from '@tanstack/react-form';
-import { useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  useQuery,
+  useQueryClient,
+  useSuspenseQueries,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps, useRouter } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon } from 'lucide-react';
@@ -38,7 +43,7 @@ import {
   requisitionGroupOptions,
   supervisoryNodesByIdsOptions,
 } from '@/features/reference-data/api/queries';
-import type { Orderable } from '@/features/reference-data/lib/types';
+import type { Orderable, Program } from '@/features/reference-data/lib/types';
 import {
   authorizeRequisition,
   createRequisitionActionAttempt,
@@ -67,10 +72,10 @@ import { RequisitionError } from '@/features/requisitions/components/requisition
 import { RequisitionFooter } from '@/features/requisitions/components/requisition-footer';
 import { RequisitionHeader } from '@/features/requisitions/components/requisition-header';
 import {
+  type PendingEditing,
   RequisitionCommentsSkeleton,
-  RequisitionGridPending,
   RequisitionHeaderSkeleton,
-  RequisitionTabsSkeleton,
+  RequisitionTabsPending,
 } from '@/features/requisitions/components/requisition-skeletons';
 import { RequisitionTabs } from '@/features/requisitions/components/requisition-tabs';
 import { StockCountDateDialog } from '@/features/requisitions/components/stock-count-date-dialog';
@@ -106,6 +111,7 @@ import { randomId } from '@/lib/random-id';
 import { REQUISITION_STATUS, REQUISITION_STATUSES } from '@/lib/requisition-status';
 import { revealField } from '@/lib/reveal-field';
 import { RIGHTS } from '@/lib/rights';
+import { isSecureOrigin } from '@/lib/secure-context';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { detailPagingSchema, textFilterSchema } from '@/lib/table-search';
 
@@ -191,28 +197,30 @@ function RequisitionPage() {
     <QueryBoundary
       resetKey={data.record.id}
       errorComponent={(props) => (
-        <RequisitionReadShell data={data}>
+        <RequisitionReadShell data={data} quantity={quantity}>
           <SectionError {...props} />
         </RequisitionReadShell>
       )}
-      pendingFallback={
-        <RequisitionReadShell data={data}>
-          <RequisitionGridPending
-            record={data.record}
-            hideSkipped={hidesSkipped(data.record.template)}
-          />
-        </RequisitionReadShell>
-      }
+      pendingFallback={<RequisitionReadShell data={data} quantity={quantity} />}
     >
       <RequisitionBody key={`${userId}:${data.record.id}`} data={data} quantity={quantity} />
     </QueryBoundary>
   );
 }
 
-function RequisitionReadShell({ data, children }: { data: RequisitionData; children: ReactNode }) {
+function RequisitionReadShell({
+  data,
+  quantity,
+  children,
+}: {
+  data: RequisitionData;
+  quantity: ReturnType<typeof useQuantityUnit>;
+  children?: ReactNode;
+}) {
   const record = data.record;
   const search = Route.useSearch();
   const { openDialog, closeDialog } = useSearchNavigation<typeof search>(CLOSED_DIALOGS);
+  const pending = pendingPolicy(record, data.access, useCachedProgram(record.program.id));
   return (
     <>
       <Workspace width="wide">
@@ -224,33 +232,54 @@ function RequisitionReadShell({ data, children }: { data: RequisitionData; child
           >
             <RequisitionHeading record={record} />
           </QueryBoundary>
+          <WorkspaceActions>
+            <PrintPending />
+          </WorkspaceActions>
         </WorkspaceHeader>
         <WorkspaceContent>
-          <QueryBoundary
-            resetKey={record.id}
-            errorComponent={SectionError}
-            pendingFallback={<RequisitionHeaderSkeleton record={record} />}
-          >
-            <RequisitionHeader record={record} />
-          </QueryBoundary>
-          <QueryBoundary
-            resetKey={record.id}
-            errorComponent={SectionError}
-            pendingFallback={<RequisitionCommentsSkeleton />}
-          >
-            <RequisitionComments
-              record={record}
-              history={search.history}
-              rejection={search.rejection}
-              onHistory={() => void openDialog({ history: true })}
-              onRejection={() => void openDialog({ rejection: true })}
-              onClose={closeDialog}
-            />
-          </QueryBoundary>
-          {children}
+          <div className="flex flex-col gap-4">
+            <QueryBoundary
+              resetKey={record.id}
+              errorComponent={SectionError}
+              pendingFallback={<RequisitionHeaderSkeleton record={record} />}
+            >
+              <RequisitionHeader record={record} />
+            </QueryBoundary>
+            {pending.policy.deferred.length > 0 && <LegacyActionsNote requisitionId={record.id} />}
+            <QueryBoundary
+              resetKey={record.id}
+              errorComponent={SectionError}
+              pendingFallback={
+                <RequisitionCommentsSkeleton record={record} canComment={pending.policy.comments} />
+              }
+            >
+              <RequisitionComments
+                record={record}
+                pending
+                canComment={pending.policy.comments}
+                history={search.history}
+                rejection={search.rejection}
+                onHistory={() => void openDialog({ history: true })}
+                onRejection={() => void openDialog({ rejection: true })}
+                onClose={closeDialog}
+              />
+            </QueryBoundary>
+            {children ?? (
+              <RequisitionTabsPending
+                record={record}
+                tab={search.tab}
+                showNonFullSupply={pending.showNonFullSupply}
+                editing={pending.editing}
+                supplyingStock={pending.supplyingStock}
+                unit={quantity.unit}
+                canSwitch={quantity.canSwitch}
+                hideSkipped={hidesSkipped(record.template, search.tab)}
+              />
+            )}
+          </div>
         </WorkspaceContent>
       </Workspace>
-      <RequisitionPendingFooter record={record} permissions={data.access.permissions} />
+      <RequisitionPendingFooter policy={pending.policy} />
     </>
   );
 }
@@ -676,7 +705,9 @@ function RequisitionBody({
             <QueryBoundary
               resetKey={record.id}
               errorComponent={SectionError}
-              pendingFallback={<RequisitionCommentsSkeleton />}
+              pendingFallback={
+                <RequisitionCommentsSkeleton record={record} canComment={policy.comments} />
+              }
             >
               <RequisitionComments
                 pending={editingBlocked || editor.locked}
@@ -695,16 +726,19 @@ function RequisitionBody({
               resetKey={record.id}
               errorComponent={SectionError}
               pendingFallback={
-                <>
-                  <RequisitionTabsSkeleton record={record} />
-                  <RequisitionGridPending
-                    record={record}
-                    tab={search.tab}
-                    unit={unit}
-                    hideSkipped={hidesSkipped(record.template, search.tab)}
-                    canSwitch={canSwitch}
-                  />
-                </>
+                <RequisitionTabsPending
+                  record={record}
+                  tab={search.tab}
+                  showNonFullSupply={!!program.showNonFullSupplyTab}
+                  editing={{ ...policy, deviceAvailable: editor.device.deviceAvailable }}
+                  supplyingStock={
+                    policy.approver &&
+                    !!record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed
+                  }
+                  unit={unit}
+                  hideSkipped={hidesSkipped(record.template, search.tab)}
+                  canSwitch={canSwitch}
+                />
               }
             >
               <RequisitionPolicyTabs
@@ -1008,22 +1042,7 @@ function RequisitionHeadingSkeleton() {
 function useRequisitionPolicy(data: RequisitionData) {
   const { record, access } = data;
   const { data: program } = useSuspenseQuery(programLookupOptions(record.program.id));
-  const approveRoles = new Set(
-    access.roles
-      .filter((role) => role.rights.some(({ name }) => name === RIGHTS.requisitionApprove))
-      .map(({ id }) => id),
-  );
-  const approvalNodes = [
-    ...new Set(
-      access.user.roleAssignments.flatMap((assignment) =>
-        assignment.programId === record.program.id &&
-        assignment.supervisoryNodeId &&
-        approveRoles.has(assignment.roleId)
-          ? [assignment.supervisoryNodeId]
-          : [],
-      ),
-    ),
-  ];
+  const approvalNodes = approvalNodesFor(access, record.program.id);
   const { data: nodes } = useSuspenseQuery(
     supervisoryNodesByIdsOptions(
       !record.supervisoryNode && ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status)
@@ -1102,16 +1121,27 @@ function RequisitionPrint({
 }
 function TitleSkeleton() {
   return (
-    <span className="block h-7 w-64">
+    <span className="block h-5 w-64 max-w-full">
       <Skeleton fill />
     </span>
   );
 }
 function DescriptionSkeleton() {
   return (
-    <span className="block h-4 w-48">
-      <Skeleton fill />
+    <span className="flex h-5 items-center">
+      <span className="block h-4 w-48 max-w-full">
+        <Skeleton fill />
+      </span>
     </span>
+  );
+}
+function PrintPending() {
+  const { t } = useTranslation();
+  return (
+    <Button size="lg" disabled>
+      <PrinterIcon data-icon="inline-start" />
+      {t('requisitions.requisition.print')}
+    </Button>
   );
 }
 function RequisitionPending() {
@@ -1120,6 +1150,8 @@ function RequisitionPending() {
     requisitionOptions(Route.useParams().requisitionId).queryKey,
   );
   const queryClient = useQueryClient();
+  const quantity = useQuantityUnit();
+  const search = Route.useSearch();
   const userId = useLoginData((state) => state.referenceDataUserId);
   const record = queryClient.getQueryData(
     requisitionOptions(Route.useParams().requisitionId).queryKey,
@@ -1127,45 +1159,100 @@ function RequisitionPending() {
   const permissions = userId
     ? queryClient.getQueryData(permissionsOptions(userId).queryKey)
     : undefined;
+  const program = useCachedProgram(record?.program.id);
+  const pending = record && permissions && pendingPolicy(record, { permissions }, program);
   return (
     <>
       <Workspace width="wide">
         <WorkspaceHeader>
           <RequisitionHeadingSkeleton />
           <WorkspaceActions>
-            <div className="h-9 w-24">
-              <Skeleton fill />
-            </div>
+            <PrintPending />
           </WorkspaceActions>
         </WorkspaceHeader>
         <WorkspaceContent>
           <div aria-busy className="flex flex-col gap-4">
-            <RequisitionHeaderSkeleton />
-            <RequisitionCommentsSkeleton />
-            <RequisitionTabsSkeleton />
-            <RequisitionGridPending />
+            <RequisitionHeaderSkeleton record={record} />
+            <RequisitionCommentsSkeleton record={record} canComment={pending?.policy.comments} />
+            <RequisitionTabsPending
+              record={record}
+              tab={search.tab}
+              showNonFullSupply={pending?.showNonFullSupply}
+              editing={pending?.editing}
+              supplyingStock={pending?.supplyingStock}
+              unit={quantity.unit}
+              canSwitch={quantity.canSwitch}
+              hideSkipped={!!record && hidesSkipped(record.template, search.tab)}
+            />
           </div>
         </WorkspaceContent>
       </Workspace>
-      {record && permissions && (
-        <RequisitionPendingFooter record={record} permissions={permissions} />
-      )}
+      {pending && <RequisitionPendingFooter policy={pending.policy} />}
     </>
   );
 }
-function RequisitionPendingFooter({
-  record,
-  permissions,
-}: {
-  record: RequisitionRecord;
-  permissions: RequisitionData['access']['permissions'];
-}) {
-  const grants = permissions.grants
+type PendingAccess = Pick<RequisitionData['access'], 'permissions'> &
+  Partial<Pick<RequisitionData['access'], 'user' | 'roles'>>;
+function approvalNodesFor(access: PendingAccess, programId: string) {
+  if (!access.user || !access.roles) return [];
+  const approveRoles = new Set(
+    access.roles
+      .filter((role) => role.rights.some(({ name }) => name === RIGHTS.requisitionApprove))
+      .map(({ id }) => id),
+  );
+  return [
+    ...new Set(
+      access.user.roleAssignments.flatMap((assignment) =>
+        assignment.programId === programId &&
+        assignment.supervisoryNodeId &&
+        approveRoles.has(assignment.roleId)
+          ? [assignment.supervisoryNodeId]
+          : [],
+      ),
+    ),
+  ];
+}
+function pendingPolicy(
+  record: RequisitionRecord,
+  access: PendingAccess,
+  program: Program | undefined,
+) {
+  const grants = access.permissions.grants
     .filter(
       (grant) => grant.facilityId === record.facility.id && grant.programId === record.program.id,
     )
     .map(({ right }) => right);
-  const policy = requisitionCapabilities({ ...record, grants, approvalNodes: [] });
+  const policy = requisitionCapabilities({
+    ...record,
+    program: program
+      ? {
+          ...program,
+          name: program.name ?? undefined,
+          showNonFullSupplyTab: program.showNonFullSupplyTab ?? undefined,
+        }
+      : record.program,
+    grants,
+    approvalNodes: approvalNodesFor(access, record.program.id),
+    currentNodeId: record.supervisoryNode,
+    isSplit: !!record.extraData?.originalRequisition,
+  });
+  const editing: PendingEditing = { ...policy, deviceAvailable: isSecureOrigin };
+  return {
+    policy,
+    editing,
+    showNonFullSupply: program ? !!program.showNonFullSupplyTab : true,
+    supplyingStock:
+      policy.approver && !!record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed,
+  };
+}
+function useCachedProgram(id: string | undefined) {
+  return useQuery({ ...programLookupOptions(id ?? ''), enabled: false }).data;
+}
+function RequisitionPendingFooter({
+  policy,
+}: {
+  policy: ReturnType<typeof requisitionCapabilities>;
+}) {
   if (!policy.editable) return null;
   return <RequisitionFooter policy={policy} pending disabled onAction={() => {}} />;
 }

@@ -14,7 +14,6 @@ import { ListError } from '@/components/list-error';
 import { LoadError } from '@/components/load-error';
 import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
   WorkspaceContent,
@@ -169,31 +168,37 @@ function PageSkeleton({
   columnView: ColumnView;
   search: RequisitionSearch;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <RequisitionSearchPickerSkeleton />
-      {search.facility && (
-        <div aria-busy className="flex flex-col gap-4">
-          <div className="flex h-6 items-center">
-            <div className="h-4 w-72 max-w-full">
-              <Skeleton fill />
-            </div>
-          </div>
-          <fieldset className="min-w-0" disabled>
-            <RequisitionsToolbar
-              disabled
-              onFilterChange={noop}
-              search={search}
-              view={<ColumnsMenu columnView={columnView} search={search} onSearchChange={noop} />}
-            />
-          </fieldset>
+      <div aria-busy className="flex flex-col gap-4">
+        <fieldset className="min-w-0" disabled>
+          <RequisitionsToolbar
+            disabled
+            onFilterChange={noop}
+            search={search}
+            view={
+              search.facility ? (
+                <ColumnsMenu columnView={columnView} search={search} onSearchChange={noop} />
+              ) : undefined
+            }
+          />
+        </fieldset>
+        {search.facility ? (
           <RequisitionsTableSkeleton
             cards={columnView.cards}
             columns={columnView.columnView.visibility}
             search={search}
           />
-        </div>
-      )}
+        ) : (
+          <OutcomeMessage
+            icon={<ClipboardListIcon />}
+            title={t('requisitions.view.pick-title')}
+            description={t('requisitions.view.pick-description')}
+          />
+        )}
+      </div>
     </>
   );
 }

@@ -30,6 +30,7 @@ export function RequisitionComments({
   onRejection,
   onComment = () => {},
   onClose,
+  canComment = false,
 }: {
   record: RequisitionRecord;
   editor?: RequisitionEditor;
@@ -41,11 +42,14 @@ export function RequisitionComments({
   onRejection: () => void;
   onComment?: () => void;
   onClose: () => void;
+  canComment?: boolean;
 }) {
   const { t } = useTranslation();
   const headingId = useId();
   const sectionRef = useRef<HTMLElement>(null);
-  const draftComment = useDraftComment(editor);
+  const editorDraft = useDraftComment(editor);
+  const draftComment = editor ? editorDraft : canComment ? (record.draftStatusMessage ?? '') : '';
+  const commenting = !!editor || canComment;
   const { data } = useSuspenseQuery(requisitionStatusMessagesOptions(record.id));
   const messages = data.toSorted((a, b) => b.createdDate.localeCompare(a.createdDate));
   const latest = messages[0];
@@ -70,10 +74,10 @@ export function RequisitionComments({
             {t('requisitions.requisition.view-rejection')}
           </Button>
         )}
-        {editor && !draftComment && (
+        {commenting && !draftComment && (
           <Button
             data-comment-return
-            disabled={pending}
+            disabled={pending || !editor}
             size="lg"
             variant="outline"
             onClick={onComment}
@@ -83,13 +87,13 @@ export function RequisitionComments({
           </Button>
         )}
       </div>
-      {editor && draftComment && (
+      {commenting && draftComment && (
         <DraftComment
           text={draftComment}
-          pending={pending}
+          pending={pending || !editor}
           onEdit={onComment}
           onRemove={() => {
-            editor.form.setFieldValue('draft.draftStatusMessage', '');
+            editor?.form.setFieldValue('draft.draftStatusMessage', '');
             requestAnimationFrame(() =>
               sectionRef.current?.querySelector<HTMLElement>('[data-comment-return]')?.focus(),
             );

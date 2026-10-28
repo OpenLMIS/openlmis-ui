@@ -74,14 +74,20 @@ export function RecordSummaryField({ label, children }: { label: string; childre
   );
 }
 
-export function RecordSummaryFieldSkeleton() {
+export function RecordSummaryFieldSkeleton({ label }: { label?: string }) {
   return (
     <div className={FIELD_CLASS}>
-      <div className="flex h-4 items-center">
-        <div className="h-3 w-16">
-          <Skeleton fill />
+      {label ? (
+        <div className="shrink-0 text-sm @2xl/main:text-muted-foreground @2xl/main:text-xs">
+          {label}
         </div>
-      </div>
+      ) : (
+        <div className="flex h-4 items-center">
+          <div className="h-3 w-16">
+            <Skeleton fill />
+          </div>
+        </div>
+      )}
       <div className="flex h-5 items-center">
         <div className="h-4 w-28">
           <Skeleton fill />
