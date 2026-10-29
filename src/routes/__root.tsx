@@ -21,6 +21,7 @@ import { TranslatedFormMessages } from '@/components/translated-form-messages';
 import { DialogCloseLabelProvider } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { countUnsyncedRequisitionDrafts } from '@/features/requisitions/lib/unsynced-device-work';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import type { InitialTrigger } from '@/lib/offline-coordinator';
 import { isSecureOrigin } from '@/lib/secure-context';
@@ -31,6 +32,11 @@ const DeviceWorkProvider = lazy(() =>
     default: module.DeviceWorkProvider,
   })),
 );
+
+async function countUnsyncedWork() {
+  const counts = await Promise.all([countUnsyncedDeviceWork(), countUnsyncedRequisitionDrafts()]);
+  return counts.reduce((total, count) => total + count, 0);
+}
 
 export function SignedInDeviceWork({ children }: { children: ReactNode }) {
   const authenticated = useLoginData((state) => state.isAuthenticated);
@@ -48,7 +54,7 @@ export function SignedInDeviceWork({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       ...(authenticated && work.scope === scope ? work.value : EMPTY_DEVICE_WORK),
-      countUnsyncedWork: countUnsyncedDeviceWork,
+      countUnsyncedWork,
     }),
     [authenticated, work, scope],
   );

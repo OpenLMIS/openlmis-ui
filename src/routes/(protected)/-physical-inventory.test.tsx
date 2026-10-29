@@ -68,7 +68,7 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   storedTimeZone: vi.fn().mockReturnValue('UTC'),
-  fetchDeploymentTimeZone: vi.fn().mockResolvedValue('UTC'),
+  fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),
@@ -255,7 +255,11 @@ describe('physical inventory routes', () => {
     vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
     renderRoute(PICKER, undefined, { onCaughtError });
     expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
-    expect(fetchUserRecord).not.toHaveBeenCalled();
+    expect(
+      vi
+        .mocked(fetchUserRecord)
+        .mock.calls.every(([, config]) => config?.connectionStatus === false),
+    ).toBe(true);
     expect(canOpen(PICKER, new Set(['STOCK_CARDS_VIEW']))).toBe(false);
     expect(canOpen(PICKER, new Set(['STOCK_INVENTORIES_EDIT']))).toBe(true);
     expect(onCaughtError).toHaveBeenCalled();

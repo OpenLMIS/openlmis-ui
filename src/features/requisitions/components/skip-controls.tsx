@@ -1,0 +1,56 @@
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import { ButtonGroup, ButtonGroupText } from '@/components/ui/button-group';
+import type { GridEditing, GridModel } from '@/features/requisitions/components/requisition-grid';
+
+export function SkipControls({
+  editing,
+  all,
+  page,
+}: {
+  editing: GridEditing;
+  all: GridModel[];
+  page: GridModel[];
+}) {
+  const set = (lines: GridModel[], skipped: boolean) => {
+    if (editing.pending) return;
+    editing.editor.setLines(
+      lines
+        .filter((model) => model.fullSupply && (!skipped || model.canSkip))
+        .map((model) => model.line.id),
+      { skipped },
+    );
+  };
+  return (
+    <SkipButtons
+      disabled={editing.pending}
+      onSet={(target, skipped) => set(target === 'page' ? page : all, skipped)}
+    />
+  );
+}
+
+export function SkipButtons({
+  disabled,
+  onSet = () => {},
+}: {
+  disabled: boolean;
+  onSet?: (target: 'all' | 'page', skipped: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="w-full @2xl/main:w-auto">
+      <ButtonGroup aria-label={t('requisitions.edit.skip-lines')} width="full">
+        <ButtonGroupText>{t('requisitions.edit.skip')}</ButtonGroupText>
+        <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('all', true)}>
+          {t('requisitions.edit.skip-all')}
+        </Button>
+        <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('page', true)}>
+          {t('requisitions.edit.skip-page')}
+        </Button>
+        <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('all', false)}>
+          {t('requisitions.edit.skip-none')}
+        </Button>
+      </ButtonGroup>
+    </div>
+  );
+}

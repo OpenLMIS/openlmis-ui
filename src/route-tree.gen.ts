@@ -42,6 +42,7 @@ import { Route as protectedProtectedAdministrationValidSourcesRouteImport } from
 import { Route as protectedProtectedProfileIndexRouteImport } from './routes/(protected)/_protected.profile.index'
 import { Route as protectedProtectedProfileNotificationsRouteImport } from './routes/(protected)/_protected.profile.notifications'
 import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(protected)/_protected.profile.roles'
+import { Route as protectedProtectedRequisitionsViewRouteImport } from './routes/(protected)/_protected.requisitions.view'
 import { Route as protectedProtectedSettingsIndexRouteImport } from './routes/(protected)/_protected.settings.index'
 import { Route as protectedProtectedSettingsFeatureFlagsRouteImport } from './routes/(protected)/_protected.settings.feature-flags'
 import { Route as protectedProtectedSettingsThemeRouteImport } from './routes/(protected)/_protected.settings.theme'
@@ -64,6 +65,7 @@ import { Route as protectedProtectedAdministrationRequisitionGroupsNewRouteImpor
 import { Route as protectedProtectedAdministrationRequisitionTemplatesIdRouteImport } from './routes/(protected)/_protected.administration.requisition-templates_.$id'
 import { Route as protectedProtectedAdministrationSupervisoryNodesIdRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes_.$id'
 import { Route as protectedProtectedAdministrationSupplyPartnersIdRouteImport } from './routes/(protected)/_protected.administration.supply-partners_.$id'
+import { Route as protectedProtectedRequisitionsViewRequisitionIdRouteImport } from './routes/(protected)/_protected.requisitions.view_.$requisitionId'
 import { Route as protectedProtectedStockManagementAdjustmentsProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.adjustments_.$programId'
 import { Route as protectedProtectedStockManagementIssueProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.issue_.$programId'
 import { Route as protectedProtectedStockManagementPhysicalInventoryProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.physical-inventory_.$programId'
@@ -271,6 +273,12 @@ const protectedProtectedProfileRolesRoute =
     path: '/roles',
     getParentRoute: () => protectedProtectedProfileRoute,
   } as any)
+const protectedProtectedRequisitionsViewRoute =
+  protectedProtectedRequisitionsViewRouteImport.update({
+    id: '/requisitions/view',
+    path: '/requisitions/view',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedSettingsIndexRoute =
   protectedProtectedSettingsIndexRouteImport.update({
     id: '/',
@@ -405,6 +413,12 @@ const protectedProtectedAdministrationSupplyPartnersIdRoute =
     path: '/administration/supply-partners/$id',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedRequisitionsViewRequisitionIdRoute =
+  protectedProtectedRequisitionsViewRequisitionIdRouteImport.update({
+    id: '/requisitions/view_/$requisitionId',
+    path: '/requisitions/view/$requisitionId',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedStockManagementAdjustmentsProgramIdRoute =
   protectedProtectedStockManagementAdjustmentsProgramIdRouteImport.update({
     id: '/stock-management/adjustments_/$programId',
@@ -532,6 +546,7 @@ export interface FileRoutesByFullPath {
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
+  '/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
@@ -555,6 +570,7 @@ export interface FileRoutesByFullPath {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
   '/stock-management/physical-inventory/$programId': typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
@@ -601,6 +617,7 @@ export interface FileRoutesByTo {
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
+  '/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
@@ -623,6 +640,7 @@ export interface FileRoutesByTo {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
   '/stock-management/physical-inventory/$programId': typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
@@ -673,6 +691,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/(protected)/_protected/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
+  '/(protected)/_protected/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/(protected)/_protected/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
   '/(protected)/_protected/settings/theme': typeof protectedProtectedSettingsThemeRoute
   '/(protected)/_protected/stock-management/adjustments': typeof protectedProtectedStockManagementAdjustmentsRoute
@@ -696,6 +715,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/requisition-templates_/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/(protected)/_protected/administration/supervisory-nodes_/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/(protected)/_protected/administration/supply-partners_/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/(protected)/_protected/requisitions/view_/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/(protected)/_protected/stock-management/adjustments_/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/(protected)/_protected/stock-management/issue_/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
   '/(protected)/_protected/stock-management/physical-inventory_/$programId': typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
@@ -746,6 +766,7 @@ export interface FileRouteTypes {
     | '/administration/valid-sources'
     | '/profile/notifications'
     | '/profile/roles'
+    | '/requisitions/view'
     | '/settings/feature-flags'
     | '/settings/theme'
     | '/stock-management/adjustments'
@@ -769,6 +790,7 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/requisitions/view/$requisitionId'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
     | '/stock-management/physical-inventory/$programId'
@@ -815,6 +837,7 @@ export interface FileRouteTypes {
     | '/administration/valid-sources'
     | '/profile/notifications'
     | '/profile/roles'
+    | '/requisitions/view'
     | '/settings/feature-flags'
     | '/settings/theme'
     | '/stock-management/adjustments'
@@ -837,6 +860,7 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/requisitions/view/$requisitionId'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
     | '/stock-management/physical-inventory/$programId'
@@ -886,6 +910,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/valid-sources'
     | '/(protected)/_protected/profile/notifications'
     | '/(protected)/_protected/profile/roles'
+    | '/(protected)/_protected/requisitions/view'
     | '/(protected)/_protected/settings/feature-flags'
     | '/(protected)/_protected/settings/theme'
     | '/(protected)/_protected/stock-management/adjustments'
@@ -909,6 +934,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/requisition-templates_/$id'
     | '/(protected)/_protected/administration/supervisory-nodes_/$id'
     | '/(protected)/_protected/administration/supply-partners_/$id'
+    | '/(protected)/_protected/requisitions/view_/$requisitionId'
     | '/(protected)/_protected/stock-management/adjustments_/$programId'
     | '/(protected)/_protected/stock-management/issue_/$programId'
     | '/(protected)/_protected/stock-management/physical-inventory_/$programId'
@@ -1167,6 +1193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedProfileRolesRouteImport
       parentRoute: typeof protectedProtectedProfileRoute
     }
+    '/(protected)/_protected/requisitions/view': {
+      id: '/(protected)/_protected/requisitions/view'
+      path: '/requisitions/view'
+      fullPath: '/requisitions/view'
+      preLoaderRoute: typeof protectedProtectedRequisitionsViewRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/settings/': {
       id: '/(protected)/_protected/settings/'
       path: '/'
@@ -1319,6 +1352,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/supply-partners/$id'
       fullPath: '/administration/supply-partners/$id'
       preLoaderRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/requisitions/view_/$requisitionId': {
+      id: '/(protected)/_protected/requisitions/view_/$requisitionId'
+      path: '/requisitions/view/$requisitionId'
+      fullPath: '/requisitions/view/$requisitionId'
+      preLoaderRoute: typeof protectedProtectedRequisitionsViewRequisitionIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/stock-management/adjustments_/$programId': {
@@ -1520,6 +1560,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
+  protectedProtectedRequisitionsViewRoute: typeof protectedProtectedRequisitionsViewRoute
   protectedProtectedStockManagementAdjustmentsRoute: typeof protectedProtectedStockManagementAdjustmentsRoute
   protectedProtectedStockManagementIssueRoute: typeof protectedProtectedStockManagementIssueRoute
   protectedProtectedStockManagementPhysicalInventoryRoute: typeof protectedProtectedStockManagementPhysicalInventoryRoute
@@ -1539,6 +1580,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationRequisitionTemplatesIdRoute: typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   protectedProtectedAdministrationSupervisoryNodesIdRoute: typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   protectedProtectedAdministrationSupplyPartnersIdRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  protectedProtectedRequisitionsViewRequisitionIdRoute: typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   protectedProtectedStockManagementAdjustmentsProgramIdRoute: typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   protectedProtectedStockManagementIssueProgramIdRoute: typeof protectedProtectedStockManagementIssueProgramIdRoute
   protectedProtectedStockManagementPhysicalInventoryProgramIdRoute: typeof protectedProtectedStockManagementPhysicalInventoryProgramIdRoute
@@ -1598,6 +1640,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidDestinationsRoute,
   protectedProtectedAdministrationValidSourcesRoute:
     protectedProtectedAdministrationValidSourcesRoute,
+  protectedProtectedRequisitionsViewRoute:
+    protectedProtectedRequisitionsViewRoute,
   protectedProtectedStockManagementAdjustmentsRoute:
     protectedProtectedStockManagementAdjustmentsRoute,
   protectedProtectedStockManagementIssueRoute:
@@ -1636,6 +1680,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationSupervisoryNodesIdRoute,
   protectedProtectedAdministrationSupplyPartnersIdRoute:
     protectedProtectedAdministrationSupplyPartnersIdRoute,
+  protectedProtectedRequisitionsViewRequisitionIdRoute:
+    protectedProtectedRequisitionsViewRequisitionIdRoute,
   protectedProtectedStockManagementAdjustmentsProgramIdRoute:
     protectedProtectedStockManagementAdjustmentsProgramIdRoute,
   protectedProtectedStockManagementIssueProgramIdRoute:

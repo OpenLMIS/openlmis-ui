@@ -180,3 +180,24 @@ export function pageLocally<T>(items: readonly T[], page: number, size: number) 
     size,
   };
 }
+
+const detailTableSchema = tableSearchSchema(['date']);
+export const detailPagingSchema = z.object({
+  detailPage: detailTableSchema.shape.page,
+  detailSize: detailTableSchema.shape.size,
+});
+export type DetailPagingSearch = z.infer<typeof detailPagingSchema>;
+
+export const detailTableSearch = (search: DetailPagingSearch): TableSearch => ({
+  page: search.detailPage,
+  size: search.detailSize,
+});
+
+export function changeDetailPaging(
+  previous: DetailPagingSearch,
+  update: Partial<TableSearch> | SearchUpdate<TableSearch>,
+): DetailPagingSearch {
+  const current = detailTableSearch(previous);
+  const next = { ...current, ...(typeof update === 'function' ? update(current) : update) };
+  return { detailPage: next.page, detailSize: next.size };
+}

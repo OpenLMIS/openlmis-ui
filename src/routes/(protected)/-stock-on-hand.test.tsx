@@ -51,7 +51,7 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchOrderablesByIds: vi.fn(),
   fetchLotsByIds: vi.fn(),
   storedTimeZone: () => 'UTC',
-  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
+  fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
 }));
 vi.mock('@/features/stock-on-hand/api/api', () => ({
   fetchStockCardSummaries: vi.fn(),

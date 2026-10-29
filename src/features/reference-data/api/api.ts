@@ -1,5 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
+import { uniqueIdentities } from '@/features/reference-data/lib/identities';
 import { latestOrderableVersions } from '@/features/reference-data/lib/latest-orderable-versions';
 import {
   normalizeRejectionReason,
@@ -9,6 +10,7 @@ import {
 } from '@/features/reference-data/lib/rejection-reasons';
 import type {
   ApprovedProduct,
+  CurrencySettings,
   Facility,
   FacilityOperator,
   FacilityType,
@@ -20,11 +22,13 @@ import type {
   OrderableDisplayCategory,
   OrderableFulfills,
   Organization,
+  ProcessingPeriod,
   ProcessingSchedule,
   Program,
   Reason,
   RejectionReason,
   RejectionReasonCategory,
+  RequisitionGroup,
   Role,
   SupervisoryNode,
   TradeItem,
@@ -53,8 +57,8 @@ export function fetchFacilitiesByIds(ids: readonly string[]) {
   return fetchByIds<Facility>('/facilities', ids);
 }
 
-export async function fetchRoles(): Promise<Role[]> {
-  const { data } = await client.get<Role[]>('/roles');
+export async function fetchRoles(config?: AxiosRequestConfig): Promise<Role[]> {
+  const { data } = await client.get<Role[]>('/roles', config);
   return data;
 }
 
@@ -190,30 +194,7 @@ export async function fetchAllOrderableVersions(
   identities: readonly OrderableIdentity[],
   config?: AxiosRequestConfig,
 ): Promise<Orderable[]> {
-  const scope = config?.sessionScope ?? getSessionScope();
-  const unique = [
-    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
-  ];
-  const batches = await fetchIdBatches(unique, async (batch) => {
-    const found: Orderable[] = [];
-    for (let page = 0; ; page += 1) {
-      assertSessionScope(scope);
-      const { data } = await client.post<Page<Orderable>>(
-        '/orderables/search',
-        {
-          identities: batch,
-          page,
-          size: BY_IDS_BATCH,
-        },
-        ...(config ? [config] : []),
-      );
-      assertSessionScope(scope);
-      found.push(...data.content);
-      if (page + 1 >= data.totalPages) break;
-    }
-    return found;
-  });
-  return batches.flat();
+  return fetchByIdentities<Orderable>('/orderables/search', identities, config);
 }
 
 export function fetchLotsByIds(
@@ -458,4 +439,60 @@ export async function fetchProgramOrderables(
     if (page + 1 >= data.totalPages) break;
   }
   return products;
+}
+
+export async function fetchRequisitionGroup(id: string): Promise<RequisitionGroup> {
+  const { data } = await client.get<RequisitionGroup>(`/requisitionGroups/${id}`);
+  return data;
+}
+
+export async function fetchProcessingPeriod(id: string) {
+  const { data } = await client.get<ProcessingPeriod>(`/processingPeriods/${id}`);
+  return data;
+}
+
+export async function fetchProgramLookup(id: string) {
+  const { data } = await client.get<Program>(`/programs/${id}`);
+  return data;
+}
+
+export async function fetchCurrencySettings() {
+  const { data } = await client.get<CurrencySettings & { timeZoneId?: string | null }>(
+    '/localeSettings',
+    {
+      baseURL: '/',
+      anonymous: true,
+      connectionStatus: false,
+      timeout: 10_000,
+    },
+  );
+  return data;
+}
+
+export function fetchApprovedProductsByIdentities(identities: readonly OrderableIdentity[]) {
+  return fetchByIdentities<ApprovedProduct>('/facilityTypeApprovedProducts/search', identities);
+}
+
+async function fetchByIdentities<T>(
+  path: string,
+  identities: readonly OrderableIdentity[],
+  config?: AxiosRequestConfig,
+): Promise<T[]> {
+  const scope = config?.sessionScope ?? getSessionScope();
+  const batches = await fetchIdBatches(uniqueIdentities(identities), async (batch) => {
+    const found: T[] = [];
+    for (let page = 0; ; page += 1) {
+      assertSessionScope(scope);
+      const { data } = await client.post<Page<T>>(
+        path,
+        { identities: batch, page, size: BY_IDS_BATCH },
+        ...(config ? [config] : []),
+      );
+      assertSessionScope(scope);
+      found.push(...data.content);
+      if (page + 1 >= data.totalPages) break;
+    }
+    return found;
+  });
+  return batches.flat();
 }

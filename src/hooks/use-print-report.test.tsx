@@ -28,8 +28,15 @@ const labels = {
 const request = vi.fn<() => Promise<Blob>>();
 const tab = { location: { href: 'about:blank' }, close: vi.fn(), closed: false };
 const grant = ['STOCK_CARDS_VIEW|f1|p1'];
-function ReportButton({ reportAction }: { reportAction: 'download' | 'open' }) {
+function ReportButton({
+  reportAction,
+  serverAuthorized = false,
+}: {
+  reportAction: 'download' | 'open';
+  serverAuthorized?: boolean;
+}) {
   const print = usePrintReport({
+    serverAuthorized,
     userId: USER,
     facilityId: 'f1',
     programId: 'p1',
@@ -55,13 +62,13 @@ function ReportButton({ reportAction }: { reportAction: 'download' | 'open' }) {
     </Button>
   );
 }
-function renderButton(reportAction: 'download' | 'open' = 'download') {
+function renderButton(reportAction: 'download' | 'open' = 'download', serverAuthorized = false) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { staleTime: 30_000, retry: false } },
   });
   render(
     <QueryClientProvider client={queryClient}>
-      <ReportButton reportAction={reportAction} />
+      <ReportButton reportAction={reportAction} serverAuthorized={serverAuthorized} />
     </QueryClientProvider>,
   );
   return queryClient;
@@ -232,4 +239,13 @@ it('does not request a PDF when connection is lost during its permission check',
   await act(async () => release());
   await waitFor(() => expect(tab.close).toHaveBeenCalled());
   expect(request).not.toHaveBeenCalled();
+});
+
+it('prints a server-authorized requisition for a viewer without a facility grant', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
+  renderButton('open', true);
+  await userEvent.click(screen.getByRole('button', { name: 'Print' }));
+  await waitFor(() => expect(tab.location.href).toBe('blob:report'));
+  expect(fetchPermissionStrings).not.toHaveBeenCalled();
+  expect(request).toHaveBeenCalled();
 });

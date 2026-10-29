@@ -1,14 +1,9 @@
 import { queryOptions } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { facilitiesByIdsOptions } from '@/features/reference-data/api/queries';
-import {
-  fetchRequisitionGroup,
-  searchRequisitionGroups,
-} from '@/features/requisition-groups/api/api';
-import type {
-  RequisitionGroup,
-  RequisitionGroupsQuery,
-} from '@/features/requisition-groups/lib/types';
+import type { RequisitionGroup } from '@/features/reference-data/lib/types';
+import { searchRequisitionGroups } from '@/features/requisition-groups/api/api';
+import type { RequisitionGroupsQuery } from '@/features/requisition-groups/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 import type { Page } from '@/lib/types';
 
@@ -56,9 +51,3 @@ export function requisitionGroupNodeFacilityIds(groups: RequisitionGroup[]) {
     ),
   ].sort();
 }
-
-export const requisitionGroupOptions = (id: string) =>
-  queryOptions({
-    queryKey: queryKeys.requisitionGroups.detail(id),
-    queryFn: () => fetchRequisitionGroup(id),
-  });

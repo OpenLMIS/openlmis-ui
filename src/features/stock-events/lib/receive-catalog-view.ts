@@ -1,3 +1,4 @@
+import { productLabel } from '@/features/reference-data/lib/products';
 import type {
   ApprovedProduct,
   LotSummary,
@@ -8,7 +9,6 @@ import type {
 import type { HomeStockSummary } from '@/features/stock-events/api/stock-card-reader';
 import { stockKey } from '@/features/stock-events/lib/event-reverse';
 import type { HomeStockBundle } from '@/features/stock-events/lib/home-stock-bundle';
-import { productLabel } from '@/features/stock-events/lib/products';
 import type { ReceiveCatalog } from '@/features/stock-events/lib/receive-catalog';
 import type { EventStockOnHand } from '@/features/stock-events/lib/types';
 import { LocalDataUnavailableError } from '@/lib/local-data';

@@ -36,7 +36,7 @@ import { httpError } from '@/tests/http-error';
 
 vi.mock('@/features/reference-data/api/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/reference-data/api/api')>()),
-  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
+  fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
   fetchUserRecord: vi.fn(async () => ({
     id: USER,
     username: 'user',

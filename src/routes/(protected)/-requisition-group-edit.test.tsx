@@ -11,8 +11,8 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requireRight } from '@/features/auth/lib/access';
-import { fetchRequisitionGroup } from '@/features/requisition-groups/api/api';
-import { requisitionGroupOptions } from '@/features/requisition-groups/api/queries';
+import { fetchRequisitionGroup } from '@/features/reference-data/api/api';
+import { requisitionGroupOptions } from '@/features/reference-data/api/queries';
 import { Route as ListRoute } from '@/routes/(protected)/_protected.administration.requisition-groups';
 import { Route as ViewRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.$id';
 import { Route as EditRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.$id_.edit';
@@ -24,10 +24,10 @@ vi.mock('@/features/auth/lib/access', async (importOriginal) => ({
   requireRight: vi.fn(async () => new Set(['REQUISITION_GROUPS_MANAGE'])),
 }));
 vi.mock('@/features/requisition-groups/api/api', () => ({
-  fetchRequisitionGroup: vi.fn(),
   searchRequisitionGroups: vi.fn(async () => ({ content: [], totalElements: 0, totalPages: 0 })),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  fetchRequisitionGroup: vi.fn(),
   fetchSupervisoryNodes: vi.fn(async () => []),
   fetchPrograms: vi.fn(async () => []),
   fetchProcessingSchedules: vi.fn(async () => []),

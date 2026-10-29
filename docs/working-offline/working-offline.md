@@ -4,8 +4,8 @@ Adjustments, Issue and Receive can use downloaded data, save drafts and submit e
 connection. Home, Offline Events, downloaded home-facility Stock On Hand, saved Stock Cards and
 Physical Inventory drafts opened online on this device also open offline. Unpack needs a
 connection. The old UI cannot open Unpack offline, though an already-open editor can queue.
-Transaction History, other stock pages, administration, printing and PDF downloads need a
-connection.
+Transaction History, other stock pages, requisitions, administration, printing and PDF downloads
+need a connection.
 
 ## Before You Disconnect
 
@@ -108,6 +108,20 @@ Earlier Counts On This Device means this device has edited counts for a draft th
 current server draft. Those counts are kept separately and are not sent to the server or offered
 in the offline draft list. Discard Earlier Counts asks for confirmation and removes that
 earlier device copy. It does not delete the current server draft.
+
+## Requisition Drafts
+
+Requisitions need a connection to open. Once open, edits save automatically on this device.
+Wait for Saved On This Device before closing the browser. Reopen the requisition online in the
+same browser profile, signed in as the same user, to continue your saved draft.
+
+Save/Sync With Server, Submit and Authorize need a connection. Saved On This Device confirms local
+storage; Save/Sync With Server sends your changes to the server. Changes are not sent automatically
+when you reconnect.
+
+If the server copy changes while you have local edits, an outdated draft notice offers Update.
+Update asks for confirmation, then replaces your local edits with the latest server copy.
+Keep the page open if saving fails and use Retry before leaving.
 
 ## Reconnect And Review Offline Events
 

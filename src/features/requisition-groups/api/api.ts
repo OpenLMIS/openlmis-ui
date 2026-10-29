@@ -1,5 +1,5 @@
+import type { RequisitionGroup } from '@/features/reference-data/lib/types';
 import type {
-  RequisitionGroup,
   RequisitionGroupBody,
   RequisitionGroupsSearch,
 } from '@/features/requisition-groups/lib/types';
@@ -13,11 +13,6 @@ export async function searchRequisitionGroups(
   const { data } = await client.post<Page<RequisitionGroup>>('/requisitionGroups/search', body, {
     params: { page, size },
   });
-  return data;
-}
-
-export async function fetchRequisitionGroup(id: string): Promise<RequisitionGroup> {
-  const { data } = await client.get<RequisitionGroup>(`/requisitionGroups/${id}`);
   return data;
 }
 

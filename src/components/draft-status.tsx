@@ -11,22 +11,55 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { DraftConflictError } from '@/lib/draft-store';
 import type { DraftSaveState } from '@/lib/draft-writer';
 
 type Props = DraftSaveState & {
+  labels?: Partial<{
+    saved: string;
+    saving: string;
+    loading: string;
+    failed: string;
+    retry: string;
+    conflict: string;
+    conflictTitle: string;
+    conflictDescription: string;
+    copy: string | null;
+    load: string;
+  }>;
   onRetry: () => void;
   onResolve: (choice: 'load' | 'copy') => Promise<void>;
   conflict?: { description: string; keep: string; failed?: string };
 };
-export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }: Props) {
+export function DraftStatus({
+  status,
+  error,
+  labels: overrides,
+  onRetry,
+  onResolve,
+  conflict,
+}: Props) {
   const { t } = useTranslation();
+  const labels = {
+    saved: t('stock-events.draft-saved'),
+    saving: t('stock-events.draft-saving'),
+    loading: t('stock-events.draft-loading'),
+    failed: t('stock-events.draft-failed'),
+    retry: t('stock-events.draft-retry'),
+    conflict: t('stock-events.draft-conflict'),
+    conflictTitle: t('stock-events.draft-conflict-title'),
+    conflictDescription: t('stock-events.draft-conflict-description'),
+    copy: t('stock-events.draft-copy'),
+    load: t('stock-events.draft-load'),
+    ...overrides,
+  };
   const loadButton = useRef<HTMLButtonElement>(null);
   const [resolving, setResolving] = useState(false);
   const resolveFailure = conflict
     ? conflict.failed
     : error !== undefined && !(error instanceof DraftConflictError)
-      ? t('stock-events.draft-failed')
+      ? labels.failed
       : undefined;
   const resolve = async (choice: 'load' | 'copy') => {
     if (resolving) return;
@@ -54,13 +87,7 @@ export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }
                 data-icon="inline-start"
               />
             )}
-            {t(
-              status === 'saved'
-                ? 'stock-events.draft-saved'
-                : status === 'saving'
-                  ? 'stock-events.draft-saving'
-                  : 'stock-events.draft-loading',
-            )}
+            {labels[status]}
           </Badge>
         ) : (
           <span className="flex min-w-0 items-start gap-2">
@@ -68,41 +95,51 @@ export function EventDraftStatus({ status, error, onRetry, onResolve, conflict }
               aria-hidden="true"
               className="mt-0.5 size-4 shrink-0 text-destructive"
             />
-            <span>
-              {t(
-                status === 'conflict' ? 'stock-events.draft-conflict' : 'stock-events.draft-failed',
-              )}
-            </span>
+            <span>{status === 'conflict' ? labels.conflict : labels.failed}</span>
           </span>
         )}
-        {status === 'saving' && error !== undefined && (
-          <span>{t('stock-events.draft-failed')}</span>
-        )}
+        {status === 'saving' && error !== undefined && <span>{labels.failed}</span>}
         {status === 'failed' && (
           <Button size="lg" variant="outline" onClick={onRetry}>
-            {t('stock-events.draft-retry')}
+            {labels.retry}
           </Button>
         )}
       </div>
       <AlertDialog open={status === 'conflict'}>
         <AlertDialogContent initialFocus={loadButton}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('stock-events.draft-conflict-title')}</AlertDialogTitle>
+            <AlertDialogTitle>{labels.conflictTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              {conflict?.description ?? t('stock-events.draft-conflict-description')}
+              {conflict?.description ?? labels.conflictDescription}
               {resolveFailure && <span className="block text-destructive">{resolveFailure}</span>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <Button variant="outline" disabled={resolving} onClick={() => void resolve('copy')}>
-              {conflict?.keep ?? t('stock-events.draft-copy')}
-            </Button>
+            {(conflict?.keep ?? labels.copy) && (
+              <Button variant="outline" disabled={resolving} onClick={() => void resolve('copy')}>
+                {conflict?.keep ?? labels.copy}
+              </Button>
+            )}
             <Button ref={loadButton} disabled={resolving} onClick={() => void resolve('load')}>
-              {t('stock-events.draft-load')}
+              {labels.load}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+export function DraftStatusSkeleton() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+      <span className="relative inline-flex h-5 items-center px-2 font-medium text-xs" aria-hidden>
+        <span className="invisible ps-4">{t('stock-events.draft-saved')}</span>
+        <span className="absolute inset-0 overflow-hidden rounded-4xl">
+          <Skeleton fill />
+        </span>
+      </span>
+    </div>
   );
 }

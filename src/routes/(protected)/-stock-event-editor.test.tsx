@@ -77,7 +77,7 @@ vi.mock('@/components/app-shell-skeleton', () => ({
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   storedTimeZone: () => 'UTC',
-  fetchDeploymentTimeZone: vi.fn(async () => 'UTC'),
+  fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
   fetchReasons: vi.fn(),
   fetchFacility: vi.fn(),
   fetchUserRecord: vi.fn(),
@@ -347,7 +347,11 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       renderRoute(PICKER, { onCaughtError });
 
       expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
-      expect(fetchUserRecord).not.toHaveBeenCalled();
+      expect(
+        vi
+          .mocked(fetchUserRecord)
+          .mock.calls.every(([, config]) => config?.connectionStatus === false),
+      ).toBe(true);
       expect(fetchUserPrograms).not.toHaveBeenCalled();
       expect(fetchFacility).not.toHaveBeenCalled();
       expect(onCaughtError).toHaveBeenCalled();

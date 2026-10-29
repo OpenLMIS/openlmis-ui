@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { MemberFacility } from '@/features/reference-data/lib/types';
 import { memberPage } from '@/features/requisition-groups/lib/members';
-import type { MemberFacility } from '@/features/requisition-groups/lib/types';
 
 const members: MemberFacility[] = ['Zèbre', 'Alpha', 'Éclair'].map((name, index) => ({
   id: String(index),

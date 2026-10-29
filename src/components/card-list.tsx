@@ -37,16 +37,29 @@ export function CardList({ empty, footer, busy = false, listRef, children }: Car
 
 export function CardListItem({
   surface = 'raised',
+  tone,
   itemRef,
   drag,
   children,
 }: {
   surface?: 'raised' | 'flat';
+  tone?: 'skipped' | 'shortfall' | 'invalid';
   itemRef?: Ref<HTMLLIElement>;
   drag?: { y: number; animate: boolean; dragging: boolean };
   children: ReactNode;
 }) {
-  const content = <div className="divide-y">{children}</div>;
+  const content = (
+    <div
+      className={cn(
+        'divide-y',
+        tone === 'skipped' && 'bg-muted text-foreground',
+        tone === 'shortfall' && 'bg-warning/10',
+        tone === 'invalid' && 'bg-destructive/10',
+      )}
+    >
+      {children}
+    </div>
+  );
   return (
     <li
       className={cn(

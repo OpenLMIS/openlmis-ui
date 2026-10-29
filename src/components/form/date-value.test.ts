@@ -94,3 +94,9 @@ it('reuses date formatters by locale and timestamp options', () => {
     createFormatter.mockRestore();
   }
 });
+
+it('uses the deployment calendar day around UTC midnight', () => {
+  const instant = new Date('2026-10-28T00:30:00Z');
+  expect(toDateValue(instant, 'America/Los_Angeles')).toBe('2026-10-27');
+  expect(toDateValue(instant, 'Asia/Tokyo')).toBe('2026-10-28');
+});

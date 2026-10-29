@@ -8,6 +8,7 @@ import { DataTableFilters } from '@/components/data-table/data-table-filters-pop
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility } from '@/components/data-table/responsive-columns';
+import { DraftStatusSkeleton } from '@/components/draft-status';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -187,17 +188,7 @@ export function PhysicalInventoryPendingBody({
             </div>
           </div>
         }
-        save={
-          <span
-            className="relative inline-flex h-5 items-center px-2 text-xs font-medium"
-            aria-hidden
-          >
-            <span className="invisible ps-4">{t('stock-events.draft-saved')}</span>
-            <span className="absolute inset-0 overflow-hidden rounded-4xl">
-              <Skeleton fill />
-            </span>
-          </span>
-        }
+        save={<DraftStatusSkeleton />}
       />
       <PhysicalInventoryGridSkeleton
         cards={cards}

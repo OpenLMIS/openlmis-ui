@@ -27,6 +27,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
   '/stock-management/transaction-history': RIGHTS.stockCardsView,
   '/stock-management/physical-inventory': RIGHTS.stockInventoriesEdit,
+  '/requisitions/view': RIGHTS.requisitionView,
   '/offline-events': [],
 };
 

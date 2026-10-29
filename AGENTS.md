@@ -53,6 +53,9 @@ command palette (`Ctrl/Cmd+K`). `LIVE_NAV_GROUPS` excludes unmigrated `to: '#'` 
 sections with no live pages. `useNavGroups()` in `src/components/nav-access.ts` then filters
 both by the user's rights.
 
+- Requisition navigation also counts `REQUISITION_VIEW` in the user's supervision roles, so sidebar,
+  palette and breadcrumbs agree.
+
 ### Data fetching pattern
 
 Define query options in `src/features/*/api/queries.ts` using `src/lib/key-factory.ts`.
@@ -125,6 +128,9 @@ plus the zone filter (`toZoneOption`) and program filter (`toProgramFilter`) hel
 `lib/`. It imports no other feature. Keep management screens in their own features. When
 their list uses a lookup's endpoint, reuse that query and widen its type, as Roles and
 Reasons do.
+
+- Requisition lookups include requisition groups, processing periods, a program, currency settings
+  and products and approved products by id and version.
 
 - Product lookups: `orderablesSearchOptions`, `orderablesByIdsOptions` and
   `orderablesByTradeItemsOptions`, all under `queryKeys.orderables.list` so saves refresh them.
@@ -434,6 +440,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
+- Requisition grids pin Skip, product code and name at the inline start, with matching opaque header, body
+  and category surfaces.
+- `TableRow`, `TableCards` and `CardListItem` accept per-row `tone`: `skipped` keeps full-strength
+  text on grey; pair `shortfall` warning tint with a labelled icon. `CardListItem` also accepts
+  `invalid`, which takes precedence over other row tones.
 - At or above `CONTAINER_WIDTHS['2xl']` (672px), stock event editors use tables. Below it they
   use cards. Issue, Receive and Unpack use `columnFit: 'measured'` only for the table to hide
   optional columns by measured fit because translated inputs make pixel thresholds language
@@ -453,6 +464,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   minimums do not fit.
 
 - Tables draw vertical column dividers by default.
+
+- Exception to one-line headers: the requisition grid wraps header labels between words, up to
+  three lines, with an info icon tooltip for template definitions.
 
 - Yes/no and active/inactive cells use `FlagBadge` (`src/components/flag-badge.tsx`): a success
   check or destructive cross, always with its label.
@@ -505,7 +519,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"` for two lines),
   which wraps in full in cards; `TableCards` bolds the band title. It calls each column's `cell`
   directly, so cells must not call hooks and must return `null` or `''` when empty to show
-  `EMPTY_VALUE`. Sortable card lists pass `sort` to `DataTableViewOptions` from `searchSort`
+  `EMPTY_VALUE`. Return `false` only to omit a disabled, row-specific detail in cards. Sortable card
+  lists pass `sort` to `DataTableViewOptions` from `searchSort`
   (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds
   history. A `select` column turns the band into `CardSelectBand`, with a Select Page control
   above the cards; `heading` renders group rows as headings, as on product Facility Types.
@@ -532,6 +547,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
   may hide. Table row actions use an end-of-row "..." menu; cards use `CardActions`. Draft
   editor line tables whose only row action is Remove use a trash icon button.
+- A single View row action uses a button, as Stock On Hand and Transaction History, with
+  `CardActions` in cards.
 - Put Create at the toolbar's end, after View.
 
 **Filters and states:**
@@ -578,6 +595,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   click handler. Stock Card's `openReport` opens a waiting tab synchronously and downloads if
   blocked/closed; Stock On Hand uses `downloadFile`. Use `fetchReport`
   (`src/lib/fetch-report.ts`) for blobs and JSON error decoding.
+- `usePrintReport({ serverAuthorized: true })` trusts a loaded record's server authorization when
+  viewers may lack a facility grant.
 
 ### The data-table components
 
@@ -726,6 +745,8 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   `revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' })`: first submit, then
   every correction. `TranslatedFormMessages` in the shell supplies `FormMessagesProvider`
   with the translation-key messages described under Internationalization.
+- Requisition editors validate live from the first change, matching legacy, instead of
+  submit-first validation.
 - Row `SwitchField`/`SelectField` accept a label-row `action`; `TextField` accepts `badge`.
   Stacked `PasswordField` puts `action` at the label's end but after the input in tab order.
   Password/confirmation pairs share `visible` and `onVisibleChange`.
@@ -813,6 +834,8 @@ Both use `src/components/discard-changes-dialog.tsx`. Its `pending` option keeps
 during a save without offering Discard. Device drafts pass `flushBeforeLeave` to commit staged edits
 before navigation or external leave; only a failed flush asks first. Every external leave,
 including reload, update, Back To Legacy and sign-out, keeps the saved device draft.
+`useBackToLegacy(hash)` appends an optional legacy hash path while keeping leave guards and
+unload handling.
 Browser reload and tab close use the native prompt. External identity changes follow
 Authentication below.
 
@@ -1034,6 +1057,9 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 
 ### Drafts, queue and recovery
 
+- Requisition device drafts retain their server modified date and ETag; Sync rebases concurrent
+  edits and conflicts keep the local copy until a confirmed Update. Store baseline comment/date
+  values for unsynced draft counting; register feature counters through route composition.
 - Enable downloads/drafts through kind policy. Use the shared revisioned draft store and serial
   writer; inventory supplies revision-aware write/clear callbacks. Stage immediately for leave
   protection; announce a save only after commit. Failed saves remain visible during retries.
@@ -1088,6 +1114,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   Event Details puts status notices above the lines. In its `useDialogCardLayout` cards layout the
   footer shows Retry, Copy For Correction or Transaction History, then Close; other actions go in
   "...", except a lone Remove or Dismiss, which stays a trash icon button.
+- Already-open requisition details remain editable offline through the shell retention policy; cold offline opens stay blocked.
 - Hidden pages retain drafts/guards only for a valid protected match in the same session scope.
   Persistent overlay drafts stay mounted behind the visibility gate; transient overlays close.
   Discard decisions opt out so navigation and Log Out remain answerable.

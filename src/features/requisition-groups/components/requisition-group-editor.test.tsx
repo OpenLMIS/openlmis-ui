@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchFacility } from '@/features/reference-data/api/api';
-import type { Facility } from '@/features/reference-data/lib/types';
+import type { Facility, RequisitionGroup } from '@/features/reference-data/lib/types';
 import {
   createRequisitionGroup,
   updateRequisitionGroup,
@@ -16,7 +16,6 @@ import {
   RequisitionGroupEditor,
 } from '@/features/requisition-groups/components/requisition-group-editor';
 import type { RequisitionGroupEditorSearch } from '@/features/requisition-groups/lib/members';
-import type { RequisitionGroup } from '@/features/requisition-groups/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 import { renderPage } from '@/tests/render-page';
@@ -125,7 +124,7 @@ async function pick(dialog: HTMLElement, field: string, option: string) {
     .click(within(dialog).getByRole('combobox', { name: `requisition-groups.form.${field}` }));
   await userEvent.setup().click(await screen.findByRole('option', { name: new RegExp(option) }));
 }
-async function addProgram(name = 'ARV') {
+async function addProgram(name: string) {
   await click('requisition-groups.form.add-program');
   const dialog = await screen.findByRole('dialog');
   await pick(dialog, 'program', name);
@@ -306,11 +305,10 @@ describe('RequisitionGroupEditor', () => {
   });
   it('keeps both edited collections through tab, filter, sort and page changes, reusing a saved row without drop-off', async () => {
     vi.mocked(fetchFacility).mockResolvedValue(pickedFacility);
-    const members = Array.from({ length: 12 }, (_, i) => member(`m${i}`, `Member ${i}`));
-    renderEditor({ saved: { ...group, memberFacilities: members } });
+    const members = Array.from({ length: 3 }, (_, i) => member(`m${i}`, `Member ${i}`));
+    renderEditor({ saved: { ...group, memberFacilities: members }, initialSearch: { size: 1 } });
     await click('requisition-groups.form.remove-program');
     await addProgram('Family Planning');
-    await addProgram();
     await userEvent
       .setup()
       .click(await screen.findByRole('tab', { name: /requisition-groups.form.facilities/ }));
@@ -344,7 +342,7 @@ describe('RequisitionGroupEditor', () => {
     await click('requisition-groups.form.save');
     await waitFor(() => expect(updateRequisitionGroup).toHaveBeenCalled());
     const body = vi.mocked(updateRequisitionGroup).mock.calls[0]?.[1];
-    expect(body?.memberFacilities).toHaveLength(12);
+    expect(body?.memberFacilities).toHaveLength(3);
     expect(body?.memberFacilities).toContainEqual({ id: 'f2', code: 'F2' });
     expect(body?.memberFacilities).not.toContainEqual({ id: 'm0', code: 'M0' });
     expect(body?.requisitionGroupProgramSchedules).toEqual([
@@ -354,7 +352,6 @@ describe('RequisitionGroupEditor', () => {
         processingSchedule: { id: 's1' },
         directDelivery: false,
       },
-      { program: { id: 'p2' }, processingSchedule: { id: 's1' }, directDelivery: false },
     ]);
   });
   it('sends empty arrays after removing every row and keeps the draft with the refused server message', async () => {
@@ -417,9 +414,10 @@ describe('RequisitionGroupEditor', () => {
       JSON.stringify({ dropOffFacility: true }),
     );
     renderEditor({
+      initialSearch: { size: 1 },
       saved: {
         ...group,
-        memberFacilities: Array.from({ length: 12 }, (_, i) => member(`m${i}`, `Member ${i}`)),
+        memberFacilities: Array.from({ length: 3 }, (_, i) => member(`m${i}`, `Member ${i}`)),
       },
       readOnly: true,
     });

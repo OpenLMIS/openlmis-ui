@@ -62,7 +62,8 @@ it('batches versioned products, reads every page and keeps the latest across bat
     };
   });
   expect(await fetchOrderablesByIdentities([])).toEqual([]);
-  expect(await fetchOrderablesByIdentities([...identities, identities[0]])).toEqual([
+  const references = [...identities, { ...identities[0], href: '/products/p0' }];
+  expect(await fetchOrderablesByIdentities(references)).toEqual([
     products[249],
     ...products.slice(1, 249),
   ]);

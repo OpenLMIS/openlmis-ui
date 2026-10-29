@@ -1,10 +1,12 @@
 import { queryOptions } from '@tanstack/react-query';
+import type { AxiosRequestConfig } from 'axios';
 import {
   type ApprovedProductsFilter,
   type FacilityProgramFilter,
   type FacilityTypeApprovedOrderablesFilter,
   fetchApprovedProducts,
-  fetchDeploymentTimeZone,
+  fetchApprovedProductsByIdentities,
+  fetchCurrencySettings,
   fetchFacilitiesByIds,
   fetchFacility,
   fetchFacilityOperators,
@@ -23,11 +25,14 @@ import {
   fetchOrderablesByIds,
   fetchOrderablesByTradeItems,
   fetchOrganizations,
+  fetchProcessingPeriod,
   fetchProcessingSchedules,
+  fetchProgramLookup,
   fetchPrograms,
   fetchReasons,
   fetchRejectionReasonCategories,
   fetchRejectionReasons,
+  fetchRequisitionGroup,
   fetchRoles,
   fetchSupervisedFacilities,
   fetchSupervisoryNodes,
@@ -43,7 +48,9 @@ import {
   storedTimeZone,
   type ValidAssignmentsFilter,
 } from '@/features/reference-data/api/api';
+import { uniqueIdentities } from '@/features/reference-data/lib/identities';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
+import { readDeploymentTimeZone } from '@/lib/deployment-time-zone';
 import { deviceQuery } from '@/lib/device-query';
 import {
   queryKeys,
@@ -102,10 +109,10 @@ export const facilitiesByIdsOptions = (ids: readonly string[]) =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const rolesOptions = () =>
+export const rolesOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
     queryKey: queryKeys.roles.list(),
-    queryFn: fetchRoles,
+    queryFn: () => fetchRoles(config),
     staleTime: LOOKUP_STALE_TIME,
   });
 
@@ -226,9 +233,7 @@ export const orderablesByTradeItemsOptions = (tradeItemIds: readonly string[]) =
   });
 
 export const orderablesByIdentitiesOptions = (identities: readonly OrderableIdentity[]) => {
-  const unique = [
-    ...new Map(identities.map((item) => [`${item.id}|${item.versionNumber}`, item])).values(),
-  ].sort((a, b) => a.id.localeCompare(b.id) || a.versionNumber - b.versionNumber);
+  const unique = uniqueIdentities(identities, true);
   return queryOptions({
     queryKey: queryKeys.orderables.list({ identities: unique }),
     queryFn: () => fetchOrderablesByIdentities(unique),
@@ -270,12 +275,12 @@ export const facilityOrderableFulfillsOptions = (filter: FacilityProgramFilter) 
   });
 
 /** The user as the reference data holds them; not `users.detail`, which holds the Users page's richer record. */
-export const userRecordOptions = (id: string) =>
+export const userRecordOptions = (id: string, config?: AxiosRequestConfig) =>
   queryOptions({
     queryKey: userRecordKey(id),
     queryFn: () =>
       withOfflineAccess(
-        () => fetchUserRecord(id),
+        () => fetchUserRecord(id, config),
         (saved) => (saved.userId === id ? saved.user : undefined),
       ),
     ...offlineAccessQuery(LOOKUP_STALE_TIME),
@@ -297,9 +302,10 @@ type DeploymentTimeZone = { zone: string; read: boolean };
 export const deploymentTimeZoneOptions = () =>
   queryOptions({
     queryKey: queryKeys.localeSettings.all,
-    queryFn: async (): Promise<DeploymentTimeZone> => {
+    queryFn: async ({ client }): Promise<DeploymentTimeZone> => {
       try {
-        return { zone: await fetchDeploymentTimeZone(), read: true };
+        const settings = await client.fetchQuery({ ...currencySettingsOptions(), retry: false });
+        return { zone: readDeploymentTimeZone(settings), read: true };
       } catch {
         return { zone: storedTimeZone() ?? 'UTC', read: false };
       }
@@ -362,3 +368,36 @@ export const rejectionReasonsOptions = () =>
     queryFn: fetchRejectionReasons,
     staleTime: LOOKUP_STALE_TIME,
   });
+
+export const requisitionGroupOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.requisitionGroups.detail(id),
+    queryFn: () => fetchRequisitionGroup(id),
+  });
+
+export const processingPeriodOptions = (id: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.processingPeriods.all, 'lookup', id] as const,
+    queryFn: () => fetchProcessingPeriod(id),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+export const programLookupOptions = (id: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.programs.all, 'lookup', id] as const,
+    queryFn: () => fetchProgramLookup(id),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+export const currencySettingsOptions = () =>
+  queryOptions({
+    queryKey: [...queryKeys.localeSettings.all, 'currency'] as const,
+    queryFn: fetchCurrencySettings,
+    staleTime: LOOKUP_STALE_TIME,
+  });
+export const approvedProductsByIdentitiesOptions = (identities: readonly OrderableIdentity[]) => {
+  const unique = uniqueIdentities(identities, true);
+  return queryOptions({
+    queryKey: [...queryKeys.facilityTypeApprovedProducts.all, 'identities', unique] as const,
+    queryFn: () => fetchApprovedProductsByIdentities(unique),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+};

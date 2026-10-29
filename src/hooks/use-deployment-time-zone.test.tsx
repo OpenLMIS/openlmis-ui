@@ -2,7 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode, Suspense } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
+import {
+  currencySettingsOptions,
+  deploymentTimeZoneOptions,
+} from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { client } from '@/integrations/axios';
 
@@ -91,4 +94,27 @@ describe('useDeploymentTimeZone', () => {
 
     await waitFor(() => expect(result.current).toBe('UTC'));
   });
+});
+
+it('serves the time zone and currency from one locale settings request', async () => {
+  const settings = { timeZoneId: 'Africa/Blantyre', currencyCode: 'MWK', currencySymbol: 'K' };
+  vi.mocked(client.get).mockResolvedValue({ data: settings });
+  await queryClient.fetchQuery(deploymentTimeZoneOptions());
+  const options = currencySettingsOptions();
+  const currency = await queryClient.fetchQuery(options);
+  expect(currency).toMatchObject({ currencyCode: 'MWK', currencySymbol: 'K' });
+  expect(client.get).toHaveBeenCalledTimes(1);
+});
+
+it('falls back after one failed settings request even when queries retry by default', async () => {
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: 2, retryDelay: 0 } },
+  });
+  vi.mocked(client.get).mockRejectedValue(new Error('server unavailable'));
+
+  expect(await queryClient.fetchQuery(deploymentTimeZoneOptions())).toEqual({
+    zone: 'UTC',
+    read: false,
+  });
+  expect(client.get).toHaveBeenCalledTimes(1);
 });

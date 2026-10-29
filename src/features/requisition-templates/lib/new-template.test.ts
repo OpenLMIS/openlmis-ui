@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { buildNewTemplate } from '@/features/requisition-templates/lib/new-template';
-import type { ColumnDefinition } from '@/features/requisition-templates/lib/types';
+import type { ColumnDefinition } from '@/lib/requisition-template';
 
 const option = { id: 'o', optionName: 'default', optionLabel: 'label.key' };
 const column = (name: string, canChangeOrder = true): ColumnDefinition => ({

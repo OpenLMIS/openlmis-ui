@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
-import { CircleAlertIcon, Loader2Icon, ShieldAlertIcon } from 'lucide-react';
+import { Loader2Icon, ShieldAlertIcon } from 'lucide-react';
 import {
   type ComponentProps,
   type ReactNode,
@@ -26,7 +26,9 @@ import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
 import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { DraftStatus } from '@/components/draft-status';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
+import { InvalidSubmitDialog } from '@/components/invalid-submit-dialog';
 import { LoadError } from '@/components/load-error';
 import { SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
@@ -40,7 +42,6 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,7 @@ import {
   reasonsOptions,
   tradeItemByGtinOptions,
 } from '@/features/reference-data/api/queries';
+import { productLabel } from '@/features/reference-data/lib/products';
 import type { TradeItem } from '@/features/reference-data/lib/types';
 import {
   deviceNewLotsOptions,
@@ -67,7 +69,6 @@ import { ClearLinesDialog } from '@/features/stock-events/components/clear-lines
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';
 import { EditLotDialog } from '@/features/stock-events/components/edit-lot-dialog';
 import { EventArchivedCopies } from '@/features/stock-events/components/event-archived-copies';
-import { EventDraftStatus } from '@/features/stock-events/components/event-draft-status';
 import {
   EventLineTable,
   EventLineTableSkeleton,
@@ -115,11 +116,7 @@ import {
   unpackReasons,
 } from '@/features/stock-events/lib/kit-unpack';
 import { filterEventLines, pageOf } from '@/features/stock-events/lib/line-filter';
-import {
-  eventProductOptions,
-  productHasLots,
-  productLabel,
-} from '@/features/stock-events/lib/products';
+import { eventProductOptions, productHasLots } from '@/features/stock-events/lib/products';
 import { refusalMessage } from '@/features/stock-events/lib/refusal-message';
 import {
   type ApprovedScanProduct,
@@ -920,11 +917,7 @@ export function EventEditor({
                   {drafts.enabled && (
                     <EventLineToolbarStatus>
                       {(lines.length > 0 || draft.status !== 'saved') && (
-                        <EventDraftStatus
-                          {...draft}
-                          onRetry={draft.retry}
-                          onResolve={draft.resolve}
-                        />
+                        <DraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
                       )}
                       <EventArchivedCopies
                         kind={kind}
@@ -1043,7 +1036,7 @@ export function EventEditor({
           {t(drafts.submitLabel)}
         </Button>
       </WorkspaceFooter>
-      <AlertDialog
+      <InvalidSubmitDialog
         open={validationOpen || !!failure}
         onOpenChange={(open) => {
           if (!open && !pending) {
@@ -1056,49 +1049,39 @@ export function EventEditor({
           setFocusField(alertTarget.current);
           alertTarget.current = null;
         }}
+        size={refusal ? 'lg' : 'default'}
+        finalFocus={alertTarget.current ? false : refusal ? correctionButton : submitButton}
+        title={t(failure?.title ?? config.copy.invalidTitle)}
+        description={
+          <>
+            {failure?.description ?? t(config.copy.invalidDescription)}
+            {refusal && <span className="block pt-2">{t('offline-events.copy-warning')}</span>}
+          </>
+        }
       >
-        <AlertDialogContent
-          size={refusal ? 'lg' : 'default'}
-          finalFocus={alertTarget.current ? false : refusal ? correctionButton : submitButton}
-        >
-          <AlertDialogHeader>
-            <AlertDialogMedia>
-              <CircleAlertIcon className="text-destructive" />
-            </AlertDialogMedia>
-            <AlertDialogTitle>{t(failure?.title ?? config.copy.invalidTitle)}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {failure?.description ?? t(config.copy.invalidDescription)}
-              {refusal && <span className="block pt-2">{t('offline-events.copy-warning')}</span>}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <div className={refusal ? '@container w-full' : 'contents'}>
-              <div
-                className={
-                  refusal ? 'flex flex-col gap-2 @sm:flex-row @sm:justify-end' : 'contents'
-                }
-              >
-                {refusal && (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        void navigate({ to: '/offline-events', search: { tab: 'errors' } })
-                      }
-                    >
-                      {t('offline-events.review')}
-                    </Button>
-                    <Button disabled={correction.isPending} onClick={() => void correctRefusal()}>
-                      {t('offline-events.copy')}
-                    </Button>
-                  </>
-                )}
-                <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
-              </div>
-            </div>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <div className={refusal ? '@container w-full' : 'contents'}>
+          <div
+            className={refusal ? 'flex flex-col gap-2 @sm:flex-row @sm:justify-end' : 'contents'}
+          >
+            {refusal && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    void navigate({ to: '/offline-events', search: { tab: 'errors' } })
+                  }
+                >
+                  {t('offline-events.review')}
+                </Button>
+                <Button disabled={correction.isPending} onClick={() => void correctRefusal()}>
+                  {t('offline-events.copy')}
+                </Button>
+              </>
+            )}
+            <AlertDialogCancel disabled={pending}>{t('dialog.close')}</AlertDialogCancel>
+          </div>
+        </div>
+      </InvalidSubmitDialog>
       {refusal && reviewRefusal && (
         <QueryBoundary
           resetKey={refusal.localEventId}

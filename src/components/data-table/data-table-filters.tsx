@@ -31,6 +31,7 @@ type DataTableSelectFilterProps = {
   onValueChange: (value: string) => void;
   options: DataTableSelectFilterOption[];
   allLabel?: string;
+  disabled?: boolean;
 };
 
 const ALL = '\u0000all';
@@ -42,6 +43,7 @@ export function DataTableSelectFilter({
   onValueChange,
   options,
   allLabel,
+  disabled,
 }: DataTableSelectFilterProps) {
   const labels = useDataTableLabels();
   const items = allLabel ? [{ value: ALL, label: allLabel }, ...options] : options;
@@ -50,6 +52,7 @@ export function DataTableSelectFilter({
   return (
     <div className="relative">
       <Select
+        disabled={disabled}
         items={items}
         onValueChange={(next) => onValueChange(next && next !== ALL ? next : '')}
         value={shown}
@@ -77,7 +80,7 @@ export function DataTableSelectFilter({
         </SelectContent>
       </Select>
       {/* A sibling of the trigger, not inside it, since a button cannot hold another button. */}
-      {value && (
+      {value && !disabled && (
         <div className="absolute inset-y-0 end-7 flex items-center">
           <Button
             aria-label={labels.clearFilter(label)}

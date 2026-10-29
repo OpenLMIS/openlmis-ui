@@ -1,5 +1,6 @@
 import { matchesOfflinePage } from '@/lib/offline-capability';
 
+const openPagePrefixes = new Set<string>();
 const rights = new Set<string>();
 const pages = new Set<string>(['/home', '/offline-events']);
 export function registerOfflinePages(
@@ -12,3 +13,12 @@ export function registerOfflinePages(
 export const isOfflineCapable = (pathname: string) => matchesOfflinePage(pathname, [...pages]);
 export const hasOfflineCapability = (userRights: ReadonlySet<string> | undefined) =>
   [...rights].some((right) => userRights?.has(right));
+
+export function registerOpenOfflinePages(prefixes: readonly string[]) {
+  for (const prefix of prefixes) openPagePrefixes.add(prefix);
+}
+export const canRetainPageOffline = (pathname: string) =>
+  isOfflineCapable(pathname) ||
+  [...openPagePrefixes].some(
+    (prefix) => pathname.startsWith(prefix) && pathname.length > prefix.length,
+  );

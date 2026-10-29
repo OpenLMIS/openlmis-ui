@@ -54,6 +54,7 @@ const buttonVariants = cva(
       align: {
         default: "",
         start: "justify-start font-normal",
+        between: "justify-between font-normal",
       },
       width: {
         default: "",

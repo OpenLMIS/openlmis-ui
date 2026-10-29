@@ -1,6 +1,9 @@
 export const RIGHTS = {
   requisitionGroupsManage: 'REQUISITION_GROUPS_MANAGE',
   requisitionTemplatesManage: 'REQUISITION_TEMPLATES_MANAGE',
+  requisitionCreate: 'REQUISITION_CREATE',
+  requisitionAuthorize: 'REQUISITION_AUTHORIZE',
+  requisitionDelete: 'REQUISITION_DELETE',
   requisitionView: 'REQUISITION_VIEW',
   requisitionApprove: 'REQUISITION_APPROVE',
   ordersEdit: 'ORDERS_EDIT',

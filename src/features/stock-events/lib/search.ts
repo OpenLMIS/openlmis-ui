@@ -60,26 +60,6 @@ export function toEventsQuery(
   };
 }
 
-export const detailPagingSchema = z.object({
-  detailPage: paging.shape.page,
-  detailSize: paging.shape.size,
-});
-export type DetailPagingSearch = z.infer<typeof detailPagingSchema>;
-
-export const detailTableSearch = (search: DetailPagingSearch): TableSearch => ({
-  page: search.detailPage,
-  size: search.detailSize,
-});
-
-export function changeDetailPaging(
-  previous: DetailPagingSearch,
-  update: Partial<TableSearch> | SearchUpdate<TableSearch>,
-): DetailPagingSearch {
-  const current = detailTableSearch(previous);
-  const next = { ...current, ...(typeof update === 'function' ? update(current) : update) };
-  return { detailPage: next.page, detailSize: next.size };
-}
-
 export const reversePagingSchema = z.object({
   reversePage: paging.shape.page.transform((value) => (value === 1 ? undefined : value)),
   reverseSize: paging.shape.size.transform((value) => (value === 10 ? undefined : value)),

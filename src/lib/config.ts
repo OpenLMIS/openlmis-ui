@@ -90,7 +90,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { titleKey: 'nav.requisitions.create-authorize', to: '#' },
           { titleKey: 'nav.requisitions.approve', to: '#' },
           { titleKey: 'nav.requisitions.convert-to-order', to: '#' },
-          { titleKey: 'nav.requisitions.view', to: '#' },
+          { titleKey: 'nav.requisitions.view', to: '/requisitions/view' },
         ],
       },
       {

@@ -4,8 +4,8 @@ import type {
   MemberFacility,
   ProgramSchedule,
   RequisitionGroup,
-  RequisitionGroupBody,
-} from '@/features/requisition-groups/lib/types';
+} from '@/features/reference-data/lib/types';
+import type { RequisitionGroupBody } from '@/features/requisition-groups/lib/types';
 
 const choice = (message: string) => z.string().nullable().refine(Boolean, message);
 const scheduleSchema = z.object({

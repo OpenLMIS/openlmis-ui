@@ -1,5 +1,5 @@
 import { type Cell, flexRender, type Row, type RowData } from '@tanstack/react-table';
-import { type ReactNode, type Ref, use, useId } from 'react';
+import { type ComponentProps, type ReactNode, type Ref, use, useId } from 'react';
 import { CardActionsSkeleton, InCardContext } from '@/components/card-actions';
 import {
   CardBand,
@@ -29,6 +29,7 @@ type TableCardsProps<TData extends RowData> = {
   busy?: boolean;
   listRef?: Ref<HTMLUListElement>;
   heading?: (row: TData) => string | undefined;
+  tone?: (row: TData) => ComponentProps<typeof CardListItem>['tone'];
   surface?: 'raised' | 'flat';
 };
 
@@ -40,6 +41,7 @@ export function TableCards<TData extends RowData>({
   busy = false,
   listRef,
   heading,
+  tone,
   surface = 'raised',
 }: TableCardsProps<TData>) {
   const rows = table.getRowModel().rows;
@@ -64,6 +66,7 @@ export function TableCards<TData extends RowData>({
             row={row}
             selectId={`${ids}-${row.id}`}
             surface={surface}
+            tone={tone?.(row.original)}
             title={title}
           />
         );
@@ -99,9 +102,7 @@ function SelectPage({ id, children }: { id: string; children: ReactNode }) {
 function cellContent<TData extends RowData>(cell: Cell<DataTableFeatures, TData, unknown>) {
   const render = cell.column.columnDef.cell;
   const content: ReactNode = typeof render === 'function' ? render(cell.getContext()) : render;
-  return content === null || content === undefined || content === false || content === ''
-    ? undefined
-    : content;
+  return content === null || content === undefined || content === '' ? undefined : content;
 }
 
 function renderCell<TData extends RowData>(cell: Cell<DataTableFeatures, TData, unknown>) {
@@ -115,21 +116,26 @@ function TableCard<TData extends RowData>({
   title,
   selectId,
   surface,
+  tone,
 }: {
   row: Row<DataTableFeatures, TData>;
   title: string;
   selectId: string;
   surface: 'raised' | 'flat';
+  tone?: ComponentProps<typeof CardListItem>['tone'];
 }) {
   const cells = row.getVisibleCells();
   const titleCell = cells.find((cell) => cell.column.id === title);
   const actions = cells.find((cell) => cell.column.id === ACTIONS);
   const select = cells.find((cell) => cell.column.id === SELECT);
-  const details = cells.filter((cell) => isDetail(cell.column.id, title));
+  const details = cells
+    .filter((cell) => isDetail(cell.column.id, title))
+    .map((cell) => ({ cell, content: cellContent(cell) }))
+    .filter(({ content }) => content !== false);
   const actionContent = actions && cellContent(actions);
   const action = actionContent && <div className="shrink-0">{actionContent}</div>;
   return (
-    <CardListItem surface={surface}>
+    <CardListItem surface={surface} tone={tone}>
       {select ? (
         <CardSelectBand
           action={action}
@@ -152,9 +158,9 @@ function TableCard<TData extends RowData>({
       )}
       {details.length > 0 && (
         <CardRows>
-          {details.map((cell) => (
+          {details.map(({ cell, content }) => (
             <SettingsItem key={cell.id} label={cell.column.columnDef.meta?.label ?? cell.column.id}>
-              <bdi>{renderCell(cell)}</bdi>
+              <bdi>{content ?? EMPTY_VALUE}</bdi>
             </SettingsItem>
           ))}
         </CardRows>

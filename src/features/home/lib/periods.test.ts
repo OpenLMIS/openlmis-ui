@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { showsYear, totalsByMonth } from '@/features/home/lib/periods';
-import type { RequisitionStatus, RequisitionSummary } from '@/features/home/lib/types';
+import type { RequisitionSummary } from '@/features/home/lib/types';
+import type { RequisitionStatus } from '@/lib/requisition-status';
 
 const requisition = (
   status: RequisitionStatus,

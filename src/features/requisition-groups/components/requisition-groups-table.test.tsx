@@ -7,6 +7,7 @@ import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryBoundary } from '@/components/query-boundary';
+import type { ProgramSchedule, RequisitionGroup } from '@/features/reference-data/lib/types';
 import { searchRequisitionGroups } from '@/features/requisition-groups/api/api';
 import { requisitionGroupsSearchOptions } from '@/features/requisition-groups/api/queries';
 import {
@@ -18,7 +19,6 @@ import {
   type RequisitionGroupsListSearch,
   toRequisitionGroupsQuery,
 } from '@/features/requisition-groups/lib/search';
-import type { ProgramSchedule, RequisitionGroup } from '@/features/requisition-groups/lib/types';
 import { renderPage } from '@/tests/render-page';
 import en from '../../../../public/locales/en.json';
 
