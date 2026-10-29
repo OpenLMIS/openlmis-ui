@@ -7,7 +7,7 @@ import { TextDirectionProvider } from '@/components/i18n/text-direction';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import i18n, { initI18n } from '@/integrations/i18n';
 
-const catalogFiles = import.meta.glob<string>('../../public/locales/*.json', {
+const catalogFiles = import.meta.glob<string>('/public/locales/*.json', {
   eager: true,
   query: '?raw',
   import: 'default',
@@ -18,7 +18,7 @@ vi.mock('i18next-http-backend', () => ({
     static type = 'backend';
     type = 'backend';
     read(language: string, _namespace: string, callback: (error: null, data: unknown) => void) {
-      callback(null, JSON.parse(catalogFiles[`../../public/locales/${language}.json`]));
+      callback(null, JSON.parse(catalogFiles[`/public/locales/${language}.json`]));
     }
   },
 }));
