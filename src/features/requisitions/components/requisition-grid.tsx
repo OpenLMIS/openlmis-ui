@@ -181,14 +181,15 @@ export function RequisitionGridView({
     () => models.filter((model) => model.fullSupply === (tab === 'fullSupply')),
     [models, tab],
   );
+  const skipFilter = !!editing?.skipLines && tab === 'fullSupply';
   const filtered = useMemo(
     () =>
       filterLines(selected, {
         hideSkipped: hidesSkipped(record.template, tab),
         product: search.product,
-        showSkipped: search.skipped,
+        showSkipped: skipFilter ? search.skipped : undefined,
       }),
-    [selected, record.template, tab, search.product, search.skipped],
+    [selected, record.template, tab, search.product, search.skipped, skipFilter],
   );
   const pagination = toPaginationState(detailTableSearch(search));
   const pageIndex = Math.min(
@@ -493,7 +494,7 @@ export function RequisitionGridView({
           search={search}
           onSearchChange={onSearchChange}
           hideSkipped={hidesSkipped(record.template, tab)}
-          showSkipFilter={!!editing?.skipLines && tab === 'fullSupply'}
+          showSkipFilter={skipFilter}
           unit={unit}
           setUnit={setUnit}
           canSwitch={canSwitch}

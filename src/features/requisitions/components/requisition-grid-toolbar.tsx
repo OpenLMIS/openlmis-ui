@@ -58,7 +58,7 @@ export function RequisitionGridToolbar({
         />
       </div>
       {showSkipFilter && (
-        <div className="w-full @2xl/main:w-auto">
+        <div className="flex-1 @2xl/main:flex-none">
           <DataTableFilters
             size="lg"
             disabled={disabled}

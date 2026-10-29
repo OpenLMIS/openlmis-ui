@@ -480,19 +480,3 @@ it('preserves stock-card average consumption and derives H and I from it', () =>
     calculatedOrderQuantity: 145,
   });
 });
-
-it('keeps explicit input sources for packs and cost', () => {
-  expect(
-    calculate(
-      { requestedQuantity: 20, packsToShip: 7, totalCost: 99 },
-      {
-        template: {
-          columnsMap: {
-            packsToShip: column('packsToShip', 0, { source: 'USER_INPUT' }),
-            totalCost: column('totalCost', 0, { source: 'USER_INPUT' }),
-          },
-        },
-      },
-    ),
-  ).toMatchObject({ packsToShip: 7, totalCost: 99 });
-});

@@ -300,7 +300,12 @@ export function AdjustmentsEditorDialog({
                 title="reason"
                 density="compact"
                 layout="auto"
-                empty={<DataTableEmpty title={t('requisitions.adjustments.empty')} />}
+                empty={
+                  <DataTableEmpty
+                    title={t('requisitions.adjustments.empty')}
+                    description={t('requisitions.adjustments.empty-description')}
+                  />
+                }
               />
               {cards ? (
                 <div className="shrink-0 overflow-hidden rounded-xl border bg-card">
