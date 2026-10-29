@@ -430,10 +430,7 @@ export function RequisitionGridView({
     const pinned = new Map<string, { sticky: true; stickyOffset: number }>();
     let offset = 0;
     for (const id of ids) {
-      pinned.set(id, {
-        sticky: true,
-        stickyOffset: Math.floor(offset),
-      });
+      pinned.set(id, { sticky: true, stickyOffset: offset });
       offset += pinnedWidths[id] ?? 0;
     }
     return pinned;

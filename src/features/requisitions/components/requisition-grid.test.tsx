@@ -309,8 +309,8 @@ it('pins skip, code and product at cumulative measured widths in header and body
   const offsets = columns.map(
     (name) => screen.getByRole('columnheader', { name }).style.insetInlineStart,
   );
-  expect(offsets).toEqual(['0', '120px', '241px', '']);
-  expect(screen.getByText('P0').closest('td')?.style.insetInlineStart).toBe('120px');
+  expect(offsets).toEqual(['0', '120.5px', '241px', '']);
+  expect(screen.getByText('P0').closest('td')?.style.insetInlineStart).toBe('120.5px');
   expect(
     screen.getByText('Medicine 0', { exact: true }).closest('td')?.style.insetInlineStart,
   ).toBe('241px');
