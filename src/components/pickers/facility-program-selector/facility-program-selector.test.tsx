@@ -339,3 +339,28 @@ function sourcesWithoutHome() {
     grants: [{ facilityId: 'bal', programId: 'em' }],
   };
 }
+
+it('submits with Enter from an extra field inside the picker form', async () => {
+  const onSearch = vi.fn();
+  render(
+    <FacilityProgramSelector
+      applied={{ mode: 'my', programId: 'fp', facilityId: 'home' }}
+      onDraftChange={vi.fn()}
+      onSearch={onSearch}
+      options={options}
+    >
+      <label>
+        Extra field
+        <input aria-label="Extra field" />
+      </label>
+    </FacilityProgramSelector>,
+  );
+  await userEvent.type(screen.getByRole('textbox', { name: 'Extra field' }), 'value{Enter}');
+  await waitFor(() =>
+    expect(onSearch).toHaveBeenCalledWith({
+      mode: 'my',
+      programId: 'fp',
+      facilityId: 'home',
+    }),
+  );
+});

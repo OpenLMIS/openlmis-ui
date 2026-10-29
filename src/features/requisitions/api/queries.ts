@@ -7,11 +7,16 @@ import {
   programLookupOptions,
 } from '@/features/reference-data/api/queries';
 import {
+  fetchPeriodsForInitiate,
   fetchRequisition,
   fetchStatusMessages,
   searchRequisitions,
 } from '@/features/requisitions/api/api';
-import type { RequisitionRecord, RequisitionsQuery } from '@/features/requisitions/lib/types';
+import type {
+  InitiateQuery,
+  RequisitionRecord,
+  RequisitionsQuery,
+} from '@/features/requisitions/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 
 export const requisitionSearchOptions = (params: RequisitionsQuery) =>
@@ -41,3 +46,10 @@ export const requisitionGridQueries = (record: RequisitionRecord) =>
     currencySettingsOptions(),
     programLookupOptions(record.program.id),
   ] as const;
+
+export const periodsForInitiateOptions = (params: InitiateQuery) =>
+  queryOptions({
+    queryKey: [...queryKeys.requisitions.all, 'periodsForInitiate', params] as const,
+    queryFn: () => fetchPeriodsForInitiate(params),
+    staleTime: 0,
+  });

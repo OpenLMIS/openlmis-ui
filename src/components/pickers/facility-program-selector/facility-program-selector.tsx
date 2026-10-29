@@ -47,6 +47,7 @@ const fromValues = (values: CompleteSelection): FacilityProgramSelection => ({
 });
 
 type FacilityProgramSelectorProps = {
+  children?: ReactNode;
   options: FacilityProgramOptions;
   programUnavailable?: (programId: string) => string | undefined;
   applied: FacilityProgramSelection;
@@ -55,6 +56,7 @@ type FacilityProgramSelectorProps = {
 };
 
 export const FacilityProgramSelector = memo(function FacilityProgramSelector({
+  children,
   options,
   programUnavailable,
   applied,
@@ -244,6 +246,7 @@ export const FacilityProgramSelector = memo(function FacilityProgramSelector({
       >
         {mode === 'my' ? facilityField : programField}
         {mode === 'my' ? programField : facilityField}
+        {children}
       </SelectorFrame>
     </form>
   );
@@ -286,7 +289,7 @@ export function SelectorFrame({ mode, children, search }: SelectorFrameProps) {
   );
 }
 
-export function FacilityProgramSelectorSkeleton() {
+export function FacilityProgramSelectorSkeleton({ children }: { children?: ReactNode }) {
   const { t } = useTranslation();
   return (
     <div aria-busy>
@@ -307,6 +310,7 @@ export function FacilityProgramSelectorSkeleton() {
       >
         <SelectorSkeletonField label={t('facility-program.facility')} />
         <SelectorSkeletonField label={t('facility-program.program')} />
+        {children}
       </SelectorFrame>
     </div>
   );
