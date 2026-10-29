@@ -40,7 +40,7 @@ export function CommentEntry({
                 </p>
               )}
               {note && (
-                <Badge variant="info" wrap="normal">
+                <Badge variant="secondary" wrap="normal">
                   <InfoIcon data-icon="inline-start" />
                   {note}
                 </Badge>
