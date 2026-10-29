@@ -4,11 +4,6 @@ import { DownloadIcon, Loader2Icon, PaperclipIcon, UploadIcon } from 'lucide-rea
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  FileTransferExport,
-  FileTransferPanel,
-  FileTransferUpload,
-} from '@/components/app-shell/file-transfer-panel';
 import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
@@ -20,6 +15,11 @@ import {
   exportIdealStockAmounts,
   uploadIdealStockAmounts,
 } from '@/features/ideal-stock-amounts/api/api';
+import {
+  FileTransferExport,
+  FileTransferPanel,
+  FileTransferUpload,
+} from '@/features/ideal-stock-amounts/components/file-transfer-panel';
 import { idealStockAmountsUploadSchema } from '@/features/ideal-stock-amounts/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';

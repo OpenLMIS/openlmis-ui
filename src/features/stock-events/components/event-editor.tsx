@@ -31,9 +31,8 @@ import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { DraftStatus } from '@/components/display/draft-status';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
+import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
-import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
-import { ScanStatus } from '@/components/pickers/scan-status';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -84,6 +83,7 @@ import {
   ProductLotPicker,
   ProductLotPickerSkeleton,
 } from '@/features/stock-events/components/product-lot-picker';
+import { ScanStatus } from '@/features/stock-events/components/scan-status';
 import { SignatureDialog } from '@/features/stock-events/components/signature-dialog';
 import { SubmitConfirmDialog } from '@/features/stock-events/components/submit-confirm-dialog';
 import { useDeviceDrafts } from '@/features/stock-events/hooks/use-device-drafts';

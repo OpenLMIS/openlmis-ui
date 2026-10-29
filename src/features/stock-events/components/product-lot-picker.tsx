@@ -18,7 +18,6 @@ import {
   PickerAddField,
   PickerAddIcon,
 } from '@/components/pickers/picker-add';
-import { ScanStatus } from '@/components/pickers/scan-status';
 import { Button } from '@/components/ui/button';
 import {
   Combobox,
@@ -52,6 +51,7 @@ import {
   receiveStockOnHandOptions,
 } from '@/features/stock-events/api/queries';
 import { NewLotDialog } from '@/features/stock-events/components/new-lot-dialog';
+import { ScanStatus } from '@/features/stock-events/components/scan-status';
 import type { EventLine, EventLineCandidate } from '@/features/stock-events/lib/event-form';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import type { HomeStockScope } from '@/features/stock-events/lib/home-stock-bundle';

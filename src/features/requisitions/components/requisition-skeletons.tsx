@@ -10,6 +10,7 @@ import {
   CardRows,
 } from '@/components/display/card-list';
 import { DraftStatusSkeleton } from '@/components/display/draft-status';
+import { QuantityHeaderSizer } from '@/components/display/quantity-header-sizer';
 import {
   RecordSummary,
   RecordSummaryFieldSkeleton,
@@ -17,7 +18,6 @@ import {
   RecordSummaryHeading,
 } from '@/components/display/record-summary';
 import { SettingsRowFrame } from '@/components/form/settings-list';
-import { QuantityHeaderSizer } from '@/components/pickers/quantity-header-sizer';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';

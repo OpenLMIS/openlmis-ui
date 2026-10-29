@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePageGatedOpen } from "@/components/app-shell/page-visibility"
+import { usePageGatedOpen } from "@/components/shared/page-visibility"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 import { cn } from "cn"

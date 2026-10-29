@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { PageVisibility } from '@/components/app-shell/page-visibility';
+import { PageVisibility } from '@/components/shared/page-visibility';
 import {
   AlertDialog,
   AlertDialogCancel,

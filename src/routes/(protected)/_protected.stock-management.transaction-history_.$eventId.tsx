@@ -7,7 +7,7 @@ import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
+import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
 import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';

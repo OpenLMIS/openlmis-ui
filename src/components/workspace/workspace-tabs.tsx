@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-router';
 import { type ComponentProps, createContext, type ReactNode, useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { usePageHidden } from '@/components/app-shell/page-visibility';
+import { usePageHidden } from '@/components/shared/page-visibility';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkspaceActions, WorkspaceFooter } from '@/components/workspace/workspace';
 

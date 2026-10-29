@@ -41,7 +41,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { ScanUnavailable } from '@/components/pickers/scan-status';
 import { Button } from '@/components/ui/button';
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -68,6 +67,7 @@ import {
   InventoryToolbar,
   PhysicalInventoryPendingBody,
 } from '@/features/stock-events/components/physical-inventory-pending';
+import { ScanUnavailable } from '@/features/stock-events/components/scan-status';
 import { usePhysicalInventoryAutosave } from '@/features/stock-events/hooks/use-physical-inventory-autosave';
 import {
   type PhysicalInventoryForm,

@@ -9,7 +9,7 @@ import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { DraftStatusSkeleton } from '@/components/display/draft-status';
-import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
+import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';

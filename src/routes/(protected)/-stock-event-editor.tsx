@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
+import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {

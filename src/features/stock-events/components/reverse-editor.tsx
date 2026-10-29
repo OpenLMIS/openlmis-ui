@@ -47,10 +47,10 @@ import {
 } from '@/components/display/card-list';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
+import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
 import { formatDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
-import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
 import {
   AlertDialog,
   AlertDialogCancel,

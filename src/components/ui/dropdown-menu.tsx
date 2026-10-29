@@ -1,5 +1,5 @@
 import * as React from "react"
-import { usePageGatedOpen } from "@/components/app-shell/page-visibility"
+import { usePageGatedOpen } from "@/components/shared/page-visibility"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "cn"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"

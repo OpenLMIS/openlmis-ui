@@ -77,10 +77,10 @@ src/
     ui/               #   generated shadcn components
     app-shell/        #   shell, navigation, status and error pages, offline notices
     workspace/        #   page layout and tabs
-    display/          #   cards, record tables and shared dialogs
+    display/          #   cards, record tables, quantity controls and shared dialogs
     pickers/          #   facility/program and product pickers
     auth/ i18n/       #   sign-in pieces, direction and translated labels
-    shared/           #   small widgets used everywhere
+    shared/           #   page-visibility gate and small widgets used everywhere
     data-table/ form/ form-dialog/ valid-assignments/
   integrations/       # Axios, TanStack Query/Router and i18next singletons
   lib/                # Shared config, types, utilities and query keys

@@ -30,9 +30,9 @@ import {
   CardListItem,
   CardRows,
 } from '@/components/display/card-list';
+import { QuantityHeaderSizer } from '@/components/display/quantity-header-sizer';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
-import { QuantityHeaderSizer } from '@/components/pickers/quantity-header-sizer';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';

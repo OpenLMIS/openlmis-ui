@@ -36,9 +36,9 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DraftStatus } from '@/components/display/draft-status';
+import { QuantityHeaderSizer } from '@/components/display/quantity-header-sizer';
 import { TableCards } from '@/components/display/table-cards';
 import { quantityValue } from '@/components/form/quantity-value';
-import { QuantityHeaderSizer } from '@/components/pickers/quantity-header-sizer';
 import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { FlagBadge } from '@/components/shared/flag-badge';
 import { Button } from '@/components/ui/button';

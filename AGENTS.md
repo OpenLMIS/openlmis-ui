@@ -50,8 +50,8 @@ such as `_protected.tsx` provide layouts.
 The protected layout has an icon-collapsible sidebar (`Ctrl/Cmd+B`) and top bar, adapted
 from `@7ovr/app-shell-1`. `NAV_GROUPS` in `src/lib/config.ts` drives both the sidebar and
 command palette (`Ctrl/Cmd+K`). `LIVE_NAV_GROUPS` excludes unmigrated `to: '#'` entries and
-sections with no live pages. `useNavGroups()` in `src/components/app-shell/nav-access.ts` then filters
-both by the user's rights.
+sections with no live pages. `useNavGroups()` in `src/components/app-shell/nav-access.ts` then
+filters both by the user's rights.
 
 - Requisition navigation also counts `REQUISITION_VIEW` in the user's supervision roles, so sidebar,
   palette and breadcrumbs agree.
@@ -267,7 +267,7 @@ edits, which have no prop for TypeScript to detect:
 
 | File | Required customization |
 |---|---|
-| `dialog.tsx` | Keep the app `@/components/app-shell/page-visibility` dependency, hidden portal state and release after visible close |
+| `dialog.tsx` | Keep the app `@/components/shared/page-visibility` dependency, hidden portal state and release after visible close |
 | `sheet.tsx` / `dropdown-menu.tsx` / `popover.tsx` / `select.tsx` | Keep page-visibility gates and close transient overlays when the page hides |
 | `alert-dialog.tsx` | Keep the page-visibility gate and retained close target; DiscardChangesDialog opts out so navigation/logout remain answerable. Preserve destructive media, the `lg` size and header/media/title `group-not-data-[size=sm]` classes so large dialogs retain the default layout |
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
@@ -299,9 +299,10 @@ edits, which have no prop for TypeScript to detect:
 Generate shadcn components in `src/components/ui/` with
 `pnpm dlx shadcn@latest add <component>`. Check RTL exceptions and customizations above.
 `cn` comes from the `cn` package, re-exported by `src/lib/utils.ts`.
-Put other shared components in the group that fits (`app-shell/`, `workspace/`, `display/`,
-`pickers/`, `auth/`, `i18n/`, `shared/`); never at the `src/components/` root. Test helpers live
-in `src/test-utils/`.
+Put other shared components in the folder that fits (`app-shell/`, `workspace/`, `display/`,
+`pickers/`, `auth/`, `i18n/`, `shared/`, `data-table/`, `form/`, `form-dialog/`,
+`valid-assignments/`), never at the `src/components/` root. A component one feature uses lives
+in that feature. Test helpers live in `src/test-utils/`.
 
 ### pnpm settings
 
@@ -410,8 +411,8 @@ App-shell pages compose `src/components/workspace/workspace.tsx`:
   linked crumb, retaining filters on reload/shared links.
 - A non-nav page with `crumbKey` gets Home / its crumb. Home and non-nav pages without a
   crumb have no breadcrumbs.
-- `useAccountLinks()` (`src/components/app-shell/nav-access.ts`) supplies rights-filtered Profile and
-  `/settings` links to the avatar menu, palette and sidebar, immediately below sidebar Home.
+- `useAccountLinks()` (`src/components/app-shell/nav-access.ts`) supplies rights-filtered Profile
+  and `/settings` links to the avatar menu, palette and sidebar, immediately below sidebar Home.
 - Workspace parts/breadcrumbs accept no `className`; add a variant for a different treatment.
 
 Signed-out pages compose `src/components/auth/auth-card.tsx`: `AuthPage` with the page title;
@@ -471,8 +472,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Exception to one-line headers: the requisition grid wraps header labels between words, up to
   three lines, with an info icon tooltip for template definitions.
 
-- Yes/no and active/inactive cells use `FlagBadge` (`src/components/shared/flag-badge.tsx`): a success
-  check or destructive cross, always with its label.
+- Yes/no and active/inactive cells use `FlagBadge` (`src/components/shared/flag-badge.tsx`): a
+  success check or destructive cross, always with its label.
 
 - Use content width, never viewport breakpoints such as `md:`. Define lower-priority columns
   with `hideBelow` (container size or pixels) or `defaultHidden`; see `USER_HIDEABLE_COLUMNS`.
@@ -517,33 +518,33 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   Stock On Hand, Current Stock, VVM, Reasons and Unaccounted. Multi-lot products add a Total
   section matching the table summary. Add Products dialog lines use flat cards with inline errors.
   Every table switches to cards below 672px. Other tables use `TableCards` and
-  `TableCardsSkeleton` (`src/components/display/table-cards.tsx`) over the same TanStack table: the `title` column and the
-  `actions` cell form the band; every other visible column is a row labelled by `meta.label`.
-  Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"` for two lines),
-  which wraps in full in cards; `TableCards` bolds the band title. It calls each column's `cell`
-  directly, so cells must not call hooks and must return `null` or `''` when empty to show
-  `EMPTY_VALUE`. Return `false` only to omit a disabled, row-specific detail in cards. Sortable card
-  lists pass `sort` to `DataTableViewOptions` from `searchSort`
+  `TableCardsSkeleton` (`src/components/display/table-cards.tsx`) over the same TanStack table: the
+  `title` column and the `actions` cell form the band; every other visible column is a row labelled
+  by `meta.label`. Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"`
+  for two lines), which wraps in full in cards; `TableCards` bolds the band title. It calls each
+  column's `cell` directly, so cells must not call hooks and must return `null` or `''` when empty
+  to show `EMPTY_VALUE`. Return `false` only to omit a disabled, row-specific detail in cards.
+  Sortable card lists pass `sort` to `DataTableViewOptions` from `searchSort`
   (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds
   history. A `select` column turns the band into `CardSelectBand`, with a Select Page control
   above the cards; `heading` renders group rows as headings, as on product Facility Types.
   Row action cells render `RowActions` with one `actions` list: `CardActions` in cards, the
   table's ghost "..." menu otherwise; other cell components read `useInCards()`. Every card band action, Stock included, goes through `CardActions`
-  (`src/components/display/card-actions.tsx`), given as data: outline icon buttons with a tooltip and the
-  table's accessible name, tinted `destructive` for destructive ones, inside a group named like
-  the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then
+  (`src/components/display/card-actions.tsx`), given as data: outline icon buttons with a tooltip
+  and the table's accessible name, tinted `destructive` for destructive ones, inside a group named
+  like the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then
   View) first in `actions`; it sits at the band's end. Up to three show as buttons; four or more
   show two plus a "..." menu holding the rest, destructive last. Server deletes always confirm;
   draft-row removal is instant. Skeletons pass the same count to `CardActionsSkeleton` or
   `TableCardsSkeleton actions`. Editor and dialog tables follow the same rule. Dialogs measure
   with `useDialogCardLayout(size)` (`src/hooks/use-card-view.ts`): below 672px or once the screen
   squeezes a narrower dialog below its own width. `DialogTable` and `DialogTableSkeleton`
-  (`src/components/display/dialog-table.tsx`) render flat `TableCards` in `DialogCards`: the dialog body
-  scrolls forms, cards and pager as one, with no nested scroll area, and a pager move scrolls to
-  the first card; filters and past-end clamps do not. Measure outside `FormDialogBody`, whose scrollbar would flip the layout.
-  Requisition template Columns cards keep drag-to-reorder: the handle, indicator, label and
-  Display checkbox form the band, `CardListItem drag` moves the card and `CardDragPreview` draws
-  the overlay. Keep headers on one line;
+  (`src/components/display/dialog-table.tsx`) render flat `TableCards` in `DialogCards`: the dialog
+  body scrolls forms, cards and pager as one, with no nested scroll area, and a pager move scrolls
+  to the first card; filters and past-end clamps do not. Measure outside `FormDialogBody`, whose
+  scrollbar would flip the layout. Requisition template Columns cards keep drag-to-reorder: the
+  handle, indicator, label and Display checkbox form the band, `CardListItem drag` moves the card
+  and `CardDragPreview` draws the overlay. Keep headers on one line;
   every table header uses `DataTableHeaderLabel`'s style, including loading skeletons.
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
@@ -614,9 +615,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `className`s in the registry; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
 - Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet import the app
-  `@/components/app-shell/page-visibility` gate. Its context defaults to false, keeping these primitives
-  stock-like outside the app. This is an accepted app dependency exception; strip the gate
-  when moving them into the registry.
+  `@/components/shared/page-visibility` gate. Its context defaults to false, keeping these
+  primitives stock-like outside the app. This is an accepted app dependency exception; strip the
+  gate when moving them into the registry.
 - `isRowInvalid` row tint depends on app `table.tsx` aria-invalid styling; carry that styling
   into the registry.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
@@ -671,8 +672,8 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   and keep labelled fields in a card otherwise. Receive can create lots, so it always keeps
   labelled fields; its New Lot Code and Expiry fields take their own row so Product and Add stay put.
   With editor cards (below 672px), Add New Lot opens `NewLotDialog` instead, filling Lot Code. Compose `PickerAdd`, `PickerAddField`, `PickerAddIcon` and `PickerAddButton`
-  (`src/components/pickers/picker-add.tsx`); anchor the list to `PickerAddField` so it spans the icon. The loading skeleton repeats the layout last shown for
-  that kind and program (`rememberedPickerLayout`), compact on a first visit.
+  (`src/components/pickers/picker-add.tsx`); anchor the list to `PickerAddField` so it spans the
+  icon. The loading skeleton repeats the layout last shown for that kind and program (`rememberedPickerLayout`), compact on a first visit.
 
 **Whole-record saves require fresh reads:**
 
@@ -763,7 +764,7 @@ features or i18next. Allowed variants: `DialogContent size/height/layout`, `Dial
 `Button align/width/variant="warning"`, `PopoverContent width/padding`. Each `lg` size is a plain
 `h-9` className in the registry.
 The app Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet primitives
-import `@/components/app-shell/page-visibility`; form-dialog and form-fields inherit this dependency.
+import `@/components/shared/page-visibility`; form-dialog and form-fields inherit this dependency.
 This is an accepted app dependency exception. The context defaults to false, keeping them
 stock-like outside the app. Strip the gate when moving these components into the registry.
 
@@ -833,10 +834,10 @@ home facility, user programs, all facilities and page grants, following legacy:
 router navigation. It registers `useLeaveGuard` for exits outside the router. Reloads, updates,
 chunk Try Again and Back To Legacy call `whenLeaveAllowed` with `'leave'` for neutral wording;
 sign-outs, including password changes, pass `'sign-out'` explicitly.
-Both use `src/components/display/discard-changes-dialog.tsx`. Its `pending` option keeps leaving blocked
-during a save without offering Discard. Device drafts pass `flushBeforeLeave` to commit staged edits
-before navigation or external leave; only a failed flush asks first. Every external leave,
-including reload, update, Back To Legacy and sign-out, keeps the saved device draft.
+Both use `src/components/display/discard-changes-dialog.tsx`. Its `pending` option keeps leaving
+blocked during a save without offering Discard. Device drafts pass `flushBeforeLeave` to commit
+staged edits before navigation or external leave; only a failed flush asks first. Every external
+leave, including reload, update, Back To Legacy and sign-out, keeps the saved device draft.
 `useBackToLegacy(hash)` appends an optional legacy hash path while keeping leave guards and
 unload handling.
 Browser reload and tab close use the native prompt. External identity changes follow

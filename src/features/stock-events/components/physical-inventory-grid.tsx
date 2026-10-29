@@ -27,12 +27,12 @@ import {
   CardRows,
   SkeletonBar,
 } from '@/components/display/card-list';
+import { QuantityHeaderSizer } from '@/components/display/quantity-header-sizer';
 import { useFieldContext } from '@/components/form/form-context';
 import { HiddenFromView } from '@/components/form/form-fields';
 import type { QuantityValue } from '@/components/form/quantity-value';
 import { updateQuantityValue } from '@/components/form/quantity-value';
 import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
-import { QuantityHeaderSizer } from '@/components/pickers/quantity-header-sizer';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
