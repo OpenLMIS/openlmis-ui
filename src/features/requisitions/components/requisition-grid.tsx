@@ -934,33 +934,27 @@ function AdjustmentsCell({
   const { t } = useTranslation();
   const Icon = mode === 'edit' ? SquarePenIcon : EyeIcon;
   return (
-    <div
-      className={
-        cards ? 'flex items-center justify-end gap-2' : 'flex items-center justify-between gap-2'
-      }
-    >
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              aria-label={name}
-              disabled={disabled}
-              size={cards ? 'icon-sm' : 'icon-xs'}
-              variant="ghost"
-              onClick={onOpen}
-            />
-          }
-        >
-          <Icon />
-        </TooltipTrigger>
-        <TooltipContent>
-          {t(mode === 'edit' ? 'requisitions.adjustments.edit' : 'requisitions.adjustments.view')}
-        </TooltipContent>
-      </Tooltip>
-      <span className={cards ? 'font-medium text-sm tabular-nums' : 'tabular-nums'}>
-        {children}
-      </span>
-    </div>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-label={name}
+            align={cards ? 'default' : 'between'}
+            disabled={disabled}
+            size="sm"
+            variant="ghost"
+            width={cards ? 'default' : 'full'}
+            onClick={onOpen}
+          />
+        }
+      >
+        <Icon />
+        <span className={cards ? 'font-medium tabular-nums' : 'tabular-nums'}>{children}</span>
+      </TooltipTrigger>
+      <TooltipContent>
+        {t(mode === 'edit' ? 'requisitions.adjustments.edit' : 'requisitions.adjustments.view')}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 function CalculatedError({ error, children }: { error?: ParseKeys; children?: ReactNode }) {
