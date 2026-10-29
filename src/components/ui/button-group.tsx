@@ -11,7 +11,7 @@ const buttonGroupVariants = cva(
     variants: {
       width: {
         fit: "w-fit",
-        full: "w-full *:flex-1",
+        full: "w-full *:flex-1 [&>[data-slot=button-group-text]]:flex-none",
       },
       orientation: {
         horizontal:
