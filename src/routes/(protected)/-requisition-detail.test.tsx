@@ -87,7 +87,7 @@ vi.mock('@/features/requisitions/components/requisition-skeletons', async (impor
   ),
 }));
 
-function renderRoute(path: string) {
+function renderRoute(path: string, state?: import('@tanstack/react-router').HistoryState) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -105,11 +105,17 @@ function renderRoute(path: string) {
     pendingComponent: Route.options.pendingComponent as never,
   });
   const history = createMemoryHistory({ initialEntries: [path] });
+  if (state) history.replace(path, state);
   const router = createRouter({
     routeTree: root.addChildren([
       group.addChildren([
         layout.addChildren([
           list,
+          createRoute({
+            getParentRoute: () => layout,
+            path: 'requisitions/initiate',
+            component: () => <p>Create Authorize Search</p>,
+          }),
           createRoute({
             getParentRoute: () => layout,
             path: 'requisitions/view',
@@ -388,7 +394,12 @@ async function addComment(text: string) {
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(screen.getByText(text)).toBeInTheDocument();
 }
-async function openEditor(invalid = false, fromList = false, authorize = false) {
+async function openEditor(
+  invalid = false,
+  fromList = false,
+  authorize = false,
+  state?: import('@tanstack/react-router').HistoryState,
+) {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
@@ -405,6 +416,7 @@ async function openEditor(invalid = false, fromList = false, authorize = false) 
   vi.mocked(fetchRequisition).mockResolvedValue(base);
   const rendered = renderRoute(
     `/requisitions/view/r?detailSize=1${fromList ? '&facility=f&page=3' : ''}`,
+    state,
   );
   await waitFor(() =>
     expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toBeEnabled(),
@@ -1214,3 +1226,45 @@ it.each(['read', 'write'] as const)(
     queryClient.clear();
   },
 );
+
+it('returns to Create/Authorize after tab and grid paging changes before finishing', async () => {
+  vi.mocked(fetchProgramLookup).mockResolvedValueOnce({
+    id: 'program',
+    code: 'P',
+    name: 'Family Planning',
+    active: true,
+    showNonFullSupplyTab: true,
+  });
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 1200,
+  } as DOMRect);
+  const search = {
+    mode: 'supervised' as const,
+    facilityId: 'f',
+    programId: 'program',
+    emergency: true,
+  };
+  const { router, queryClient } = await openEditor(false, false, false, {
+    requisitionReturn: { to: '/requisitions/initiate', search },
+  });
+  fireEvent.click(screen.getByRole('tab', { name: /requisitions.requisition.non-full-supply/ }));
+  await waitFor(() => expect(router.state.location.search.tab).toBe('nonFullSupply'));
+  fireEvent.click(screen.getByRole('tab', { name: /requisitions.requisition.full-supply/ }));
+  await screen.findByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.click(screen.getByRole('button', { name: 'Page 2' }));
+  await waitFor(() => expect(router.state.location.search.detailPage).toBe(2));
+  expect(router.state.location.state.requisitionReturn).toEqual({
+    to: '/requisitions/initiate',
+    search,
+  });
+  vi.spyOn(client, 'delete').mockResolvedValue({ data: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.delete' }));
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'requisitions.edit.actions.delete',
+    }),
+  );
+  await screen.findByText('Create Authorize Search');
+  expect(router.state.location.search).toEqual(search);
+  queryClient.clear();
+});

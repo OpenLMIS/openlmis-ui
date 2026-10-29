@@ -625,8 +625,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
   default, `default` for compact tables needing room, `compact` for tighter cell padding;
   `layout="fixed"` by default, `auto`
-  for content-sized columns such as bin cards. `DataTableSkeleton pagination={false}` omits
-  the pager placeholder for unpaged tables; pagination defaults to true.
+  for content-sized columns such as bin cards. `DataTableSkeleton pagination="none"` omits
+  the pager placeholder for unpaged tables; pagination defaults to `"default"`.
 - Columns holding a button or inline control set `meta: { skeleton: 'control' }`, so loading rows
   reserve a 28px block and keep the real row height. Pending headers use the real icon, title and
   description, with a placeholder only inside `WorkspaceTitle`/`WorkspaceDescription` when the
