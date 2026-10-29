@@ -3,7 +3,13 @@ import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-quer
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { ErrorAlert, FieldSkeleton, RetryButton, SkeletonLine } from '@/components/dialog-parts';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import {
+  ErrorAlert,
+  FieldSkeleton,
+  RetryButton,
+  SkeletonLine,
+} from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ComboboxField } from '@/components/form/form-fields';
 import {
@@ -18,7 +24,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { FieldDescription, FieldGroup } from '@/components/ui/field';
 import { allUsersOptions, userDetailsOptions } from '@/features/users/api/queries';
 import { mergeAssignments } from '@/features/users/lib/role-assignments';

@@ -14,8 +14,6 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
-import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import {
   DataTable,
   DataTableEmpty,
@@ -24,9 +22,17 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { CardActions } from '@/components/display/card-actions';
+import {
+  CardBand,
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardRows,
+} from '@/components/display/card-list';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
-import { QuantityHeaderSizer } from '@/components/quantity-header-sizer';
+import { QuantityHeaderSizer } from '@/components/pickers/quantity-header-sizer';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidAssignment } from '@/components/valid-assignments/types';

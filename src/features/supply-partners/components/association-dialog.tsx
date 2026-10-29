@@ -13,7 +13,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { DialogNotFound, ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { ListError } from '@/components/app-shell/list-error';
+import { DialogNotFound, ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { FieldAbout } from '@/components/form/form-fields';
 import {
@@ -28,8 +29,12 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { ListError } from '@/components/list-error';
-import { PickerAdd, PickerAddButton, PickerAddField, PickerAddIcon } from '@/components/picker-add';
+import {
+  PickerAdd,
+  PickerAddButton,
+  PickerAddField,
+  PickerAddIcon,
+} from '@/components/pickers/picker-add';
 import {
   AlertDialog,
   AlertDialogCancel,

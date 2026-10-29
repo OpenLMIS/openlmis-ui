@@ -3,12 +3,14 @@ import { useIsMutating, useSuspenseQuery } from '@tanstack/react-query';
 import { type ReactNode, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { PasswordRequirements } from '@/components/auth/password-requirements';
 import {
   DialogLoadError,
   ErrorAlert,
   SkeletonLine,
   serverMessage,
-} from '@/components/dialog-parts';
+} from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ChoiceCard } from '@/components/form/form-fields';
 import {
@@ -23,8 +25,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { PasswordRequirements } from '@/components/password-requirements';
-import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { sendPasswordResetEmail, setUserPassword } from '@/features/users/api/api';

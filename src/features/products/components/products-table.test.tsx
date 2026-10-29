@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchProducts } from '@/features/products/api/api';
 import { ProductsTable } from '@/features/products/components/products-table';
 import type { ProductsSearch } from '@/features/products/lib/search';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/products/api/api', () => ({ fetchProducts: vi.fn() }));
 

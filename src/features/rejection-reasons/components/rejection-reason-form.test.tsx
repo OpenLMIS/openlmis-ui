@@ -5,12 +5,12 @@ import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import { TranslatedFormMessages } from '@/components/translated-form-messages';
+import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 import { RejectionReasonFormDialog } from '@/features/rejection-reasons/components/rejection-reason-form-dialog';
 import { client } from '@/integrations/axios';
 import { queryKeys } from '@/lib/key-factory';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), post: vi.fn() } }));

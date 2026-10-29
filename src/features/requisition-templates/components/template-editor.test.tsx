@@ -17,9 +17,9 @@ import {
 } from '@/features/requisition-templates/components/template-editor';
 import { liveTemplates } from '@/features/requisition-templates/lib/test-templates';
 import { client } from '@/integrations/axios';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
-vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), put: vi.fn() } }));
 vi.mock('@/features/requisition-templates/api/api', async (original) => {

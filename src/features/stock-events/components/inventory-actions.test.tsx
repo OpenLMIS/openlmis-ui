@@ -11,7 +11,7 @@ import type { ComponentProps } from 'react';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { quantityValue } from '@/components/form/quantity-value';
-import { WorkspaceSlots } from '@/components/workspace-tabs';
+import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   createPhysicalInventoryLot,

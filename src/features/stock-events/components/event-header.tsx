@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { formatTimestamp } from '@/components/form/date-value';
 import {
   RecordSummary,
   RecordSummaryField,
   RecordSummaryFieldSkeleton,
   RecordSummaryFields,
   RecordSummaryHeading,
-} from '@/components/record-summary';
+} from '@/components/display/record-summary';
+import { formatTimestamp } from '@/components/form/date-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';

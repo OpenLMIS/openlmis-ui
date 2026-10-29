@@ -30,9 +30,9 @@ import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand_.$stockCardId';
-import { expectRouteWarning } from '@/tests/expect-route-warning';
-import { seedHomeStock } from '@/tests/home-stock';
-import { httpError } from '@/tests/http-error';
+import { expectRouteWarning } from '@/test-utils/expect-route-warning';
+import { seedHomeStock } from '@/test-utils/home-stock';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/features/reference-data/api/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/reference-data/api/api')>()),
@@ -61,7 +61,7 @@ vi.mock('@/features/stock-card/api/api', () => ({
 const deliver = vi.fn();
 vi.mock('@/lib/open-report', () => ({ openReport: vi.fn(() => ({ deliver, close: vi.fn() })) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+vi.mock('@/components/app-shell/nav-access', () => ({ useCanOpen: () => () => true }));
 
 const CARD_MATCH_ID =
   '/(protected)/_protected/stock-management/stock-on-hand/$stockCardId/stock-management/stock-on-hand/card1';

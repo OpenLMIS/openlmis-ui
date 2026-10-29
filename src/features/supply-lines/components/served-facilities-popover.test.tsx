@@ -11,7 +11,7 @@ import { supplyLinesPageOptions } from '@/features/supply-lines/api/queries';
 import { SupplyLinesTable } from '@/features/supply-lines/components/supply-lines-table';
 import type { SupplyLine } from '@/features/supply-lines/lib/types';
 import { client } from '@/integrations/axios';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/integrations/axios', async () => ({ client: (await import('axios')).default.create() }));

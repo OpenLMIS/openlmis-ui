@@ -1,7 +1,8 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DialogLoadError, FieldSkeleton } from '@/components/dialog-parts';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { DialogLoadError, FieldSkeleton } from '@/components/display/dialog-parts';
 import { formatDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -22,7 +23,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
 import {
   deviceNewLotsOptions,

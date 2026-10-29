@@ -1,5 +1,5 @@
 import * as React from "react"
-import { usePageGatedOpen } from "@/components/page-visibility"
+import { usePageGatedOpen } from "@/components/app-shell/page-visibility"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { cn } from "cn"
 

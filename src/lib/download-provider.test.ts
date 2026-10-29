@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { LOCAL_TABLES, localTable } from '@/integrations/local-db';
 import { defineDownloadProvider } from '@/lib/download-provider';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
 it('rejects a fetched record for another owner or scope before it can be published', async () => {
   const fetch = vi.fn(async () => ({

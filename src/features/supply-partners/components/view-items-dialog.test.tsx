@@ -11,7 +11,7 @@ import {
   supervisoryNodesByIdsOptions,
 } from '@/features/reference-data/api/queries';
 import { ViewItemsDialog } from '@/features/supply-partners/components/view-items-dialog';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 beforeEach(() => {

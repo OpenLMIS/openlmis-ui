@@ -8,8 +8,8 @@ import { ProgramLinkDialog } from '@/features/products/components/program-link-d
 import { RemoveProgramLinkDialog } from '@/features/products/components/remove-program-link-dialog';
 import type { ProductDetail } from '@/features/products/lib/types';
 import { fetchOrderableDisplayCategories, fetchPrograms } from '@/features/reference-data/api/api';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/products/api/api', () => ({ saveProductChange: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({

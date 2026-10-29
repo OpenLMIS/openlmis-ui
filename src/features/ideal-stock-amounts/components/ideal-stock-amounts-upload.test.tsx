@@ -6,14 +6,14 @@ import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { toast } from 'sonner';
 import { beforeAll, expect, it, vi } from 'vitest';
-import { TranslatedFormMessages } from '@/components/translated-form-messages';
+import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 import {
   exportIdealStockAmounts,
   uploadIdealStockAmounts,
 } from '@/features/ideal-stock-amounts/api/api';
 import { IdealStockAmountsUpload } from '@/features/ideal-stock-amounts/components/ideal-stock-amounts-upload';
-import { httpError, networkError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError, networkError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/features/ideal-stock-amounts/api/api', () => ({

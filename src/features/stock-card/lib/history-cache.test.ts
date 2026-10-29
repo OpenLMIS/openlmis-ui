@@ -7,8 +7,8 @@ import {
 } from '@/features/stock-card/lib/history-cache';
 import type { StockCard } from '@/features/stock-card/lib/types';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
-import { seedHomeStock } from '@/tests/home-stock';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { seedHomeStock } from '@/test-utils/home-stock';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
 const card: StockCard = {
   id: 'card',

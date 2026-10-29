@@ -1,17 +1,23 @@
 import { PlusIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableFooter } from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
-import { DraftStatusSkeleton } from '@/components/draft-status';
-import { SettingsRowFrame } from '@/components/form/settings-list';
-import { QuantityHeaderSizer } from '@/components/quantity-header-sizer';
+import {
+  CardBand,
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardRows,
+} from '@/components/display/card-list';
+import { DraftStatusSkeleton } from '@/components/display/draft-status';
 import {
   RecordSummary,
   RecordSummaryFieldSkeleton,
   RecordSummaryFields,
   RecordSummaryHeading,
-} from '@/components/record-summary';
+} from '@/components/display/record-summary';
+import { SettingsRowFrame } from '@/components/form/settings-list';
+import { QuantityHeaderSizer } from '@/components/pickers/quantity-header-sizer';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';

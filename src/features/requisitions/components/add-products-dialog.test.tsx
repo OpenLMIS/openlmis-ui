@@ -8,7 +8,7 @@ import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import { orderablesByIdentitiesOptions } from '@/features/reference-data/api/queries';
 import { AddProductsDialog } from '@/features/requisitions/components/add-products-dialog';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);

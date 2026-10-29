@@ -1,10 +1,10 @@
 import { FileSlidersIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { CardControlRow, CardListSkeleton, SkeletonBar } from '@/components/card-list';
+import { Block } from '@/components/app-shell/skeleton-block';
 import { DataTableCard } from '@/components/data-table/data-table';
-import { FieldSkeleton, SwitchRowSkeleton } from '@/components/dialog-parts';
+import { CardControlRow, CardListSkeleton, SkeletonBar } from '@/components/display/card-list';
+import { FieldSkeleton, SwitchRowSkeleton } from '@/components/display/dialog-parts';
 import { SettingsList } from '@/components/form/settings-list';
-import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
@@ -18,7 +18,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { TemplateColumnsHeader } from '@/features/requisition-templates/components/template-columns-header';
 import type { TemplateTab } from '@/features/requisition-templates/components/template-editor';
 import { useCardLayout } from '@/hooks/use-card-view';

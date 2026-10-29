@@ -12,8 +12,8 @@ import {
 } from '@/features/processing-schedules/api/api';
 import { PeriodsDialog } from '@/features/processing-schedules/components/periods-dialog';
 import type { SchedulesSearch } from '@/features/processing-schedules/lib/search';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/processing-schedules/api/api', () => ({
   createProcessingPeriod: vi.fn(),

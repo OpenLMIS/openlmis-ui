@@ -3,13 +3,13 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WorkspaceSlots } from '@/components/workspace-tabs';
+import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { saveProductChange } from '@/features/products/api/api';
 import { KitUnpackList } from '@/features/products/components/kit-unpack-list';
 import type { Product, ProductDetail } from '@/features/products/lib/types';
 import { fetchOrderables } from '@/features/reference-data/api/api';
-import { httpError, networkError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError, networkError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/products/api/api', () => ({
   saveProductChange: vi.fn(),

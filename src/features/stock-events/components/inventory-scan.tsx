@@ -8,7 +8,7 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import { ScanStatus } from '@/components/scan-status';
+import { ScanStatus } from '@/components/pickers/scan-status';
 import { Button } from '@/components/ui/button';
 import { tradeItemByGtinOptions } from '@/features/reference-data/api/queries';
 import type { TradeItem } from '@/features/reference-data/lib/types';

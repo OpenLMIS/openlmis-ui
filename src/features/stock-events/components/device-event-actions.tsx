@@ -1,7 +1,7 @@
 import { EyeIcon, RotateCwIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type CardAction, RowActions, useInCards } from '@/components/card-actions';
+import { type CardAction, RowActions, useInCards } from '@/components/display/card-actions';
 import {
   canRemoveDeviceEvent,
   DeviceEventRemoval,

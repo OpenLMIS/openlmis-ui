@@ -4,13 +4,13 @@ import { DownloadIcon, Loader2Icon, PaperclipIcon, UploadIcon } from 'lucide-rea
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
 import {
   FileTransferExport,
   FileTransferPanel,
   FileTransferUpload,
-} from '@/components/file-transfer-panel';
+} from '@/components/app-shell/file-transfer-panel';
+import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';

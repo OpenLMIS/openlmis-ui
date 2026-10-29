@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
+import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -18,7 +18,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';

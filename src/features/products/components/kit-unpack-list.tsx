@@ -4,16 +4,22 @@ import { useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { CardActions } from '@/components/card-actions';
-import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import {
   DataTableCard,
   DataTableEmpty,
   DataTableHeaderLabel,
   DataTableToolbar,
 } from '@/components/data-table/data-table';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { CardActions } from '@/components/display/card-actions';
+import {
+  CardBand,
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardRows,
+} from '@/components/display/card-list';
+import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
+import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
 import { KitProductsDialog } from '@/features/products/components/kit-products-dialog';
 import { useProductSave } from '@/features/products/hooks/use-product-save';
 import {

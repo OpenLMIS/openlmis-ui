@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { DataTableEmpty, dataTableFeatures } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
-import { DialogTable } from '@/components/dialog-table';
+import { DialogTable } from '@/components/display/dialog-table';
 import {
   FormDialog,
   FormDialogBody,
@@ -18,7 +18,10 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { productPickColumns, productPickVisibility } from '@/components/product-pick-columns';
+import {
+  productPickColumns,
+  productPickVisibility,
+} from '@/components/pickers/product-pick-columns';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Orderable } from '@/features/reference-data/lib/types';

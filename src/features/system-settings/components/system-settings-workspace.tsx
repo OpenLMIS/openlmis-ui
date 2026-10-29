@@ -20,8 +20,12 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
-import { WorkspaceActionsSlot, WorkspaceSlots, WorkspaceTabs } from '@/components/workspace-tabs';
+} from '@/components/workspace/workspace';
+import {
+  WorkspaceActionsSlot,
+  WorkspaceSlots,
+  WorkspaceTabs,
+} from '@/components/workspace/workspace-tabs';
 import { appConfigurationOptions } from '@/features/system-settings/api/queries';
 
 const SYSTEM_SETTINGS_TABS = [

@@ -4,8 +4,8 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { Children, type ReactNode } from 'react';
-import { QueryBoundary } from '@/components/query-boundary';
-import { Block } from '@/components/skeleton-block';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { Block } from '@/components/app-shell/skeleton-block';
 import {
   useDashboardRevision,
   useFormatNumber,

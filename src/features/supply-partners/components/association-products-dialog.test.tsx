@@ -5,7 +5,7 @@ import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { AssociationProductsDialog } from '@/features/supply-partners/components/association-products-dialog';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 beforeEach(() => {

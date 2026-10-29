@@ -5,7 +5,7 @@ import { formatDateValue } from '@/components/form/date-value';
 import { fetchLotRows } from '@/features/lots/api/api';
 import { LotsTable } from '@/features/lots/components/lots-table';
 import type { LotRow } from '@/features/lots/lib/types';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/lots/api/api', () => ({ fetchLotRows: vi.fn() }));
 

@@ -1,0 +1,194 @@
+import { isAxiosError } from 'axios';
+import { AlertCircleIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { LoadError } from '@/components/app-shell/load-error';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { FieldLabelText } from '@/components/form/form-fields';
+import {
+  FormDialogCancel,
+  FormDialogDescription,
+  FormDialogFooter,
+  FormDialogHeader,
+  FormDialogTitle,
+} from '@/components/form-dialog/form-dialog';
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Skeleton } from '@/components/ui/skeleton';
+
+/** The server's own message when it sent one, e.g. that a username is taken. */
+export function serverMessage(error: unknown): string | undefined {
+  if (!isAxiosError(error)) return undefined;
+  const message = (error.response?.data as { message?: unknown } | undefined)?.message;
+  return typeof message === 'string' && message ? message : undefined;
+}
+
+type ErrorAlertProps = {
+  title: string;
+  description: string;
+  action?: ReactNode;
+};
+
+export function ErrorAlert({ title, description, action }: ErrorAlertProps) {
+  return (
+    <Alert variant="destructive">
+      <AlertCircleIcon />
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>{description}</AlertDescription>
+      {action && <AlertAction>{action}</AlertAction>}
+    </Alert>
+  );
+}
+
+export function RetryButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Button onClick={onClick} size="sm" type="button" variant="outline">
+      {t('error.try-again')}
+    </Button>
+  );
+}
+
+/** One line of small text: its line height with a bar inside, so it takes the room the text will. */
+export function SkeletonLine({ width }: { width: 'short' | 'medium' }) {
+  return (
+    <div className="flex h-4 items-center">
+      <div className={width === 'short' ? 'h-3 w-32' : 'h-3 w-56'}>
+        <Skeleton fill />
+      </div>
+    </div>
+  );
+}
+
+type DialogLoadErrorProps = {
+  title: string;
+  errorTitle: string;
+  error: unknown;
+  onRetry: () => void;
+};
+
+/** What a dialog shows when the record it needs could not be loaded: its title, the error, Try Again. */
+export function DialogLoadError({ title, errorTitle, error, onRetry }: DialogLoadErrorProps) {
+  const { t } = useTranslation();
+  const offline = useOfflineFailure(error, onRetry);
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>{title}</FormDialogTitle>
+      </FormDialogHeader>
+      <ErrorAlert
+        action={<RetryButton onClick={onRetry} />}
+        description={t(offline ? 'offline.notice-description' : 'error.check-connection')}
+        title={offline ? t('offline.notice-title') : errorTitle}
+      />
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+      </FormDialogFooter>
+    </>
+  );
+}
+
+type FieldSkeletonProps = {
+  label: string;
+  required?: boolean;
+  description?: string;
+  /** `textarea` for the taller box of a multi-line field. */
+  control?: 'input' | 'textarea';
+};
+
+/** The field's real label and help text around a placeholder input, since only the value is still loading. */
+export function FieldSkeleton({
+  label,
+  required = false,
+  description,
+  control = 'input',
+}: FieldSkeletonProps) {
+  return (
+    <Field spacing="tight">
+      <FieldLabel>
+        <FieldLabelText label={label} required={required} />
+      </FieldLabel>
+      <div className={control === 'textarea' ? 'h-16 w-full' : 'h-8 w-full'}>
+        <Skeleton fill />
+      </div>
+      {description && <FieldDescription>{description}</FieldDescription>}
+    </Field>
+  );
+}
+
+/** A stacked switch field's label with a placeholder switch at the end. */
+export function SwitchRowSkeleton({ label }: { label: string }) {
+  return (
+    <Field orientation="horizontal">
+      <div className="flex min-h-8 min-w-0 flex-1 items-center">
+        <FieldLabel>{label}</FieldLabel>
+      </div>
+      <div className="h-4.5 w-8">
+        <Skeleton fill shape="circle" />
+      </div>
+    </Field>
+  );
+}
+
+type LookupBoundaryProps = {
+  label: string;
+  required?: boolean;
+  description?: string;
+  errorTitle: string;
+  errorDescription: string;
+  pendingFallback?: ReactNode;
+  children: ReactNode;
+};
+
+export function LookupBoundary({
+  label,
+  required,
+  description,
+  errorTitle,
+  errorDescription,
+  pendingFallback,
+  children,
+}: LookupBoundaryProps) {
+  return (
+    <QueryBoundary
+      errorComponent={({ error, reset }) => (
+        <LoadError description={errorDescription} error={error} reset={reset} title={errorTitle} />
+      )}
+      pendingFallback={
+        pendingFallback ?? (
+          <FieldSkeleton description={description} label={label} required={required} />
+        )
+      }
+      resetKey={label}
+    >
+      {children}
+    </QueryBoundary>
+  );
+}
+
+export function SwitchSkeleton() {
+  return (
+    <div className="h-8 w-full">
+      <Skeleton fill />
+    </div>
+  );
+}
+
+export function DialogNotFound({ title, description }: { title: string; description: string }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FormDialogHeader>
+        <FormDialogTitle>{title}</FormDialogTitle>
+        <div role="status">
+          <FormDialogDescription>{description}</FormDialogDescription>
+        </div>
+      </FormDialogHeader>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
+      </FormDialogFooter>
+    </>
+  );
+}

@@ -9,7 +9,7 @@ import {
   AuthPage,
   AuthSubmit,
   AuthTitle,
-} from '@/components/auth-card';
+} from '@/components/auth/auth-card';
 import { useAppForm } from '@/components/form/form';
 import { CardContent, CardDescription } from '@/components/ui/card';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';

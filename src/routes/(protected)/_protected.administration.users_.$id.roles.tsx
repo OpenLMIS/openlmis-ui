@@ -10,10 +10,10 @@ import { CopyPlusIcon, Loader2Icon, ShieldIcon, UserXIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
-import { ErrorFallback } from '@/components/error-fallback';
-import { Block } from '@/components/skeleton-block';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
+import { Block } from '@/components/app-shell/skeleton-block';
+import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +34,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {

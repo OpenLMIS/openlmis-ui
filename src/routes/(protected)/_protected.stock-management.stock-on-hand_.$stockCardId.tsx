@@ -9,16 +9,16 @@ import { isAxiosError } from 'axios';
 import { ClipboardListIcon, HistoryIcon, PrinterIcon, SearchXIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionTooltip } from '@/components/action-tooltip';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
+import { SnapshotAlert, useSnapshotNotice } from '@/components/app-shell/offline-alert';
 import {
   DataTableCard,
   DataTableEmpty,
   DataTableToolbar,
 } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { ErrorFallback } from '@/components/error-fallback';
-import { SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
-import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
+import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -39,7 +39,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';

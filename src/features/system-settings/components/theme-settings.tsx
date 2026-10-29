@@ -1,7 +1,7 @@
 import { useStore } from '@tanstack/react-form';
 import { MonitorIcon, MoonIcon, SunIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { updateAppConfiguration } from '@/features/system-settings/api/api';
 import {

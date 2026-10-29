@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { homeStockPrograms, homeStockScopes } from '@/lib/stock-programs';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
 const named = (id: string, name: string | null = id, code = id) => ({ id, name, code });
 const homeFacility = {

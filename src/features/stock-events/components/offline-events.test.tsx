@@ -19,7 +19,7 @@ import {
 } from '@/features/stock-events/lib/stock-event-sync';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { parsePermissions } from '@/lib/permissions';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/stock-events/lib/stock-event-sync', async (original) => ({
   ...(await original<typeof import('@/features/stock-events/lib/stock-event-sync')>()),
@@ -27,7 +27,7 @@ vi.mock('@/features/stock-events/lib/stock-event-sync', async (original) => ({
   resolveUncertain: vi.fn(),
 }));
 
-vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+vi.mock('@/components/app-shell/nav-access', () => ({ useCanOpen: () => () => true }));
 const local = vi.hoisted(() => ({ events: [] as DeviceEvent[], width: 1440 }));
 vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
   useOfflineEvents: () => ({ ...local }),

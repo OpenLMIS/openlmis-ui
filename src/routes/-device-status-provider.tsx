@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo } from 'react';
-import { DeviceSyncPublisher, EMPTY_DEVICE_SYNC } from '@/components/device-work';
+import { DeviceSyncPublisher, EMPTY_DEVICE_SYNC } from '@/components/app-shell/device-work';
 import {
   syncCountdown,
   useQueuedAnnouncement,

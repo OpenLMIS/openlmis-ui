@@ -1,4 +1,4 @@
-import { RoleRightsDialog } from '@/components/role-rights-dialog';
+import { RoleRightsDialog } from '@/components/display/role-rights-dialog';
 import { RoleFormDialog } from '@/features/roles/components/role-form-dialog';
 
 type RoleDialogsProps = {

@@ -19,7 +19,7 @@ import {
 } from '@/features/reference-data/api/api';
 import { searchRequisitions } from '@/features/requisitions/api/api';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({

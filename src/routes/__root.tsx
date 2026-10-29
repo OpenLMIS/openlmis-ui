@@ -13,11 +13,11 @@ import {
   DeviceWorkPublisher,
   EMPTY_DEVICE_SYNC,
   EMPTY_DEVICE_WORK,
-} from '@/components/device-work';
-import { NotFoundPage } from '@/components/not-found-page';
-import { OfflineNavigationProvider } from '@/components/offline-navigation';
-import { SessionExpiredDialog } from '@/components/session-expired-dialog';
-import { TranslatedFormMessages } from '@/components/translated-form-messages';
+} from '@/components/app-shell/device-work';
+import { NotFoundPage } from '@/components/app-shell/not-found-page';
+import { OfflineNavigationProvider } from '@/components/app-shell/offline-navigation';
+import { SessionExpiredDialog } from '@/components/auth/session-expired-dialog';
+import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 import { DialogCloseLabelProvider } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { useLoginData } from '@/features/auth/store/login-data';

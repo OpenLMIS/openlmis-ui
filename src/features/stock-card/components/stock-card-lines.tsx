@@ -4,13 +4,6 @@ import { ClipboardListIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  CardBand,
-  CardList,
-  CardListItem,
-  CardListSkeleton,
-  CardRows,
-} from '@/components/card-list';
-import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
@@ -19,9 +12,16 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardListSkeleton,
+  CardRows,
+} from '@/components/display/card-list';
+import { WrappingCell } from '@/components/display/wrapping-cell';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
-import { WrappingCell } from '@/components/wrapping-cell';
 import { toCardLines } from '@/features/stock-card/lib/card-lines';
 import {
   type CardPagingSearch,

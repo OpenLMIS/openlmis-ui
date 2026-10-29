@@ -12,7 +12,8 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useInCards } from '@/components/card-actions';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -27,13 +28,12 @@ import { DataTableFilters } from '@/components/data-table/data-table-filters-pop
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility } from '@/components/data-table/responsive-columns';
-import { DialogNotFound } from '@/components/dialog-parts';
+import { useInCards } from '@/components/display/card-actions';
+import { DialogNotFound } from '@/components/display/dialog-parts';
+import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
 import { DatePicker } from '@/components/form/form-fields';
 import { FormDialog } from '@/components/form-dialog/form-dialog';
-import { ListError } from '@/components/list-error';
-import { QueryBoundary } from '@/components/query-boundary';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,7 +54,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { DeviceEventActions } from '@/features/stock-events/components/device-event-actions';
 import { DeviceEventLines } from '@/features/stock-events/components/device-event-lines';
 import { DeviceEventRecovery } from '@/features/stock-events/components/device-event-recovery';

@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { summaryStockCard } from '@/features/stock-card/lib/summary-stock-card';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
 const access = offlineAccessFixture();
 const home = access.homeFacility;

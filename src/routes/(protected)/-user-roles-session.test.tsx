@@ -15,7 +15,7 @@ import { fetchUserDetails, updateUserRoles } from '@/features/users/api/api';
 import type { UserDetails } from '@/features/users/lib/types';
 import { Route } from '@/routes/(protected)/_protected.administration.users_.$id.roles';
 
-vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/features/auth/lib/access', () => ({ requireRight: vi.fn(async () => new Set()) }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchRoles: vi.fn(async () => []),

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
-import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
+import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { type StockOnHandSearch, showsInactive } from '@/features/stock-on-hand/lib/search';

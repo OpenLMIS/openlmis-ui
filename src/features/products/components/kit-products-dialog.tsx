@@ -8,6 +8,7 @@ import {
 import { PackageSearchIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LoadError } from '@/components/app-shell/load-error';
 import {
   DataTableEmpty,
   DataTableToolbar,
@@ -15,7 +16,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
-import { DialogTable, DialogTableSkeleton } from '@/components/dialog-table';
+import { DialogTable, DialogTableSkeleton } from '@/components/display/dialog-table';
 import {
   FormDialog,
   FormDialogBody,
@@ -28,8 +29,10 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { LoadError } from '@/components/load-error';
-import { productPickColumns, productPickVisibility } from '@/components/product-pick-columns';
+import {
+  productPickColumns,
+  productPickVisibility,
+} from '@/components/pickers/product-pick-columns';
 import type { Product } from '@/features/products/lib/types';
 import { orderablesSearchOptions } from '@/features/reference-data/api/queries';
 import { useDialogCardLayout } from '@/hooks/use-card-view';

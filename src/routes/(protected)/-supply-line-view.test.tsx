@@ -10,14 +10,14 @@ import {
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { ErrorFallback } from '@/components/error-fallback';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchMinimalFacilities, fetchPrograms } from '@/features/reference-data/api/api';
 import { fetchSupplyLine, fetchSupplyLinesPage } from '@/features/supply-lines/api/api';
 import type { SupplyLinesSearch } from '@/features/supply-lines/lib/search';
 import { Route as ListRoute } from '@/routes/(protected)/_protected.administration.supply-lines';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/supply-lines/api/api', () => ({
@@ -29,7 +29,7 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchMinimalFacilities: vi.fn(),
   fetchPrograms: vi.fn(),
 }));
-vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+vi.mock('@/components/app-shell/nav-access', () => ({ useCanOpen: () => () => true }));
 
 const id = '10845cb9-d365-4aaa-badd-b4fa39c6a26a';
 const search = {

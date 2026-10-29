@@ -1,10 +1,10 @@
 import { Loader2Icon, RefreshCwIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
-import { useOfflineFailure } from '@/components/offline-notice';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
+import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
+import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
 
 type SaveFeedbackProps = {
   conflict: boolean;

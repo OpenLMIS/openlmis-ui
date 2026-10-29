@@ -6,7 +6,7 @@ import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QueryBoundary } from '@/components/query-boundary';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import type { ProgramSchedule, RequisitionGroup } from '@/features/reference-data/lib/types';
 import { searchRequisitionGroups } from '@/features/requisition-groups/api/api';
 import { requisitionGroupsSearchOptions } from '@/features/requisition-groups/api/queries';
@@ -19,7 +19,7 @@ import {
   type RequisitionGroupsListSearch,
   toRequisitionGroupsQuery,
 } from '@/features/requisition-groups/lib/search';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/features/requisition-groups/api/api', () => ({ searchRequisitionGroups: vi.fn() }));

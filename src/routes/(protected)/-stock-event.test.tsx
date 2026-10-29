@@ -32,8 +32,8 @@ import type { StockEventLine, StockEventSummary } from '@/features/stock-events/
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.stock-management.transaction-history_.$eventId';
-import { expectRouteWarning } from '@/tests/expect-route-warning';
-import { httpError } from '@/tests/http-error';
+import { expectRouteWarning } from '@/test-utils/expect-route-warning';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/stock-events/api/api', () => ({
@@ -44,7 +44,7 @@ vi.mock('@/features/stock-events/api/api', () => ({
 const deliver = vi.fn();
 vi.mock('@/lib/open-report', () => ({ openReport: vi.fn(() => ({ deliver, close: vi.fn() })) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+vi.mock('@/components/app-shell/nav-access', () => ({ useCanOpen: () => () => true }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'Pacific/Auckland' })),
   storedTimeZone: vi.fn(() => null),

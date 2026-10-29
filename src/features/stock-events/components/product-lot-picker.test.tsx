@@ -28,8 +28,8 @@ import {
 import { allEventCards, kitCards } from '@/features/stock-events/lib/products';
 import type { EventLot, EventStockCard } from '@/features/stock-events/lib/types';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
-import { offlineAccessFixture } from '@/tests/offline-access';
-import { renderPage } from '@/tests/render-page';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchApprovedProducts: vi.fn(),

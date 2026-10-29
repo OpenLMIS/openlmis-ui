@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ErrorAlert } from '@/components/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,

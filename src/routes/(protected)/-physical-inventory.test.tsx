@@ -21,8 +21,8 @@ import { AxiosError } from 'axios';
 import { createContext } from 'react';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ErrorFallback } from '@/components/error-fallback';
-import { canOpen } from '@/components/nav-access';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
+import { canOpen } from '@/components/app-shell/nav-access';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -54,14 +54,14 @@ import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory_.$programId';
-import { expectRouteWarning } from '@/tests/expect-route-warning';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { expectRouteWarning } from '@/test-utils/expect-route-warning';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
-vi.mock('@/components/app-shell', () => ({
+vi.mock('@/components/app-shell/app-shell', () => ({
   AppShellContext: createContext(false),
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('@/components/app-shell-skeleton', () => ({
+vi.mock('@/components/app-shell/app-shell-skeleton', () => ({
   AppShellSkeleton: () => <p>Checking access</p>,
 }));
 

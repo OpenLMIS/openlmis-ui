@@ -4,7 +4,7 @@ import {
   receiveCatalogProvider,
   receiveCatalogScopes,
 } from '@/features/stock-events/lib/receive-catalog-provider';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
 vi.mock('@/lib/feature-flags', () => ({ getFlag: () => true }));
 

@@ -1,8 +1,8 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { useDeviceSync } from '@/components/device-work';
-import { useOfflineSignOut } from '@/components/offline-sign-out';
+import { useDeviceSync } from '@/components/app-shell/device-work';
+import { useOfflineSignOut } from '@/components/app-shell/offline-sign-out';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   announceQueuedEvents,

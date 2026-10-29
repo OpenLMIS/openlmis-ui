@@ -1,14 +1,19 @@
 import { Building2Icon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
-import { CardBand, CardList, CardListItem } from '@/components/card-list';
 import {
   DataTableCard,
   DataTableEmpty,
   DataTableHeaderLabel,
 } from '@/components/data-table/data-table';
-import { PickerAdd, PickerAddButton, PickerAddField, PickerAddIcon } from '@/components/picker-add';
+import { CardActions } from '@/components/display/card-actions';
+import { CardBand, CardList, CardListItem } from '@/components/display/card-list';
+import {
+  PickerAdd,
+  PickerAddButton,
+  PickerAddField,
+  PickerAddIcon,
+} from '@/components/pickers/picker-add';
 import { Button } from '@/components/ui/button';
 import {
   Combobox,

@@ -5,7 +5,7 @@ import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TranslatedFormMessages } from '@/components/translated-form-messages';
+import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 import {
   createReason,
   createValidReason,
@@ -19,8 +19,8 @@ import { ReasonEditor } from '@/features/reasons/components/reason-editor';
 import type { ValidReason } from '@/features/reasons/lib/types';
 import { fetchFacilityTypes, fetchPrograms, fetchReasons } from '@/features/reference-data/api/api';
 import type { Reason } from '@/features/reference-data/lib/types';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/features/reasons/api/api', () => ({

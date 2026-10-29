@@ -10,8 +10,8 @@ import {
 } from '@/features/requisition-templates/api/queries';
 import { AddTemplateDialog } from '@/features/requisition-templates/components/add-template-dialog';
 import { queryKeys } from '@/lib/key-factory';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/requisition-templates/api/api', () => ({
   createRequisitionTemplate: vi.fn(),

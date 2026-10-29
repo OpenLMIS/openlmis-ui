@@ -3,11 +3,11 @@ import { SearchIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { useAppForm } from '@/components/form/form';
 import {
   SelectorFrame,
   SelectorSkeletonField,
-} from '@/components/facility-program-selector/facility-program-selector';
-import { useAppForm } from '@/components/form/form';
+} from '@/components/pickers/facility-program-selector/facility-program-selector';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SearchFacility } from '@/features/requisitions/lib/search-facilities';

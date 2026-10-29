@@ -14,8 +14,8 @@ import {
   getAppConfiguration,
   setAppConfiguration,
 } from '@/lib/app-configuration';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/system-settings/api/api', () => ({
   fetchAppConfiguration: vi.fn(),

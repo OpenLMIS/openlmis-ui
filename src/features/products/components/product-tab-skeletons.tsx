@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardControlRow, CardListSkeleton, SkeletonBar } from '@/components/card-list';
+import { Block } from '@/components/app-shell/skeleton-block';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
-import { FieldSkeleton, SwitchSkeleton } from '@/components/dialog-parts';
-import { Block } from '@/components/skeleton-block';
+import { CardControlRow, CardListSkeleton, SkeletonBar } from '@/components/display/card-list';
+import { FieldSkeleton, SwitchSkeleton } from '@/components/display/dialog-parts';
 import { FieldGroup } from '@/components/ui/field';
 import {
   Table,

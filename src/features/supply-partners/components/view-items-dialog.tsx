@@ -9,8 +9,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
-import { DialogNotFound } from '@/components/dialog-parts';
-import { DialogTable } from '@/components/dialog-table';
+import { DialogNotFound } from '@/components/display/dialog-parts';
+import { DialogTable } from '@/components/display/dialog-table';
 import {
   FormDialog,
   FormDialogBody,

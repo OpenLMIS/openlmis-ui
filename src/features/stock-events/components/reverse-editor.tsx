@@ -23,15 +23,8 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  CardControlRow,
-  CardList,
-  CardListItem,
-  CardListSkeleton,
-  CardRows,
-  CardSelectBand,
-  SkeletonBar,
-} from '@/components/card-list';
+import { LoadError } from '@/components/app-shell/load-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DataTable,
   DataTableEmpty,
@@ -43,14 +36,21 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { serverMessage } from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import {
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardListSkeleton,
+  CardRows,
+  CardSelectBand,
+  SkeletonBar,
+} from '@/components/display/card-list';
+import { serverMessage } from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { formatDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
-import { LoadError } from '@/components/load-error';
-import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
-import { QueryBoundary } from '@/components/query-boundary';
+import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -64,7 +64,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
+import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace/workspace';
 import { reasonsOptions } from '@/features/reference-data/api/queries';
 import { cancelStockEvent, fetchAllStockEventLines } from '@/features/stock-events/api/api';
 import {

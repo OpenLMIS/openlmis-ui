@@ -1,9 +1,9 @@
 import { useQueries, useSuspenseQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ErrorAlert } from '@/components/dialog-parts';
-import { ListError } from '@/components/list-error';
-import { QueryBoundary } from '@/components/query-boundary';
-import { CellText } from '@/components/table-cards';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { ErrorAlert } from '@/components/display/dialog-parts';
+import { CellText } from '@/components/display/table-cards';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   facilitiesByIdsOptions,

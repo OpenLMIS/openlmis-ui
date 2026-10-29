@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { WorkspaceSlots } from '@/components/workspace-tabs';
+import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import {
   InventoryToolbar,
   PhysicalInventoryPendingBody,

@@ -83,8 +83,8 @@ import type { useBarcodeScan } from '@/hooks/use-barcode-scan';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { onlineOrDevice } from '@/lib/local-data';
-import { httpError, networkError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError, networkError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/stock-events/lib/stock-event-delivery', async (original) => ({
   ...(await original<typeof import('@/features/stock-events/lib/stock-event-delivery')>()),
@@ -133,7 +133,7 @@ vi.mock('@/features/stock-events/api/api', () => ({
   fetchEventStockCards: vi.fn(),
   fetchEventStockOnHand: vi.fn(),
 }));
-vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/lib/feature-flags', () => ({ useFlag: () => true, getFlag: () => true }));
 vi.mock('@/hooks/use-quantity-unit', () => ({
   useQuantityUnit: () => {

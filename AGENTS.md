@@ -50,7 +50,7 @@ such as `_protected.tsx` provide layouts.
 The protected layout has an icon-collapsible sidebar (`Ctrl/Cmd+B`) and top bar, adapted
 from `@7ovr/app-shell-1`. `NAV_GROUPS` in `src/lib/config.ts` drives both the sidebar and
 command palette (`Ctrl/Cmd+K`). `LIVE_NAV_GROUPS` excludes unmigrated `to: '#'` entries and
-sections with no live pages. `useNavGroups()` in `src/components/nav-access.ts` then filters
+sections with no live pages. `useNavGroups()` in `src/components/app-shell/nav-access.ts` then filters
 both by the user's rights.
 
 - Requisition navigation also counts `REQUISITION_VIEW` in the user's supervision roles, so sidebar,
@@ -100,7 +100,7 @@ loader: ({ context: { queryClient }, params }) =>
 
 - Never await `prefetchQuery`; it would block navigation. Use it for fire-and-forget work
   because it handles rejected requests internally; unawaited `ensureQueryData` does not.
-- Put `QueryBoundary` (`src/components/query-boundary.tsx`) above suspended subtrees.
+- Put `QueryBoundary` (`src/components/app-shell/query-boundary.tsx`) above suspended subtrees.
   It combines `Suspense`, `CatchBoundary` and query reset. `useSuspenseQuery` throws errors;
   without this boundary they replace the whole page through the route's `errorComponent`.
 
@@ -186,7 +186,7 @@ Catalogs are runtime-fetched static assets in `public/locales/<lang>.json` using
 
 Direction follows language, never a separate setting. `SUPPORTED_LANGUAGES` declares `dir`;
 `getTextDirection()` handles region fallbacks (`ar-EG` is RTL). `TextDirectionProvider` in
-`src/components/text-direction.tsx`, mounted by `src/index.tsx`, sets HTML `lang`/`dir` in a
+`src/components/i18n/text-direction.tsx`, mounted by `src/index.tsx`, sets HTML `lang`/`dir` in a
 layout effect before paint and supplies Base UI's `DirectionProvider`, including portals.
 
 #### Rules for writing components
@@ -267,7 +267,7 @@ edits, which have no prop for TypeScript to detect:
 
 | File | Required customization |
 |---|---|
-| `dialog.tsx` | Keep the app `@/components/page-visibility` dependency, hidden portal state and release after visible close |
+| `dialog.tsx` | Keep the app `@/components/app-shell/page-visibility` dependency, hidden portal state and release after visible close |
 | `sheet.tsx` / `dropdown-menu.tsx` / `popover.tsx` / `select.tsx` | Keep page-visibility gates and close transient overlays when the page hides |
 | `alert-dialog.tsx` | Keep the page-visibility gate and retained close target; DiscardChangesDialog opts out so navigation/logout remain answerable. Preserve destructive media, the `lg` size and header/media/title `group-not-data-[size=sm]` classes so large dialogs retain the default layout |
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
@@ -299,6 +299,9 @@ edits, which have no prop for TypeScript to detect:
 Generate shadcn components in `src/components/ui/` with
 `pnpm dlx shadcn@latest add <component>`. Check RTL exceptions and customizations above.
 `cn` comes from the `cn` package, re-exported by `src/lib/utils.ts`.
+Put other shared components in the group that fits (`app-shell/`, `workspace/`, `display/`,
+`pickers/`, `auth/`, `i18n/`, `shared/`); never at the `src/components/` root. Test helpers live
+in `src/test-utils/`.
 
 ### pnpm settings
 
@@ -324,7 +327,7 @@ pnpm is pinned by `packageManager` in `package.json`. Put settings such as `allo
   test value.
 - **Tests first when warranted**: write a meaningful failing test before implementation.
   Start bug fixes with a reproducer; reuse adequate coverage instead of adding duplicates.
-- **One suite timeout**: `vite.config.ts` sets test timeouts; `src/tests/setup.ts` sets
+- **One suite timeout**: `vite.config.ts` sets test timeouts; `src/test-utils/setup.ts` sets
   `findBy*`/`waitFor` waits for loaded machines. Never pass per-test/query timeouts. Use
   Testing Library's `waitFor`, not `vi.waitFor` (its own 1 s timeout). Cache-seeded
   `useSuspenseQuery` tests set `staleTime: Infinity` to prevent mount refetches.
@@ -357,7 +360,7 @@ https://tracker.example.com/BROWSE/ABC-123
 
 ## Page layout
 
-App-shell pages compose `src/components/workspace.tsx`:
+App-shell pages compose `src/components/workspace/workspace.tsx`:
 
 ```tsx
 <Workspace>
@@ -393,7 +396,7 @@ App-shell pages compose `src/components/workspace.tsx`:
   in history state. Settings opened
   without a list stay put: Cancel restores saved values; Save keeps the page open.
 - Shared tab headers live in the layout through `WorkspaceTabs` inside `WorkspaceSlots`.
-  Use `WorkspaceFooterPortal` (`src/components/workspace-tabs.tsx`): `narrow` by default,
+  Use `WorkspaceFooterPortal` (`src/components/workspace/workspace-tabs.tsx`): `narrow` by default,
   `width="default"` for full-width editors. Tab switches must not remount the header.
   Tab-specific actions use `WorkspaceActionsPortal` into `WorkspaceActionsSlot`.
 - Toasts appear below the header at the top end corner, tinted by kind.
@@ -407,11 +410,11 @@ App-shell pages compose `src/components/workspace.tsx`:
   linked crumb, retaining filters on reload/shared links.
 - A non-nav page with `crumbKey` gets Home / its crumb. Home and non-nav pages without a
   crumb have no breadcrumbs.
-- `useAccountLinks()` (`src/components/nav-access.ts`) supplies rights-filtered Profile and
+- `useAccountLinks()` (`src/components/app-shell/nav-access.ts`) supplies rights-filtered Profile and
   `/settings` links to the avatar menu, palette and sidebar, immediately below sidebar Home.
 - Workspace parts/breadcrumbs accept no `className`; add a variant for a different treatment.
 
-Signed-out pages compose `src/components/auth-card.tsx`: `AuthPage` with the page title;
+Signed-out pages compose `src/components/auth/auth-card.tsx`: `AuthPage` with the page title;
 `AuthHeader` with `AuthTitle` and `CardDescription`; `CardContent` with `AuthForm`, fields,
 `AuthSubmit` and optional `AuthLink`. When a confirmation replaces a form, pass `focus` to
 `AuthTitle` for keyboard and screen-reader focus.
@@ -468,7 +471,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Exception to one-line headers: the requisition grid wraps header labels between words, up to
   three lines, with an info icon tooltip for template definitions.
 
-- Yes/no and active/inactive cells use `FlagBadge` (`src/components/flag-badge.tsx`): a success
+- Yes/no and active/inactive cells use `FlagBadge` (`src/components/shared/flag-badge.tsx`): a success
   check or destructive cross, always with its label.
 
 - Use content width, never viewport breakpoints such as `md:`. Define lower-priority columns
@@ -486,7 +489,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   Use `useCardLayout` for measured layout and `useCardView` for stored visibility too
   (`src/hooks/use-card-view.ts`). Below `CONTAINER_WIDTHS['2xl']`, compose `CardList`,
   `CardListItem`, `CardBand`, `CardRows` and `CardListSkeleton`
-  (`src/components/card-list.tsx`). Stock On Hand gives each product a card with its lots as
+  (`src/components/display/card-list.tsx`). Stock On Hand gives each product a card with its lots as
   bands (lot label, View) over `SettingsItem` rows; Stock Card
   uses a date band, Transaction History a band with the document number (or date) and View.
   Details use a product band. Reverse ticks a line from anywhere in its band (`CardSelectBand`),
@@ -504,7 +507,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   and Remove trash button in the band. `productLabel` from
   `src/features/stock-events/lib/products.ts` formats `name - displayUnit (code)`. Read-only
   rows show Pack Size, Lot Code with the table's no-lot text, Expiry and Stock On Hand;
-  Total Quantity follows Quantity. `CardControlRow` (`src/components/card-list.tsx`) pairs
+  Total Quantity follows Quantity. `CardControlRow` (`src/components/display/card-list.tsx`) pairs
   labels with centred controls for counterparty and comments, reason and comments, VVM and
   Date, and Quantity; in Packs its row is `width="wide"` and shows `[Packs] + [Doses]`.
   Measured fit and `measuredFitKeep`
@@ -514,7 +517,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   Stock On Hand, Current Stock, VVM, Reasons and Unaccounted. Multi-lot products add a Total
   section matching the table summary. Add Products dialog lines use flat cards with inline errors.
   Every table switches to cards below 672px. Other tables use `TableCards` and
-  `TableCardsSkeleton` (`src/components/table-cards.tsx`) over the same TanStack table: the `title` column and the
+  `TableCardsSkeleton` (`src/components/display/table-cards.tsx`) over the same TanStack table: the `title` column and the
   `actions` cell form the band; every other visible column is a row labelled by `meta.label`.
   Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"` for two lines),
   which wraps in full in cards; `TableCards` bolds the band title. It calls each column's `cell`
@@ -526,7 +529,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   above the cards; `heading` renders group rows as headings, as on product Facility Types.
   Row action cells render `RowActions` with one `actions` list: `CardActions` in cards, the
   table's ghost "..." menu otherwise; other cell components read `useInCards()`. Every card band action, Stock included, goes through `CardActions`
-  (`src/components/card-actions.tsx`), given as data: outline icon buttons with a tooltip and the
+  (`src/components/display/card-actions.tsx`), given as data: outline icon buttons with a tooltip and the
   table's accessible name, tinted `destructive` for destructive ones, inside a group named like
   the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then
   View) first in `actions`; it sits at the band's end. Up to three show as buttons; four or more
@@ -535,7 +538,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `TableCardsSkeleton actions`. Editor and dialog tables follow the same rule. Dialogs measure
   with `useDialogCardLayout(size)` (`src/hooks/use-card-view.ts`): below 672px or once the screen
   squeezes a narrower dialog below its own width. `DialogTable` and `DialogTableSkeleton`
-  (`src/components/dialog-table.tsx`) render flat `TableCards` in `DialogCards`: the dialog body
+  (`src/components/display/dialog-table.tsx`) render flat `TableCards` in `DialogCards`: the dialog body
   scrolls forms, cards and pager as one, with no nested scroll area, and a pager move scrolls to
   the first card; filters and past-end clamps do not. Measure outside `FormDialogBody`, whose scrollbar would flip the layout.
   Requisition template Columns cards keep drag-to-reorder: the handle, indicator, label and
@@ -611,7 +614,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `className`s in the registry; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
 - Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet import the app
-  `@/components/page-visibility` gate. Its context defaults to false, keeping these primitives
+  `@/components/app-shell/page-visibility` gate. Its context defaults to false, keeping these primitives
   stock-like outside the app. This is an accepted app dependency exception; strip the gate
   when moving them into the registry.
 - `isRowInvalid` row tint depends on app `table.tsx` aria-invalid styling; carry that styling
@@ -668,7 +671,7 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   and keep labelled fields in a card otherwise. Receive can create lots, so it always keeps
   labelled fields; its New Lot Code and Expiry fields take their own row so Product and Add stay put.
   With editor cards (below 672px), Add New Lot opens `NewLotDialog` instead, filling Lot Code. Compose `PickerAdd`, `PickerAddField`, `PickerAddIcon` and `PickerAddButton`
-  (`src/components/picker-add.tsx`); anchor the list to `PickerAddField` so it spans the icon. The loading skeleton repeats the layout last shown for
+  (`src/components/pickers/picker-add.tsx`); anchor the list to `PickerAddField` so it spans the icon. The loading skeleton repeats the layout last shown for
   that kind and program (`rememberedPickerLayout`), compact on a first visit.
 
 **Whole-record saves require fresh reads:**
@@ -683,7 +686,7 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   on loader `cause: 'enter'`, cached data on `stay` (tab switches), and `preload: false`.
   Each save rereads the record and applies only its own change (`saveProductChange`).
 - Missing records show `DialogNotFound`; other load failures show `DialogLoadError`, both
-  from `src/components/dialog-parts.tsx`. Switch placeholders use `SwitchSkeleton`.
+  from `src/components/display/dialog-parts.tsx`. Switch placeholders use `SwitchSkeleton`.
 
 Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogForm`,
 `FormDialogHeader`, `FormDialogTitle`, `FormDialogDescription`, `FormDialogBody`,
@@ -760,7 +763,7 @@ features or i18next. Allowed variants: `DialogContent size/height/layout`, `Dial
 `Button align/width/variant="warning"`, `PopoverContent width/padding`. Each `lg` size is a plain
 `h-9` className in the registry.
 The app Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet primitives
-import `@/components/page-visibility`; form-dialog and form-fields inherit this dependency.
+import `@/components/app-shell/page-visibility`; form-dialog and form-fields inherit this dependency.
 This is an accepted app dependency exception. The context defaults to false, keeping them
 stock-like outside the app. Strip the gate when moving these components into the registry.
 
@@ -777,7 +780,7 @@ scanning follows the kind policy; Unpack keeps it off, as legacy.
 ## Facility and program picker
 
 Facility/program screens use `FacilityProgramSelector`
-(`src/components/facility-program-selector/`).
+(`src/components/pickers/facility-program-selector/`).
 `facilityProgramOptions` (`src/lib/facility-program-selection.ts`) builds options from the
 home facility, user programs, all facilities and page grants, following legacy:
 
@@ -830,7 +833,7 @@ home facility, user programs, all facilities and page grants, following legacy:
 router navigation. It registers `useLeaveGuard` for exits outside the router. Reloads, updates,
 chunk Try Again and Back To Legacy call `whenLeaveAllowed` with `'leave'` for neutral wording;
 sign-outs, including password changes, pass `'sign-out'` explicitly.
-Both use `src/components/discard-changes-dialog.tsx`. Its `pending` option keeps leaving blocked
+Both use `src/components/display/discard-changes-dialog.tsx`. Its `pending` option keeps leaving blocked
 during a save without offering Discard. Device drafts pass `flushBeforeLeave` to commit staged edits
 before navigation or external leave; only a failed flush asks first. Every external leave,
 including reload, update, Back To Legacy and sign-out, keeps the saved device draft.
@@ -898,7 +901,7 @@ anonymous users to `/login?redirect=<page>`; login returns authenticated users t
   `anonymous: true`: no bearer and no session wait. Hide the dialog on `isSignInPage()` routes.
 - Queries never retry `401`/`403`. Server expiry slides on calls: `expiresAt` from `expires_in`
   is only the earliest expiry, never a sign-out timer. Let `401` decide.
-- Deliberate sign-outs call `useOfflineSignOut()` (`src/components/offline-sign-out.tsx`).
+- Deliberate sign-outs call `useOfflineSignOut()` (`src/components/app-shell/offline-sign-out.tsx`).
   It owns `whenLeaveAllowed`, flushing edits before counting device work and asking once.
   Never wrap its callback in another leave check. Offline re-login needs the server; a
   failed renewal connection offers Continue Offline even when the browser claims online.

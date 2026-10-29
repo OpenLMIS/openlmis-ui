@@ -23,8 +23,8 @@ import ICU from 'i18next-icu';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
-import { ErrorFallback } from '@/components/error-fallback';
-import { canOpen } from '@/components/nav-access';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
+import { canOpen } from '@/components/app-shell/nav-access';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -64,13 +64,13 @@ import {
   StockEventPending,
   useStockEventPrint,
 } from '@/routes/(protected)/-stock-event-editor';
-import { expectRouteWarning } from '@/tests/expect-route-warning';
-import { renderPage } from '@/tests/render-page';
+import { expectRouteWarning } from '@/test-utils/expect-route-warning';
+import { renderPage } from '@/test-utils/render-page';
 
-vi.mock('@/components/app-shell', () => ({
+vi.mock('@/components/app-shell/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('@/components/app-shell-skeleton', () => ({
+vi.mock('@/components/app-shell/app-shell-skeleton', () => ({
   AppShellSkeleton: () => <p>Checking access</p>,
 }));
 

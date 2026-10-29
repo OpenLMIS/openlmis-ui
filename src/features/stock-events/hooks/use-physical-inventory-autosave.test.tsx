@@ -11,7 +11,7 @@ import {
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { DraftConflictError } from '@/lib/draft-store';
-import { inventoryWrites } from '@/tests/inventory-writes';
+import { inventoryWrites } from '@/test-utils/inventory-writes';
 
 vi.mock('@/features/stock-events/lib/physical-inventory-local', () => ({
   writeInventoryLocal: vi.fn(),

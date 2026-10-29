@@ -8,16 +8,16 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ClipboardListIcon, PrinterIcon, ShieldAlertIcon, WarehouseIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionTooltip } from '@/components/action-tooltip';
+import { ListError } from '@/components/app-shell/list-error';
+import { OfflineNotice } from '@/components/app-shell/offline-notice';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import {
   FacilityProgramSelector,
   FacilityProgramSelectorSkeleton,
-} from '@/components/facility-program-selector/facility-program-selector';
-import { ListError } from '@/components/list-error';
-import { OfflineNotice } from '@/components/offline-notice';
-import { QueryBoundary } from '@/components/query-boundary';
+} from '@/components/pickers/facility-program-selector/facility-program-selector';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
@@ -29,7 +29,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';

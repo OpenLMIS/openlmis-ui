@@ -19,7 +19,7 @@ import {
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { CardActions, useInCards } from '@/components/card-actions';
+import { Block } from '@/components/app-shell/skeleton-block';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -35,14 +35,15 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
+import { CardActions, useInCards } from '@/components/display/card-actions';
 import {
   ErrorAlert,
   FieldSkeleton,
   LookupBoundary,
   serverMessage,
-} from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
-import { FlagBadge } from '@/components/flag-badge';
+} from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
+import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -56,8 +57,7 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { Block } from '@/components/skeleton-block';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { FlagBadge } from '@/components/shared/flag-badge';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -70,7 +70,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import {
   facilityOptions,
   minimalFacilitiesOptions,

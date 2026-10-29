@@ -4,7 +4,7 @@ import { BuildingIcon, UsersIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, LookupBoundary, serverMessage } from '@/components/dialog-parts';
+import { ErrorAlert, LookupBoundary, serverMessage } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ComboboxField, SelectField } from '@/components/form/form-fields';
 import {

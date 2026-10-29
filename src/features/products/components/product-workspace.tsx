@@ -2,7 +2,7 @@ import type { HistoryState } from '@tanstack/react-router';
 import { PackageIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Block } from '@/components/skeleton-block';
+import { Block } from '@/components/app-shell/skeleton-block';
 import {
   Workspace,
   WorkspaceContent,
@@ -11,8 +11,8 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
-import { WorkspaceSlots, WorkspaceTabs } from '@/components/workspace-tabs';
+} from '@/components/workspace/workspace';
+import { WorkspaceSlots, WorkspaceTabs } from '@/components/workspace/workspace-tabs';
 import type { ProductDetail } from '@/features/products/lib/types';
 import { productName } from '@/features/reference-data/lib/product-name';
 

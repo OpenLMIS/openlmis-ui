@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { serverMessage } from '@/components/dialog-parts';
+import { serverMessage } from '@/components/display/dialog-parts';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { SessionEndedError } from '@/features/auth/lib/session';

@@ -85,7 +85,7 @@ whose risk exists in the inspected code. A plain presentational wrapper may need
 
 ## 3. Inventory and measure once
 
-Inspect `package.json`, `vite.config.ts`, `src/tests/setup.ts`, `src/tests/render-page.tsx`,
+Inspect `package.json`, `vite.config.ts`, `src/test-utils/setup.ts`, `src/test-utils/render-page.tsx`,
 and `.github/workflows/ci.yml`. Reconfirm installed tools instead of assuming this
 document describes future configuration exactly.
 

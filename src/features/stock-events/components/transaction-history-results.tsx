@@ -4,15 +4,6 @@ import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanst
 import { EyeIcon, HistoryIcon, SearchXIcon } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions, CardActionsSkeleton } from '@/components/card-actions';
-import {
-  CardBand,
-  CardList,
-  CardListItem,
-  CardListSkeleton,
-  CardRows,
-  SkeletonBar,
-} from '@/components/card-list';
 import {
   DataTable,
   DataTableEmpty,
@@ -22,10 +13,19 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { CardActions, CardActionsSkeleton } from '@/components/display/card-actions';
+import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardListSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/display/card-list';
+import { WrappingCell } from '@/components/display/wrapping-cell';
 import { formatTimestamp } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
-import { WrappingCell } from '@/components/wrapping-cell';
 import { stockEventsOptions } from '@/features/stock-events/api/queries';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import {

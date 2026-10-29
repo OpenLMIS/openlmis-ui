@@ -4,6 +4,13 @@ import { BellOffIcon, Loader2Icon, MailXIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { Block } from '@/components/app-shell/skeleton-block';
+import {
+  DataTableCard,
+  DataTableEmpty,
+  DataTableError,
+  DataTableHeaderLabel,
+} from '@/components/data-table/data-table';
 import {
   CardBand,
   CardControlRow,
@@ -12,17 +19,10 @@ import {
   CardListSkeleton,
   CardRows,
   SkeletonBar,
-} from '@/components/card-list';
-import {
-  DataTableCard,
-  DataTableEmpty,
-  DataTableError,
-  DataTableHeaderLabel,
-} from '@/components/data-table/data-table';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+} from '@/components/display/card-list';
+import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
-import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
+import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
 import { saveSubscriptions } from '@/features/profile/api/api';
 import { digestConfigurationsOptions, subscriptionsOptions } from '@/features/profile/api/queries';
 import {

@@ -1,7 +1,7 @@
 import { onlineManager } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { reportCaughtError } from '@/lib/report-error';
-import { httpError, networkError } from '@/tests/http-error';
+import { httpError, networkError } from '@/test-utils/http-error';
 
 describe('reportCaughtError', () => {
   it('logs an error a boundary caught, with where it happened', () => {

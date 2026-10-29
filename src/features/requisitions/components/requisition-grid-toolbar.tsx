@@ -4,7 +4,7 @@ import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
+import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldLabel } from '@/components/ui/field';
 import type { GridSearch } from '@/features/requisitions/components/requisition-grid';

@@ -1,6 +1,6 @@
 import { type ErrorComponentProps, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { RecordError } from '@/components/record-error';
+import { RecordError } from '@/components/app-shell/record-error';
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
 
 export function RequisitionError({ search, ...props }: ErrorComponentProps & { search: unknown }) {

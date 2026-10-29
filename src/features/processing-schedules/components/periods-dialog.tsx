@@ -4,6 +4,8 @@ import { PlusIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DialogLoadError,
   DialogNotFound,
@@ -11,7 +13,7 @@ import {
   FieldSkeleton,
   SwitchRowSkeleton,
   serverMessage,
-} from '@/components/dialog-parts';
+} from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -25,8 +27,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { ListError } from '@/components/list-error';
-import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
 import { createProcessingPeriod, fetchLatestPeriod } from '@/features/processing-schedules/api/api';
 import {

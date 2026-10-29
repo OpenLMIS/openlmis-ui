@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { deleteAssignments } from '@/components/valid-assignments/delete-assignments';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 const gone = () =>
   httpError(400, { messageKey: 'stockmanagement.error.destination.assignment.notFound' });

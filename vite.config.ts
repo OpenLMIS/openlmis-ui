@@ -86,7 +86,7 @@ export default defineConfig(({ mode }) => {
       exclude: [...configDefaults.exclude, '**/.screenshots/**', 'tests/offline/**'],
       environment: 'happy-dom',
       globals: true,
-      setupFiles: ['./src/tests/setup.ts'],
+      setupFiles: ['./src/test-utils/setup.ts'],
       css: false,
       clearMocks: true,
       restoreMocks: true,

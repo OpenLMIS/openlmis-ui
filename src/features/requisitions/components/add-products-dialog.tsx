@@ -4,11 +4,12 @@ import { type PaginationState, type RowSelectionState, useTable } from '@tanstac
 import { PackageSearchIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableEmpty, dataTableFeatures } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
-import { DialogLoadError } from '@/components/dialog-parts';
-import { DialogTable } from '@/components/dialog-table';
+import { DialogLoadError } from '@/components/display/dialog-parts';
+import { DialogTable } from '@/components/display/dialog-table';
 import {
   FormDialog,
   FormDialogBody,
@@ -20,8 +21,10 @@ import {
   FormDialogSubmit,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import { productPickColumns, productPickVisibility } from '@/components/product-pick-columns';
-import { QueryBoundary } from '@/components/query-boundary';
+import {
+  productPickColumns,
+  productPickVisibility,
+} from '@/components/pickers/product-pick-columns';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { OrderableIdentity } from '@/features/reference-data/api/api';

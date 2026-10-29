@@ -20,8 +20,8 @@ import { useStore } from '@tanstack/react-form';
 import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { CardList } from '@/components/card-list';
 import { DataTableCard } from '@/components/data-table/data-table';
+import { CardList } from '@/components/display/card-list';
 import { SettingsList } from '@/components/form/settings-list';
 import { Table, TableBody } from '@/components/ui/table';
 import {

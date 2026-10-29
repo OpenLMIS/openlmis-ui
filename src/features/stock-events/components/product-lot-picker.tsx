@@ -9,11 +9,16 @@ import type { ParseKeys, TFunction } from 'i18next';
 import { PackageIcon, PlusIcon } from 'lucide-react';
 import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ErrorAlert, RetryButton } from '@/components/dialog-parts';
+import { ErrorAlert, RetryButton } from '@/components/display/dialog-parts';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
 import { DatePicker, FieldLabelText } from '@/components/form/form-fields';
-import { PickerAdd, PickerAddButton, PickerAddField, PickerAddIcon } from '@/components/picker-add';
-import { ScanStatus } from '@/components/scan-status';
+import {
+  PickerAdd,
+  PickerAddButton,
+  PickerAddField,
+  PickerAddIcon,
+} from '@/components/pickers/picker-add';
+import { ScanStatus } from '@/components/pickers/scan-status';
 import { Button } from '@/components/ui/button';
 import {
   Combobox,

@@ -8,6 +8,7 @@ import {
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DialogLoadError,
   DialogNotFound,
@@ -15,7 +16,7 @@ import {
   FieldSkeleton,
   SkeletonLine,
   serverMessage,
-} from '@/components/dialog-parts';
+} from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import {
@@ -30,7 +31,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { updateGeographicZone } from '@/features/geographic-zones/api/api';

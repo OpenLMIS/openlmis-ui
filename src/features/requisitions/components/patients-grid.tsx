@@ -8,8 +8,8 @@ import {
   DataTableHeaderLabel,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { FlagBadge } from '@/components/flag-badge';
-import { TableCards } from '@/components/table-cards';
+import { TableCards } from '@/components/display/table-cards';
+import { FlagBadge } from '@/components/shared/flag-badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,

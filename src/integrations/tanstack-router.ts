@@ -1,6 +1,6 @@
 import { createRouter } from '@tanstack/react-router';
-import { ErrorFallback } from '@/components/error-fallback';
-import { PendingFallback } from '@/components/pending-fallback';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
+import { PendingFallback } from '@/components/app-shell/pending-fallback';
 import { queryClient } from '@/integrations/tanstack-query';
 import { isOfflineCapable } from '@/lib/offline-pages';
 import { isOnline } from '@/lib/online';

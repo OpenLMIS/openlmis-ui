@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { NamesPopover } from '@/components/names-popover';
+import { NamesPopover } from '@/components/display/names-popover';
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
 import type { RequisitionTemplate } from '@/features/requisition-templates/lib/types';

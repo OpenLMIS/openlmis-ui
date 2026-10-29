@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ActionTooltip } from '@/components/action-tooltip';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import {
   AlertDialog,
   AlertDialogContent,

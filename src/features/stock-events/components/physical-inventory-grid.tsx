@@ -12,7 +12,13 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import {
+  DataTableCard,
+  DataTableFooter,
+  DataTableHeaderLabel,
+} from '@/components/data-table/data-table';
+import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
+import { CardActions } from '@/components/display/card-actions';
 import {
   CardBand,
   CardControlRow,
@@ -20,19 +26,13 @@ import {
   CardListItem,
   CardRows,
   SkeletonBar,
-} from '@/components/card-list';
-import {
-  DataTableCard,
-  DataTableFooter,
-  DataTableHeaderLabel,
-} from '@/components/data-table/data-table';
-import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
+} from '@/components/display/card-list';
 import { useFieldContext } from '@/components/form/form-context';
 import { HiddenFromView } from '@/components/form/form-fields';
 import type { QuantityValue } from '@/components/form/quantity-value';
 import { updateQuantityValue } from '@/components/form/quantity-value';
 import { SettingsItem, SettingsRowFrame } from '@/components/form/settings-list';
-import { QuantityHeaderSizer } from '@/components/quantity-header-sizer';
+import { QuantityHeaderSizer } from '@/components/pickers/quantity-header-sizer';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';

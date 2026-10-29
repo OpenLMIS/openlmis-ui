@@ -18,9 +18,9 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DialogTable, DialogTableSkeleton } from '@/components/dialog-table';
-import { FlagBadge } from '@/components/flag-badge';
+import { DialogTable, DialogTableSkeleton } from '@/components/display/dialog-table';
 import { formatDateValue } from '@/components/form/date-value';
+import { FlagBadge } from '@/components/shared/flag-badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { periodsListOptions } from '@/features/processing-schedules/api/queries';

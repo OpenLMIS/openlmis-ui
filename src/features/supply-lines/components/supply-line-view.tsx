@@ -1,7 +1,8 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { DialogLoadError, DialogNotFound, ErrorAlert } from '@/components/dialog-parts';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { DialogLoadError, DialogNotFound, ErrorAlert } from '@/components/display/dialog-parts';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import {
   FormDialog,
@@ -13,7 +14,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supplyLineOptions } from '@/features/supply-lines/api/queries';
 import type { SupplyLine } from '@/features/supply-lines/lib/types';

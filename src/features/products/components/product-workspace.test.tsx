@@ -5,7 +5,7 @@ import { initReactI18next } from 'react-i18next';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ProductWorkspace } from '@/features/products/components/product-workspace';
 import type { ProductDetail } from '@/features/products/lib/types';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 beforeAll(async () => {
   await i18n

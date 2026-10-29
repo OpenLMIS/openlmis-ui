@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { WorkspaceActionsPortal } from '@/components/workspace-tabs';
+import { WorkspaceActionsPortal } from '@/components/workspace/workspace-tabs';
 
 type SettingsResetProps = {
   label: string;

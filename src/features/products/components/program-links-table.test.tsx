@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProgramLinksTable } from '@/features/products/components/program-links-table';
 import type { ProductDetail } from '@/features/products/lib/types';
 import { fetchOrderableDisplayCategories, fetchPrograms } from '@/features/reference-data/api/api';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchPrograms: vi.fn(),

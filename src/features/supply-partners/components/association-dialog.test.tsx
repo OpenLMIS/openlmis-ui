@@ -6,7 +6,7 @@ import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import { TranslatedFormMessages } from '@/components/translated-form-messages';
+import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 import {
   facilitiesByIdsOptions,
   facilityTypeApprovedOrderablesOptions,
@@ -23,7 +23,7 @@ import {
 } from '@/features/supply-partners/lib/search';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { client } from '@/integrations/axios';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));

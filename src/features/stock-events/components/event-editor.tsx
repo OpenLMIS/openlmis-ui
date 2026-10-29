@@ -21,19 +21,19 @@ import {
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { LoadError } from '@/components/app-shell/load-error';
+import { SnapshotAlert, useSnapshotNotice } from '@/components/app-shell/offline-alert';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
-import { DraftStatus } from '@/components/draft-status';
+import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
+import { DraftStatus } from '@/components/display/draft-status';
+import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
-import { InvalidSubmitDialog } from '@/components/invalid-submit-dialog';
-import { LoadError } from '@/components/load-error';
-import { SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
-import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
-import { QueryBoundary } from '@/components/query-boundary';
-import { ScanStatus } from '@/components/scan-status';
+import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
+import { ScanStatus } from '@/components/pickers/scan-status';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -45,7 +45,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace';
+import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace/workspace';
 import {
   orderablesByIdsOptions,
   reasonsOptions,

@@ -15,7 +15,8 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions, useInCards } from '@/components/card-actions';
+import { LoadError } from '@/components/app-shell/load-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DataTable,
   DataTableEmpty,
@@ -28,10 +29,9 @@ import {
   type ResponsiveColumn,
   resolveColumnVisibility,
 } from '@/components/data-table/responsive-columns';
+import { CardActions, useInCards } from '@/components/display/card-actions';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { LoadError } from '@/components/load-error';
-import { QueryBoundary } from '@/components/query-boundary';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import {
   AlertDialog,
   AlertDialogCancel,

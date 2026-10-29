@@ -11,8 +11,8 @@ import {
   fetchOrganizations,
   fetchPrograms,
 } from '@/features/reference-data/api/api';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchPrograms: vi.fn(),

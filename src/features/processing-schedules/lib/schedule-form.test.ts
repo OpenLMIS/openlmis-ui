@@ -4,7 +4,7 @@ import {
   scheduleFormSchema,
   toScheduleBody,
 } from '@/features/processing-schedules/lib/schedule-form';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 it('trims values and omits a blank description from the body', () => {
   const values = { code: ' M ', name: ' Monthly ', description: '  ' };

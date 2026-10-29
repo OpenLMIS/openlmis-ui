@@ -34,8 +34,8 @@ import type { StockEventLine, StockEventSummary } from '@/features/stock-events/
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { queryKeys } from '@/lib/key-factory';
 import { Route } from '@/routes/(protected)/_protected.stock-management.transaction-history_.$eventId_.reverse';
-import { expectRouteWarning } from '@/tests/expect-route-warning';
-import { httpError, networkError } from '@/tests/http-error';
+import { expectRouteWarning } from '@/test-utils/expect-route-warning';
+import { httpError, networkError } from '@/test-utils/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/stock-events/api/api', () => ({
@@ -50,7 +50,7 @@ vi.mock('@/features/reference-data/api/api', () => ({
   storedTimeZone: vi.fn(() => null),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+vi.mock('@/components/app-shell/nav-access', () => ({ useCanOpen: () => () => true }));
 const REVERSE_MATCH_ID =
   '/(protected)/_protected/stock-management/transaction-history/$eventId/reverse/stock-management/transaction-history/event1/reverse';
 

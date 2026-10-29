@@ -1,5 +1,5 @@
 import { isAxiosError } from 'axios';
-import { serverMessage } from '@/components/dialog-parts';
+import { serverMessage } from '@/components/display/dialog-parts';
 
 export class RequisitionRetryConflict extends Error {}
 export type RequisitionFailure =

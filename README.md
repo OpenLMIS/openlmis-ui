@@ -73,10 +73,19 @@ src/
   globals.css         # Base theme tokens; presets in lib/theme-presets.ts
   routes/             # TanStack file-based routes; generated route tree
   features/<name>/    # Feature api/, components/, hooks/, lib/, store/
-  components/         # Shared components; ui/ holds generated shadcn components
+  components/         # Shared components, grouped by role:
+    ui/               #   generated shadcn components
+    app-shell/        #   shell, navigation, status and error pages, offline notices
+    workspace/        #   page layout and tabs
+    display/          #   cards, record tables and shared dialogs
+    pickers/          #   facility/program and product pickers
+    auth/ i18n/       #   sign-in pieces, direction and translated labels
+    shared/           #   small widgets used everywhere
+    data-table/ form/ form-dialog/ valid-assignments/
   integrations/       # Axios, TanStack Query/Router and i18next singletons
   lib/                # Shared config, types, utilities and query keys
   hooks/              # Shared hooks
+  test-utils/         # Vitest setup and test helpers
 public/locales/       # Runtime-fetched translation catalogs
 docs/                 # User, deployment and offline guides
 docker/               # Entrypoint, nginx template and Consul registration

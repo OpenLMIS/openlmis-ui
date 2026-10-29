@@ -1,4 +1,4 @@
-import { PendingWorkAlert, type PendingWorkMessage } from '@/components/offline-alert';
+import { PendingWorkAlert, type PendingWorkMessage } from '@/components/app-shell/offline-alert';
 import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
 import { isPendingDeviceEvent } from '@/features/stock-events/lib/pending-device-event';

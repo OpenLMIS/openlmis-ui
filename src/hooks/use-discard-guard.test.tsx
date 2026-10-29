@@ -14,7 +14,7 @@ import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
 

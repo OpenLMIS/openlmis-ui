@@ -9,7 +9,7 @@ import {
   isOfflineError,
   isRefused,
 } from '@/lib/http';
-import { networkError } from '@/tests/http-error';
+import { networkError } from '@/test-utils/http-error';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
 

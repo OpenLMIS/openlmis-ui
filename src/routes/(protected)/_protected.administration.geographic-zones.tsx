@@ -2,9 +2,9 @@ import { createFileRoute } from '@tanstack/react-router';
 import { MapPinIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { serverMessage } from '@/components/dialog-parts';
-import { ListError } from '@/components/list-error';
-import { QueryBoundary } from '@/components/query-boundary';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { serverMessage } from '@/components/display/dialog-parts';
 import {
   Workspace,
   WorkspaceContent,
@@ -13,7 +13,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { geographicZonesListOptions } from '@/features/geographic-zones/api/queries';

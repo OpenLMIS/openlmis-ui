@@ -3,8 +3,8 @@ import { Loader2Icon, TruckIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { FieldSkeleton, serverMessage } from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { FieldSkeleton, serverMessage } from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import {
   AlertDialog,
@@ -27,7 +27,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { SupplyPartnerConflictError, saveSupplyPartner } from '@/features/supply-partners/api/api';
 import { AssociationDialog } from '@/features/supply-partners/components/association-dialog';
 import {

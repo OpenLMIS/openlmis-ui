@@ -7,7 +7,7 @@ import {
 } from '@/features/reasons/api/api';
 import { saveReason } from '@/features/reasons/lib/save-reason';
 import type { ValidReason } from '@/features/reasons/lib/types';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/features/reasons/api/api', () => ({
   createReason: vi.fn(),

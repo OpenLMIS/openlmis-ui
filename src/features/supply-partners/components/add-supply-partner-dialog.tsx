@@ -4,7 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,

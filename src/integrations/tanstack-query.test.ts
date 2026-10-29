@@ -2,7 +2,7 @@ import { onlineManager } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { queryClient, shouldRetry } from '@/integrations/tanstack-query';
-import { httpError, networkError } from '@/tests/http-error';
+import { httpError, networkError } from '@/test-utils/http-error';
 
 const signIn = (referenceDataUserId: string) =>
   useLoginData

@@ -25,7 +25,7 @@ vi.mock('@/components/data-table/responsive-columns', async (importOriginal) => 
   ...(await importOriginal<typeof import('@/components/data-table/responsive-columns')>()),
   useElementWidth: vi.fn(() => [vi.fn(), 944]),
 }));
-vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/hooks/use-deployment-time-zone', () => ({ useDeploymentTimeZone: () => 'UTC' }));
 vi.mock('@/hooks/use-discard-guard', () => ({
   useDiscardGuard: () => ({

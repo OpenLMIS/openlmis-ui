@@ -1,7 +1,7 @@
 import { MessageSquareDashedIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { type ComponentProps, useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { CardActions } from '@/components/display/card-actions';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,

@@ -3,12 +3,12 @@ import { createFileRoute, type ErrorComponentProps, Link } from '@tanstack/react
 import { ClipboardListIcon, PrinterIcon, Undo2Icon } from 'lucide-react';
 import { useDeferredValue, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionTooltip } from '@/components/action-tooltip';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { ListError } from '@/components/list-error';
-import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
-import { QueryBoundary } from '@/components/query-boundary';
+import { QuantityUnitToggle } from '@/components/pickers/quantity-unit-toggle';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
@@ -21,7 +21,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';

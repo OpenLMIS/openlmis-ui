@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { ActionTooltip } from '@/components/action-tooltip';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
-import { WorkspaceFooter } from '@/components/workspace';
+import { WorkspaceFooter } from '@/components/workspace/workspace';
 import type {
   RequisitionAction,
   requisitionCapabilities,

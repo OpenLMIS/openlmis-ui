@@ -3,6 +3,7 @@ import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DialogLoadError,
   DialogNotFound,
@@ -10,7 +11,7 @@ import {
   FieldSkeleton,
   SkeletonLine,
   serverMessage,
-} from '@/components/dialog-parts';
+} from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -24,7 +25,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
 import { ApprovalRemovedError, addApproval, saveApprovalStock } from '@/features/products/api/api';
 import { approvalDetailOptions, productApprovalsOptions } from '@/features/products/api/queries';

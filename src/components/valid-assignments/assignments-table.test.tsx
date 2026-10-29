@@ -17,7 +17,7 @@ import {
   fetchPrograms,
 } from '@/features/reference-data/api/api';
 import type { Facility } from '@/features/reference-data/lib/types';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../public/locales/en.json';
 
 vi.mock('@/features/reference-data/api/api', () => ({

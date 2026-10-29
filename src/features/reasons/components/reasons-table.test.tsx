@@ -10,7 +10,7 @@ import { ReasonsTable } from '@/features/reasons/components/reasons-table';
 import { CLEARED_REASON_FILTERS, type ReasonsSearch } from '@/features/reasons/lib/search';
 import { fetchReasons } from '@/features/reference-data/api/api';
 import type { Reason } from '@/features/reference-data/lib/types';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/features/reference-data/api/api', () => ({ fetchReasons: vi.fn() }));

@@ -9,7 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ErrorFallback } from '@/components/error-fallback';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
