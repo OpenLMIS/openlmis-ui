@@ -1,3 +1,4 @@
+import { InfoIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CardBand } from '@/components/card-list';
@@ -32,13 +33,18 @@ export function CommentEntry({
             )}
           </CardBand>
           {(children || note) && (
-            <div className="flex flex-col gap-1 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3">
               {children && (
-                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                <p className="min-w-0 whitespace-pre-wrap break-words text-sm leading-relaxed">
                   <bdi>{children}</bdi>
                 </p>
               )}
-              {note && <p className="text-muted-foreground text-xs">{note}</p>}
+              {note && (
+                <Badge variant="info" wrap="normal">
+                  <InfoIcon data-icon="inline-start" />
+                  {note}
+                </Badge>
+              )}
             </div>
           )}
         </div>
