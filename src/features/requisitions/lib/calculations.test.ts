@@ -152,7 +152,10 @@ describe('server display calculations', () => {
       ),
     };
     expect(
-      calculate({ idealStockAmount: 16, totalLossesAndAdjustments: 88 }, { template: t }),
+      calculate(
+        { idealStockAmount: 16, calculatedOrderQuantityIsa: 16, totalLossesAndAdjustments: 88 },
+        { template: t },
+      ),
     ).toMatchObject({ totalLossesAndAdjustments: 88, packsToShip: 2 });
     expect(
       calculate({ adjustedConsumption: 99, requestedQuantity: 16 }, { emergency: true }),
@@ -264,7 +267,7 @@ describe('server display calculations', () => {
   });
 });
 
-it('recalculates D even with a user-input source', () => {
+it('recalculates the adjustment editor total with a user-input source', () => {
   expect(
     calculate(
       { totalLossesAndAdjustments: 99, stockAdjustments: [{ reasonId: 'credit', quantity: 4 }] },
@@ -309,7 +312,7 @@ it('calculates S from ISA minus zero when E is hidden', () => {
     ),
   ).toMatchObject({ stockOnHand: null, calculatedOrderQuantityIsa: 30 });
 });
-it('recalculates displayed Y H I S regardless of their source', () => {
+it('preserves displayed Y H I S with a user-input source', () => {
   expect(
     calculate(
       {
@@ -318,6 +321,10 @@ it('recalculates displayed Y H I S regardless of their source', () => {
         averageConsumption: 5,
         idealStockAmount: 30,
         stockOnHand: 2,
+        total: 90,
+        maximumStockQuantity: 91,
+        calculatedOrderQuantity: 92,
+        calculatedOrderQuantityIsa: 93,
       },
       {
         template: {
@@ -334,10 +341,10 @@ it('recalculates displayed Y H I S regardless of their source', () => {
       },
     ),
   ).toMatchObject({
-    total: 14,
-    maximumStockQuantity: 13,
-    calculatedOrderQuantity: 11,
-    calculatedOrderQuantityIsa: 28,
+    total: 90,
+    maximumStockQuantity: 91,
+    calculatedOrderQuantity: 92,
+    calculatedOrderQuantityIsa: 93,
   });
 });
 it.each([
@@ -404,28 +411,34 @@ it.each([
     )[name],
   ).toBe(99);
 });
-it('recalculates N and P when present regardless of display or source', () => {
-  expect(
-    calculate(
-      { totalConsumedQuantity: 5, adjustedConsumption: 99, averageConsumption: 99 },
-      {
-        template: {
-          columnsMap: {
-            totalConsumedQuantity: column('totalConsumedQuantity', 0, { source: 'USER_INPUT' }),
-            adjustedConsumption: column('adjustedConsumption', 0, {
-              source: 'USER_INPUT',
-              isDisplayed: false,
-            }),
-            averageConsumption: column('averageConsumption', 0, {
-              source: 'USER_INPUT',
-              isDisplayed: false,
-            }),
+it.each(['USER_INPUT', 'CALCULATED'] as const)(
+  'respects the source of hidden N and P: %s',
+  (source) => {
+    expect(
+      calculate(
+        { totalConsumedQuantity: 5, adjustedConsumption: 99, averageConsumption: 99 },
+        {
+          template: {
+            columnsMap: {
+              totalConsumedQuantity: column('totalConsumedQuantity', 0, { source: 'USER_INPUT' }),
+              adjustedConsumption: column('adjustedConsumption', 0, {
+                source,
+                isDisplayed: false,
+              }),
+              averageConsumption: column('averageConsumption', 0, {
+                source,
+                isDisplayed: false,
+              }),
+            },
           },
         },
-      },
-    ),
-  ).toMatchObject({ adjustedConsumption: 5, averageConsumption: 5 });
-});
+      ),
+    ).toMatchObject({
+      adjustedConsumption: source === 'CALCULATED' ? 5 : 99,
+      averageConsumption: source === 'CALCULATED' ? 5 : 99,
+    });
+  },
+);
 
 it('leaves Doses Per Patient empty when the program entry has no value', () => {
   expect(calculate().dosesPerPatient).toBeNull();
@@ -436,4 +449,50 @@ it('leaves Doses Per Patient empty when the program entry has no value', () => {
       { programs: [{ programId: 'program', fullSupply: true, dosesPerPatient: 0 }] },
     ).dosesPerPatient,
   ).toBe(0);
+});
+
+it('preserves stock-card average consumption and derives H and I from it', () => {
+  const requisition = record({
+    template: {
+      populateStockOnHandFromStockCards: true,
+      columnsMap: {
+        stockOnHand: column('stockOnHand', 0, { source: 'STOCK_CARDS' }),
+        totalConsumedQuantity: column('totalConsumedQuantity', 0, { source: 'STOCK_CARDS' }),
+        adjustedConsumption: column('adjustedConsumption'),
+        averageConsumption: column('averageConsumption', 0, { source: 'STOCK_CARDS' }),
+        maximumStockQuantity: column('maximumStockQuantity'),
+        calculatedOrderQuantity: column('calculatedOrderQuantity'),
+      },
+    },
+    requisitionLineItems: [
+      line({ averageConsumption: 50, totalConsumedQuantity: 10, stockOnHand: 5 }),
+    ],
+  });
+  const model = buildLines(
+    requisition,
+    [product()],
+    [{ id: 'approved', meta: { versionNumber: 1 }, maxPeriodsOfStock: 3 }],
+  )[0];
+  if (!model) throw new Error('Missing model');
+  expect(calculateLine(model, requisition, 1)).toMatchObject({
+    averageConsumption: 50,
+    maximumStockQuantity: 150,
+    calculatedOrderQuantity: 145,
+  });
+});
+
+it('keeps explicit input sources for packs and cost', () => {
+  expect(
+    calculate(
+      { requestedQuantity: 20, packsToShip: 7, totalCost: 99 },
+      {
+        template: {
+          columnsMap: {
+            packsToShip: column('packsToShip', 0, { source: 'USER_INPUT' }),
+            totalCost: column('totalCost', 0, { source: 'USER_INPUT' }),
+          },
+        },
+      },
+    ),
+  ).toMatchObject({ packsToShip: 7, totalCost: 99 });
 });

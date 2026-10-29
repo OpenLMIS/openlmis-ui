@@ -1,5 +1,5 @@
 import { type Cell, flexRender, type Row, type RowData } from '@tanstack/react-table';
-import { type ReactNode, type Ref, use, useId } from 'react';
+import { type ComponentProps, type ReactNode, type Ref, use, useId } from 'react';
 import { CardActionsSkeleton, InCardContext } from '@/components/card-actions';
 import {
   CardBand,
@@ -29,7 +29,7 @@ type TableCardsProps<TData extends RowData> = {
   busy?: boolean;
   listRef?: Ref<HTMLUListElement>;
   heading?: (row: TData) => string | undefined;
-  tone?: (row: TData) => 'skipped' | 'shortfall' | undefined;
+  tone?: (row: TData) => ComponentProps<typeof CardListItem>['tone'];
   surface?: 'raised' | 'flat';
 };
 
@@ -122,7 +122,7 @@ function TableCard<TData extends RowData>({
   title: string;
   selectId: string;
   surface: 'raised' | 'flat';
-  tone?: 'skipped' | 'shortfall';
+  tone?: ComponentProps<typeof CardListItem>['tone'];
 }) {
   const cells = row.getVisibleCells();
   const titleCell = cells.find((cell) => cell.column.id === title);

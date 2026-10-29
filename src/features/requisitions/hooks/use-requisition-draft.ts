@@ -7,7 +7,7 @@ import {
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { hasUnsyncedRequisitionDraft } from '@/features/requisitions/lib/unsynced-device-work';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
-import { saveRevisionedDraft } from '@/lib/draft-store';
+import { DraftConflictError, saveRevisionedDraft } from '@/lib/draft-store';
 import { createDraftWriter, type DraftSaveState } from '@/lib/draft-writer';
 import { readOwnedRecord } from '@/lib/local-records';
 import { isSecureOrigin } from '@/lib/secure-context';
@@ -58,15 +58,27 @@ export function useRequisitionDraft(
     const publish = () => {
       if (active && scope === getSessionScope()) setState({ controller: api, status, outdated });
     };
+    const readStored = () =>
+      db
+        ? readOwnedRecord<RequisitionLocalDraft>(LOCAL_TABLES.requisitionDrafts, draftId, {
+            formats: [1],
+          })
+        : Promise.resolve(undefined);
+    const removeStored = async () => {
+      if (!db || !table) return;
+      await saveRevisionedDraft({
+        db,
+        table,
+        sessionScope: scope,
+        expected,
+        read: () => table.get(draftId),
+        next: () => undefined,
+      });
+      assertSessionScope(scope);
+    };
     let loaded: Promise<void> | undefined;
     const load = () => {
-      loaded ??= (
-        db
-          ? readOwnedRecord<RequisitionLocalDraft>(LOCAL_TABLES.requisitionDrafts, draftId, {
-              formats: [1],
-            })
-          : Promise.resolve(undefined)
-      ).then(async (stored) => {
+      loaded ??= readStored().then(async (stored) => {
         assertSessionScope(scope);
         expected = stored;
         if (
@@ -77,15 +89,7 @@ export function useRequisitionDraft(
             JSON.stringify(rebaseRequisitionDraft(baseline, stored.draft)) ===
               JSON.stringify(buildRequisitionDraft(baseline)))
         ) {
-          await saveRevisionedDraft({
-            db,
-            table,
-            sessionScope: scope,
-            expected,
-            read: () => table.get(draftId),
-            next: () => undefined,
-          });
-          assertSessionScope(scope);
+          await removeStored();
           expected = undefined;
           stored = undefined;
         }
@@ -160,10 +164,17 @@ export function useRequisitionDraft(
           writer.enqueue({ draft: structuredClone(draft), base: pendingBase });
         }
       },
-      async flush() {
-        await load();
-        assertSessionScope(scope);
-        if (!(await writer.flush())) throw status.error;
+      async flush({ allowFailure = false }: { allowFailure?: boolean } = {}) {
+        try {
+          await load();
+          assertSessionScope(scope);
+          if (!(await writer.flush())) throw status.error;
+        } catch (error) {
+          assertSessionScope(scope);
+          if (error instanceof DraftConflictError || writer.conflicted || !allowFailure)
+            throw error;
+          writer.fail(error);
+        }
         assertSessionScope(scope);
       },
       retry: writer.retry,
@@ -174,17 +185,7 @@ export function useRequisitionDraft(
         assertSessionScope(scope);
         await load();
         assertSessionScope(scope);
-        if (db && table) {
-          await saveRevisionedDraft({
-            db,
-            table,
-            sessionScope: scope,
-            expected,
-            read: () => table.get(draftId),
-            next: () => undefined,
-          });
-          assertSessionScope(scope);
-        }
+        await removeStored();
         expected = undefined;
         pendingBase = undefined;
         outdated = false;
@@ -201,13 +202,7 @@ export function useRequisitionDraft(
         await writer.wait();
         assertSessionScope(scope);
         try {
-          const stored = db
-            ? await readOwnedRecord<RequisitionLocalDraft>(
-                LOCAL_TABLES.requisitionDrafts,
-                draftId,
-                { formats: [1] },
-              )
-            : undefined;
+          const stored = await readStored();
           assertSessionScope(scope);
           expected = stored;
           pendingBase = undefined;

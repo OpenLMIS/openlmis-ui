@@ -44,7 +44,9 @@ export function RequisitionFooter({
           aria-description={reason}
           onClick={() => onAction(action)}
         >
-          {t(`requisitions.edit.actions.${action}`)}
+          {t(
+            `requisitions.edit.actions.${action === 'submitAndAuthorize' ? 'submit-and-authorize' : action}`,
+          )}
         </Button>
       </ActionTooltip>
     );

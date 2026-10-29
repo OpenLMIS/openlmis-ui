@@ -15,7 +15,7 @@ export type RequisitionAction =
   | 'delete'
   | 'skip'
   | 'print';
-export const SHIPPED_ACTIONS: readonly RequisitionAction[] = [
+const SHIPPED_ACTIONS: readonly RequisitionAction[] = [
   'sync',
   'submit',
   'submitAndAuthorize',
@@ -24,8 +24,7 @@ export const SHIPPED_ACTIONS: readonly RequisitionAction[] = [
   'delete',
   'print',
 ];
-export const SHIPPED_EDITING = true;
-export type CapabilityContext = {
+type CapabilityContext = {
   status: RequisitionStatus;
   emergency: boolean;
   template: RequisitionTemplate;
@@ -36,9 +35,8 @@ export type CapabilityContext = {
   unskipWhenApproving?: boolean;
   isSplit?: boolean;
 };
-export type CapabilityGate = {
+type CapabilityGate = {
   actions: readonly RequisitionAction[];
-  editing: boolean;
   approverEditing?: boolean;
   patientsEditing?: boolean;
 };
@@ -47,7 +45,6 @@ export function requisitionCapabilities(
   context: CapabilityContext,
   gate: CapabilityGate = {
     actions: SHIPPED_ACTIONS,
-    editing: SHIPPED_EDITING,
     approverEditing: false,
     patientsEditing: false,
   },
@@ -79,8 +76,7 @@ export function requisitionCapabilities(
   if (canDelete) allowed.push('delete');
   if (creator && !emergency && program.periodsSkippable) allowed.push('skip');
   allowed.push('print');
-  const editingOpen =
-    gate.editing && (!template.patientsTabEnabled || gate.patientsEditing === true);
+  const editingOpen = !template.patientsTabEnabled || gate.patientsEditing === true;
   const editable = editingOpen && canEdit && (!approver || gate.approverEditing === true);
   const actionsOpen = editingOpen && (!approver || gate.approverEditing === true);
   const approvalColumn = template.patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity';

@@ -1175,3 +1175,42 @@ it('does not show device save status for a read-only requisition', async () => {
   expect(screen.queryByText(/Saved On This Device/i)).not.toBeInTheDocument();
   queryClient.clear();
 });
+
+it.each(['read', 'write'] as const)(
+  'saves the in-memory draft to the server after device %s failure',
+  async (failure) => {
+    const records = await import('@/lib/local-records');
+    const store = await import('@/lib/draft-store');
+    const error = new Error('Device unavailable');
+    if (failure === 'read') vi.spyOn(records, 'readOwnedRecord').mockRejectedValueOnce(error);
+    const { base, queryClient } = await openEditor();
+    if (failure === 'write') vi.spyOn(store, 'saveRevisionedDraft').mockRejectedValue(error);
+    fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+      target: { value: '12' },
+    });
+    await screen.findByText('stock-events.draft-failed');
+    const saved = {
+      ...base,
+      modifiedDate: 'saved',
+      eTag: '"saved"',
+      requisitionLineItems: base.requisitionLineItems.map((line) => ({
+        ...line,
+        beginningBalance: 12,
+      })),
+    };
+    vi.mocked(fetchRequisition).mockResolvedValue(saved);
+    const put = vi.spyOn(client, 'put').mockResolvedValue({ data: saved, headers: {} });
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+    await waitFor(() => expect(put).toHaveBeenCalledOnce());
+    expect(put.mock.calls[0][1]).toMatchObject({
+      requisitionLineItems: expect.arrayContaining([
+        expect.objectContaining({ id: 'line', beginningBalance: 12 }),
+      ]),
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeEnabled(),
+    );
+    expect(screen.getByText('stock-events.draft-failed')).toBeInTheDocument();
+    queryClient.clear();
+  },
+);

@@ -56,18 +56,11 @@ export function buildLines(
     );
 }
 
-export function splitLines(lines: readonly RequisitionLine[]) {
-  return {
-    fullSupply: lines.filter((l) => l.fullSupply),
-    nonFullSupply: lines.filter((l) => !l.fullSupply),
-  };
-}
-
 export function filterLines<T extends RequisitionLine>(
   lines: readonly T[],
   options: { hideSkipped?: boolean; product?: string; showSkipped?: boolean } = {},
 ) {
-  const hideSkipped = options.hideSkipped && !options.showSkipped;
+  const hideSkipped = !(options.showSkipped ?? !options.hideSkipped);
   const query = options.product?.trim().toLocaleLowerCase() ?? '';
   return lines.filter(
     (l) =>

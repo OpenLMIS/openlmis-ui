@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
 import type { RequisitionGroup } from '@/features/reference-data/lib/types';
 import {
-  partnerLookupIds,
+  groupIdsOf,
+  partnerNodeIds,
   searchFacilityOptions,
 } from '@/features/requisitions/lib/search-facilities';
 
@@ -52,8 +53,6 @@ it('derives groups from the partner nodes rather than the viewer nodes', () => {
   const partners = [
     { id: 'partner', code: 'P', name: 'Partner', requisitionGroup: { id: 'correct' } },
   ];
-  expect(partnerLookupIds(nodes, partners)).toEqual({
-    partnerIds: ['partner'],
-    groupIds: ['correct'],
-  });
+  expect(partnerNodeIds(nodes)).toEqual(['partner']);
+  expect(groupIdsOf(partners)).toEqual(['correct']);
 });

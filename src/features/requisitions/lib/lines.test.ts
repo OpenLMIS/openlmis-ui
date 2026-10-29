@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
-import { buildLines, filterLines, splitLines } from '@/features/requisitions/lib/lines';
+import { buildLines, filterLines } from '@/features/requisitions/lib/lines';
 
-it('joins exact versions, uses the last program entry and splits both supply types', () => {
+it('joins exact versions, uses the last program entry and preserves supply type', () => {
   const products = [
     product({ meta: { versionNumber: 2 }, fullProductName: 'Wrong version' }),
     product({
@@ -19,10 +19,7 @@ it('joins exact versions, uses the last program entry and splits both supply typ
   expect(models[0]?.product?.fullProductName).toBe('Product');
   expect(models[0]?.program?.pricePerPack).toBe(5);
   expect(models[0]?.approvedProduct?.maxPeriodsOfStock).toBe(2);
-  expect(splitLines(models)).toMatchObject({
-    fullSupply: [],
-    nonFullSupply: [{ fullSupply: false }],
-  });
+  expect(models[0]?.fullSupply).toBe(false);
 });
 it('sorts both supply types by category order/name, product order/name and filters code or name', () => {
   const products = ['Zulu', 'Alpha', 'Beta', 'Gamma'].map((name, i) =>
@@ -65,6 +62,7 @@ it('hides skipped only by template option with an explicit show-skipped override
   const models = buildLines(r, [product()]);
   expect(filterLines(models, { hideSkipped: true })).toEqual([]);
   expect(filterLines(models, { hideSkipped: true, showSkipped: true })).toHaveLength(1);
+  expect(filterLines(models, { hideSkipped: false, showSkipped: false })).toEqual([]);
 });
 
 it('does not silently hydrate a missing pinned version from a newer product or approval', () => {

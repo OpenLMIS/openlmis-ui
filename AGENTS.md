@@ -440,10 +440,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Responsive tables:**
 
-- Requisition grids pin product code and name at the inline start, with matching opaque header, body
+- Requisition grids pin Skip, product code and name at the inline start, with matching opaque header, body
   and category surfaces.
 - `TableRow`, `TableCards` and `CardListItem` accept per-row `tone`: `skipped` keeps full-strength
-  text on grey; pair `shortfall` warning tint with a labelled icon.
+  text on grey; pair `shortfall` warning tint with a labelled icon. `CardListItem` also accepts
+  `invalid`, which takes precedence over other row tones.
 - At or above `CONTAINER_WIDTHS['2xl']` (672px), stock event editors use tables. Below it they
   use cards. Issue, Receive and Unpack use `columnFit: 'measured'` only for the table to hide
   optional columns by measured fit because translated inputs make pixel thresholds language
@@ -833,11 +834,10 @@ Both use `src/components/discard-changes-dialog.tsx`. Its `pending` option keeps
 during a save without offering Discard. Device drafts pass `flushBeforeLeave` to commit staged edits
 before navigation or external leave; only a failed flush asks first. Every external leave,
 including reload, update, Back To Legacy and sign-out, keeps the saved device draft.
-
-Browser reload and tab close use the native prompt. External identity changes follow
-Authentication below.
 `useBackToLegacy(hash)` appends an optional legacy hash path while keeping leave guards and
 unload handling.
+Browser reload and tab close use the native prompt. External identity changes follow
+Authentication below.
 
 **Charts:** use Recharts through `ChartContainer` and theme ramp `--chart-1`..`--chart-5`,
 one hue light-to-dark, checked for even steps/contrast in both modes. Use the ramp in order

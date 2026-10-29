@@ -5,10 +5,10 @@ import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import en from '@/../public/locales/en.json';
 import { orderablesByIdentitiesOptions } from '@/features/reference-data/api/queries';
 import { AddProductsDialog } from '@/features/requisitions/components/add-products-dialog';
 import { renderPage } from '@/tests/render-page';
-import en from '../../../../public/locales/en.json';
 
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);

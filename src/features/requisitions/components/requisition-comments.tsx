@@ -2,6 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { PlusIcon } from 'lucide-react';
 import { useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DataTableEmpty } from '@/components/data-table/data-table';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { requisitionStatusMessagesOptions } from '@/features/requisitions/api/queries';
@@ -104,9 +105,10 @@ export function RequisitionComments({
         <StatusMessage message={latest} />
       ) : (
         !draftComment && (
-          <p className="rounded-xl border border-dashed px-4 py-3 text-muted-foreground text-sm">
-            {t('requisitions.requisition.no-comments')}
-          </p>
+          <DataTableEmpty
+            title={t('requisitions.requisition.no-comments')}
+            description={t('requisitions.requisition.no-comments-description')}
+          />
         )
       )}
       {editor && (

@@ -21,7 +21,7 @@ import { useOnline } from '@/lib/online';
 type ConfirmAction =
   | Extract<RequisitionAction, 'submit' | 'submitAndAuthorize' | 'authorize' | 'skip' | 'delete'>
   | 'update';
-export type RequisitionActionDialogProps = {
+type RequisitionActionDialogProps = {
   action: ConfirmAction;
   pending?: boolean;
   onConfirm: () => void;
@@ -34,7 +34,9 @@ export function RequisitionActionDialog({
   onClose,
 }: RequisitionActionDialogProps) {
   const { t } = useTranslation();
-  const title = t(`requisitions.edit.actions.${action}`);
+  const title = t(
+    `requisitions.edit.actions.${action === 'submitAndAuthorize' ? 'submit-and-authorize' : action}`,
+  );
   return (
     <AlertDialog
       open
@@ -74,7 +76,7 @@ export function RequisitionActionDialog({
     </AlertDialog>
   );
 }
-export type RequisitionErrorDialogProps = {
+type RequisitionErrorDialogProps = {
   error: RequisitionFailure;
   pending?: boolean;
   onClose: () => void;

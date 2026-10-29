@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableFooter } from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
+import { DraftStatusSkeleton } from '@/components/draft-status';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { QuantityHeaderSizer } from '@/components/quantity-header-sizer';
 import {
@@ -25,15 +26,17 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DraftComment } from '@/features/requisitions/components/requisition-comment-field';
+import type { GridEditing } from '@/features/requisitions/components/requisition-grid';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
 import { RequisitionTotalsSkeleton } from '@/features/requisitions/components/requisition-totals';
 import { SkipButtons } from '@/features/requisitions/components/skip-controls';
 import { canRemoveLine } from '@/features/requisitions/lib/draft';
 import {
-  compileColumns,
+  columnViewKey,
   defaultRequisitionTab,
   type GridColumn,
+  gridColumns,
   type RequisitionTab,
 } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
@@ -42,14 +45,7 @@ import type { QuantityUnit } from '@/lib/quantity';
 import { toPaginationState } from '@/lib/table-search';
 import { cn } from '@/lib/utils';
 
-export type PendingEditing = {
-  editable: boolean;
-  editableColumns: readonly string[];
-  skipLines: boolean;
-  addFullSupplyProduct: boolean;
-  addNonFullSupplyProduct: boolean;
-  deviceAvailable: boolean;
-};
+export type PendingEditing = Omit<GridEditing, 'editor' | 'pending'> & { deviceAvailable: boolean };
 
 function TextLine({ text, width }: { text: string; width: string }) {
   return (
@@ -232,7 +228,7 @@ const PENDING_COLUMNS = [
 ] as const;
 const PAGE_ROWS = toPaginationState({}).pageSize;
 
-export function RequisitionGridPending({
+function RequisitionGridPending({
   hideSkipped = false,
   canSwitch = false,
   record,
@@ -252,20 +248,16 @@ export function RequisitionGridPending({
   const { t } = useTranslation();
   const activeTab = tab ?? (record ? defaultRequisitionTab(record.template) : 'fullSupply');
   const columns: GridColumn[] = record
-    ? compileColumns(record.template, {
-        tab: activeTab,
-        status: record.status,
-        emergency: record.emergency,
-        supplyingStock: supplyingStock && !record.supplyingFacilityAccessDenied,
-      }).map((column) => ({
-        ...column,
-        label: column.kind === 'packSize' ? t('requisitions.requisition.pack-size') : column.label,
-        definition: column.stockBasedNote
-          ? [column.definition, t('requisitions.adjustments.stock-based-note')]
-              .filter(Boolean)
-              .join(' ')
-          : column.definition,
-      }))
+    ? gridColumns(
+        record.template,
+        {
+          tab: activeTab,
+          status: record.status,
+          emergency: record.emergency,
+          supplyingStock: supplyingStock && !record.supplyingFacilityAccessDenied,
+        },
+        t,
+      )
     : PENDING_COLUMNS.map((name) => ({
         name,
         label: t(`requisitions.requisition.${name}`),
@@ -274,14 +266,9 @@ export function RequisitionGridPending({
         kind: 'text',
         convertsToPacks: false,
       }));
-  const templateId =
-    record?.template.id ??
-    Object.keys(record?.template.columnsMap ?? {})
-      .sort()
-      .join(':');
   const view = useCardView<HTMLDivElement>(
     columns.filter((column) => !column.sticky).map((column) => ({ id: column.name })),
-    `requisition-columns:${templateId}`,
+    columnViewKey(record?.template),
   );
   const editable = !!editing?.editable;
   const fullSupply = activeTab === 'fullSupply';
@@ -329,6 +316,7 @@ export function RequisitionGridPending({
         search={{}}
         onSearchChange={noop}
         hideSkipped={hideSkipped}
+        showSkipFilter={!!editing?.skipLines && activeTab === 'fullSupply'}
         unit={unit}
         setUnit={noop}
         canSwitch={canSwitch}
@@ -454,20 +442,6 @@ export function RequisitionGridPending({
           </DataTableFooter>
         </DataTableCard>
       )}
-    </div>
-  );
-}
-
-function DraftStatusSkeleton() {
-  const { t } = useTranslation();
-  return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
-      <span className="relative inline-flex h-5 items-center px-2 font-medium text-xs" aria-hidden>
-        <span className="invisible ps-4">{t('stock-events.draft-saved')}</span>
-        <span className="absolute inset-0 overflow-hidden rounded-4xl">
-          <Skeleton fill />
-        </span>
-      </span>
     </div>
   );
 }

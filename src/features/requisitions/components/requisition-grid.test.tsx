@@ -216,14 +216,13 @@ const withSkipped: RequisitionRecord = {
 };
 it('shows skipped full-supply products from the toolbar checkbox and clears both filters from no matches', async () => {
   const user = userEvent.setup();
-  render(<Harness value={withSkipped} />);
+  render(<Harness value={withSkipped} editable />);
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Filters' }));
   await user.click(screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' }));
+  await user.keyboard('{Escape}');
   expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
-  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0' })).toHaveAttribute(
-    'aria-disabled',
-    'true',
-  );
+  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0 (P0)' })).toBeChecked();
   await user.type(screen.getByRole('textbox'), 'absent');
   await user.click(await screen.findByRole('button', { name: 'data-table.clear-filters' }));
   expect(screen.getByRole('textbox')).toHaveValue('');
@@ -257,9 +256,7 @@ it.each([false, true])(
       />,
     );
     expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument();
   },
 );
 it('shows only the access banner when supplying stock access is denied', () => {
@@ -324,10 +321,16 @@ it('opens adjustments through a name that includes the visible quantity and prod
   );
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
 });
-it.each([1000, 390])('labels shortfall beyond colour at width %s', (width) => {
+it.each([
+  [1000, false],
+  [390, false],
+  [1000, true],
+  [390, true],
+] as const)('labels shortfall beyond colour at width %s, editing=%s', (width, editable) => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
   render(
     <Harness
+      editable={editable}
       supplyingStock
       value={{
         ...requisition,
@@ -347,7 +350,10 @@ it.each([1000, 390])('labels shortfall beyond colour at width %s', (width) => {
       }}
     />,
   );
-  expect(screen.getAllByText('requisitions.requisition.stock-shortfall')).toHaveLength(1);
+  const warning = screen.getAllByText('requisitions.requisition.stock-shortfall');
+  expect(warning).toHaveLength(1);
+  if (width < 672)
+    expect(warning[0]?.closest('li')?.querySelector('[class~="bg-warning/10"]')).not.toBeNull();
 });
 
 it('omits the summary row when the template has no cost column', () => {
@@ -551,4 +557,30 @@ it.each([1000, 390])('keeps stockout-day errors accessible in the %s layout', as
       'requisitions.edit.validation.stockout-days',
     );
   else expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+});
+
+it('lets editors hide skipped lines on disable templates through Filters and clear the choice', async () => {
+  const user = userEvent.setup();
+  const value = {
+    ...requisition,
+    template: {
+      columnsMap: {
+        ...requisition.template.columnsMap,
+        skipped: column('skipped', 0, { option: { optionName: 'disableSkippedLineItems' } }),
+      },
+    },
+    requisitionLineItems: requisition.requisitionLineItems.map((item, index) => ({
+      ...item,
+      skipped: index === 0,
+    })),
+  };
+  render(<Harness value={value} editable />);
+  expect(screen.getByText('Medicine 0')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Filters' }));
+  const skipped = screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' });
+  expect(skipped).toBeChecked();
+  await user.click(skipped);
+  expect(screen.queryByText('Medicine 0')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
+  expect(screen.getByText('Medicine 0')).toBeInTheDocument();
 });

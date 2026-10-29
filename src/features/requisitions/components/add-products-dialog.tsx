@@ -30,7 +30,7 @@ import { productLabel } from '@/features/reference-data/lib/products';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 
-export type AddProductsDialogProps = {
+type AddProductsDialogProps = {
   load: {
     identities: readonly OrderableIdentity[];
     select: (products: readonly Orderable[]) => readonly Orderable[];
@@ -187,6 +187,9 @@ function ProductsForm({
               empty={
                 <DataTableEmpty
                   icon={<PackageSearchIcon />}
+                  description={
+                    !query ? t('requisitions.edit.products.no-products-description') : undefined
+                  }
                   title={t(
                     query
                       ? 'requisitions.edit.products.no-matches'

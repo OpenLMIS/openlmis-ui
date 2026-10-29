@@ -9,25 +9,34 @@ import { RIGHTS } from '@/lib/rights';
 import { getSessionScope, SessionEndedError } from '@/lib/session-scope';
 import type { UserRecord } from '@/lib/user-types';
 
-export function requisitionViewNodes(
+export function supervisoryNodesWithRight(
   user: Pick<UserRecord, 'roleAssignments'>,
   roles: readonly Role[],
+  rightName: string,
+  programId?: string,
 ) {
-  const viewers = new Set(
+  const roleIds = new Set(
     roles
-      .filter((role) => role.rights.some((right) => right.name === RIGHTS.requisitionView))
+      .filter((role) => role.rights.some((right) => right.name === rightName))
       .map((role) => role.id),
   );
   return [
     ...new Set(
       user.roleAssignments.flatMap((assignment) =>
-        assignment.supervisoryNodeId && viewers.has(assignment.roleId)
+        assignment.supervisoryNodeId &&
+        roleIds.has(assignment.roleId) &&
+        (!programId || assignment.programId === programId)
           ? [assignment.supervisoryNodeId]
           : [],
       ),
     ),
   ];
 }
+
+export const requisitionViewNodes = (
+  user: Pick<UserRecord, 'roleAssignments'>,
+  roles: readonly Role[],
+) => supervisoryNodesWithRight(user, roles, RIGHTS.requisitionView);
 
 export function canViewRequisitions(
   permissions: Permissions,

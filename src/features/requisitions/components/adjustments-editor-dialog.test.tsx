@@ -4,10 +4,13 @@ import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, expect, it, vi } from 'vitest';
+import en from '@/../public/locales/en.json';
+import {
+  AdjustmentsEditorDialog,
+  availableAdjustmentReasons,
+} from '@/features/requisitions/components/adjustments-editor-dialog';
 import { adjustmentQuantitySchema, adjustmentTotal } from '@/features/requisitions/lib/adjustments';
 import { renderPage } from '@/tests/render-page';
-import en from '../../../../public/locales/en.json';
-import { AdjustmentsEditorDialog, availableAdjustmentReasons } from './adjustments-editor-dialog';
 
 const reasons = [
   {
@@ -80,7 +83,7 @@ it.each([1000, 390])(
       />,
     );
     const dialog = await screen.findByRole('dialog');
-    const quantity = within(dialog).getByRole('textbox', { name: 'Reason 2' });
+    const quantity = within(dialog).getByRole('textbox', { name: 'Quantity: Reason 2' });
     await user.clear(quantity);
     await user.type(quantity, '8');
     expect(onSave).not.toHaveBeenCalled();
@@ -93,7 +96,9 @@ it.each([1000, 390])(
     );
     expect(stockAdjustments[2]?.quantity).toBe(1);
     await user.click(within(dialog).getByRole('button', { name: 'Remove, Reason 2' }));
-    expect(within(dialog).queryByRole('textbox', { name: 'Reason 2' })).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('textbox', { name: 'Quantity: Reason 2' }),
+    ).not.toBeInTheDocument();
   },
 );
 
@@ -129,12 +134,12 @@ it.each([1000, 390])(
     await user.click(screen.getByRole('option', { name: 'Lost' }));
     await user.type(screen.getByRole('textbox', { name: 'Quantity' }), '2');
     await user.click(screen.getByRole('button', { name: 'Add' }));
-    const lost = screen.getByRole('textbox', { name: 'Lost' });
-    const found = screen.getByRole('textbox', { name: 'Found' });
+    const lost = screen.getByRole('textbox', { name: 'Quantity: Lost' });
+    const found = screen.getByRole('textbox', { name: 'Quantity: Found' });
     expect(lost.compareDocumentPosition(found) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Remove, Found' }));
-    expect(screen.queryByRole('textbox', { name: 'Found' })).not.toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Lost' })).toHaveValue('2');
+    expect(screen.queryByRole('textbox', { name: 'Quantity: Found' })).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Quantity: Lost' })).toHaveValue('2');
     expect(screen.getByRole('button', { name: 'Remove, Lost' })).toHaveFocus();
     await user.click(screen.getByRole('button', { name: 'Remove, Lost' }));
     expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();

@@ -24,11 +24,11 @@ const numberSchema = wholeNumberText(
   },
   { optional: true },
 );
-export type RequisitionValidation = {
+type RequisitionValidation = {
   lines: Record<string, Record<string, ParseKeys>>;
   errors: ParseKeys[];
 };
-export type ValidationOptions = {
+type ValidationOptions = {
   monthsInPeriod: number;
 };
 const empty = (value: unknown) => value == null || (typeof value === 'string' && !value.trim());

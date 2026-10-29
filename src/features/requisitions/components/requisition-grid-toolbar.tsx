@@ -1,6 +1,7 @@
 import { type ReactNode, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
+import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
@@ -21,6 +22,7 @@ export function RequisitionGridToolbar({
   search,
   onSearchChange,
   hideSkipped,
+  showSkipFilter,
   unit,
   setUnit,
   canSwitch,
@@ -34,6 +36,7 @@ export function RequisitionGridToolbar({
   search: GridSearch;
   onSearchChange: SearchChange<GridSearch>;
   hideSkipped: boolean;
+  showSkipFilter: boolean;
   unit: QuantityUnit;
   setUnit: (unit: QuantityUnit) => void;
   canSwitch: boolean;
@@ -54,22 +57,32 @@ export function RequisitionGridToolbar({
           }
         />
       </div>
-      {extra}
-      {hideSkipped && (
-        <div className="flex h-9 items-center">
-          <Field orientation="horizontal">
-            <Checkbox
-              disabled={disabled}
-              id={id}
-              checked={!!search.skipped}
-              onCheckedChange={(checked) =>
-                onSearchChange({ skipped: checked || undefined, detailPage: undefined })
-              }
-            />
-            <FieldLabel htmlFor={id}>{t('requisitions.requisition.show-skipped')}</FieldLabel>
-          </Field>
+      {showSkipFilter && (
+        <div className="w-full @2xl/main:w-auto">
+          <DataTableFilters
+            size="lg"
+            disabled={disabled}
+            activeCount={search.skipped === undefined ? 0 : 1}
+            onClear={() => onSearchChange({ skipped: undefined, detailPage: undefined }, true)}
+          >
+            <Field orientation="horizontal">
+              <Checkbox
+                disabled={disabled}
+                id={id}
+                checked={search.skipped ?? !hideSkipped}
+                onCheckedChange={(checked) =>
+                  onSearchChange({
+                    skipped: checked === !hideSkipped ? undefined : checked,
+                    detailPage: undefined,
+                  })
+                }
+              />
+              <FieldLabel htmlFor={id}>{t('requisitions.requisition.show-skipped')}</FieldLabel>
+            </Field>
+          </DataTableFilters>
         </div>
       )}
+      {extra}
       <div className="flex w-full flex-wrap items-center gap-2 @2xl/main:ms-auto @2xl/main:w-auto">
         {status && <div className="flex w-full @2xl/main:w-auto">{status}</div>}
         {canSwitch && (

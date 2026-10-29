@@ -94,7 +94,9 @@ it('serializes writes and refuses stale writes and clearing a newer revision', a
     .put({ ...stored, revision: 2 });
   act(() => result.current.write({ ...draft, draftStatusMessage: 'stale' }));
   await act(async () => {
-    await expect(result.current.flush()).rejects.toBeInstanceOf(DraftConflictError);
+    await expect(result.current.flush({ allowFailure: true })).rejects.toBeInstanceOf(
+      DraftConflictError,
+    );
   });
   await expect(result.current.clear()).rejects.toBeInstanceOf(DraftConflictError);
   expect((await getLocalDb().table('requisitionDrafts').get('r')).revision).toBe(2);
@@ -246,7 +248,9 @@ it('loads the newer device draft on conflict and resumes autosave', async () => 
   await table.put({ ...(await table.get('r')), revision: 2, draft: latest });
   act(() => result.current.write(draft));
   await act(async () => {
-    await expect(result.current.flush()).rejects.toBeInstanceOf(DraftConflictError);
+    await expect(result.current.flush({ allowFailure: true })).rejects.toBeInstanceOf(
+      DraftConflictError,
+    );
   });
   await act(async () => {
     await result.current.resolve();
@@ -283,3 +287,25 @@ it('removes the device row when Sync leaves no local changes', async () => {
   await act(() => result.current.flush());
   expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
 });
+
+it.each(['read', 'write'] as const)(
+  'allows server saves after a device %s failure while retaining the failed status',
+  async (failure) => {
+    const records = await import('@/lib/local-records');
+    const store = await import('@/lib/draft-store');
+    const error = new Error('Device storage unavailable');
+    if (failure === 'read') vi.spyOn(records, 'readOwnedRecord').mockRejectedValueOnce(error);
+    const { result } = renderHook(() => useRequisitionDraft(base));
+    await waitFor(() =>
+      expect(result.current.status.status).toBe(failure === 'read' ? 'failed' : 'saved'),
+    );
+    if (failure === 'write') vi.spyOn(store, 'saveRevisionedDraft').mockRejectedValueOnce(error);
+    act(() => result.current.write(draft));
+    await act(async () => {
+      await expect(result.current.flush()).rejects.toBe(error);
+      await result.current.flush({ allowFailure: true });
+    });
+    expect(result.current.status).toEqual({ status: 'failed', error });
+    vi.restoreAllMocks();
+  },
+);

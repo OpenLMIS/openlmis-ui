@@ -52,8 +52,9 @@ import {
 } from '@/features/requisitions/components/requisitions-table';
 import { RequisitionsToolbar } from '@/features/requisitions/components/requisitions-toolbar';
 import {
+  groupIdsOf,
   invalidDateRange,
-  partnerLookupIds,
+  partnerNodeIds,
   REQUISITIONS_SORT,
   type RequisitionSearch,
   requisitionSearchSchema,
@@ -83,9 +84,15 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view'
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
     queryClient.prefetchQuery(minimalFacilitiesOptions());
     const grants = programGrants(access.permissions, RIGHTS.requisitionView);
-    queryClient.prefetchQuery(
-      supervisoryNodesByIdsOptions(requisitionViewNodes(access.user, access.roles)),
+    const nodesQuery = supervisoryNodesByIdsOptions(
+      requisitionViewNodes(access.user, access.roles),
     );
+    queryClient.prefetchQuery(nodesQuery).then(() => {
+      if (useLoginData.getState().referenceDataUserId !== userId) return;
+      const nodes = queryClient.getQueryData(nodesQuery.queryKey);
+      const ids = partnerNodeIds(nodes ?? []);
+      if (ids.length) queryClient.prefetchQuery(supervisoryNodesByIdsOptions(ids));
+    });
     const userProgramsQuery = userProgramsOptions(userId);
     queryClient.prefetchQuery(userProgramsQuery).then(() => {
       if (useLoginData.getState().referenceDataUserId !== userId) return;
@@ -268,21 +275,18 @@ function useSearchFacilities(access: Access) {
     ({ programId }) => !userPrograms.data.some(({ id }) => id === programId),
   );
   const fallback = useSuspenseQueries({
-    queries: [missingPrograms].filter(Boolean).map(() => programsOptions()),
+    queries: [...(missingPrograms ? [programsOptions()] : [])],
   });
   const nodeIds = requisitionViewNodes(access.user, access.roles);
   const nodes = useSuspenseQueries({
-    queries: [nodeIds].filter((ids) => ids.length > 0).map(supervisoryNodesByIdsOptions),
+    queries: [...(nodeIds.length ? [supervisoryNodesByIdsOptions(nodeIds)] : [])],
   });
   const viewerNodes = nodes.flatMap(({ data }) => data);
-  const { partnerIds } = partnerLookupIds(viewerNodes);
+  const partnerIds = partnerNodeIds(viewerNodes);
   const partners = useSuspenseQueries({
-    queries: [partnerIds].filter((ids) => ids.length > 0).map(supervisoryNodesByIdsOptions),
+    queries: [...(partnerIds.length ? [supervisoryNodesByIdsOptions(partnerIds)] : [])],
   });
-  const { groupIds } = partnerLookupIds(
-    viewerNodes,
-    partners.flatMap(({ data }) => data),
-  );
+  const groupIds = groupIdsOf(partners.flatMap(({ data }) => data));
   const groups = useSuspenseQueries({
     queries: groupIds.map(requisitionGroupOptions),
     combine: combineGroups,

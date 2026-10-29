@@ -19,21 +19,15 @@ import {
 export type SearchProgram = Pick<NamedRecord, 'id' | 'name'>;
 export type SearchFacility = NamedRecord & { programs: SearchProgram[] };
 
-export function partnerLookupIds(
-  nodes: readonly SupervisoryNode[],
-  partners: readonly SupervisoryNode[] = [],
-) {
-  return {
-    partnerIds: [
-      ...new Set(nodes.flatMap(({ partnerNodeOf }) => (partnerNodeOf ? [partnerNodeOf.id] : []))),
-    ],
-    groupIds: [
-      ...new Set(
-        partners.flatMap(({ requisitionGroup }) => (requisitionGroup ? [requisitionGroup.id] : [])),
-      ),
-    ],
-  };
-}
+export const partnerNodeIds = (nodes: readonly SupervisoryNode[]) => [
+  ...new Set(nodes.flatMap(({ partnerNodeOf }) => (partnerNodeOf ? [partnerNodeOf.id] : []))),
+];
+
+export const groupIdsOf = (partners: readonly SupervisoryNode[]) => [
+  ...new Set(
+    partners.flatMap(({ requisitionGroup }) => (requisitionGroup ? [requisitionGroup.id] : [])),
+  ),
+];
 
 export function searchFacilityOptions(
   grants: readonly ProgramGrant[],

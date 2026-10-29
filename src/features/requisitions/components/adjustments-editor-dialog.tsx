@@ -45,7 +45,7 @@ export const availableAdjustmentReasons = (
   reasons.filter(
     (reason) => !reason.hidden && !adjustments.some((item) => item.reasonId === reason.id),
   );
-export type AdjustmentsEditorDialogProps = {
+type AdjustmentsEditorDialogProps = {
   model: RequisitionLine;
   reasons: readonly RequisitionReason[];
   unit: QuantityUnit;
@@ -138,7 +138,7 @@ export function AdjustmentsEditorDialog({
           <form.AppField name={`adjustments[${row.original.index}].quantity`}>
             {(field) => (
               <field.QuantityField
-                label={reasonName(row.original.reasonId)}
+                label={`${t('requisitions.adjustments.quantity')}: ${reasonName(row.original.reasonId)}`}
                 layout="inline"
                 hideErrors={!cards}
                 sizing={cards ? 'fill' : undefined}

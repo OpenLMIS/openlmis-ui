@@ -6,12 +6,14 @@ import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/co
 import { SettingsItem } from '@/components/form/settings-list';
 import { productLabel } from '@/features/reference-data/lib/products';
 import type { GridRow } from '@/features/requisitions/components/requisition-grid';
+import { gridRowTone } from '@/features/requisitions/lib/grid-row-tone';
 import type { GridColumn } from '@/features/requisitions/lib/template';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
 
 export function RequisitionEditCards({
   rows,
+  supplyingStock,
   columns,
   renderCell,
   footer,
@@ -24,6 +26,7 @@ export function RequisitionEditCards({
   pending,
 }: {
   pending: boolean;
+  supplyingStock: boolean;
   rows: GridRow[];
   columns: GridColumn[];
   renderCell: (column: GridColumn, row: GridRow) => ReactNode;
@@ -49,7 +52,7 @@ export function RequisitionEditCards({
           row.model && (
             <CardListItem
               key={row.id}
-              tone={invalid(row.id) ? 'invalid' : row.model.line.skipped ? 'skipped' : undefined}
+              tone={invalid(row.id) ? 'invalid' : gridRowTone(row, supplyingStock)}
             >
               <CardBand>
                 <bdi>

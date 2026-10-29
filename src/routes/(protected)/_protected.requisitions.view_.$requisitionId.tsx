@@ -32,7 +32,10 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { requireRequisitionView } from '@/features/auth/lib/requisition-access';
+import {
+  requireRequisitionView,
+  supervisoryNodesWithRight,
+} from '@/features/auth/lib/requisition-access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   deploymentTimeZoneOptions,
@@ -374,13 +377,13 @@ function RequisitionBody({
     latest.current = { record: saved, editor };
     refreshPending.current = false;
     queryClient.setQueryData(requisitionOptions(saved.id).queryKey, saved);
-    await editor.device.flush();
+    await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
     return saved;
   };
   const sync = async () => {
     const scope = getSessionScope();
-    await editor.device.flush();
+    await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
     requireOnline();
     if (refreshPending.current) {
@@ -498,9 +501,16 @@ function RequisitionBody({
         queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),
       ]);
       assertSessionScope(scope);
-      toast.success(t(`requisitions.edit.success.${kind}`), {
-        description: t(`requisitions.edit.success.${kind}-description`),
-      });
+      toast.success(
+        t(
+          `requisitions.edit.success.${kind === 'submitAndAuthorize' ? 'submit-and-authorize' : kind}`,
+        ),
+        {
+          description: t(
+            `requisitions.edit.success.${kind === 'submitAndAuthorize' ? 'submit-and-authorize' : kind}-description`,
+          ),
+        },
+      );
       await router.navigate(opening);
       assertSessionScope(scope);
     },
@@ -1066,22 +1076,7 @@ function useRequisitionPolicy(data: RequisitionData) {
           ),
         )
         .map(({ id }) => id);
-  const grants = access.permissions.grants
-    .filter(
-      (grant) => grant.facilityId === record.facility.id && grant.programId === record.program.id,
-    )
-    .map(({ right }) => right);
-  const context = {
-    ...record,
-    program: {
-      ...program,
-      name: program.name ?? undefined,
-      showNonFullSupplyTab: program.showNonFullSupplyTab ?? undefined,
-    },
-    grants,
-    approvalNodes,
-    isSplit: !!record.extraData?.originalRequisition,
-  };
+  const context = capabilityContext(record, access, program);
   const policies = (currentNodes.length ? currentNodes : [undefined]).map((currentNodeId) =>
     requisitionCapabilities({ ...context, currentNodeId }),
   );
@@ -1195,24 +1190,9 @@ type PendingAccess = Pick<RequisitionData['access'], 'permissions'> &
   Partial<Pick<RequisitionData['access'], 'user' | 'roles'>>;
 function approvalNodesFor(access: PendingAccess, programId: string) {
   if (!access.user || !access.roles) return [];
-  const approveRoles = new Set(
-    access.roles
-      .filter((role) => role.rights.some(({ name }) => name === RIGHTS.requisitionApprove))
-      .map(({ id }) => id),
-  );
-  return [
-    ...new Set(
-      access.user.roleAssignments.flatMap((assignment) =>
-        assignment.programId === programId &&
-        assignment.supervisoryNodeId &&
-        approveRoles.has(assignment.roleId)
-          ? [assignment.supervisoryNodeId]
-          : [],
-      ),
-    ),
-  ];
+  return supervisoryNodesWithRight(access.user, access.roles, RIGHTS.requisitionApprove, programId);
 }
-function pendingPolicy(
+function capabilityContext(
   record: RequisitionRecord,
   access: PendingAccess,
   program: Program | undefined,
@@ -1222,7 +1202,7 @@ function pendingPolicy(
       (grant) => grant.facilityId === record.facility.id && grant.programId === record.program.id,
     )
     .map(({ right }) => right);
-  const policy = requisitionCapabilities({
+  return {
     ...record,
     program: program
       ? {
@@ -1233,8 +1213,17 @@ function pendingPolicy(
       : record.program,
     grants,
     approvalNodes: approvalNodesFor(access, record.program.id),
-    currentNodeId: record.supervisoryNode,
     isSplit: !!record.extraData?.originalRequisition,
+  };
+}
+function pendingPolicy(
+  record: RequisitionRecord,
+  access: PendingAccess,
+  program: Program | undefined,
+) {
+  const policy = requisitionCapabilities({
+    ...capabilityContext(record, access, program),
+    currentNodeId: record.supervisoryNode,
   });
   const editing: PendingEditing = { ...policy, deviceAvailable: isSecureOrigin };
   return {

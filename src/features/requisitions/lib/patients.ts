@@ -5,7 +5,7 @@ export const PATIENT_QUANTITY_COLUMNS = [
   'convertedQuantityToIssue',
 ] as const;
 
-export type PatientMonth = { value?: number | string | null; disabled: boolean };
+type PatientMonth = { value?: number | string | null; disabled: boolean };
 export type PatientRow = {
   key: string;
   isSkipped: boolean;

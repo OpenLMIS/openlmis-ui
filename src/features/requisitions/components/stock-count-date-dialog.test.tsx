@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { stockCountDateSchema } from './stock-count-date-dialog';
+import { stockCountDateSchema } from '@/features/requisitions/components/stock-count-date-dialog';
 
 it('requires a real stock count date no later than today', () => {
   const schema = stockCountDateSchema('2026-10-28');

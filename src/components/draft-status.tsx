@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { DraftConflictError } from '@/lib/draft-store';
 import type { DraftSaveState } from '@/lib/draft-writer';
 
@@ -126,5 +127,19 @@ export function DraftStatus({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+export function DraftStatusSkeleton() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+      <span className="relative inline-flex h-5 items-center px-2 font-medium text-xs" aria-hidden>
+        <span className="invisible ps-4">{t('stock-events.draft-saved')}</span>
+        <span className="absolute inset-0 overflow-hidden rounded-4xl">
+          <Skeleton fill />
+        </span>
+      </span>
+    </div>
   );
 }

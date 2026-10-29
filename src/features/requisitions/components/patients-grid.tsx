@@ -111,7 +111,12 @@ export function PatientsGrid({ patientsData }: { patientsData?: string | null })
     ];
   }, [cards, t, i18n.language]);
   const table = useTable({ features: dataTableFeatures, columns, data });
-  const empty = <DataTableEmpty title={t('requisitions.patients.empty')} />;
+  const empty = (
+    <DataTableEmpty
+      title={t('requisitions.patients.empty')}
+      description={t('requisitions.patients.empty-description')}
+    />
+  );
   return (
     <div ref={measure}>
       {cards ? (

@@ -40,7 +40,7 @@ export function packsToShip(
   return packs === 0 && !roundToZero ? 1 : packs;
 }
 
-export function orderQuantity(
+function orderQuantity(
   line: RequisitionLineItem,
   requisition: Pick<Requisition, 'status' | 'template'>,
 ): number {
@@ -119,9 +119,9 @@ export function calculateLine(
     if (!displayed('totalConsumedQuantity')) line.totalConsumedQuantity = null;
     else if (calculated('totalConsumedQuantity'))
       line.totalConsumedQuantity = stock() - (line.stockOnHand ?? 0);
-    if (displayed('total'))
+    if (displayed('total') && calculated('total'))
       line.total = (line.beginningBalance ?? 0) + (line.totalReceivedQuantity ?? 0);
-    if (template.columnsMap.adjustedConsumption) {
+    if (calculated('adjustedConsumption')) {
       line.adjustedConsumption = adjustedConsumption(
         line.totalConsumedQuantity ?? 0,
         30 * monthsInPeriod,
@@ -131,7 +131,7 @@ export function calculateLine(
           : 0,
       );
     }
-    if (template.columnsMap.averageConsumption) {
+    if (calculated('averageConsumption')) {
       const previous = line.previousAdjustedConsumptions ?? [];
       line.averageConsumption = template.enableAvgConsumptionForCurrentPeriod
         ? Math.ceil((line.adjustedConsumption ?? 0) / 2)
@@ -142,14 +142,15 @@ export function calculateLine(
     }
     const maxStock = () =>
       maximumStock(line.averageConsumption ?? 0, model.approvedProduct?.maxPeriodsOfStock ?? 0);
-    if (displayed('maximumStockQuantity')) line.maximumStockQuantity = maxStock();
-    if (displayed('calculatedOrderQuantity'))
+    if (displayed('maximumStockQuantity') && calculated('maximumStockQuantity'))
+      line.maximumStockQuantity = maxStock();
+    if (displayed('calculatedOrderQuantity') && calculated('calculatedOrderQuantity'))
       line.calculatedOrderQuantity = Math.max(
         (line.maximumStockQuantity ?? maxStock()) -
           (line.stockOnHand ?? stock() - (line.totalConsumedQuantity ?? 0)),
         0,
       );
-    if (displayed('calculatedOrderQuantityIsa'))
+    if (displayed('calculatedOrderQuantityIsa') && calculated('calculatedOrderQuantityIsa'))
       line.calculatedOrderQuantityIsa =
         line.idealStockAmount == null
           ? null
@@ -183,13 +184,15 @@ export function calculateLine(
   for (const name of PATIENT_QUANTITY_COLUMNS) {
     if (calculated(name)) line[name] = patientValues[name];
   }
-  line.packsToShip = packsToShip(
-    orderQuantity(line, requisition),
-    model.product?.netContent,
-    model.product?.packRoundingThreshold ?? 0,
-    model.product?.roundToZero,
-  );
-  line.totalCost = line.packsToShip * line.pricePerPack;
+  if (!template.columnsMap.packsToShip || calculated('packsToShip'))
+    line.packsToShip = packsToShip(
+      orderQuantity(line, requisition),
+      model.product?.netContent,
+      model.product?.packRoundingThreshold ?? 0,
+      model.product?.roundToZero,
+    );
+  if (!template.columnsMap.totalCost || calculated('totalCost'))
+    line.totalCost = (line.packsToShip ?? 0) * line.pricePerPack;
   return line;
 }
 

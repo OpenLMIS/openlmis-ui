@@ -1,8 +1,9 @@
+import type { TFunction } from 'i18next';
 import type { RequisitionTemplate } from '@/features/requisitions/lib/requisition';
 import type { RequisitionStatus } from '@/lib/requisition-status';
 import type { RequisitionColumn } from '@/lib/requisition-template';
 
-export type GridColumnKind =
+type GridColumnKind =
   | 'product'
   | 'quantity'
   | 'count'
@@ -154,3 +155,27 @@ export const hidesSkipped = (
 ) =>
   tab === 'fullSupply' &&
   template.columnsMap.skipped?.option?.optionName === 'hideSkippedLineItems';
+
+export function gridColumns(
+  template: RequisitionTemplate,
+  context: ColumnContext,
+  t: TFunction,
+): GridColumn[] {
+  return compileColumns(template, context).map((column) => ({
+    ...column,
+    label: column.kind === 'packSize' ? t('requisitions.requisition.pack-size') : column.label,
+    definition: column.stockBasedNote
+      ? [column.definition, t('requisitions.adjustments.stock-based-note')]
+          .filter(Boolean)
+          .join(' ')
+      : column.definition,
+  }));
+}
+
+export const columnViewKey = (template?: RequisitionTemplate) =>
+  `requisition-columns:${
+    template?.id ??
+    Object.keys(template?.columnsMap ?? {})
+      .sort()
+      .join(':')
+  }`;

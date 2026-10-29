@@ -1,9 +1,8 @@
 import { expect, it } from 'vitest';
-import type { CapabilityContext } from '@/features/requisitions/lib/capabilities';
 import { requisitionCapabilities } from '@/features/requisitions/lib/capabilities';
 import { column } from '@/features/requisitions/lib/fixtures/builders';
 
-const context: CapabilityContext = {
+const context: Parameters<typeof requisitionCapabilities>[0] = {
   status: 'INITIATED',
   emergency: false,
   template: {
@@ -21,7 +20,6 @@ const context: CapabilityContext = {
   currentNodeId: 'node1',
 };
 const future = {
-  editing: true,
   approverEditing: true,
   patientsEditing: true,
   actions: [
@@ -36,7 +34,7 @@ const future = {
     'print',
   ] as const,
 };
-const policy = (overrides: Partial<CapabilityContext> = {}) =>
+const policy = (overrides: Partial<Parameters<typeof requisitionCapabilities>[0]> = {}) =>
   requisitionCapabilities({ ...context, ...overrides }, future);
 
 it('ships creator and authorizer editing while keeping approvers and patients closed', () => {
@@ -70,7 +68,9 @@ it('allows whole-record skip without a skip column and comments for an initiated
 it.each(['INITIATED', 'REJECTED'])(
   'allows creators in %s and honors skip authorization',
   (status) => {
-    expect(policy({ status: status as CapabilityContext['status'] })).toMatchObject({
+    expect(
+      policy({ status: status as Parameters<typeof requisitionCapabilities>[0]['status'] }),
+    ).toMatchObject({
       editable: true,
       editableColumns: ['requestedQuantity', 'skipped'],
       addFullSupplyProduct: true,
@@ -79,7 +79,7 @@ it.each(['INITIATED', 'REJECTED'])(
     });
     expect(
       policy({
-        status: status as CapabilityContext['status'],
+        status: status as Parameters<typeof requisitionCapabilities>[0]['status'],
         program: { ...context.program, skipAuthorization: true },
       }).actions,
     ).toContain('submitAndAuthorize');

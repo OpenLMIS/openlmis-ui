@@ -71,8 +71,9 @@ import { filterLines, type RequisitionLine } from '@/features/requisitions/lib/l
 import { PATIENT_QUANTITY_COLUMNS } from '@/features/requisitions/lib/patients';
 import type { RequisitionLineItem } from '@/features/requisitions/lib/requisition';
 import {
-  compileColumns,
+  columnViewKey,
   type GridColumn,
+  gridColumns,
   hidesSkipped,
 } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
@@ -144,20 +145,16 @@ export function RequisitionGridView({
   const [pinnedWidths, setPinnedWidths] = useState<Record<string, number>>({});
   const columns = useMemo(
     () =>
-      compileColumns(record.template, {
-        tab,
-        status: record.status,
-        emergency: record.emergency,
-        supplyingStock: supplyingStock && !record.supplyingFacilityAccessDenied,
-      }).map((column) => ({
-        ...column,
-        label: column.kind === 'packSize' ? t('requisitions.requisition.pack-size') : column.label,
-        definition: column.stockBasedNote
-          ? [column.definition, t('requisitions.adjustments.stock-based-note')]
-              .filter(Boolean)
-              .join(' ')
-          : column.definition,
-      })),
+      gridColumns(
+        record.template,
+        {
+          tab,
+          status: record.status,
+          emergency: record.emergency,
+          supplyingStock: supplyingStock && !record.supplyingFacilityAccessDenied,
+        },
+        t,
+      ),
     [
       record.template,
       record.status,
@@ -172,8 +169,7 @@ export function RequisitionGridView({
     () => columns.filter((column) => !column.sticky).map((column) => ({ id: column.name })),
     [columns],
   );
-  const templateId = record.template.id ?? Object.keys(record.template.columnsMap).sort().join(':');
-  const view = useCardView(hideable, `requisition-columns:${templateId}`);
+  const view = useCardView(hideable, columnViewKey(record.template));
   const measure = useCallback(
     (element: HTMLDivElement | null) => {
       region.current = element;
@@ -258,12 +254,11 @@ export function RequisitionGridView({
           model={row.model}
           context={cellContext}
           shortfall={supplyingHasStock && gridRowTone(row, true) === 'shortfall'}
-          record={record}
           editing={editing}
           error={errors[row.id]?.[column.name]}
         />
       ) : null,
-    [cellContext, supplyingHasStock, record, editing, errors],
+    [cellContext, supplyingHasStock, editing, errors],
   );
   const removable = canRemoveLine(tab === 'fullSupply', !!editing?.editable);
   const removeLine = useCallback(
@@ -366,7 +361,7 @@ export function RequisitionGridView({
   const empty = (
     <DataTableEmpty
       action={
-        search.product || search.skipped ? (
+        search.product || search.skipped !== undefined ? (
           <Button
             variant="destructive"
             onClick={() =>
@@ -380,8 +375,17 @@ export function RequisitionGridView({
           </Button>
         ) : undefined
       }
+      description={
+        !search.product && search.skipped === undefined
+          ? t(
+              tab === 'fullSupply'
+                ? 'requisitions.requisition.empty-full-supply-description'
+                : 'requisitions.requisition.empty-non-full-supply-description',
+            )
+          : undefined
+      }
       title={t(
-        search.product || search.skipped
+        search.product || search.skipped !== undefined
           ? 'requisitions.requisition.no-matching-products'
           : tab === 'fullSupply'
             ? 'requisitions.requisition.empty-full-supply'
@@ -489,12 +493,14 @@ export function RequisitionGridView({
           search={search}
           onSearchChange={onSearchChange}
           hideSkipped={hidesSkipped(record.template, tab)}
+          showSkipFilter={!!editing?.skipLines && tab === 'fullSupply'}
           unit={unit}
           setUnit={setUnit}
           canSwitch={canSwitch}
         />
         {view.cards && editing?.editable ? (
           <RequisitionEditCards
+            supplyingStock={supplyingHasStock}
             rows={data}
             columns={columns.filter((column) => view.columnView.visibility[column.name] !== false)}
             renderCell={renderCell}
@@ -628,7 +634,6 @@ const RequisitionLineCell = memo(function RequisitionLineCell({
   model,
   context,
   shortfall,
-  record,
   editing,
   error,
 }: {
@@ -636,36 +641,56 @@ const RequisitionLineCell = memo(function RequisitionLineCell({
   model: GridModel;
   context: Parameters<typeof renderValue>[2];
   shortfall: boolean;
-  record: RequisitionRecord;
   editing?: GridEditing;
   error?: ParseKeys;
 }) {
-  const value = renderValue(column, model, context, shortfall);
   return editing ? (
     <RequisitionEditCell
       column={column}
       model={model}
-      record={record}
+      stockBased={context.stockBased}
+      formatter={context.formatter}
       editing={editing}
       unit={context.unit}
       error={error}
       cards={context.cards}
       onAdjustments={context.onAdjustments}
     >
-      {column.kind === 'adjustments' && editing.editable && !context.stockBased
-        ? cardQuantity(
-            model.line.totalLossesAndAdjustments ?? 0,
-            model.product?.netContent,
-            context.unit,
-            undefined,
-            context.formatter,
-          )
-        : value}
+      {column.kind === 'adjustments' && editing.editable && !context.stockBased ? (
+        cardQuantity(
+          model.line.totalLossesAndAdjustments ?? 0,
+          model.product?.netContent,
+          context.unit,
+          undefined,
+          context.formatter,
+        )
+      ) : (
+        <RequisitionReadCell
+          column={column}
+          model={model}
+          context={context}
+          shortfall={shortfall}
+        />
+      )}
     </RequisitionEditCell>
   ) : (
-    value
+    renderValue(column, model, context, shortfall)
   );
 });
+
+function RequisitionReadCell({
+  column,
+  model,
+  context,
+  shortfall,
+}: {
+  column: GridColumn;
+  model: GridModel;
+  context: Parameters<typeof renderValue>[2];
+  shortfall: boolean;
+}) {
+  return renderValue(column, model, context, shortfall);
+}
 
 const RequisitionCells = createContext<(id: string, row: GridRow) => ReactNode>(() => null);
 function RequisitionTableCell({ row, column }: CellContext<DataTableFeatures, GridRow, unknown>) {
@@ -776,7 +801,8 @@ export type GridEditing = {
 function RequisitionEditCell({
   column,
   model,
-  record,
+  stockBased,
+  formatter,
   editing,
   unit,
   error,
@@ -786,7 +812,8 @@ function RequisitionEditCell({
 }: {
   column: GridColumn;
   model: GridModel;
-  record: RequisitionRecord;
+  stockBased: boolean;
+  formatter: Intl.NumberFormat;
   editing: GridEditing;
   unit: QuantityUnit;
   error?: ParseKeys;
@@ -794,11 +821,12 @@ function RequisitionEditCell({
   children?: ReactNode;
   onAdjustments: (id: string) => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { editor } = editing;
   const { form } = editor;
   const id = model.line.id;
-  const label = `${column.label}: ${model.product?.fullProductName ?? ''} (${model.product?.productCode ?? id})`;
+  const rowLabel = `${model.product?.fullProductName ?? ''} (${model.product?.productCode ?? id})`;
+  const label = `${column.label}: ${rowLabel}`;
   const field = column.name as keyof LineDraft;
   const draft = editor.draft.lines[id];
   const value = String(
@@ -896,17 +924,13 @@ function RequisitionEditCell({
         </Field>
       </div>
     );
-  if (
-    editing.editable &&
-    column.kind === 'adjustments' &&
-    !record.template.populateStockOnHandFromStockCards
-  )
+  if (editing.editable && column.kind === 'adjustments' && !stockBased)
     return (
       <AdjustmentsCell
         mode="edit"
         cards={cards}
         disabled={editing.pending || !!model.line.skipped}
-        name={`${column.label}: ${cardQuantity(model.line.totalLossesAndAdjustments ?? 0, model.product?.netContent, unit, i18n.language)}, ${model.product?.fullProductName ?? ''} (${model.product?.productCode ?? id})`}
+        name={`${column.label}: ${cardQuantity(model.line.totalLossesAndAdjustments ?? 0, model.product?.netContent, unit, undefined, formatter)}, ${rowLabel}`}
         onOpen={() => onAdjustments(id)}
       >
         {children ?? '0'}
