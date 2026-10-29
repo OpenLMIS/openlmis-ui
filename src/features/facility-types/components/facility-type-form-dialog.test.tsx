@@ -6,8 +6,8 @@ import { createFacilityType, fetchFacilityType } from '@/features/facility-types
 import { FacilityTypeFormDialog } from '@/features/facility-types/components/facility-type-form-dialog';
 import { fetchFacilityTypes } from '@/features/reference-data/api/api';
 import { facilityTypesOptions } from '@/features/reference-data/api/queries';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/facility-types/api/api', () => ({
   createFacilityType: vi.fn(),

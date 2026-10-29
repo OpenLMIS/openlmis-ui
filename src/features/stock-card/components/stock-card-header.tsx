@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { formatDateValue } from '@/components/form/date-value';
 import {
   RecordSummary,
   RecordSummaryField,
   RecordSummaryFieldSkeleton,
   RecordSummaryFields,
   RecordSummaryHeading,
-} from '@/components/record-summary';
+} from '@/components/display/record-summary';
+import { formatDateValue } from '@/components/form/date-value';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { StockCard } from '@/features/stock-card/lib/types';
 import { orEmpty } from '@/lib/empty-value';

@@ -2,7 +2,7 @@ import { onlineManager } from '@tanstack/react-query';
 import { act, render, renderHook, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useFormatPercent, WidgetError } from '@/features/home/components/dashboard-parts';
-import { httpError, networkError } from '@/tests/http-error';
+import { httpError, networkError } from '@/test-utils/http-error';
 
 describe('WidgetError', () => {
   it('asks for a connection offline, quietly, and fills in once it is back', () => {

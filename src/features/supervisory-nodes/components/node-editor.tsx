@@ -3,8 +3,8 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Loader2Icon, NetworkIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FieldSkeleton, LookupBoundary, serverMessage } from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { FieldSkeleton, LookupBoundary, serverMessage } from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import {
   AlertDialog,
@@ -27,7 +27,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import {
   minimalFacilitiesOptions,
   supervisoryNodesOptions,

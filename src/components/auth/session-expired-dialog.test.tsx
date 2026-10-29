@@ -1,0 +1,332 @@
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from '@tanstack/react-router';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
+import i18n from 'i18next';
+import { useState } from 'react';
+import { initReactI18next } from 'react-i18next';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SessionExpiredDialog } from '@/components/auth/session-expired-dialog';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
+import {
+  FormDialog,
+  FormDialogDescription,
+  FormDialogHeader,
+  FormDialogTitle,
+} from '@/components/form-dialog/form-dialog';
+import * as authApi from '@/features/auth/api/api';
+import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
+import { useLeaveGuard } from '@/hooks/use-leave-guard';
+import { httpError } from '@/test-utils/http-error';
+
+vi.mock('@/components/app-shell/device-work', () => ({
+  useDeviceWork: () => ({ hasDeviceEvents: false, countUnsyncedWork: async () => 0 }),
+}));
+
+vi.mock('@/features/auth/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/auth/api/api')>()),
+  login: vi.fn(),
+  logout: vi.fn(),
+}));
+
+const ada = { referenceDataUserId: 'ada-id', username: 'ada', accessToken: 'old-token' };
+
+function UnsavedDraft({ ask }: { ask: (proceed: () => void) => void }) {
+  useLeaveGuard(true, ask);
+  return null;
+}
+
+function UnsavedModalDraft() {
+  const [discard, setDiscard] = useState(false);
+  useLeaveGuard(true, () => setDiscard(true));
+  return (
+    <FormDialog open onOpenChange={() => {}}>
+      <FormDialogHeader>
+        <FormDialogTitle>Edit unsaved draft</FormDialogTitle>
+        <FormDialogDescription>Keep this draft until confirmed.</FormDialogDescription>
+      </FormDialogHeader>
+      <input aria-label="Draft" defaultValue="Unsaved value" />
+      <DiscardChangesDialog
+        open={discard}
+        signingOut
+        description="Keep the draft"
+        onKeepEditing={() => setDiscard(false)}
+        onDiscard={() => {}}
+      />
+    </FormDialog>
+  );
+}
+
+async function renderAt(path: string, ask?: (proceed: () => void) => void, page?: React.ReactNode) {
+  const root = createRootRoute({
+    component: () => (
+      <>
+        <Outlet />
+        <SessionExpiredDialog />
+      </>
+    ),
+  });
+  const routes = ['/users', '/login', '/forgot-password', '/reset-password/$token'].map(
+    (routePath) =>
+      createRoute({
+        getParentRoute: () => root,
+        path: routePath,
+        component: () => (
+          <>
+            <p>{routePath.replace('$token', 'abc')}</p>
+            {page}
+            {ask && routePath === '/users' && <UnsavedDraft ask={ask} />}
+          </>
+        ),
+      }),
+  );
+  const router = createRouter({
+    routeTree: root.addChildren(routes),
+    history: createMemoryHistory({ initialEntries: [path] }),
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  await screen.findByText(path);
+  return router;
+}
+
+beforeEach(() => {
+  useLoginData.getState().clearLoginData();
+  useLoginData.getState().setLoginData(ada);
+});
+
+beforeAll(async () => {
+  await i18n.use(initReactI18next).init({ lng: 'cimode', keySeparator: false, nsSeparator: false });
+});
+
+describe('SessionExpiredDialog', () => {
+  it('shows a guarded sign-out prompt above the session interruption and preserves the modal draft', async () => {
+    await renderAt('/users', undefined, <UnsavedModalDraft />);
+    const draft = await screen.findByRole('textbox', { name: 'Draft' });
+    act(() => useLoginData.getState().expireSession());
+    const session = await screen.findByRole('dialog', { name: 'session.expired-title' });
+    await userEvent.click(within(session).getByRole('button', { name: 'session.sign-out' }));
+    const discard = await screen.findByRole('alertdialog');
+    await userEvent.click(
+      within(discard).getByRole('button', { name: 'discard-changes.keep-editing' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('dialog', { name: 'session.expired-title' })).toBeInTheDocument();
+    await waitFor(() => expect(session.contains(document.activeElement)).toBe(true));
+    expect(draft).toHaveValue('Unsaved value');
+  });
+  it('submits the adopted username when it arrives after the legacy identity and token', async () => {
+    const user = userEvent.setup();
+    const current = {
+      ACCESS_TOKEN: ada.accessToken,
+      USER_ID: ada.referenceDataUserId,
+      USERNAME: ada.username,
+    };
+    const next = { ACCESS_TOKEN: 'alan-token', USER_ID: 'alan-id', USERNAME: 'alan' };
+    for (const [key, value] of Object.entries(current))
+      localStorage.setItem(`openlmis.${key}`, value);
+    useLoginData.getState().setLoginData(ada, 'legacy');
+    vi.mocked(authApi.login).mockRejectedValue(httpError(400));
+    await renderAt('/users');
+
+    for (const key of ['USER_ID', 'ACCESS_TOKEN', 'USERNAME'] as const) {
+      await act(async () => {
+        localStorage.setItem(`openlmis.${key}`, next[key]);
+        await syncOtherTab(`openlmis.${key}`);
+      });
+    }
+    act(() => useLoginData.getState().expireSession());
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.querySelector('input[autocomplete="username"]')).toHaveValue('alan');
+    await user.type(within(dialog).getByLabelText('login.password'), 'secret');
+    await user.click(within(dialog).getByRole('button', { name: 'session.sign-in' }));
+
+    await waitFor(() =>
+      expect(authApi.login).toHaveBeenCalledWith({ username: 'alan', password: 'secret' }),
+    );
+  });
+
+  it('opens only after expiry and keeps the same-user renewal available on Escape', async () => {
+    const user = userEvent.setup();
+    await renderAt('/users');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    act(() => useLoginData.getState().expireSession());
+
+    expect(await screen.findByRole('dialog')).toHaveTextContent('session.expired-title');
+    expect(screen.getByText('/users')).toBeInTheDocument();
+    expect(screen.queryByLabelText('login.username')).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'sidebar.change-language',
+      }),
+    ).toBeVisible();
+    await user.keyboard('{Escape}');
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('labels its own password field when the page behind has one too', async () => {
+    useLoginData.getState().expireSession();
+    await renderAt('/users', undefined, <input aria-label="page password" id="password" />);
+
+    const field = within(await screen.findByRole('dialog')).getByLabelText('login.password');
+
+    expect(document.querySelectorAll(`[id="${field.id}"]`)).toHaveLength(1);
+  });
+
+  it.each([
+    [new AxiosError('Network Error', 'ERR_NETWORK'), 'session.cannot-connect'],
+    [httpError(500), 'session.sign-in-failed'],
+  ])('explains why signing in failed (%s)', async (error, message) => {
+    vi.mocked(authApi.login).mockRejectedValue(error);
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+
+    await userEvent.type(await screen.findByLabelText('login.password'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+  });
+
+  it('says the password is wrong and stays open', async () => {
+    vi.mocked(authApi.login).mockRejectedValue(httpError(400));
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+
+    await userEvent.type(await screen.findByLabelText('login.password'), 'wrong');
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
+
+    expect(await screen.findByText('session.wrong-password')).toBeInTheDocument();
+    expect(useLoginData.getState().expired).toBe(true);
+    expect(screen.getByLabelText('login.password')).toHaveFocus();
+    expect(screen.getByLabelText('login.password')).toHaveAccessibleDescription(
+      'session.signed-in-as',
+    );
+  });
+
+  it('signs the same user back in and closes', async () => {
+    const user = userEvent.setup();
+    vi.mocked(authApi.login).mockResolvedValue({
+      access_token: 'new-token',
+      token_type: 'bearer',
+      expires_in: 1800,
+      scope: 'read write',
+      referenceDataUserId: 'ada-id',
+      username: 'ada',
+    });
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+    await user.click(await screen.findByRole('button', { name: 'session.sign-in' }));
+    expect(await screen.findByText('login.password-required')).toBeInTheDocument();
+    expect(authApi.login).not.toHaveBeenCalled();
+    await user.type(screen.getByLabelText('login.password'), 'secret');
+    await user.click(screen.getByRole('button', { name: 'session.sign-in' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(authApi.login).toHaveBeenCalledWith({ username: 'ada', password: 'secret' });
+    expect(useLoginData.getState()).toMatchObject({ accessToken: 'new-token', expired: false });
+  });
+
+  it('asks about unsaved changes before signing out', async () => {
+    vi.mocked(authApi.logout).mockResolvedValue();
+    let proceed: (() => void) | undefined;
+    useLoginData.getState().expireSession();
+    const router = await renderAt('/users', (next) => {
+      proceed = next;
+    });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'session.sign-out' }));
+
+    expect(useLoginData.getState().isAuthenticated).toBe(true);
+    await act(async () => proceed?.());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe('/login');
+    expect(useLoginData.getState().isAuthenticated).toBe(false);
+  });
+
+  it('warns before signing out when the server was out of reach', async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+    await userEvent.type(await screen.findByLabelText('login.password'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
+    await screen.findByText('session.cannot-connect');
+
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-out' }));
+
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('sign-out-offline.title');
+    expect(authApi.logout).not.toHaveBeenCalled();
+  });
+
+  it('keeps offline editing available after expiry and asks for renewal on reconnect', async () => {
+    onlineManager.setOnline(false);
+    useLoginData.getState().expireSession();
+    await renderAt('/users', undefined, <input aria-label="Local Draft" />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Local Draft' }), 'retained');
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('session.expired-title');
+    expect(screen.getByLabelText('Local Draft')).toHaveValue('retained');
+  });
+
+  it('offers offline continuation after renewal cannot connect and retries on reconnect', async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'));
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+    await userEvent.type(await screen.findByLabelText('login.password'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'session.sign-in' }));
+    await screen.findByText('session.cannot-connect');
+    await userEvent.click(screen.getByRole('button', { name: 'session.continue-offline' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(useLoginData.getState().expired).toBe(true);
+    act(() => onlineManager.setOnline(false));
+    act(() => onlineManager.setOnline(true));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('holds both buttons while signing out', async () => {
+    vi.mocked(authApi.logout).mockReturnValue(new Promise(() => {}));
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'session.sign-out' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'session.sign-out' })).toBeDisabled(),
+    );
+    expect(screen.getByRole('button', { name: 'session.sign-in' })).toBeDisabled();
+  });
+
+  it.each(['/login', '/forgot-password', '/reset-password/abc'])(
+    'is not shown on %s, where the user is signing in or resetting the password',
+    async (path) => {
+      useLoginData.getState().expireSession();
+      await renderAt(path);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    },
+  );
+
+  it('opens Forgot Password in a new tab, so the page and its unsaved work stay', async () => {
+    useLoginData.getState().expireSession();
+    await renderAt('/users');
+
+    const link = await screen.findByRole('link', { name: 'login.forgot-password' });
+
+    expect(link).toHaveAttribute('href', '/forgot-password');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+});

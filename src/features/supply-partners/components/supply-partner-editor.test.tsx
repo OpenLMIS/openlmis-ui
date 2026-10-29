@@ -6,7 +6,7 @@ import ICU from 'i18next-icu';
 import { useState } from 'react';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import { TranslatedFormMessages } from '@/components/translated-form-messages';
+import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 import {
   facilitiesByIdsOptions,
   orderablesByIdsOptions,
@@ -17,7 +17,7 @@ import { saveSupplyPartner } from '@/features/supply-partners/api/api';
 import { SupplyPartnerEditor } from '@/features/supply-partners/components/supply-partner-editor';
 import type { SupplyPartnerEditSearch } from '@/features/supply-partners/lib/search';
 import type { SupplyPartner } from '@/features/supply-partners/lib/types';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/features/supply-partners/api/api', async (importOriginal) => ({

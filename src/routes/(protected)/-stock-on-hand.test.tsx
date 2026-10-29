@@ -19,7 +19,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
-import { ErrorFallback } from '@/components/error-fallback';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError } from '@/features/auth/lib/access';
@@ -38,10 +38,10 @@ import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { downloadFile } from '@/lib/download-file';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { Route } from '@/routes/(protected)/_protected.stock-management.stock-on-hand';
-import { expectRouteWarning } from '@/tests/expect-route-warning';
-import { seedHomeStock } from '@/tests/home-stock';
-import { httpError } from '@/tests/http-error';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { expectRouteWarning } from '@/test-utils/expect-route-warning';
+import { seedHomeStock } from '@/test-utils/home-stock';
+import { httpError } from '@/test-utils/http-error';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({

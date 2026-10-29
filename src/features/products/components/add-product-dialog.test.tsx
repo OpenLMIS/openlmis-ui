@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProduct } from '@/features/products/api/api';
 import { AddProductDialog } from '@/features/products/components/add-product-dialog';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/products/api/api', () => ({
   createProduct: vi.fn(),

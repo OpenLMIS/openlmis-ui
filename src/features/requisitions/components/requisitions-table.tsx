@@ -4,7 +4,6 @@ import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanst
 import { ClipboardListIcon, EyeIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -15,12 +14,13 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { FlagBadge } from '@/components/flag-badge';
+import { CardActions, useInCards } from '@/components/display/card-actions';
+import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
+import { WrappingCell } from '@/components/display/wrapping-cell';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { FlagBadge } from '@/components/shared/flag-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { WrappingCell } from '@/components/wrapping-cell';
 import { requisitionSearchOptions } from '@/features/requisitions/api/queries';
 import {
   CLEARED_REQUISITION_FILTERS,

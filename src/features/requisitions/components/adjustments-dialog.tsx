@@ -1,12 +1,12 @@
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { useTranslation } from 'react-i18next';
-import { CardRows } from '@/components/card-list';
 import {
   DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { DialogTable } from '@/components/dialog-table';
+import { CardRows } from '@/components/display/card-list';
+import { DialogTable } from '@/components/display/dialog-table';
 import { SettingsItem } from '@/components/form/settings-list';
 import {
   FormDialog,

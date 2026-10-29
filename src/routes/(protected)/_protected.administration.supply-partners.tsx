@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { PlusIcon, TruckIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableToolbar } from '@/components/data-table/data-table';
-import { ListError } from '@/components/list-error';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import {
   Workspace,
@@ -13,7 +13,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { supplyPartnersOptions } from '@/features/supply-partners/api/queries';

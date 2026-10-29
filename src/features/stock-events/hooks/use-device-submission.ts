@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { serverMessage } from '@/components/dialog-parts';
+import { serverMessage } from '@/components/display/dialog-parts';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';

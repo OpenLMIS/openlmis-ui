@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchStockCard, fetchStockCardReport } from '@/features/stock-card/api/api';
 import { client } from '@/integrations/axios';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
 const get = vi.mocked(client.get);

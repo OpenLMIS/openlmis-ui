@@ -1,8 +1,14 @@
 import { Trash2Icon } from 'lucide-react';
 import type { ReactNode, Ref } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
-import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
+import { CardActions } from '@/components/display/card-actions';
+import {
+  CardBand,
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardRows,
+} from '@/components/display/card-list';
 import { SettingsItem } from '@/components/form/settings-list';
 import { productLabel } from '@/features/reference-data/lib/products';
 import type { GridRow } from '@/features/requisitions/components/requisition-grid';

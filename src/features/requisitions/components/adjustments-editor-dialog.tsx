@@ -4,14 +4,14 @@ import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { CardActions } from '@/components/card-actions';
-import { CardRows } from '@/components/card-list';
 import {
   DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { DialogTable } from '@/components/dialog-table';
+import { CardActions } from '@/components/display/card-actions';
+import { CardRows } from '@/components/display/card-list';
+import { DialogTable } from '@/components/display/dialog-table';
 import { useAppForm } from '@/components/form/form';
 import { quantityValue } from '@/components/form/quantity-value';
 import { SettingsItem } from '@/components/form/settings-list';

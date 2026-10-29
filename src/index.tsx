@@ -3,7 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { TextDirectionProvider } from '@/components/text-direction';
+import { TextDirectionProvider } from '@/components/i18n/text-direction';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { syncLegacySession, syncOtherTab } from '@/features/auth/store/login-data';
 import { initI18n } from '@/integrations/i18n';

@@ -3,14 +3,14 @@ import type { TFunction } from 'i18next';
 import { Trash2Icon } from 'lucide-react';
 import { createContext, useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { TableCards } from '@/components/table-cards';
+import { CardActions, useInCards } from '@/components/display/card-actions';
+import { TableCards } from '@/components/display/table-cards';
 import { Button } from '@/components/ui/button';
 import { ReferenceName } from '@/features/supply-partners/components/supply-partner-references';
 

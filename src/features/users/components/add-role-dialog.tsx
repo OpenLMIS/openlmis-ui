@@ -3,7 +3,8 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ErrorAlert, FieldSkeleton, RetryButton } from '@/components/dialog-parts';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { ErrorAlert, FieldSkeleton, RetryButton } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ComboboxField } from '@/components/form/form-fields';
 import {
@@ -18,7 +19,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FieldGroup } from '@/components/ui/field';
 import {

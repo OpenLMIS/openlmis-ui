@@ -1,7 +1,7 @@
 import { type ErrorComponentProps, Link } from '@tanstack/react-router';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RecordError } from '@/components/record-error';
+import { RecordError } from '@/components/app-shell/record-error';
 import { transactionHistorySearchSchema } from '@/features/stock-events/lib/search';
 
 export function StockEventError({

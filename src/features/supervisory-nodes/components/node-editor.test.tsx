@@ -5,15 +5,15 @@ import i18n from 'i18next';
 import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TranslatedFormMessages } from '@/components/translated-form-messages';
+import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 import { fetchMinimalFacilities, fetchSupervisoryNodes } from '@/features/reference-data/api/api';
 import { supervisoryNodesByIdsOptions } from '@/features/reference-data/api/queries';
 import { NodeEditor } from '@/features/supervisory-nodes/components/node-editor';
 import type { SupervisoryNode } from '@/features/supervisory-nodes/lib/types';
 import { visibleSavedIds } from '@/features/supervisory-nodes/lib/visible-saved-ids';
 import { client } from '@/integrations/axios';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 import en from '../../../../public/locales/en.json';
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), put: vi.fn() } }));

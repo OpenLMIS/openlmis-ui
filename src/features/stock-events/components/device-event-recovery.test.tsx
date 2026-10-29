@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { InCardContext } from '@/components/card-actions';
+import { InCardContext } from '@/components/display/card-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { DeviceEventActions } from '@/features/stock-events/components/device-event-actions';
@@ -29,7 +29,7 @@ import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-de
 import { client } from '@/integrations/axios';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { parsePermissions } from '@/lib/permissions';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/stock-events/lib/device-save-announcement', async (original) => ({
   ...(await original<typeof import('@/features/stock-events/lib/device-save-announcement')>()),
@@ -40,7 +40,7 @@ vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
   useNavigate: () => navigation,
 }));
-vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+vi.mock('@/components/app-shell/nav-access', () => ({ useCanOpen: () => () => true }));
 const layout = vi.hoisted(() => ({ cards: false }));
 vi.mock('@/hooks/use-card-view', async (original) => ({
   ...(await original<typeof import('@/hooks/use-card-view')>()),

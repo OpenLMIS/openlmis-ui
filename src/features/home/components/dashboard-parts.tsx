@@ -2,9 +2,9 @@ import { type QueryKey, type UseQueryOptions, useQuery } from '@tanstack/react-q
 import { AlertCircleIcon, WifiOffIcon } from 'lucide-react';
 import { createContext, type ReactNode, use, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useOfflineFailure } from '@/components/offline-notice';
-import { QueryBoundary } from '@/components/query-boundary';
-import { Block } from '@/components/skeleton-block';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { Block } from '@/components/app-shell/skeleton-block';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

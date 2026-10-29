@@ -1,5 +1,5 @@
-import { RoleRightsDialog } from '@/components/role-rights-dialog';
 import { RoleFormDialog } from '@/features/roles/components/role-form-dialog';
+import { RoleRightsDialog } from '@/features/roles/components/role-rights-dialog';
 
 type RoleDialogsProps = {
   role: 'new' | string | undefined;

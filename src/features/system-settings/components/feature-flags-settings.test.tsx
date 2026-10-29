@@ -11,8 +11,8 @@ import { FeatureFlagsSettings } from '@/features/system-settings/components/feat
 import { savedConfiguration } from '@/features/system-settings/components/settings-fixtures';
 import { SystemSettingsWorkspace } from '@/features/system-settings/components/system-settings-workspace';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/system-settings/api/api', () => ({
   fetchAppConfiguration: vi.fn(),

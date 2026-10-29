@@ -1,7 +1,7 @@
-import { SkeletonBar } from '@/components/card-list';
 import { DataTableSkeleton } from '@/components/data-table/data-table';
-import { SkeletonLine } from '@/components/dialog-parts';
-import { TableCardsSkeleton } from '@/components/table-cards';
+import { SkeletonBar } from '@/components/display/card-list';
+import { SkeletonLine } from '@/components/display/dialog-parts';
+import { TableCardsSkeleton } from '@/components/display/table-cards';
 import { useTemplatesTable } from '@/features/requisition-templates/components/program-templates';
 
 export function TemplatesSkeleton({ cards }: { cards: boolean }) {

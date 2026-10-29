@@ -12,25 +12,25 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createContext, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { useOfflineSignOut } from '@/components/app-shell/offline-sign-out';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { FormDialog, FormDialogTitle } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { useOfflineSignOut } from '@/components/offline-sign-out';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { Route } from '@/routes/(protected)/_protected';
-import { expectRouteWarning } from '@/tests/expect-route-warning';
+import { expectRouteWarning } from '@/test-utils/expect-route-warning';
 
-vi.mock('@/components/device-work', () => ({
+vi.mock('@/components/app-shell/device-work', () => ({
   useDeviceWork: () => ({ hasDeviceEvents: false, countUnsyncedWork: async () => 0 }),
 }));
 
-vi.mock('@/components/nav-access', () => ({
+vi.mock('@/components/app-shell/nav-access', () => ({
   useHasRight: () => false,
   useHasOfflineCapability: () => false,
 }));
-vi.mock('@/components/app-shell', () => ({
+vi.mock('@/components/app-shell/app-shell', () => ({
   AppShellContext: createContext(true),
   AppShell: ({ children }: { children: React.ReactNode }) => {
     const { confirm, dialog } = useOfflineSignOut();
@@ -46,7 +46,7 @@ vi.mock('@/components/app-shell', () => ({
     );
   },
 }));
-vi.mock('@/components/app-shell-skeleton', () => ({
+vi.mock('@/components/app-shell/app-shell-skeleton', () => ({
   AppShellSkeleton: () => <p>Checking access</p>,
 }));
 

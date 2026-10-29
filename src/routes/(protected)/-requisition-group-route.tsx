@@ -3,7 +3,7 @@ import { type ErrorComponentProps, Link, useNavigate, useRouter } from '@tanstac
 import { SearchXIcon } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ErrorFallback } from '@/components/error-fallback';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -13,7 +13,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { Workspace, WorkspaceContent } from '@/components/workspace';
+import { Workspace, WorkspaceContent } from '@/components/workspace/workspace';
 import { requisitionGroupOptions } from '@/features/reference-data/api/queries';
 import type { RequisitionGroupEditorSearch } from '@/features/requisition-groups/lib/members';
 import { isNotFound } from '@/lib/http';

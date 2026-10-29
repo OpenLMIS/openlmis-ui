@@ -5,15 +5,11 @@ import { ChevronDownIcon, EyeIcon, PackageSearchIcon, SearchXIcon } from 'lucide
 import { type ReactNode, type Ref, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { CardActions, CardActionsSkeleton } from '@/components/card-actions';
 import {
-  CardBand,
-  CardList,
-  CardListItem,
-  CardRowSkeleton,
-  CardRows,
-  SkeletonBar,
-} from '@/components/card-list';
+  PendingWorkAlert,
+  SnapshotAlert,
+  useSnapshotNotice,
+} from '@/components/app-shell/offline-alert';
 import {
   DataTableCard,
   DataTableEmpty,
@@ -25,9 +21,18 @@ import {
   DataTablePagination,
   DataTablePaginationSkeleton,
 } from '@/components/data-table/data-table-pagination';
+import { CardActions, CardActionsSkeleton } from '@/components/display/card-actions';
+import {
+  CardBand,
+  CardList,
+  CardListItem,
+  CardRowSkeleton,
+  CardRows,
+  SkeletonBar,
+} from '@/components/display/card-list';
+import { WrappingCell } from '@/components/display/wrapping-cell';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
-import { PendingWorkAlert, SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -38,7 +43,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { WrappingCell } from '@/components/wrapping-cell';
 import { productName } from '@/features/reference-data/lib/product-name';
 import type { Orderable } from '@/features/reference-data/lib/types';
 import {

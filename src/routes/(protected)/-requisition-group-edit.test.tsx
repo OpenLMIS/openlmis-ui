@@ -18,7 +18,7 @@ import { Route as ViewRoute } from '@/routes/(protected)/_protected.administrati
 import { Route as EditRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.$id_.edit';
 import { Route as AddRoute } from '@/routes/(protected)/_protected.administration.requisition-groups_.new';
 
-vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/features/auth/lib/access', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/auth/lib/access')>()),
   requireRight: vi.fn(async () => new Set(['REQUISITION_GROUPS_MANAGE'])),

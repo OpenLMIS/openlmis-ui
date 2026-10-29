@@ -7,7 +7,7 @@ import {
   SystemSettingsLayout,
   SystemSettingsPending,
 } from '@/features/system-settings/components/system-settings-workspace';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/system-settings/api/api', () => ({ fetchAppConfiguration: vi.fn() }));
 

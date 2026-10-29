@@ -6,7 +6,8 @@ import {
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { DialogTable } from '@/components/dialog-table';
+import { DialogTable } from '@/components/display/dialog-table';
+import { CellText } from '@/components/display/table-cards';
 import { formatTimestamp } from '@/components/form/date-value';
 import {
   FormDialog,
@@ -17,7 +18,6 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import { CellText } from '@/components/table-cards';
 import { messageAuthor, StatusBadge } from '@/features/requisitions/components/status-message';
 import type { RequisitionStatusMessage } from '@/features/requisitions/lib/types';
 import { useDialogCardLayout } from '@/hooks/use-card-view';

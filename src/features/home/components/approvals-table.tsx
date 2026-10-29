@@ -2,9 +2,9 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { CircleCheckIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
+import { CardBand, CardList, CardListItem, CardRows } from '@/components/display/card-list';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Badge } from '@/components/ui/badge';
 import {

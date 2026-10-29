@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { LoadError } from '@/components/app-shell/load-error';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import {
   DataTableComboboxFilter,
@@ -8,7 +9,6 @@ import {
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
-import { LoadError } from '@/components/load-error';
 import { Skeleton } from '@/components/ui/skeleton';
 import { minimalFacilitiesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import {

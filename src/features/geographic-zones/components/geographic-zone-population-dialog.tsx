@@ -1,14 +1,15 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { DataTableHeaderLabel } from '@/components/data-table/data-table';
 import {
   CardBand,
   CardList,
   CardListItem,
   CardListSkeleton,
   CardRows,
-} from '@/components/card-list';
-import { DataTableHeaderLabel } from '@/components/data-table/data-table';
-import { DialogLoadError, DialogNotFound, SkeletonLine } from '@/components/dialog-parts';
+} from '@/components/display/card-list';
+import { DialogLoadError, DialogNotFound, SkeletonLine } from '@/components/display/dialog-parts';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import {
   FormDialog,
@@ -20,7 +21,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,

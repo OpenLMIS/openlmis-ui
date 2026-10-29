@@ -5,7 +5,7 @@ import {
   linkProblem,
   passwordResetErrorKey,
 } from '@/features/auth/lib/password-reset';
-import { httpError, networkError } from '@/tests/http-error';
+import { httpError, networkError } from '@/test-utils/http-error';
 
 const emailMessages = (email: string) =>
   forgotPasswordSchema.safeParse({ email }).error?.issues.map((issue) => issue.message);

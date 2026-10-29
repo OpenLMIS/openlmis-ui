@@ -5,8 +5,8 @@ import { initReactI18next } from 'react-i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requestPasswordReset } from '@/features/auth/api/api';
 import { ForgotPasswordForm } from '@/features/auth/components/forgot-password-form';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/auth/api/api', () => ({ requestPasswordReset: vi.fn() }));
 

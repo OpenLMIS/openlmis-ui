@@ -34,13 +34,13 @@ vi.mock('@/features/profile/api/api', () => ({
   saveSubscriptions: vi.fn(),
   fetchDigestConfigurations: vi.fn(),
 }));
-vi.mock('@/components/app-shell', () => ({
+vi.mock('@/components/app-shell/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('@/components/app-shell-skeleton', () => ({
+vi.mock('@/components/app-shell/app-shell-skeleton', () => ({
   AppShellSkeleton: () => <p>Checking access</p>,
 }));
-vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 
 const ada = { referenceDataUserId: 'u1', username: 'ada', accessToken: 'ada-token' };
 const alan = { referenceDataUserId: 'u2', username: 'alan', accessToken: 'alan-token' };

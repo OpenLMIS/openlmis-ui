@@ -10,7 +10,7 @@ import {
   availableAdjustmentReasons,
 } from '@/features/requisitions/components/adjustments-editor-dialog';
 import { adjustmentQuantitySchema, adjustmentTotal } from '@/features/requisitions/lib/adjustments';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 const reasons = [
   {

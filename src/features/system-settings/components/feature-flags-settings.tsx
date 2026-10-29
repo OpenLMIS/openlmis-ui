@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { SettingsList } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';

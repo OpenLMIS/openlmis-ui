@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { FolderXIcon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ListError } from '@/components/list-error';
-import { QueryBoundary } from '@/components/query-boundary';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   Workspace,
   WorkspaceContent,
@@ -12,7 +12,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { rejectionReasonCategoriesOptions } from '@/features/reference-data/api/queries';

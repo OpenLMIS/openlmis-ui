@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import {
   AlertDialog,
@@ -28,7 +28,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import {
   ReplacedTemplateError,
   saveRequisitionTemplate,

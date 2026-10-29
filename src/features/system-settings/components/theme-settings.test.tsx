@@ -8,8 +8,8 @@ import { appConfigurationOptions } from '@/features/system-settings/api/queries'
 import { savedConfiguration } from '@/features/system-settings/components/settings-fixtures';
 import { SystemSettingsWorkspace } from '@/features/system-settings/components/system-settings-workspace';
 import { ThemeSettings } from '@/features/system-settings/components/theme-settings';
-import { httpError, networkError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError, networkError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/system-settings/api/api', () => ({
   fetchAppConfiguration: vi.fn(),

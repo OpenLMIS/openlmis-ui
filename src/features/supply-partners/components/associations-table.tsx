@@ -10,7 +10,6 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
@@ -19,7 +18,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CardActions, useInCards } from '@/components/display/card-actions';
+import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import {
   AlertDialog,
   AlertDialogCancel,

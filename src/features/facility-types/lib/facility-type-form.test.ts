@@ -8,7 +8,7 @@ import {
   toFacilityTypeFormValues,
 } from '@/features/facility-types/lib/facility-type-form';
 import type { FacilityType } from '@/features/reference-data/lib/types';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 const healthCenter: FacilityType = {
   id: 'ft3',

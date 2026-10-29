@@ -1,8 +1,8 @@
 import { InfoIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardBand } from '@/components/card-list';
 import { DataTableCard } from '@/components/data-table/data-table';
+import { CardBand } from '@/components/display/card-list';
 import { formatTimestamp } from '@/components/form/date-value';
 import { Badge } from '@/components/ui/badge';
 import type { RequisitionStatusMessage } from '@/features/requisitions/lib/types';

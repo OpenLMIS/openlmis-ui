@@ -16,7 +16,11 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
+import { LoadError } from '@/components/app-shell/load-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { Block } from '@/components/app-shell/skeleton-block';
+import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
+import { CardActions } from '@/components/display/card-actions';
 import {
   CardBand,
   CardControlRow,
@@ -25,8 +29,7 @@ import {
   CardListSkeleton,
   CardRows,
   SkeletonBar,
-} from '@/components/card-list';
-import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
+} from '@/components/display/card-list';
 import {
   DialogLoadError,
   ErrorAlert,
@@ -35,8 +38,8 @@ import {
   SwitchRowSkeleton,
   SwitchSkeleton,
   serverMessage,
-} from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+} from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { SettingsItem } from '@/components/form/settings-list';
 import type { TagRefusal } from '@/components/form/tags';
@@ -52,9 +55,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { LoadError } from '@/components/load-error';
-import { QueryBoundary } from '@/components/query-boundary';
-import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -81,7 +81,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import {
   reasonCategoriesOptions,
   reasonTagsOptions,

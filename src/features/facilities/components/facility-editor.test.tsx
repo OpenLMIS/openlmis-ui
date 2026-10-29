@@ -16,9 +16,9 @@ import {
   toFacilityFormValues,
 } from '@/features/facilities/lib/facility-form';
 import type { Facility } from '@/features/reference-data/lib/types';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
-vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/features/reference-data/api/api', () => {
   const pending = () => new Promise<never>(() => {});
   return {

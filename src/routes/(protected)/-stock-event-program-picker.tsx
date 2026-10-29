@@ -5,13 +5,13 @@ import type { ParseKeys } from 'i18next';
 import { ClipboardPenLineIcon } from 'lucide-react';
 import { type ReactElement, type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LoadError } from '@/components/load-error';
-import { NoAccess } from '@/components/no-access-page';
-import { QueryBoundary } from '@/components/query-boundary';
+import { LoadError } from '@/components/app-shell/load-error';
+import { NoAccess } from '@/components/app-shell/no-access-page';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   StockProgramPicker,
   StockProgramPickerSkeleton,
-} from '@/components/stock-program-picker/stock-program-picker';
+} from '@/components/pickers/stock-program-picker/stock-program-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
@@ -21,7 +21,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { ForbiddenError, isForbidden, requirePermissions } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {

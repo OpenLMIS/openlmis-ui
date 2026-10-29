@@ -34,7 +34,7 @@ import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryClient } from '@/integrations/tanstack-query';
 import { queryKeys } from '@/lib/key-factory';
 import type { OfflineAccess } from '@/lib/offline-access';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
 vi.mock('@/features/stock-events/lib/event-kinds', async (original) => {
   const module = await original<typeof import('@/features/stock-events/lib/event-kinds')>();

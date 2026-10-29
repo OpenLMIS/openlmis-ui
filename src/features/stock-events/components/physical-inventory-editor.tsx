@@ -17,14 +17,21 @@ import {
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { LoadError } from '@/components/app-shell/load-error';
+import {
+  OfflineAlert,
+  SnapshotAlert,
+  useSnapshotNotice,
+} from '@/components/app-shell/offline-alert';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
-import { DraftStatus } from '@/components/draft-status';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
+import { DraftStatus } from '@/components/display/draft-status';
 import {
   FormDialog,
   FormDialogBody,
@@ -34,10 +41,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { LoadError } from '@/components/load-error';
-import { OfflineAlert, SnapshotAlert, useSnapshotNotice } from '@/components/offline-alert';
-import { QueryBoundary } from '@/components/query-boundary';
-import { ScanUnavailable } from '@/components/scan-status';
 import { Button } from '@/components/ui/button';
 import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -64,6 +67,7 @@ import {
   InventoryToolbar,
   PhysicalInventoryPendingBody,
 } from '@/features/stock-events/components/physical-inventory-pending';
+import { ScanUnavailable } from '@/features/stock-events/components/scan-status';
 import { usePhysicalInventoryAutosave } from '@/features/stock-events/hooks/use-physical-inventory-autosave';
 import {
   type PhysicalInventoryForm,

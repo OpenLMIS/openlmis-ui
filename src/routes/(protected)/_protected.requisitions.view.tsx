@@ -8,11 +8,11 @@ import { createFileRoute } from '@tanstack/react-router';
 import { CalendarX2Icon, ClipboardListIcon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ListError } from '@/components/app-shell/list-error';
+import { LoadError } from '@/components/app-shell/load-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { ListError } from '@/components/list-error';
-import { LoadError } from '@/components/load-error';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import {
   Workspace,
@@ -22,7 +22,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import {
   requireRequisitionView,

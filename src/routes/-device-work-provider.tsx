@@ -2,7 +2,11 @@ import { onlineManager } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
 import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import { type DeviceWork, DeviceWorkPublisher, EMPTY_DEVICE_WORK } from '@/components/device-work';
+import {
+  type DeviceWork,
+  DeviceWorkPublisher,
+  EMPTY_DEVICE_WORK,
+} from '@/components/app-shell/device-work';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import {
   fetchFacility,

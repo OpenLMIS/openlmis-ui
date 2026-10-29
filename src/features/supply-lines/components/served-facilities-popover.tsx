@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Building2Icon, InfoIcon } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LoadError } from '@/components/load-error';
+import { LoadError } from '@/components/app-shell/load-error';
 import { Button } from '@/components/ui/button';
 import {
   Empty,

@@ -1,5 +1,5 @@
 import * as React from "react"
-import { usePageGatedOpen, useRetainedPortal } from "@/components/page-visibility"
+import { usePageGatedOpen, useRetainedPortal } from "@/components/shared/page-visibility"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"

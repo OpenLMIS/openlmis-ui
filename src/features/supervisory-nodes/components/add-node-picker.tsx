@@ -2,9 +2,14 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { NetworkIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LoadError } from '@/components/load-error';
-import { PickerAdd, PickerAddButton, PickerAddField, PickerAddIcon } from '@/components/picker-add';
-import { QueryBoundary } from '@/components/query-boundary';
+import { LoadError } from '@/components/app-shell/load-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import {
+  PickerAdd,
+  PickerAddButton,
+  PickerAddField,
+  PickerAddIcon,
+} from '@/components/pickers/picker-add';
 import {
   Combobox,
   ComboboxContent,

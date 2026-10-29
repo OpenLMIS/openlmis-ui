@@ -1,5 +1,5 @@
 import * as React from "react"
-import { usePageGatedOpen, useRetainedPortal } from "@/components/page-visibility"
+import { usePageGatedOpen, useRetainedPortal } from "@/components/shared/page-visibility"
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 import { cn } from "cn"
 

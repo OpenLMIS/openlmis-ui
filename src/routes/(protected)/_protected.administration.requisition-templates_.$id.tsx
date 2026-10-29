@@ -7,7 +7,7 @@ import {
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { ErrorFallback } from '@/components/error-fallback';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';

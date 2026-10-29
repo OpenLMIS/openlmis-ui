@@ -5,7 +5,6 @@ import type { TFunction } from 'i18next';
 import { PackageIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -15,7 +14,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { RowActions } from '@/components/display/card-actions';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { Button } from '@/components/ui/button';
 import { productsListOptions } from '@/features/products/api/queries';
 import {

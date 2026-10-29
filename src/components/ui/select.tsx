@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePageGatedOpen } from "@/components/page-visibility"
+import { usePageGatedOpen } from "@/components/shared/page-visibility"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "cn"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"

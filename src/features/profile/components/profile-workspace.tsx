@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { KeyRoundIcon, UserRoundIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Block } from '@/components/skeleton-block';
+import { Block } from '@/components/app-shell/skeleton-block';
 import { Button } from '@/components/ui/button';
 import {
   Workspace,
@@ -13,8 +13,8 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
-import { WorkspaceSlots, WorkspaceTabs } from '@/components/workspace-tabs';
+} from '@/components/workspace/workspace';
+import { WorkspaceSlots, WorkspaceTabs } from '@/components/workspace/workspace-tabs';
 import { markDialogOpened } from '@/hooks/use-search-navigation';
 
 const PROFILE_TABS = [

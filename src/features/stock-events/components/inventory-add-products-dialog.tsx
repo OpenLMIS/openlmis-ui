@@ -3,9 +3,16 @@ import { Trash2Icon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { CardActions } from '@/components/card-actions';
-import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
+import { LoadError } from '@/components/app-shell/load-error';
 import { DataTableHeaderLabel } from '@/components/data-table/data-table';
+import { CardActions } from '@/components/display/card-actions';
+import {
+  CardBand,
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardRows,
+} from '@/components/display/card-list';
 import { toDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import { quantityValue } from '@/components/form/quantity-value';
@@ -21,7 +28,6 @@ import {
   FormDialogSubmit,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import { LoadError } from '@/components/load-error';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import {

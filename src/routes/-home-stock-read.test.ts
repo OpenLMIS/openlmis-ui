@@ -4,7 +4,7 @@ import { readHomeStockBundle } from '@/features/stock-events/lib/home-stock-bund
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { readOfflineAccess } from '@/lib/offline-access';
 import { readStockCardOnDevice, readStockOnHandOnDevice } from '@/routes/-home-stock-read';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
 vi.mock('@/features/stock-card/lib/history-cache', () => ({
   readStockCardHistory: vi.fn(async () => undefined),

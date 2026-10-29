@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardBand, CardRows } from '@/components/card-list';
 import { DataTableCard } from '@/components/data-table/data-table';
+import { CardBand, CardRows } from '@/components/display/card-list';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { CurrencySettings } from '@/features/reference-data/lib/types';

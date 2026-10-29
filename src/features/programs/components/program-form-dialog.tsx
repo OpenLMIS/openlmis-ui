@@ -4,6 +4,7 @@ import type { ParseKeys } from 'i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DialogLoadError,
   DialogNotFound,
@@ -12,7 +13,7 @@ import {
   SkeletonLine,
   SwitchSkeleton,
   serverMessage,
-} from '@/components/dialog-parts';
+} from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -26,7 +27,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
 import { createProgram, updateProgram } from '@/features/programs/api/api';
 import { programDetailOptions } from '@/features/programs/api/queries';

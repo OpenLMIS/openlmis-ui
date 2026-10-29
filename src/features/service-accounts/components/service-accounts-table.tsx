@@ -4,7 +4,6 @@ import type { TFunction } from 'i18next';
 import { KeyRoundIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -14,7 +13,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { RowActions } from '@/components/display/card-actions';
+import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { Button } from '@/components/ui/button';
 import { serviceAccountsListOptions } from '@/features/service-accounts/api/queries';
 import { CopyKeyButton } from '@/features/service-accounts/components/copy-key-button';

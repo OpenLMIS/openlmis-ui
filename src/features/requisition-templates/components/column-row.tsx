@@ -5,16 +5,16 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { ChevronDownIcon, GripVerticalIcon, LockKeyholeIcon } from 'lucide-react';
 import { type CSSProperties, memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Block } from '@/components/app-shell/skeleton-block';
 import {
   CardBand,
   CardControlRow,
   CardDragPreview,
   CardListItem,
   CardRows,
-} from '@/components/card-list';
-import { LookupBoundary } from '@/components/dialog-parts';
+} from '@/components/display/card-list';
+import { LookupBoundary } from '@/components/display/dialog-parts';
 import { SettingsItem } from '@/components/form/settings-list';
-import { Block } from '@/components/skeleton-block';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field } from '@/components/ui/field';

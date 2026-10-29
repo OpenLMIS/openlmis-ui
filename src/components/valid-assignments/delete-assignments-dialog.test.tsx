@@ -6,8 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DeleteAssignmentsDialog } from '@/components/valid-assignments/delete-assignments-dialog';
 import type { Picked } from '@/components/valid-assignments/selection';
 import type { AssignmentsApi } from '@/components/valid-assignments/types';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 

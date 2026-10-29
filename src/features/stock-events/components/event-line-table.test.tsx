@@ -13,7 +13,7 @@ import { useEventForm } from '@/features/stock-events/hooks/use-event-form';
 import { newEventLine } from '@/features/stock-events/lib/event-form';
 import type { ConfiguredEventKind } from '@/features/stock-events/lib/event-kinds';
 import type { SearchChange } from '@/lib/table-search';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 const renders = vi.hoisted(() => vi.fn());
 vi.mock('@/components/form/form-fields', async (load) => {

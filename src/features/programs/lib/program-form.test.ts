@@ -8,7 +8,7 @@ import {
   toProgramFormValues,
 } from '@/features/programs/lib/program-form';
 import type { Program } from '@/features/reference-data/lib/types';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 const arv: Program = {
   id: 'p5',

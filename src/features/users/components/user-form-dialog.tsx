@@ -4,6 +4,8 @@ import { TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { EmailStatus } from '@/components/auth/email-status';
 import {
   DialogLoadError,
   ErrorAlert,
@@ -11,8 +13,7 @@ import {
   RetryButton,
   SkeletonLine,
   serverMessage,
-} from '@/components/dialog-parts';
-import { EmailStatus } from '@/components/email-status';
+} from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ChoiceCard, ComboboxField, SwitchField } from '@/components/form/form-fields';
 import {
@@ -27,7 +28,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FieldGroup } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';

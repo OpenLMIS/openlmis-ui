@@ -1,8 +1,8 @@
 import { ArrowRightIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardList, CardListItem, CardRows, CardToggleBand } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
+import { CardList, CardListItem, CardRows, CardToggleBand } from '@/components/display/card-list';
 import { SettingsItem } from '@/components/form/settings-list';
 import {
   Table,

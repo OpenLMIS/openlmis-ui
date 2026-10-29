@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { toDateValue } from '@/components/form/date-value';
 import { quantityValue } from '@/components/form/quantity-value';
-import { WorkspaceSlots } from '@/components/workspace-tabs';
+import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   createPhysicalInventoryLot,
@@ -44,7 +44,7 @@ import {
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
-import { inventoryWrite } from '@/tests/inventory-writes';
+import { inventoryWrite } from '@/test-utils/inventory-writes';
 
 vi.mock('@/features/stock-events/lib/physical-inventory-lines', async (original) => {
   const actual =

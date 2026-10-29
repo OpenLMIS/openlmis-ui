@@ -6,7 +6,7 @@ import {
   homeStockProvider,
 } from '@/features/stock-events/lib/home-stock-provider';
 import { LOCAL_TABLES, localTable } from '@/integrations/local-db';
-import { offlineAccessFixture } from '@/tests/offline-access';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
 
 const program = { id: 'p', code: 'P', name: 'Program', active: true };
 const access = { ...offlineAccessFixture({ programs: [program] }), fetchedAt: 1 };

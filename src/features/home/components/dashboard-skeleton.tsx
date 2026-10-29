@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardListSkeleton, SkeletonBar } from '@/components/card-list';
+import { Block } from '@/components/app-shell/skeleton-block';
 import { useElementWidth } from '@/components/data-table/responsive-columns';
-import { Block } from '@/components/skeleton-block';
+import { CardListSkeleton, SkeletonBar } from '@/components/display/card-list';
 import { CardFrame, DashboardRow } from '@/features/home/components/dashboard-parts';
 import { StatSkeleton, StatStrip } from '@/features/home/components/stat-strip';
 

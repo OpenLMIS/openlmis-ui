@@ -4,15 +4,15 @@ import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardListIcon, SettingsIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { FlagBadge } from '@/components/flag-badge';
-import { TableCards } from '@/components/table-cards';
+import { CardActions } from '@/components/display/card-actions';
+import { TableCards } from '@/components/display/table-cards';
+import { FlagBadge } from '@/components/shared/flag-badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';

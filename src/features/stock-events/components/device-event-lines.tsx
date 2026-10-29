@@ -1,8 +1,8 @@
 import type { ParseKeys } from 'i18next';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardBand, CardList, CardListItem, CardRows } from '@/components/card-list';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
+import { CardBand, CardList, CardListItem, CardRows } from '@/components/display/card-list';
 import { formatDateValue } from '@/components/form/date-value';
 import { SettingsItem } from '@/components/form/settings-list';
 import {

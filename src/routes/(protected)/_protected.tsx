@@ -1,11 +1,11 @@
 import '@/routes/-offline-pages';
 import { createFileRoute, Outlet, redirect, useLocation, useRouter } from '@tanstack/react-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AppShell } from '@/components/app-shell';
-import { AppShellSkeleton } from '@/components/app-shell-skeleton';
-import { ErrorFallback } from '@/components/error-fallback';
-import { OfflineNotice } from '@/components/offline-notice';
-import { PageVisibility } from '@/components/page-visibility';
+import { AppShell } from '@/components/app-shell/app-shell';
+import { AppShellSkeleton } from '@/components/app-shell/app-shell-skeleton';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
+import { OfflineNotice } from '@/components/app-shell/offline-notice';
+import { PageVisibility } from '@/components/shared/page-visibility';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { canRetainPageOffline, isOfflineCapable } from '@/lib/offline-pages';

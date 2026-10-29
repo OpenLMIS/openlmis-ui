@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { toRequisitionFailure } from '@/features/requisitions/lib/failure';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 it('treats the live versionMismatch message as a conflict, keeping the local copy', () => {
   expect(

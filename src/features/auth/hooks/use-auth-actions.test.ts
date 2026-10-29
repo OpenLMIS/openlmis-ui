@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as authApi from '@/features/auth/api/api';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { httpError, networkError } from '@/tests/http-error';
+import { httpError, networkError } from '@/test-utils/http-error';
 
 vi.mock('@/features/auth/api/api', async (original) => ({
   ...(await original<typeof import('@/features/auth/api/api')>()),

@@ -4,7 +4,6 @@ import type { TFunction } from 'i18next';
 import { EyeIcon, LayersIcon, PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -13,8 +12,9 @@ import {
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { FlagBadge } from '@/components/flag-badge';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { RowActions } from '@/components/display/card-actions';
+import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
+import { FlagBadge } from '@/components/shared/flag-badge';
 import { Badge } from '@/components/ui/badge';
 import type { ProductDetail, ProgramLink } from '@/features/products/lib/types';
 import {

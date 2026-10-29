@@ -11,7 +11,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { downloadFile } from '@/lib/download-file';
 import { openReport } from '@/lib/open-report';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));

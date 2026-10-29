@@ -18,9 +18,9 @@ import {
 import type { RequisitionGroupEditorSearch } from '@/features/requisition-groups/lib/members';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
-vi.mock('@/components/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
+vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/features/requisition-groups/api/api', () => ({
   createRequisitionGroup: vi.fn(),
   updateRequisitionGroup: vi.fn(),

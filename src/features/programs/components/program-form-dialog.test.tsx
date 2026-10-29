@@ -7,8 +7,8 @@ import { ProgramFormDialog } from '@/features/programs/components/program-form-d
 import { fetchPrograms } from '@/features/reference-data/api/api';
 import { programsOptions } from '@/features/reference-data/api/queries';
 import { userProgramsKey } from '@/lib/key-factory';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/programs/api/api', () => ({
   createProgram: vi.fn(),

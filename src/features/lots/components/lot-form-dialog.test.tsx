@@ -9,8 +9,8 @@ import { lotsListOptions } from '@/features/lots/api/queries';
 import { LotFormDialog } from '@/features/lots/components/lot-form-dialog';
 import type { Lot } from '@/features/lots/lib/types';
 import { fetchOrderablesByTradeItems } from '@/features/reference-data/api/api';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/lots/api/api', () => ({
   fetchLot: vi.fn(),

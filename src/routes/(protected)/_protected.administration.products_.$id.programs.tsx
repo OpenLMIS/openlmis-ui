@@ -3,12 +3,12 @@ import { createFileRoute, getRouteApi } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
 import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LoadError } from '@/components/app-shell/load-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { LoadError } from '@/components/load-error';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
-import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
+import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
 import { productDetailOptions } from '@/features/products/api/queries';
 import { ProgramLinkDialog } from '@/features/products/components/program-link-dialog';
 import {

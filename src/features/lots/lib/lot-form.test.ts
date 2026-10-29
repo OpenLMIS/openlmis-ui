@@ -6,7 +6,7 @@ import {
   toLotFormValues,
 } from '@/features/lots/lib/lot-form';
 import type { Lot } from '@/features/lots/lib/types';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 const lot: Lot = {
   id: 'l1',

@@ -1,12 +1,12 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { formatDateValue } from '@/components/form/date-value';
 import {
   RecordSummary,
   RecordSummaryField,
   RecordSummaryFields,
   RecordSummaryHeading,
-} from '@/components/record-summary';
+} from '@/components/display/record-summary';
+import { formatDateValue } from '@/components/form/date-value';
 import { Badge } from '@/components/ui/badge';
 import { facilityOptions, processingPeriodOptions } from '@/features/reference-data/api/queries';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';

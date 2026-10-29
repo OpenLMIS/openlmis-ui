@@ -12,7 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ErrorFallback } from '@/components/error-fallback';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -38,10 +38,10 @@ import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.receive';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.receive_.$programId';
 
-vi.mock('@/components/app-shell', () => ({
+vi.mock('@/components/app-shell/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('@/components/app-shell-skeleton', () => ({
+vi.mock('@/components/app-shell/app-shell-skeleton', () => ({
   AppShellSkeleton: () => <p>Checking access</p>,
 }));
 

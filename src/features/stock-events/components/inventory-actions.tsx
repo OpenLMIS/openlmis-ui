@@ -4,8 +4,8 @@ import { WifiOffIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ActionTooltip } from '@/components/action-tooltip';
-import { ErrorAlert, serverMessage } from '@/components/dialog-parts';
+import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import {
   FormDialog,
   FormDialogCancel,
@@ -16,9 +16,9 @@ import {
   FormDialogSubmit,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import { InvalidSubmitDialog } from '@/components/invalid-submit-dialog';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
-import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
+import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
 import {
   createPhysicalInventoryLot,
   deletePhysicalInventory,

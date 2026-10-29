@@ -9,7 +9,7 @@ import {
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorFallback } from '@/components/error-fallback';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -18,7 +18,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { Workspace, WorkspaceContent } from '@/components/workspace';
+import { Workspace, WorkspaceContent } from '@/components/workspace/workspace';
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { supplyPartnerOptions } from '@/features/supply-partners/api/queries';

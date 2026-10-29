@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LotsToolbar } from '@/features/lots/components/lots-toolbar';
 import type { LotsSearch } from '@/features/lots/lib/search';
 import { fetchOrderables, fetchOrderablesByIds } from '@/features/reference-data/api/api';
-import { renderPage } from '@/tests/render-page';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchOrderables: vi.fn(),

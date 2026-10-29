@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
 import { DatePicker } from '@/components/form/form-fields';
 import { FormMessagesProvider } from '@/components/form/form-messages';
-import { TranslatedFormMessages } from '@/components/translated-form-messages';
+import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 
 afterEach(() => vi.useRealTimers());
 

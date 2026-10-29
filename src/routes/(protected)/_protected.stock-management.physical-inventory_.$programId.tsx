@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { ClipboardListIcon, WifiOffIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
-import { ErrorFallback } from '@/components/error-fallback';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -14,8 +14,8 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
-import { WorkspaceSlots } from '@/components/workspace-tabs';
+} from '@/components/workspace/workspace';
+import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';

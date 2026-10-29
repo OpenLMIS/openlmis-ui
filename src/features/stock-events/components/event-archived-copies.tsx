@@ -3,10 +3,11 @@ import { liveQuery } from 'dexie';
 import { RotateCcwIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RowActions } from '@/components/card-actions';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { type DataTableFeatures, dataTableFeatures } from '@/components/data-table/data-table';
-import { ErrorAlert } from '@/components/dialog-parts';
-import { DialogTable } from '@/components/dialog-table';
+import { RowActions } from '@/components/display/card-actions';
+import { ErrorAlert } from '@/components/display/dialog-parts';
+import { DialogTable } from '@/components/display/dialog-table';
 import { formatTimestamp } from '@/components/form/date-value';
 import {
   FormDialog,
@@ -17,7 +18,6 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
-import { QueryBoundary } from '@/components/query-boundary';
 import {
   AlertDialog,
   AlertDialogCancel,

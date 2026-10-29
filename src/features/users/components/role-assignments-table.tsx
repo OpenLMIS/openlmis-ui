@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions, useInCards } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -21,8 +20,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { RoleRightsPopover } from '@/components/role-rights-popover';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CardActions, useInCards } from '@/components/display/card-actions';
+import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RoleRightsPopover } from '@/features/users/components/role-rights-popover';
 import {
   compareRows,
   filterRows,

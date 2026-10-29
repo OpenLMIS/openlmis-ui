@@ -11,7 +11,7 @@ import {
   toProductUpdateBody,
 } from '@/features/products/lib/product-form';
 import type { ProductDetail } from '@/features/products/lib/types';
-import { httpError } from '@/tests/http-error';
+import { httpError } from '@/test-utils/http-error';
 
 const valid: ProductFormValues = {
   ...EMPTY_PRODUCT_FORM,

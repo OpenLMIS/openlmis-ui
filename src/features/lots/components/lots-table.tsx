@@ -4,7 +4,6 @@ import type { TFunction } from 'i18next';
 import { BoxesIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RowActions } from '@/components/card-actions';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -14,8 +13,9 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { RowActions } from '@/components/display/card-actions';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { formatDateValue } from '@/components/form/date-value';
-import { CellText, TableCards, TableCardsSkeleton } from '@/components/table-cards';
 import { Button } from '@/components/ui/button';
 import { lotsListOptions } from '@/features/lots/api/queries';
 import {

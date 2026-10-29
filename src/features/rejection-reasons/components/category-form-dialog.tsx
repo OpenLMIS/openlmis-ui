@@ -3,6 +3,7 @@ import { useIsMutating, useSuspenseQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DialogLoadError,
   DialogNotFound,
@@ -10,8 +11,8 @@ import {
   FieldSkeleton,
   SwitchSkeleton,
   serverMessage,
-} from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+} from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import {
   FormDialog,
   FormDialogBody,
@@ -24,7 +25,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
 import { FieldGroup } from '@/components/ui/field';
 import type { RejectionReasonCategory } from '@/features/reference-data/lib/types';
 import { rejectionReasonCategoryDetailOptions } from '@/features/rejection-reasons/api/queries';

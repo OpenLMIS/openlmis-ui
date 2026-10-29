@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useCallback } from 'react';
-import { useDeviceWork } from '@/components/device-work';
+import { useDeviceWork } from '@/components/app-shell/device-work';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { requireRight } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';

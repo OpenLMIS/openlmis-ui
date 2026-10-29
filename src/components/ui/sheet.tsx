@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePageGatedOpen } from "@/components/page-visibility"
+import { usePageGatedOpen } from "@/components/shared/page-visibility"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 

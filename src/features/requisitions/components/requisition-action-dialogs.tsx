@@ -1,8 +1,8 @@
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionTooltip } from '@/components/action-tooltip';
-import { InvalidSubmitDialog } from '@/components/invalid-submit-dialog';
+import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import {
   AlertDialog,
   AlertDialogAction,

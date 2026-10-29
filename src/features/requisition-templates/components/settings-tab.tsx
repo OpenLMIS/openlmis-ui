@@ -1,7 +1,7 @@
 import { useStore } from '@tanstack/react-form';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { LookupBoundary } from '@/components/dialog-parts';
+import { LookupBoundary } from '@/components/display/dialog-parts';
 import { SettingsList } from '@/components/form/settings-list';
 import { FieldGroup } from '@/components/ui/field';
 import { facilityTypesOptions } from '@/features/reference-data/api/queries';

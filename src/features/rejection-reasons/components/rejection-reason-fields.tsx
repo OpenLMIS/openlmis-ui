@@ -1,7 +1,7 @@
 import { useStore } from '@tanstack/react-form';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { LookupBoundary } from '@/components/dialog-parts';
+import { LookupBoundary } from '@/components/display/dialog-parts';
 import { withForm } from '@/components/form/form';
 import type { SelectFieldItem } from '@/components/form/form-fields';
 import { rejectionReasonCategoriesOptions } from '@/features/reference-data/api/queries';

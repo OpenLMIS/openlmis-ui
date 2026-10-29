@@ -12,11 +12,11 @@ import { type ComponentProps, type ReactNode, useCallback, useMemo, useRef, useS
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ActionTooltip } from '@/components/action-tooltip';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { toDateValue } from '@/components/form/date-value';
-import { ListError } from '@/components/list-error';
-import { QueryBoundary } from '@/components/query-boundary';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,7 +30,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import {
   requireRequisitionView,

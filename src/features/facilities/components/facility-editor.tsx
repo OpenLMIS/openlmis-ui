@@ -3,9 +3,17 @@ import { type QueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { BuildingIcon, InfoIcon, Loader2Icon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { type ReactNode, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions } from '@/components/card-actions';
-import { CardBand, CardControlRow, CardList, CardListItem, CardRows } from '@/components/card-list';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { Block } from '@/components/app-shell/skeleton-block';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
+import { CardActions } from '@/components/display/card-actions';
+import {
+  CardBand,
+  CardControlRow,
+  CardList,
+  CardListItem,
+  CardRows,
+} from '@/components/display/card-list';
 import {
   DialogLoadError,
   ErrorAlert,
@@ -13,8 +21,8 @@ import {
   LookupBoundary,
   SwitchRowSkeleton,
   serverMessage,
-} from '@/components/dialog-parts';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+} from '@/components/display/dialog-parts';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -28,8 +36,6 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
-import { QueryBoundary } from '@/components/query-boundary';
-import { Block } from '@/components/skeleton-block';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -59,7 +65,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import {
   addProgramSchema,
   availablePrograms,

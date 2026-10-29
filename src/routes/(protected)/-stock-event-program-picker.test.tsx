@@ -18,10 +18,10 @@ import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { parsePermissions } from '@/lib/permissions';
 import { StockEventProgramPicker } from '@/routes/(protected)/-stock-event-program-picker';
-import { offlineAccessFixture } from '@/tests/offline-access';
-import { renderPage } from '@/tests/render-page';
+import { offlineAccessFixture } from '@/test-utils/offline-access';
+import { renderPage } from '@/test-utils/render-page';
 
-vi.mock('@/components/nav-access', () => ({ useCanOpen: () => () => true }));
+vi.mock('@/components/app-shell/nav-access', () => ({ useCanOpen: () => () => true }));
 vi.mock('@/features/stock-events/hooks/use-offline-events', () => ({
   useOfflineEvents: () => ({
     events: [

@@ -27,7 +27,6 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionTooltip } from '@/components/action-tooltip';
 import {
   DataTableCard,
   DataTableEmpty,
@@ -36,11 +35,12 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DraftStatus } from '@/components/draft-status';
-import { FlagBadge } from '@/components/flag-badge';
+import { DraftStatus } from '@/components/display/draft-status';
+import { QuantityHeaderSizer } from '@/components/display/quantity-header-sizer';
+import { TableCards } from '@/components/display/table-cards';
 import { quantityValue } from '@/components/form/quantity-value';
-import { QuantityHeaderSizer } from '@/components/quantity-header-sizer';
-import { TableCards } from '@/components/table-cards';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
+import { FlagBadge } from '@/components/shared/flag-badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field } from '@/components/ui/field';

@@ -5,7 +5,8 @@ import type { TFunction } from 'i18next';
 import { EllipsisIcon, EyeIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CardActions, useInCards } from '@/components/card-actions';
+import { ListError } from '@/components/app-shell/list-error';
+import { Block } from '@/components/app-shell/skeleton-block';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -15,9 +16,8 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { ListError } from '@/components/list-error';
-import { Block } from '@/components/skeleton-block';
-import { TableCards, TableCardsSkeleton } from '@/components/table-cards';
+import { CardActions, useInCards } from '@/components/display/card-actions';
+import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,

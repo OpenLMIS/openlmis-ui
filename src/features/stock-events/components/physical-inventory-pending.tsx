@@ -8,12 +8,12 @@ import { DataTableFilters } from '@/components/data-table/data-table-filters-pop
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { useColumnVisibility } from '@/components/data-table/responsive-columns';
-import { DraftStatusSkeleton } from '@/components/draft-status';
-import { QuantityUnitToggle } from '@/components/quantity-unit-toggle';
+import { DraftStatusSkeleton } from '@/components/display/draft-status';
+import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { WorkspaceFooterPortal } from '@/components/workspace-tabs';
+import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
 import {
   eligibleInventoryProductsOptions,
   inventoryStockLinesOptions,

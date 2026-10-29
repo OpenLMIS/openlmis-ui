@@ -1,12 +1,12 @@
 import { ArrowDownToLineIcon, ArrowUpFromLineIcon, Trash2Icon } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DataTableSelectionBar,
   SelectionBarLabel,
 } from '@/components/data-table/data-table-selection';
-import { ListError } from '@/components/list-error';
-import { QueryBoundary } from '@/components/query-boundary';
 import { Button } from '@/components/ui/button';
 import {
   AssignmentsTable,
@@ -38,7 +38,7 @@ import {
   WorkspaceHeading,
   WorkspaceIcon,
   WorkspaceTitle,
-} from '@/components/workspace';
+} from '@/components/workspace/workspace';
 import { useCardView } from '@/hooks/use-card-view';
 import type { SearchChange } from '@/lib/table-search';
 

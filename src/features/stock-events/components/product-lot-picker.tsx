@@ -9,11 +9,15 @@ import type { ParseKeys, TFunction } from 'i18next';
 import { PackageIcon, PlusIcon } from 'lucide-react';
 import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ErrorAlert, RetryButton } from '@/components/dialog-parts';
+import { ErrorAlert, RetryButton } from '@/components/display/dialog-parts';
 import { formatDateValue, toDateValue } from '@/components/form/date-value';
 import { DatePicker, FieldLabelText } from '@/components/form/form-fields';
-import { PickerAdd, PickerAddButton, PickerAddField, PickerAddIcon } from '@/components/picker-add';
-import { ScanStatus } from '@/components/scan-status';
+import {
+  PickerAdd,
+  PickerAddButton,
+  PickerAddField,
+  PickerAddIcon,
+} from '@/components/pickers/picker-add';
 import { Button } from '@/components/ui/button';
 import {
   Combobox,
@@ -47,6 +51,7 @@ import {
   receiveStockOnHandOptions,
 } from '@/features/stock-events/api/queries';
 import { NewLotDialog } from '@/features/stock-events/components/new-lot-dialog';
+import { ScanStatus } from '@/features/stock-events/components/scan-status';
 import type { EventLine, EventLineCandidate } from '@/features/stock-events/lib/event-form';
 import { type ConfiguredEventKind, EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import type { HomeStockScope } from '@/features/stock-events/lib/home-stock-bundle';

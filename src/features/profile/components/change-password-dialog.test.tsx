@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useDeviceWork } from '@/components/device-work';
+import { useDeviceWork } from '@/components/app-shell/device-work';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { changePassword } from '@/features/profile/api/api';
 import { ChangePasswordDialog } from '@/features/profile/components/change-password-dialog';
@@ -15,7 +15,7 @@ beforeEach(() =>
     .setLoginData({ referenceDataUserId: 'u1', username: 'ada', accessToken: 'token' }),
 );
 
-vi.mock('@/components/device-work', () => ({
+vi.mock('@/components/app-shell/device-work', () => ({
   useDeviceWork: vi.fn(() => ({ countUnsyncedWork: async () => 0 })),
 }));
 

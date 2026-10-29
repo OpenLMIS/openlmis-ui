@@ -1,7 +1,7 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DiscardChangesDialog } from '@/components/discard-changes-dialog';
+import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { SettingsList } from '@/components/form/settings-list';
 import { saveBranding } from '@/features/system-settings/api/api';

@@ -3,7 +3,12 @@ import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, RetryButton, SkeletonLine, serverMessage } from '@/components/dialog-parts';
+import {
+  ErrorAlert,
+  RetryButton,
+  SkeletonLine,
+  serverMessage,
+} from '@/components/display/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,

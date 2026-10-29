@@ -27,8 +27,8 @@ import { client } from '@/integrations/axios';
 import { getLocalDb } from '@/integrations/local-db';
 import { openReport } from '@/lib/open-report';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view_.$requisitionId';
-import { expectRouteWarning } from '@/tests/expect-route-warning';
-import { httpError } from '@/tests/http-error';
+import { expectRouteWarning } from '@/test-utils/expect-route-warning';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/lib/open-report', () => ({
   openReport: vi.fn(() => ({ deliver: vi.fn(), close: vi.fn() })),

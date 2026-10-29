@@ -6,8 +6,8 @@ import { toast } from 'sonner';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetPassword } from '@/features/auth/api/api';
 import { ResetPasswordForm } from '@/features/auth/components/reset-password-form';
-import { httpError } from '@/tests/http-error';
-import { renderPage } from '@/tests/render-page';
+import { httpError } from '@/test-utils/http-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/auth/api/api', () => ({ resetPassword: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));

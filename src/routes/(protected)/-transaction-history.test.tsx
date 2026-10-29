@@ -29,7 +29,7 @@ import { fetchStockEvents } from '@/features/stock-events/api/api';
 import type { StockEventSummary } from '@/features/stock-events/lib/types';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { Route } from '@/routes/(protected)/_protected.stock-management.transaction-history';
-import { httpError, networkError } from '@/tests/http-error';
+import { httpError, networkError } from '@/test-utils/http-error';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
