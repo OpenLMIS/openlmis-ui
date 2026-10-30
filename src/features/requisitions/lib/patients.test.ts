@@ -141,7 +141,7 @@ it('validates enabled unskipped months and guards both counts and computed total
   );
 });
 it('keeps malformed data unreadable instead of silently replacing it', () => {
-  expect(parsePatients('{broken')).toMatchObject({ unreadable: true, original: '{broken' });
+  expect(parsePatients('{broken')).toMatchObject({ unreadable: true });
   expect(validatePatients(parsePatients('{broken'), true)).toHaveProperty('patients');
 });
 

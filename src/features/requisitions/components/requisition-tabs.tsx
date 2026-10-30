@@ -258,7 +258,7 @@ function RequisitionTabsView({
           <TabsContent key={value} value={value}>
             {value === 'patients' ? (
               <PatientsGrid
-                patientsData={record.patientsData}
+                patients={basePatients}
                 editor={editing?.patientsEditable ? editor : undefined}
                 pending={editing?.pending}
               />

@@ -1,4 +1,4 @@
-import type { ParseKeys } from 'i18next';
+import type { ParseKeys, TFunction } from 'i18next';
 import { MAX_WHOLE_NUMBER, toLatinDigits, wholeNumberText } from '@/lib/whole-number';
 
 export const PATIENT_QUANTITY_COLUMNS = [
@@ -7,6 +7,22 @@ export const PATIENT_QUANTITY_COLUMNS = [
   'quantityToIssue',
   'convertedQuantityToIssue',
 ] as const;
+
+export const PATIENT_ROW_KEYS = {
+  numberOfAdultPatients: 'requisitions.patients.adult-patients',
+  numberOfChildren: 'requisitions.patients.children',
+  numberOfRetreatmentPatients: 'requisitions.patients.retreatment-patients',
+  numberOfAdultsOnIPT: 'requisitions.patients.adults-ipt',
+  numberOfChildrenOnIPT: 'requisitions.patients.children-ipt',
+  numberOfAdultOnMBRegimen: 'requisitions.patients.adults-mb',
+  numberOfAdultOnPBRegimen: 'requisitions.patients.adults-pb',
+  numberOfChildrenOnMBRegimen: 'requisitions.patients.children-mb',
+  numberOfChildrenOnPBRegimen: 'requisitions.patients.children-pb',
+} as const;
+
+export function patientRowLabel(t: TFunction, key: string): string {
+  return key in PATIENT_ROW_KEYS ? t(PATIENT_ROW_KEYS[key as keyof typeof PATIENT_ROW_KEYS]) : key;
+}
 
 export type PatientMonth = { value?: number | string | null; disabled: boolean };
 export type PatientDisease = 'TBData' | 'leprosyData';
@@ -21,7 +37,6 @@ export type PatientsData = {
   TBData: PatientRow[][];
   leprosyData: PatientRow[][];
   unreadable?: boolean;
-  original?: string;
 };
 
 const tbKeys = [
@@ -70,7 +85,7 @@ export function parsePatients(json: string | null | undefined): PatientsData {
       }
       return data;
     } catch {
-      return { TBData: [[]], leprosyData: [[]], unreadable: true, original: json };
+      return { TBData: [[]], leprosyData: [[]], unreadable: true };
     }
   }
   const rows = (keys: string[], leprosy = false) =>
@@ -134,10 +149,8 @@ export function validatePatients(
       row.data.forEach((month, index) => {
         if (month.disabled && (month.value == null || month.value === '')) return;
         const value = String(month.value ?? '');
-        const checked = patientNumber.safeParse(value);
-        if (!checked.success)
-          errors[patientFieldId(disease, row.key, index)] = checked.error.issues[0]
-            .message as ParseKeys;
+        const error = patientCountError(value);
+        if (error) errors[patientFieldId(disease, row.key, index)] = error;
         else if (
           !month.disabled &&
           !row.isSkipped &&

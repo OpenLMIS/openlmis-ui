@@ -436,14 +436,14 @@ function RequisitionBody({
       setValidation({ allSkipped: false, patient: Object.keys(patientErrors)[0] });
       throw new PatientsPayloadError();
     }
+    const models = new Map(
+      buildLines(sent, products, approved).map((model) => [model.line.id, model]),
+    );
     if (
       policy.patientsEditable &&
       !patients.unreadable &&
       sent.template.columnsMap.numberOfPatientsOnTreatmentNextMonth?.source === 'CALCULATED'
     ) {
-      const models = new Map(
-        buildLines(sent, products, approved).map((model) => [model.line.id, model]),
-      );
       sent.requisitionLineItems = sent.requisitionLineItems.map((line) => ({
         ...line,
         numberOfPatientsOnTreatmentNextMonth: patientsForProduct(
@@ -460,9 +460,7 @@ function RequisitionBody({
         ),
       );
       if (invalid) {
-        const model = buildLines(sent, products, approved).find(
-          (model) => model.line.id === invalid.id,
-        );
+        const model = models.get(invalid.id);
         setValidation({
           allSkipped: false,
           target: {

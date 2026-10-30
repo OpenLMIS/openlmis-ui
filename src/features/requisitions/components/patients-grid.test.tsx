@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { PatientsGrid } from '@/features/requisitions/components/patients-grid';
 import { useRequisitionForm } from '@/features/requisitions/hooks/use-requisition-form';
 import { record } from '@/features/requisitions/lib/fixtures/builders';
+import { parsePatients } from '@/features/requisitions/lib/patients';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 
 afterEach(() => {
@@ -35,13 +36,13 @@ it('uses the current record and shows only its enabled months in cards', () => {
       ],
       leprosyData: [[]],
     });
-  const { rerender } = render(<PatientsGrid patientsData={data(123, true)} />);
+  const { rerender } = render(<PatientsGrid patients={parsePatients(data(123, true))} />);
   const card = screen.getByText('123').closest('li');
   expect(card).not.toBeNull();
   expect(within(card as HTMLElement).queryByText('998')).not.toBeInTheDocument();
   expect(within(card as HTMLElement).queryByText('2')).not.toBeInTheDocument();
   expect(within(card as HTMLElement).getByText('requisitions.yes')).toBeInTheDocument();
-  rerender(<PatientsGrid patientsData={data(456, false)} />);
+  rerender(<PatientsGrid patients={parsePatients(data(456, false))} />);
   expect(screen.queryByText('123')).not.toBeInTheDocument();
   expect(screen.getByText('456')).toBeInTheDocument();
   expect(screen.getByText('requisitions.no')).toBeInTheDocument();
@@ -57,7 +58,7 @@ it('enforces Skip and live required errors in the editable layout at phone width
   } as RequisitionRecord;
   function Editor() {
     const editor = useRequisitionForm(base);
-    return <PatientsGrid editor={editor} />;
+    return <PatientsGrid patients={parsePatients(null)} editor={editor} />;
   }
   render(<Editor />);
   const inputs = await screen.findAllByRole('textbox', {

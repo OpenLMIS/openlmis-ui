@@ -22,34 +22,30 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  PATIENT_ROW_KEYS,
-  PatientEditRow,
-} from '@/features/requisitions/components/patients-edit-cards';
+import { PatientEditRow } from '@/features/requisitions/components/patients-edit-cards';
 import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 import {
   applyPatientChanges,
   PATIENT_MONTHS,
   type PatientRow,
-  parsePatients,
+  type PatientsData,
   patientFieldId,
+  patientRowLabel,
   validatePatients,
 } from '@/features/requisitions/lib/patients';
 import { useCardLayout } from '@/hooks/use-card-view';
 
 type Row = { id: string; heading?: string; patient?: PatientRow };
 const helper = createColumnHelper<DataTableFeatures, Row>();
-const rowKeys = PATIENT_ROW_KEYS;
 export const PatientsGrid = memo(function PatientsGrid({
-  patientsData,
+  patients,
   editor,
   pending,
 }: {
-  patientsData?: string | null;
+  patients: PatientsData;
   editor?: RequisitionEditor;
   pending?: boolean;
 }) {
-  const patients = useMemo(() => parsePatients(patientsData), [patientsData]);
   const { t } = useTranslation();
   if (patients.unreadable)
     return (
@@ -68,7 +64,7 @@ function PatientsEditor({
   editor,
   pending,
 }: {
-  patients: ReturnType<typeof parsePatients>;
+  patients: PatientsData;
   editor: RequisitionEditor;
   pending?: boolean;
 }) {
@@ -80,43 +76,46 @@ function PatientsEditor({
     () => validatePatients(applyPatientChanges(patients, changes)),
     [patients, changes],
   );
-  const groups = (['TBData', 'leprosyData'] as const).map((disease) => (
-    <Fragment key={disease}>
-      {cards ? (
-        <li>
-          <h3 className="font-semibold">
-            {t(disease === 'TBData' ? 'requisitions.patients.tb' : 'requisitions.patients.leprosy')}
-          </h3>
-        </li>
-      ) : (
-        <TableRow surface="primary">
-          <TableCell colSpan={14}>
-            <div className="sticky start-1.5 w-fit ps-6">
-              {t(
-                disease === 'TBData' ? 'requisitions.patients.tb' : 'requisitions.patients.leprosy',
-              )}
-            </div>
-          </TableCell>
-        </TableRow>
-      )}
-      {patients[disease][0].map((row) => (
-        <PatientEditRow
-          key={row.key}
-          disease={disease}
-          base={row}
-          editor={editor}
-          cards={cards}
-          pending={pending}
-          skipWidth={skipWidth}
-          overflowMonths={PATIENT_MONTHS.filter(
-            (month) =>
-              payloadErrors[patientFieldId(disease, row.key, month)] ===
-              'stock-events.number-too-large',
-          ).join(',')}
-        />
-      ))}
-    </Fragment>
-  ));
+  const groups = (['TBData', 'leprosyData'] as const).map((disease) => {
+    const heading = t(
+      disease === 'TBData' ? 'requisitions.patients.tb' : 'requisitions.patients.leprosy',
+    );
+    return (
+      <Fragment key={disease}>
+        {cards ? (
+          <li>
+            <h2 className="px-1 pt-2 font-semibold text-base">
+              <bdi>{heading}</bdi>
+            </h2>
+          </li>
+        ) : (
+          <TableRow surface="primary">
+            <TableCell colSpan={14}>
+              <div className="sticky start-1.5 w-fit ps-6">
+                <bdi>{heading}</bdi>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+        {patients[disease][0].map((row) => (
+          <PatientEditRow
+            key={row.key}
+            disease={disease}
+            base={row}
+            editor={editor}
+            cards={cards}
+            pending={pending}
+            skipWidth={skipWidth}
+            overflowMonths={PATIENT_MONTHS.filter(
+              (month) =>
+                payloadErrors[patientFieldId(disease, row.key, month)] ===
+                'stock-events.number-too-large',
+            ).join(',')}
+          />
+        ))}
+      </Fragment>
+    );
+  });
   return (
     <div ref={measure}>
       {cards ? (
@@ -154,7 +153,7 @@ function PatientsEditor({
     </div>
   );
 }
-function useSkipWidth(cards: boolean) {
+export function useSkipWidth(cards: boolean) {
   const skipRef = useRef<HTMLTableCellElement>(null);
   const [skipWidth, setSkipWidth] = useState(0);
   useLayoutEffect(() => {
@@ -169,7 +168,7 @@ function useSkipWidth(cards: boolean) {
   }, [cards]);
   return { skipRef, skipWidth };
 }
-function PatientsReadOnly({ patients }: { patients: ReturnType<typeof parsePatients> }) {
+function PatientsReadOnly({ patients }: { patients: PatientsData }) {
   const { t, i18n } = useTranslation();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   const { skipRef, skipWidth } = useSkipWidth(cards);
@@ -189,8 +188,7 @@ function PatientsReadOnly({ patients }: { patients: ReturnType<typeof parsePatie
     [patients, t],
   );
   const columns = useMemo(() => {
-    const label = (row: PatientRow) =>
-      row.key in rowKeys ? t(rowKeys[row.key as keyof typeof rowKeys]) : row.key;
+    const label = (row: PatientRow) => patientRowLabel(t, row.key);
     const flag = (row: PatientRow) => (
       <FlagBadge
         value={row.isSkipped}
@@ -232,7 +230,7 @@ function PatientsReadOnly({ patients }: { patients: ReturnType<typeof parsePatie
         helper.display({
           id: `month${index}`,
           header: month(index),
-          meta: { label: month(index) },
+          meta: { label: t('requisitions.patients.month', { month: month(index) }) },
           cell: ({ row }) => {
             const value = row.original.patient?.data[index];
             if (!value || value.disabled) return cards ? false : null;

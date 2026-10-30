@@ -14,20 +14,9 @@ import {
   type PatientRow,
   patientFieldId,
   patientRowHasValues,
+  patientRowLabel,
   validatePatients,
 } from '@/features/requisitions/lib/patients';
-
-export const PATIENT_ROW_KEYS = {
-  numberOfAdultPatients: 'requisitions.patients.adult-patients',
-  numberOfChildren: 'requisitions.patients.children',
-  numberOfRetreatmentPatients: 'requisitions.patients.retreatment-patients',
-  numberOfAdultsOnIPT: 'requisitions.patients.adults-ipt',
-  numberOfChildrenOnIPT: 'requisitions.patients.children-ipt',
-  numberOfAdultOnMBRegimen: 'requisitions.patients.adults-mb',
-  numberOfAdultOnPBRegimen: 'requisitions.patients.adults-pb',
-  numberOfChildrenOnMBRegimen: 'requisitions.patients.children-mb',
-  numberOfChildrenOnPBRegimen: 'requisitions.patients.children-pb',
-} as const;
 
 export const PatientEditRow = memo(function PatientEditRow({
   editor,
@@ -66,17 +55,16 @@ export const PatientEditRow = memo(function PatientEditRow({
   if (overflowMonths)
     for (const month of overflowMonths.split(','))
       errors[patientFieldId(disease, row.key, Number(month))] = 'stock-events.number-too-large';
-  const label =
-    row.key in PATIENT_ROW_KEYS
-      ? t(PATIENT_ROW_KEYS[row.key as keyof typeof PATIENT_ROW_KEYS])
-      : row.key;
+  const label = patientRowLabel(t, row.key);
   const skip = (
-    <Checkbox
-      checked={row.isSkipped}
-      disabled={pending || (!row.isSkipped && patientRowHasValues(row))}
-      aria-label={`${t('requisitions.patients.skip')}: ${label}`}
-      onCheckedChange={(skipped) => editor.setPatientSkip(disease, row.key, skipped)}
-    />
+    <div className="flex size-7 items-center justify-center rounded-md bg-background">
+      <Checkbox
+        checked={row.isSkipped}
+        disabled={pending || (!row.isSkipped && patientRowHasValues(row))}
+        aria-label={`${t('requisitions.patients.skip')}: ${label}`}
+        onCheckedChange={(skipped) => editor.setPatientSkip(disease, row.key, skipped)}
+      />
+    </div>
   );
   const cell = (index: number) => (
     <PatientEditCell
@@ -102,7 +90,9 @@ export const PatientEditRow = memo(function PatientEditRow({
           {PATIENT_MONTHS.filter((index) => !row.data[index].disabled).map((index) => (
             <CardControlRow
               key={index}
-              label={new Intl.NumberFormat(i18n.language).format(index + 1)}
+              label={t('requisitions.patients.month', {
+                month: new Intl.NumberFormat(i18n.language).format(index + 1),
+              })}
             >
               {cell(index)}
             </CardControlRow>

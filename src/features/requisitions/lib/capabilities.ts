@@ -54,15 +54,16 @@ export function requisitionCapabilities(context: CapabilityContext) {
   if (canDelete) allowed.push('delete');
   if (creator && !emergency && program.periodsSkippable) allowed.push('skip');
   allowed.push('print');
-  const editable = canEdit;
   const approvalColumn = template.patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity';
-  const approvalColumns = template.patientsTabEnabled
-    ? [approvalColumn, 'numberOfPatientsOnTreatmentNextMonth', 'remarks']
-    : [approvalColumn, 'remarks'];
+  const approvalColumns = [
+    approvalColumn,
+    ...(template.patientsTabEnabled ? ['numberOfPatientsOnTreatmentNextMonth'] : []),
+    'remarks',
+  ];
   return {
-    editable,
+    editable: canEdit,
     patientsEditable: !!template.patientsTabEnabled && (creator || authorizer),
-    editableColumns: editable
+    editableColumns: canEdit
       ? approver
         ? approvalColumns
         : Object.values(template.columnsMap)
@@ -86,12 +87,12 @@ export function requisitionCapabilities(context: CapabilityContext) {
       canEdit ||
       ((status === 'INITIATED' || status === 'REJECTED') && has(RIGHTS.requisitionAuthorize)),
     addFullSupplyProduct:
-      editable &&
+      canEdit &&
       (creator || authorizer) &&
       (emergency || (hasSkip && skipColumn.option?.optionName === 'hideSkippedLineItems')),
-    addNonFullSupplyProduct: editable && (creator || authorizer) && !!program.showNonFullSupplyTab,
+    addNonFullSupplyProduct: canEdit && (creator || authorizer) && !!program.showNonFullSupplyTab,
     skipLines:
-      editable &&
+      canEdit &&
       !emergency &&
       hasSkip &&
       (creator || authorizer || (approver && !!context.unskipWhenApproving)),
