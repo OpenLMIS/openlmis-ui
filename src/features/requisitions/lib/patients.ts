@@ -1,4 +1,5 @@
 import type { ParseKeys, TFunction } from 'i18next';
+import { TB_MONTHLY_FORMULAS } from '@/features/requisitions/lib/tb-monthly-formulas';
 import { MAX_WHOLE_NUMBER, toLatinDigits, wholeNumberText } from '@/lib/whole-number';
 
 export const PATIENT_QUANTITY_COLUMNS = [
@@ -103,24 +104,7 @@ export function parsePatients(json: string | null | undefined): PatientsData {
 
 export const PATIENT_MONTHS = Array.from({ length: 12 }, (_, month) => month);
 export const PATIENT_DISEASES = ['TBData', 'leprosyData'] as const;
-const patientFormulae: Record<string, readonly (readonly [string, number, number])[]> = {
-  '10010510AE': [['numberOfAdultPatients', 0, 2]],
-  '10010508AE': [['numberOfChildren', 2, 6]],
-  '10010110AE': [
-    ['numberOfAdultOnMBRegimen', 0, 6],
-    ['numberOfAdultOnPBRegimen', 0, 12],
-  ],
-  '10010515AE': [['numberOfChildrenOnIPT', 0, 2]],
-  '10010233AE': [['numberOfChildrenOnIPT', 0, 2]],
-  '10010514AE': [['numberOfChildrenOnIPT', 2, 6]],
-  '10010113AE': [
-    ['numberOfChildrenOnMBRegimen', 0, 6],
-    ['numberOfChildrenOnPBRegimen', 0, 12],
-  ],
-  '10010114AE': [['numberOfChildrenOnIPT', 0, 6]],
-  '10010315AE': [['numberOfAdultsOnIPT', 0, 6]],
-};
-export const PATIENT_CODES = Object.keys(patientFormulae);
+export const PATIENT_CODES = Object.keys(TB_MONTHLY_FORMULAS);
 export const patientFieldId = (disease: PatientDisease, key: string, month: number) =>
   `patients:${disease}:${key}:${month}`;
 export const patientRowHasValues = (row: PatientRow) =>
@@ -164,9 +148,9 @@ export function validatePatients(
     if (patientsForProduct(data, code) <= MAX_WHOLE_NUMBER) continue;
     for (const disease of PATIENT_DISEASES)
       for (const row of data[disease][0]) {
-        for (const [key, start, end] of patientFormulae[code]) {
+        for (const { row: key, months } of TB_MONTHLY_FORMULAS[code]) {
           if (row.key !== key) continue;
-          for (let month = start; month < end; month++) {
+          for (let month = months[0] - 1; month < months[1]; month++) {
             if (Number(row.data[month]?.value) > 0)
               errors[patientFieldId(disease, key, month)] = 'stock-events.number-too-large';
           }
@@ -277,12 +261,12 @@ export function rebasePatientChanges(
 
 export function patientsForProduct(data: PatientsData, code: string): number {
   const rows = [...(data.TBData[0] ?? []), ...(data.leprosyData[0] ?? [])];
-  return (patientFormulae[code] ?? []).reduce(
-    (total, [key, start, end]) =>
+  return (TB_MONTHLY_FORMULAS[code] ?? []).reduce(
+    (total, { row: key, months: [first, last] }) =>
       total +
       (rows
         .find((row) => row.key === key)
-        ?.data.slice(start, end)
+        ?.data.slice(first - 1, last)
         .reduce((sum, month) => sum + (Number.parseInt(String(month.value), 10) || 0), 0) ?? 0),
     0,
   );
