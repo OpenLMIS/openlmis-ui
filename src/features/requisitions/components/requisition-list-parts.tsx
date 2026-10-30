@@ -20,7 +20,7 @@ import type { RequisitionSearch } from '@/features/requisitions/lib/search-facil
 import type { ApprovalListRow, RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { tableValue } from '@/lib/empty-value';
 
-type ListRecord = ApprovalListRow | RequisitionSearchResult;
+type ListRecord = ApprovalListRow | RequisitionSearchResult | Omit<ApprovalListRow, 'status'>;
 export const REQUISITION_LIST_COLUMNS = [
   ['program', 'requisitions.columns.program'],
   ['facility', 'requisitions.columns.facility'],
@@ -162,6 +162,7 @@ export function RequisitionListTable<TData extends RowData>({
   empty,
   footer,
   listRef,
+  isRowInvalid,
 }: {
   cards: boolean;
   table: DataTableInstance<TData>;
@@ -169,9 +170,11 @@ export function RequisitionListTable<TData extends RowData>({
   empty: ReactNode;
   footer: ReactNode;
   listRef: Ref<HTMLUListElement>;
+  isRowInvalid?: (row: TData) => boolean;
 }) {
   return cards ? (
     <TableCards
+      tone={(row) => (isRowInvalid?.(row) ? 'invalid' : undefined)}
       busy={stale}
       empty={empty}
       footer={footer}
@@ -181,6 +184,7 @@ export function RequisitionListTable<TData extends RowData>({
     />
   ) : (
     <DataTable
+      isRowInvalid={isRowInvalid}
       density="default"
       empty={empty}
       footer={footer}
@@ -195,13 +199,15 @@ export function RequisitionListSkeleton<TData extends RowData>({
   cards,
   rowCount,
   table,
+  actions = 1,
 }: {
   cards: boolean;
   rowCount: number;
+  actions?: number;
   table: DataTableInstance<TData>;
 }) {
   return cards ? (
-    <TableCardsSkeleton actions={1} rowCount={rowCount} table={table} title="program" />
+    <TableCardsSkeleton actions={actions} rowCount={rowCount} table={table} title="program" />
   ) : (
     <DataTableSkeleton density="default" layout="auto" rowCount={rowCount} table={table} />
   );
