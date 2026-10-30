@@ -1731,7 +1731,7 @@
   "requisitions.patients.retreatment-patients": "Número De Pacientes Em Retratamento",
   "requisitions.patients.skip": "Ignorar",
   "requisitions.patients.tb": "Tuberculose",
-  "requisitions.patients.unreadable": "Não foi possível ler os dados dos pacientes. Abra esta requisição na interface antiga para os corrigir antes de a submeter ou autorizar.",
+  "requisitions.patients.unreadable": "Não foi possível ler os dados de pacientes desta requisição. Eles podem ser corrigidos na interface anterior.",
   "requisitions.reject.add": "Adicionar Motivo",
   "requisitions.reject.category": "Categoria",
   "requisitions.reject.description": "Escolha pelo menos um motivo antes de rejeitar esta requisição.",

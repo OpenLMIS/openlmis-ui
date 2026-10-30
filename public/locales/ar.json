@@ -1731,7 +1731,7 @@
   "requisitions.patients.retreatment-patients": "عدد مرضى إعادة العلاج",
   "requisitions.patients.skip": "تجاوز",
   "requisitions.patients.tb": "السل",
-  "requisitions.patients.unreadable": "تعذرت قراءة بيانات المرضى. افتح هذا الطلب في الواجهة القديمة لتصحيحها قبل الإرسال أو الاعتماد.",
+  "requisitions.patients.unreadable": "تعذرت قراءة بيانات المرضى لهذا الطلب. يمكن تصحيحها في الواجهة القديمة.",
   "requisitions.reject.add": "إضافة سبب",
   "requisitions.reject.category": "الفئة",
   "requisitions.reject.description": "اختر سبباً واحداً على الأقل قبل رفض هذا الطلب.",

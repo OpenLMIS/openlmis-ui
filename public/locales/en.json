@@ -1731,7 +1731,7 @@
   "requisitions.patients.retreatment-patients": "Number Of Retreatment Patients",
   "requisitions.patients.skip": "Skip",
   "requisitions.patients.tb": "TB",
-  "requisitions.patients.unreadable": "Patient data could not be read. Open this requisition in the legacy UI to correct it before submitting or authorizing.",
+  "requisitions.patients.unreadable": "Patient data for this requisition could not be read. It can be corrected in the legacy UI.",
   "requisitions.reject.add": "Add Reason",
   "requisitions.reject.category": "Category",
   "requisitions.reject.description": "Choose at least one reason before rejecting this requisition.",

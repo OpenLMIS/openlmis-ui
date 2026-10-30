@@ -1731,7 +1731,7 @@
   "requisitions.patients.retreatment-patients": "Nombre De Patients En Retraitement",
   "requisitions.patients.skip": "Ignorer",
   "requisitions.patients.tb": "Tuberculose",
-  "requisitions.patients.unreadable": "Les données des patients n’ont pas pu être lues. Ouvrez cette réquisition dans l’ancienne interface pour les corriger avant de la soumettre ou de l’autoriser.",
+  "requisitions.patients.unreadable": "Les données des patients de cette réquisition n’ont pas pu être lues. Elles peuvent être corrigées dans l’ancienne interface.",
   "requisitions.reject.add": "Ajouter un Motif",
   "requisitions.reject.category": "Catégorie",
   "requisitions.reject.description": "Choisissez au moins un motif avant de rejeter cette réquisition.",

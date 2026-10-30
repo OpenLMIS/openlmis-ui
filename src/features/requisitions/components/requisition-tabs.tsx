@@ -94,8 +94,8 @@ function RequisitionTabsView({
     () => (draft ? applyRequisitionDraft(record, draft, basePatients) : record),
     [record, draft, basePatients],
   );
-  const patientErrors = record.template.patientsTabEnabled
-    ? validatePatients(patientData, !editing?.approver && showAllErrors, true)
+  const patientErrors = editing?.patientsEditable
+    ? validatePatients(patientData, showAllErrors, true)
     : {};
   const cacheContext = useRef({
     record,

@@ -431,7 +431,7 @@ function RequisitionBody({
       latest.current.editor.draft.patients,
     );
     const patientErrors =
-      sent.template.patientsTabEnabled && !patients.unreadable ? validatePatients(patients) : {};
+      policy.patientsEditable && !patients.unreadable ? validatePatients(patients) : {};
     if (Object.keys(patientErrors).length) {
       setValidation({ allSkipped: false, patient: Object.keys(patientErrors)[0] });
       throw new PatientsPayloadError();
