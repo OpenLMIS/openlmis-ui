@@ -1,5 +1,6 @@
+import { useStore } from '@tanstack/react-form';
 import { createColumnHelper, FlexRender, useTable } from '@tanstack/react-table';
-import { useMemo } from 'react';
+import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTableCard,
@@ -8,8 +9,10 @@ import {
   DataTableHeaderLabel,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
+import { CardList } from '@/components/display/card-list';
 import { TableCards } from '@/components/display/table-cards';
 import { FlagBadge } from '@/components/shared/flag-badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
@@ -19,26 +22,156 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { type PatientRow, parsePatients } from '@/features/requisitions/lib/patients';
+import { PatientEditRow } from '@/features/requisitions/components/patients-edit-cards';
+import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
+import {
+  applyPatientChanges,
+  PATIENT_MONTHS,
+  type PatientRow,
+  type PatientsData,
+  patientFieldId,
+  patientRowLabel,
+  validatePatients,
+} from '@/features/requisitions/lib/patients';
 import { useCardLayout } from '@/hooks/use-card-view';
 
 type Row = { id: string; heading?: string; patient?: PatientRow };
 const helper = createColumnHelper<DataTableFeatures, Row>();
-const rowKeys = {
-  numberOfAdultPatients: 'requisitions.patients.adult-patients',
-  numberOfChildren: 'requisitions.patients.children',
-  numberOfRetreatmentPatients: 'requisitions.patients.retreatment-patients',
-  numberOfAdultsOnIPT: 'requisitions.patients.adults-ipt',
-  numberOfChildrenOnIPT: 'requisitions.patients.children-ipt',
-  numberOfAdultOnMBRegimen: 'requisitions.patients.adults-mb',
-  numberOfAdultOnPBRegimen: 'requisitions.patients.adults-pb',
-  numberOfChildrenOnMBRegimen: 'requisitions.patients.children-mb',
-  numberOfChildrenOnPBRegimen: 'requisitions.patients.children-pb',
-} as const;
-export function PatientsGrid({ patientsData }: { patientsData?: string | null }) {
+export const PatientsGrid = memo(function PatientsGrid({
+  patients,
+  editor,
+  pending,
+}: {
+  patients: PatientsData;
+  editor?: RequisitionEditor;
+  pending?: boolean;
+}) {
+  const { t } = useTranslation();
+  if (patients.unreadable)
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{t('requisitions.patients.unreadable')}</AlertDescription>
+      </Alert>
+    );
+  return editor ? (
+    <PatientsEditor patients={patients} editor={editor} pending={pending} />
+  ) : (
+    <PatientsReadOnly patients={patients} />
+  );
+});
+function PatientsEditor({
+  patients,
+  editor,
+  pending,
+}: {
+  patients: PatientsData;
+  editor: RequisitionEditor;
+  pending?: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
-  const patients = useMemo(() => parsePatients(patientsData), [patientsData]);
+  const { skipRef, skipWidth } = useSkipWidth(cards);
+  const changes = useStore(editor.form.store, (state) => state.values.draft.patients);
+  const payloadErrors = useMemo(
+    () => validatePatients(applyPatientChanges(patients, changes)),
+    [patients, changes],
+  );
+  const groups = (['TBData', 'leprosyData'] as const).map((disease) => {
+    const heading = t(
+      disease === 'TBData' ? 'requisitions.patients.tb' : 'requisitions.patients.leprosy',
+    );
+    return (
+      <Fragment key={disease}>
+        {cards ? (
+          <li>
+            <h2 className="px-1 pt-2 font-semibold text-base">
+              <bdi>{heading}</bdi>
+            </h2>
+          </li>
+        ) : (
+          <TableRow surface="primary">
+            <TableCell colSpan={14}>
+              <div className="sticky start-1.5 w-fit ps-6">
+                <bdi>{heading}</bdi>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+        {patients[disease][0].map((row) => (
+          <PatientEditRow
+            key={row.key}
+            disease={disease}
+            base={row}
+            editor={editor}
+            cards={cards}
+            pending={pending}
+            skipWidth={skipWidth}
+            overflowMonths={PATIENT_MONTHS.filter(
+              (month) =>
+                payloadErrors[patientFieldId(disease, row.key, month)] ===
+                'stock-events.number-too-large',
+            ).join(',')}
+          />
+        ))}
+      </Fragment>
+    );
+  });
+  return (
+    <div ref={measure}>
+      {cards ? (
+        <CardList>{groups}</CardList>
+      ) : (
+        <DataTableCard>
+          <Table
+            density="compact"
+            layout="auto"
+            aria-label={t('requisitions.requisition.patients')}
+          >
+            <TableHeader surface="muted">
+              <TableRow pinned surface="muted">
+                <TableHead ref={skipRef} sticky>
+                  <DataTableHeaderLabel>{t('requisitions.patients.skip')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead sticky stickyOffset={skipWidth}>
+                  <DataTableHeaderLabel>
+                    {t('requisitions.patients.month-of-treatment')}
+                  </DataTableHeaderLabel>
+                </TableHead>
+                {PATIENT_MONTHS.map((index) => (
+                  <TableHead key={`month${index + 1}`}>
+                    <DataTableHeaderLabel>
+                      {new Intl.NumberFormat(i18n.language).format(index + 1)}
+                    </DataTableHeaderLabel>
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>{groups}</TableBody>
+          </Table>
+        </DataTableCard>
+      )}
+    </div>
+  );
+}
+export function useSkipWidth(cards: boolean) {
+  const skipRef = useRef<HTMLTableCellElement>(null);
+  const [skipWidth, setSkipWidth] = useState(0);
+  useLayoutEffect(() => {
+    if (cards) return;
+    const node = skipRef.current;
+    if (!node) return;
+    const update = () => setSkipWidth(node.getBoundingClientRect().width);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [cards]);
+  return { skipRef, skipWidth };
+}
+function PatientsReadOnly({ patients }: { patients: PatientsData }) {
+  const { t, i18n } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  const { skipRef, skipWidth } = useSkipWidth(cards);
   const data = useMemo(
     () =>
       [
@@ -55,8 +188,7 @@ export function PatientsGrid({ patientsData }: { patientsData?: string | null })
     [patients, t],
   );
   const columns = useMemo(() => {
-    const label = (row: PatientRow) =>
-      row.key in rowKeys ? t(rowKeys[row.key as keyof typeof rowKeys]) : row.key;
+    const label = (row: PatientRow) => patientRowLabel(t, row.key);
     const flag = (row: PatientRow) => (
       <FlagBadge
         value={row.isSkipped}
@@ -98,7 +230,7 @@ export function PatientsGrid({ patientsData }: { patientsData?: string | null })
         helper.display({
           id: `month${index}`,
           header: month(index),
-          meta: { label: month(index) },
+          meta: { label: t('requisitions.patients.month', { month: month(index) }) },
           cell: ({ row }) => {
             const value = row.original.patient?.data[index];
             if (!value || value.disabled) return cards ? false : null;
@@ -135,9 +267,14 @@ export function PatientsGrid({ patientsData }: { patientsData?: string | null })
             aria-label={t('requisitions.requisition.patients')}
           >
             <TableHeader surface="muted">
-              <TableRow>
+              <TableRow pinned surface="muted">
                 {columns.map((column) => (
-                  <TableHead key={column.id}>
+                  <TableHead
+                    key={column.id}
+                    ref={column.id === 'skip' ? skipRef : undefined}
+                    sticky={column.id === 'skip' || column.id === 'patient'}
+                    stickyOffset={column.id === 'patient' ? skipWidth : 0}
+                  >
                     <DataTableHeaderLabel>{column.header as string}</DataTableHeaderLabel>
                   </TableHead>
                 ))}
@@ -149,7 +286,7 @@ export function PatientsGrid({ patientsData }: { patientsData?: string | null })
                   row.original.heading !== undefined ? (
                     <TableRow key={row.id} surface="primary">
                       <TableCell colSpan={14}>
-                        <div className="ps-6">
+                        <div className="sticky start-1.5 w-fit ps-6">
                           <bdi>{row.original.heading}</bdi>
                         </div>
                       </TableCell>
@@ -157,10 +294,15 @@ export function PatientsGrid({ patientsData }: { patientsData?: string | null })
                   ) : (
                     <TableRow
                       key={row.id}
+                      pinned
                       tone={row.original.patient?.isSkipped ? 'skipped' : undefined}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
+                        <TableCell
+                          key={cell.id}
+                          sticky={cell.column.id === 'skip' || cell.column.id === 'patient'}
+                          stickyOffset={cell.column.id === 'patient' ? skipWidth : 0}
+                        >
                           <FlexRender cell={cell} />
                         </TableCell>
                       ))}

@@ -1,6 +1,11 @@
 import { PlusIcon } from 'lucide-react';
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableCard, DataTableFooter } from '@/components/data-table/data-table';
+import {
+  DataTableCard,
+  DataTableFooter,
+  DataTableHeaderLabel,
+} from '@/components/data-table/data-table';
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import {
   CardBand,
@@ -31,6 +36,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useSkipWidth } from '@/features/requisitions/components/patients-grid';
 import { DraftComment } from '@/features/requisitions/components/requisition-comment-field';
 import type { GridEditing } from '@/features/requisitions/components/requisition-grid';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
@@ -39,6 +45,12 @@ import { RequisitionTotalsSkeleton } from '@/features/requisitions/components/re
 import { SkipButtons } from '@/features/requisitions/components/skip-controls';
 import { canRemoveLine } from '@/features/requisitions/lib/draft';
 import {
+  PATIENT_DISEASES,
+  PATIENT_MONTHS,
+  parsePatients,
+  patientRowLabel,
+} from '@/features/requisitions/lib/patients';
+import {
   columnViewKey,
   defaultRequisitionTab,
   type GridColumn,
@@ -46,7 +58,7 @@ import {
   type RequisitionTab,
 } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
-import { useCardView } from '@/hooks/use-card-view';
+import { useCardLayout, useCardView } from '@/hooks/use-card-view';
 import type { QuantityUnit } from '@/lib/quantity';
 import { toPaginationState } from '@/lib/table-search';
 import { cn } from '@/lib/utils';
@@ -216,7 +228,11 @@ export function RequisitionTabsPending({
           ))}
         </TabsList>
         <TabsContent value={active}>
-          <RequisitionGridPending record={record} tab={active} {...grid} />
+          {active === 'patients' ? (
+            <PatientsGridPending />
+          ) : (
+            <RequisitionGridPending record={record} tab={active} {...grid} />
+          )}
         </TabsContent>
       </Tabs>
       <RequisitionTotalsSkeleton showNonFullSupply={showNonFullSupply} />
@@ -453,3 +469,116 @@ function RequisitionGridPending({
 }
 
 const noop = () => {};
+
+function PatientsGridPending() {
+  const { t, i18n } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  const patients = parsePatients(null);
+  const { skipRef, skipWidth } = useSkipWidth(cards);
+  const groups = PATIENT_DISEASES.map((disease) => {
+    const heading = t(
+      disease === 'TBData' ? 'requisitions.patients.tb' : 'requisitions.patients.leprosy',
+    );
+    return (
+      <Fragment key={disease}>
+        {cards ? (
+          <li>
+            <h2 className="px-1 pt-2 font-semibold text-base">
+              <bdi>{heading}</bdi>
+            </h2>
+          </li>
+        ) : (
+          <TableRow surface="primary">
+            <TableCell colSpan={14}>
+              <div className="sticky start-1.5 w-fit ps-6">
+                <bdi>{heading}</bdi>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+        {patients[disease][0].map((row) =>
+          cards ? (
+            <CardListItem key={row.key}>
+              <CardBand>
+                <bdi>{patientRowLabel(t, row.key)}</bdi>
+              </CardBand>
+              <CardRows>
+                <CardControlRow label={t('requisitions.patients.skip')}>
+                  <div className="size-7">
+                    <Skeleton fill />
+                  </div>
+                </CardControlRow>
+                {PATIENT_MONTHS.filter((month) => !row.data[month].disabled).map((month) => (
+                  <CardControlRow
+                    key={month}
+                    label={t('requisitions.patients.month', {
+                      month: new Intl.NumberFormat(i18n.language).format(month + 1),
+                    })}
+                  >
+                    <div className="h-8 w-full">
+                      <Skeleton fill />
+                    </div>
+                  </CardControlRow>
+                ))}
+              </CardRows>
+            </CardListItem>
+          ) : (
+            <TableRow key={row.key} pinned>
+              <TableCell sticky>
+                <div className="flex justify-center">
+                  <div className="size-7">
+                    <Skeleton fill />
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell sticky stickyOffset={skipWidth}>
+                <bdi>{patientRowLabel(t, row.key)}</bdi>
+              </TableCell>
+              {PATIENT_MONTHS.map((month) => (
+                <TableCell key={month}>
+                  {!row.data[month].disabled && (
+                    <div className="h-7 min-w-20">
+                      <Skeleton fill />
+                    </div>
+                  )}
+                </TableCell>
+              ))}
+            </TableRow>
+          ),
+        )}
+      </Fragment>
+    );
+  });
+  return (
+    <div ref={measure} aria-busy="true">
+      {cards ? (
+        <CardList>{groups}</CardList>
+      ) : (
+        <DataTableCard>
+          <Table density="compact" layout="auto">
+            <TableHeader surface="muted">
+              <TableRow pinned surface="muted">
+                <TableHead ref={skipRef} sticky>
+                  <DataTableHeaderLabel>{t('requisitions.patients.skip')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead sticky stickyOffset={skipWidth}>
+                  <DataTableHeaderLabel>
+                    {t('requisitions.patients.month-of-treatment')}
+                  </DataTableHeaderLabel>
+                </TableHead>
+                {PATIENT_MONTHS.map((month) => (
+                  <TableHead key={month}>
+                    <DataTableHeaderLabel>
+                      {new Intl.NumberFormat(i18n.language).format(month + 1)}
+                    </DataTableHeaderLabel>
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>{groups}</TableBody>
+          </Table>
+        </DataTableCard>
+      )}
+    </div>
+  );
+}

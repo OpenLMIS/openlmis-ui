@@ -34,6 +34,7 @@ export function transformRequisition(
   );
   return {
     ...body,
+    patientsData: record.patientsData ?? null,
     program: { id: record.program.id },
     facility: { id: record.facility.id },
     requisitionLineItems: record.requisitionLineItems.map((line) => {

@@ -6,6 +6,7 @@ import {
   rebaseRequisitionDraft,
 } from '@/features/requisitions/lib/draft';
 import { column, line, record } from '@/features/requisitions/lib/fixtures/builders';
+import { parsePatients } from '@/features/requisitions/lib/patients';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 
 function recordLine(values: Parameters<typeof line>[0] = {}) {
@@ -233,4 +234,81 @@ it('keeps a re-added product and its saved line removal during rebase', () => {
   expect(applyRequisitionDraft(original, rebased).requisitionLineItems).toEqual([
     { ...added, requestedQuantity: 7 },
   ]);
+});
+
+it('rebases patient cells individually, clears undone changes, and upgrades older drafts', () => {
+  const draft = buildRequisitionDraft(base);
+  draft.patients = { 'TBData:numberOfAdultPatients': { values: { 0: '٠١٢' } } };
+  const changed = applyRequisitionDraft(base, draft);
+  expect(parsePatients(changed.patientsData).TBData[0][0].data[0].value).toBe(12);
+  expect(rebaseRequisitionDraft(changed, draft).patients).toBeNull();
+  const older = { ...draft };
+  delete older.patients;
+  expect(rebaseRequisitionDraft(base, older)).toEqual(buildRequisitionDraft(base));
+  expect(base.patientsData).toBeUndefined();
+});
+
+it('keeps approver TC overrides on a calculated patients column and preserves the original string', () => {
+  const req = {
+    ...base,
+    status: 'AUTHORIZED' as const,
+    patientsData: ' {broken ',
+    template: {
+      patientsTabEnabled: true,
+      columnsMap: {
+        numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth'),
+      },
+    },
+  };
+  const draft = buildRequisitionDraft(req);
+  draft.lines.a = { numberOfPatientsOnTreatmentNextMonth: '15' };
+  const saved = applyRequisitionDraft(req, draft);
+  expect(saved.requisitionLineItems[0].numberOfPatientsOnTreatmentNextMonth).toBe(15);
+  expect(saved.patientsData).toBe(req.patientsData);
+});
+
+it('rebases a local patient cell over newer server months without replacing them', () => {
+  const draft = buildRequisitionDraft(base);
+  draft.patients = { 'TBData:numberOfAdultPatients': { values: { 0: '12' } } };
+  const server = {
+    ...base,
+    patientsData: JSON.stringify({
+      TBData: [
+        [
+          {
+            key: 'numberOfAdultPatients',
+            isSkipped: false,
+            data: [
+              { value: 3, disabled: false },
+              { value: 7, disabled: false },
+            ],
+          },
+        ],
+      ],
+      leprosyData: [[]],
+    }),
+  };
+  const result = parsePatients(applyRequisitionDraft(server, draft).patientsData);
+  expect(result.TBData[0][0].data.slice(0, 2).map((month) => month.value)).toEqual([12, 7]);
+});
+
+it('keeps local patient changes when a newer unreadable server value cannot be rebased', () => {
+  const req = { ...base, patientsData: '{broken' };
+  const draft = {
+    ...buildRequisitionDraft(req),
+    patients: { 'TBData:numberOfAdultPatients': { values: { 0: '12' } } },
+  };
+  expect(rebaseRequisitionDraft(req, draft).patients).toEqual(draft.patients);
+  expect(applyRequisitionDraft(req, draft).patientsData).toBe(req.patientsData);
+});
+
+it('drops patient changes after typing into an empty cell and clearing it', () => {
+  const draft = buildRequisitionDraft(base);
+  draft.patients = { 'TBData:numberOfAdultPatients': { values: { 0: '12' } } };
+  const typed = rebaseRequisitionDraft(base, draft);
+  expect(
+    parsePatients(applyRequisitionDraft(base, typed).patientsData).TBData[0][0].data[0].value,
+  ).toBe(12);
+  typed.patients = { 'TBData:numberOfAdultPatients': { values: { 0: '' } } };
+  expect(rebaseRequisitionDraft(base, typed)).toEqual(buildRequisitionDraft(base));
 });

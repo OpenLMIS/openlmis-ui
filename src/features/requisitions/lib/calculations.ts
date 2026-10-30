@@ -11,7 +11,13 @@ import {
 import type { Requisition, RequisitionLineItem } from '@/features/requisitions/lib/requisition';
 
 const preAuthorization = new Set(['INITIATED', 'REJECTED', 'SUBMITTED']);
-const patientOverrideStatuses = new Set(['AUTHORIZED', 'IN_APPROVAL', 'APPROVED']);
+const patientOverrideStatuses = new Set([
+  'AUTHORIZED',
+  'IN_APPROVAL',
+  'APPROVED',
+  'RELEASED',
+  'RELEASED_WITHOUT_ORDER',
+]);
 const ratioScale = 10n ** 1000n;
 
 const patientsByRecord = new WeakMap<
@@ -96,6 +102,7 @@ export function calculateLine(
   model: RequisitionLine,
   requisition: Requisition,
   monthsInPeriod: number,
+  patientData?: PatientsData,
 ): RequisitionLineItem {
   const line = { ...model.line };
   if (line.skipped) return line;
@@ -159,15 +166,14 @@ export function calculateLine(
   line.pricePerPack = model.program?.pricePerPack ?? 0;
   line.dosesPerPatient = model.program?.dosesPerPatient ?? null;
   if (calculated('numberOfPatientsOnTreatmentNextMonth')) {
-    const patients = patientsForProduct(
-      recordPatients(requisition),
-      model.product?.productCode ?? '',
-    );
+    const data = patientData ?? recordPatients(requisition);
     line.numberOfPatientsOnTreatmentNextMonth =
       patientOverrideStatuses.has(requisition.status) &&
       line.numberOfPatientsOnTreatmentNextMonth != null
         ? line.numberOfPatientsOnTreatmentNextMonth
-        : patients;
+        : data.unreadable
+          ? null
+          : patientsForProduct(data, model.product?.productCode ?? '');
   }
   const stored: Partial<PatientQuantities> = {};
   for (const name of PATIENT_QUANTITY_COLUMNS) {

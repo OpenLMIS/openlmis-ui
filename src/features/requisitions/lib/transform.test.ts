@@ -121,3 +121,14 @@ it('preserves skipped lines on approval saves when Skip is hidden', () => {
   } as RequisitionRecord;
   expect(transformRequisition(input).requisitionLineItems[0].skipped).toBe(true);
 });
+
+it('preserves the stored patient data string on save', () => {
+  const input = {
+    ...record(),
+    patientsData: ' {"TBData":[]} ',
+    id: 'r',
+    facility: { id: 'f' },
+    processingPeriod: { id: 'p' },
+  } as RequisitionRecord;
+  expect(transformRequisition(input).patientsData).toBe(input.patientsData);
+});

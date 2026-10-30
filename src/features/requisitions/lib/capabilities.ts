@@ -15,17 +15,6 @@ export type RequisitionAction =
   | 'delete'
   | 'skip'
   | 'print';
-const SHIPPED_ACTIONS: readonly RequisitionAction[] = [
-  'sync',
-  'submit',
-  'submitAndAuthorize',
-  'authorize',
-  'approve',
-  'reject',
-  'skip',
-  'delete',
-  'print',
-];
 type CapabilityContext = {
   status: RequisitionStatus;
   emergency: boolean;
@@ -37,18 +26,7 @@ type CapabilityContext = {
   unskipWhenApproving?: boolean;
   isSplit?: boolean;
 };
-type CapabilityGate = {
-  actions: readonly RequisitionAction[];
-  patientsEditing?: boolean;
-};
-
-export function requisitionCapabilities(
-  context: CapabilityContext,
-  gate: CapabilityGate = {
-    actions: SHIPPED_ACTIONS,
-    patientsEditing: false,
-  },
-) {
+export function requisitionCapabilities(context: CapabilityContext) {
   const { status, emergency, template, program, grants } = context;
   const has = (right: string) => grants.includes(right);
   const creator =
@@ -76,14 +54,16 @@ export function requisitionCapabilities(
   if (canDelete) allowed.push('delete');
   if (creator && !emergency && program.periodsSkippable) allowed.push('skip');
   allowed.push('print');
-  const editingOpen = !template.patientsTabEnabled || gate.patientsEditing === true;
-  const editable = editingOpen && canEdit;
-  const actionsOpen = editingOpen;
   const approvalColumn = template.patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity';
-  const approvalColumns = [approvalColumn, 'remarks'];
+  const approvalColumns = [
+    approvalColumn,
+    ...(template.patientsTabEnabled ? ['numberOfPatientsOnTreatmentNextMonth'] : []),
+    'remarks',
+  ];
   return {
-    editable,
-    editableColumns: editable
+    editable: canEdit,
+    patientsEditable: !!template.patientsTabEnabled && (creator || authorizer),
+    editableColumns: canEdit
       ? approver
         ? approvalColumns
         : Object.values(template.columnsMap)
@@ -95,34 +75,28 @@ export function requisitionCapabilities(
                 c.name !== approvalColumn &&
                 c.name !== 'remarks' &&
                 !(
-                  program.name === 'TB Monthly' &&
+                  template.patientsTabEnabled &&
                   (c.name === 'totalReceivedQuantity' ||
                     c.name === 'numberOfPatientsOnTreatmentNextMonth')
                 ),
             )
             .map((c) => c.name)
       : [],
-    actions: allowed.filter(
-      (action) => gate.actions.includes(action) && (action === 'print' || actionsOpen),
-    ),
+    actions: allowed,
     comments:
-      editingOpen &&
-      (canEdit ||
-        ((status === 'INITIATED' || status === 'REJECTED') && has(RIGHTS.requisitionAuthorize))),
+      canEdit ||
+      ((status === 'INITIATED' || status === 'REJECTED') && has(RIGHTS.requisitionAuthorize)),
     addFullSupplyProduct:
-      editable &&
+      canEdit &&
       (creator || authorizer) &&
       (emergency || (hasSkip && skipColumn.option?.optionName === 'hideSkippedLineItems')),
-    addNonFullSupplyProduct: editable && (creator || authorizer) && !!program.showNonFullSupplyTab,
+    addNonFullSupplyProduct: canEdit && (creator || authorizer) && !!program.showNonFullSupplyTab,
     skipLines:
-      editable &&
+      canEdit &&
       !emergency &&
       hasSkip &&
       (creator || authorizer || (approver && !!context.unskipWhenApproving)),
     approver,
-    deferred: allowed.filter(
-      (action) => !gate.actions.includes(action) || (action !== 'print' && !actionsOpen),
-    ),
   };
 }
 

@@ -19,24 +19,10 @@ const context: Parameters<typeof requisitionCapabilities>[0] = {
   approvalNodes: ['node1'],
   currentNodeId: 'node1',
 };
-const future = {
-  patientsEditing: true,
-  actions: [
-    'sync',
-    'submit',
-    'submitAndAuthorize',
-    'authorize',
-    'approve',
-    'reject',
-    'delete',
-    'skip',
-    'print',
-  ] as const,
-};
 const policy = (overrides: Partial<Parameters<typeof requisitionCapabilities>[0]> = {}) =>
-  requisitionCapabilities({ ...context, ...overrides }, future);
+  requisitionCapabilities({ ...context, ...overrides });
 
-it('ships creator, authorizer and approver editing while keeping patients closed', () => {
+it('ships creator, authorizer and approver editing including patients templates', () => {
   expect(requisitionCapabilities(context)).toMatchObject({
     editable: true,
     actions: ['sync', 'submit', 'delete', 'skip', 'print'],
@@ -54,7 +40,11 @@ it('ships creator, authorizer and approver editing while keeping patients closed
       ...context,
       template: { ...context.template, patientsTabEnabled: true },
     }),
-  ).toMatchObject({ editable: false, actions: ['print'] });
+  ).toMatchObject({
+    editable: true,
+    patientsEditable: true,
+    actions: ['sync', 'submit', 'delete', 'skip', 'print'],
+  });
 });
 it('allows whole-record skip without a skip column and comments for an initiated authorizer', () => {
   expect(policy({ template: { columnsMap: {} } }).actions).toContain('skip');
@@ -149,14 +139,22 @@ it.each([false, true])(
     expect(
       policy({ status: 'AUTHORIZED', template: { columnsMap: {}, patientsTabEnabled } })
         .editableColumns,
-    ).toEqual([patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity', 'remarks']);
+    ).toEqual(
+      patientsTabEnabled
+        ? ['totalReceivedQuantity', 'numberOfPatientsOnTreatmentNextMonth', 'remarks']
+        : ['approvedQuantity', 'remarks'],
+    );
     expect(
       policy({
         status: 'AUTHORIZED',
         template: { columnsMap: {}, patientsTabEnabled },
         program: { id: 'program', name: 'TB Monthly' },
       }).editableColumns,
-    ).toEqual([patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity', 'remarks']);
+    ).toEqual(
+      patientsTabEnabled
+        ? ['totalReceivedQuantity', 'numberOfPatientsOnTreatmentNextMonth', 'remarks']
+        : ['approvedQuantity', 'remarks'],
+    );
   },
 );
 it.each(['INITIATED', 'SUBMITTED'] as const)(
@@ -180,7 +178,17 @@ it.each(['INITIATED', 'SUBMITTED'] as const)(
 );
 it('denies delete on INITIATED with only CREATE', () => {
   expect(policy({ grants: ['REQUISITION_CREATE'] }).actions).not.toContain('delete');
+});
+
+it.each([
+  ['INITIATED', ['REQUISITION_CREATE'], true],
+  ['REJECTED', ['REQUISITION_CREATE'], true],
+  ['SUBMITTED', ['REQUISITION_AUTHORIZE'], true],
+  ['AUTHORIZED', ['REQUISITION_APPROVE'], false],
+  ['INITIATED', ['REQUISITION_VIEW'], false],
+] as const)('restricts patient editing in %s', (status, grants, patientsEditable) => {
   expect(
-    requisitionCapabilities({ ...context, grants: ['REQUISITION_CREATE'] }).deferred,
-  ).not.toContain('delete');
+    policy({ status, grants, template: { ...context.template, patientsTabEnabled: true } })
+      .patientsEditable,
+  ).toBe(patientsEditable);
 });

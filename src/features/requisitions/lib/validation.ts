@@ -3,6 +3,7 @@ import { adjustmentQuantitySchema } from '@/features/requisitions/lib/adjustment
 import { calculateLine } from '@/features/requisitions/lib/calculations';
 import type { LineDraft } from '@/features/requisitions/lib/draft';
 import type { RequisitionLine } from '@/features/requisitions/lib/lines';
+import type { PatientsData } from '@/features/requisitions/lib/patients';
 import type { Requisition, RequisitionLineItem } from '@/features/requisitions/lib/requisition';
 import { compileColumns } from '@/features/requisitions/lib/template';
 import { wholeNumberText } from '@/lib/whole-number';
@@ -62,9 +63,10 @@ export function validateLine(
   monthsInPeriod: number,
   changes: LineDraft = {},
   columnFilter?: readonly string[],
+  patients?: PatientsData,
 ) {
   const errors: Record<string, ParseKeys> = {};
-  const line = calculateLine(model, record, monthsInPeriod);
+  const line = calculateLine(model, record, monthsInPeriod, patients);
   if (line.skipped) return errors;
   const columns = compileColumns(record.template, {
     status: record.status,
@@ -82,8 +84,22 @@ export function validateLine(
     const name = column.name as keyof RequisitionLineItem;
     const definition = record.template.columnsMap[name];
     if (!definition || name === 'skipped' || name === 'totalLossesAndAdjustments') continue;
-    const value = line[name];
-    const input = definition.source === 'USER_INPUT';
+    if (
+      record.template.patientsTabEnabled &&
+      (name === 'totalReceivedQuantity' ||
+        name === 'remarks' ||
+        (name === 'numberOfPatientsOnTreatmentNextMonth' &&
+          ['INITIATED', 'REJECTED', 'SUBMITTED'].includes(record.status)) ||
+        (name === 'stockOnHand' && record.status === 'AUTHORIZED'))
+    )
+      continue;
+    const value =
+      name === 'numberOfPatientsOnTreatmentNextMonth' && Object.hasOwn(changes, name)
+        ? changes[name]
+        : line[name];
+    const input =
+      definition.source === 'USER_INPUT' ||
+      (record.template.patientsTabEnabled && name === 'numberOfPatientsOnTreatmentNextMonth');
     const required =
       input &&
       (!optional.has(name) ||
@@ -102,6 +118,7 @@ export function validateLine(
     }
     if (errors[name]) continue;
     if (
+      !record.template.patientsTabEnabled &&
       !record.emergency &&
       model.fullSupply &&
       !record.template.populateStockOnHandFromStockCards &&
@@ -146,7 +163,11 @@ export function validateLine(
     const value = changes[column.name as keyof LineDraft];
     if (
       typeof value !== 'string' ||
-      record.template.columnsMap[column.name]?.source !== 'USER_INPUT' ||
+      (record.template.columnsMap[column.name]?.source !== 'USER_INPUT' &&
+        !(
+          record.template.patientsTabEnabled &&
+          column.name === 'numberOfPatientsOnTreatmentNextMonth'
+        )) ||
       !['quantity', 'count'].includes(column.kind)
     )
       continue;

@@ -5,6 +5,7 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 export function hasUnsyncedRequisitionDraft({ draft, baseHeaders }: RequisitionLocalDraft) {
   return (
     Object.values(draft.lines).some((changes) => Object.keys(changes).length > 0) ||
+    Object.keys(draft.patients ?? {}).length > 0 ||
     draft.addedLines.length > 0 ||
     draft.removedLineIds.length > 0 ||
     draft.draftStatusMessage !== (baseHeaders?.draftStatusMessage ?? '') ||

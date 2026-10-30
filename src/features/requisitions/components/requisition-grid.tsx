@@ -35,7 +35,6 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DraftStatus } from '@/components/display/draft-status';
 import { QuantityHeaderSizer } from '@/components/display/quantity-header-sizer';
 import { TableCards } from '@/components/display/table-cards';
 import { quantityValue } from '@/components/form/quantity-value';
@@ -57,6 +56,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { productLabel } from '@/features/reference-data/lib/products';
 import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { AdjustmentsDialog } from '@/features/requisitions/components/adjustments-dialog';
+import { RequisitionDraftStatus } from '@/features/requisitions/components/requisition-draft-status';
 import { RequisitionEditCards } from '@/features/requisitions/components/requisition-edit-cards';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
@@ -477,15 +477,7 @@ export function RequisitionGridView({
           status={
             editing?.editable
               ? editing.editor.device.deviceAvailable && (
-                  <DraftStatus
-                    {...editing.editor.device.status}
-                    labels={{
-                      copy: null,
-                      conflictDescription: t('requisitions.edit.draft-conflict-description'),
-                    }}
-                    onRetry={editing.editor.device.retry}
-                    onResolve={editing.editor.resolveConflict}
-                  />
+                  <RequisitionDraftStatus editor={editing.editor} />
                 )
               : undefined
           }
@@ -791,6 +783,7 @@ function renderValue(
 }
 
 export type GridEditing = {
+  patientsEditable?: boolean;
   approver?: boolean;
   editor: RequisitionEditor;
   editable: boolean;
