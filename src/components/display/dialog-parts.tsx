@@ -27,7 +27,7 @@ export function serverMessage(error: unknown): string | undefined {
 
 type ErrorAlertProps = {
   title: string;
-  description: string;
+  description: ReactNode;
   action?: ReactNode;
 };
 
