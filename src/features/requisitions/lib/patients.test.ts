@@ -15,41 +15,42 @@ const row = (key: string) => ({
   isSkipped: false,
   data: Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), disabled: i >= 6 })),
 });
+const rowWithBase = (key: string, base: number) => ({
+  ...row(key),
+  data: Array.from({ length: 12 }, (_, i) => ({ value: String(base + i + 1), disabled: false })),
+});
 const data = JSON.stringify({
   TBData: [
     [
-      ...[
-        'numberOfAdultPatients',
-        'numberOfChildren',
-        'numberOfChildrenOnIPT',
-        'numberOfAdultsOnIPT',
-      ].map(row),
+      rowWithBase('numberOfAdultPatients', 1000),
+      rowWithBase('numberOfChildren', 2000),
+      rowWithBase('numberOfRetreatmentPatients', 3000),
+      rowWithBase('numberOfAdultsOnIPT', 5000),
+      rowWithBase('numberOfChildrenOnIPT', 4000),
     ],
   ],
   leprosyData: [
     [
-      ...[
-        'numberOfAdultOnMBRegimen',
-        'numberOfAdultOnPBRegimen',
-        'numberOfChildrenOnMBRegimen',
-        'numberOfChildrenOnPBRegimen',
-      ].map(row),
+      rowWithBase('numberOfAdultOnMBRegimen', 6000),
+      rowWithBase('numberOfAdultOnPBRegimen', 7000),
+      rowWithBase('numberOfChildrenOnMBRegimen', 8000),
+      rowWithBase('numberOfChildrenOnPBRegimen', 9000),
     ],
   ],
 });
 
 it.each([
-  ['10010510AE', 3],
-  ['10010508AE', 18],
-  ['10010110AE', 99],
-  ['10010515AE', 3],
-  ['10010233AE', 3],
-  ['10010514AE', 18],
-  ['10010113AE', 99],
-  ['10010114AE', 21],
-  ['10010315AE', 21],
+  ['10010510AE', 2 * 1000 + 3],
+  ['10010508AE', 4 * 2000 + 18],
+  ['10010110AE', 6 * 6000 + 21 + 12 * 7000 + 78],
+  ['10010515AE', 2 * 4000 + 3],
+  ['10010233AE', 2 * 4000 + 3],
+  ['10010514AE', 4 * 4000 + 18],
+  ['10010113AE', 6 * 8000 + 21 + 12 * 9000 + 78],
+  ['10010114AE', 6 * 4000 + 21],
+  ['10010315AE', 6 * 5000 + 21],
   ['unknown', 0],
-])('maps TC for product %s', (code, expected) => {
+])('maps TC for product %s to legacy rows and months', (code, expected) => {
   expect(patientsForProduct(parsePatients(data), code)).toBe(expected);
 });
 it('preserves stored skip and enabled months without writing or sharing defaults across records', () => {
