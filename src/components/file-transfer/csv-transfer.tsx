@@ -40,9 +40,11 @@ export type CsvTransferCopy = {
 type CsvTransferProps = {
   api: CsvTransferApi;
   copy: CsvTransferCopy;
+  /** A translated explanation of a refused upload, shown above the server's own message. */
+  describeUploadError?: (error: unknown) => string | undefined;
 };
 
-export function CsvTransfer({ api, copy }: CsvTransferProps) {
+export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps) {
   const { t, i18n } = useTranslation();
   const errorId = useId();
   const [attempt, setAttempt] = useState(0);
@@ -150,8 +152,10 @@ export function CsvTransfer({ api, copy }: CsvTransferProps) {
                       <div id={errorId} key={attempt}>
                         <ErrorAlert
                           description={
-                            // Server messages are English, so they keep their own direction in RTL pages.
-                            <span dir="auto">{errorMessage(upload.error, copy.uploadError)}</span>
+                            <UploadErrorText
+                              explained={describeUploadError?.(upload.error)}
+                              message={errorMessage(upload.error, copy.uploadError)}
+                            />
                           }
                           title={t('file-transfer.upload-error-title')}
                         />
@@ -231,6 +235,20 @@ export function CsvTransferSkeleton({
         </FileTransferUpload>
       </FileTransferPanel>
     </div>
+  );
+}
+
+function UploadErrorText({ explained, message }: { explained?: string; message: string }) {
+  const { t } = useTranslation();
+  // Server messages are English, so they keep their own direction in RTL pages.
+  if (!explained) return <span dir="auto">{message}</span>;
+  return (
+    <span className="flex flex-col gap-1">
+      <span>{explained}</span>
+      <span className="text-muted-foreground text-xs">
+        {t('file-transfer.server-detail', { message })}
+      </span>
+    </span>
   );
 }
 

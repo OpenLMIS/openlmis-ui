@@ -23,6 +23,10 @@ import {
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { CCE_CATALOG_API } from '@/features/cce-catalog/api/api';
+import {
+  catalogUploadErrorText,
+  catalogUploadIssue,
+} from '@/features/cce-catalog/lib/upload-errors';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 const instructionsSearchSchema = z.object({
@@ -84,7 +88,14 @@ function EquipmentCatalogPage() {
           </Button>
         </EquipmentCatalogHeader>
         <WorkspaceContent>
-          <CsvTransfer api={CCE_CATALOG_API} copy={copy} />
+          <CsvTransfer
+            api={CCE_CATALOG_API}
+            copy={copy}
+            describeUploadError={(error) => {
+              const issue = catalogUploadIssue(error);
+              return issue && catalogUploadErrorText(issue, t);
+            }}
+          />
         </WorkspaceContent>
       </Workspace>
       <TransferInstructionsDialog
