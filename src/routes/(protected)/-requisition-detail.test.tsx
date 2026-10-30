@@ -1361,6 +1361,7 @@ it('saves and approves despite creator errors and returns to the approval search
     calls.push('approve');
     return { data: {} };
   });
+  expect(document.querySelector('tr[data-invalid]')).toBeNull();
   await confirmApproval();
   await screen.findByText('Approval List');
   expect(calls).toEqual(['save', 'approve']);
@@ -1402,6 +1403,61 @@ it.each(['APPROVED', 'IN_APPROVAL', 'REJECTED'] as const)(
   },
 );
 
+it('treats a 503 approval as uncertain and completes it from the refetched record', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post').mockRejectedValue(httpError(503));
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, status: 'APPROVED' });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await screen.findByText('Approval List');
+  expect(post).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+it('takes a new key after a used-key approval leaves the record unchanged', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi
+    .spyOn(client, 'post')
+    .mockRejectedValueOnce(
+      httpError(409, { messageKey: 'requisition.error.validation.idempotencyKey.alreadyUsed' }),
+    )
+    .mockResolvedValueOnce({ data: {} });
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await screen.findByText('Approval List');
+  expect(post).toHaveBeenCalledTimes(2);
+  expect(post.mock.calls[1]?.[2]).not.toEqual(post.mock.calls[0]?.[2]);
+  queryClient.clear();
+});
+it('reconciles a lost rejection as done without rejecting again', async () => {
+  const { base, queryClient } = await openApprover();
+  const put = vi
+    .spyOn(client, 'put')
+    .mockImplementation(async (url) =>
+      url === '/v2/requisitions/r'
+        ? { data: base, headers: {} }
+        : Promise.reject(new AxiosError('Timeout', 'ECONNABORTED')),
+    );
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.reject' }));
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'requisitions.edit.actions.reject',
+    }),
+  );
+  await screen.findByText('requisitions.edit.reconciling');
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, status: 'REJECTED' });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.reject' }));
+  await screen.findByText('Approval List');
+  expect(put.mock.calls.filter(([url]) => url === '/requisitions/r/reject')).toHaveLength(1);
+  queryClient.clear();
+});
 it('requires a reason before confirming rejection and sends its DTO after saving', async () => {
   const { base, router, queryClient } = await openApprover(false, true);
   const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });

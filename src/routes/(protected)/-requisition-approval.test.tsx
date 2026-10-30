@@ -121,34 +121,36 @@ it('refuses approval access before fetching rows or lookups', async () => {
   queryClient.clear();
 });
 it.each([1200, 390])(
-  'selects and clears the page at width %s with the batch flag on',
+  'keeps ticks across pages and refuses mixed programs at width %s',
   async (width) => {
     vi.mocked(useFlag).mockReturnValue(true);
     vi.stubEnv('BASE_URL', '/v2/');
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width } as DOMRect);
-    vi.mocked(fetchApprovalList).mockResolvedValue({
-      content: [
-        {
-          id: 'r',
-          program: { id: 'p', name: 'Family Planning' },
-          facility: { code: 'HC01', name: 'Comfort' },
-          processingPeriod: { name: 'March' },
-          status: 'AUTHORIZED',
-          emergency: false,
-        },
-      ],
-      number: 0,
-      size: 20,
-      totalElements: 1,
-      totalPages: 1,
+    const row = (id: string, programId: string, name: string) => ({
+      id,
+      program: { id: programId, name },
+      facility: { code: 'HC01', name: 'Comfort' },
+      processingPeriod: { name: id },
+      status: 'AUTHORIZED' as const,
+      emergency: false,
     });
-    const { queryClient } = renderRoute('/requisitions/approve');
-    const checkboxes = await screen.findAllByRole('checkbox');
-    await userEvent.click(checkboxes[0]);
-    await screen.findByRole('button', { name: 'Clear Selection' });
-    expect(screen.getAllByRole('checkbox').at(-1)).toBeChecked();
-    await userEvent.click(screen.getByRole('button', { name: 'Clear Selection' }));
-    expect(screen.getAllByRole('checkbox').at(-1)).not.toBeChecked();
+    vi.mocked(fetchApprovalList).mockImplementation(async ({ page }) => ({
+      content: [page ? row('April', 'b', 'ARV') : row('March', 'a', 'Family Planning')],
+      number: page,
+      size: 1,
+      totalElements: 2,
+      totalPages: 2,
+    }));
+    const { router, queryClient } = renderRoute('/requisitions/approve?size=1');
+    await screen.findAllByText('March');
+    await userEvent.click(screen.getAllByRole('checkbox').at(-1) as HTMLElement);
+    await router.navigate({ to: '.', search: { size: 1, page: 2 } });
+    await screen.findAllByText('April');
+    await userEvent.click(screen.getAllByRole('checkbox').at(-1) as HTMLElement);
+    await userEvent.click(
+      screen.getAllByRole('button', { name: /requisitions\.approve\.view-selected/ })[0],
+    );
+    await screen.findByText('requisitions.approve.select-mixed-title');
     queryClient.clear();
   },
 );

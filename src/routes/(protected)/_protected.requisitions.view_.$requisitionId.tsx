@@ -485,7 +485,6 @@ function RequisitionBody({
         } else if (approval && retry.keyUsed) {
           uncertain.current = null;
           attempt.key = randomId();
-          throw new Error(t('requisitions.edit.reconciling'));
         }
       } else if (
         kind === 'sync' ||
