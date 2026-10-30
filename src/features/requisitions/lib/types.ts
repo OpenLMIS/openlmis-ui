@@ -82,3 +82,14 @@ export type ApprovalListRow = Omit<RequisitionSearchResult, 'program'> & {
   statusChanges?: Partial<Record<RequisitionStatus, { changeDate?: string }>>;
   extraData?: { originalRequisition?: string } | null;
 };
+
+export type ConvertListRow = {
+  requisition: Omit<ApprovalListRow, 'status' | 'facility'> & {
+    facility?: {
+      code?: string | null;
+      name?: string | null;
+      geographicZone?: { name?: string | null } | null;
+    } | null;
+  };
+  supplyingDepots: ({ id: string; code?: string | null; name?: string | null } | null)[];
+};

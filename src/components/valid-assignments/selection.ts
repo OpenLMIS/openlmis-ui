@@ -17,8 +17,10 @@ export function applySelection(
   return new Map(Object.keys(next).map((id) => [id, names.get(id) ?? picked.get(id) ?? id]));
 }
 
-export const withoutIds = (picked: Picked, ids: readonly string[]): Picked =>
-  new Map([...picked].filter(([id]) => !ids.includes(id)));
+export const withoutIds = <T>(
+  picked: ReadonlyMap<string, T>,
+  ids: readonly string[],
+): ReadonlyMap<string, T> => new Map([...picked].filter(([id]) => !ids.includes(id)));
 
 export function useFilterScoped<T>(filterKey: string, empty: T) {
   const [scoped, setScoped] = useState({ filterKey, value: empty });
