@@ -1,7 +1,7 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import type { ParseKeys } from 'i18next';
 import { SearchIcon } from 'lucide-react';
-import { Children, memo, type ReactNode, useEffect, useRef } from 'react';
+import { Children, isValidElement, memo, type ReactNode, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
@@ -272,10 +272,17 @@ type SelectorFrameProps = {
 export function SelectorFrame({ mode, children, search }: SelectorFrameProps) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-start">
-        {mode && <div className="min-w-0 flex-1 @3xl/main:max-w-96">{mode}</div>}
-        {Children.map(children, (field) => (
-          <div className="min-w-0 flex-1 @3xl/main:max-w-96">{field}</div>
+      <div className="flex flex-col gap-4 @3xl/main:flex-row @3xl/main:flex-wrap @3xl/main:items-start">
+        {mode && (
+          <div className="min-w-0 flex-1 @3xl/main:min-w-fit @3xl/main:max-w-96">{mode}</div>
+        )}
+        {Children.toArray(children).map((field) => (
+          <div
+            className="min-w-0 flex-1 @3xl/main:min-w-fit @3xl/main:max-w-96"
+            key={isValidElement(field) ? field.key : null}
+          >
+            {field}
+          </div>
         ))}
         <div className="flex flex-col gap-1">
           <span aria-hidden className="invisible hidden text-sm leading-snug @3xl/main:block">
@@ -316,11 +323,17 @@ export function FacilityProgramSelectorSkeleton({ children }: { children?: React
   );
 }
 
-export function SelectorSkeletonField({ label }: { label: string }) {
+export function SelectorSkeletonField({
+  label,
+  required = true,
+}: {
+  label: string;
+  required?: boolean;
+}) {
   return (
     <div className="flex flex-col gap-1">
       <span className="font-medium text-sm leading-snug">
-        <FieldLabelText label={label} required />
+        <FieldLabelText label={label} required={required} />
       </span>
       <div className="h-9">
         <Skeleton fill />

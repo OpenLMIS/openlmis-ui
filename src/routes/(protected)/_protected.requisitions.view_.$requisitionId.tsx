@@ -94,7 +94,7 @@ import {
   RequisitionRetryConflict,
   toRequisitionFailure,
 } from '@/features/requisitions/lib/failure';
-import type { RequisitionReturn } from '@/features/requisitions/lib/initiate-search';
+import { requisitionReturnTarget } from '@/features/requisitions/lib/initiate-search';
 import { buildLines, filterLines } from '@/features/requisitions/lib/lines';
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
 import { defaultRequisitionTab, hidesSkipped } from '@/features/requisitions/lib/template';
@@ -347,18 +347,8 @@ function RequisitionBody({
   } | null>(null);
   const latest = useRef({ record, editor });
   latest.current = { record, editor };
-  const [opening] = useState<
-    | RequisitionReturn
-    | {
-        to: '/requisitions/view';
-        search: ReturnType<typeof requisitionSearchSchema.parse>;
-      }
-  >(
-    () =>
-      router.state.location.state.requisitionReturn ?? {
-        to: '/requisitions/view',
-        search: requisitionSearchSchema.parse(router.state.location.search),
-      },
+  const [opening] = useState(() =>
+    requisitionReturnTarget(router.state.location.state, router.state.location.search),
   );
   const reload = async () => {
     const scope = getSessionScope();

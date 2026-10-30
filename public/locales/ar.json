@@ -1709,6 +1709,7 @@
   "requisitions.requisition.additional": "الأدوية والمستلزمات الطبية الإضافية",
   "requisitions.requisition.approved": "الكمية المعتمدة",
   "requisitions.requisition.back": "العودة إلى عرض الطلبات",
+  "requisitions.requisition.back-initiate": "العودة إلى إنشاء/اعتماد",
   "requisitions.requisition.column-definition": "حول {column}",
   "requisitions.requisition.comments": "التعليقات",
   "requisitions.requisition.description": "{facility} - {period}",

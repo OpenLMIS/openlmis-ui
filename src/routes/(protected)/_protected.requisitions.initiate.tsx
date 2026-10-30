@@ -17,7 +17,7 @@ import {
   prefetchFacilityProgramOptions,
   useFacilityProgramOptions,
 } from '@/components/pickers/facility-program-selector/use-facility-program-options';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Field } from '@/components/ui/field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Workspace,
@@ -31,12 +31,7 @@ import {
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
-import {
-  facilityOptions,
-  minimalFacilitiesOptions,
-  userProgramsOptions,
-  userRecordOptions,
-} from '@/features/reference-data/api/queries';
+import { facilityOptions } from '@/features/reference-data/api/queries';
 import {
   createRequisitionActionAttempt,
   initiateRequisition,
@@ -51,6 +46,7 @@ import { initiateFailureMessage } from '@/features/requisitions/lib/initiate-fai
 import {
   type InitiateSearch,
   initiateSearchSchema,
+  requisitionReturnState,
 } from '@/features/requisitions/lib/initiate-search';
 import type { InitiateQuery } from '@/features/requisitions/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
@@ -58,7 +54,6 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import {
   type CompleteSelection,
   type FacilityProgramSelection,
-  facilityProgramOptions,
   isCompleteSelection,
   sameSelection,
   validSelection,
@@ -92,30 +87,12 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/initi
   loader: async ({ context: { queryClient }, deps: { search } }) => {
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, ENTRY_RIGHTS);
-    const emergency = search.emergency;
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     prefetchFacilityProgramOptions(queryClient, userId);
-    const user = queryClient.getQueryData(userRecordOptions(userId).queryKey);
-    const programs = queryClient.getQueryData(userProgramsOptions(userId).queryKey);
-    const facilities = queryClient.getQueryData(minimalFacilitiesOptions().queryKey);
-    if (
-      user &&
-      programs &&
-      facilities &&
-      isCompleteSelection(search) &&
-      canSearch(permissions, search)
-    ) {
-      const options = facilityProgramOptions({
-        homeFacilityId: user.homeFacilityId,
-        programs,
-        facilities,
-        grants: permissions.grants.filter((grant) => PICKER_RIGHTS.includes(grant.right)),
-      });
-      const valid = validSelection(search, options);
-      if (valid) {
-        queryClient.prefetchQuery(periodsForInitiateOptions(toQuery(valid, emergency)));
-        queryClient.prefetchQuery(facilityOptions(valid.facilityId));
-      }
+    const { emergency } = search;
+    if (isCompleteSelection(search) && canSearch(permissions, search)) {
+      queryClient.prefetchQuery(periodsForInitiateOptions(toQuery(search, emergency)));
+      queryClient.prefetchQuery(facilityOptions(search.facilityId));
     }
   },
   pendingComponent: InitiatePending,
@@ -139,7 +116,7 @@ function PickerSkeleton() {
   const { t } = useTranslation();
   return (
     <FacilityProgramSelectorSkeleton>
-      <SelectorSkeletonField label={t('requisitions.initiate.type')} />
+      <SelectorSkeletonField label={t('requisitions.initiate.type')} required={false} />
     </FacilityProgramSelectorSkeleton>
   );
 }
@@ -224,8 +201,10 @@ function InitiateBody({ userId }: { userId: string }) {
   );
   const typeField = useMemo(
     () => (
-      <Field>
-        <FieldLabel id="requisition-type-label">{t('requisitions.initiate.type')}</FieldLabel>
+      <Field spacing="tight">
+        <span className="font-medium text-sm leading-snug" id="requisition-type-label">
+          {t('requisitions.initiate.type')}
+        </span>
         <RadioGroup
           aria-labelledby="requisition-type-label"
           variant="segmented"
@@ -333,9 +312,8 @@ function Periods({
   );
   const [attempt] = useState(createRequisitionActionAttempt);
   const unresolved = useRef(false);
-  const reconciling = useRef(false);
   const posting = useRef(false);
-  const [clicked, setClicked] = useState<string>();
+  const returnState = useMemo(() => requisitionReturnState(search), [search]);
   const refresh = async () => {
     await queryClient.fetchQuery({ ...periodsForInitiateOptions(query), retry: false });
     assertSessionScope(attempt.sessionScope);
@@ -344,10 +322,9 @@ function Periods({
   };
   const mutation = useSessionMutation({
     retry: false,
-    mutationFn: async () => {
+    mutationFn: async (_rowId: string) => {
       requireOnline();
       if (unresolved.current) {
-        reconciling.current = true;
         await refresh();
         return null;
       }
@@ -365,11 +342,11 @@ function Periods({
       await router.navigate({
         to: '/requisitions/view/$requisitionId',
         params: { requisitionId: record.id },
-        state: { requisitionReturn: { to: '/requisitions/initiate', search } },
+        state: returnState,
       });
     },
     onError: async (error) => {
-      if (reconciling.current) {
+      if (unresolved.current) {
         toast.error(t('requisitions.initiate.load-failed'), {
           description: t('requisitions.initiate.load-failed-description'),
         });
@@ -380,9 +357,7 @@ function Periods({
         unresolved.current = true;
         try {
           await refresh();
-        } catch {
-          assertSessionScope(attempt.sessionScope);
-        }
+        } catch {}
       } else {
         attempt.key = randomId();
       }
@@ -394,9 +369,7 @@ function Periods({
       });
     },
     onSettled: () => {
-      reconciling.current = false;
       posting.current = false;
-      setClicked(undefined);
     },
   });
   const onStart = (row: InitiateRow) => {
@@ -410,18 +383,17 @@ function Periods({
       return;
     }
     posting.current = true;
-    setClicked(row.requisitionId ?? row.id);
-    mutation.mutate();
+    mutation.mutate(row.requisitionId ?? row.id);
   };
   const openLink = useCallback(
     (id: string) => (
       <Link
         to="/requisitions/view/$requisitionId"
         params={{ requisitionId: id }}
-        state={{ requisitionReturn: { to: '/requisitions/initiate', search } }}
+        state={returnState}
       />
     ),
-    [search],
+    [returnState],
   );
   return (
     <InitiatePeriodsTable
@@ -430,7 +402,7 @@ function Periods({
       onStart={onStart}
       openLink={openLink}
       disabled={mutation.isPending}
-      pending={clicked}
+      pending={mutation.isPending ? mutation.variables : undefined}
     />
   );
 }

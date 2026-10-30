@@ -1709,6 +1709,7 @@
   "requisitions.requisition.additional": "Medicamentos e Insumos Médicos Adicionales",
   "requisitions.requisition.approved": "Cantidad Aprobada",
   "requisitions.requisition.back": "Volver a Ver Requisiciones",
+  "requisitions.requisition.back-initiate": "Volver a Crear/Autorizar",
   "requisitions.requisition.column-definition": "Acerca de {column}",
   "requisitions.requisition.comments": "Comentarios",
   "requisitions.requisition.description": "{facility} - {period}",
