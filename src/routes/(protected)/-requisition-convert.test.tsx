@@ -561,3 +561,15 @@ it('resets validation after success before ticking a new depot-less row', async 
   ).not.toHaveAttribute('aria-invalid', 'true');
   queryClient.clear();
 });
+
+it('shows the facility once in phone cards', async () => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 390,
+  } as DOMRect);
+  rows();
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await screen.findAllByText('March');
+  expect(screen.queryByText('Family Planning - HC01 - Comfort')).not.toBeInTheDocument();
+  expect(screen.getAllByText('HC01 - Comfort')).toHaveLength(1);
+  queryClient.clear();
+});

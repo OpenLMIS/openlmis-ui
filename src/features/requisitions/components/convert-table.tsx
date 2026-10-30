@@ -17,7 +17,6 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { selectionColumn } from '@/components/data-table/data-table-selection';
 import { useInCards } from '@/components/display/card-actions';
-import { WrappingCell } from '@/components/display/wrapping-cell';
 import { formatTimestamp } from '@/components/form/date-value';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -31,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import { convertListOptions } from '@/features/requisitions/api/queries';
 import {
+  cardColumns,
   EMERGENCY_COLUMN,
   REQUISITION_LIST_COLUMNS,
   RequisitionListSkeleton,
@@ -55,6 +55,7 @@ const COLUMNS = [
   ['approvedDate', 'requisitions.convert.date-approved'],
   EMERGENCY_COLUMN,
 ] as const;
+const CARD_COLUMNS = cardColumns(COLUMNS);
 export const CONVERT_HIDEABLE_COLUMNS = COLUMNS.filter(
   ([id]) => id !== 'program' && id !== 'facility',
 ).map(([id, labelKey]) => ({
@@ -178,7 +179,7 @@ function useResultsTable(
         selectionColumn<ConvertListRow>((row) =>
           convertRowLabel(row, t('requisitions.columns.emergency')),
         ),
-        ...COLUMNS.map(([id, key]) =>
+        ...(cards ? CARD_COLUMNS : COLUMNS).map(([id, key]) =>
           helper.display({
             id,
             meta: { label: t(key) },
@@ -191,18 +192,6 @@ function useResultsTable(
                   row.requisition.statusChanges?.APPROVED?.changeDate,
                   i18n.language,
                   { timeZone },
-                );
-              if (id === 'program' && cards)
-                return (
-                  <WrappingCell>
-                    {[
-                      row.requisition.program?.name,
-                      row.requisition.facility?.code,
-                      row.requisition.facility?.name,
-                    ]
-                      .filter(Boolean)
-                      .join(' - ')}
-                  </WrappingCell>
                 );
               return requisitionListCell(id, row.requisition, i18n.language, timeZone, t);
             },
