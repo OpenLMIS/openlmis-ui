@@ -87,7 +87,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ClipboardListIcon,
         items: [
           { titleKey: 'nav.requisitions.create-orders', to: '#' },
-          { titleKey: 'nav.requisitions.create-authorize', to: '#' },
+          { titleKey: 'nav.requisitions.create-authorize', to: '/requisitions/initiate' },
           { titleKey: 'nav.requisitions.approve', to: '#' },
           { titleKey: 'nav.requisitions.convert-to-order', to: '#' },
           { titleKey: 'nav.requisitions.view', to: '/requisitions/view' },

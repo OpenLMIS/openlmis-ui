@@ -625,8 +625,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
   default, `default` for compact tables needing room, `compact` for tighter cell padding;
   `layout="fixed"` by default, `auto`
-  for content-sized columns such as bin cards. `DataTableSkeleton pagination={false}` omits
-  the pager placeholder for unpaged tables; pagination defaults to true.
+  for content-sized columns such as bin cards. `DataTableSkeleton pagination="none"` omits
+  the pager placeholder for unpaged tables; pagination defaults to `"default"`.
 - Columns holding a button or inline control set `meta: { skeleton: 'control' }`, so loading rows
   reserve a 28px block and keep the real row height. Pending headers use the real icon, title and
   description, with a placeholder only inside `WorkspaceTitle`/`WorkspaceDescription` when the
@@ -795,7 +795,14 @@ home facility, user programs, all facilities and page grants, following legacy:
   My Facility. Auto-pick a required list's sole option.
 - Load stock only for a granted pair, without awaiting picker lookups; load both in parallel.
 - Like the stock event pickers, it has no card and a `Separator` below; Facility Type, Facility
-  and Program each take the shared field width (`min-w-0 flex-1 @3xl/main:max-w-96`).
+  and Program each take the shared field width (`min-w-0 flex-1 @3xl/main:max-w-96`). Facility
+  Type never shrinks below its labels and the row wraps when fields no longer fit.
+- Screens add fields after Program as `FacilityProgramSelector` children, matched in its skeleton,
+  as Create/Authorize's Regular/Emergency type. The route keeps their draft and merges it in
+  `onSearch`.
+- Requisition links from Create/Authorize pass `requisitionReturnState(search)` as history state;
+  the requisition page and its error back link return there, keeping that state across tabs,
+  paging and dialogs (`useSearchNavigation` `keepState`).
 - Stock On Hand and Transaction History show their search and Filters before Search, as
   legacy does; View, Print and the unit toggle wait for results.
 

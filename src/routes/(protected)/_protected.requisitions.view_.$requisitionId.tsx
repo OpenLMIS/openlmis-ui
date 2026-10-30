@@ -94,6 +94,7 @@ import {
   RequisitionRetryConflict,
   toRequisitionFailure,
 } from '@/features/requisitions/lib/failure';
+import { requisitionReturnTarget } from '@/features/requisitions/lib/initiate-search';
 import { buildLines, filterLines } from '@/features/requisitions/lib/lines';
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
 import { defaultRequisitionTab, hidesSkipped } from '@/features/requisitions/lib/template';
@@ -222,7 +223,9 @@ function RequisitionReadShell({
 }) {
   const record = data.record;
   const search = Route.useSearch();
-  const { openDialog, closeDialog } = useSearchNavigation<typeof search>(CLOSED_DIALOGS);
+  const { openDialog, closeDialog } = useSearchNavigation<typeof search>(CLOSED_DIALOGS, {
+    keepState: true,
+  });
   const pending = pendingPolicy(record, data.access, useCachedProgram(record.program.id));
   return (
     <>
@@ -344,10 +347,9 @@ function RequisitionBody({
   } | null>(null);
   const latest = useRef({ record, editor });
   latest.current = { record, editor };
-  const [opening] = useState(() => ({
-    to: '/requisitions/view' as const,
-    search: requisitionSearchSchema.parse(router.state.location.search),
-  }));
+  const [opening] = useState(() =>
+    requisitionReturnTarget(router.state.location.state, router.state.location.search),
+  );
   const reload = async () => {
     const scope = getSessionScope();
     requireOnline();
@@ -616,8 +618,10 @@ function RequisitionBody({
     setAction(kind);
   };
 
-  const { updateSearch, openDialog, closeDialog } =
-    useSearchNavigation<typeof search>(CLOSED_DIALOGS);
+  const { updateSearch, openDialog, closeDialog } = useSearchNavigation<typeof search>(
+    CLOSED_DIALOGS,
+    { keepState: true },
+  );
   const onAdjustments = useCallback(
     (adjustments: string) => {
       void openDialog({ adjustments });
@@ -841,6 +845,7 @@ function RequisitionBody({
             void router
               .navigate({
                 to: '.',
+                state: true,
                 search: {
                   ...search,
                   tab,

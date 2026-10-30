@@ -1,6 +1,8 @@
 import { isAxiosError } from 'axios';
 import { transformRequisition } from '@/features/requisitions/lib/transform';
 import type {
+  InitiatePeriod,
+  InitiateQuery,
   RequisitionRecord,
   RequisitionSearchResult,
   RequisitionStatusMessage,
@@ -83,4 +85,32 @@ export async function deleteRequisition(id: string) {
   const scope = getSessionScope();
   await client.delete(`/requisitions/${id}`);
   assertSessionScope(scope);
+}
+
+export async function fetchPeriodsForInitiate(params: InitiateQuery) {
+  const { data } = await client.get<InitiatePeriod[]>('/requisitions/periodsForInitiate', {
+    params,
+  });
+  return data;
+}
+
+export async function initiateRequisition(
+  params: InitiateQuery,
+  attempt: RequisitionActionAttempt,
+) {
+  assertSessionScope(attempt.sessionScope);
+  const { data } = await client.post<{ id: string }>(
+    '/v2/requisitions/initiate',
+    {},
+    {
+      params: {
+        program: params.programId,
+        facility: params.facilityId,
+        emergency: params.emergency,
+      },
+      headers: { 'Idempotency-Key': attempt.key },
+    },
+  );
+  assertSessionScope(attempt.sessionScope);
+  return data;
 }

@@ -62,3 +62,17 @@ export type RequisitionStatusMessage = {
   authorFirstName?: string | null;
   authorLastName?: string | null;
 };
+
+export type InitiatePeriod = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  requisitionId?: string;
+  requisitionStatus?: RequisitionRecord['status'];
+};
+export type InitiateQuery = {
+  facilityId: string;
+  programId: string;
+  emergency: boolean;
+};

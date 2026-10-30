@@ -17,7 +17,10 @@ export const markDialogOpened = (previous: HistoryState): HistoryState => ({
 });
 
 /** The current page's URL state: change its search, and open and close the dialog the URL owns. */
-export function useSearchNavigation<TSearch extends object>(closedDialogs: Partial<TSearch>) {
+export function useSearchNavigation<TSearch extends object>(
+  closedDialogs: Partial<TSearch>,
+  { keepState = false }: { keepState?: boolean } = {},
+) {
   const router = useRouter();
   const navigate = useNavigate();
   // The page passes its own search type; the router cannot know which page calls this.
@@ -31,9 +34,9 @@ export function useSearchNavigation<TSearch extends object>(closedDialogs: Parti
         search: search as never,
         replace: options.replace,
         resetScroll: options.resetScroll,
-        state: options.mark ? markDialogOpened : options.keepState || undefined,
+        state: options.mark ? markDialogOpened : (options.keepState ?? keepState) || undefined,
       }),
-    [navigate],
+    [navigate, keepState],
   );
 
   const updateSearch = useCallback<SearchChange<TSearch>>(
