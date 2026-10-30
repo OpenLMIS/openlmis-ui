@@ -791,6 +791,7 @@ function renderValue(
 }
 
 export type GridEditing = {
+  approver?: boolean;
   editor: RequisitionEditor;
   editable: boolean;
   pending: boolean;

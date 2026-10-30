@@ -59,7 +59,7 @@ export const periodsForInitiateOptions = (params: InitiateQuery) =>
 
 export const unskipSettingOptions = () =>
   queryOptions({
-    queryKey: [...queryKeys.requisitions.all, 'unskipSetting'] as const,
+    queryKey: queryKeys.requisitionUnskipSetting.all,
     queryFn: fetchUnskipSetting,
   });
 

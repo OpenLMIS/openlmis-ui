@@ -85,6 +85,7 @@ function RequisitionTabsView({
     record,
     months: period.durationInMonths,
     editable: editing?.editable,
+    approver: editing?.approver,
     columns: editing?.editableColumns,
   });
   const sources = useMemo(
@@ -97,6 +98,7 @@ function RequisitionTabsView({
       cacheContext.current.record !== record ||
       cacheContext.current.months !== period.durationInMonths ||
       cacheContext.current.editable !== editing?.editable ||
+      cacheContext.current.approver !== editing?.approver ||
       cacheContext.current.columns !== editing?.editableColumns
     ) {
       cache.current.clear();
@@ -104,6 +106,7 @@ function RequisitionTabsView({
         record,
         months: period.durationInMonths,
         editable: editing?.editable,
+        approver: editing?.approver,
         columns: editing?.editableColumns,
       };
     }
@@ -127,9 +130,7 @@ function RequisitionTabsView({
               record,
               period.durationInMonths ?? 1,
               changes,
-              ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status)
-                ? editing.editableColumns
-                : undefined,
+              editing.approver ? editing.editableColumns : undefined,
             )
           : {};
         entry = {
@@ -171,6 +172,7 @@ function RequisitionTabsView({
     period.durationInMonths,
     editing?.editable,
     editing?.editableColumns,
+    editing?.approver,
     showAllErrors,
     draft,
   ]);

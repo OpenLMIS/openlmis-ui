@@ -1,6 +1,7 @@
 import { isAxiosError } from 'axios';
 import type { RejectionReason } from '@/features/reference-data/lib/types';
 import type { toApprovalQuery } from '@/features/requisitions/lib/approval-search';
+import { isApprovalKind } from '@/features/requisitions/lib/capabilities';
 import { transformRequisition } from '@/features/requisitions/lib/transform';
 import type {
   ApprovalListRow,
@@ -86,7 +87,7 @@ async function transition(
       isAxiosError(error) &&
       error.response &&
       error.response.status !== 409 &&
-      ((action !== 'approve' && action !== 'reject') || error.response.status < 500)
+      (!isApprovalKind(action) || error.response.status < 500)
     )
       attempt.key = randomId();
     throw error;

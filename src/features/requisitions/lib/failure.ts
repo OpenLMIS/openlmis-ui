@@ -2,13 +2,16 @@ import { isAxiosError } from 'axios';
 import { serverMessage } from '@/components/display/dialog-parts';
 
 export class RequisitionRetryConflict extends Error {}
+export class ApprovalInProgress extends Error {}
 export type RequisitionFailure =
   | { kind: 'server'; message?: string }
+  | { kind: 'reconciling' }
   | { kind: 'forbidden' }
   | { kind: 'conflict' }
   | { kind: 'key-used' };
 
 export function toRequisitionFailure(error: unknown): RequisitionFailure {
+  if (error instanceof ApprovalInProgress) return { kind: 'server', message: error.message };
   const status = isAxiosError(error) ? error.response?.status : undefined;
   if (status === 409) {
     const keyUsed =

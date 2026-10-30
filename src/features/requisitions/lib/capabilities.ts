@@ -39,7 +39,6 @@ type CapabilityContext = {
 };
 type CapabilityGate = {
   actions: readonly RequisitionAction[];
-  approverEditing?: boolean;
   patientsEditing?: boolean;
 };
 
@@ -47,7 +46,6 @@ export function requisitionCapabilities(
   context: CapabilityContext,
   gate: CapabilityGate = {
     actions: SHIPPED_ACTIONS,
-    approverEditing: true,
     patientsEditing: false,
   },
 ) {
@@ -79,8 +77,8 @@ export function requisitionCapabilities(
   if (creator && !emergency && program.periodsSkippable) allowed.push('skip');
   allowed.push('print');
   const editingOpen = !template.patientsTabEnabled || gate.patientsEditing === true;
-  const editable = editingOpen && canEdit && (!approver || gate.approverEditing === true);
-  const actionsOpen = editingOpen && (!approver || gate.approverEditing === true);
+  const editable = editingOpen && canEdit;
+  const actionsOpen = editingOpen;
   const approvalColumn = template.patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity';
   const approvalColumns = [approvalColumn, 'remarks'];
   return {
@@ -110,8 +108,7 @@ export function requisitionCapabilities(
     comments:
       editingOpen &&
       (canEdit ||
-        ((status === 'INITIATED' || status === 'REJECTED') && has(RIGHTS.requisitionAuthorize))) &&
-      (!approver || gate.approverEditing === true),
+        ((status === 'INITIATED' || status === 'REJECTED') && has(RIGHTS.requisitionAuthorize))),
     addFullSupplyProduct:
       editable &&
       (creator || authorizer) &&
@@ -127,4 +124,8 @@ export function requisitionCapabilities(
       (action) => !gate.actions.includes(action) || (action !== 'print' && !actionsOpen),
     ),
   };
+}
+
+export function isApprovalKind(kind: string): kind is 'approve' | 'reject' {
+  return kind === 'approve' || kind === 'reject';
 }

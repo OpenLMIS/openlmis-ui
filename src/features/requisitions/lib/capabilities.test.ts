@@ -20,7 +20,6 @@ const context: Parameters<typeof requisitionCapabilities>[0] = {
   currentNodeId: 'node1',
 };
 const future = {
-  approverEditing: true,
   patientsEditing: true,
   actions: [
     'sync',

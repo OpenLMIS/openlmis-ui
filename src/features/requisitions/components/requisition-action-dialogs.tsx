@@ -100,9 +100,11 @@ export function RequisitionErrorDialog({
       open
       title={t('requisitions.edit.error-title')}
       description={
-        error.kind === 'server'
-          ? (error.message ?? t('requisitions.edit.error-description'))
-          : t(`requisitions.edit.error.${error.kind}`)
+        error.kind === 'reconciling'
+          ? t('requisitions.edit.reconciling')
+          : error.kind === 'server'
+            ? (error.message ?? t('requisitions.edit.error-description'))
+            : t(`requisitions.edit.error.${error.kind}`)
       }
       onOpenChange={(open) => {
         if (!open && !pending) onClose();

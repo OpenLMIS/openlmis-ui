@@ -1477,7 +1477,17 @@ it('requires a reason before confirming rejection and sends its DTO after saving
     within(dialog).getByRole('combobox', { name: 'requisitions.reject.reason' }),
   );
   await userEvent.click(await screen.findByRole('option', { name: 'Reason' }));
-  fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.reject.add' }));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'requisitions.reject.add' }));
+  expect(dialog).toContainElement(document.activeElement as HTMLElement);
+  await userEvent.click(within(dialog).getByRole('button', { name: 'requisitions.reject.remove' }));
+  expect(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.category' }),
+  ).toHaveFocus();
+  await userEvent.click(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.reason' }),
+  );
+  await userEvent.click(await screen.findByRole('option', { name: 'Reason' }));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'requisitions.reject.add' }));
   fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.actions.reject' }));
   fireEvent.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
@@ -1545,5 +1555,76 @@ it('keeps approval edits blocked and ignores repeated clicks while reconciliatio
   await screen.findByText('Approval List');
   expect(put).toHaveBeenCalledOnce();
   expect(post).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('takes a new approval key after reconciliation reloads a changed record', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi
+    .spyOn(client, 'post')
+    .mockRejectedValueOnce(httpError(500))
+    .mockResolvedValueOnce({ data: {} });
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: 'changed' });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await screen.findByText('requisitions.edit.error.conflict');
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await confirmApproval();
+  await screen.findByText('Approval List');
+  expect(post.mock.calls[1]?.[2]).not.toEqual(post.mock.calls[0]?.[2]);
+  queryClient.clear();
+});
+it('offers Update during approval reconciliation and keeps its key', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi
+    .spyOn(client, 'post')
+    .mockRejectedValueOnce(httpError(500))
+    .mockResolvedValueOnce({ data: {} });
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.update' }));
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'requisitions.edit.actions.update',
+    }),
+  );
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  await confirmApproval();
+  await screen.findByText('Approval List');
+  expect(post.mock.calls[1]?.[2]).toEqual(post.mock.calls[0]?.[2]);
+  queryClient.clear();
+});
+it.each([false, true])('handles an approval lock with prior uncertainty %s', async (retry) => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post');
+  if (retry) post.mockRejectedValueOnce(httpError(500));
+  post
+    .mockRejectedValueOnce(
+      httpError(409, {
+        messageKey: 'requisition.error.approve.inProgress',
+      }),
+    )
+    .mockResolvedValueOnce({ data: {} });
+  await confirmApproval();
+  if (retry) {
+    await screen.findByText('requisitions.edit.reconciling');
+    fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  }
+  await screen.findByText(
+    retry ? 'requisitions.edit.reconciling' : 'requisitions.edit.approval-in-progress',
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  if (retry) {
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  } else await confirmApproval();
+  await screen.findByText('Approval List');
+  if (retry) expect(post.mock.calls[2]?.[2]).toEqual(post.mock.calls[0]?.[2]);
+  else expect(post.mock.calls[1]?.[2]).not.toEqual(post.mock.calls[0]?.[2]);
   queryClient.clear();
 });

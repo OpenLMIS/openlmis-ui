@@ -2,8 +2,9 @@ import { useStore } from '@tanstack/react-form';
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { Trash2Icon } from 'lucide-react';
-import { type ReactNode, useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DataTableEmpty,
@@ -11,7 +12,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { CardActions, useInCards } from '@/components/display/card-actions';
-import { DialogLoadError } from '@/components/display/dialog-parts';
+import { ErrorAlert, RetryButton } from '@/components/display/dialog-parts';
 import { DialogTable } from '@/components/display/dialog-table';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -72,16 +73,15 @@ function RemoveReason({
   );
 }
 function LoadedRejectReasonsDialog({
-  onClose,
   onConfirm,
 }: {
-  onClose: () => void;
   onConfirm: (reasons: readonly RejectionReason[]) => void;
 }) {
   const { t } = useTranslation();
   const [{ data: categories }, { data: reasons }] = useSuspenseQueries({
     queries: [rejectionReasonCategoriesOptions(), rejectionReasonsOptions()],
   });
+  const fields = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<RejectionReason[]>([]);
 
   const { measure, cards } = useDialogCardLayout('table');
@@ -107,9 +107,10 @@ function LoadedRejectReasonsDialog({
           cell: ({ row }) => (
             <RemoveReason
               reason={row.original}
-              onRemove={(id) =>
-                setSelected((current) => current.filter((reason) => reason.id !== id))
-              }
+              onRemove={(id) => {
+                setSelected((current) => current.filter((reason) => reason.id !== id));
+                fields.current?.querySelector<HTMLElement>('[role=combobox]')?.focus();
+              }}
             />
           ),
         }),
@@ -124,24 +125,14 @@ function LoadedRejectReasonsDialog({
     getRowId: (reason) => reason.id,
   });
   return (
-    <FormDialog
-      open
-      size="table"
-      onOpenChange={(open) => {
-        if (!open) onClose();
+    <FormDialogForm
+      onSubmit={() => {
+        if (selected.length) onConfirm(selected);
       }}
     >
-      <FormDialogForm
-        onSubmit={() => {
-          if (selected.length) onConfirm(selected);
-        }}
-      >
-        <FormDialogHeader>
-          <FormDialogTitle>{t('requisitions.reject.title')}</FormDialogTitle>
-          <FormDialogDescription>{t('requisitions.reject.description')}</FormDialogDescription>
-        </FormDialogHeader>
-        <div ref={measure} />
-        <FormDialogBody layout="table">
+      <div ref={measure} />
+      <FormDialogBody layout="table">
+        <div ref={fields}>
           <FieldGroup>
             <form.AppField
               name="category"
@@ -170,42 +161,40 @@ function LoadedRejectReasonsDialog({
               )}
             </form.AppField>
           </FieldGroup>
-          <div>
-            <Button
-              disabled={!reasonId}
-              variant="outline"
-              onClick={() => {
-                const reason = available.find(
-                  (reason) =>
-                    reason.id === reasonId && reason.rejectionReasonCategory.id === category,
-                );
-                if (reason) setSelected((current) => [...current, reason]);
-                form.setFieldValue('reason', '');
-              }}
-            >
-              {t('requisitions.reject.add')}
-            </Button>
-          </div>
-          <DialogTable
-            cards={cards}
-            table={table}
-            title="name"
-            empty={
-              <DataTableEmpty
-                title={t('requisitions.reject.empty')}
-                description={t('requisitions.reject.required')}
-              />
-            }
-          />
-        </FormDialogBody>
-        <FormDialogFooter>
-          <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
-          <FormDialogSubmit disabled={!selected.length}>
-            {t('requisitions.edit.actions.reject')}
-          </FormDialogSubmit>
-        </FormDialogFooter>
-      </FormDialogForm>
-    </FormDialog>
+        </div>
+        <div>
+          <Button
+            disabled={!reasonId}
+            focusableWhenDisabled
+            variant="outline"
+            onClick={() => {
+              const reason = available.find((reason) => reason.id === reasonId);
+              if (reason) setSelected((current) => [...current, reason]);
+              form.setFieldValue('reason', '');
+            }}
+          >
+            {t('requisitions.reject.add')}
+          </Button>
+        </div>
+        <DialogTable
+          cards={cards}
+          table={table}
+          title="name"
+          empty={
+            <DataTableEmpty
+              title={t('requisitions.reject.empty')}
+              description={t('requisitions.reject.required')}
+            />
+          }
+        />
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+        <FormDialogSubmit disabled={!selected.length} variant="destructive">
+          {t('requisitions.edit.actions.reject')}
+        </FormDialogSubmit>
+      </FormDialogFooter>
+    </FormDialogForm>
   );
 }
 
@@ -214,7 +203,7 @@ export function RejectReasonsDialog(props: {
   onConfirm: (reasons: readonly RejectionReason[]) => void;
 }) {
   const { t } = useTranslation();
-  const frame = (children: ReactNode) => (
+  return (
     <FormDialog
       open
       size="table"
@@ -222,38 +211,47 @@ export function RejectReasonsDialog(props: {
         if (!open) props.onClose();
       }}
     >
-      {children}
+      <FormDialogHeader>
+        <FormDialogTitle>{t('requisitions.reject.title')}</FormDialogTitle>
+        <FormDialogDescription>{t('requisitions.reject.description')}</FormDialogDescription>
+      </FormDialogHeader>
+      <QueryBoundary
+        resetKey="reject-reasons"
+        pendingFallback={
+          <>
+            <FormDialogBody>
+              <Spinner />
+            </FormDialogBody>
+            <FormDialogFooter>
+              <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+            </FormDialogFooter>
+          </>
+        }
+        errorComponent={RejectReasonsError}
+      >
+        <LoadedRejectReasonsDialog onConfirm={props.onConfirm} />
+      </QueryBoundary>
     </FormDialog>
   );
+}
+
+function RejectReasonsError({ error, reset }: { error: unknown; reset: () => void }) {
+  const { t } = useTranslation();
+  const offline = useOfflineFailure(error, reset);
   return (
-    <QueryBoundary
-      resetKey="reject-reasons"
-      pendingFallback={frame(
-        <>
-          <FormDialogHeader>
-            <FormDialogTitle>{t('requisitions.reject.title')}</FormDialogTitle>
-            <FormDialogDescription>{t('requisitions.reject.description')}</FormDialogDescription>
-          </FormDialogHeader>
-          <FormDialogBody>
-            <Spinner />
-          </FormDialogBody>
-          <FormDialogFooter>
-            <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
-          </FormDialogFooter>
-        </>,
-      )}
-      errorComponent={({ error, reset }) =>
-        frame(
-          <DialogLoadError
-            title={t('requisitions.reject.title')}
-            errorTitle={t('requisitions.requisition.section-error-title')}
-            error={error}
-            onRetry={reset}
-          />,
-        )
-      }
-    >
-      <LoadedRejectReasonsDialog {...props} />
-    </QueryBoundary>
+    <>
+      <FormDialogBody>
+        <ErrorAlert
+          action={<RetryButton onClick={reset} />}
+          description={t(offline ? 'offline.notice-description' : 'error.check-connection')}
+          title={t(
+            offline ? 'offline.notice-title' : 'requisitions.requisition.section-error-title',
+          )}
+        />
+      </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+      </FormDialogFooter>
+    </>
   );
 }
