@@ -168,7 +168,7 @@ it.each([true, false])(
   async (createOrder) => {
     rows();
     vi.mocked(releaseRequisitions).mockImplementation(async () => {
-      rows([], 0);
+      rows([row('April')]);
     });
     const { queryClient } = renderRoute('/requisitions/convert');
     queryClient.setQueryData([...queryKeys.home.all, 'test-count'], 1);
@@ -181,11 +181,23 @@ it.each([true, false])(
         requisitionsToRelease: [{ requisitionId: 'March', supplyingDepotId: 'a' }],
       }),
     );
-    await screen.findByText('requisitions.convert.empty');
+    await screen.findAllByText('April');
+    await waitFor(() => expect(fetchConvertList).toHaveBeenCalledTimes(2));
+    await userEvent.click(screen.getAllByRole('checkbox').at(-1) as HTMLElement);
+    await action(createOrder);
+    await confirm();
+    await waitFor(() =>
+      expect(releaseRequisitions).toHaveBeenNthCalledWith(2, {
+        createOrder,
+        requisitionsToRelease: [{ requisitionId: 'April', supplyingDepotId: 'a' }],
+      }),
+    );
     expect(queryClient.getQueryState([...queryKeys.home.all, 'test-count'])?.isInvalidated).toBe(
       true,
     );
-    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    await waitFor(() =>
+      expect(screen.getByRole('checkbox', { name: 'Select Page' })).not.toBeChecked(),
+    );
     queryClient.clear();
   },
 );
