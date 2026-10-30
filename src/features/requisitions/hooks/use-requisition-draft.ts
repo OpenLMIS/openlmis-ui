@@ -39,11 +39,7 @@ export function useRequisitionDraft(
   if (initial.current.id !== draftId) initial.current = record;
   const adopt = useRef(onLoad);
   adopt.current = onLoad;
-  const [state, setState] = useState<{
-    controller: unknown;
-    status: DraftSaveState;
-    outdated: boolean;
-  }>();
+  const [, setVersion] = useState(0);
   const controller = useMemo(() => {
     let baseline = initial.current;
     const userId = isSecureOrigin ? getSessionUserId() : null;
@@ -55,8 +51,22 @@ export function useRequisitionDraft(
     let closed = false;
     let outdated = false;
     let status: DraftSaveState = { status: db ? 'loading' : 'saved' };
+    const listeners = new Set<() => void>();
+    let publishedStatus = status;
+    let publishedLoading = status.status === 'loading';
+    let publishedOutdated = outdated;
     const publish = () => {
-      if (active && scope === getSessionScope()) setState({ controller: api, status, outdated });
+      if (!active || scope !== getSessionScope()) return;
+      const loading = status.status === 'loading';
+      if (loading !== publishedLoading || outdated !== publishedOutdated) {
+        publishedLoading = loading;
+        publishedOutdated = outdated;
+        setVersion((version) => version + 1);
+      }
+      if (status.status !== publishedStatus.status || status.error !== publishedStatus.error) {
+        publishedStatus = status;
+        for (const listener of listeners) listener();
+      }
     };
     const readStored = () =>
       db
@@ -144,6 +154,13 @@ export function useRequisitionDraft(
       },
     );
     const api = {
+      subscribeStatus(listener: () => void) {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      getStatus: () => publishedStatus,
       activate() {
         active = true;
         closed = false;
@@ -225,10 +242,13 @@ export function useRequisitionDraft(
     controller.activate();
     return () => controller.dispose();
   }, [controller]);
-  const current = state?.controller === controller ? state : undefined;
   return {
-    status: current?.status ?? controller.status,
-    outdated: current?.outdated ?? controller.outdated,
+    get status() {
+      return controller.status;
+    },
+    outdated: controller.outdated,
+    subscribeStatus: controller.subscribeStatus,
+    getStatus: controller.getStatus,
     deviceAvailable: isSecureOrigin,
     write: controller.write,
     flush: controller.flush,

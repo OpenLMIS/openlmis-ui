@@ -343,3 +343,30 @@ it('cleans up an old unchanged draft that has no patients field', async () => {
   await waitFor(() => expect(hook.result.current.status.status).toBe('saved'));
   expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
 });
+
+it('does not rerender the editor for device writes while publishing status transitions', async () => {
+  let renders = 0;
+  const { result } = renderHook(() => {
+    renders++;
+    return useRequisitionDraft(base);
+  });
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const before = renders;
+  const statuses: string[] = [];
+  const unsubscribe = result.current.subscribeStatus(() =>
+    statuses.push(result.current.getStatus().status),
+  );
+  act(() => {
+    result.current.write(draft);
+    const saving = result.current.getStatus();
+    result.current.write(draft);
+    expect(result.current.getStatus()).toBe(saving);
+    expect(statuses).toEqual(['saving']);
+  });
+  await act(() => result.current.flush());
+  expect(result.current.status.status).toBe('saved');
+  expect((await getLocalDb().table('requisitionDrafts').get('r')).draft).toEqual(draft);
+  expect(renders - before).toBe(0);
+  expect(statuses).toEqual(['saving', 'saved']);
+  unsubscribe();
+});
