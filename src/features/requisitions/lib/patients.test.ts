@@ -112,6 +112,20 @@ it('writes captured legacy rows with canonical focus and validation flags', () =
   const parsed = parsePatients(JSON.stringify(legacy));
   const written = JSON.parse(writePatients(parsed)) as typeof legacy;
   expect(written).toEqual(legacy);
+  parsed.TBData[0][0].data[0].value = 2147483648;
+  parsed.TBData[0][0].data[6] = { value: 998, disabled: true };
+  const flagged = JSON.parse(writePatients(parsed)) as typeof legacy;
+  expect(flagged.TBData[0][0].data[0]).toMatchObject({
+    value: 2147483648,
+    isInvalid: true,
+    isFocused: false,
+  });
+  expect(flagged.TBData[0][0].data[6]).toEqual({
+    value: '',
+    disabled: true,
+    isInvalid: false,
+    isFocused: false,
+  });
   expect(writePatients(parsePatients(writePatients(parsed)))).toBe(writePatients(parsed));
 });
 it('validates enabled unskipped months and guards both counts and computed totals', () => {

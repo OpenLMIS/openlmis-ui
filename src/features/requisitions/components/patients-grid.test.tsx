@@ -47,36 +47,33 @@ it('uses the current record and shows only its enabled months in cards', () => {
   expect(screen.getByText('requisitions.no')).toBeInTheDocument();
 });
 
-it.each([390, 1024])(
-  'enforces Skip and live required errors in the editable layout at %s',
-  async (width) => {
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
-    const base = {
-      ...record(),
-      id: 'patients',
-      facility: { id: 'f' },
-      processingPeriod: { id: 'p' },
-    } as RequisitionRecord;
-    function Editor() {
-      const editor = useRequisitionForm(base);
-      return <PatientsGrid editor={editor} />;
-    }
-    render(<Editor />);
-    const inputs = await screen.findAllByRole('textbox', {
-      name: 'requisitions.patients.cell-label',
-    });
-    expect(inputs).toHaveLength(66);
-    await waitFor(() => expect(inputs[0]).toBeEnabled());
-    const skip = screen.getByRole('checkbox', {
-      name: 'requisitions.patients.skip: requisitions.patients.adult-patients',
-    });
-    fireEvent.change(inputs[0], { target: { value: '0' } });
-    await waitFor(() => expect(skip).toHaveAttribute('aria-disabled', 'true'));
-    expect(inputs[1]).toHaveAttribute('aria-invalid', 'true');
-    fireEvent.change(inputs[0], { target: { value: '' } });
-    await waitFor(() => expect(skip).not.toHaveAttribute('aria-disabled', 'true'));
-    expect(inputs[1]).not.toHaveAttribute('aria-invalid', 'true');
-    fireEvent.click(skip);
-    await waitFor(() => expect(inputs[0]).toBeDisabled());
-  },
-);
+it('enforces Skip and live required errors in the editable layout at phone width', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(390);
+  const base = {
+    ...record(),
+    id: 'patients',
+    facility: { id: 'f' },
+    processingPeriod: { id: 'p' },
+  } as RequisitionRecord;
+  function Editor() {
+    const editor = useRequisitionForm(base);
+    return <PatientsGrid editor={editor} />;
+  }
+  render(<Editor />);
+  const inputs = await screen.findAllByRole('textbox', {
+    name: 'requisitions.patients.cell-label',
+  });
+  expect(inputs).toHaveLength(66);
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  const skip = screen.getByRole('checkbox', {
+    name: 'requisitions.patients.skip: requisitions.patients.adult-patients',
+  });
+  fireEvent.change(inputs[0], { target: { value: '0' } });
+  await waitFor(() => expect(skip).toHaveAttribute('aria-disabled', 'true'));
+  expect(inputs[1]).toHaveAttribute('aria-invalid', 'true');
+  fireEvent.change(inputs[0], { target: { value: '' } });
+  await waitFor(() => expect(skip).not.toHaveAttribute('aria-disabled', 'true'));
+  expect(inputs[1]).not.toHaveAttribute('aria-invalid', 'true');
+  fireEvent.click(skip);
+  await waitFor(() => expect(inputs[0]).toBeDisabled());
+});

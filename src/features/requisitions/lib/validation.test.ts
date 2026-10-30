@@ -239,7 +239,7 @@ it('validates only approval columns while retaining numeric draft errors', () =>
   ).toEqual({ approvedQuantity: 'stock-events.positive-number' });
 });
 
-it.each(['INITIATED', 'SUBMITTED', 'AUTHORIZED', 'IN_APPROVAL'] as const)(
+it.each(['INITIATED', 'SUBMITTED', 'REJECTED', 'AUTHORIZED', 'IN_APPROVAL'] as const)(
   'uses patients-template validation in %s',
   (status) => {
     const req = record({
@@ -250,16 +250,17 @@ it.each(['INITIATED', 'SUBMITTED', 'AUTHORIZED', 'IN_APPROVAL'] as const)(
           [
             column('stockOnHand', 0, { source: 'USER_INPUT' }),
             column('totalReceivedQuantity', 1, { source: 'USER_INPUT' }),
-            column('numberOfPatientsOnTreatmentNextMonth', 2),
+            column('numberOfPatientsOnTreatmentNextMonth', 2, { source: 'USER_INPUT' }),
             column('remarks', 3, { source: 'USER_INPUT' }),
           ].map((c) => [c.name, c]),
         ),
       },
       requisitionLineItems: [
         line({
-          stockOnHand: null,
+          stockOnHand: -1,
           totalReceivedQuantity: null,
-          numberOfPatientsOnTreatmentNextMonth: null,
+          numberOfPatientsOnTreatmentNextMonth: -1,
+          remarks: 'x'.repeat(251),
         }),
       ],
     });
@@ -268,8 +269,10 @@ it.each(['INITIATED', 'SUBMITTED', 'AUTHORIZED', 'IN_APPROVAL'] as const)(
       {};
     expect(errors).not.toHaveProperty('totalReceivedQuantity');
     expect(errors).not.toHaveProperty('remarks');
-    expect(errors.stockOnHand).toBe(status === 'AUTHORIZED' ? undefined : 'stock-events.required');
-    if (status === 'INITIATED' || status === 'SUBMITTED')
+    expect(errors.stockOnHand).toBe(
+      status === 'AUTHORIZED' ? undefined : 'requisitions.edit.validation.negative',
+    );
+    if (['INITIATED', 'SUBMITTED', 'REJECTED'].includes(status))
       expect(errors).not.toHaveProperty('numberOfPatientsOnTreatmentNextMonth');
   },
 );

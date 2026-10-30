@@ -301,3 +301,14 @@ it('keeps local patient changes when a newer unreadable server value cannot be r
   expect(rebaseRequisitionDraft(req, draft).patients).toEqual(draft.patients);
   expect(applyRequisitionDraft(req, draft).patientsData).toBe(req.patientsData);
 });
+
+it('drops patient changes after typing into an empty cell and clearing it', () => {
+  const draft = buildRequisitionDraft(base);
+  draft.patients = { 'TBData:numberOfAdultPatients': { values: { 0: '12' } } };
+  const typed = rebaseRequisitionDraft(base, draft);
+  expect(
+    parsePatients(applyRequisitionDraft(base, typed).patientsData).TBData[0][0].data[0].value,
+  ).toBe(12);
+  typed.patients = { 'TBData:numberOfAdultPatients': { values: { 0: '' } } };
+  expect(rebaseRequisitionDraft(base, typed)).toEqual(buildRequisitionDraft(base));
+});
