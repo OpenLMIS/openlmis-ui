@@ -34,15 +34,16 @@ import {
 import type { ConvertListRow } from '@/features/requisitions/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
-import { requireOnline } from '@/lib/local-data';
-import { reportCaughtError } from '@/lib/report-error';
+import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
 import { revealField } from '@/lib/reveal-field';
+import { settleFew } from '@/lib/settle-few';
 
 type Problem =
   | { kind: 'none'; createOrder: boolean }
   | { kind: 'depot' }
   | { kind: 'server'; message?: string }
-  | { kind: 'uncertain' };
+  | { kind: 'uncertain' }
+  | { kind: 'release-unknown' };
 export function useConvertActions(search: ConvertSearch, cards: boolean) {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -74,6 +75,22 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
       client.invalidateQueries({ queryKey: queryKeys.home.all }),
     ]);
   };
+  const notifySuccess = (body: ReleaseBody) => {
+    toast.success(
+      t(
+        body.createOrder
+          ? 'requisitions.convert.convert-success'
+          : 'requisitions.convert.release-success',
+      ),
+      {
+        description: t(
+          body.createOrder
+            ? 'requisitions.convert.convert-success-description'
+            : 'requisitions.convert.release-success-description',
+        ),
+      },
+    );
+  };
   const mutation = useSessionMutation({
     mutationFn: async (body: ReleaseBody) => {
       requireOnline();
@@ -83,51 +100,47 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
       const ids = body.requisitionsToRelease.map(({ requisitionId }) => requisitionId);
       setPicked((previous) => withoutIds(previous, ids));
       setBlocked((previous) => new Set([...previous].filter((id) => !ids.includes(id))));
-      toast.success(
-        t(
-          body.createOrder
-            ? 'requisitions.convert.convert-success'
-            : 'requisitions.convert.release-success',
-        ),
-        {
-          description: t(
-            body.createOrder
-              ? 'requisitions.convert.convert-success-description'
-              : 'requisitions.convert.release-success-description',
-          ),
-        },
-      );
+      setInvalid(false);
+      notifySuccess(body);
       await refresh();
       if (!mutation.isCurrent()) return;
       focusList();
     },
     onError: async (error, body) => {
-      if (uncertainRelease(error)) {
-        const results = await Promise.all(
-          body.requisitionsToRelease.map(async ({ requisitionId }) => {
-            try {
-              const record = await fetchRequisition(requisitionId);
-              if (!mutation.isCurrent()) return { id: requisitionId, done: false };
-              return {
-                id: requisitionId,
-                done: record.status === 'RELEASED' || record.status === 'RELEASED_WITHOUT_ORDER',
-              };
-            } catch {
-              if (!mutation.isCurrent()) return { id: requisitionId, done: false };
-              return { id: requisitionId, done: false };
-            }
-          }),
+      if (error instanceof LocalDataUnavailableError) {
+        setProblem(
+          { kind: 'server', message: t('requisitions.convert.offline') },
+          filterRef.current,
         );
+        return;
+      }
+      if (uncertainRelease(error)) {
+        const results = await settleFew(body.requisitionsToRelease, async ({ requisitionId }) => {
+          const record = await fetchRequisition(requisitionId);
+          return {
+            id: requisitionId,
+            done: record.status === 'RELEASED' || record.status === 'RELEASED_WITHOUT_ORDER',
+          };
+        });
         if (!mutation.isCurrent()) return;
-        const done = results.filter((result) => result.done).map(({ id }) => id);
-        const unresolved = results.filter((result) => !result.done).map(({ id }) => id);
+        const done = results.done.filter((result) => result.done).map(({ id }) => id);
+        const unresolved = [
+          ...results.done.filter((result) => !result.done).map(({ id }) => id),
+          ...results.failed.map(({ requisitionId }) => requisitionId),
+        ];
         setPicked((previous) => withoutIds(previous, done));
         if (body.createOrder && unresolved.length) {
           setBlocked((previous) => new Set([...previous, ...unresolved]));
           setProblem({ kind: 'uncertain' }, filterRef.current);
-        } else if (unresolved.length)
+        } else if (results.failed.length)
+          setProblem({ kind: 'release-unknown' }, filterRef.current);
+        else if (unresolved.length)
           setProblem({ kind: 'server', message: serverMessage(error) }, filterRef.current);
-        else focusList();
+        else {
+          setInvalid(false);
+          notifySuccess(body);
+          focusList();
+        }
       } else setProblem({ kind: 'server', message: serverMessage(error) }, filterRef.current);
       await refresh();
       if (!mutation.isCurrent()) return;
@@ -151,10 +164,9 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
     if (sending.current || confirmation === null) return;
     try {
       requireOnline();
-    } catch (error) {
+    } catch {
       setConfirmation(null, filter);
       setProblem({ kind: 'server', message: t('requisitions.convert.offline') }, filter);
-      reportCaughtError(error, {});
       return;
     }
     const error = convertSelectionError(picked, depots);
@@ -226,9 +238,13 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
   const title =
     problem?.kind === 'depot'
       ? t('requisitions.convert.no-depot')
-      : problem?.kind === 'uncertain'
-        ? t('requisitions.convert.uncertain')
-        : t('requisitions.convert.failed');
+      : problem?.kind === 'none'
+        ? t('requisitions.convert.select-none')
+        : problem?.kind === 'release-unknown'
+          ? t('requisitions.convert.release-unknown')
+          : problem?.kind === 'uncertain'
+            ? t('requisitions.convert.uncertain')
+            : t('requisitions.convert.failed');
   const description =
     problem?.kind === 'depot'
       ? t('requisitions.convert.no-depot-description')
@@ -238,11 +254,13 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
               ? 'requisitions.convert.select-none-convert'
               : 'requisitions.convert.select-none-release',
           )
-        : problem?.kind === 'uncertain'
-          ? t('requisitions.convert.uncertain-description')
-          : problem?.kind === 'server' && problem.message
-            ? problem.message
-            : t('requisitions.convert.failed-description');
+        : problem?.kind === 'release-unknown'
+          ? t('requisitions.convert.release-unknown-description')
+          : problem?.kind === 'uncertain'
+            ? t('requisitions.convert.uncertain-description')
+            : problem?.kind === 'server' && problem.message
+              ? problem.message
+              : t('requisitions.convert.failed-description');
   const dialogs = (
     <>
       <InvalidSubmitDialog
@@ -306,7 +324,10 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
     pending: mutation.isPending,
     table: {
       picked,
-      onSelection: setPicked,
+      onSelection: (next: ConvertSelection) => {
+        setPicked(next);
+        if (convertSelectionError(next, depots) !== 'depot') setInvalid(false);
+      },
       depots,
       onDepot,
       onRows,

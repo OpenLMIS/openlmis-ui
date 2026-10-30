@@ -10,6 +10,7 @@ import {
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
@@ -19,10 +20,17 @@ import {
   fetchRequisition,
   releaseRequisitions,
 } from '@/features/requisitions/api/api';
-
 import { queryKeys } from '@/lib/key-factory';
+import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
+import { reportCaughtError } from '@/lib/report-error';
 import { Route } from '@/routes/(protected)/_protected.requisitions.convert';
 
+vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
+vi.mock('@/lib/local-data', async (original) => ({
+  ...(await original<typeof import('@/lib/local-data')>()),
+  requireOnline: vi.fn(),
+}));
+vi.mock('@/lib/report-error', () => ({ reportCaughtError: vi.fn() }));
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
@@ -78,6 +86,7 @@ function renderRoute(path: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(requireOnline).mockReset();
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     width: 1200,
   } as DOMRect);
@@ -369,6 +378,9 @@ it.each([true, false])(
         ? 'requisitions.convert.select-none-convert'
         : 'requisitions.convert.select-none-release',
     );
+    expect(
+      screen.getByRole('heading', { name: 'requisitions.convert.select-none' }),
+    ).toBeInTheDocument();
     expect(releaseRequisitions).not.toHaveBeenCalled();
     queryClient.clear();
   },
@@ -420,5 +432,132 @@ it('reconciles uncertain release without order without an order-duplication warn
   await waitFor(() => expect(fetchRequisition).toHaveBeenCalledWith('March'));
   await waitFor(() => expect(screen.getAllByRole('checkbox').at(-1)).not.toBeChecked());
   expect(screen.queryByText('requisitions.convert.uncertain-description')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it.each([1, 2])('treats offline refusal at guard %s as unsent', async (guard) => {
+  rows();
+  vi.mocked(requireOnline)
+    .mockImplementationOnce(() => {
+      if (guard === 1) throw new LocalDataUnavailableError();
+    })
+    .mockImplementationOnce(() => {
+      throw new LocalDataUnavailableError();
+    });
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action();
+  await confirm();
+  await screen.findByText('requisitions.convert.offline');
+  expect(releaseRequisitions).not.toHaveBeenCalled();
+  expect(fetchRequisition).not.toHaveBeenCalled();
+  expect(reportCaughtError).not.toHaveBeenCalled();
+  expect(screen.queryByText('requisitions.convert.uncertain-description')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+it.each([true, false])(
+  'toasts verified success after an uncertain action (%s)',
+  async (createOrder) => {
+    rows();
+    vi.mocked(releaseRequisitions).mockRejectedValueOnce(new AxiosError('Disconnected'));
+    vi.mocked(fetchRequisition).mockResolvedValue({ id: 'March', status: 'RELEASED' } as never);
+    const { queryClient } = renderRoute('/requisitions/convert');
+    await selectRow();
+    await action(createOrder);
+    await confirm();
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        createOrder
+          ? 'requisitions.convert.convert-success'
+          : 'requisitions.convert.release-success',
+        expect.any(Object),
+      ),
+    );
+    queryClient.clear();
+  },
+);
+it('keeps a refused release status explicitly unknown', async () => {
+  rows();
+  vi.mocked(releaseRequisitions).mockRejectedValueOnce(new AxiosError('Disconnected'));
+  vi.mocked(fetchRequisition).mockRejectedValueOnce(new Error('Refused'));
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action(false);
+  await confirm();
+  await screen.findByText('requisitions.convert.release-unknown-description');
+  expect(
+    screen.getByRole('heading', { name: 'requisitions.convert.release-unknown' }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText('requisitions.convert.failed-description')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+it('clears validation when ticks no longer include a missing depot', async () => {
+  rows([row('March', []), row('April', [])]);
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await screen.findAllByText('March');
+  await userEvent.click(screen.getAllByRole('checkbox')[1]);
+  await action();
+  await screen.findByRole('heading', { name: 'requisitions.convert.no-depot' });
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await userEvent.click(screen.getAllByRole('checkbox')[1]);
+  await userEvent.click(screen.getAllByRole('checkbox')[2]);
+  expect(
+    screen.getAllByRole('combobox', { name: 'requisitions.convert.depot-label' }).at(-1),
+  ).not.toHaveAttribute('aria-invalid', 'true');
+  queryClient.clear();
+});
+it('limits uncertain status reads to five in flight', async () => {
+  rows(
+    Array.from({ length: 6 }, (_, index) => row(String(index))),
+    6,
+  );
+  vi.mocked(releaseRequisitions).mockRejectedValueOnce(new AxiosError('Disconnected'));
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  vi.mocked(fetchRequisition).mockImplementation(async (id) => {
+    await gate;
+    return { id, status: 'RELEASED' } as never;
+  });
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await screen.findAllByText('0');
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Select Page' }));
+  await action();
+  await confirm();
+  try {
+    await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(5));
+  } finally {
+    finish();
+  }
+  await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(6));
+  await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  queryClient.clear();
+});
+
+it('resets validation after success before ticking a new depot-less row', async () => {
+  rows([
+    row('March', [
+      { id: 'a', name: 'Depot A' },
+      { id: 'b', name: 'Depot B' },
+    ]),
+  ]);
+  vi.mocked(releaseRequisitions).mockImplementation(async () => {
+    rows([row('April', [])]);
+  });
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action();
+  await screen.findByRole('heading', { name: 'requisitions.convert.no-depot' });
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await userEvent.click(screen.getByRole('combobox', { name: 'requisitions.convert.depot-label' }));
+  await userEvent.click(await screen.findByRole('option', { name: 'Depot A' }));
+  await action();
+  await confirm();
+  await screen.findAllByText('April');
+  await userEvent.click(screen.getAllByRole('checkbox').at(-1) as HTMLElement);
+  expect(
+    screen.getByRole('combobox', { name: 'requisitions.convert.depot-label' }),
+  ).not.toHaveAttribute('aria-invalid', 'true');
   queryClient.clear();
 });
