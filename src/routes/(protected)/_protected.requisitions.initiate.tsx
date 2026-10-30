@@ -46,8 +46,8 @@ import { initiateFailureMessage } from '@/features/requisitions/lib/initiate-fai
 import {
   type InitiateSearch,
   initiateSearchSchema,
-  requisitionReturnState,
 } from '@/features/requisitions/lib/initiate-search';
+import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { InitiateQuery } from '@/features/requisitions/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -313,7 +313,10 @@ function Periods({
   const [attempt] = useState(createRequisitionActionAttempt);
   const unresolved = useRef(false);
   const posting = useRef(false);
-  const returnState = useMemo(() => requisitionReturnState(search), [search]);
+  const openingState = useMemo(
+    () => returnState({ to: '/requisitions/initiate', search }),
+    [search],
+  );
   const refresh = async () => {
     await queryClient.fetchQuery({ ...periodsForInitiateOptions(query), retry: false });
     assertSessionScope(attempt.sessionScope);
@@ -342,7 +345,7 @@ function Periods({
       await router.navigate({
         to: '/requisitions/view/$requisitionId',
         params: { requisitionId: record.id },
-        state: returnState,
+        state: openingState,
       });
     },
     onError: async (error) => {
@@ -390,10 +393,10 @@ function Periods({
       <Link
         to="/requisitions/view/$requisitionId"
         params={{ requisitionId: id }}
-        state={returnState}
+        state={openingState}
       />
     ),
-    [returnState],
+    [openingState],
   );
   return (
     <InitiatePeriodsTable

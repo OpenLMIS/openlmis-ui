@@ -1,27 +1,29 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
-import { ClipboardListIcon, EyeIcon, SearchXIcon } from 'lucide-react';
+import { ClipboardListIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  DataTable,
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
   DataTableHeaderLabel,
-  DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CardActions, useInCards } from '@/components/display/card-actions';
-import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
-import { WrappingCell } from '@/components/display/wrapping-cell';
-import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
-import { FlagBadge } from '@/components/shared/flag-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { requisitionSearchOptions } from '@/features/requisitions/api/queries';
+import {
+  cardColumns,
+  EMERGENCY_COLUMN,
+  hideableColumns,
+  REQUISITION_LIST_COLUMNS,
+  RequisitionListSkeleton,
+  RequisitionListTable,
+  requisitionListCell,
+  ViewRequisition,
+} from '@/features/requisitions/components/requisition-list-parts';
 import {
   CLEARED_REQUISITION_FILTERS,
   hasRequisitionFilters,
@@ -39,35 +41,13 @@ import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const helper = createColumnHelper<DataTableFeatures, RequisitionSearchResult>();
 const COLUMNS = [
-  ['program', 'requisitions.columns.program'],
-  ['facility', 'requisitions.columns.facility'],
-  ['period', 'requisitions.columns.period'],
-  ['startDate', 'requisitions.columns.start-date'],
-  ['endDate', 'requisitions.columns.end-date'],
+  ...REQUISITION_LIST_COLUMNS,
   ['createdDate', 'requisitions.columns.date-initiated'],
   ['status', 'requisitions.columns.status'],
-  ['emergency', 'requisitions.columns.emergency'],
+  EMERGENCY_COLUMN,
 ] as const;
-export const REQUISITION_HIDEABLE_COLUMNS = COLUMNS.filter(([id]) => id !== 'program').map(
-  ([id, labelKey]) => ({
-    id,
-    labelKey,
-    ...((id === 'startDate' || id === 'endDate') && { hideBelow: 1024 }),
-  }),
-);
-const CARD_COLUMN_ORDER = [
-  'program',
-  'period',
-  'facility',
-  'startDate',
-  'endDate',
-  'createdDate',
-  'status',
-  'emergency',
-];
-const CARD_COLUMNS = [...COLUMNS].sort(
-  ([a], [b]) => CARD_COLUMN_ORDER.indexOf(a) - CARD_COLUMN_ORDER.indexOf(b),
-);
+export const REQUISITION_HIDEABLE_COLUMNS = hideableColumns(COLUMNS);
+const CARD_COLUMNS = cardColumns(COLUMNS);
 const NO_ROWS: RequisitionSearchResult[] = [];
 const noop = () => {};
 const rowId = (row: RequisitionSearchResult) => row.id;
@@ -78,54 +58,6 @@ type Props = {
   columns: ColumnVisibilityState;
   onSearchChange: SearchChange<RequisitionSearch>;
 };
-
-function ViewRequisition({
-  record,
-  search,
-  disabled,
-}: {
-  record: RequisitionSearchResult;
-  search: RequisitionSearch;
-  disabled: boolean;
-}) {
-  const { t } = useTranslation();
-  const cards = useInCards();
-  const name = t('requisitions.view.action-name', {
-    program: record.program?.name ?? '',
-    period: record.processingPeriod?.name ?? '',
-  });
-  const link = (
-    <Link
-      aria-label={name}
-      to="/requisitions/view/$requisitionId"
-      params={{ requisitionId: record.id }}
-      search={search}
-    />
-  );
-  if (cards)
-    return (
-      <CardActions
-        label={t('card-actions.actions-for', {
-          name: [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
-        })}
-        actions={[
-          {
-            id: 'view',
-            icon: <EyeIcon />,
-            label: t('requisitions.view.action'),
-            name,
-            link,
-            disabled,
-          },
-        ]}
-      />
-    );
-  return (
-    <Button aria-label={name} disabled={disabled} nativeButton={false} render={link} size="sm">
-      {t('requisitions.view.action')}
-    </Button>
-  );
-}
 
 function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
   const { t, i18n } = useTranslation();
@@ -150,32 +82,6 @@ function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
               ),
             cell: ({ row: { original: record } }) => {
               switch (id) {
-                case 'program':
-                  return tableValue(record.program?.name) ? (
-                    <WrappingCell width="bounded">{record.program?.name}</WrappingCell>
-                  ) : null;
-                case 'facility':
-                  return (
-                    record.facility && (
-                      <WrappingCell width="bounded">
-                        {[record.facility.code, record.facility.name].filter(Boolean).join(' - ')}
-                      </WrappingCell>
-                    )
-                  );
-                case 'period':
-                  return tableValue(record.processingPeriod?.name);
-                case 'startDate':
-                  return tableValue(
-                    formatDateValue(record.processingPeriod?.startDate ?? '', i18n.language),
-                  );
-                case 'endDate':
-                  return tableValue(
-                    formatDateValue(record.processingPeriod?.endDate ?? '', i18n.language),
-                  );
-                case 'createdDate':
-                  return tableValue(
-                    formatTimestamp(record.createdDate, i18n.language, { timeZone }),
-                  );
                 case 'status': {
                   const status = REQUISITION_STATUS[record.status];
                   if (!status) return tableValue(record.status);
@@ -187,14 +93,8 @@ function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
                     </Badge>
                   );
                 }
-                case 'emergency':
-                  return (
-                    <FlagBadge
-                      value={record.emergency}
-                      trueLabel={t('requisitions.yes')}
-                      falseLabel={t('requisitions.no')}
-                    />
-                  );
+                default:
+                  return requisitionListCell(id, record, i18n.language, timeZone, t);
               }
             },
           }),
@@ -206,7 +106,7 @@ function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
             <DataTableHeaderLabel>{t('requisitions.columns.actions')}</DataTableHeaderLabel>
           ),
           cell: ({ row }) => (
-            <ViewRequisition disabled={stale} record={row.original} search={search} />
+            <ViewRequisition disabled={stale} record={row.original} linkProps={{ search }} />
           ),
         }),
       ]),
@@ -287,23 +187,14 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange }: Pr
     />
   );
   const footer = !pastEnd && page.totalElements > 0 && <DataTablePagination table={table} />;
-  return cards ? (
-    <TableCards
-      busy={stale}
+  return (
+    <RequisitionListTable
+      cards={cards}
+      table={table}
+      stale={stale}
       empty={!pastEnd && empty}
       footer={footer}
       listRef={pageStart.ref}
-      table={table}
-      title="program"
-    />
-  ) : (
-    <DataTable
-      density="default"
-      empty={!pastEnd && empty}
-      footer={footer}
-      isStale={stale}
-      layout="auto"
-      table={table}
     />
   );
 }
@@ -323,9 +214,5 @@ export function RequisitionsTableSkeleton({
     stale: false,
   });
   const rowCount = toPaginationState(search, REQUISITIONS_PAGE_SIZE).pageSize;
-  return cards ? (
-    <TableCardsSkeleton actions={1} rowCount={rowCount} table={table} title="program" />
-  ) : (
-    <DataTableSkeleton density="default" layout="auto" rowCount={rowCount} table={table} />
-  );
+  return <RequisitionListSkeleton cards={cards} rowCount={rowCount} table={table} />;
 }

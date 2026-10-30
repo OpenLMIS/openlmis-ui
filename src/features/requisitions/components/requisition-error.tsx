@@ -1,7 +1,13 @@
 import { type ErrorComponentProps, Link, useRouter } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { RecordError } from '@/components/app-shell/record-error';
-import { requisitionReturnTarget } from '@/features/requisitions/lib/initiate-search';
+import { requisitionReturnTarget } from '@/features/requisitions/lib/requisition-return';
+
+const BACK_LABELS = {
+  '/requisitions/initiate': 'requisitions.requisition.back-initiate',
+  '/requisitions/approve': 'requisitions.requisition.back-approve',
+  '/requisitions/view': 'requisitions.requisition.back',
+} as const;
 
 export function RequisitionError({ search, ...props }: ErrorComponentProps & { search: unknown }) {
   const { t } = useTranslation();
@@ -13,13 +19,7 @@ export function RequisitionError({ search, ...props }: ErrorComponentProps & { s
       width="wide"
       backLink={<Link {...target} />}
       labels={{
-        back: t(
-          target.to === '/requisitions/initiate'
-            ? 'requisitions.requisition.back-initiate'
-            : target.to === '/requisitions/approve'
-              ? 'requisitions.requisition.back-approve'
-              : 'requisitions.requisition.back',
-        ),
+        back: t(BACK_LABELS[target.to]),
         title: t('requisitions.requisition.error-title'),
         description: t('requisitions.requisition.error-description'),
         notFoundTitle: t('requisitions.requisition.not-found-title'),

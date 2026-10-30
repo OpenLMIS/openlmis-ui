@@ -800,9 +800,10 @@ home facility, user programs, all facilities and page grants, following legacy:
 - Screens add fields after Program as `FacilityProgramSelector` children, matched in its skeleton,
   as Create/Authorize's Regular/Emergency type. The route keeps their draft and merges it in
   `onSearch`.
-- Requisition links from Create/Authorize pass `requisitionReturnState(search)` as history state;
-  the requisition page and its error back link return there, keeping that state across tabs,
-  paging and dialogs (`useSearchNavigation` `keepState`).
+- Requisition links from Create/Authorize and the approval list pass `returnState({ to, search })`
+  from `features/requisitions/lib/requisition-return.ts` as history state.
+  The `RequisitionReturn` union covers both list targets. The requisition page and its error back
+  link return there, keeping that state across tabs, paging and dialogs (`useSearchNavigation` `keepState`).
 - Stock On Hand and Transaction History show their search and Filters before Search, as
   legacy does; View, Print and the unit toggle wait for results.
 

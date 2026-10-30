@@ -165,7 +165,7 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
       programs={programs}
       disabled={pending}
       view={columnsMenu}
-      onFilterChange={(patch) => updateSearch(patch)}
+      onFilterChange={updateSearch}
     />
   );
   const skeleton = (

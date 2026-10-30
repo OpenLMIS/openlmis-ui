@@ -98,8 +98,8 @@ import {
   RequisitionRetryConflict,
   toRequisitionFailure,
 } from '@/features/requisitions/lib/failure';
-import { requisitionReturnTarget } from '@/features/requisitions/lib/initiate-search';
 import { buildLines, filterLines } from '@/features/requisitions/lib/lines';
+import { requisitionReturnTarget } from '@/features/requisitions/lib/requisition-return';
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
 import { defaultRequisitionTab, hidesSkipped } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
