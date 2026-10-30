@@ -277,7 +277,7 @@ function InitiateBody({ userId }: { userId: string }) {
         <DataTableCard>
           <DataTableEmpty
             icon={<ClipboardListIcon />}
-            title={t('requisitions.initiate.period')}
+            title={t('requisitions.initiate.search-title')}
             description={t('requisitions.initiate.select-required')}
           />
         </DataTableCard>
@@ -298,7 +298,7 @@ function PeriodsError({ error, reset }: { error: unknown; reset: () => void }) {
           : 'requisitions.initiate.load-failed',
       )}
       description={
-        initiateFailureMessage(error, t) ?? t('requisitions.initiate.initiate-failed-description')
+        initiateFailureMessage(error, t) ?? t('requisitions.initiate.load-failed-description')
       }
     />
   );
@@ -333,6 +333,7 @@ function Periods({
   );
   const [attempt] = useState(createRequisitionActionAttempt);
   const unresolved = useRef(false);
+  const reconciling = useRef(false);
   const posting = useRef(false);
   const [clicked, setClicked] = useState<string>();
   const refresh = async () => {
@@ -346,13 +347,19 @@ function Periods({
     mutationFn: async () => {
       requireOnline();
       if (unresolved.current) {
+        reconciling.current = true;
         await refresh();
         return null;
       }
       return initiateRequisition(query, attempt);
     },
     onSuccess: async (record) => {
-      if (!record) return;
+      if (!record) {
+        toast.info(t('requisitions.initiate.refreshed'), {
+          description: t('requisitions.initiate.refreshed-description'),
+        });
+        return;
+      }
       await queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all });
       assertSessionScope(attempt.sessionScope);
       await router.navigate({
@@ -362,6 +369,12 @@ function Periods({
       });
     },
     onError: async (error) => {
+      if (reconciling.current) {
+        toast.error(t('requisitions.initiate.load-failed'), {
+          description: t('requisitions.initiate.load-failed-description'),
+        });
+        return;
+      }
       const status = isAxiosError(error) ? error.response?.status : undefined;
       if (!status || status === 409 || status >= 500) {
         unresolved.current = true;
@@ -381,6 +394,7 @@ function Periods({
       });
     },
     onSettled: () => {
+      reconciling.current = false;
       posting.current = false;
       setClicked(undefined);
     },

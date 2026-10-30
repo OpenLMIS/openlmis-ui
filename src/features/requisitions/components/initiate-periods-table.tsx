@@ -164,7 +164,7 @@ export function InitiatePeriodsTable(props: Props) {
   const empty = (
     <DataTableEmpty
       icon={<ClipboardListIcon />}
-      title={t('requisitions.initiate.period')}
+      title={t('requisitions.initiate.no-periods-title')}
       description={t('requisitions.initiate.no-periods')}
     />
   );

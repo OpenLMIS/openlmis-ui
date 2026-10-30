@@ -151,6 +151,14 @@ it.each([
     }),
   );
   expect(router.state.location.pathname).toBe('/requisitions/initiate');
+  await userEvent.click(
+    screen.getByRole('button', { name: 'requisitions.initiate.proceed-label' }),
+  );
+  await waitFor(() => expect(client.post).toHaveBeenCalledTimes(2));
+  const calls = vi.mocked(client.post).mock.calls;
+  expect(calls[0]?.[2]?.headers?.['Idempotency-Key']).not.toBe(
+    calls[1]?.[2]?.headers?.['Idempotency-Key'],
+  );
   queryClient.clear();
 });
 it('refetches an uncertain outcome before another attempt and takes a fresh key', async () => {
@@ -214,6 +222,15 @@ it('opens an existing requisition for an AUTHORIZE-only user without posting', a
     programId: p,
   });
   expect(client.post).not.toHaveBeenCalled();
+  queryClient.clear();
+});
+it('offers no Proceed on a not-started period to a user without CREATE', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([`REQUISITION_AUTHORIZE|${f}|${p}`]);
+  const { queryClient } = renderRoute();
+  await screen.findByText('January');
+  expect(
+    screen.queryByRole('button', { name: 'requisitions.initiate.proceed-label' }),
+  ).not.toBeInTheDocument();
   queryClient.clear();
 });
 it('does not post again when reconciliation fails, and the next click only reconciles', async () => {
