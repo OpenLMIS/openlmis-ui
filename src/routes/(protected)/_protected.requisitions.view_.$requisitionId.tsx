@@ -445,6 +445,7 @@ function RequisitionBody({
           }
         } else await reload();
         assertSessionScope(scope);
+        uncertain.current = null;
         return;
       }
       requireOnline();
@@ -481,11 +482,9 @@ function RequisitionBody({
             uncertain.current = null;
           }
           throw new RequisitionRetryConflict();
-        } else if (approval) {
-          if (retry.keyUsed) {
-            uncertain.current = null;
-            attempt.key = randomId();
-          }
+        } else if (approval && retry.keyUsed) {
+          uncertain.current = null;
+          attempt.key = randomId();
           throw new Error(t('requisitions.edit.reconciling'));
         }
       } else if (
@@ -768,7 +767,7 @@ function RequisitionBody({
               <AlertAction>
                 <RequisitionUpdate
                   tone="info"
-                  pending={editingBlocked}
+                  pending={pending}
                   onUpdate={() => {
                     setFailure(null);
                     setAction('update');
@@ -789,7 +788,7 @@ function RequisitionBody({
               <AlertAction>
                 <RequisitionUpdate
                   tone="warning"
-                  pending={editingBlocked}
+                  pending={pending}
                   onUpdate={() => {
                     setFailure(null);
                     setAction('update');

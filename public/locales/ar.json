@@ -1581,8 +1581,6 @@
   "requisitions.approve.select-mixed-title": "تم تحديد برامج مختلفة",
   "requisitions.approve.select-none-description": "يرجى تحديد طلب واحد على الأقل.",
   "requisitions.approve.select-none-title": "لم يتم تحديد طلبات",
-  "requisitions.approve.sort-newest": "الأحدث اعتماداً",
-  "requisitions.approve.sort-oldest": "الأقدم اعتماداً",
   "requisitions.approve.title": "الموافقة على الطلبات",
   "requisitions.approve.view-selected": "عرض الطلبات المحددة",
   "requisitions.approve.view-selected-short": "عرض المحدد",

@@ -1581,8 +1581,6 @@
   "requisitions.approve.select-mixed-title": "Programas Diferentes Seleccionados",
   "requisitions.approve.select-none-description": "Seleccione al menos una requisición.",
   "requisitions.approve.select-none-title": "Sin Requisiciones Seleccionadas",
-  "requisitions.approve.sort-newest": "Autorizadas Más Recientes",
-  "requisitions.approve.sort-oldest": "Autorizadas Más Antiguas",
   "requisitions.approve.title": "Aprobar Requisiciones",
   "requisitions.approve.view-selected": "Ver Requisiciones Seleccionadas",
   "requisitions.approve.view-selected-short": "Ver Seleccionadas",

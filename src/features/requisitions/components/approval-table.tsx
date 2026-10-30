@@ -174,13 +174,11 @@ function useColumns(search: ApprovalSearch, stale: boolean, cards: boolean, batc
                     <WrappingCell width="bounded">{record.program?.name}</WrappingCell>
                   ) : null;
                 case 'facility':
-                  return (
-                    record.facility && (
-                      <WrappingCell width="bounded">
-                        {[record.facility.code, record.facility.name].filter(Boolean).join(' - ')}
-                      </WrappingCell>
-                    )
-                  );
+                  return record.facility ? (
+                    <WrappingCell width="bounded">
+                      {[record.facility.code, record.facility.name].filter(Boolean).join(' - ')}
+                    </WrappingCell>
+                  ) : null;
                 case 'period':
                   return tableValue(record.processingPeriod?.name);
                 case 'startDate':

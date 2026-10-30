@@ -1447,6 +1447,23 @@ it('requires a reason before confirming rejection and sends its DTO after saving
   expect(put.mock.calls[1][2]).toEqual({ headers: { 'Idempotency-Key': expect.any(String) } });
   queryClient.clear();
 });
+it('resends a lost approval with the same key when the record is unchanged', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi
+    .spyOn(client, 'post')
+    .mockRejectedValueOnce(new AxiosError('Timeout', 'ECONNABORTED'))
+    .mockResolvedValueOnce({ data: {} });
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await screen.findByText('Approval List');
+  expect(post).toHaveBeenCalledTimes(2);
+  expect(post.mock.calls[1]?.[2]).toEqual(post.mock.calls[0]?.[2]);
+  queryClient.clear();
+});
 it('keeps approval edits blocked and ignores repeated clicks while reconciliation is pending', async () => {
   const { base, queryClient } = await openApprover();
   const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });

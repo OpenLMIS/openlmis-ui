@@ -1,4 +1,4 @@
-import { Loader2Icon, Trash2Icon } from 'lucide-react';
+import { Loader2Icon, Trash2Icon, Undo2Icon } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
@@ -51,7 +51,7 @@ export function RequisitionActionDialog({
         <AlertDialogHeader>
           {(action === 'delete' || action === 'reject') && (
             <AlertDialogMedia variant="destructive">
-              <Trash2Icon />
+              {action === 'reject' ? <Undo2Icon /> : <Trash2Icon />}
             </AlertDialogMedia>
           )}
           <AlertDialogTitle>{title}</AlertDialogTitle>
