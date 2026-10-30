@@ -215,3 +215,26 @@ it('refuses invalid optional numeric draft text even when calculations normalize
   );
   expect(result.lines.line.requestedQuantity).toBe('stock-events.positive-number');
 });
+
+it('validates only approval columns while retaining numeric draft errors', () => {
+  const req = record({
+    status: 'AUTHORIZED',
+    template: {
+      columnsMap: {
+        beginningBalance: column('beginningBalance', 0, { source: 'USER_INPUT' }),
+        approvedQuantity: column('approvedQuantity', 1, {
+          source: 'USER_INPUT',
+          columnDefinition: { columnType: 'NUMERIC' },
+        }),
+      },
+    },
+    requisitionLineItems: [line({ beginningBalance: null, approvedQuantity: 2 })],
+  });
+  const options = { monthsInPeriod: 1, columns: ['approvedQuantity', 'remarks'] };
+  expect(validateRequisition(req, buildLines(req, [product()]), options).lines).toEqual({});
+  expect(
+    validateRequisition(req, buildLines(req, [product()]), options, {
+      line: { approvedQuantity: '-' },
+    }).lines.line,
+  ).toEqual({ approvedQuantity: 'stock-events.positive-number' });
+});

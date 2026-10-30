@@ -109,3 +109,15 @@ it('omits local ids from new lines while retaining saved line ids', () => {
   expect(body.requisitionLineItems[0]).toHaveProperty('id', 'saved');
   expect(body.requisitionLineItems[1]).not.toHaveProperty('id');
 });
+
+it('preserves skipped lines on approval saves when Skip is hidden', () => {
+  const input = {
+    ...record({ status: 'AUTHORIZED' }),
+    id: 'r',
+    facility: { id: 'f' },
+    processingPeriod: { id: 'p' },
+    template: { columnsMap: { skipped: column('skipped', 0, { isDisplayed: false }) } },
+    requisitionLineItems: [line({ skipped: true })],
+  } as RequisitionRecord;
+  expect(transformRequisition(input).requisitionLineItems[0].skipped).toBe(true);
+});

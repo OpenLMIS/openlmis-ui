@@ -44,6 +44,8 @@ export function transformRequisition(
         if (record.emergency && !SUBSET_COLUMNS.has(column.name)) continue;
         if (!displayed.has(column.name) || column.source === 'CALCULATED') next[column.name] = null;
       }
+      if (record.status === 'AUTHORIZED' || record.status === 'IN_APPROVAL')
+        next.skipped = line.skipped;
       next.orderable = { id: line.orderable.id, versionNumber: line.orderable.versionNumber };
       return next;
     }),

@@ -275,6 +275,7 @@ edits, which have no prop for TypeScript to detect:
 | `command.tsx` | Keep disabled items muted without lowering their explanation opacity |
 | `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
+| `skeleton.tsx` | Keep `inline`, which renders a span so placeholders can sit inside text such as `WorkspaceDescription` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus; keep `components` parts module-level and memoize DayButton, so re-renders never remount the calendar mid-click |
 | `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
@@ -800,9 +801,10 @@ home facility, user programs, all facilities and page grants, following legacy:
 - Screens add fields after Program as `FacilityProgramSelector` children, matched in its skeleton,
   as Create/Authorize's Regular/Emergency type. The route keeps their draft and merges it in
   `onSearch`.
-- Requisition links from Create/Authorize pass `requisitionReturnState(search)` as history state;
-  the requisition page and its error back link return there, keeping that state across tabs,
-  paging and dialogs (`useSearchNavigation` `keepState`).
+- Requisition links from Create/Authorize and the approval list pass `returnState({ to, search })`
+  from `features/requisitions/lib/requisition-return.ts` as history state.
+  The `RequisitionReturn` union covers both list targets. The requisition page and its error back
+  link return there, keeping that state across tabs, paging and dialogs (`useSearchNavigation` `keepState`).
 - Stock On Hand and Transaction History show their search and Filters before Search, as
   legacy does; View, Print and the unit toggle wait for results.
 

@@ -1,6 +1,10 @@
 import { isAxiosError } from 'axios';
+import type { RejectionReason } from '@/features/reference-data/lib/types';
+import type { toApprovalQuery } from '@/features/requisitions/lib/approval-search';
+import { isApprovalKind } from '@/features/requisitions/lib/capabilities';
 import { transformRequisition } from '@/features/requisitions/lib/transform';
 import type {
+  ApprovalListRow,
   InitiatePeriod,
   InitiateQuery,
   RequisitionRecord,
@@ -57,20 +61,34 @@ export const createRequisitionActionAttempt = () => ({
 export type RequisitionActionAttempt = ReturnType<typeof createRequisitionActionAttempt>;
 async function transition(
   id: string,
-  action: 'submit' | 'authorize' | 'skip',
+  action: 'submit' | 'authorize' | 'skip' | 'approve' | 'reject',
   attempt: RequisitionActionAttempt,
+  reasons?: readonly RejectionReason[],
 ) {
   assertSessionScope(attempt.sessionScope);
   try {
     const config = { headers: { 'Idempotency-Key': attempt.key } };
     const path = `/requisitions/${id}/${action}`;
     const response =
-      action === 'skip' ? await client.put(path, {}, config) : await client.post(path, {}, config);
+      action === 'reject'
+        ? await client.put(
+            path,
+            reasons?.map((rejectionReason) => ({ rejectionReason })),
+            config,
+          )
+        : action === 'skip'
+          ? await client.put(path, {}, config)
+          : await client.post(path, {}, config);
     assertSessionScope(attempt.sessionScope);
     return response.data;
   } catch (error) {
     assertSessionScope(attempt.sessionScope);
-    if (isAxiosError(error) && error.response && error.response.status !== 409)
+    if (
+      isAxiosError(error) &&
+      error.response &&
+      error.response.status !== 409 &&
+      (!isApprovalKind(action) || error.response.status < 500)
+    )
       attempt.key = randomId();
     throw error;
   }
@@ -112,5 +130,27 @@ export async function initiateRequisition(
     },
   );
   assertSessionScope(attempt.sessionScope);
+  return data;
+}
+
+export const approveRequisition = (id: string, attempt: RequisitionActionAttempt) =>
+  transition(id, 'approve', attempt);
+export const rejectRequisition = (
+  id: string,
+  attempt: RequisitionActionAttempt,
+  reasons?: readonly RejectionReason[],
+) => transition(id, 'reject', attempt, reasons);
+export async function fetchUnskipSetting() {
+  const { data } = await client.get<{ unskipRequisition: boolean }>(
+    '/requisitions/unSkipRequisition',
+  );
+  return data;
+}
+
+export async function fetchApprovalList(params: ReturnType<typeof toApprovalQuery>) {
+  const { data } = await client.get<Page<ApprovalListRow>>(
+    '/requisitions/requisitionsForApproval',
+    { params, paramsSerializer: { indexes: null } },
+  );
   return data;
 }

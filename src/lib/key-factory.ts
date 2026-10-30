@@ -33,6 +33,7 @@ export const queryKeys = {
   requisitions: createQueryKeys('requisitions'),
   requisitionGroups: createQueryKeys('requisitionGroups'),
   requisitionTemplates: createQueryKeys('requisitionTemplates'),
+  requisitionUnskipSetting: createQueryKeys('requisitionUnskipSetting'),
   rights: createQueryKeys('rights'),
   roles: createQueryKeys('roles'),
   serviceAccounts: createQueryKeys('serviceAccounts'),

@@ -32,6 +32,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
     RIGHTS.requisitionDelete,
     RIGHTS.requisitionAuthorize,
   ],
+  '/requisitions/approve': RIGHTS.requisitionApprove,
   '/requisitions/view': RIGHTS.requisitionView,
   '/offline-events': [],
 };

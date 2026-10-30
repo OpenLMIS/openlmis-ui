@@ -30,6 +30,7 @@ type RequisitionValidation = {
 };
 type ValidationOptions = {
   monthsInPeriod: number;
+  columns?: readonly string[];
 };
 const empty = (value: unknown) => value == null || (typeof value === 'string' && !value.trim());
 
@@ -41,7 +42,13 @@ export function validateRequisition(
 ): RequisitionValidation {
   const result: RequisitionValidation = { lines: {}, errors: [] };
   for (const model of lines) {
-    const errors = validateLine(model, record, options.monthsInPeriod, changes[model.line.id]);
+    const errors = validateLine(
+      model,
+      record,
+      options.monthsInPeriod,
+      changes[model.line.id],
+      options.columns,
+    );
     if (Object.keys(errors).length) result.lines[model.line.id] = errors;
   }
   if (!lines.some((model) => !model.line.skipped))
@@ -54,6 +61,7 @@ export function validateLine(
   record: Requisition,
   monthsInPeriod: number,
   changes: LineDraft = {},
+  columnFilter?: readonly string[],
 ) {
   const errors: Record<string, ParseKeys> = {};
   const line = calculateLine(model, record, monthsInPeriod);
@@ -146,5 +154,7 @@ export function validateLine(
     if (!checked.success && errors[column.name] !== 'requisitions.edit.validation.negative')
       errors[column.name] = checked.error.issues[0].message as ParseKeys;
   }
-  return errors;
+  return columnFilter
+    ? Object.fromEntries(Object.entries(errors).filter(([name]) => columnFilter.includes(name)))
+    : errors;
 }

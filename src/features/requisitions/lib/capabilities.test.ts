@@ -20,7 +20,6 @@ const context: Parameters<typeof requisitionCapabilities>[0] = {
   currentNodeId: 'node1',
 };
 const future = {
-  approverEditing: true,
   patientsEditing: true,
   actions: [
     'sync',
@@ -37,7 +36,7 @@ const future = {
 const policy = (overrides: Partial<Parameters<typeof requisitionCapabilities>[0]> = {}) =>
   requisitionCapabilities({ ...context, ...overrides }, future);
 
-it('ships creator and authorizer editing while keeping approvers and patients closed', () => {
+it('ships creator, authorizer and approver editing while keeping patients closed', () => {
   expect(requisitionCapabilities(context)).toMatchObject({
     editable: true,
     actions: ['sync', 'submit', 'delete', 'skip', 'print'],
@@ -47,8 +46,8 @@ it('ships creator and authorizer editing while keeping approvers and patients cl
     requisitionCapabilities({ ...context, status: 'SUBMITTED', grants: ['REQUISITION_AUTHORIZE'] }),
   ).toMatchObject({ editable: true, actions: ['sync', 'authorize', 'print'] });
   expect(requisitionCapabilities({ ...context, status: 'AUTHORIZED' })).toMatchObject({
-    editable: false,
-    actions: ['print'],
+    editable: true,
+    actions: ['sync', 'approve', 'reject', 'print'],
   });
   expect(
     requisitionCapabilities({
@@ -115,12 +114,7 @@ it('predicts approval at the current node, independently from facility APPROVE u
   expect(policy({ ...approval, isSplit: true }).actions).not.toContain('reject');
   expect(
     policy({ ...approval, program: { id: 'program', name: 'TB Monthly' } }).editableColumns,
-  ).toEqual([
-    'approvedQuantity',
-    'remarks',
-    'numberOfPatientsOnTreatmentNextMonth',
-    'totalReceivedQuantity',
-  ]);
+  ).toEqual(['approvedQuantity', 'remarks']);
 });
 it('limits product additions and line skipping, including approver unskip', () => {
   expect(policy({ emergency: true })).toMatchObject({
@@ -146,7 +140,7 @@ it('limits product additions and line skipping, including approver unskip', () =
       grants: ['REQUISITION_APPROVE'],
       unskipWhenApproving: true,
     }).skipLines,
-  ).toBe(false);
+  ).toBe(true);
 });
 
 it.each([false, true])(
@@ -162,16 +156,7 @@ it.each([false, true])(
         template: { columnsMap: {}, patientsTabEnabled },
         program: { id: 'program', name: 'TB Monthly' },
       }).editableColumns,
-    ).toEqual(
-      patientsTabEnabled
-        ? ['totalReceivedQuantity', 'remarks', 'numberOfPatientsOnTreatmentNextMonth']
-        : [
-            'approvedQuantity',
-            'remarks',
-            'numberOfPatientsOnTreatmentNextMonth',
-            'totalReceivedQuantity',
-          ],
-    );
+    ).toEqual([patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity', 'remarks']);
   },
 );
 it.each(['INITIATED', 'SUBMITTED'] as const)(

@@ -1,4 +1,4 @@
-import { Loader2Icon, Trash2Icon } from 'lucide-react';
+import { Loader2Icon, Trash2Icon, Undo2Icon } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
@@ -19,7 +19,10 @@ import type { RequisitionFailure } from '@/features/requisitions/lib/failure';
 import { useOnline } from '@/lib/online';
 
 type ConfirmAction =
-  | Extract<RequisitionAction, 'submit' | 'submitAndAuthorize' | 'authorize' | 'skip' | 'delete'>
+  | Extract<
+      RequisitionAction,
+      'submit' | 'submitAndAuthorize' | 'authorize' | 'approve' | 'reject' | 'skip' | 'delete'
+    >
   | 'update';
 type RequisitionActionDialogProps = {
   action: ConfirmAction;
@@ -46,9 +49,9 @@ export function RequisitionActionDialog({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          {action === 'delete' && (
+          {(action === 'delete' || action === 'reject') && (
             <AlertDialogMedia variant="destructive">
-              <Trash2Icon />
+              {action === 'reject' ? <Undo2Icon /> : <Trash2Icon />}
             </AlertDialogMedia>
           )}
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -61,7 +64,7 @@ export function RequisitionActionDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>{t('dialog.cancel')}</AlertDialogCancel>
           <AlertDialogAction
-            variant={action === 'delete' ? 'destructive' : 'default'}
+            variant={action === 'delete' || action === 'reject' ? 'destructive' : 'default'}
             disabled={pending}
             focusableWhenDisabled={pending}
             onClick={() => {
@@ -97,9 +100,11 @@ export function RequisitionErrorDialog({
       open
       title={t('requisitions.edit.error-title')}
       description={
-        error.kind === 'server'
-          ? (error.message ?? t('requisitions.edit.error-description'))
-          : t(`requisitions.edit.error.${error.kind}`)
+        error.kind === 'reconciling'
+          ? t('requisitions.edit.reconciling')
+          : error.kind === 'server'
+            ? (error.message ?? t('requisitions.edit.error-description'))
+            : t(`requisitions.edit.error.${error.kind}`)
       }
       onOpenChange={(open) => {
         if (!open && !pending) onClose();
