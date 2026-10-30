@@ -23,6 +23,12 @@ import {
 } from '@/features/requisitions/lib/draft';
 import type { RequisitionLine } from '@/features/requisitions/lib/lines';
 import { buildLines } from '@/features/requisitions/lib/lines';
+import {
+  applyPatientChanges,
+  parsePatients,
+  patientsForProduct,
+  validatePatients,
+} from '@/features/requisitions/lib/patients';
 import { defaultRequisitionTab, type RequisitionTab } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { validateLine } from '@/features/requisitions/lib/validation';
@@ -32,6 +38,7 @@ import type { SearchChange } from '@/lib/table-search';
 type LineCacheEntry = {
   source: RequisitionLine['line'] | undefined;
   changes?: LineDraft;
+  patientTotal?: number;
   model: RequisitionLine & { canSkip: boolean };
   errors: Record<string, ParseKeys>;
 };
@@ -51,6 +58,7 @@ function RequisitionTabsView({
   canSwitch,
   draft,
   showAllErrors,
+  editor,
 }: {
   draft?: RequisitionDraft;
   showAllErrors?: boolean;
@@ -77,10 +85,18 @@ function RequisitionTabsView({
     { data: currency },
     { data: program },
   ] = useSuspenseQueries({ queries: requisitionGridQueries(record) });
-  const current = useMemo(
-    () => (draft ? applyRequisitionDraft(record, draft) : record),
-    [record, draft],
+  const basePatients = useMemo(() => parsePatients(record.patientsData), [record.patientsData]);
+  const patientData = useMemo(
+    () => applyPatientChanges(basePatients, draft?.patients),
+    [basePatients, draft?.patients],
   );
+  const current = useMemo(
+    () => (draft ? applyRequisitionDraft(record, draft, basePatients) : record),
+    [record, draft, basePatients],
+  );
+  const patientErrors = record.template.patientsTabEnabled
+    ? validatePatients(patientData, !editing?.approver && showAllErrors, true)
+    : {};
   const cacheContext = useRef({
     record,
     months: period.durationInMonths,
@@ -114,28 +130,35 @@ function RequisitionTabsView({
     const models = buildLines(current, products, approvedProducts).map((model) => {
       const source = sources.get(model.line.id);
       const changes = draft?.lines[model.line.id];
+      const patientTotal =
+        record.template.columnsMap.numberOfPatientsOnTreatmentNextMonth?.source === 'CALCULATED'
+          ? patientsForProduct(patientData, model.product?.productCode ?? '')
+          : undefined;
       const previous = cache.current.get(model.line.id);
       let entry = previous;
       if (
         !entry ||
         entry.source !== source ||
         entry.changes !== changes ||
+        entry.patientTotal !== patientTotal ||
         entry.model.product !== model.product ||
         entry.model.approvedProduct !== model.approvedProduct
       ) {
-        const line = calculateLine(model, record, period.durationInMonths ?? 1);
+        const line = calculateLine(model, record, period.durationInMonths ?? 1, patientData);
         const errors: Record<string, ParseKeys> = editing?.editable
           ? validateLine(
               model,
-              record,
+              current,
               period.durationInMonths ?? 1,
               changes,
               editing.approver ? editing.editableColumns : undefined,
+              patientData,
             )
           : {};
         entry = {
           source,
           changes,
+          patientTotal,
           model: {
             ...model,
             line,
@@ -175,6 +198,7 @@ function RequisitionTabsView({
     editing?.approver,
     showAllErrors,
     draft,
+    patientData,
   ]);
   const patients = record.template.patientsTabEnabled;
   const tabs: { value: RequisitionTab; label: string }[] = [
@@ -214,12 +238,14 @@ function RequisitionTabsView({
           {tabs.map(({ value, label }) => (
             <TabsTrigger key={value} value={value}>
               {label}
-              {models.some(
-                (model) =>
-                  (value === 'fullSupply'
-                    ? model.fullSupply
-                    : value === 'nonFullSupply' && !model.fullSupply) && errors[model.line.id],
-              ) && (
+              {(value === 'patients'
+                ? Object.keys(patientErrors).length > 0
+                : models.some(
+                    (model) =>
+                      (value === 'fullSupply'
+                        ? model.fullSupply
+                        : value === 'nonFullSupply' && !model.fullSupply) && errors[model.line.id],
+                  )) && (
                 <CircleAlertIcon
                   className="size-4 text-destructive"
                   aria-label={t('requisitions.edit.invalid-lines')}
@@ -231,7 +257,11 @@ function RequisitionTabsView({
         {tabs.map(({ value }) => (
           <TabsContent key={value} value={value}>
             {value === 'patients' ? (
-              <PatientsGrid patientsData={record.patientsData} />
+              <PatientsGrid
+                patientsData={record.patientsData}
+                editor={editing?.patientsEditable ? editor : undefined}
+                pending={editing?.pending}
+              />
             ) : (
               <RequisitionGridView
                 key={`${record.id}:${record.template.id ?? 'template'}`}

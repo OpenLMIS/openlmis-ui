@@ -67,7 +67,6 @@ import {
 } from '@/features/requisitions/api/queries';
 import { AddProductsDialog } from '@/features/requisitions/components/add-products-dialog';
 import { AdjustmentsEditorDialog } from '@/features/requisitions/components/adjustments-editor-dialog';
-import { LegacyActionsNote } from '@/features/requisitions/components/legacy-actions-note';
 import { RejectReasonsDialog } from '@/features/requisitions/components/reject-reasons-dialog';
 import {
   RequisitionActionDialog,
@@ -100,6 +99,13 @@ import {
   toRequisitionFailure,
 } from '@/features/requisitions/lib/failure';
 import { buildLines, filterLines } from '@/features/requisitions/lib/lines';
+import {
+  applyPatientChanges,
+  parsePatients,
+  patientCountError,
+  patientsForProduct,
+  validatePatients,
+} from '@/features/requisitions/lib/patients';
 import { requisitionReturnTarget } from '@/features/requisitions/lib/requisition-return';
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
 import { defaultRequisitionTab, hidesSkipped } from '@/features/requisitions/lib/template';
@@ -264,7 +270,6 @@ function RequisitionReadShell({
             >
               <RequisitionHeader record={record} />
             </QueryBoundary>
-            {pending.policy.deferred.length > 0 && <LegacyActionsNote requisitionId={record.id} />}
             <QueryBoundary
               resetKey={record.id}
               errorComponent={SectionError}
@@ -302,6 +307,8 @@ function RequisitionReadShell({
     </>
   );
 }
+
+class PatientsPayloadError extends Error {}
 
 function RequisitionBody({
   data,
@@ -343,6 +350,7 @@ function RequisitionBody({
   > | null>(null);
   const [validation, setValidation] = useState<{
     allSkipped: boolean;
+    patient?: string;
     target?: { id: string; field: string; fullSupply: boolean };
   } | null>(null);
   const [rejectReasons, setRejectReasons] = useState<readonly RejectionReason[] | undefined>();
@@ -418,6 +426,54 @@ function RequisitionBody({
       latest.current.record,
       latest.current.editor.form.state.values.draft,
     );
+    const patients = applyPatientChanges(
+      parsePatients(latest.current.record.patientsData),
+      latest.current.editor.draft.patients,
+    );
+    const patientErrors =
+      sent.template.patientsTabEnabled && !patients.unreadable ? validatePatients(patients) : {};
+    if (Object.keys(patientErrors).length) {
+      setValidation({ allSkipped: false, patient: Object.keys(patientErrors)[0] });
+      throw new PatientsPayloadError();
+    }
+    if (
+      policy.patientsEditable &&
+      !patients.unreadable &&
+      sent.template.columnsMap.numberOfPatientsOnTreatmentNextMonth?.source === 'CALCULATED'
+    ) {
+      const models = new Map(
+        buildLines(sent, products, approved).map((model) => [model.line.id, model]),
+      );
+      sent.requisitionLineItems = sent.requisitionLineItems.map((line) => ({
+        ...line,
+        numberOfPatientsOnTreatmentNextMonth: patientsForProduct(
+          patients,
+          models.get(line.id)?.product?.productCode ?? '',
+        ),
+      }));
+    }
+    if (sent.template.patientsTabEnabled) {
+      const invalid = sent.requisitionLineItems.find((line) =>
+        patientCountError(
+          latest.current.editor.draft.lines[line.id]?.numberOfPatientsOnTreatmentNextMonth ??
+            line.numberOfPatientsOnTreatmentNextMonth,
+        ),
+      );
+      if (invalid) {
+        const model = buildLines(sent, products, approved).find(
+          (model) => model.line.id === invalid.id,
+        );
+        setValidation({
+          allSkipped: false,
+          target: {
+            id: invalid.id,
+            field: 'numberOfPatientsOnTreatmentNextMonth',
+            fullSupply: model?.fullSupply ?? true,
+          },
+        });
+        throw new PatientsPayloadError();
+      }
+    }
     await saveRequisition(
       sent,
       latest.current.editor.draft.addedLines.map((line) => line.id),
@@ -598,6 +654,7 @@ function RequisitionBody({
     } catch (error) {
       if (!mutation.isCurrent()) return false;
       setAction(null);
+      if (error instanceof PatientsPayloadError) return false;
       const failure =
         uncertain.current && isApprovalKind(uncertain.current.kind)
           ? { kind: 'reconciling' as const }
@@ -673,6 +730,17 @@ function RequisitionBody({
       kind === 'approve'
     ) {
       editor.form.setFieldValue('showAllErrors', true);
+      if (kind !== 'approve' && record.template.patientsTabEnabled) {
+        const patients = applyPatientChanges(
+          parsePatients(record.patientsData),
+          editor.draft.patients,
+        );
+        const errors = validatePatients(patients, true);
+        if (Object.keys(errors).length) {
+          setValidation({ allSkipped: false, patient: Object.keys(errors)[0] });
+          return;
+        }
+      }
       const models = currentLines();
       const result = validateRequisition(
         record,
@@ -811,7 +879,6 @@ function RequisitionBody({
             >
               <RequisitionHeader record={record} />
             </QueryBoundary>
-            {policy.deferred && <LegacyActionsNote requisitionId={record.id} />}
             <QueryBoundary
               resetKey={record.id}
               errorComponent={SectionError}
@@ -937,10 +1004,22 @@ function RequisitionBody({
       {validation && (
         <RequisitionValidationDialog
           allSkipped={validation.allSkipped}
-          finalFocus={validation.target ? () => false : undefined}
+          finalFocus={validation.target || validation.patient ? () => false : undefined}
           onClose={() => {
             const target = validation.target;
+            const patient = validation.patient;
             setValidation(null);
+            if (patient) {
+              void router
+                .navigate({ to: '.', state: true, search: { ...search, tab: 'patients' } } as never)
+                .then(() => {
+                  requestAnimationFrame(() => {
+                    const node = document.querySelector<HTMLElement>(`[name="texts.${patient}"]`);
+                    if (node) revealField(node, !!node.closest('li'));
+                  });
+                });
+              return;
+            }
             if (!target) return;
             const tab = target.fullSupply ? 'fullSupply' : 'nonFullSupply';
             const lines = filterLines(
@@ -1092,6 +1171,7 @@ function RequisitionPolicyTabs({
             pending: blocked,
             editableColumns,
             approver: policy.approver,
+            patientsEditable: policy.patientsEditable,
             skipLines: policy.skipLines,
             addFullSupplyProduct: policy.addFullSupplyProduct,
             addNonFullSupplyProduct: policy.addNonFullSupplyProduct,
@@ -1103,6 +1183,7 @@ function RequisitionPolicyTabs({
       blocked,
       editableColumns,
       policy.approver,
+      policy.patientsEditable,
       policy.skipLines,
       policy.addFullSupplyProduct,
       policy.addNonFullSupplyProduct,
@@ -1202,7 +1283,6 @@ function useRequisitionPolicy(data: RequisitionData) {
   );
   return {
     ...(policies.find((policy) => policy.editable) ?? policies[0]),
-    deferred: policies.some((policy) => policy.deferred.length > 0),
     approver: policies.some((policy) => policy.approver),
   };
 }

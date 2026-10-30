@@ -480,3 +480,21 @@ it('preserves stock-card average consumption and derives H and I from it', () =>
     calculatedOrderQuantity: 145,
   });
 });
+
+it('treats unreadable patient data as unavailable TC without crashing the product grid', () => {
+  expect(
+    calculate(
+      {},
+      {
+        patientsData: '{broken',
+        template: {
+          patientsTabEnabled: true,
+          columnsMap: {
+            numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth'),
+          },
+        },
+      },
+      { productCode: '10010510AE' },
+    ).numberOfPatientsOnTreatmentNextMonth,
+  ).toBeNull();
+});

@@ -1,3 +1,11 @@
+import {
+  applyPatientChanges,
+  type PatientChanges,
+  type PatientsData,
+  parsePatients,
+  rebasePatientChanges,
+  writePatients,
+} from '@/features/requisitions/lib/patients';
 import type {
   RequisitionLineItem,
   RequisitionTemplate,
@@ -13,6 +21,7 @@ export type LineDraft = {
     : RequisitionLineItem[K];
 };
 export type RequisitionDraft = {
+  patients?: PatientChanges | null;
   lines: Record<string, LineDraft>;
   addedLines: RequisitionRecord['requisitionLineItems'][number][];
   removedLineIds: string[];
@@ -21,6 +30,7 @@ export type RequisitionDraft = {
 };
 export function buildRequisitionDraft(record: RequisitionRecord): RequisitionDraft {
   return {
+    patients: null,
     lines: {},
     addedLines: [],
     removedLineIds: [],
@@ -33,6 +43,9 @@ function editableChanges(record: RequisitionRecord, changes: LineDraft) {
     Object.entries(changes).filter(
       ([key]) =>
         key === 'skipped' ||
+        (record.template.patientsTabEnabled &&
+          ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status) &&
+          key === 'numberOfPatientsOnTreatmentNextMonth') ||
         (key === 'stockAdjustments' && !record.template.populateStockOnHandFromStockCards) ||
         record.template.columnsMap[key]?.source === 'USER_INPUT',
     ),
@@ -66,6 +79,7 @@ function normalizedChanges(record: RequisitionRecord, changes: LineDraft) {
 export function rebaseRequisitionDraft(
   record: RequisitionRecord,
   draft: RequisitionDraft,
+  patients = parsePatients(record.patientsData),
 ): RequisitionDraft {
   const saved = new Map(record.requisitionLineItems.map((line) => [line.id, line]));
   const removed = new Set(draft.removedLineIds);
@@ -98,20 +112,28 @@ export function rebaseRequisitionDraft(
     }),
   );
   return {
-    ...draft,
+    patients: rebasePatientChanges(patients, draft.patients),
     lines,
     addedLines,
     removedLineIds: draft.removedLineIds.filter((id) => saved.has(id)),
+    draftStatusMessage: draft.draftStatusMessage,
+    datePhysicalStockCountCompleted: draft.datePhysicalStockCountCompleted,
   };
 }
 export function applyRequisitionDraft(
   record: RequisitionRecord,
   draft: RequisitionDraft,
+  patients?: PatientsData,
 ): RequisitionRecord {
-  const current = rebaseRequisitionDraft(record, draft);
+  const basePatients = patients ?? parsePatients(record.patientsData);
+  const current = rebaseRequisitionDraft(record, draft, basePatients);
   const removed = new Set(current.removedLineIds);
   return {
     ...record,
+    patientsData:
+      current.patients && !basePatients.unreadable
+        ? writePatients(applyPatientChanges(basePatients, current.patients))
+        : record.patientsData,
     draftStatusMessage: current.draftStatusMessage,
     datePhysicalStockCountCompleted: current.datePhysicalStockCountCompleted,
     requisitionLineItems: [...record.requisitionLineItems, ...current.addedLines]

@@ -96,6 +96,7 @@ export function calculateLine(
   model: RequisitionLine,
   requisition: Requisition,
   monthsInPeriod: number,
+  patientData?: PatientsData,
 ): RequisitionLineItem {
   const line = { ...model.line };
   if (line.skipped) return line;
@@ -160,12 +161,14 @@ export function calculateLine(
   line.dosesPerPatient = model.program?.dosesPerPatient ?? null;
   if (calculated('numberOfPatientsOnTreatmentNextMonth')) {
     const patients = patientsForProduct(
-      recordPatients(requisition),
+      patientData ?? recordPatients(requisition),
       model.product?.productCode ?? '',
     );
-    line.numberOfPatientsOnTreatmentNextMonth =
-      patientOverrideStatuses.has(requisition.status) &&
-      line.numberOfPatientsOnTreatmentNextMonth != null
+    line.numberOfPatientsOnTreatmentNextMonth = (patientData ?? recordPatients(requisition))
+      .unreadable
+      ? null
+      : patientOverrideStatuses.has(requisition.status) &&
+          line.numberOfPatientsOnTreatmentNextMonth != null
         ? line.numberOfPatientsOnTreatmentNextMonth
         : patients;
   }

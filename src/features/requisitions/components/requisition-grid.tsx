@@ -791,6 +791,7 @@ function renderValue(
 }
 
 export type GridEditing = {
+  patientsEditable?: boolean;
   approver?: boolean;
   editor: RequisitionEditor;
   editable: boolean;

@@ -238,3 +238,59 @@ it('validates only approval columns while retaining numeric draft errors', () =>
     }).lines.line,
   ).toEqual({ approvedQuantity: 'stock-events.positive-number' });
 });
+
+it.each(['INITIATED', 'SUBMITTED', 'AUTHORIZED', 'IN_APPROVAL'] as const)(
+  'uses patients-template validation in %s',
+  (status) => {
+    const req = record({
+      status,
+      template: {
+        patientsTabEnabled: true,
+        columnsMap: Object.fromEntries(
+          [
+            column('stockOnHand', 0, { source: 'USER_INPUT' }),
+            column('totalReceivedQuantity', 1, { source: 'USER_INPUT' }),
+            column('numberOfPatientsOnTreatmentNextMonth', 2),
+            column('remarks', 3, { source: 'USER_INPUT' }),
+          ].map((c) => [c.name, c]),
+        ),
+      },
+      requisitionLineItems: [
+        line({
+          stockOnHand: null,
+          totalReceivedQuantity: null,
+          numberOfPatientsOnTreatmentNextMonth: null,
+        }),
+      ],
+    });
+    const errors =
+      validateRequisition(req, buildLines(req, [product()]), { monthsInPeriod: 1 }).lines.line ??
+      {};
+    expect(errors).not.toHaveProperty('totalReceivedQuantity');
+    expect(errors).not.toHaveProperty('remarks');
+    expect(errors.stockOnHand).toBe(status === 'AUTHORIZED' ? undefined : 'stock-events.required');
+    if (status === 'INITIATED' || status === 'SUBMITTED')
+      expect(errors).not.toHaveProperty('numberOfPatientsOnTreatmentNextMonth');
+  },
+);
+
+it('requires an approver TC that was explicitly cleared instead of validating the formula fallback', () => {
+  const req = record({
+    status: 'AUTHORIZED',
+    template: {
+      patientsTabEnabled: true,
+      columnsMap: {
+        numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth'),
+      },
+    },
+    requisitionLineItems: [line({ numberOfPatientsOnTreatmentNextMonth: null })],
+  });
+  expect(
+    validateRequisition(
+      req,
+      buildLines(req, [product()]),
+      { monthsInPeriod: 1 },
+      { line: { numberOfPatientsOnTreatmentNextMonth: '' } },
+    ).lines.line.numberOfPatientsOnTreatmentNextMonth,
+  ).toBe('stock-events.required');
+});

@@ -6,6 +6,7 @@ import { useRequisitionDraft } from '@/features/requisitions/hooks/use-requisiti
 import { buildRequisitionDraft } from '@/features/requisitions/lib/draft';
 import { column, line, record } from '@/features/requisitions/lib/fixtures/builders';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import { countUnsyncedRequisitionDrafts } from '@/features/requisitions/lib/unsynced-device-work';
 import { getLocalDb } from '@/integrations/local-db';
 import { DraftConflictError } from '@/lib/draft-store';
 
@@ -309,3 +310,36 @@ it.each(['read', 'write'] as const)(
     vi.restoreAllMocks();
   },
 );
+
+it('retains a patients-only device draft on reload and counts it as unsynced', async () => {
+  const patients = { 'TBData:numberOfAdultPatients': { values: { 0: '12' } } };
+  const changed = { ...buildRequisitionDraft(base), patients };
+  await getLocalDb().table('requisitionDrafts').put({
+    draftId: base.id,
+    userId: useLoginData.getState().referenceDataUserId,
+    formatVersion: 1,
+    revision: 1,
+    draft: changed,
+    modifiedDate: base.modifiedDate,
+  });
+  expect(await countUnsyncedRequisitionDrafts()).toBe(1);
+  const onLoad = vi.fn();
+  renderHook(() => useRequisitionDraft(base, onLoad));
+  await waitFor(() => expect(onLoad).toHaveBeenCalledWith(changed));
+  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeDefined();
+});
+it('cleans up an old unchanged draft that has no patients field', async () => {
+  const old = buildRequisitionDraft(base);
+  delete old.patients;
+  await getLocalDb().table('requisitionDrafts').put({
+    draftId: base.id,
+    userId: useLoginData.getState().referenceDataUserId,
+    formatVersion: 1,
+    revision: 1,
+    draft: old,
+    modifiedDate: base.modifiedDate,
+  });
+  const hook = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(hook.result.current.status.status).toBe('saved'));
+  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
+});

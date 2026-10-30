@@ -30,6 +30,21 @@ import { Route } from '@/routes/(protected)/_protected.requisitions.view_.$requi
 import { expectRouteWarning } from '@/test-utils/expect-route-warning';
 import { httpError } from '@/test-utils/http-error';
 
+const modelTracking = vi.hoisted(() => ({ enabled: false, models: [] as unknown[][] }));
+vi.mock('@/features/requisitions/components/requisition-grid', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/features/requisitions/components/requisition-grid')>();
+  return {
+    ...actual,
+    RequisitionGridView: (
+      props: import('react').ComponentProps<typeof actual.RequisitionGridView>,
+    ) => {
+      if (modelTracking.enabled) modelTracking.models.push(props.models);
+      return <actual.RequisitionGridView {...props} />;
+    },
+  };
+});
+
 vi.mock('@/lib/open-report', () => ({
   openReport: vi.fn(() => ({ deliver: vi.fn(), close: vi.fn() })),
 }));
@@ -223,7 +238,9 @@ it('recognizes a string supervisory node as the current approval node', async ()
   vi.mocked(fetchRequisition).mockResolvedValue(approvalRecord());
   const { queryClient } = renderRoute('/requisitions/view/r');
   await screen.findByRole('tab', { name: 'requisitions.requisition.full-supply', selected: true });
-  expect(screen.queryByText('requisitions.requisition.legacy-description')).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }),
+  ).toBeInTheDocument();
   expect(
     screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }),
   ).toBeInTheDocument();
@@ -233,14 +250,16 @@ it('recognizes a string supervisory node as the current approval node', async ()
   expect(screen.getByText('requisitions.requisition.supplying-facility')).toBeInTheDocument();
   queryClient.clear();
 });
-it('hides the legacy actions note when no legacy UI sits beside the app', async () => {
+it('offers approval actions without the legacy note at the root base path', async () => {
   vi.stubEnv('BASE_URL', '/');
   useLoginData.setState({ referenceDataUserId: 'u' });
   vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
   vi.mocked(fetchRequisition).mockResolvedValue(approvalRecord());
   const { queryClient } = renderRoute('/requisitions/view/r');
   await screen.findByText('requisitions.requisition.supplying-facility');
-  expect(screen.queryByText('requisitions.requisition.legacy-description')).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }),
+  ).toBeInTheDocument();
   queryClient.clear();
 });
 it('shows total requisition cost on the default Patients tab', async () => {
@@ -1627,4 +1646,139 @@ it.each([false, true])('handles an approval lock with prior uncertainty %s', asy
   if (retry) expect(post.mock.calls[2]?.[2]).toEqual(post.mock.calls[0]?.[2]);
   else expect(post.mock.calls[1]?.[2]).not.toEqual(post.mock.calls[0]?.[2]);
   queryClient.clear();
+});
+
+async function openPatients(complete = false, unrelated = false) {
+  useLoginData.getState().setLoginData({
+    referenceDataUserId: crypto.randomUUID(),
+    username: 'u',
+    accessToken: 'token',
+  });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|program',
+    'REQUISITION_CREATE|f|program',
+  ]);
+  const base = patientRecord();
+  base.patientsData = JSON.stringify({
+    TBData: [
+      [
+        {
+          key: 'numberOfAdultPatients',
+          isSkipped: false,
+          data: Array.from({ length: 12 }, (_, month) => ({
+            value: complete && month < 2 ? 1 : '',
+            disabled: month >= 2,
+          })),
+        },
+      ],
+    ],
+    leprosyData: [[]],
+  });
+  base.template = {
+    patientsTabEnabled: true,
+    columnsMap: {
+      'orderable.fullProductName': column('orderable.fullProductName'),
+      numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth', 1),
+    },
+  };
+  vi.mocked(fetchOrderablesByIdentities).mockResolvedValue([
+    { ...product({ productCode: '10010510AE' }), description: '' },
+    ...(unrelated ? [{ ...product({ id: 'unrelated' }), description: '' }] : []),
+  ]);
+  if (unrelated)
+    base.requisitionLineItems = [
+      ...base.requisitionLineItems,
+      {
+        ...base.requisitionLineItems[0],
+        id: 'unrelated',
+        orderable: { id: 'unrelated', versionNumber: 1 },
+      },
+    ];
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
+  const route = renderRoute('/requisitions/view/r');
+  await screen.findByRole('tab', { name: 'requisitions.requisition.patients', selected: true });
+  const inputs = await screen.findAllByRole('textbox', {
+    name: 'requisitions.patients.cell-label',
+  });
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  return { ...route, base, inputs };
+}
+
+it('opens patient validation without sending a request and focuses the first empty month', async () => {
+  const { inputs, router, queryClient } = await openPatients();
+  const put = vi.spyOn(client, 'put');
+  const post = vi.spyOn(client, 'post');
+  fireEvent.change(inputs[0], { target: { value: '4' } });
+  const skip = screen.getByRole('checkbox', { name: /requisitions.patients.skip/ });
+  expect(skip).toHaveAttribute('aria-disabled', 'true');
+  expect(inputs[1]).toHaveAttribute('aria-invalid', 'true');
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(within(dialog).getByText('requisitions.edit.validation-description')).toBeInTheDocument();
+  expect(put).not.toHaveBeenCalled();
+  expect(post).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() => expect(inputs[1]).toHaveFocus());
+  expect(router.state.location.search.tab).toBe('patients');
+  queryClient.clear();
+});
+
+it('saves draft patients and calculated TC before submitting without opening products', async () => {
+  const { inputs, queryClient } = await openPatients(true);
+  fireEvent.change(inputs[0], { target: { value: '٤' } });
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: {}, headers: {} });
+  const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  await confirmAction();
+  await waitFor(() => expect(post).toHaveBeenCalled());
+  expect(put).toHaveBeenCalled();
+  const body = put.mock.calls[0][1] as {
+    patientsData: string;
+    requisitionLineItems: { numberOfPatientsOnTreatmentNextMonth: number }[];
+  };
+  expect(body.requisitionLineItems[0].numberOfPatientsOnTreatmentNextMonth).toBe(5);
+  expect(
+    (JSON.parse(body.patientsData) as { TBData: { data: { value: number }[] }[][] }).TBData[0][0]
+      .data[0].value,
+  ).toBe(4);
+  expect(put.mock.invocationCallOrder[0]).toBeLessThan(post.mock.invocationCallOrder[0]);
+  queryClient.clear();
+});
+
+it('blocks overflowing patient totals on Sync while retaining the typed draft', async () => {
+  const { inputs, queryClient } = await openPatients(true);
+  fireEvent.change(inputs[0], { target: { value: '2147483647' } });
+  const put = vi.spyOn(client, 'put');
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await screen.findByRole('alertdialog');
+  expect(put).not.toHaveBeenCalled();
+  expect(inputs[0]).toHaveValue('2147483647');
+  queryClient.clear();
+});
+
+it('updates TC after patient edits while preserving unrelated product model references', async () => {
+  modelTracking.enabled = true;
+  modelTracking.models = [];
+  try {
+    const { queryClient } = await openPatients(true, true);
+    fireEvent.click(screen.getByRole('tab', { name: 'requisitions.requisition.priority' }));
+    await waitFor(() => expect(modelTracking.models.length).toBeGreaterThan(0));
+    const before = modelTracking.models.at(-1) as {
+      line: { numberOfPatientsOnTreatmentNextMonth: number };
+    }[];
+    expect(before[0].line.numberOfPatientsOnTreatmentNextMonth).toBe(2);
+    fireEvent.click(screen.getByRole('tab', { name: 'requisitions.requisition.patients' }));
+    const inputs = await screen.findAllByRole('textbox', {
+      name: 'requisitions.patients.cell-label',
+    });
+    fireEvent.change(inputs[0], { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('tab', { name: /requisitions.requisition.priority/ }));
+    await waitFor(() => {
+      const after = modelTracking.models.at(-1) as typeof before;
+      expect(after[0].line.numberOfPatientsOnTreatmentNextMonth).toBe(9);
+      expect(after[1]).toBe(before[1]);
+    });
+    queryClient.clear();
+  } finally {
+    modelTracking.enabled = false;
+  }
 });

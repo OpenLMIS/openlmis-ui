@@ -1,0 +1,730 @@
+{
+  "TBData": [
+    [
+      {
+        "key": "numberOfAdultPatients",
+        "title": "requisitionPatientsViewTab.numberOfAdultPatients.label",
+        "data": [
+          {
+            "value": 10,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 11,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 12,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 13,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 14,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 15,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          }
+        ],
+        "isSkipped": false,
+        "isSkipDisabled": true
+      },
+      {
+        "key": "numberOfChildren",
+        "title": "requisitionPatientsViewTab.numberOfChildren.label",
+        "data": [
+          {
+            "value": 20,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 21,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 22,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 23,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 24,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 25,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          }
+        ],
+        "isSkipped": false,
+        "isSkipDisabled": true
+      },
+      {
+        "key": "numberOfRetreatmentPatients",
+        "title": "requisitionPatientsViewTab.numberOfRetreatmentPatients.label",
+        "data": [
+          {
+            "value": 30,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 31,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 32,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 33,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 34,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 35,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          }
+        ],
+        "isSkipped": false,
+        "isSkipDisabled": true
+      },
+      {
+        "key": "numberOfAdultsOnIPT",
+        "title": "requisitionPatientsViewTab.numberOfAdultsOnIPT.label",
+        "data": [
+          {
+            "value": 40,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 41,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 42,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 43,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 44,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 45,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          }
+        ],
+        "isSkipped": false,
+        "isSkipDisabled": true
+      },
+      {
+        "key": "numberOfChildrenOnIPT",
+        "title": "requisitionPatientsViewTab.numberOfChildrenOnIPT.label",
+        "data": [
+          {
+            "value": 50,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 51,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 52,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 53,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 54,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 55,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          }
+        ],
+        "isSkipped": false,
+        "isSkipDisabled": true
+      }
+    ]
+  ],
+  "leprosyData": [
+    [
+      {
+        "key": "numberOfAdultOnMBRegimen",
+        "title": "requisitionPatientsViewTab.numberOfAdultOnMBRegimen.label",
+        "data": [
+          {
+            "value": 1,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 2,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 3,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 4,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 5,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 6,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          }
+        ],
+        "isSkipped": false,
+        "isSkipDisabled": true
+      },
+      {
+        "key": "numberOfAdultOnPBRegimen",
+        "title": "requisitionPatientsViewTab.numberOfAdultOnPBRegimen.label",
+        "data": [
+          {
+            "value": 1,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 2,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 3,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 4,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 5,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 6,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 7,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 8,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 9,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 10,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 11,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 12,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          }
+        ],
+        "isSkipped": false,
+        "isSkipDisabled": true
+      },
+      {
+        "key": "numberOfChildrenOnMBRegimen",
+        "title": "requisitionPatientsViewTab.numberOfChildrenOnMBRegimen.label",
+        "data": [
+          {
+            "value": 1,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 2,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 3,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 4,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 5,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 6,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": "",
+            "disabled": true,
+            "isInvalid": false,
+            "isFocused": false
+          }
+        ],
+        "isSkipped": false,
+        "isSkipDisabled": true
+      },
+      {
+        "key": "numberOfChildrenOnPBRegimen",
+        "title": "requisitionPatientsViewTab.numberOfChildrenOnPBRegimen.label",
+        "data": [
+          {
+            "value": 1,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 2,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 3,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 4,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 5,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 6,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 7,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 8,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 9,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 10,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 11,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          },
+          {
+            "value": 12,
+            "disabled": false,
+            "isInvalid": false,
+            "isFocused": false
+          }
+        ],
+        "isSkipped": false,
+        "isSkipDisabled": true
+      }
+    ]
+  ]
+}

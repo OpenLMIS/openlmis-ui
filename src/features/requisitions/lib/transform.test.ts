@@ -121,3 +121,13 @@ it('preserves skipped lines on approval saves when Skip is hidden', () => {
   } as RequisitionRecord;
   expect(transformRequisition(input).requisitionLineItems[0].skipped).toBe(true);
 });
+
+it('explicitly sends null patient data on an untouched new record', () => {
+  const input = {
+    ...record(),
+    id: 'r',
+    facility: { id: 'f' },
+    processingPeriod: { id: 'p' },
+  } as RequisitionRecord;
+  expect(transformRequisition(input).patientsData).toBeNull();
+});

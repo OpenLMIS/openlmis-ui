@@ -31,6 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PATIENT_ROW_KEYS } from '@/features/requisitions/components/patients-edit-cards';
 import { DraftComment } from '@/features/requisitions/components/requisition-comment-field';
 import type { GridEditing } from '@/features/requisitions/components/requisition-grid';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
@@ -39,6 +40,11 @@ import { RequisitionTotalsSkeleton } from '@/features/requisitions/components/re
 import { SkipButtons } from '@/features/requisitions/components/skip-controls';
 import { canRemoveLine } from '@/features/requisitions/lib/draft';
 import {
+  PATIENT_DISEASES,
+  PATIENT_MONTHS,
+  parsePatients,
+} from '@/features/requisitions/lib/patients';
+import {
   columnViewKey,
   defaultRequisitionTab,
   type GridColumn,
@@ -46,7 +52,7 @@ import {
   type RequisitionTab,
 } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
-import { useCardView } from '@/hooks/use-card-view';
+import { useCardLayout, useCardView } from '@/hooks/use-card-view';
 import type { QuantityUnit } from '@/lib/quantity';
 import { toPaginationState } from '@/lib/table-search';
 import { cn } from '@/lib/utils';
@@ -216,7 +222,11 @@ export function RequisitionTabsPending({
           ))}
         </TabsList>
         <TabsContent value={active}>
-          <RequisitionGridPending record={record} tab={active} {...grid} />
+          {active === 'patients' ? (
+            <PatientsGridPending />
+          ) : (
+            <RequisitionGridPending record={record} tab={active} {...grid} />
+          )}
         </TabsContent>
       </Tabs>
       <RequisitionTotalsSkeleton showNonFullSupply={showNonFullSupply} />
@@ -453,3 +463,75 @@ function RequisitionGridPending({
 }
 
 const noop = () => {};
+
+function PatientsGridPending() {
+  const { t, i18n } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  const patients = parsePatients(null);
+  const rows = PATIENT_DISEASES.flatMap((disease) => patients[disease][0]);
+  return (
+    <div ref={measure} aria-busy="true">
+      {cards ? (
+        <CardList>
+          {rows.map((row) => (
+            <CardListItem key={row.key}>
+              <CardBand>{t(PATIENT_ROW_KEYS[row.key as keyof typeof PATIENT_ROW_KEYS])}</CardBand>
+              <CardRows>
+                <CardControlRow label={t('requisitions.patients.skip')}>
+                  <Skeleton />
+                </CardControlRow>
+                {PATIENT_MONTHS.filter((month) => !row.data[month].disabled).map((month) => (
+                  <CardControlRow
+                    key={month}
+                    label={new Intl.NumberFormat(i18n.language).format(month + 1)}
+                  >
+                    <div className="h-8 w-full">
+                      <Skeleton fill />
+                    </div>
+                  </CardControlRow>
+                ))}
+              </CardRows>
+            </CardListItem>
+          ))}
+        </CardList>
+      ) : (
+        <DataTableCard>
+          <Table density="compact" layout="auto">
+            <TableHeader surface="muted">
+              <TableRow>
+                <TableHead>{t('requisitions.patients.skip')}</TableHead>
+                <TableHead>{t('requisitions.patients.month-of-treatment')}</TableHead>
+                {PATIENT_MONTHS.map((month) => (
+                  <TableHead key={month}>
+                    {new Intl.NumberFormat(i18n.language).format(month + 1)}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.key}>
+                  <TableCell>
+                    <Skeleton />
+                  </TableCell>
+                  <TableCell>
+                    {t(PATIENT_ROW_KEYS[row.key as keyof typeof PATIENT_ROW_KEYS])}
+                  </TableCell>
+                  {PATIENT_MONTHS.map((month) => (
+                    <TableCell key={month}>
+                      {!row.data[month].disabled && (
+                        <div className="h-7 min-w-20">
+                          <Skeleton fill />
+                        </div>
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DataTableCard>
+      )}
+    </div>
+  );
+}
