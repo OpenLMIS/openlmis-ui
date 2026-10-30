@@ -17,6 +17,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/administration/programs': RIGHTS.programsManage,
   '/administration/processing-schedules': RIGHTS.processingSchedulesManage,
   '/administration/ideal-stock-amounts': RIGHTS.systemIdealStockAmountsManage,
+  '/administration/equipment-catalog': RIGHTS.cceManage,
   '/administration/requisition-templates': RIGHTS.requisitionTemplatesManage,
   '/administration/reasons': RIGHTS.stockCardLineItemReasonsManage,
   '/administration/requisition-groups': RIGHTS.requisitionGroupsManage,

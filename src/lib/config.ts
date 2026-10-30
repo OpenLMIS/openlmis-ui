@@ -124,7 +124,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { titleKey: 'nav.administration.data-import', to: '#' },
           { titleKey: 'nav.administration.reports', to: '#' },
           { titleKey: 'nav.administration.report-categories', to: '#' },
-          { titleKey: 'nav.administration.equipment', to: '#' },
+          { titleKey: 'nav.administration.equipment', to: '/administration/equipment-catalog' },
           { titleKey: 'nav.administration.facilities', to: '/administration/facilities' },
           { titleKey: 'nav.administration.facility-types', to: '/administration/facility-types' },
           {

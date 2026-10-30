@@ -18,6 +18,7 @@ import { Route as protectedProtectedHomeRouteImport } from './routes/(protected)
 import { Route as protectedProtectedOfflineEventsRouteImport } from './routes/(protected)/_protected.offline-events'
 import { Route as protectedProtectedProfileRouteImport } from './routes/(protected)/_protected.profile'
 import { Route as protectedProtectedSettingsRouteImport } from './routes/(protected)/_protected.settings'
+import { Route as protectedProtectedAdministrationEquipmentCatalogRouteImport } from './routes/(protected)/_protected.administration.equipment-catalog'
 import { Route as protectedProtectedAdministrationFacilitiesRouteImport } from './routes/(protected)/_protected.administration.facilities'
 import { Route as protectedProtectedAdministrationFacilityTypesRouteImport } from './routes/(protected)/_protected.administration.facility-types'
 import { Route as protectedProtectedAdministrationGeographicZonesRouteImport } from './routes/(protected)/_protected.administration.geographic-zones'
@@ -130,6 +131,12 @@ const protectedProtectedSettingsRoute =
   protectedProtectedSettingsRouteImport.update({
     id: '/settings',
     path: '/settings',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationEquipmentCatalogRoute =
+  protectedProtectedAdministrationEquipmentCatalogRouteImport.update({
+    id: '/administration/equipment-catalog',
+    path: '/administration/equipment-catalog',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationFacilitiesRoute =
@@ -544,6 +551,7 @@ export interface FileRoutesByFullPath {
   '/offline-events': typeof protectedProtectedOfflineEventsRoute
   '/profile': typeof protectedProtectedProfileRouteWithChildren
   '/settings': typeof protectedProtectedSettingsRouteWithChildren
+  '/administration/equipment-catalog': typeof protectedProtectedAdministrationEquipmentCatalogRoute
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
@@ -618,6 +626,7 @@ export interface FileRoutesByTo {
   '/reset-password/$token': typeof ResetPasswordTokenRoute
   '/home': typeof protectedProtectedHomeRoute
   '/offline-events': typeof protectedProtectedOfflineEventsRoute
+  '/administration/equipment-catalog': typeof protectedProtectedAdministrationEquipmentCatalogRoute
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
@@ -695,6 +704,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/offline-events': typeof protectedProtectedOfflineEventsRoute
   '/(protected)/_protected/profile': typeof protectedProtectedProfileRouteWithChildren
   '/(protected)/_protected/settings': typeof protectedProtectedSettingsRouteWithChildren
+  '/(protected)/_protected/administration/equipment-catalog': typeof protectedProtectedAdministrationEquipmentCatalogRoute
   '/(protected)/_protected/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/(protected)/_protected/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
   '/(protected)/_protected/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
@@ -773,6 +783,7 @@ export interface FileRouteTypes {
     | '/offline-events'
     | '/profile'
     | '/settings'
+    | '/administration/equipment-catalog'
     | '/administration/facilities'
     | '/administration/facility-types'
     | '/administration/geographic-zones'
@@ -847,6 +858,7 @@ export interface FileRouteTypes {
     | '/reset-password/$token'
     | '/home'
     | '/offline-events'
+    | '/administration/equipment-catalog'
     | '/administration/facilities'
     | '/administration/facility-types'
     | '/administration/geographic-zones'
@@ -923,6 +935,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/offline-events'
     | '/(protected)/_protected/profile'
     | '/(protected)/_protected/settings'
+    | '/(protected)/_protected/administration/equipment-catalog'
     | '/(protected)/_protected/administration/facilities'
     | '/(protected)/_protected/administration/facility-types'
     | '/(protected)/_protected/administration/geographic-zones'
@@ -1062,6 +1075,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof protectedProtectedSettingsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/equipment-catalog': {
+      id: '/(protected)/_protected/administration/equipment-catalog'
+      path: '/administration/equipment-catalog'
+      fullPath: '/administration/equipment-catalog'
+      preLoaderRoute: typeof protectedProtectedAdministrationEquipmentCatalogRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/facilities': {
@@ -1599,6 +1619,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedOfflineEventsRoute: typeof protectedProtectedOfflineEventsRoute
   protectedProtectedProfileRoute: typeof protectedProtectedProfileRouteWithChildren
   protectedProtectedSettingsRoute: typeof protectedProtectedSettingsRouteWithChildren
+  protectedProtectedAdministrationEquipmentCatalogRoute: typeof protectedProtectedAdministrationEquipmentCatalogRoute
   protectedProtectedAdministrationFacilitiesRoute: typeof protectedProtectedAdministrationFacilitiesRoute
   protectedProtectedAdministrationFacilityTypesRoute: typeof protectedProtectedAdministrationFacilityTypesRoute
   protectedProtectedAdministrationGeographicZonesRoute: typeof protectedProtectedAdministrationGeographicZonesRoute
@@ -1661,6 +1682,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
   protectedProtectedOfflineEventsRoute: protectedProtectedOfflineEventsRoute,
   protectedProtectedProfileRoute: protectedProtectedProfileRouteWithChildren,
   protectedProtectedSettingsRoute: protectedProtectedSettingsRouteWithChildren,
+  protectedProtectedAdministrationEquipmentCatalogRoute:
+    protectedProtectedAdministrationEquipmentCatalogRoute,
   protectedProtectedAdministrationFacilitiesRoute:
     protectedProtectedAdministrationFacilitiesRoute,
   protectedProtectedAdministrationFacilityTypesRoute:

@@ -10,6 +10,7 @@ export const RIGHTS = {
   ordersView: 'ORDERS_VIEW',
   podsManage: 'PODS_MANAGE',
   cceInventoryView: 'CCE_INVENTORY_VIEW',
+  cceManage: 'CCE_MANAGE',
   facilitiesManage: 'FACILITIES_MANAGE',
   supplyLinesManage: 'SUPPLY_LINES_MANAGE',
   geographicZonesManage: 'GEOGRAPHIC_ZONES_MANAGE',
