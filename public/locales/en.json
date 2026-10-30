@@ -1644,7 +1644,7 @@
   "requisitions.edit.products.search-items": "Search By Name Or Code",
   "requisitions.edit.products.selection-description": "Choose products across pages. Searching keeps your selection.",
   "requisitions.edit.products.unit": "Unit Of Issue",
-  "requisitions.edit.reconciling": "The outcome is not yet known. Try the action again to check the server before continuing.",
+  "requisitions.edit.reconciling": "The outcome is not yet known. Try the action again, or choose Update to reload the requisition, before continuing.",
   "requisitions.edit.remove-comment": "Remove Comment",
   "requisitions.edit.remove-product": "Remove Product",
   "requisitions.edit.save-comment": "Save",

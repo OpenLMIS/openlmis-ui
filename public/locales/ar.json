@@ -1644,7 +1644,7 @@
   "requisitions.edit.products.search-items": "البحث بالاسم أو الرمز",
   "requisitions.edit.products.selection-description": "اختر منتجات عبر الصفحات. يحتفظ البحث بتحديدك.",
   "requisitions.edit.products.unit": "وحدة الصرف",
-  "requisitions.edit.reconciling": "النتيجة غير معروفة بعد. حاول الإجراء مجدداً للتحقق من الخادم قبل المتابعة.",
+  "requisitions.edit.reconciling": "النتيجة غير معروفة بعد. حاول الإجراء مجدداً أو اختر تحديث لإعادة تحميل الطلب قبل المتابعة.",
   "requisitions.edit.remove-comment": "إزالة التعليق",
   "requisitions.edit.remove-product": "إزالة المنتج",
   "requisitions.edit.save-comment": "حفظ",

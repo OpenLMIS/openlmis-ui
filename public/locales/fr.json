@@ -1644,7 +1644,7 @@
   "requisitions.edit.products.search-items": "Rechercher par nom ou code",
   "requisitions.edit.products.selection-description": "Choisissez des produits sur plusieurs pages. La recherche conserve votre sélection.",
   "requisitions.edit.products.unit": "Unité de Distribution",
-  "requisitions.edit.reconciling": "Le résultat est encore inconnu. Réessayez l’action pour vérifier le serveur avant de continuer.",
+  "requisitions.edit.reconciling": "Le résultat est encore inconnu. Réessayez l’action ou choisissez Mettre à jour pour recharger la réquisition avant de continuer.",
   "requisitions.edit.remove-comment": "Supprimer le commentaire",
   "requisitions.edit.remove-product": "Supprimer le produit",
   "requisitions.edit.save-comment": "Enregistrer",

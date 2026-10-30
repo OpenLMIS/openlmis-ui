@@ -1644,7 +1644,7 @@
   "requisitions.edit.products.search-items": "Pesquisar por nome ou código",
   "requisitions.edit.products.selection-description": "Escolha produtos em várias páginas. A pesquisa mantém a seleção.",
   "requisitions.edit.products.unit": "Unidade de Distribuição",
-  "requisitions.edit.reconciling": "O resultado ainda é desconhecido. Tente a ação novamente para verificar o servidor antes de continuar.",
+  "requisitions.edit.reconciling": "O resultado ainda é desconhecido. Tente a ação novamente ou escolha Atualizar para recarregar a requisição antes de continuar.",
   "requisitions.edit.remove-comment": "Remover comentário",
   "requisitions.edit.remove-product": "Remover produto",
   "requisitions.edit.save-comment": "Guardar",

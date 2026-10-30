@@ -1644,7 +1644,7 @@
   "requisitions.edit.products.search-items": "Buscar por nombre o código",
   "requisitions.edit.products.selection-description": "Elija productos en varias páginas. La búsqueda conserva su selección.",
   "requisitions.edit.products.unit": "Unidad de Dispensación",
-  "requisitions.edit.reconciling": "Aún se desconoce el resultado. Vuelva a intentar la acción para comprobar el servidor antes de continuar.",
+  "requisitions.edit.reconciling": "Aún se desconoce el resultado. Vuelva a intentar la acción o elija Actualizar para recargar la requisición antes de continuar.",
   "requisitions.edit.remove-comment": "Eliminar comentario",
   "requisitions.edit.remove-product": "Eliminar producto",
   "requisitions.edit.save-comment": "Guardar",
