@@ -10,15 +10,17 @@ import { useOnline } from '@/lib/online';
 
 type FooterAction = Extract<
   RequisitionAction,
-  'sync' | 'submit' | 'submitAndAuthorize' | 'authorize' | 'skip' | 'delete'
+  'sync' | 'submit' | 'submitAndAuthorize' | 'authorize' | 'approve' | 'reject' | 'skip' | 'delete'
 >;
 export function RequisitionFooter({
   policy,
   pending,
   disabled,
   onAction,
+  reconciling,
 }: {
   policy: Pick<ReturnType<typeof requisitionCapabilities>, 'actions'>;
+  reconciling?: FooterAction;
   pending: boolean;
   disabled: boolean;
   onAction: (action: FooterAction) => void;
@@ -33,13 +35,13 @@ export function RequisitionFooter({
         <Button
           size="lg"
           variant={
-            action === 'delete'
+            action === 'delete' || action === 'reject'
               ? 'destructive'
               : action === 'sync' || action === 'skip'
                 ? 'outline'
                 : 'default'
           }
-          disabled={pending || disabled || !online}
+          disabled={pending || disabled || !online || (!!reconciling && action !== reconciling)}
           focusableWhenDisabled={!!reason}
           aria-description={reason}
           onClick={() => onAction(action)}
@@ -63,6 +65,8 @@ export function RequisitionFooter({
         {button('submit')}
         {button('submitAndAuthorize')}
         {button('authorize')}
+        {button('reject')}
+        {button('approve')}
       </div>
     </WorkspaceFooter>
   );

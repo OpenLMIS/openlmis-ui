@@ -16,7 +16,9 @@ export function RequisitionError({ search, ...props }: ErrorComponentProps & { s
         back: t(
           target.to === '/requisitions/initiate'
             ? 'requisitions.requisition.back-initiate'
-            : 'requisitions.requisition.back',
+            : target.to === '/requisitions/approve'
+              ? 'requisitions.requisition.back-approve'
+              : 'requisitions.requisition.back',
         ),
         title: t('requisitions.requisition.error-title'),
         description: t('requisitions.requisition.error-description'),

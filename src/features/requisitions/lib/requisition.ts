@@ -6,6 +6,7 @@ export type RequisitionTemplate = {
   id?: string;
   columnsMap: Readonly<Record<string, RequisitionColumn>>;
   patientsTabEnabled?: boolean;
+  rejectionReasonWindowVisible?: boolean;
   populateStockOnHandFromStockCards?: boolean;
   enableAvgConsumptionForCurrentPeriod?: boolean;
 };

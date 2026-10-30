@@ -76,3 +76,9 @@ export type InitiateQuery = {
   programId: string;
   emergency: boolean;
 };
+
+export type ApprovalListRow = Omit<RequisitionSearchResult, 'program'> & {
+  program: { id: string; name?: string | null };
+  statusChanges?: Partial<Record<RequisitionStatus, { changeDate?: string }>>;
+  extraData?: { originalRequisition?: string } | null;
+};

@@ -85,6 +85,7 @@ function RequisitionTabsView({
     record,
     months: period.durationInMonths,
     editable: editing?.editable,
+    columns: editing?.editableColumns,
   });
   const sources = useMemo(
     () => new Map(record.requisitionLineItems.map((line) => [line.id, line])),
@@ -95,13 +96,15 @@ function RequisitionTabsView({
     if (
       cacheContext.current.record !== record ||
       cacheContext.current.months !== period.durationInMonths ||
-      cacheContext.current.editable !== editing?.editable
+      cacheContext.current.editable !== editing?.editable ||
+      cacheContext.current.columns !== editing?.editableColumns
     ) {
       cache.current.clear();
       cacheContext.current = {
         record,
         months: period.durationInMonths,
         editable: editing?.editable,
+        columns: editing?.editableColumns,
       };
     }
     const next = new Map<string, LineCacheEntry>();
@@ -119,7 +122,15 @@ function RequisitionTabsView({
       ) {
         const line = calculateLine(model, record, period.durationInMonths ?? 1);
         const errors: Record<string, ParseKeys> = editing?.editable
-          ? validateLine(model, record, period.durationInMonths ?? 1, changes)
+          ? validateLine(
+              model,
+              record,
+              period.durationInMonths ?? 1,
+              changes,
+              ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status)
+                ? editing.editableColumns
+                : undefined,
+            )
           : {};
         entry = {
           source,
@@ -159,6 +170,7 @@ function RequisitionTabsView({
     approvedProducts,
     period.durationInMonths,
     editing?.editable,
+    editing?.editableColumns,
     showAllErrors,
     draft,
   ]);

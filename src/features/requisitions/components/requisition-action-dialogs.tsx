@@ -19,7 +19,10 @@ import type { RequisitionFailure } from '@/features/requisitions/lib/failure';
 import { useOnline } from '@/lib/online';
 
 type ConfirmAction =
-  | Extract<RequisitionAction, 'submit' | 'submitAndAuthorize' | 'authorize' | 'skip' | 'delete'>
+  | Extract<
+      RequisitionAction,
+      'submit' | 'submitAndAuthorize' | 'authorize' | 'approve' | 'reject' | 'skip' | 'delete'
+    >
   | 'update';
 type RequisitionActionDialogProps = {
   action: ConfirmAction;
@@ -46,7 +49,7 @@ export function RequisitionActionDialog({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          {action === 'delete' && (
+          {(action === 'delete' || action === 'reject') && (
             <AlertDialogMedia variant="destructive">
               <Trash2Icon />
             </AlertDialogMedia>
@@ -61,7 +64,7 @@ export function RequisitionActionDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>{t('dialog.cancel')}</AlertDialogCancel>
           <AlertDialogAction
-            variant={action === 'delete' ? 'destructive' : 'default'}
+            variant={action === 'delete' || action === 'reject' ? 'destructive' : 'default'}
             disabled={pending}
             focusableWhenDisabled={pending}
             onClick={() => {

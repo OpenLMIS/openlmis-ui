@@ -37,6 +37,18 @@ vi.mock('@/lib/open-report', () => ({
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   storedTimeZone: vi.fn(() => null),
+  fetchRejectionReasonCategories: vi.fn(async () => [
+    { id: 'category', code: 'C', name: 'Category', active: true },
+  ]),
+  fetchRejectionReasons: vi.fn(async () => [
+    {
+      id: 'reason',
+      code: 'R',
+      name: 'Reason',
+      active: true,
+      rejectionReasonCategory: { id: 'category', code: 'C', name: 'Category', active: true },
+    },
+  ]),
   fetchUserRecord: vi.fn(async () => ({
     id: 'u',
     roleAssignments: [{ roleId: 'approve-role', programId: 'program', supervisoryNodeId: 'node' }],
@@ -76,6 +88,7 @@ vi.mock('@/features/requisitions/api/api', async (original) => ({
   ...(await original<typeof import('@/features/requisitions/api/api')>()),
   fetchRequisition: vi.fn(),
   fetchStatusMessages: vi.fn(async () => []),
+  fetchUnskipSetting: vi.fn(async () => ({ unskipRequisition: false })),
 }));
 
 vi.mock('@/features/requisitions/components/requisition-skeletons', async (importOriginal) => ({
@@ -111,6 +124,11 @@ function renderRoute(path: string, state?: import('@tanstack/react-router').Hist
       group.addChildren([
         layout.addChildren([
           list,
+          createRoute({
+            getParentRoute: () => layout,
+            path: 'requisitions/approve',
+            component: () => <p>Approval List</p>,
+          }),
           createRoute({
             getParentRoute: () => layout,
             path: 'requisitions/initiate',
@@ -205,8 +223,13 @@ it('recognizes a string supervisory node as the current approval node', async ()
   vi.mocked(fetchRequisition).mockResolvedValue(approvalRecord());
   const { queryClient } = renderRoute('/requisitions/view/r');
   await screen.findByRole('tab', { name: 'requisitions.requisition.full-supply', selected: true });
-  expect(screen.getByText('requisitions.requisition.legacy-description')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'legacy.label' })).toBeInTheDocument();
+  expect(screen.queryByText('requisitions.requisition.legacy-description')).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'requisitions.edit.actions.reject' }),
+  ).toBeInTheDocument();
   expect(screen.getByText('requisitions.requisition.supplying-facility')).toBeInTheDocument();
   queryClient.clear();
 });
@@ -1266,5 +1289,188 @@ it('returns to Create/Authorize after tab and grid paging changes before finishi
   );
   await screen.findByText('Create Authorize Search');
   expect(router.state.location.search).toEqual(search);
+  queryClient.clear();
+});
+
+async function openApprover(invalid = false, reasons = false) {
+  useLoginData
+    .getState()
+    .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
+  await getLocalDb().table('requisitionDrafts').clear();
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|program',
+    'REQUISITION_APPROVE|f|program',
+  ]);
+  const base: RequisitionRecord = {
+    ...editingRecord(),
+    status: 'AUTHORIZED',
+    supervisoryNode: 'node',
+    template: {
+      rejectionReasonWindowVisible: reasons,
+      columnsMap: {
+        ...editingRecord().template.columnsMap,
+        approvedQuantity: column('approvedQuantity', 2, {
+          source: 'USER_INPUT',
+          columnDefinition: { columnType: 'NUMERIC' },
+        }),
+      },
+    },
+    requisitionLineItems: [
+      {
+        ...line({ beginningBalance: null, approvedQuantity: invalid ? null : 2 }),
+        approvedProduct: { id: 'approved', versionNumber: 1 },
+        orderable: { id: 'product', versionNumber: 1 },
+      },
+    ],
+  };
+  vi.mocked(fetchRequisition).mockResolvedValue(base);
+  const rendered = renderRoute('/requisitions/view/r', {
+    requisitionReturn: { to: '/requisitions/approve', search: { page: 3 } },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'approvedQuantity: Product (P1)' })).toBeEnabled(),
+  );
+  return { ...rendered, base };
+}
+async function confirmApproval() {
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'requisitions.edit.actions.approve',
+    }),
+  );
+}
+it('blocks invalid approval before confirmation or requests', async () => {
+  const { queryClient } = await openApprover(true);
+  const put = vi.spyOn(client, 'put');
+  const post = vi.spyOn(client, 'post');
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await screen.findByText('requisitions.edit.validation-description');
+  expect(put).not.toHaveBeenCalled();
+  expect(post).not.toHaveBeenCalled();
+  queryClient.clear();
+});
+it('saves and approves despite creator errors and returns to the approval search', async () => {
+  const { base, router, queryClient } = await openApprover();
+  const calls: string[] = [];
+  vi.spyOn(client, 'put').mockImplementation(async () => {
+    calls.push('save');
+    return { data: base, headers: {} };
+  });
+  const post = vi.spyOn(client, 'post').mockImplementation(async () => {
+    calls.push('approve');
+    return { data: {} };
+  });
+  await confirmApproval();
+  await screen.findByText('Approval List');
+  expect(calls).toEqual(['save', 'approve']);
+  expect(post).toHaveBeenCalledWith(
+    '/requisitions/r/approve',
+    {},
+    { headers: { 'Idempotency-Key': expect.any(String) } },
+  );
+  expect(router.state.location.search).toEqual({ page: 3 });
+  queryClient.clear();
+});
+it.each(['APPROVED', 'IN_APPROVAL', 'REJECTED'] as const)(
+  'reconciles an uncertain approval as %s without posting again',
+  async (status) => {
+    const { base, queryClient } = await openApprover();
+    const success = vi.spyOn(toast, 'success');
+    const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    const post = vi
+      .spyOn(client, 'post')
+      .mockRejectedValue(new AxiosError('Timeout', 'ECONNABORTED'));
+    await confirmApproval();
+    await screen.findByRole('alertdialog');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'dialog.close' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+    vi.mocked(fetchRequisition).mockResolvedValue({
+      ...base,
+      status,
+      supervisoryNode: 'next',
+      modifiedDate: 'changed',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+    if (status === 'REJECTED') {
+      await screen.findByText('requisitions.edit.error.conflict');
+      expect(success).not.toHaveBeenCalled();
+    } else await screen.findByText('Approval List');
+    expect(put).toHaveBeenCalledOnce();
+    expect(post).toHaveBeenCalledOnce();
+    queryClient.clear();
+  },
+);
+
+it('requires a reason before confirming rejection and sends its DTO after saving', async () => {
+  const { base, router, queryClient } = await openApprover(false, true);
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.reject' }));
+  await screen.findByRole('combobox', { name: 'requisitions.reject.category' });
+  const dialog = screen.getByRole('dialog');
+  expect(router.state.location.search.dialog).toBe('reject-reasons');
+  expect(
+    within(dialog).getByRole('button', { name: 'requisitions.edit.actions.reject' }),
+  ).toBeDisabled();
+  expect(put).not.toHaveBeenCalled();
+  await userEvent.click(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.category' }),
+  );
+  await userEvent.click(await screen.findByRole('option', { name: 'Category' }));
+  await userEvent.click(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.reason' }),
+  );
+  await userEvent.click(await screen.findByRole('option', { name: 'Reason' }));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.reject.add' }));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.actions.reject' }));
+  fireEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'requisitions.edit.actions.reject',
+    }),
+  );
+  await screen.findByText('Approval List');
+  expect(put.mock.calls.map(([url]) => url)).toEqual([
+    '/v2/requisitions/r',
+    '/requisitions/r/reject',
+  ]);
+  expect(put.mock.calls[1][1]).toEqual([
+    {
+      rejectionReason: {
+        id: 'reason',
+        code: 'R',
+        name: 'Reason',
+        active: true,
+        rejectionReasonCategory: { id: 'category', code: 'C', name: 'Category', active: true },
+      },
+    },
+  ]);
+  expect(put.mock.calls[1][2]).toEqual({ headers: { 'Idempotency-Key': expect.any(String) } });
+  queryClient.clear();
+});
+it('keeps approval edits blocked and ignores repeated clicks while reconciliation is pending', async () => {
+  const { base, queryClient } = await openApprover();
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi
+    .spyOn(client, 'post')
+    .mockRejectedValue(new AxiosError('Timeout', 'ECONNABORTED'));
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  let complete!: (record: RequisitionRecord) => void;
+  vi.mocked(fetchRequisition).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const reads = vi.mocked(fetchRequisition).mock.calls.length;
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(reads + 1));
+  expect(screen.getByRole('textbox', { name: 'approvedQuantity: Product (P1)' })).toBeDisabled();
+  complete({ ...base, status: 'APPROVED' });
+  await screen.findByText('Approval List');
+  expect(put).toHaveBeenCalledOnce();
+  expect(post).toHaveBeenCalledOnce();
   queryClient.clear();
 });

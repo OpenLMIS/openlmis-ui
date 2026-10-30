@@ -1,10 +1,12 @@
 import { AxiosError } from 'axios';
 import { beforeEach, expect, it, vi } from 'vitest';
 import {
+  approveRequisition,
   authorizeRequisition,
   createRequisitionActionAttempt,
   deleteRequisition,
   fetchRequisition,
+  rejectRequisition,
   saveRequisition,
   skipRequisition,
   submitRequisition,
@@ -86,3 +88,28 @@ it('saves without If-Match when the server did not expose an ETag', async () => 
     { headers: {} },
   );
 });
+
+it.each(['approve', 'reject'] as const)(
+  'keeps the %s key after 5xx but rotates it after a definitive refusal',
+  async (action) => {
+    const attempt = createRequisitionActionAttempt();
+    const key = attempt.key;
+    const transport = action === 'approve' ? client.post : client.put;
+    const run = action === 'approve' ? approveRequisition : rejectRequisition;
+    vi.mocked(transport).mockRejectedValueOnce(
+      new AxiosError('pending', undefined, undefined, undefined, { status: 409 } as never),
+    );
+    await expect(run('r', attempt)).rejects.toThrow();
+    expect(attempt.key).toBe(key);
+    vi.mocked(transport).mockRejectedValueOnce(
+      new AxiosError('failed', undefined, undefined, undefined, { status: 500 } as never),
+    );
+    await expect(run('r', attempt)).rejects.toThrow();
+    expect(attempt.key).toBe(key);
+    vi.mocked(transport).mockRejectedValueOnce(
+      new AxiosError('refused', undefined, undefined, undefined, { status: 400 } as never),
+    );
+    await expect(run('r', attempt)).rejects.toThrow();
+    expect(attempt.key).not.toBe(key);
+  },
+);

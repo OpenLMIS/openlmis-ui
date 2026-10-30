@@ -20,6 +20,8 @@ const SHIPPED_ACTIONS: readonly RequisitionAction[] = [
   'submit',
   'submitAndAuthorize',
   'authorize',
+  'approve',
+  'reject',
   'skip',
   'delete',
   'print',
@@ -45,7 +47,7 @@ export function requisitionCapabilities(
   context: CapabilityContext,
   gate: CapabilityGate = {
     actions: SHIPPED_ACTIONS,
-    approverEditing: false,
+    approverEditing: true,
     patientsEditing: false,
   },
 ) {
@@ -81,11 +83,6 @@ export function requisitionCapabilities(
   const actionsOpen = editingOpen && (!approver || gate.approverEditing === true);
   const approvalColumn = template.patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity';
   const approvalColumns = [approvalColumn, 'remarks'];
-  if (program.name === 'TB Monthly') {
-    for (const name of ['numberOfPatientsOnTreatmentNextMonth', 'totalReceivedQuantity']) {
-      if (!approvalColumns.includes(name)) approvalColumns.push(name);
-    }
-  }
   return {
     editable,
     editableColumns: editable

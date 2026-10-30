@@ -7,11 +7,14 @@ import {
   programLookupOptions,
 } from '@/features/reference-data/api/queries';
 import {
+  fetchApprovalList,
   fetchPeriodsForInitiate,
   fetchRequisition,
   fetchStatusMessages,
+  fetchUnskipSetting,
   searchRequisitions,
 } from '@/features/requisitions/api/api';
+import { type ApprovalSearch, toApprovalQuery } from '@/features/requisitions/lib/approval-search';
 import type {
   InitiateQuery,
   RequisitionRecord,
@@ -52,4 +55,16 @@ export const periodsForInitiateOptions = (params: InitiateQuery) =>
     queryKey: [...queryKeys.requisitions.all, 'periodsForInitiate', params] as const,
     queryFn: () => fetchPeriodsForInitiate(params),
     staleTime: 0,
+  });
+
+export const unskipSettingOptions = () =>
+  queryOptions({
+    queryKey: [...queryKeys.requisitions.all, 'unskipSetting'] as const,
+    queryFn: fetchUnskipSetting,
+  });
+
+export const approvalListOptions = (search: ApprovalSearch) =>
+  queryOptions({
+    queryKey: [...queryKeys.requisitions.all, 'approval', search] as const,
+    queryFn: () => fetchApprovalList(toApprovalQuery(search)),
   });

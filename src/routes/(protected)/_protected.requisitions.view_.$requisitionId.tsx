@@ -46,13 +46,15 @@ import {
   requisitionGroupOptions,
   supervisoryNodesByIdsOptions,
 } from '@/features/reference-data/api/queries';
-import type { Orderable, Program } from '@/features/reference-data/lib/types';
+import type { Orderable, Program, RejectionReason } from '@/features/reference-data/lib/types';
 import {
+  approveRequisition,
   authorizeRequisition,
   createRequisitionActionAttempt,
   deleteRequisition,
   fetchRequisition,
   fetchRequisitionReport,
+  rejectRequisition,
   saveRequisition,
   skipRequisition,
   submitRequisition,
@@ -61,10 +63,12 @@ import {
   requisitionGridQueries,
   requisitionOptions,
   requisitionStatusMessagesOptions,
+  unskipSettingOptions,
 } from '@/features/requisitions/api/queries';
 import { AddProductsDialog } from '@/features/requisitions/components/add-products-dialog';
 import { AdjustmentsEditorDialog } from '@/features/requisitions/components/adjustments-editor-dialog';
 import { LegacyActionsNote } from '@/features/requisitions/components/legacy-actions-note';
+import { RejectReasonsDialog } from '@/features/requisitions/components/reject-reasons-dialog';
 import {
   RequisitionActionDialog,
   RequisitionErrorDialog,
@@ -130,6 +134,7 @@ const searchSchema = requisitionSearchSchema.extend({
   comment: dialogFlag,
   adjustments: textFilterSchema,
   addProduct: dialogFlag,
+  dialog: z.enum(['reject-reasons']).optional().catch(undefined),
 });
 type EditorAction = Parameters<ComponentProps<typeof RequisitionFooter>['onAction']>[0];
 type RequisitionData = {
@@ -144,6 +149,7 @@ const CLOSED_DIALOGS = {
   comment: undefined,
   adjustments: undefined,
   addProduct: undefined,
+  dialog: undefined,
 };
 let shownRequisitionId: string | undefined;
 
@@ -173,6 +179,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
         throw error;
       })) ?? [];
     if (!userId || userChanged() || !access || !record) return;
+    queryClient.prefetchQuery(unskipSettingOptions());
     queryClient.prefetchQuery(requisitionStatusMessagesOptions(record.id));
     queryClient.prefetchQuery(facilityOptions(record.facility.id));
     const [products, approvedProducts, period, currency, program] = requisitionGridQueries(record);
@@ -226,7 +233,12 @@ function RequisitionReadShell({
   const { openDialog, closeDialog } = useSearchNavigation<typeof search>(CLOSED_DIALOGS, {
     keepState: true,
   });
-  const pending = pendingPolicy(record, data.access, useCachedProgram(record.program.id));
+  const pending = pendingPolicy(
+    record,
+    data.access,
+    useCachedProgram(record.program.id),
+    useQuery({ ...unskipSettingOptions(), enabled: false }).data?.unskipRequisition,
+  );
   return (
     <>
       <Workspace width="wide">
@@ -332,6 +344,7 @@ function RequisitionBody({
     allSkipped: boolean;
     target?: { id: string; field: string; fullSupply: boolean };
   } | null>(null);
+  const [rejectReasons, setRejectReasons] = useState<readonly RejectionReason[] | undefined>();
   const [serverStatus, setServerStatus] = useState<RequisitionRecord['status'] | null>(null);
   const [failure, setFailure] = useState<RequisitionFailure | null>(null);
   const posting = useRef(false);
@@ -341,7 +354,9 @@ function RequisitionBody({
   const [busy, setBusy] = useState(false);
   const [synced, setSynced] = useState(false);
   const uncertain = useRef<{
-    kind: 'submit' | 'submitAndAuthorize' | 'authorize';
+    kind: 'submit' | 'submitAndAuthorize' | 'authorize' | 'approve' | 'reject';
+    node?: string | null;
+    keyUsed?: boolean;
     status: RequisitionRecord['status'];
     modifiedDate: RequisitionRecord['modifiedDate'];
   } | null>(null);
@@ -440,39 +455,85 @@ function RequisitionBody({
         if (kind !== retry.kind) throw new RequisitionRetryConflict();
         const fresh = await fetchRequisition(record.id);
         assertSessionScope(scope);
+        const approval = retry.kind === 'approve' || retry.kind === 'reject';
         const progressed = REQUISITION_STATUSES.slice(retry.kind === 'authorize' ? 3 : 2, 8);
-        advanced = progressed.includes(fresh.status);
+        advanced =
+          retry.kind === 'approve'
+            ? ['APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER'].includes(fresh.status) ||
+              (fresh.status === 'IN_APPROVAL' && fresh.supervisoryNode !== retry.node)
+            : retry.kind === 'reject'
+              ? fresh.status === 'REJECTED'
+              : progressed.includes(fresh.status);
         if (advanced) {
           setRecord(fresh);
           queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
         } else if (
           fresh.status !== retry.status ||
+          (approval && fresh.supervisoryNode !== retry.node) ||
           !retry.modifiedDate ||
           fresh.modifiedDate !== retry.modifiedDate
         ) {
+          if (approval) {
+            await editor.device.update(fresh);
+            assertSessionScope(scope);
+            setRecord(fresh);
+            queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
+            uncertain.current = null;
+          }
           throw new RequisitionRetryConflict();
+        } else if (approval) {
+          if (retry.keyUsed) {
+            uncertain.current = null;
+            attempt.key = randomId();
+          }
+          throw new Error(t('requisitions.edit.reconciling'));
         }
       } else if (
         kind === 'sync' ||
         kind === 'print' ||
         kind === 'submit' ||
         kind === 'submitAndAuthorize' ||
-        kind === 'authorize'
+        kind === 'authorize' ||
+        kind === 'approve' ||
+        kind === 'reject'
       ) {
         saved = await sync();
         assertSessionScope(scope);
       }
       requireOnline();
       if (!advanced) {
-        if (kind === 'submit' || kind === 'submitAndAuthorize' || kind === 'authorize') {
+        if (
+          kind === 'submit' ||
+          kind === 'submitAndAuthorize' ||
+          kind === 'authorize' ||
+          kind === 'approve' ||
+          kind === 'reject'
+        ) {
           const base = saved ?? latest.current.record;
           try {
-            if (kind === 'authorize') await authorizeRequisition(record.id, attempt);
+            if (kind === 'approve') await approveRequisition(record.id, attempt);
+            else if (kind === 'reject') await rejectRequisition(record.id, attempt, rejectReasons);
+            else if (kind === 'authorize') await authorizeRequisition(record.id, attempt);
             else await submitRequisition(record.id, attempt);
           } catch (error) {
             assertSessionScope(scope);
-            if (isAxiosError(error) && !error.response)
-              uncertain.current = { kind, status: base.status, modifiedDate: base.modifiedDate };
+            const status = isAxiosError(error) ? error.response?.status : undefined;
+            if (
+              isAxiosError(error) &&
+              (!error.response ||
+                ((kind === 'approve' || kind === 'reject') &&
+                  (status === 409 || (status ?? 0) >= 500)))
+            )
+              uncertain.current = {
+                kind,
+                status: base.status,
+                modifiedDate: base.modifiedDate,
+                node: base.supervisoryNode,
+                keyUsed:
+                  isAxiosError(error) &&
+                  error.response?.data?.messageKey ===
+                    'requisition.error.validation.idempotencyKey.alreadyUsed',
+              };
             else uncertain.current = null;
             throw error;
           }
@@ -529,13 +590,22 @@ function RequisitionBody({
     } catch (error) {
       if (!mutation.isCurrent()) return false;
       setAction(null);
-      const failure = toRequisitionFailure(error);
+      const failure =
+        uncertain.current &&
+        (uncertain.current.kind === 'approve' || uncertain.current.kind === 'reject')
+          ? { kind: 'server' as const, message: t('requisitions.edit.reconciling') }
+          : toRequisitionFailure(error);
       if (failure.kind === 'key-used') {
         const fresh = await fetchRequisition(record.id).catch(() => undefined);
         if (!mutation.isCurrent()) return false;
         if (fresh) setServerStatus(fresh.status);
       }
-      setFailure(failure);
+      if (
+        isAxiosError(error) &&
+        error.response?.data?.messageKey === 'requisition.error.reject.requisitionWasSplit'
+      ) {
+        setFailure({ kind: 'server', message: t('requisitions.edit.split-rejection') });
+      } else setFailure(failure);
       return false;
     } finally {
       posting.current = false;
@@ -581,11 +651,23 @@ function RequisitionBody({
   });
   const begin = (kind: EditorAction) => {
     if (posting.current || pending || finished.current) return;
+    if (
+      uncertain.current &&
+      (uncertain.current.kind === 'approve' || uncertain.current.kind === 'reject')
+    ) {
+      void run(uncertain.current.kind);
+      return;
+    }
     if (kind === 'sync') {
       void run(kind);
       return;
     }
-    if (kind === 'submit' || kind === 'submitAndAuthorize' || kind === 'authorize') {
+    if (
+      kind === 'submit' ||
+      kind === 'submitAndAuthorize' ||
+      kind === 'authorize' ||
+      kind === 'approve'
+    ) {
       editor.form.setFieldValue('showAllErrors', true);
       const models = currentLines();
       const result = validateRequisition(
@@ -593,6 +675,7 @@ function RequisitionBody({
         models,
         {
           monthsInPeriod: period.durationInMonths ?? 1,
+          columns: policy.approver ? policy.editableColumns : undefined,
         },
         editor.draft.lines,
       );
@@ -610,11 +693,20 @@ function RequisitionBody({
         });
         return;
       }
-      if (!record.emergency && program.enableDatePhysicalStockCountCompleted) {
+      if (
+        kind !== 'approve' &&
+        !record.emergency &&
+        program.enableDatePhysicalStockCountCompleted
+      ) {
         setDateAction(kind);
         return;
       }
     }
+    if (kind === 'reject' && record.template.rejectionReasonWindowVisible) {
+      void openDialog({ dialog: 'reject-reasons' });
+      return;
+    }
+    setRejectReasons(undefined);
     setAction(kind);
   };
 
@@ -676,7 +768,7 @@ function RequisitionBody({
               <AlertAction>
                 <RequisitionUpdate
                   tone="info"
-                  pending={pending}
+                  pending={editingBlocked}
                   onUpdate={() => {
                     setFailure(null);
                     setAction('update');
@@ -697,7 +789,7 @@ function RequisitionBody({
               <AlertAction>
                 <RequisitionUpdate
                   tone="warning"
-                  pending={pending}
+                  pending={editingBlocked}
                   onUpdate={() => {
                     setFailure(null);
                     setAction('update');
@@ -785,6 +877,11 @@ function RequisitionBody({
         pending={pending}
         disabled={!!serverStatus || editor.locked}
         onAction={begin}
+        reconciling={
+          uncertain.current?.kind === 'approve' || uncertain.current?.kind === 'reject'
+            ? uncertain.current.kind
+            : undefined
+        }
       />
       <DiscardChangesDialog
         {...guard.dialog}
@@ -798,6 +895,18 @@ function RequisitionBody({
           onConfirm={() => void run(action)}
         />
       )}
+      {search.dialog === 'reject-reasons' &&
+        policy.actions.includes('reject') &&
+        !editingBlocked && (
+          <RejectReasonsDialog
+            onClose={closeDialog}
+            onConfirm={(reasons) => {
+              setRejectReasons(reasons);
+              closeDialog();
+              setAction('reject');
+            }}
+          />
+        )}
       {dateAction && (
         <StockCountDateDialog
           today={today}
@@ -1081,7 +1190,11 @@ function useRequisitionPolicy(data: RequisitionData) {
           ),
         )
         .map(({ id }) => id);
-  const context = capabilityContext(record, access, program);
+  const { data: unskip } = useQuery({
+    ...unskipSettingOptions(),
+    enabled: ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status),
+  });
+  const context = capabilityContext(record, access, program, unskip?.unskipRequisition);
   const policies = (currentNodes.length ? currentNodes : [undefined]).map((currentNodeId) =>
     requisitionCapabilities({ ...context, currentNodeId }),
   );
@@ -1160,7 +1273,11 @@ function RequisitionPending() {
     ? queryClient.getQueryData(permissionsOptions(userId).queryKey)
     : undefined;
   const program = useCachedProgram(record?.program.id);
-  const pending = record && permissions && pendingPolicy(record, { permissions }, program);
+  const unskip = useQuery({ ...unskipSettingOptions(), enabled: false }).data;
+  const pending =
+    record &&
+    permissions &&
+    pendingPolicy(record, { permissions }, program, unskip?.unskipRequisition);
   return (
     <>
       <Workspace width="wide">
@@ -1201,6 +1318,7 @@ function capabilityContext(
   record: RequisitionRecord,
   access: PendingAccess,
   program: Program | undefined,
+  unskipWhenApproving = false,
 ) {
   const grants = access.permissions.grants
     .filter(
@@ -1217,6 +1335,7 @@ function capabilityContext(
         }
       : record.program,
     grants,
+    unskipWhenApproving,
     approvalNodes: approvalNodesFor(access, record.program.id),
     isSplit: !!record.extraData?.originalRequisition,
   };
@@ -1225,9 +1344,10 @@ function pendingPolicy(
   record: RequisitionRecord,
   access: PendingAccess,
   program: Program | undefined,
+  unskipWhenApproving = false,
 ) {
   const policy = requisitionCapabilities({
-    ...capabilityContext(record, access, program),
+    ...capabilityContext(record, access, program, unskipWhenApproving),
     currentNodeId: record.supervisoryNode,
   });
   const editing: PendingEditing = { ...policy, deviceAvailable: isSecureOrigin };
