@@ -374,7 +374,11 @@ it.each([
       },
       { productCode: '10010510AE' },
     ).numberOfPatientsOnTreatmentNextMonth,
-  ).toBe(['AUTHORIZED', 'IN_APPROVAL', 'APPROVED'].includes(status) ? 99 : 5);
+  ).toBe(
+    ['AUTHORIZED', 'IN_APPROVAL', 'APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER'].includes(status)
+      ? 99
+      : 5,
+  );
 });
 it('refreshes patient quantities after data changes and keeps records separate', () => {
   const r = record({
@@ -498,3 +502,25 @@ it('treats unreadable patient data as unavailable TC without crashing the produc
     ).numberOfPatientsOnTreatmentNextMonth,
   ).toBeNull();
 });
+
+it.each(['AUTHORIZED', 'IN_APPROVAL', 'APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER'] as const)(
+  'keeps stored TC with unreadable patients in %s',
+  (status) => {
+    expect(
+      calculate(
+        { numberOfPatientsOnTreatmentNextMonth: 17 },
+        {
+          status,
+          patientsData: '{broken',
+          template: {
+            patientsTabEnabled: true,
+            columnsMap: {
+              numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth'),
+            },
+          },
+        },
+        { productCode: '10010510AE' },
+      ).numberOfPatientsOnTreatmentNextMonth,
+    ).toBe(17);
+  },
+);

@@ -1783,69 +1783,78 @@ it('syncs patient edits with an empty enabled month', async () => {
   queryClient.clear();
 });
 
-it('keeps an approver TC override on save despite overflowing stored patients without a tab badge', async () => {
-  useLoginData.getState().setLoginData({
-    referenceDataUserId: crypto.randomUUID(),
-    username: 'u',
-    accessToken: 'token',
-  });
-  vi.mocked(fetchPermissionStrings).mockResolvedValue([
-    'REQUISITION_VIEW|f|program',
-    'REQUISITION_APPROVE|f|program',
-  ]);
-  const base = {
-    ...patientRecord(),
-    status: 'AUTHORIZED' as const,
-    supervisoryNode: 'node',
-    patientsData: JSON.stringify({
-      TBData: [
-        [
-          {
-            key: 'numberOfAdultPatients',
-            isSkipped: false,
-            data: [{ value: 2147483648, disabled: false }],
-          },
-        ],
-      ],
-      leprosyData: [[]],
-    }),
-    template: {
-      patientsTabEnabled: true,
-      columnsMap: {
-        'orderable.fullProductName': column('orderable.fullProductName'),
-        numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth', 1),
+it.each(['overflowing', 'unreadable'] as const)(
+  'keeps stored approver TC and allows approval despite %s patients',
+  async (patientsState) => {
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: crypto.randomUUID(),
+      username: 'u',
+      accessToken: 'token',
+    });
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([
+      'REQUISITION_VIEW|f|program',
+      'REQUISITION_APPROVE|f|program',
+    ]);
+    const base = {
+      ...patientRecord(),
+      status: 'AUTHORIZED' as const,
+      supervisoryNode: 'node',
+      patientsData:
+        patientsState === 'unreadable'
+          ? '{broken'
+          : JSON.stringify({
+              TBData: [
+                [
+                  {
+                    key: 'numberOfAdultPatients',
+                    isSkipped: false,
+                    data: [{ value: 2147483648, disabled: false }],
+                  },
+                ],
+              ],
+              leprosyData: [[]],
+            }),
+      template: {
+        patientsTabEnabled: true,
+        columnsMap: {
+          'orderable.fullProductName': column('orderable.fullProductName'),
+          numberOfPatientsOnTreatmentNextMonth: column('numberOfPatientsOnTreatmentNextMonth', 1),
+        },
       },
-    },
-    requisitionLineItems: [
-      { ...patientRecord().requisitionLineItems[0], numberOfPatientsOnTreatmentNextMonth: 2 },
-    ],
-  };
-  vi.mocked(fetchOrderablesByIdentities).mockResolvedValue([
-    { ...product({ productCode: '10010510AE' }), description: '' },
-  ]);
-  vi.mocked(fetchRequisition).mockResolvedValue(base);
-  const { queryClient } = renderRoute('/requisitions/view/r');
-  const patientsTab = await screen.findByRole('tab', {
-    name: /requisitions.requisition.patients/,
-    selected: true,
-  });
-  expect(
-    within(patientsTab).queryByLabelText('requisitions.edit.invalid-lines'),
-  ).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'requisitions.requisition.priority' }));
-  const tc = await screen.findByRole('textbox', {
-    name: 'numberOfPatientsOnTreatmentNextMonth: Product (10010510AE)',
-  });
-  await waitFor(() => expect(tc).toBeEnabled());
-  fireEvent.change(tc, { target: { value: '15' } });
-  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
-  const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
-  await confirmApproval();
-  await waitFor(() => expect(post).toHaveBeenCalledOnce());
-  expect(put).toHaveBeenCalledOnce();
-  expect(put.mock.calls[0][1]).toMatchObject({
-    patientsData: base.patientsData,
-    requisitionLineItems: [{ numberOfPatientsOnTreatmentNextMonth: 15 }],
-  });
-  queryClient.clear();
-});
+      requisitionLineItems: [
+        { ...patientRecord().requisitionLineItems[0], numberOfPatientsOnTreatmentNextMonth: 2 },
+      ],
+    };
+    vi.mocked(fetchOrderablesByIdentities).mockResolvedValue([
+      { ...product({ productCode: '10010510AE' }), description: '' },
+    ]);
+    vi.mocked(fetchRequisition).mockResolvedValue(base);
+    const { queryClient } = renderRoute('/requisitions/view/r');
+    const patientsTab = await screen.findByRole('tab', {
+      name: /requisitions.requisition.patients/,
+      selected: true,
+    });
+    expect(
+      within(patientsTab).queryByLabelText('requisitions.edit.invalid-lines'),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'requisitions.requisition.priority' }));
+    const tc = await screen.findByRole('textbox', {
+      name: 'numberOfPatientsOnTreatmentNextMonth: Product (10010510AE)',
+    });
+    await waitFor(() => expect(tc).toBeEnabled());
+    expect(tc).toHaveValue('2');
+    if (patientsState === 'overflowing') fireEvent.change(tc, { target: { value: '15' } });
+    const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+    await confirmApproval();
+    await waitFor(() => expect(post).toHaveBeenCalledOnce());
+    expect(put).toHaveBeenCalledOnce();
+    expect(put.mock.calls[0][1]).toMatchObject({
+      patientsData: base.patientsData,
+      requisitionLineItems: [
+        { numberOfPatientsOnTreatmentNextMonth: patientsState === 'overflowing' ? 15 : 2 },
+      ],
+    });
+    queryClient.clear();
+  },
+);
