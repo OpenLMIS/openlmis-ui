@@ -34,6 +34,7 @@ import {
   APPROVAL_SORT,
   type ApprovalSearch,
   type ApprovalSelection,
+  approvalRowIndex,
   approvalScope,
 } from '@/features/requisitions/lib/approval-search';
 import { returnState } from '@/features/requisitions/lib/requisition-return';
@@ -168,9 +169,7 @@ function useResultsTable({
           row.id,
           {
             programId: row.program.id,
-            rowIndex:
-              toPaginationState(search, 20).pageIndex * toPaginationState(search, 20).pageSize +
-              index,
+            rowIndex: approvalRowIndex(search, index),
             label: requisitionRowLabel(row, t('requisitions.columns.emergency')),
           },
         ]),

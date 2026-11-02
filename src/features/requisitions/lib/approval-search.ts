@@ -28,3 +28,8 @@ export const approvalScope = (search: ApprovalSearch) =>
 
 export const approvalSelectedIds = (picked: ApprovalSelection) =>
   [...picked].sort((a, b) => a[1].rowIndex - b[1].rowIndex).map(([id]) => id);
+
+export function approvalRowIndex(search: ApprovalSearch, index: number) {
+  const { page, size } = toApprovalQuery(search);
+  return page * size + index;
+}
