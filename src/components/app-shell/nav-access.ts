@@ -33,8 +33,11 @@ export function navWithinRights(
   rights: ReadonlySet<string> | undefined,
   hasDeviceEvents = false,
   offline = false,
+  createOrders = true,
 ): LiveNavGroup[] {
-  const allowed = (link: LiveNavLink) => canOpen(link.to, rights, hasDeviceEvents, offline);
+  const allowed = (link: LiveNavLink) =>
+    (link.to !== '/requisitions/create-orders' || createOrders) &&
+    canOpen(link.to, rights, hasDeviceEvents, offline);
   return groups
     .map((group) => ({
       ...group,
@@ -81,19 +84,19 @@ export function useNavGroups() {
       ...link,
       connectionRequired: !online && !isOfflineCapable(link.to ?? ''),
     });
-    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents, !online).map((group) => ({
-      ...group,
-      items: group.items.map((item) =>
-        isNavParent(item)
-          ? {
-              ...item,
-              items: item.items
-                .filter((link) => link.to !== '/requisitions/create-orders' || createOrders)
-                .map(mark),
-            }
-          : mark(item),
-      ),
-    }));
+    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents, !online, createOrders).map(
+      (group) => ({
+        ...group,
+        items: group.items.map((item) =>
+          isNavParent(item)
+            ? {
+                ...item,
+                items: item.items.map(mark),
+              }
+            : mark(item),
+        ),
+      }),
+    );
   }, [rights, online, hasDeviceEvents, createOrders]);
 }
 

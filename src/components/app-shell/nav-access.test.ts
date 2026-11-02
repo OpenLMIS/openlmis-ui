@@ -117,3 +117,19 @@ it('offers Offline Events offline before access or events have been downloaded',
   expect(canOpen('/offline-events', undefined, false, true)).toBe(true);
   expect(canOpen('/stock-management/adjustments', undefined, false, true)).toBe(false);
 });
+
+it('drops the requisitions section when Create Orders is its only permitted page and the flag is off', () => {
+  const groups: LiveNavGroup[] = [
+    {
+      items: [
+        {
+          titleKey: 'nav.requisitions',
+          items: [
+            { titleKey: 'nav.requisitions.create-orders', to: '/requisitions/create-orders' },
+          ],
+        },
+      ],
+    },
+  ];
+  expect(navWithinRights(groups, new Set(['ORDER_CREATE']), false, false, false)).toEqual([]);
+});
