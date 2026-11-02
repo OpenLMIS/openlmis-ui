@@ -1,9 +1,6 @@
-import type {
-  EquipmentStatus,
-  RequisitionSummary,
-  SystemNotification,
-} from '@/features/home/lib/types';
+import type { RequisitionSummary, SystemNotification } from '@/features/home/lib/types';
 import { client } from '@/integrations/axios';
+import { EQUIPMENT_STATUSES, type EquipmentStatus } from '@/lib/cce-equipment-status';
 import type { RequisitionStatus } from '@/lib/requisition-status';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
@@ -86,13 +83,6 @@ export async function fetchRecentRequisitions(): Promise<RequisitionSummary[]> {
   });
   return data.content;
 }
-
-export const EQUIPMENT_STATUSES = [
-  'FUNCTIONING',
-  'NEEDS_ATTENTION',
-  'AWAITING_REPAIR',
-  'UNSERVICEABLE',
-] as const satisfies readonly EquipmentStatus[];
 
 export function fetchEquipmentStatusCounts(): Promise<Record<EquipmentStatus, number>> {
   return countEach(EQUIPMENT_STATUSES, (functionalStatus) =>
