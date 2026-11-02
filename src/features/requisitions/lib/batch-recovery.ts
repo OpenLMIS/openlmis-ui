@@ -1,5 +1,5 @@
 import type { BatchLocalDraft } from '@/features/requisitions/hooks/use-batch-drafts';
-import { batchLabel, orderBatch } from '@/features/requisitions/lib/batch';
+import { batchLabel, matchesBaseline, orderBatch } from '@/features/requisitions/lib/batch';
 import {
   readBatchSessionMarker,
   writeBatchSessionMarker,
@@ -20,12 +20,7 @@ export async function recoverBatchApprovals(ids: readonly string[], response: Ba
         const marker = readBatchSessionMarker(userId, id);
         if (!marker) continue;
         const record = response.requisitionDtos?.find((r) => r.id === id);
-        if (
-          record &&
-          record.status === marker.baselineStatus &&
-          record.modifiedDate === marker.baselineModifiedDate
-        )
-          continue;
+        if (matchesBaseline(record, marker)) continue;
         writeBatchSessionMarker(userId, id);
         removed.set(id, record ? batchLabel(record) : id);
       }
@@ -47,12 +42,7 @@ export async function recoverBatchApprovals(ids: readonly string[], response: Ba
     assertSessionScope(scope);
     if (!stored?.unresolvedApproval) continue;
     const record = response.requisitionDtos?.find((r) => r.id === id);
-    if (
-      record &&
-      record.status === stored.baselineStatus &&
-      record.modifiedDate === stored.baselineModifiedDate
-    )
-      continue;
+    if (matchesBaseline(record, stored)) continue;
     await saveRevisionedDraft({
       db,
       table,

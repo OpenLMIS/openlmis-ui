@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { batchText } from '@/features/requisitions/lib/batch';
+import { batchText, matchesBaseline } from '@/features/requisitions/lib/batch';
 import {
   readBatchSessionMarker,
   writeBatchSessionMarker,
@@ -67,27 +67,23 @@ function createBatchDrafts(
   const db = isSecureOrigin && userId ? getLocalDb() : undefined;
   const table = db?.table<BatchLocalDraft, string>(LOCAL_TABLES.requisitionBatchDrafts);
   const entries = new Map(
-    records.map((base) => [
-      base.id,
-      {
-        base,
-        expected: undefined as BatchLocalDraft | undefined,
-        changes:
-          !db && memory?.scope === scope
-            ? { ...memory.entries.get(base.id)?.changes }
-            : ({} as Record<string, string>),
-        unresolved:
-          !db && memory?.scope === scope
-            ? memory.entries.get(base.id)?.unresolved
-            : (undefined as BatchLocalDraft['unresolvedApproval']),
-        outdated:
-          !db &&
-          memory?.scope === scope &&
-          (memory.entries.get(base.id)?.outdated ||
-            (!!Object.keys(memory.entries.get(base.id)?.changes ?? {}).length &&
-              memory.entries.get(base.id)?.base.modifiedDate !== base.modifiedDate)),
-      },
-    ]),
+    records.map((base) => {
+      const previous = !db && memory?.scope === scope ? memory.entries.get(base.id) : undefined;
+      return [
+        base.id,
+        {
+          base,
+          expected: undefined as BatchLocalDraft | undefined,
+          changes: { ...previous?.changes } as Record<string, string>,
+          unresolved: previous?.unresolved,
+          outdated:
+            !!previous &&
+            (previous.outdated ||
+              (!!Object.keys(previous.changes).length &&
+                previous.base.modifiedDate !== base.modifiedDate)),
+        },
+      ];
+    }),
   );
   let active = false;
   let ready = false;
@@ -232,9 +228,13 @@ function createBatchDrafts(
       const e = entries.get(id);
       return (
         !!e?.unresolved &&
-        (!fresh ||
-          fresh.modifiedDate !== (e.expected?.baselineModifiedDate ?? e.base.modifiedDate) ||
-          fresh.status !== (e.expected?.baselineStatus ?? e.base.status))
+        !matchesBaseline(
+          fresh,
+          e.expected ?? {
+            baselineModifiedDate: e.base.modifiedDate,
+            baselineStatus: e.base.status,
+          },
+        )
       );
     },
     set(id: string, lineId: string, text: string) {

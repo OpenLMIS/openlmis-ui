@@ -48,7 +48,6 @@ export function batchTotals(
   quantities: BatchQuantities = {},
 ) {
   const perRecord = new Map<string, number>();
-  const perProduct = new Map<string, { quantity: number; cost: number }>();
   let cost = 0;
   let quantity = 0;
   for (const record of records) {
@@ -58,15 +57,13 @@ export function batchTotals(
       const value = toWholeNumber(text);
       const q = Number.isFinite(value) ? value : 0;
       const c = batchCost(line, text);
-      const product = perProduct.get(line.orderable.id) ?? { quantity: 0, cost: 0 };
-      perProduct.set(line.orderable.id, { quantity: product.quantity + q, cost: product.cost + c });
       total += c;
       quantity += q;
     }
     perRecord.set(record.id, total);
     cost += total;
   }
-  return { cost, quantity, perRecord, perProduct };
+  return { cost, quantity, perRecord };
 }
 const quantitySchema = wholeNumberText({
   required: 'stock-events.required',
@@ -90,7 +87,7 @@ export function batchSaveBody(
     })),
   }));
 }
-export function batchErrorMessage(error: NonNullable<BatchResponse['requisitionErrors']>[number]) {
+function batchErrorMessage(error: NonNullable<BatchResponse['requisitionErrors']>[number]) {
   return (
     error.errorMessage?.message ??
     Object.values(error.fieldErrors ?? {})
@@ -121,4 +118,29 @@ export function orderBatch(response: BatchResponse, ids: readonly string[]) {
       return r ? [r] : [];
     }),
   };
+}
+
+export function batchRowTotals(row: BatchRow, quantities: BatchQuantities) {
+  let quantity = 0;
+  let cost = 0;
+  for (const [id, line] of row.lines) {
+    const text = batchText(line, quantities[id]);
+    const value = toWholeNumber(text);
+    quantity += Number.isFinite(value) ? value : 0;
+    cost += batchCost(line, text);
+  }
+  return { quantity, cost };
+}
+export function lineInvalid(line: BatchLine, text: string) {
+  return !line.skipped && validateBatchQuantity(text);
+}
+export function matchesBaseline(
+  record: BatchRequisition | undefined,
+  baseline: { baselineModifiedDate: string; baselineStatus: string },
+) {
+  return (
+    !!record &&
+    record.modifiedDate === baseline.baselineModifiedDate &&
+    record.status === baseline.baselineStatus
+  );
 }

@@ -14,7 +14,10 @@ export function hasUnsyncedRequisitionDraft({ draft, baseHeaders }: RequisitionL
   );
 }
 
-export async function countUnsyncedRequisitionDrafts() {
+async function countOwnedRows<T extends { userId: string }>(
+  table: string,
+  unsynced: (row: T) => unknown,
+) {
   let userId: string;
   try {
     userId = getLocalDbUserId();
@@ -22,29 +25,21 @@ export async function countUnsyncedRequisitionDrafts() {
     return 0;
   }
   const scope = getSessionScope();
-  const drafts = await getLocalDb()
-    .table<RequisitionLocalDraft>(LOCAL_TABLES.requisitionDrafts)
-    .toArray();
+  const rows = await getLocalDb().table<T>(table).toArray();
   assertSessionScope(scope);
-  return drafts.filter((row) => row.userId === userId && hasUnsyncedRequisitionDraft(row)).length;
+  return rows.filter((row) => row.userId === userId && unsynced(row)).length;
 }
-
-export async function countUnsyncedBatchDrafts() {
-  let userId: string;
-  try {
-    userId = getLocalDbUserId();
-  } catch {
-    return 0;
-  }
-  const scope = getSessionScope();
-  const rows = await getLocalDb()
-    .table<BatchLocalDraft>(LOCAL_TABLES.requisitionBatchDrafts)
-    .toArray();
-  assertSessionScope(scope);
-  return rows.filter(
+export function countUnsyncedRequisitionDrafts() {
+  return countOwnedRows<RequisitionLocalDraft>(
+    LOCAL_TABLES.requisitionDrafts,
+    hasUnsyncedRequisitionDraft,
+  );
+}
+export function countUnsyncedBatchDrafts() {
+  return countOwnedRows<BatchLocalDraft>(
+    LOCAL_TABLES.requisitionBatchDrafts,
     (row) =>
-      row.userId === userId &&
       row.formatVersion === 1 &&
       (Object.keys(row.approvedQuantities).length > 0 || row.unresolvedApproval),
-  ).length;
+  );
 }

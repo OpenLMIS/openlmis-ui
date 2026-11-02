@@ -75,7 +75,7 @@ it('durably marks uncertain approval even with no edited quantities', async () =
 });
 
 it('notifies only the changed cell, product and totals in a 10 by 200 batch', async () => {
-  const { generateBatch } = await import('@/features/requisitions/lib/fixtures/batch/generate');
+  const { generateBatch } = await import('@/test-utils/batch-fixtures');
   const large = generateBatch();
   const hook = renderHook(() => useBatchDrafts(large));
   await waitFor(() => expect(hook.result.current.getStatus().status).toBe('saved'));

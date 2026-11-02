@@ -1,6 +1,6 @@
 import i18n from '@/integrations/i18n';
 
-export type BatchSessionMarker = {
+type BatchSessionMarker = {
   userId: string;
   requisitionId: string;
   attemptedAt: string;
