@@ -1,0 +1,719 @@
+{
+  "requisitionDtos": [
+    {
+      "id": "addd575c-ff7c-11e8-8eb2-f2801f1b9fd1",
+      "emergency": false,
+      "status": "IN_APPROVAL",
+      "modifiedDate": "2018-12-13T08:11:29.083Z",
+      "periodName": "Apr2017",
+      "facilityName": "Lilongwe Health Center",
+      "requisitionLineItems": [
+        {
+          "id": "08db1ba8-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "a4460709-c908-4b94-b3c0-faf5eeefcc03",
+            "productCode": "ARV0012",
+            "fullProductName": "Lamivudine/Zidovudine 30/60mg (Pead)",
+            "netContent": 32,
+            "packRoundingThreshold": 7,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 50.35,
+          "totalCost": 100.7,
+          "skipped": false
+        },
+        {
+          "id": "41f54f62-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "952aabc6-ffa8-4e9a-ac4d-82b843704a82",
+            "productCode": "ARV0004",
+            "fullProductName": "Abacavir oral solution 20mg/ml",
+            "netContent": 87,
+            "packRoundingThreshold": 1,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 25,
+          "pricePerPack": 27.57,
+          "totalCost": 27.57,
+          "skipped": false
+        },
+        {
+          "id": "0fb58012-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "81dd320e-6d28-446a-8613-8bb899d6c206",
+            "productCode": "ARV0007",
+            "fullProductName": "Nevirapine Tablets for Oral Susp 50mg",
+            "netContent": 32,
+            "packRoundingThreshold": 5,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 10,
+          "pricePerPack": 17.28,
+          "totalCost": 17.28,
+          "skipped": false
+        },
+        {
+          "id": "2c7def5e-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "f7169041-733a-4279-bcbb-aee248e1b9dd",
+            "productCode": "ARV0011",
+            "fullProductName": "Efavirenz 50mg",
+            "netContent": 68,
+            "packRoundingThreshold": 2,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 45,
+          "pricePerPack": 89.67,
+          "totalCost": 89.67,
+          "skipped": false
+        },
+        {
+          "id": "1c06c056-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "3fecd8a4-d130-4e82-95ff-7d7620e24d8d",
+            "productCode": "ARV0002",
+            "fullProductName": "Lamivudine/Zidovudine/Nevirapine 30/60/50mg",
+            "netContent": 97,
+            "packRoundingThreshold": 5,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 85.02,
+          "totalCost": 85.02,
+          "skipped": false
+        },
+        {
+          "id": "323e0032-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "e1e51f5a-1bda-4777-a074-d865206e546f",
+            "productCode": "ARV0008",
+            "fullProductName": "Abacavir/Lamivudine 60/30mg",
+            "netContent": 91,
+            "packRoundingThreshold": 6,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 10,
+          "pricePerPack": 35.94,
+          "totalCost": 35.94,
+          "skipped": false
+        },
+        {
+          "id": "3c6d5a4e-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "fd77b03e-5578-429b-9802-6d7e4d8cb91d",
+            "productCode": "ARV0005",
+            "fullProductName": "Zidovudine/Lamivudine 300/150mg Tablets",
+            "netContent": 40,
+            "packRoundingThreshold": 7,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 5,
+          "pricePerPack": 33.67,
+          "totalCost": 33.67,
+          "skipped": false
+        },
+        {
+          "id": "211357b2-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "dc576f79-8d1c-4f4c-a94f-1ddda1065c85",
+            "productCode": "ARV0006",
+            "fullProductName": "Efavirenz 200mg",
+            "netContent": 43,
+            "packRoundingThreshold": 6,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 37,
+          "pricePerPack": 82.55,
+          "totalCost": 82.55,
+          "skipped": false
+        },
+        {
+          "id": "16922f2a-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "d059457a-b7ec-4353-89c6-dde0fc7a0c4b",
+            "productCode": "ARV0001",
+            "fullProductName": "Abacavir 300mg Tables",
+            "netContent": 51,
+            "packRoundingThreshold": 8,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 63.91,
+          "totalCost": 63.91,
+          "skipped": false
+        },
+        {
+          "id": "36f2e8cc-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "dc6e49d4-6fd8-49d0-ac4f-44d055c4b49d",
+            "productCode": "ARV0010",
+            "fullProductName": "Co-trimoxazole 120mg Tablets",
+            "netContent": 95,
+            "packRoundingThreshold": 7,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 65,
+          "pricePerPack": 45.64,
+          "totalCost": 45.64,
+          "skipped": false
+        },
+        {
+          "id": "47cccd02-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "65df9af9-dd9d-4df4-8157-bce65b4a42dd",
+            "productCode": "ARV0003",
+            "fullProductName": "Tenofovir/Emitricitabine/Efavirenz 300mg/200mg/600mg",
+            "netContent": 24,
+            "packRoundingThreshold": 9,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 96.61,
+          "totalCost": 193.22,
+          "skipped": false
+        },
+        {
+          "id": "25f8c212-ff7d-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "7f0aac5f-582a-4a6a-a8e1-dd534200f257",
+            "productCode": "ARV0009",
+            "fullProductName": "Tenofovir 300mg Tablets",
+            "netContent": 84,
+            "packRoundingThreshold": 8,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 60,
+          "pricePerPack": 95.29,
+          "totalCost": 95.29,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "id": "d4b38cd2-ff83-11e8-8eb2-f2801f1b9fd1",
+      "emergency": false,
+      "status": "IN_APPROVAL",
+      "modifiedDate": "2018-12-13T08:11:29.083Z",
+      "periodName": "May2017",
+      "facilityName": "Lilongwe Health Center",
+      "requisitionLineItems": [
+        {
+          "id": "559fe61a-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "dc576f79-8d1c-4f4c-a94f-1ddda1065c85",
+            "productCode": "ARV0006",
+            "fullProductName": "Efavirenz 200mg",
+            "netContent": 43,
+            "packRoundingThreshold": 6,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 37,
+          "pricePerPack": 82.55,
+          "totalCost": 82.55,
+          "skipped": false
+        },
+        {
+          "id": "6c10a86c-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "dc6e49d4-6fd8-49d0-ac4f-44d055c4b49d",
+            "productCode": "ARV0010",
+            "fullProductName": "Co-trimoxazole 120mg Tablets",
+            "netContent": 95,
+            "packRoundingThreshold": 7,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 65,
+          "pricePerPack": 45.64,
+          "totalCost": 45.64,
+          "skipped": false
+        },
+        {
+          "id": "4fec44a2-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "3fecd8a4-d130-4e82-95ff-7d7620e24d8d",
+            "productCode": "ARV0002",
+            "fullProductName": "Lamivudine/Zidovudine/Nevirapine 30/60/50mg",
+            "netContent": 97,
+            "packRoundingThreshold": 5,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 85.02,
+          "totalCost": 85.02,
+          "skipped": false
+        },
+        {
+          "id": "3c9f3a9e-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "a4460709-c908-4b94-b3c0-faf5eeefcc03",
+            "productCode": "ARV0012",
+            "fullProductName": "Lamivudine/Zidovudine 30/60mg (Pead)",
+            "netContent": 32,
+            "packRoundingThreshold": 7,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 50.35,
+          "totalCost": 100.7,
+          "skipped": false
+        },
+        {
+          "id": "60536032-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "f7169041-733a-4279-bcbb-aee248e1b9dd",
+            "productCode": "ARV0011",
+            "fullProductName": "Efavirenz 50mg",
+            "netContent": 68,
+            "packRoundingThreshold": 2,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 45,
+          "pricePerPack": 89.67,
+          "totalCost": 89.67,
+          "skipped": false
+        },
+        {
+          "id": "7bea2f6a-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "65df9af9-dd9d-4df4-8157-bce65b4a42dd",
+            "productCode": "ARV0003",
+            "fullProductName": "Tenofovir/Emitricitabine/Efavirenz 300mg/200mg/600mg",
+            "netContent": 24,
+            "packRoundingThreshold": 9,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 96.61,
+          "totalCost": 193.22,
+          "skipped": false
+        },
+        {
+          "id": "42aa8736-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "81dd320e-6d28-446a-8613-8bb899d6c206",
+            "productCode": "ARV0007",
+            "fullProductName": "Nevirapine Tablets for Oral Susp 50mg",
+            "netContent": 32,
+            "packRoundingThreshold": 5,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 10,
+          "pricePerPack": 17.28,
+          "totalCost": 17.28,
+          "skipped": false
+        },
+        {
+          "id": "4b51ba30-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "d059457a-b7ec-4353-89c6-dde0fc7a0c4b",
+            "productCode": "ARV0001",
+            "fullProductName": "Abacavir 300mg Tables",
+            "netContent": 51,
+            "packRoundingThreshold": 8,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 63.91,
+          "totalCost": 63.91,
+          "skipped": false
+        },
+        {
+          "id": "762c6462-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "952aabc6-ffa8-4e9a-ac4d-82b843704a82",
+            "productCode": "ARV0004",
+            "fullProductName": "Abacavir oral solution 20mg/ml",
+            "netContent": 87,
+            "packRoundingThreshold": 1,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 25,
+          "pricePerPack": 27.57,
+          "totalCost": 27.57,
+          "skipped": false
+        },
+        {
+          "id": "65835a94-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "e1e51f5a-1bda-4777-a074-d865206e546f",
+            "productCode": "ARV0008",
+            "fullProductName": "Abacavir/Lamivudine 60/30mg",
+            "netContent": 91,
+            "packRoundingThreshold": 6,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 10,
+          "pricePerPack": 35.94,
+          "totalCost": 35.94,
+          "skipped": false
+        },
+        {
+          "id": "5af72286-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "7f0aac5f-582a-4a6a-a8e1-dd534200f257",
+            "productCode": "ARV0009",
+            "fullProductName": "Tenofovir 300mg Tablets",
+            "netContent": 84,
+            "packRoundingThreshold": 8,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 60,
+          "pricePerPack": 95.29,
+          "totalCost": 95.29,
+          "skipped": false
+        },
+        {
+          "id": "70e409f6-ff84-11e8-8eb2-f2801f1b9fd1",
+          "orderable": {
+            "id": "fd77b03e-5578-429b-9802-6d7e4d8cb91d",
+            "productCode": "ARV0005",
+            "fullProductName": "Zidovudine/Lamivudine 300/150mg Tablets",
+            "netContent": 40,
+            "packRoundingThreshold": 7,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 5,
+          "pricePerPack": 33.67,
+          "totalCost": 33.67,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "id": "725bbb70-1f38-414f-b6db-7a5b68e40053",
+      "emergency": false,
+      "status": "AUTHORIZED",
+      "modifiedDate": "2018-10-29T08:11:29.083Z",
+      "periodName": "Feb2017",
+      "facilityName": "Lilongwe Health Center",
+      "requisitionLineItems": [
+        {
+          "id": "26c661d5-d97c-4d55-9721-e5f09e9106bf",
+          "orderable": {
+            "id": "7f0aac5f-582a-4a6a-a8e1-dd534200f257",
+            "productCode": "ARV0009",
+            "fullProductName": "Tenofovir 300mg Tablets",
+            "netContent": 84,
+            "packRoundingThreshold": 8,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 60,
+          "pricePerPack": 95.29,
+          "totalCost": 95.29,
+          "skipped": false
+        },
+        {
+          "id": "871a2b88-e86d-4a64-844f-5909a3804ffc",
+          "orderable": {
+            "id": "3fecd8a4-d130-4e82-95ff-7d7620e24d8d",
+            "productCode": "ARV0002",
+            "fullProductName": "Lamivudine/Zidovudine/Nevirapine 30/60/50mg",
+            "netContent": 97,
+            "packRoundingThreshold": 5,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 85.02,
+          "totalCost": 85.02,
+          "skipped": false
+        },
+        {
+          "id": "ed87e536-fa08-4209-93db-7b553a4a080d",
+          "orderable": {
+            "id": "d059457a-b7ec-4353-89c6-dde0fc7a0c4b",
+            "productCode": "ARV0001",
+            "fullProductName": "Abacavir 300mg Tables",
+            "netContent": 51,
+            "packRoundingThreshold": 8,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 63.91,
+          "totalCost": 63.91,
+          "skipped": false
+        },
+        {
+          "id": "931a6994-77b0-45cc-b34f-8169194b966e",
+          "orderable": {
+            "id": "fd77b03e-5578-429b-9802-6d7e4d8cb91d",
+            "productCode": "ARV0005",
+            "fullProductName": "Zidovudine/Lamivudine 300/150mg Tablets",
+            "netContent": 40,
+            "packRoundingThreshold": 7,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 5,
+          "pricePerPack": 33.67,
+          "totalCost": 33.67,
+          "skipped": false
+        },
+        {
+          "id": "39d783d5-efc3-4fc4-af3c-75665b846aa7",
+          "orderable": {
+            "id": "e1e51f5a-1bda-4777-a074-d865206e546f",
+            "productCode": "ARV0008",
+            "fullProductName": "Abacavir/Lamivudine 60/30mg",
+            "netContent": 91,
+            "packRoundingThreshold": 6,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 10,
+          "pricePerPack": 35.94,
+          "totalCost": 35.94,
+          "skipped": false
+        },
+        {
+          "id": "799cfe51-e8f8-48ae-a138-be26b0a482f1",
+          "orderable": {
+            "id": "dc576f79-8d1c-4f4c-a94f-1ddda1065c85",
+            "productCode": "ARV0006",
+            "fullProductName": "Efavirenz 200mg",
+            "netContent": 43,
+            "packRoundingThreshold": 6,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 37,
+          "pricePerPack": 82.55,
+          "totalCost": 82.55,
+          "skipped": false
+        },
+        {
+          "id": "066bf91b-684f-4ce5-b145-68ed0030d57e",
+          "orderable": {
+            "id": "81dd320e-6d28-446a-8613-8bb899d6c206",
+            "productCode": "ARV0007",
+            "fullProductName": "Nevirapine Tablets for Oral Susp 50mg",
+            "netContent": 32,
+            "packRoundingThreshold": 5,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 10,
+          "pricePerPack": 17.28,
+          "totalCost": 17.28,
+          "skipped": false
+        },
+        {
+          "id": "39ef4ea3-743f-4185-994e-90aa0cf7c058",
+          "orderable": {
+            "id": "f7169041-733a-4279-bcbb-aee248e1b9dd",
+            "productCode": "ARV0011",
+            "fullProductName": "Efavirenz 50mg",
+            "netContent": 68,
+            "packRoundingThreshold": 2,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 45,
+          "pricePerPack": 89.67,
+          "totalCost": 89.67,
+          "skipped": false
+        },
+        {
+          "id": "0a64ba48-e8bd-48d1-94a0-b1cfd2fdef64",
+          "orderable": {
+            "id": "a4460709-c908-4b94-b3c0-faf5eeefcc03",
+            "productCode": "ARV0012",
+            "fullProductName": "Lamivudine/Zidovudine 30/60mg (Pead)",
+            "netContent": 32,
+            "packRoundingThreshold": 7,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 50.35,
+          "totalCost": 100.7,
+          "skipped": false
+        },
+        {
+          "id": "18dd02bb-f381-4b5c-99f5-84f99cde0b1d",
+          "orderable": {
+            "id": "dc6e49d4-6fd8-49d0-ac4f-44d055c4b49d",
+            "productCode": "ARV0010",
+            "fullProductName": "Co-trimoxazole 120mg Tablets",
+            "netContent": 95,
+            "packRoundingThreshold": 7,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 65,
+          "pricePerPack": 45.64,
+          "totalCost": 45.64,
+          "skipped": false
+        },
+        {
+          "id": "f4688c2a-d72b-41ae-8a81-3122634baf00",
+          "orderable": {
+            "id": "952aabc6-ffa8-4e9a-ac4d-82b843704a82",
+            "productCode": "ARV0004",
+            "fullProductName": "Abacavir oral solution 20mg/ml",
+            "netContent": 87,
+            "packRoundingThreshold": 1,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 25,
+          "pricePerPack": 27.57,
+          "totalCost": 27.57,
+          "skipped": false
+        },
+        {
+          "id": "c37bbc15-0522-4e27-a141-339206db01f5",
+          "orderable": {
+            "id": "65df9af9-dd9d-4df4-8157-bce65b4a42dd",
+            "productCode": "ARV0003",
+            "fullProductName": "Tenofovir/Emitricitabine/Efavirenz 300mg/200mg/600mg",
+            "netContent": 24,
+            "packRoundingThreshold": 9,
+            "roundToZero": true,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 40,
+          "pricePerPack": 96.61,
+          "totalCost": 193.22,
+          "skipped": false
+        }
+      ]
+    }
+  ],
+  "requisitionErrors": []
+}

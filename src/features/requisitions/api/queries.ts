@@ -8,6 +8,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import {
   fetchApprovalList,
+  fetchBatchRequisitions,
   fetchConvertList,
   fetchPeriodsForInitiate,
   fetchRequisition,
@@ -75,4 +76,11 @@ export const convertListOptions = (search: ConvertSearch) =>
   queryOptions({
     queryKey: [...queryKeys.requisitions.all, 'convert', search] as const,
     queryFn: () => fetchConvertList(toConvertQuery(search)),
+  });
+
+export const batchRequisitionsOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: [...queryKeys.requisitions.all, 'batch', ids] as const,
+    queryFn: () => fetchBatchRequisitions(ids),
+    staleTime: 0,
   });

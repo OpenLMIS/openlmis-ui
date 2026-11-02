@@ -1,6 +1,7 @@
 import { isAxiosError } from 'axios';
 import type { RejectionReason } from '@/features/reference-data/lib/types';
 import type { toApprovalQuery } from '@/features/requisitions/lib/approval-search';
+import { type batchSaveBody, orderBatch } from '@/features/requisitions/lib/batch';
 import { isApprovalKind } from '@/features/requisitions/lib/capabilities';
 import type { ReleaseBody, toConvertQuery } from '@/features/requisitions/lib/convert-search';
 import { transformRequisition } from '@/features/requisitions/lib/transform';
@@ -178,3 +179,36 @@ export async function releaseRequisitions(body: ReleaseBody) {
   });
   assertSessionScope(scope);
 }
+
+async function batchRequest(
+  request: () => Promise<{ data: import('../lib/batch-types').BatchResponse }>,
+) {
+  const scope = getSessionScope();
+  try {
+    const { data } = await request();
+    assertSessionScope(scope);
+    return data;
+  } catch (error) {
+    assertSessionScope(scope);
+    if (
+      isAxiosError(error) &&
+      error.response?.status === 400 &&
+      (Array.isArray(error.response.data?.requisitionDtos) ||
+        Array.isArray(error.response.data?.requisitionErrors))
+    )
+      return error.response.data as import('../lib/batch-types').BatchResponse;
+    throw error;
+  }
+}
+export async function fetchBatchRequisitions(ids: readonly string[]) {
+  const data = await batchRequest(() =>
+    client.get('/requisitions', { params: { retrieveAll: '', id: ids.join(',') } }),
+  );
+  return orderBatch(data, ids);
+}
+export const saveBatchRequisitions = (body: ReturnType<typeof batchSaveBody>) =>
+  batchRequest(() => client.put('/requisitions', body, { params: { saveAll: '' } }));
+export const approveBatchRequisitions = (ids: readonly string[]) =>
+  batchRequest(() =>
+    client.post('/requisitions', {}, { params: { approveAll: '', id: ids.join(',') } }),
+  );
