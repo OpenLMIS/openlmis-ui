@@ -585,6 +585,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Selection and reports:**
 
+- Convert To Order keeps ticks across filter changes, as legacy; filters close only its dialogs.
+
 - Use `selectionColumn()` (`src/components/data-table/data-table-selection.tsx`); the header
   picks the page. Preserve selection across pages by id and name for confirmations.
 - Filter changes clear selection and close confirmations. `useFilterScoped` prevents stale
