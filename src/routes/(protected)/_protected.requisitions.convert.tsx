@@ -45,7 +45,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/conve
     queryClient.prefetchQuery(minimalFacilitiesOptions());
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
   },
-  component: ConvertPage,
+  component: ConvertLayout,
   pendingComponent: ConvertPending,
 });
 function ConvertError(props: ErrorComponentProps) {
@@ -57,9 +57,6 @@ function ConvertError(props: ErrorComponentProps) {
       description={t('requisitions.view.error-description')}
     />
   );
-}
-function ConvertPage() {
-  return <ConvertLayout />;
 }
 function ConvertPending() {
   return <ConvertLayout pending />;

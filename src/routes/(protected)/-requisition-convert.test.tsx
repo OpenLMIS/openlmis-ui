@@ -10,7 +10,6 @@ import {
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
-import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
@@ -191,6 +190,9 @@ it.each([true, false])(
       }),
     );
     await screen.findAllByText('April');
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'requisitions.convert.title' })).toHaveFocus(),
+    );
     await waitFor(() => expect(fetchConvertList).toHaveBeenCalledTimes(2));
     await userEvent.click(screen.getAllByRole('checkbox').at(-1) as HTMLElement);
     await action(createOrder);
@@ -243,7 +245,7 @@ it('shows a 400 server message while retaining ticks for correction', async () =
   queryClient.clear();
 });
 it.each([502, 400, undefined])(
-  'reads submitted statuses after uncertain failure %s and blocks a plain retry',
+  'clears ticks after uncertain failure %s and confirms a reselected unresolved row',
   async (status) => {
     rows();
     vi.mocked(releaseRequisitions).mockRejectedValue(
@@ -271,8 +273,10 @@ it.each([502, 400, undefined])(
     await screen.findByText('requisitions.convert.uncertain-description');
     expect(fetchRequisition).toHaveBeenCalledWith('March');
     await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+    expect(screen.getAllByRole('checkbox').at(-1)).not.toBeChecked();
+    await selectRow();
     await action();
-    await screen.findByText('requisitions.convert.uncertain-description');
+    await screen.findByText('requisitions.convert.retry-confirm');
     expect(releaseRequisitions).toHaveBeenCalledTimes(1);
     queryClient.clear();
   },
@@ -343,7 +347,7 @@ it('clamps an emptied last page after a successful conversion', async () => {
   expect(router.state.location.search.page).toBeUndefined();
   queryClient.clear();
 });
-it('checks every submitted status and drops only proven releases after a 502', async () => {
+it('checks every submitted status and clears all ticks after a 502', async () => {
   rows([row('March'), row('April')]);
   vi.mocked(releaseRequisitions).mockRejectedValue(
     new AxiosError('Bad', undefined, undefined, undefined, { status: 502 } as never),
@@ -363,7 +367,7 @@ it('checks every submitted status and drops only proven releases after a 502', a
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
   const boxes = screen.getAllByRole('checkbox');
   expect(boxes[1]).not.toBeChecked();
-  expect(boxes[2]).toBeChecked();
+  expect(boxes[2]).not.toBeChecked();
   queryClient.clear();
 });
 it.each([true, false])(
@@ -400,10 +404,12 @@ it('closes confirmation on a filter change while retaining the selected requisit
   expect(releaseRequisitions).not.toHaveBeenCalled();
   queryClient.clear();
 });
-it('requires the explicit Convert Again choice before resubmitting an uncertain conversion', async () => {
+it('requires extra confirmation before the normal confirmation for a refused unresolved conversion', async () => {
   rows();
   vi.mocked(releaseRequisitions).mockRejectedValueOnce(new AxiosError('Disconnected'));
-  vi.mocked(fetchRequisition).mockResolvedValue({ id: 'March', status: 'APPROVED' } as never);
+  vi.mocked(fetchRequisition).mockRejectedValue(
+    new AxiosError('Forbidden', undefined, undefined, undefined, { status: 403 } as never),
+  );
   const { queryClient } = renderRoute('/requisitions/convert');
   await selectRow();
   await action();
@@ -412,7 +418,14 @@ it('requires the explicit Convert Again choice before resubmitting an uncertain 
   vi.mocked(releaseRequisitions).mockImplementation(async () => {
     rows([], 0);
   });
-  await userEvent.click(screen.getByRole('button', { name: 'requisitions.convert.convert-again' }));
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  expect(screen.getAllByRole('checkbox').at(-1)).not.toBeChecked();
+  await selectRow();
+  await action();
+  await screen.findByText('requisitions.convert.retry-confirm');
+  await confirm();
+  await screen.findByText('requisitions.convert.convert-confirm');
+  expect(releaseRequisitions).toHaveBeenCalledTimes(1);
   await confirm();
   await screen.findByText('requisitions.convert.empty');
   expect(releaseRequisitions).toHaveBeenCalledTimes(2);
@@ -430,20 +443,18 @@ it('reconciles uncertain release without order without an order-duplication warn
   await action(false);
   await confirm();
   await waitFor(() => expect(fetchRequisition).toHaveBeenCalledWith('March'));
-  await waitFor(() => expect(screen.getAllByRole('checkbox').at(-1)).not.toBeChecked());
+  await screen.findByText('requisitions.convert.release-unknown-description');
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  expect(screen.getAllByRole('checkbox').at(-1)).not.toBeChecked();
   expect(screen.queryByText('requisitions.convert.uncertain-description')).not.toBeInTheDocument();
   queryClient.clear();
 });
 
-it.each([1, 2])('treats offline refusal at guard %s as unsent', async (guard) => {
+it('treats offline refusal as unsent', async () => {
   rows();
-  vi.mocked(requireOnline)
-    .mockImplementationOnce(() => {
-      if (guard === 1) throw new LocalDataUnavailableError();
-    })
-    .mockImplementationOnce(() => {
-      throw new LocalDataUnavailableError();
-    });
+  vi.mocked(requireOnline).mockImplementation(() => {
+    throw new LocalDataUnavailableError();
+  });
   const { queryClient } = renderRoute('/requisitions/convert');
   await selectRow();
   await action();
@@ -452,30 +463,8 @@ it.each([1, 2])('treats offline refusal at guard %s as unsent', async (guard) =>
   expect(releaseRequisitions).not.toHaveBeenCalled();
   expect(fetchRequisition).not.toHaveBeenCalled();
   expect(reportCaughtError).not.toHaveBeenCalled();
-  expect(screen.queryByText('requisitions.convert.uncertain-description')).not.toBeInTheDocument();
   queryClient.clear();
 });
-it.each([true, false])(
-  'toasts verified success after an uncertain action (%s)',
-  async (createOrder) => {
-    rows();
-    vi.mocked(releaseRequisitions).mockRejectedValueOnce(new AxiosError('Disconnected'));
-    vi.mocked(fetchRequisition).mockResolvedValue({ id: 'March', status: 'RELEASED' } as never);
-    const { queryClient } = renderRoute('/requisitions/convert');
-    await selectRow();
-    await action(createOrder);
-    await confirm();
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith(
-        createOrder
-          ? 'requisitions.convert.convert-success'
-          : 'requisitions.convert.release-success',
-        expect.any(Object),
-      ),
-    );
-    queryClient.clear();
-  },
-);
 it('keeps a refused release status explicitly unknown', async () => {
   rows();
   vi.mocked(releaseRequisitions).mockRejectedValueOnce(new AxiosError('Disconnected'));
@@ -506,35 +495,6 @@ it('clears validation when ticks no longer include a missing depot', async () =>
   ).not.toHaveAttribute('aria-invalid', 'true');
   queryClient.clear();
 });
-it('limits uncertain status reads to five in flight', async () => {
-  rows(
-    Array.from({ length: 6 }, (_, index) => row(String(index))),
-    6,
-  );
-  vi.mocked(releaseRequisitions).mockRejectedValueOnce(new AxiosError('Disconnected'));
-  let finish!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    finish = resolve;
-  });
-  vi.mocked(fetchRequisition).mockImplementation(async (id) => {
-    await gate;
-    return { id, status: 'RELEASED' } as never;
-  });
-  const { queryClient } = renderRoute('/requisitions/convert');
-  await screen.findAllByText('0');
-  await userEvent.click(screen.getByRole('checkbox', { name: 'Select Page' }));
-  await action();
-  await confirm();
-  try {
-    await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(5));
-  } finally {
-    finish();
-  }
-  await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(6));
-  await waitFor(() => expect(toast.success).toHaveBeenCalled());
-  queryClient.clear();
-});
-
 it('resets validation after success before ticking a new depot-less row', async () => {
   rows([
     row('March', [
@@ -571,5 +531,108 @@ it('shows the facility once in phone cards', async () => {
   await screen.findAllByText('March');
   expect(screen.queryByText('Family Planning - HC01 - Comfort')).not.toBeInTheDocument();
   expect(screen.getAllByText('HC01 - Comfort')).toHaveLength(1);
+  queryClient.clear();
+});
+
+it('never resends a processed id in the next batch after a 503 with refused status reads', async () => {
+  rows([row('March'), row('April')]);
+  vi.mocked(fetchRequisition).mockRejectedValue(
+    new AxiosError('Forbidden', undefined, undefined, undefined, { status: 403 } as never),
+  );
+  vi.mocked(releaseRequisitions)
+    .mockImplementationOnce(async () => {
+      rows([row('April')]);
+      throw new AxiosError('Unavailable', undefined, undefined, undefined, {
+        status: 503,
+      } as never);
+    })
+    .mockResolvedValueOnce(undefined);
+  const { queryClient } = renderRoute('/requisitions/convert');
+  queryClient.setQueryData([...queryKeys.home.all, 'test-count'], 1);
+  await screen.findAllByText('March');
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Select Page' }));
+  await action();
+  await confirm();
+  await screen.findByText('requisitions.convert.uncertain-description');
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() => expect(screen.queryByText('March')).not.toBeInTheDocument());
+  expect(
+    screen.getAllByRole('checkbox').every((box) => box.getAttribute('aria-checked') === 'false'),
+  ).toBe(true);
+  expect(queryClient.getQueryState([...queryKeys.home.all, 'test-count'])?.isInvalidated).toBe(
+    true,
+  );
+  await userEvent.click(screen.getAllByRole('checkbox').at(-1) as HTMLElement);
+  await action();
+  await screen.findByText('requisitions.convert.retry-confirm');
+  await confirm();
+  await confirm();
+  await waitFor(() =>
+    expect(releaseRequisitions).toHaveBeenNthCalledWith(2, {
+      createOrder: true,
+      requisitionsToRelease: [{ requisitionId: 'April', supplyingDepotId: 'a' }],
+    }),
+  );
+  queryClient.clear();
+});
+it('keeps phone depot labels and errors outside Field sizing rules and wraps the chosen name', async () => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 390,
+  } as DOMRect);
+  rows([row('March', [])]);
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action();
+  await userEvent.click(await screen.findByRole('button', { name: 'dialog.close' }));
+  const select = screen.getByRole('combobox', { name: 'requisitions.convert.depot-label' });
+  const field = select.closest('[data-slot="field"]');
+  if (!field) throw new Error('Depot Field missing');
+  expect(field.querySelector(':scope > .sr-only')).toBeNull();
+  expect(field.querySelector('.contents .sr-only label')).not.toBeNull();
+  expect(field.querySelector('.contents .sr-only [id$="-error"]')).not.toBeNull();
+  expect(select).toHaveClass('w-full', 'whitespace-normal');
+  queryClient.clear();
+});
+
+it.each([true, false])(
+  'allows a reselected row without extra confirmation after a proven release (%s)',
+  async (createOrder) => {
+    rows();
+    vi.mocked(releaseRequisitions).mockRejectedValueOnce(new AxiosError('Disconnected'));
+    vi.mocked(fetchRequisition).mockResolvedValue({ id: 'March', status: 'RELEASED' } as never);
+    const { queryClient } = renderRoute('/requisitions/convert');
+    await selectRow();
+    await action(createOrder);
+    await confirm();
+    await screen.findByText(
+      createOrder
+        ? 'requisitions.convert.uncertain-description'
+        : 'requisitions.convert.release-unknown-description',
+    );
+    await waitFor(() => expect(fetchRequisition).toHaveBeenCalledWith('March'));
+    await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+    await selectRow();
+    await action(createOrder);
+    await screen.findByText(
+      createOrder ? 'requisitions.convert.convert-confirm' : 'requisitions.convert.release-confirm',
+    );
+    expect(screen.queryByText('requisitions.convert.retry-confirm')).not.toBeInTheDocument();
+    queryClient.clear();
+  },
+);
+it('allows release of a reselected unresolved row with only the normal release confirmation', async () => {
+  rows();
+  vi.mocked(releaseRequisitions).mockRejectedValueOnce(new AxiosError('Disconnected'));
+  vi.mocked(fetchRequisition).mockRejectedValueOnce(new Error('Refused'));
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action();
+  await confirm();
+  await screen.findByText('requisitions.convert.uncertain-description');
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await selectRow();
+  await action(false);
+  await screen.findByText('requisitions.convert.release-confirm');
+  expect(screen.queryByText('requisitions.convert.retry-confirm')).not.toBeInTheDocument();
   queryClient.clear();
 });

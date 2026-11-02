@@ -2,10 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  DataTableSelectionBar,
-  SelectionBarLabel,
-} from '@/components/data-table/data-table-selection';
+import { DataTableSelectionBar } from '@/components/data-table/data-table-selection';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import {
@@ -43,7 +40,8 @@ type Problem =
   | { kind: 'depot' }
   | { kind: 'server'; message?: string }
   | { kind: 'uncertain' }
-  | { kind: 'release-unknown' };
+  | { kind: 'release-unknown' }
+  | { kind: 'retry'; count: number };
 export function useConvertActions(search: ConvertSearch, cards: boolean) {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -51,13 +49,11 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
   const [depots, setDepots] = useState<DepotMap>({});
   const [hasRows, setHasRows] = useState(false);
   const [invalid, setInvalid] = useState(false);
-  const [blocked, setBlocked] = useState<ReadonlySet<string>>(new Set());
+  const [unresolved, setUnresolved] = useState<ReadonlySet<string>>(new Set());
   const filter = JSON.stringify([search.programId, search.facilityId]);
   const [problem, setProblem] = useFilterScoped<Problem | null>(filter, null);
   const [confirmation, setConfirmation] = useFilterScoped<boolean | null>(filter, null);
-  const filterRef = useRef(filter);
-  filterRef.current = filter;
-  const listRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLElement>(null);
   const sending = useRef(false);
   const invalidTarget = useRef<HTMLElement | null>(null);
   const onRows = useCallback((rows: ConvertListRow[]) => {
@@ -99,7 +95,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
     onSuccess: async (_, body) => {
       const ids = body.requisitionsToRelease.map(({ requisitionId }) => requisitionId);
       setPicked((previous) => withoutIds(previous, ids));
-      setBlocked((previous) => new Set([...previous].filter((id) => !ids.includes(id))));
+      setUnresolved((previous) => new Set([...previous].filter((id) => !ids.includes(id))));
       setInvalid(false);
       notifySuccess(body);
       await refresh();
@@ -108,42 +104,31 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
     },
     onError: async (error, body) => {
       if (error instanceof LocalDataUnavailableError) {
-        setProblem(
-          { kind: 'server', message: t('requisitions.convert.offline') },
-          filterRef.current,
-        );
+        setProblem({ kind: 'server', message: t('requisitions.convert.offline') }, filter);
         return;
       }
       if (uncertainRelease(error)) {
-        const results = await settleFew(body.requisitionsToRelease, async ({ requisitionId }) => {
-          const record = await fetchRequisition(requisitionId);
+        const ids = body.requisitionsToRelease.map(({ requisitionId }) => requisitionId);
+        setPicked(new Map());
+        setInvalid(false);
+        setUnresolved((previous) => new Set([...previous, ...ids]));
+        setProblem({ kind: body.createOrder ? 'uncertain' : 'release-unknown' }, filter);
+        await refresh();
+        if (!mutation.isCurrent()) return;
+        const results = await settleFew(ids, async (id) => {
+          const record = await fetchRequisition(id);
           return {
-            id: requisitionId,
+            id,
             done: record.status === 'RELEASED' || record.status === 'RELEASED_WITHOUT_ORDER',
           };
         });
         if (!mutation.isCurrent()) return;
-        const done = results.done.filter((result) => result.done).map(({ id }) => id);
-        const unresolved = [
-          ...results.done.filter((result) => !result.done).map(({ id }) => id),
-          ...results.failed.map(({ requisitionId }) => requisitionId),
-        ];
-        setPicked((previous) => withoutIds(previous, done));
-        if (body.createOrder && unresolved.length) {
-          setBlocked((previous) => new Set([...previous, ...unresolved]));
-          setProblem({ kind: 'uncertain' }, filterRef.current);
-        } else if (results.failed.length)
-          setProblem({ kind: 'release-unknown' }, filterRef.current);
-        else if (unresolved.length)
-          setProblem({ kind: 'server', message: serverMessage(error) }, filterRef.current);
-        else {
-          setInvalid(false);
-          notifySuccess(body);
-          focusList();
-        }
-      } else setProblem({ kind: 'server', message: serverMessage(error) }, filterRef.current);
-      await refresh();
-      if (!mutation.isCurrent()) return;
+        const done = new Set(results.done.filter((result) => result.done).map(({ id }) => id));
+        setUnresolved((previous) => new Set([...previous].filter((id) => !done.has(id))));
+      } else {
+        setProblem({ kind: 'server', message: serverMessage(error) }, filter);
+        await refresh();
+      }
     },
     onSettled: () => {
       sending.current = false;
@@ -156,19 +141,15 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
     else if (error === 'depot') {
       setInvalid(true);
       setProblem({ kind: 'depot' }, filter);
-    } else if (createOrder && [...picked.keys()].some((id) => blocked.has(id)))
-      setProblem({ kind: 'uncertain' }, filter);
+    } else if (createOrder && [...picked.keys()].some((id) => unresolved.has(id)))
+      setProblem(
+        { kind: 'retry', count: [...picked.keys()].filter((id) => unresolved.has(id)).length },
+        filter,
+      );
     else setConfirmation(createOrder, filter);
   };
   const submit = () => {
     if (sending.current || confirmation === null) return;
-    try {
-      requireOnline();
-    } catch {
-      setConfirmation(null, filter);
-      setProblem({ kind: 'server', message: t('requisitions.convert.offline') }, filter);
-      return;
-    }
     const error = convertSelectionError(picked, depots);
     if (error) {
       setConfirmation(null, filter);
@@ -194,17 +175,14 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
       disabled={mutation.isPending}
       onClick={() => request(createOrder)}
     >
-      {selection ? (
-        <SelectionBarLabel
-          full={t(createOrder ? 'requisitions.convert.convert' : 'requisitions.convert.release')}
-          short={t(
-            createOrder
-              ? 'requisitions.convert.convert-short'
-              : 'requisitions.convert.release-short',
-          )}
-        />
-      ) : (
-        t(createOrder ? 'requisitions.convert.convert' : 'requisitions.convert.release')
+      {t(
+        selection
+          ? createOrder
+            ? 'requisitions.convert.convert-short'
+            : 'requisitions.convert.release-short'
+          : createOrder
+            ? 'requisitions.convert.convert'
+            : 'requisitions.convert.release',
       )}
     </Button>
   );
@@ -235,32 +213,42 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
       </DataTableSelectionBar>
     </>
   );
-  const title =
-    problem?.kind === 'depot'
-      ? t('requisitions.convert.no-depot')
-      : problem?.kind === 'none'
-        ? t('requisitions.convert.select-none')
-        : problem?.kind === 'release-unknown'
-          ? t('requisitions.convert.release-unknown')
-          : problem?.kind === 'uncertain'
-            ? t('requisitions.convert.uncertain')
-            : t('requisitions.convert.failed');
-  const description =
-    problem?.kind === 'depot'
-      ? t('requisitions.convert.no-depot-description')
-      : problem?.kind === 'none'
-        ? t(
-            problem.createOrder
-              ? 'requisitions.convert.select-none-convert'
-              : 'requisitions.convert.select-none-release',
-          )
-        : problem?.kind === 'release-unknown'
-          ? t('requisitions.convert.release-unknown-description')
-          : problem?.kind === 'uncertain'
-            ? t('requisitions.convert.uncertain-description')
-            : problem?.kind === 'server' && problem.message
-              ? problem.message
-              : t('requisitions.convert.failed-description');
+  const messages = {
+    depot: {
+      title: t('requisitions.convert.no-depot'),
+      description: t('requisitions.convert.no-depot-description'),
+    },
+    none: {
+      title: t('requisitions.convert.select-none'),
+      description: t(
+        problem?.kind === 'none' && problem.createOrder
+          ? 'requisitions.convert.select-none-convert'
+          : 'requisitions.convert.select-none-release',
+      ),
+    },
+    'release-unknown': {
+      title: t('requisitions.convert.release-unknown'),
+      description: t('requisitions.convert.release-unknown-description'),
+    },
+    uncertain: {
+      title: t('requisitions.convert.uncertain'),
+      description: t('requisitions.convert.uncertain-description'),
+    },
+    retry: {
+      title: t('requisitions.convert.uncertain'),
+      description: t('requisitions.convert.retry-confirm', {
+        count: problem?.kind === 'retry' ? problem.count : 0,
+      }),
+    },
+    server: {
+      title: t('requisitions.convert.failed'),
+      description:
+        problem?.kind === 'server' && problem.message
+          ? problem.message
+          : t('requisitions.convert.failed-description'),
+    },
+  };
+  const { title, description } = messages[problem?.kind ?? 'server'];
   const dialogs = (
     <>
       <InvalidSubmitDialog
@@ -276,7 +264,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
         closeLabel={t('dialog.close')}
         onOpenChange={closeProblem}
       >
-        {problem?.kind === 'uncertain' ? (
+        {problem?.kind === 'retry' ? (
           <>
             <AlertDialogCancel>{t('dialog.close')}</AlertDialogCancel>
             <Button
@@ -286,7 +274,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
                 setConfirmation(true, filter);
               }}
             >
-              {t('requisitions.convert.convert-again')}
+              {t('requisitions.convert.confirm')}
             </Button>
           </>
         ) : undefined}

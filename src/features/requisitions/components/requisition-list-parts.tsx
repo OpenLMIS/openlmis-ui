@@ -20,7 +20,17 @@ import type { RequisitionSearch } from '@/features/requisitions/lib/search-facil
 import type { ApprovalListRow, RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { tableValue } from '@/lib/empty-value';
 
-type ListRecord = ApprovalListRow | RequisitionSearchResult | Omit<ApprovalListRow, 'status'>;
+type ListRecord = RequisitionSearchResult | Omit<ApprovalListRow, 'status'>;
+export const requisitionRowLabel = (row: ListRecord, emergency: string) =>
+  [
+    row.program?.name,
+    row.facility?.code,
+    row.facility?.name,
+    row.processingPeriod?.name,
+    row.emergency ? emergency : '',
+  ]
+    .filter(Boolean)
+    .join(' - ');
 export const REQUISITION_LIST_COLUMNS = [
   ['program', 'requisitions.columns.program'],
   ['facility', 'requisitions.columns.facility'],

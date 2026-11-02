@@ -27,6 +27,7 @@ import {
   RequisitionListSkeleton,
   RequisitionListTable,
   requisitionListCell,
+  requisitionRowLabel,
   ViewRequisition,
 } from '@/features/requisitions/components/requisition-list-parts';
 import {
@@ -53,16 +54,6 @@ const CARD_COLUMNS = cardColumns(COLUMNS);
 const NO_ROWS: ApprovalListRow[] = [];
 const noop = () => {};
 const rowId = (row: ApprovalListRow) => row.id;
-const approvalRowLabel = (row: ApprovalListRow, emergency: string) =>
-  [
-    row.program?.name,
-    row.facility?.code,
-    row.facility?.name,
-    row.processingPeriod?.name,
-    row.emergency ? emergency : '',
-  ]
-    .filter(Boolean)
-    .join(' - ');
 
 type Props = {
   cards: boolean;
@@ -83,7 +74,7 @@ function useColumns(search: ApprovalSearch, stale: boolean, cards: boolean, batc
         ...(batch
           ? [
               selectionColumn<ApprovalListRow>((row) =>
-                approvalRowLabel(row, t('requisitions.columns.emergency')),
+                requisitionRowLabel(row, t('requisitions.columns.emergency')),
               ),
             ]
           : []),
@@ -177,7 +168,7 @@ function useResultsTable({
           row.id,
           {
             programId: row.program.id,
-            label: approvalRowLabel(row, t('requisitions.columns.emergency')),
+            label: requisitionRowLabel(row, t('requisitions.columns.emergency')),
           },
         ]),
       );

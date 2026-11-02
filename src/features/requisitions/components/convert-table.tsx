@@ -6,7 +6,7 @@ import {
   useTable,
 } from '@tanstack/react-table';
 import { ClipboardListIcon, SearchXIcon } from 'lucide-react';
-import { type Ref, useDeferredValue, useEffect, useMemo } from 'react';
+import { createContext, memo, type Ref, use, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTableEmpty,
@@ -18,6 +18,7 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { selectionColumn } from '@/components/data-table/data-table-selection';
 import { useInCards } from '@/components/display/card-actions';
 import { formatTimestamp } from '@/components/form/date-value';
+import { HiddenFromView } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import {
@@ -32,10 +33,12 @@ import { convertListOptions } from '@/features/requisitions/api/queries';
 import {
   cardColumns,
   EMERGENCY_COLUMN,
+  hideableColumns,
   REQUISITION_LIST_COLUMNS,
   RequisitionListSkeleton,
   RequisitionListTable,
   requisitionListCell,
+  requisitionRowLabel,
 } from '@/features/requisitions/components/requisition-list-parts';
 import type {
   ConvertSearch,
@@ -56,23 +59,9 @@ const COLUMNS = [
   EMERGENCY_COLUMN,
 ] as const;
 const CARD_COLUMNS = cardColumns(COLUMNS);
-export const CONVERT_HIDEABLE_COLUMNS = COLUMNS.filter(
-  ([id]) => id !== 'program' && id !== 'facility',
-).map(([id, labelKey]) => ({
-  id,
-  labelKey,
-  ...((id === 'startDate' || id === 'endDate') && { hideBelow: 1024 }),
-}));
-const convertRowLabel = ({ requisition: row }: ConvertListRow, emergency: string) =>
-  [
-    row.program?.name,
-    row.facility?.code,
-    row.facility?.name,
-    row.processingPeriod?.name,
-    row.emergency ? emergency : '',
-  ]
-    .filter(Boolean)
-    .join(' - ');
+export const CONVERT_HIDEABLE_COLUMNS = hideableColumns(COLUMNS).filter(
+  ({ id }) => id !== 'facility',
+);
 const EMPTY: ConvertListRow[] = [];
 const noop = () => {};
 const rowId = (row: ConvertListRow) => row.requisition.id;
@@ -89,9 +78,9 @@ type Props = {
   onRows: (rows: ConvertListRow[]) => void;
   invalid: boolean;
   pending: boolean;
-  listRef: Ref<HTMLDivElement>;
+  listRef: Ref<HTMLElement>;
 };
-function DepotSelect({
+const DepotSelect = memo(function DepotSelect({
   row,
   value,
   onChange,
@@ -100,7 +89,7 @@ function DepotSelect({
 }: {
   row: ConvertListRow;
   value: string;
-  onChange: (value: string) => void;
+  onChange: (id: string, value: string) => void;
   invalid: boolean;
   disabled: boolean;
 }) {
@@ -110,21 +99,23 @@ function DepotSelect({
   const offered = row.supplyingDepots.filter((depot) => depot !== null);
   return (
     <Field surface="background" data-invalid={invalid || undefined}>
-      <span className="sr-only">
+      <HiddenFromView>
         <FieldLabel htmlFor={id}>
           {t('requisitions.convert.depot-label', {
-            name: convertRowLabel(row, t('requisitions.columns.emergency')),
+            name: requisitionRowLabel(row.requisition, t('requisitions.columns.emergency')),
           })}
         </FieldLabel>
-      </span>
+      </HiddenFromView>
       <Select
         value={value || null}
-        onValueChange={(next) => onChange(next ?? '')}
+        onValueChange={(next) => onChange(row.requisition.id, next ?? '')}
         disabled={disabled}
         items={offered.map((depot) => ({ value: depot.id, label: depot.name ?? depot.id }))}
       >
         <SelectTrigger
           id={id}
+          width={cards ? 'full' : 'default'}
+          wrap={cards ? 'wrap' : 'nowrap'}
           size={cards ? 'default' : 'sm'}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? `${id}-error` : undefined}
@@ -142,11 +133,29 @@ function DepotSelect({
         </SelectContent>
       </Select>
       {invalid && (
-        <span className="sr-only" id={`${id}-error`}>
-          {t('requisitions.convert.no-depot')}
-        </span>
+        <HiddenFromView>
+          <span id={`${id}-error`}>{t('requisitions.convert.no-depot')}</span>
+        </HiddenFromView>
       )}
     </Field>
+  );
+});
+type DepotState = Pick<Props, 'depots' | 'picked' | 'invalid' | 'pending' | 'onDepot'> & {
+  stale: boolean;
+};
+const DepotContext = createContext<DepotState | null>(null);
+function DepotCell({ row }: { row: ConvertListRow }) {
+  const state = use(DepotContext);
+  if (!state) return null;
+  const id = row.requisition.id;
+  return (
+    <DepotSelect
+      row={row}
+      value={state.depots[id] ?? ''}
+      onChange={state.onDepot}
+      invalid={state.invalid && state.picked.has(id) && !state.depots[id]}
+      disabled={state.pending || state.stale}
+    />
   );
 }
 function useResultsTable(
@@ -165,9 +174,6 @@ function useResultsTable(
     cards,
     picked,
     onSelection,
-    depots,
-    onDepot,
-    invalid,
     pending,
     rows,
     total,
@@ -177,7 +183,7 @@ function useResultsTable(
     () =>
       helper.columns([
         selectionColumn<ConvertListRow>((row) =>
-          convertRowLabel(row, t('requisitions.columns.emergency')),
+          requisitionRowLabel(row.requisition, t('requisitions.columns.emergency')),
         ),
         ...(cards ? CARD_COLUMNS : COLUMNS).map(([id, key]) =>
           helper.display({
@@ -203,18 +209,10 @@ function useResultsTable(
           header: () => (
             <DataTableHeaderLabel>{t('requisitions.convert.supplying-depot')}</DataTableHeaderLabel>
           ),
-          cell: ({ row: { original: row } }) => (
-            <DepotSelect
-              row={row}
-              value={depots[row.requisition.id] ?? ''}
-              onChange={(value) => onDepot(row.requisition.id, value)}
-              invalid={invalid && picked.has(row.requisition.id) && !depots[row.requisition.id]}
-              disabled={pending || stale}
-            />
-          ),
+          cell: ({ row: { original: row } }) => <DepotCell row={row} />,
         }),
       ]),
-    [t, i18n.language, timeZone, cards, depots, onDepot, invalid, picked, pending, stale],
+    [t, i18n.language, timeZone, cards],
   );
   const rowSelection = Object.fromEntries([...picked.keys()].map((id) => [id, true as const]));
   const { pageStart, searchState } = usePagedTableSearch({
@@ -241,7 +239,7 @@ function useResultsTable(
       const labels = new Map(
         rows.map((row) => [
           rowId(row),
-          { label: convertRowLabel(row, t('requisitions.columns.emergency')) },
+          { label: requisitionRowLabel(row.requisition, t('requisitions.columns.emergency')) },
         ]),
       );
       onSelection(
@@ -276,6 +274,7 @@ export function ConvertTable(props: Props) {
   useEffect(() => {
     if (pastEnd) onSearchChange({ page: page.totalPages > 1 ? page.totalPages : undefined }, true);
   }, [pastEnd, page.totalPages, onSearchChange]);
+  const missingDepot = (id: string) => props.invalid && props.picked.has(id) && !props.depots[id];
   const filtered = deferred.programId || deferred.facilityId;
   const empty = (
     <DataTableEmpty
@@ -301,19 +300,33 @@ export function ConvertTable(props: Props) {
     />
   );
   return (
-    <div ref={props.listRef} tabIndex={-1}>
-      <RequisitionListTable
-        cards={props.cards}
-        table={table}
-        stale={stale || props.pending}
-        empty={!pastEnd && empty}
-        footer={!pastEnd && page.totalElements > 0 && <DataTablePagination table={table} />}
-        listRef={pageStart.ref}
-        isRowInvalid={(row) =>
-          props.invalid && props.picked.has(rowId(row)) && !props.depots[rowId(row)]
-        }
-      />
-    </div>
+    <section
+      ref={props.listRef}
+      aria-label={t('requisitions.convert.title')}
+      className="outline-none"
+      tabIndex={-1}
+    >
+      <DepotContext
+        value={{
+          depots: props.depots,
+          picked: props.picked,
+          invalid: props.invalid,
+          pending: props.pending,
+          onDepot: props.onDepot,
+          stale,
+        }}
+      >
+        <RequisitionListTable
+          cards={props.cards}
+          table={table}
+          stale={stale || props.pending}
+          empty={!pastEnd && empty}
+          footer={!pastEnd && page.totalElements > 0 && <DataTablePagination table={table} />}
+          listRef={pageStart.ref}
+          isRowInvalid={(row) => missingDepot(rowId(row))}
+        />
+      </DepotContext>
+    </section>
   );
 }
 export function ConvertTableSkeleton({
