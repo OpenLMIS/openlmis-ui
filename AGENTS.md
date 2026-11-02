@@ -51,7 +51,7 @@ The protected layout has an icon-collapsible sidebar (`Ctrl/Cmd+B`) and top bar,
 from `@7ovr/app-shell-1`. `NAV_GROUPS` in `src/lib/config.ts` drives both the sidebar and
 command palette (`Ctrl/Cmd+K`). `LIVE_NAV_GROUPS` excludes unmigrated `to: '#'` entries and
 sections with no live pages. `useNavGroups()` in `src/components/app-shell/nav-access.ts` then
-filters both by the user's rights.
+filters both by the user's rights and each entry's optional runtime feature flag.
 
 - Requisition navigation also counts `REQUISITION_VIEW` in the user's supervision roles, so sidebar,
   palette and breadcrumbs agree.

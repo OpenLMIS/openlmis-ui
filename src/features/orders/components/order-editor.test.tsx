@@ -12,8 +12,11 @@ import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { requirePermissions } from '@/features/auth/lib/access';
 import { deleteOrders, fetchOrder, saveOrder, sendOrder } from '@/features/orders/api/api';
+import { orderOptions } from '@/features/orders/api/queries';
 import { OrderEditor } from '@/features/orders/components/order-editor';
+import type { LoadedOrder } from '@/features/orders/lib/order-load';
 import type { Order } from '@/features/orders/lib/types';
 import {
   approvedProductsOptions,
@@ -41,7 +44,10 @@ vi.mock('@/features/orders/api/api', () => ({
 }));
 afterEach(cleanup);
 beforeEach(() => vi.resetAllMocks());
-function setup(orders = [creatingOrder('a'), creatingOrder('b')]) {
+function setup(
+  orders = [creatingOrder('a'), creatingOrder('b')],
+  problemEntries: LoadedOrder[] = [],
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -67,13 +73,16 @@ function setup(orders = [creatingOrder('a'), creatingOrder('b')]) {
   const onBatchChange = vi.fn(async (ids: string[]) => changeBatch(ids));
   function Harness() {
     const [tab, onTab] = useState('a');
-    const [ids, setIds] = useState(orders.map((order) => order.id));
+    const [ids, setIds] = useState([
+      ...orders.map((order) => order.id),
+      ...problemEntries.map((entry) => entry.id),
+    ]);
     changeBatch = setIds;
     return (
       <OrderEditor
-        entries={orders
-          .filter((order) => ids.includes(order.id))
-          .map((order) => ({ id: order.id, order }))}
+        entries={[...orders.map((order) => ({ id: order.id, order })), ...problemEntries].filter(
+          (entry) => ids.includes(entry.id),
+        )}
         tab={tab}
         onTab={onTab}
         onBatchChange={onBatchChange}
@@ -101,6 +110,7 @@ describe('order editor workflow', () => {
     expect(quantity()).toHaveValue('10');
     await user.click(screen.getByRole('tab', { name: /Facility a/ }));
     expect(quantity()).toHaveValue('25');
+    expect(screen.getAllByRole('combobox', { name: 'orders.edit.select-product' })).toHaveLength(1);
     await user.click(screen.getByRole('button', { name: 'orders.edit.save-draft' }));
     await waitFor(() => expect(saveOrder).toHaveBeenCalledOnce());
     expect(saveOrder).toHaveBeenCalledWith(
@@ -158,8 +168,18 @@ describe('order editor workflow', () => {
   });
   it('requires every tab to be valid, summarizes both, and removes only a successful send', async () => {
     const { user, onBatchChange } = setup([creatingOrder('a'), creatingOrder('b', 0)]);
-    expect(screen.getByRole('button', { name: 'orders.edit.create' })).toBeDisabled();
-    await user.click(screen.getByRole('tab', { name: /Facility b/ }));
+    await user.click(screen.getByRole('button', { name: 'orders.edit.create' }));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'orders.edit.create-invalid-description',
+    );
+    expect(sendOrder).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'dialog.close' }));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: /Facility b/ })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    );
     fireEvent.change(quantity(), { target: { value: '15' } });
     vi.mocked(sendOrder)
       .mockResolvedValueOnce(undefined)
@@ -172,6 +192,7 @@ describe('order editor workflow', () => {
     await user.click(within(dialog).getByRole('button', { name: 'orders.edit.summary-confirm' }));
     await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith(['b']));
     expect(sendOrder).toHaveBeenCalledTimes(2);
+    await user.click(screen.getByRole('button', { name: 'dialog.close' }));
     expect(quantity()).toHaveValue('15');
     expect(screen.getByRole('tab', { name: /Facility b/ })).toHaveTextContent(
       'orders.edit.unsaved',
@@ -208,8 +229,15 @@ describe('order editor workflow', () => {
     );
     await waitFor(() => expect(screen.getByText('orders.edit.not-creating')).toBeVisible());
     expect(onBatchChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'dialog.close' }));
     expect(screen.getByRole('tab', { name: /Facility b/ })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'orders.edit.create' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'orders.edit.delete-batch' }));
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', {
+        name: 'orders.edit.delete-batch',
+      }),
+    );
+    await waitFor(() => expect(deleteOrders).toHaveBeenLastCalledWith(['b']));
   });
   it('explains refused order reads in place', () => {
     const client = new QueryClient();
@@ -225,7 +253,7 @@ describe('order editor workflow', () => {
     );
     expect(screen.getByText('orders.edit.no-read-access')).toBeVisible();
     expect(screen.getByRole('button', { name: 'orders.edit.remove-from-batch' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'orders.edit.create' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'orders.edit.delete-batch' })).toBeDisabled();
   });
 });
 
@@ -292,3 +320,55 @@ it.each(['delete', 'remove'] as const)(
     expect(fetchOrder).toHaveBeenCalledTimes(2);
   },
 );
+
+it('checks permission and rereads on entry even with an old batch-change history flag', async () => {
+  const client = new QueryClient();
+  client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+  client.setQueryData(orderOptions('b').queryKey, creatingOrder('b', 10));
+  vi.mocked(fetchOrder).mockResolvedValue(creatingOrder('b', 30));
+  const loader = Route.options.loader as (args: unknown) => Promise<unknown>;
+  await loader({
+    context: { queryClient: client },
+    params: { orderIds: 'b' },
+    cause: 'enter',
+    location: { state: { orderBatchChange: 'old-consumed-token' } },
+  });
+  expect(requirePermissions).toHaveBeenCalledOnce();
+  expect(fetchOrder).toHaveBeenCalledWith('b');
+  vi.mocked(fetchOrder).mockClear();
+  vi.mocked(requirePermissions).mockRejectedValueOnce(new Error('No access'));
+  await expect(
+    loader({
+      context: { queryClient: client },
+      params: { orderIds: 'b' },
+      cause: 'enter',
+      location: { state: { orderBatchChange: 'old-consumed-token' } },
+    }),
+  ).rejects.toThrow('No access');
+  expect(fetchOrder).not.toHaveBeenCalled();
+});
+
+it('deletes only readable Creating orders in a batch with known problem entries', async () => {
+  vi.mocked(deleteOrders).mockResolvedValue(undefined);
+  const problems: LoadedOrder[] = [
+    { id: 'missing', problem: 'not-found' },
+    { id: 'denied', problem: 'no-read-access' },
+    {
+      id: 'ordered',
+      order: { ...creatingOrder('ordered'), status: 'ORDERED' },
+      problem: 'not-creating',
+    },
+    { id: 'uncertain', problem: 'unresolved' },
+  ];
+  const { user, onBatchChange } = setup([creatingOrder('a'), creatingOrder('b')], problems);
+  await user.click(screen.getByRole('button', { name: 'orders.edit.delete-batch' }));
+  await user.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', {
+      name: 'orders.edit.delete-batch',
+    }),
+  );
+  await waitFor(() =>
+    expect(onBatchChange).toHaveBeenCalledWith(problems.map((entry) => entry.id)),
+  );
+  expect(deleteOrders).toHaveBeenCalledWith(['a', 'b']);
+});

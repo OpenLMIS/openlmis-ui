@@ -1,4 +1,4 @@
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useTable } from '@tanstack/react-table';
 import { useTranslation } from 'react-i18next';
 import { dataTableFeatures } from '@/components/data-table/data-table';
@@ -14,15 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { orderStockOnHandOptions } from '@/features/orders/api/queries';
+import { cachedOrderBalance, orderStockOnHandOptions } from '@/features/orders/api/queries';
 import { PackHint, productName } from '@/features/orders/components/order-lines';
+import { OrderStockBalance, OrderStockError } from '@/features/orders/components/order-stock';
 import type { OrderSnapshot } from '@/features/orders/lib/order-actions';
 import type { DraftLine } from '@/features/orders/lib/order-draft';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
-import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
+import { productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { toWholeNumber } from '@/lib/whole-number';
 
-type SummaryRow = { heading?: string; line?: DraftLine; stock?: number | null };
+type SummaryRow = { heading?: string; line?: DraftLine; stock?: number | null; loading?: boolean };
 export function OrderSummaryDialog({
   open,
   onOpenChange,
@@ -40,6 +41,7 @@ export function OrderSummaryDialog({
 }) {
   const { t, i18n } = useTranslation();
   const { measure, cards } = useDialogCardLayout('2xl');
+  const client = useQueryClient();
   const stocks = useQueries({
     queries: snapshots.map((snapshot) => ({
       ...orderStockOnHandOptions({
@@ -47,7 +49,7 @@ export function OrderSummaryDialog({
         facilityId: snapshot.order.requestingFacility.id,
         orderableIds: snapshot.lines.map((line) => line.product.id),
       }),
-      enabled: open,
+      enabled: open && snapshot.lines.length > 0,
       retry: false,
     })),
   });
@@ -55,8 +57,18 @@ export function OrderSummaryDialog({
     { heading: snapshot.order.requestingFacility.name ?? snapshot.order.id },
     ...snapshot.lines.map((line) => ({
       line,
-      stock: stocks[index]?.data?.find((item) => item.orderable.id === line.product.id)
-        ?.stockOnHand,
+      stock:
+        stocks[index]?.data?.find((item) => item.orderable.id === line.product.id)?.stockOnHand ??
+        cachedOrderBalance(
+          client,
+          {
+            programId: snapshot.order.program.id,
+            facilityId: snapshot.order.requestingFacility.id,
+            orderableIds: [],
+          },
+          line.product.id,
+        ),
+      loading: stocks[index]?.isPending,
     })),
   ]);
   const table = useTable({
@@ -86,14 +98,14 @@ export function OrderSummaryDialog({
         header: t('orders.edit.stock-on-hand'),
         meta: { label: t('orders.edit.stock-on-hand') },
         cell: ({ row }) =>
-          row.original.line && row.original.stock != null
-            ? cardQuantity(
-                row.original.stock,
-                row.original.line.product.netContent,
-                unit,
-                i18n.language,
-              )
-            : null,
+          row.original.line ? (
+            <OrderStockBalance
+              value={row.original.stock}
+              loading={!!row.original.loading}
+              netContent={row.original.line.product.netContent}
+              unit={unit}
+            />
+          ) : null,
       },
       {
         id: 'quantity',
@@ -128,9 +140,19 @@ export function OrderSummaryDialog({
         <div ref={measure} />
         <DialogHeader>
           <DialogTitle>{t('orders.edit.summary-title')}</DialogTitle>
-          <DialogDescription>{t('orders.edit.description')}</DialogDescription>
+          <DialogDescription>{t('orders.edit.summary-description')}</DialogDescription>
         </DialogHeader>
         <FormDialogBody>
+          {stocks.map(
+            (stock, index) =>
+              stock.isError && (
+                <OrderStockError
+                  key={snapshots[index].order.id}
+                  error={stock.error}
+                  reset={() => stock.refetch()}
+                />
+              ),
+          )}
           <DialogTable
             table={table}
             cards={cards}

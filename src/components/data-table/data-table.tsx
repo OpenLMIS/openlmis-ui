@@ -129,7 +129,7 @@ export function DataTable<TData extends RowData>({
               rows.map((row) =>
                 heading?.(row.original) !== undefined ? (
                   <TableRow key={row.id}>
-                    <TableCell colSpan={columns.length}>
+                    <TableCell rowHeader colSpan={columns.length}>
                       <strong>{heading(row.original)}</strong>
                     </TableCell>
                   </TableRow>

@@ -1,9 +1,14 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, type ErrorComponentProps } from '@tanstack/react-router';
+import { useTable } from '@tanstack/react-table';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { DataTableSkeleton, dataTableFeatures } from '@/components/data-table/data-table';
+import { TableCardsSkeleton } from '@/components/display/table-cards';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
@@ -26,6 +31,7 @@ import {
   minimalFacilitiesOptions,
   userProgramsOptions,
 } from '@/features/reference-data/api/queries';
+import { useCardLayout } from '@/hooks/use-card-view';
 import { RIGHTS } from '@/lib/rights';
 import { getSessionUserId } from '@/lib/session-scope';
 
@@ -66,6 +72,19 @@ function Page() {
 }
 function CreatePending() {
   const { t } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  const table = useTable({
+    features: dataTableFeatures,
+    data: [],
+    columns: [
+      {
+        id: 'name',
+        header: t('orders.create.facility'),
+        meta: { label: t('orders.create.facility') },
+      },
+      { id: 'actions', header: t('orders.edit.actions'), meta: { skeleton: 'control' } },
+    ],
+  });
   return (
     <>
       <WorkspaceActionsPortal>
@@ -73,11 +92,37 @@ function CreatePending() {
           {t('orders.create.create')}
         </Button>
       </WorkspaceActionsPortal>
-      <div className="h-9">
-        <Skeleton fill />
+      <div className="min-w-0 @3xl/main:max-w-96">
+        <Field>
+          <FieldLabel>{t('orders.create.program')}</FieldLabel>
+          <div className="h-9">
+            <Skeleton fill />
+          </div>
+        </Field>
       </div>
-      <div className="h-40">
-        <Skeleton fill />
+      <div className="flex items-center gap-2 @3xl/main:max-w-xl">
+        <div className="h-9 min-w-0 flex-1">
+          <Skeleton fill />
+        </div>
+        <Button size="lg" disabled>
+          {t('orders.add')}
+        </Button>
+      </div>
+      <Separator />
+      <div ref={measure}>
+        {cards ? (
+          <TableCardsSkeleton table={table} title="name" rowCount={1} pagination={false} />
+        ) : (
+          <DataTableSkeleton table={table} rowCount={1} pagination="none" />
+        )}
+      </div>
+      <div className="min-w-0 @3xl/main:max-w-96">
+        <Field>
+          <FieldLabel>{t('orders.create.supplying-facility')}</FieldLabel>
+          <div className="h-9">
+            <Skeleton fill />
+          </div>
+        </Field>
       </div>
     </>
   );
@@ -104,7 +149,7 @@ function Content() {
   );
 }
 
-function CreateError(props: import('@tanstack/react-router').ErrorComponentProps) {
+function CreateError(props: ErrorComponentProps) {
   const { t } = useTranslation();
   return (
     <ListError

@@ -1,7 +1,13 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTable } from '@tanstack/react-table';
 import { Trash2Icon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  DataTableHeaderLabel,
+  DataTableSkeleton,
+  dataTableFeatures,
+} from '@/components/data-table/data-table';
 import { CardActions } from '@/components/display/card-actions';
 import {
   CardBand,
@@ -11,9 +17,9 @@ import {
   CardRows,
 } from '@/components/display/card-list';
 import { QuantityHeaderSizer } from '@/components/display/quantity-header-sizer';
+import { TableCardsSkeleton } from '@/components/display/table-cards';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -22,17 +28,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { orderStockOnHandOptions } from '@/features/orders/api/queries';
+import { cachedOrderBalance, orderStockOnHandOptions } from '@/features/orders/api/queries';
+import { OrderStockBalance, OrderStockError } from '@/features/orders/components/order-stock';
 import { type DraftLine, validQuantity } from '@/features/orders/lib/order-draft';
 import type { Order } from '@/features/orders/lib/types';
+import { productLabel } from '@/features/reference-data/lib/products';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { orEmpty } from '@/lib/empty-value';
-import { cardQuantity, packsToShip, productQuantity, type QuantityUnit } from '@/lib/quantity';
+import { packsToShip, type QuantityUnit } from '@/lib/quantity';
 import { toWholeNumber } from '@/lib/whole-number';
 
 export function productName(line: DraftLine) {
   const product = line.product;
-  return `${product.fullProductName ?? product.productCode}${product.dispensable?.displayUnit ? ` - ${product.dispensable.displayUnit}` : ''} (${product.productCode})`;
+  return `${productLabel(product)} (${product.productCode})`;
 }
 export function PackHint({ line }: { line: DraftLine }) {
   const { t } = useTranslation();
@@ -62,151 +70,199 @@ export function OrderLines({
   disabled,
   quantity,
   onRemove,
-  readOnly = false,
 }: {
   order: Order;
   lines: readonly DraftLine[];
   unit: QuantityUnit;
   disabled: boolean;
-  quantity?: (line: DraftLine, index: number, cards: boolean) => ReactNode;
-  onRemove?: (key: string) => void;
-  readOnly?: boolean;
+  quantity: (line: DraftLine, index: number, cards: boolean) => ReactNode;
+  onRemove: (key: string) => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const client = useQueryClient();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
-  const stock = useQuery({
-    ...orderStockOnHandOptions({
-      programId: order.program.id,
-      facilityId: order.requestingFacility.id,
-      orderableIds: lines.map((line) => line.product.id),
-    }),
-    retry: false,
-    placeholderData: keepPreviousData,
-  });
-  const balance = (line: DraftLine) => {
-    if (stock.isPending)
-      return (
-        <span className="inline-block h-4 w-12">
-          <Skeleton fill />
-        </span>
-      );
-    const value = stock.data?.find((item) => item.orderable.id === line.product.id)?.stockOnHand;
-    return value == null ? '' : cardQuantity(value, line.product.netContent, unit, i18n.language);
+  const filter = {
+    programId: order.program.id,
+    facilityId: order.requestingFacility.id,
+    orderableIds: lines.map((line) => line.product.id),
   };
-  const values = (line: DraftLine) => [
-    { key: 'pack-size' as const, value: line.product.netContent },
-    { key: 'stock-on-hand' as const, value: balance(line) },
-  ];
-  const qty = (line: DraftLine, index: number) =>
-    readOnly ? (
-      <>
-        {productQuantity(
-          toWholeNumber(line.quantity.doses),
-          [toWholeNumber(line.quantity.doses)],
-          line.product.netContent,
-          unit,
-          i18n.language,
-        )}
-        <PackHint line={line} />
-      </>
-    ) : (
-      <>
-        {quantity?.(line, index, cards)}
-        <PackHint line={line} />
-      </>
-    );
+  const stock = useQuery(orderStockOnHandOptions(filter));
+  const row = (line: DraftLine, index: number) => (
+    <OrderLine
+      key={line.key}
+      line={line}
+      index={index}
+      cards={cards}
+      unit={unit}
+      disabled={disabled}
+      quantity={quantity}
+      onRemove={onRemove}
+      stock={
+        stock.data?.find((item) => item.orderable.id === line.product.id)?.stockOnHand ??
+        cachedOrderBalance(client, filter, line.product.id)
+      }
+      loading={stock.isPending}
+    />
+  );
   return (
     <div ref={measure}>
+      {stock.isError && <OrderStockError error={stock.error} reset={() => stock.refetch()} />}
       {cards ? (
-        <CardList empty={!lines.length && t('orders.create.empty')}>
-          {lines.map((line, index) => (
-            <CardListItem
-              key={line.key}
-              tone={!validQuantity(line.quantity) ? 'invalid' : undefined}
-            >
-              <CardBand>
-                <span className="min-w-0 break-words">{productName(line)}</span>
-                {!readOnly && (
-                  <CardActions
-                    label={t('orders.edit.actions')}
-                    actions={[
-                      {
-                        id: 'remove',
-                        icon: <Trash2Icon />,
-                        label: t('orders.edit.remove-line', { product: productName(line) }),
-                        destructive: true,
-                        disabled,
-                        onSelect: () => onRemove?.(line.key),
-                      },
-                    ]}
-                  />
-                )}
-              </CardBand>
-              <CardRows>
-                {values(line).map((item) => (
-                  <SettingsItem key={item.key} label={t(`orders.edit.${item.key}`)}>
-                    {orEmpty(item.value)}
-                  </SettingsItem>
-                ))}
-                <CardControlRow
-                  label={t('orders.edit.quantity')}
-                  width={unit === 'PACKS' ? 'wide' : undefined}
-                >
-                  {qty(line, index)}
-                </CardControlRow>
-              </CardRows>
-            </CardListItem>
-          ))}
-        </CardList>
+        <CardList empty={!lines.length && t('orders.create.empty')}>{lines.map(row)}</CardList>
       ) : (
         <Table scroll="both" layout="auto">
           <TableHeader>
             <TableRow>
-              <TableHead>{t('orders.edit.product-code')}</TableHead>
-              <TableHead>{t('orders.edit.product')}</TableHead>
-              <TableHead>{t('orders.edit.pack-size')}</TableHead>
-              <TableHead>{t('orders.edit.stock-on-hand')}</TableHead>
+              <TableHead>
+                <DataTableHeaderLabel>{t('orders.edit.product-code')}</DataTableHeaderLabel>
+              </TableHead>
+              <TableHead>
+                <DataTableHeaderLabel>{t('orders.edit.product')}</DataTableHeaderLabel>
+              </TableHead>
+              <TableHead>
+                <DataTableHeaderLabel>{t('orders.edit.pack-size')}</DataTableHeaderLabel>
+              </TableHead>
+              <TableHead>
+                <DataTableHeaderLabel>{t('orders.edit.stock-on-hand')}</DataTableHeaderLabel>
+              </TableHead>
               <TableHead>
                 <QuantityHeaderSizer unit={unit} />
-                {t('orders.edit.quantity')}
+                <DataTableHeaderLabel>{t('orders.edit.quantity')}</DataTableHeaderLabel>
               </TableHead>
-              {!readOnly && <TableHead width="icon">{t('orders.edit.actions')}</TableHead>}
+              <TableHead width="icon">
+                <DataTableHeaderLabel>{t('orders.edit.actions')}</DataTableHeaderLabel>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {!lines.length && (
               <TableRow>
-                <TableCell colSpan={readOnly ? 5 : 6}>{t('orders.create.empty')}</TableCell>
+                <TableCell colSpan={6}>{t('orders.create.empty')}</TableCell>
               </TableRow>
             )}
-            {lines.map((line, index) => (
-              <TableRow key={line.key} aria-invalid={!validQuantity(line.quantity) || undefined}>
-                <TableCell>{line.product.productCode}</TableCell>
-                <TableCell>
-                  <span className="block min-w-40 whitespace-normal">
-                    {line.product.fullProductName}
-                  </span>
-                </TableCell>
-                <TableCell>{line.product.netContent}</TableCell>
-                <TableCell>{balance(line)}</TableCell>
-                <TableCell>{qty(line, index)}</TableCell>
-                {!readOnly && (
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t('orders.edit.remove-line', { product: productName(line) })}
-                      disabled={disabled}
-                      onClick={() => onRemove?.(line.key)}
-                    >
-                      <Trash2Icon />
-                    </Button>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
+            {lines.map(row)}
           </TableBody>
         </Table>
+      )}
+    </div>
+  );
+}
+
+const OrderLine = memo(function OrderLine({
+  line,
+  index,
+  cards,
+  unit,
+  disabled,
+  quantity,
+  onRemove,
+  stock,
+  loading,
+}: {
+  line: DraftLine;
+  index: number;
+  cards: boolean;
+  unit: QuantityUnit;
+  disabled: boolean;
+  quantity: (line: DraftLine, index: number, cards: boolean) => ReactNode;
+  onRemove: (key: string) => void;
+  stock: number | null | undefined;
+  loading: boolean;
+}) {
+  const { t } = useTranslation();
+  const balance = (
+    <OrderStockBalance
+      value={stock}
+      loading={loading}
+      netContent={line.product.netContent}
+      unit={unit}
+    />
+  );
+  const qty = (
+    <>
+      {quantity(line, index, cards)}
+      <PackHint line={line} />
+    </>
+  );
+  return cards ? (
+    <CardListItem tone={!validQuantity(line.quantity) ? 'invalid' : undefined}>
+      <CardBand>
+        <span className="min-w-0 break-words">{productName(line)}</span>
+        <CardActions
+          label={t('orders.edit.actions')}
+          actions={[
+            {
+              id: 'remove',
+              icon: <Trash2Icon />,
+              label: t('orders.edit.remove-line', { product: productName(line) }),
+              destructive: true,
+              disabled,
+              onSelect: () => onRemove(line.key),
+            },
+          ]}
+        />
+      </CardBand>
+      <CardRows>
+        {[
+          { key: 'pack-size' as const, value: line.product.netContent },
+          { key: 'stock-on-hand' as const, value: balance },
+        ].map((item) => (
+          <SettingsItem key={item.key} label={t(`orders.edit.${item.key}`)}>
+            {orEmpty(item.value)}
+          </SettingsItem>
+        ))}
+        <CardControlRow
+          label={t('orders.edit.quantity')}
+          width={unit === 'PACKS' ? 'wide' : undefined}
+        >
+          {qty}
+        </CardControlRow>
+      </CardRows>
+    </CardListItem>
+  ) : (
+    <TableRow aria-invalid={!validQuantity(line.quantity) || undefined}>
+      <TableCell>{line.product.productCode}</TableCell>
+      <TableCell>
+        <span className="block min-w-40 whitespace-normal">{line.product.fullProductName}</span>
+      </TableCell>
+      <TableCell>{line.product.netContent}</TableCell>
+      <TableCell>{balance}</TableCell>
+      <TableCell>{qty}</TableCell>
+      <TableCell>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t('orders.edit.remove-line', { product: productName(line) })}
+          disabled={disabled}
+          onClick={() => onRemove(line.key)}
+        >
+          <Trash2Icon />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+});
+
+export function OrderLinesSkeleton() {
+  const { t } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  const table = useTable({
+    features: dataTableFeatures,
+    data: [],
+    columns: (
+      ['product-code', 'product', 'pack-size', 'stock-on-hand', 'quantity', 'actions'] as const
+    ).map((key) => ({
+      id: key,
+      header: t(`orders.edit.${key}`),
+      meta: { label: t(`orders.edit.${key}`) },
+    })),
+  });
+  return (
+    <div ref={measure}>
+      {cards ? (
+        <TableCardsSkeleton table={table} title="product" rowCount={2} pagination={false} />
+      ) : (
+        <DataTableSkeleton table={table} rowCount={2} pagination="none" layout="auto" />
       )}
     </div>
   );

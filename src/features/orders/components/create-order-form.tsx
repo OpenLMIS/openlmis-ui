@@ -6,13 +6,14 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTable, dataTableFeatures } from '@/components/data-table/data-table';
 import { CardActions } from '@/components/display/card-actions';
-import { serverMessage as getErrorMessage } from '@/components/display/dialog-parts';
+import { serverMessage } from '@/components/display/dialog-parts';
 import { TableCards } from '@/components/display/table-cards';
 import { PickerAdd, PickerAddButton, PickerAddField } from '@/components/pickers/picker-add';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
 import { WorkspaceActionsPortal } from '@/components/workspace/workspace-tabs';
 import { createOrder } from '@/features/orders/api/api';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
@@ -72,7 +73,7 @@ export function CreateOrderForm({
         }),
       })),
     onSuccess: (result) => {
-      const reason = getErrorMessage(result.error) ?? t('error.description');
+      const reason = serverMessage(result.error) ?? t('error.description');
       if (result.failed.length) {
         const names = result.failed
           .map((id) => facilities.find((f) => f.id === id)?.name ?? id)
@@ -94,7 +95,7 @@ export function CreateOrderForm({
     onError: (error) =>
       toast.error(t('orders.create.create-failed-title'), {
         description: t('orders.create.create-failed-description', {
-          reason: getErrorMessage(error) ?? t('error.description'),
+          reason: serverMessage(error) ?? t('error.description'),
         }),
       }),
   });
@@ -108,7 +109,6 @@ export function CreateOrderForm({
         accessorKey: 'name',
         header: t('orders.create.facility'),
         meta: { label: t('orders.create.facility') },
-        cell: ({ row }) => row.original.name,
       },
       {
         id: 'actions',
@@ -174,29 +174,31 @@ export function CreateOrderForm({
           />
         </div>
       </FieldGroup>
-      <PickerAdd>
-        <PickerAddField>
-          <OrderSelect
-            compact
-            label={t('orders.create.requesting-facility')}
-            placeholder={t('orders.create.select-requesting-facility')}
-            options={requesting.filter((f) => !ids.includes(f.id))}
-            value={picked}
-            disabled={mutation.isPending}
-            onChange={setPicked}
-          />
-        </PickerAddField>
-        <PickerAddButton
-          disabled={!picked || mutation.isPending}
-          onClick={() => {
-            setIds((current) => [...current, picked]);
-            setPicked('');
-            setSupplier('');
-          }}
-        >
-          {t('orders.add')}
-        </PickerAddButton>
-      </PickerAdd>
+      <div className="flex items-center gap-2 @3xl/main:max-w-xl">
+        <PickerAdd>
+          <PickerAddField>
+            <OrderSelect
+              compact
+              label={t('orders.create.requesting-facility')}
+              placeholder={t('orders.create.select-requesting-facility')}
+              options={requesting.filter((f) => !ids.includes(f.id))}
+              value={picked}
+              disabled={mutation.isPending}
+              onChange={setPicked}
+            />
+          </PickerAddField>
+          <PickerAddButton
+            disabled={!picked || mutation.isPending}
+            onClick={() => {
+              setIds((current) => [...current, picked]);
+              setPicked('');
+              setSupplier('');
+            }}
+          >
+            {t('orders.add')}
+          </PickerAddButton>
+        </PickerAdd>
+      </div>
       <Separator />
       <div ref={measure}>
         {cards ? (
@@ -215,10 +217,16 @@ export function CreateOrderForm({
           onChange={setSupplier}
         />
       </div>
+      {suppliers.isFetching && (
+        <div role="status" className="flex items-center gap-2 text-muted-foreground text-sm">
+          <Spinner />
+          {t('supply-lines.facilities-loading')}
+        </div>
+      )}
       {suppliers.isError && (
         <Alert variant="destructive">
           <AlertDescription>
-            {getErrorMessage(suppliers.error) ?? t('error.description')}{' '}
+            {serverMessage(suppliers.error) ?? t('error.description')}{' '}
             <Button variant="outline" onClick={() => suppliers.refetch()}>
               {t('error.try-again')}
             </Button>

@@ -1,4 +1,5 @@
 import { Building2Icon } from 'lucide-react';
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PickerAddIcon } from '@/components/pickers/picker-add';
 import {
@@ -30,12 +31,14 @@ export function OrderSelect({
   compact?: boolean;
 }) {
   const { t } = useTranslation();
+  const id = useId();
   const selected = options.find((item) => item.id === value) ?? null;
   return (
     <Field>
-      <FieldLabel>{compact ? <span className="sr-only">{label}</span> : label}</FieldLabel>
+      {!compact && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <Combobox
         items={options}
+        limit={50}
         value={selected}
         disabled={disabled}
         itemToStringLabel={(item) => item.name}
@@ -46,6 +49,7 @@ export function OrderSelect({
         }}
       >
         <ComboboxInput
+          id={id}
           aria-label={label}
           placeholder={placeholder}
           size="lg"

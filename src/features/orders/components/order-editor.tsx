@@ -1,8 +1,11 @@
 import { useStore } from '@tanstack/react-form';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { ListError } from '@/components/app-shell/list-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { DataTableToolbar } from '@/components/data-table/data-table';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
@@ -32,7 +35,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { orderOptions } from '@/features/orders/api/queries';
-import { OrderHeader } from '@/features/orders/components/order-header';
+import { OrderHeader, OrderHeaderSkeleton } from '@/features/orders/components/order-header';
 import { OrderLines, productName } from '@/features/orders/components/order-lines';
 import { OrderProductPicker } from '@/features/orders/components/order-product-picker';
 import { OrderSummaryDialog } from '@/features/orders/components/order-summary-dialog';
@@ -51,8 +54,13 @@ import type { Order } from '@/features/orders/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import type { QuantityUnit } from '@/lib/quantity';
 import { randomId } from '@/lib/random-id';
 import { revealField } from '@/lib/reveal-field';
+
+function useOrderForm(initial: Record<string, DraftLine[]>) {
+  return useAppForm({ defaultValues: { orders: initial } });
+}
 
 export function OrderEditor({
   entries,
@@ -74,8 +82,7 @@ export function OrderEditor({
       entries.flatMap((entry) => (entry.order ? [[entry.id, draftLines(entry.order)]] : [])),
     ),
   );
-  const form = useAppForm({ defaultValues: { orders: initial as Record<string, DraftLine[]> } });
-  const values = useStore(form.store, (state) => state.values.orders);
+  const form = useOrderForm(initial);
   const [baselines, setBaselines] = useState(initial);
   const [records, setRecords] = useState<Record<string, Order>>(() =>
     Object.fromEntries(entries.flatMap((entry) => (entry.order ? [[entry.id, entry.order]] : []))),
@@ -84,23 +91,49 @@ export function OrderEditor({
   const active = entries.find((entry) => entry.id === tab) ?? entries[0];
   const current = active && records[active.id];
   const problem = active && (problems[active.id] ?? active.problem);
-  const dirty = (id: string) => isChanged(values[id] ?? [], baselines[id] ?? []);
-  const invalid = (id: string) =>
-    !!problems[id] ||
-    !!entries.find((entry) => entry.id === id)?.problem ||
-    !validLines(values[id] ?? [], true);
+  const status = useStore(
+    form.store,
+    (state) =>
+      entries.map((entry) => {
+        const lines = state.values.orders[entry.id] ?? [];
+        return {
+          id: entry.id,
+          dirty: isChanged(lines, baselines[entry.id] ?? []),
+          invalid: !!(problems[entry.id] ?? entry.problem) || !validLines(lines, true),
+        };
+      }),
+    (previous, next) =>
+      previous.length === next.length &&
+      previous.every(
+        (item, index) =>
+          item.id === next[index].id &&
+          item.dirty === next[index].dirty &&
+          item.invalid === next[index].invalid,
+      ),
+  );
+  const dirty = (id: string) => status.some((entry) => entry.id === id && entry.dirty);
+  const invalid = (id: string) => status.some((entry) => entry.id === id && entry.invalid);
+  const editable = entries.filter(
+    (entry) => records[entry.id] && !entry.problem && !problems[entry.id],
+  );
   const { unit, setUnit, canSwitch } = useQuantityUnit();
   const [summary, setSummary] = useState<OrderSnapshot[] | null>(null);
   const [deleting, setDeleting] = useState<{ ids: string[]; batch: boolean } | null>(null);
+  const [failure, setFailure] = useState<{ title: string; description: string } | null>(null);
+  const [creatingInvalid, setCreatingInvalid] = useState(false);
   const [invalidOpen, setInvalidOpen] = useState(false);
   const invalidTarget = useRef<string | null>(null);
   const leaving = useRef(false);
+  const region = useRef<HTMLFormElement>(null);
+  const removed = useRef(false);
   const drop = async (ids: readonly string[]) => {
     leaving.current = true;
     try {
       await onBatchChange(
         entries.filter((entry) => !ids.includes(entry.id)).map((entry) => entry.id),
       );
+      if (mutation.isCurrent())
+        region.current?.querySelector<HTMLElement>('[role=tab][aria-selected=true]')?.focus();
     } finally {
       if (mutation.isCurrent()) leaving.current = false;
     }
@@ -139,17 +172,17 @@ export function OrderEditor({
           .map((item) => records[item.id]?.requestingFacility.name ?? item.id)
           .join(', ');
         const reason =
-          failed
-            .map((item) => serverMessage(item.error))
-            .filter(Boolean)
-            .join('; ') || t('error.description');
+          [...new Set(failed.map((item) => serverMessage(item.error)).filter(Boolean))].join(
+            '; ',
+          ) || t('error.description');
         const key =
           action.kind === 'save'
             ? 'save-failed'
             : action.kind === 'send'
               ? 'create-failed'
               : 'delete-failed';
-        toast.error(t(`orders.edit.${key}-title`), {
+        setFailure({
+          title: t(`orders.edit.${key}-title`),
           description: t(`orders.edit.${key}-description`, { facilities, reason }),
         });
       } else {
@@ -162,6 +195,7 @@ export function OrderEditor({
       setSummary(null);
       setDeleting(null);
       if (action.kind !== 'save' && success.length) {
+        removed.current = true;
         for (const outcome of success)
           queryClient.removeQueries({ queryKey: orderOptions(outcome.id).queryKey });
         await drop(success.map((item) => item.id));
@@ -174,7 +208,10 @@ export function OrderEditor({
           : variables.kind === 'send'
             ? 'create-failed'
             : 'delete-failed';
-      toast.error(t(`orders.edit.${key}-title`), {
+      setSummary(null);
+      setDeleting(null);
+      setFailure({
+        title: t(`orders.edit.${key}-title`),
         description: serverMessage(error) ?? t('error.description'),
       });
     },
@@ -185,23 +222,25 @@ export function OrderEditor({
     { pending, allowLeave: () => leaving.current },
   );
   const snapshots = () =>
-    entries
-      .filter((entry) => records[entry.id] && !entry.problem && !problems[entry.id])
-      .map((entry) => ({
-        order: records[entry.id],
-        lines: structuredClone(form.getFieldValue(`orders.${entry.id}`) ?? []),
-      }));
+    editable.map((entry) => ({
+      order: records[entry.id],
+      lines: structuredClone(form.getFieldValue(`orders.${entry.id}`) ?? []),
+    }));
+  const showInvalid = (id: string, lines: readonly DraftLine[], create = false) => {
+    onTab(id);
+    const index = Math.max(
+      0,
+      lines.findIndex((line) => !validQuantity(line.quantity, create)),
+    );
+    invalidTarget.current = lines.length ? `orders.${id}[${index}].quantity` : 'order-product';
+    setInvalidOpen(true);
+  };
   const submitSave = () => {
+    setCreatingInvalid(false);
     const changed = snapshots().filter((item) => dirty(item.order.id));
     const bad = changed.find((item) => !validLines(item.lines, false));
     if (bad) {
-      onTab(bad.order.id);
-      const index = Math.max(
-        0,
-        bad.lines.findIndex((line) => !validQuantity(line.quantity)),
-      );
-      invalidTarget.current = `orders.${bad.order.id}[${index}].quantity`;
-      setInvalidOpen(true);
+      showInvalid(bad.order.id, bad.lines);
       return;
     }
     mutation.mutate({ kind: 'save', snapshots: changed });
@@ -217,6 +256,7 @@ export function OrderEditor({
         </WorkspaceHeader>
         <WorkspaceContent>
           <form
+            ref={region}
             id="order-drafts"
             className="flex flex-col gap-4"
             onSubmit={(event) => {
@@ -231,24 +271,34 @@ export function OrderEditor({
                   {problem ? (
                     <Alert variant="destructive">
                       <AlertDescription>
-                        {t(`orders.edit.${problem}`)}
-                        <Button
-                          disabled={pending}
-                          variant="outline"
-                          onClick={() => drop([active.id])}
-                        >
-                          {t('orders.edit.remove-from-batch')}
-                        </Button>
+                        <div className="flex flex-col items-start gap-3">
+                          {t(`orders.edit.${problem}`)}
+                          <Button
+                            disabled={pending}
+                            variant="outline"
+                            size="lg"
+                            onClick={() => drop([active.id])}
+                          >
+                            {t('orders.edit.remove-from-batch')}
+                          </Button>
+                        </div>
                       </AlertDescription>
                     </Alert>
                   ) : (
                     current && (
                       <>
                         <div className="flex flex-wrap items-start gap-4">
-                          <div className="min-w-0 flex-1">
-                            <OrderHeader order={current} />
+                          <div className="w-full min-w-0 @2xl/main:w-auto @2xl/main:flex-1">
+                            <QueryBoundary
+                              resetKey={current.id}
+                              errorComponent={HeaderError}
+                              pendingFallback={<OrderHeaderSkeleton />}
+                            >
+                              <OrderHeader order={current} />
+                            </QueryBoundary>
                           </div>
                           <Button
+                            size="lg"
                             variant="destructive"
                             disabled={pending}
                             onClick={() => setDeleting({ ids: [active.id], batch: false })}
@@ -256,71 +306,14 @@ export function OrderEditor({
                             {t('orders.edit.delete-order')}
                           </Button>
                         </div>
-                        <OrderProductPicker
+                        <OrderFields
                           key={active.id}
-                          programId={current.program.id}
-                          facilityId={current.requestingFacility.id}
-                          added={(values[active.id] ?? []).map((line) => line.product.id)}
-                          disabled={pending && mutation.variables?.kind !== 'save'}
-                          onAdd={(product) =>
-                            form.setFieldValue(`orders.${active.id}`, [
-                              ...(form.getFieldValue(`orders.${active.id}`) ?? []),
-                              {
-                                key: randomId(),
-                                product,
-                                quantity: quantityValue('', product.netContent),
-                              },
-                            ])
-                          }
-                        />
-                        <Separator />
-                        {canSwitch && (
-                          <div className="flex justify-end">
-                            <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
-                          </div>
-                        )}
-                        <OrderLines
-                          key={active.id}
+                          form={form}
                           order={current}
-                          lines={values[active.id] ?? []}
                           unit={unit}
+                          canSwitch={canSwitch}
+                          setUnit={setUnit}
                           disabled={pending && mutation.variables?.kind !== 'save'}
-                          onRemove={(key) =>
-                            form.setFieldValue(
-                              `orders.${active.id}`,
-                              (form.getFieldValue(`orders.${active.id}`) ?? []).filter(
-                                (line) => line.key !== key,
-                              ),
-                            )
-                          }
-                          quantity={(line, index, cards) => (
-                            <form.AppField
-                              key={line.key}
-                              name={`orders.${active.id}[${index}].quantity`}
-                              validators={{
-                                onChange: ({ value }) =>
-                                  validQuantity(value)
-                                    ? undefined
-                                    : 'orders.edit.invalid-description',
-                              }}
-                            >
-                              {(field) => (
-                                <field.QuantityField
-                                  label={`${t('orders.edit.quantity')} ${productName(line)}`}
-                                  layout="inline"
-                                  hideErrors
-                                  required
-                                  unit={unit}
-                                  netContent={line.product.netContent}
-                                  packsLabel={t('quantity-unit.packs')}
-                                  dosesLabel={t('quantity-unit.doses')}
-                                  sizing={cards ? 'fill' : 'minimum'}
-                                  notation="plus"
-                                  disabled={pending && mutation.variables?.kind !== 'save'}
-                                />
-                              )}
-                            </form.AppField>
-                          )}
                         />
                       </>
                     )
@@ -339,8 +332,8 @@ export function OrderEditor({
           <Button
             size="lg"
             variant="destructive"
-            disabled={pending}
-            onClick={() => setDeleting({ ids: entries.map((entry) => entry.id), batch: true })}
+            disabled={pending || !editable.length}
+            onClick={() => setDeleting({ ids: editable.map((entry) => entry.id), batch: true })}
           >
             {t('orders.edit.delete-batch')}
           </Button>
@@ -360,8 +353,13 @@ export function OrderEditor({
           </Button>
           <Button
             size="lg"
-            disabled={pending || entries.some((entry) => invalid(entry.id))}
-            onClick={() => setSummary(snapshots())}
+            disabled={pending}
+            onClick={() => {
+              const bad = entries.find((entry) => invalid(entry.id));
+              setCreatingInvalid(true);
+              if (bad) showInvalid(bad.id, form.getFieldValue(`orders.${bad.id}`) ?? [], true);
+              else setSummary(snapshots());
+            }}
           >
             {t('orders.edit.create')}
           </Button>
@@ -385,7 +383,14 @@ export function OrderEditor({
           if (!open && !pending) setDeleting(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          finalFocus={() =>
+            removed.current
+              ? (region.current?.querySelector<HTMLElement>('[role=tab][aria-selected=true]') ??
+                false)
+              : true
+          }
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>
               {t(!deleting?.batch ? 'orders.edit.delete-order' : 'orders.edit.delete-batch')}
@@ -416,16 +421,139 @@ export function OrderEditor({
         open={invalidOpen}
         onOpenChange={setInvalidOpen}
         title={t('orders.edit.invalid')}
-        description={t('orders.edit.invalid-description')}
-        closeLabel={t('orders.edit.cancel')}
+        description={
+          creatingInvalid
+            ? problem
+              ? t(`orders.edit.${problem}`)
+              : t('orders.edit.create-invalid-description')
+            : t('orders.edit.invalid-description')
+        }
+        closeLabel={t('dialog.close')}
         onOpenChangeComplete={(open) => {
           if (!open && invalidTarget.current) {
             const target = document.querySelector<HTMLElement>(`[id^="${invalidTarget.current}"]`);
+            if (!target)
+              region.current?.querySelector<HTMLElement>('[role=tab][aria-selected=true]')?.focus();
             if (target) revealField(target, !!target.closest('li'));
           }
         }}
       />
+      <InvalidSubmitDialog
+        open={failure !== null}
+        onOpenChange={(open) => {
+          if (!open) setFailure(null);
+        }}
+        title={failure?.title}
+        description={failure?.description}
+        closeLabel={t('dialog.close')}
+      />
       <DiscardChangesDialog {...guard.dialog} description={t('orders.edit.discard-description')} />
     </>
+  );
+}
+
+function OrderFields({
+  form,
+  order,
+  unit,
+  canSwitch,
+  setUnit,
+  disabled,
+}: {
+  form: ReturnType<typeof useOrderForm>;
+  order: Order;
+  unit: QuantityUnit;
+  canSwitch: boolean;
+  setUnit: (unit: QuantityUnit) => void;
+  disabled: boolean;
+}) {
+  const { t } = useTranslation();
+  const lines = useStore(form.store, (state) => state.values.orders[order.id]);
+  const productIds = lines.map((line) => line.product.id).join(',');
+  const added = useMemo(() => productIds.split(',').filter(Boolean), [productIds]);
+  const onAdd = useCallback(
+    (product: DraftLine['product']) => {
+      form.setFieldValue(`orders.${order.id}`, [
+        ...(form.getFieldValue(`orders.${order.id}`) ?? []),
+        { key: randomId(), product, quantity: quantityValue('', product.netContent) },
+      ]);
+    },
+    [form, order.id],
+  );
+  const onRemove = useCallback(
+    (key: string) => {
+      form.setFieldValue(
+        `orders.${order.id}`,
+        (form.getFieldValue(`orders.${order.id}`) ?? []).filter((line) => line.key !== key),
+      );
+    },
+    [form, order.id],
+  );
+  const quantity = useCallback(
+    (line: DraftLine, index: number, cards: boolean) => (
+      <form.AppField
+        key={line.key}
+        name={`orders.${order.id}[${index}].quantity`}
+        validators={{
+          onChange: ({ value }) =>
+            validQuantity(value) ? undefined : 'orders.edit.invalid-description',
+        }}
+      >
+        {(field) => (
+          <field.QuantityField
+            label={`${t('orders.edit.quantity')} ${productName(line)}`}
+            layout="inline"
+            hideErrors
+            required
+            unit={unit}
+            netContent={line.product.netContent}
+            packsLabel={t('quantity-unit.packs')}
+            dosesLabel={t('quantity-unit.doses')}
+            sizing={cards ? 'fill' : 'minimum'}
+            notation="plus"
+            disabled={disabled}
+          />
+        )}
+      </form.AppField>
+    ),
+    [form, order.id, unit, disabled, t],
+  );
+  return (
+    <>
+      <OrderProductPicker
+        programId={order.program.id}
+        facilityId={order.requestingFacility.id}
+        added={added}
+        disabled={disabled}
+        onAdd={onAdd}
+      />
+      <Separator />
+      {canSwitch && (
+        <DataTableToolbar align="end">
+          <div className="flex-1 @2xl/main:flex-none">
+            <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
+          </div>
+        </DataTableToolbar>
+      )}
+      <OrderLines
+        order={order}
+        lines={lines ?? []}
+        unit={unit}
+        disabled={disabled}
+        onRemove={onRemove}
+        quantity={quantity}
+      />
+    </>
+  );
+}
+
+function HeaderError(props: { error: unknown; reset: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <ListError
+      {...props}
+      title={t('orders.create.title')}
+      description={t('error.check-connection')}
+    />
   );
 }
