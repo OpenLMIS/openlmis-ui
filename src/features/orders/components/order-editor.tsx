@@ -81,21 +81,6 @@ export function OrderEditor({
     Object.fromEntries(entries.flatMap((entry) => (entry.order ? [[entry.id, entry.order]] : []))),
   );
   const [problems, setProblems] = useState<Record<string, OrderProblem>>({});
-  const [known, setKnown] = useState(entries.map((entry) => entry.id));
-  if (entries.some((entry) => !known.includes(entry.id))) {
-    const next = { ...baselines };
-    const nextRecords = { ...records };
-    for (const entry of entries)
-      if (!known.includes(entry.id) && entry.order) {
-        const lines = draftLines(entry.order);
-        form.setFieldValue(`orders.${entry.id}`, lines);
-        next[entry.id] = lines;
-        nextRecords[entry.id] = entry.order;
-      }
-    setKnown(entries.map((entry) => entry.id));
-    setBaselines(next);
-    setRecords(nextRecords);
-  }
   const active = entries.find((entry) => entry.id === tab) ?? entries[0];
   const current = active && records[active.id];
   const problem = active && (problems[active.id] ?? active.problem);
@@ -180,13 +165,19 @@ export function OrderEditor({
         for (const outcome of success)
           queryClient.removeQueries({ queryKey: orderOptions(outcome.id).queryKey });
         await drop(success.map((item) => item.id));
-        if (!mutation.isCurrent()) return;
       }
     },
-    onError: (error) =>
-      toast.error(t('orders.edit.save-failed-title'), {
+    onError: (error, variables) => {
+      const key =
+        variables.kind === 'save'
+          ? 'save-failed'
+          : variables.kind === 'send'
+            ? 'create-failed'
+            : 'delete-failed';
+      toast.error(t(`orders.edit.${key}-title`), {
         description: serverMessage(error) ?? t('error.description'),
-      }),
+      });
+    },
   });
   const pending = mutation.isPending;
   const guard = useDiscardGuard(
@@ -205,14 +196,16 @@ export function OrderEditor({
     const bad = changed.find((item) => !validLines(item.lines, false));
     if (bad) {
       onTab(bad.order.id);
-      const index = bad.lines.findIndex((line) => !validQuantity(line.quantity));
+      const index = Math.max(
+        0,
+        bad.lines.findIndex((line) => !validQuantity(line.quantity)),
+      );
       invalidTarget.current = `orders.${bad.order.id}[${index}].quantity`;
       setInvalidOpen(true);
       return;
     }
     mutation.mutate({ kind: 'save', snapshots: changed });
   };
-  const blocked = entries.some((entry) => entry.problem || problems[entry.id]);
   return (
     <>
       <Workspace>
@@ -239,22 +232,22 @@ export function OrderEditor({
                     <Alert variant="destructive">
                       <AlertDescription>
                         {t(`orders.edit.${problem}`)}
-                        {problem !== 'no-read-access' && (
-                          <Button
-                            disabled={pending}
-                            variant="outline"
-                            onClick={() => drop([active.id])}
-                          >
-                            {t('orders.edit.remove-from-batch')}
-                          </Button>
-                        )}
+                        <Button
+                          disabled={pending}
+                          variant="outline"
+                          onClick={() => drop([active.id])}
+                        >
+                          {t('orders.edit.remove-from-batch')}
+                        </Button>
                       </AlertDescription>
                     </Alert>
                   ) : (
                     current && (
                       <>
-                        <OrderHeader order={current} />
-                        <div>
+                        <div className="flex flex-wrap items-start gap-4">
+                          <div className="min-w-0 flex-1">
+                            <OrderHeader order={current} />
+                          </div>
                           <Button
                             variant="destructive"
                             disabled={pending}
@@ -287,6 +280,7 @@ export function OrderEditor({
                           </div>
                         )}
                         <OrderLines
+                          key={active.id}
                           order={current}
                           lines={values[active.id] ?? []}
                           unit={unit}
@@ -304,10 +298,6 @@ export function OrderEditor({
                               key={line.key}
                               name={`orders.${active.id}[${index}].quantity`}
                               validators={{
-                                onMount: ({ value }) =>
-                                  validQuantity(value)
-                                    ? undefined
-                                    : 'orders.edit.invalid-description',
                                 onChange: ({ value }) =>
                                   validQuantity(value)
                                     ? undefined
@@ -370,7 +360,7 @@ export function OrderEditor({
           </Button>
           <Button
             size="lg"
-            disabled={pending || blocked || entries.some((entry) => invalid(entry.id))}
+            disabled={pending || entries.some((entry) => invalid(entry.id))}
             onClick={() => setSummary(snapshots())}
           >
             {t('orders.edit.create')}
@@ -435,7 +425,7 @@ export function OrderEditor({
           }
         }}
       />
-      <DiscardChangesDialog {...guard.dialog} description={t('orders.edit.unsaved')} />
+      <DiscardChangesDialog {...guard.dialog} description={t('orders.edit.discard-description')} />
     </>
   );
 }

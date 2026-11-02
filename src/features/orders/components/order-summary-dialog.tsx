@@ -19,7 +19,7 @@ import { PackHint, productName } from '@/features/orders/components/order-lines'
 import type { OrderSnapshot } from '@/features/orders/lib/order-actions';
 import type { DraftLine } from '@/features/orders/lib/order-draft';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
-import { productQuantity, type QuantityUnit } from '@/lib/quantity';
+import { cardQuantity, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { toWholeNumber } from '@/lib/whole-number';
 
 type SummaryRow = { heading?: string; line?: DraftLine; stock?: number | null };
@@ -87,9 +87,8 @@ export function OrderSummaryDialog({
         meta: { label: t('orders.edit.stock-on-hand') },
         cell: ({ row }) =>
           row.original.line && row.original.stock != null
-            ? productQuantity(
+            ? cardQuantity(
                 row.original.stock,
-                [row.original.stock],
                 row.original.line.product.netContent,
                 unit,
                 i18n.language,

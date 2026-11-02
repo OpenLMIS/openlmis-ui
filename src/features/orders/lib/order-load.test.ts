@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchOrder } from '@/features/orders/api/api';
-import { loadOrders } from '@/features/orders/lib/order-load';
+import { cachedOrders, loadOrders } from '@/features/orders/lib/order-load';
 import { creatingOrder } from '@/test-utils/order-fixtures';
 
 vi.mock('@/features/orders/api/api', () => ({ fetchOrder: vi.fn() }));
@@ -25,6 +25,12 @@ describe('batch order loading', () => {
       { id: 'b', problem: 'no-read-access' },
       { id: 'c', problem: 'not-found' },
     ]);
+    expect(cachedOrders(client, ['a', 'b', 'c'])).toMatchObject([
+      { id: 'a', order: { id: 'a' } },
+      { id: 'b', problem: 'no-read-access' },
+      { id: 'c', problem: 'not-found' },
+    ]);
+    expect(cachedOrders(client, ['unknown'])).toBeUndefined();
     await loadOrders(client, ['a'], false);
     expect(fetchOrder).toHaveBeenCalledTimes(3);
     vi.mocked(fetchOrder).mockResolvedValueOnce({ ...creatingOrder('a'), status: 'ORDERED' });

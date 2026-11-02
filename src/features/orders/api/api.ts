@@ -30,19 +30,12 @@ export async function fetchOrderStockOnHand(filter: {
   const batches = await fetchIdBatches(filter.orderableIds, async (orderableId) => {
     const entries: {
       orderable: { id: string };
-      lot?: { id: string } | null;
       stockOnHand: number | null;
     }[] = [];
     for (let page = 0; ; page++) {
       assertSessionScope(scope);
       const { data } = await client.get<
-        Page<{
-          canFulfillForMe: {
-            orderable: { id: string };
-            lot?: { id: string } | null;
-            stockOnHand: number | null;
-          }[];
-        }>
+        Page<{ orderable: { id: string }; stockOnHand: number | null }>
       >('/v2/stockCardSummaries', {
         params: {
           programId: filter.programId,
@@ -54,21 +47,18 @@ export async function fetchOrderStockOnHand(filter: {
         paramsSerializer: { indexes: null },
       });
       assertSessionScope(scope);
-      for (const summary of data.content) entries.push(...summary.canFulfillForMe);
+      entries.push(
+        ...data.content.map(({ orderable, stockOnHand }) => ({
+          orderable: { id: orderable.id },
+          stockOnHand,
+        })),
+      );
       if (page + 1 >= data.totalPages) break;
     }
     return entries;
   });
-  const balances = new Map(
-    batches.flat().map((entry) => [`${entry.orderable.id}|${entry.lot?.id ?? ''}`, entry]),
+  const balances = new Map(batches.flat().map((summary) => [summary.orderable.id, summary]));
+  return [...new Set(filter.orderableIds)].map(
+    (id) => balances.get(id) ?? { orderable: { id }, stockOnHand: 0 },
   );
-  const totals = new Map<string, number | null>();
-  for (const entry of balances.values()) {
-    const previous = totals.get(entry.orderable.id);
-    totals.set(
-      entry.orderable.id,
-      previous === null || entry.stockOnHand === null ? null : (previous ?? 0) + entry.stockOnHand,
-    );
-  }
-  return [...totals].map(([id, stockOnHand]) => ({ orderable: { id }, stockOnHand }));
 }

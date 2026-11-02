@@ -55,7 +55,10 @@ export async function executeOrderWrite(action: WriteAction): Promise<OrderOutco
       if (!isNotFound(error)) return action.ids.map((id) => ({ id, error, success: false }));
       const results = await settleFew(action.ids, (id) => recover(id, error, false));
       assertSessionScope(scope);
-      return results.done;
+      return [
+        ...results.done,
+        ...results.failed.map((id) => ({ id, success: false, error: results.error })),
+      ];
     }
   }
   const kind = action.kind;
@@ -73,5 +76,12 @@ export async function executeOrderWrite(action: WriteAction): Promise<OrderOutco
     }
   });
   assertSessionScope(scope);
-  return results.done;
+  return [
+    ...results.done,
+    ...results.failed.map((snapshot) => ({
+      id: snapshot.order.id,
+      success: false,
+      error: results.error,
+    })),
+  ];
 }

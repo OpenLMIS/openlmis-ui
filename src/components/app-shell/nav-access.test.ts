@@ -125,11 +125,19 @@ it('drops the requisitions section when Create Orders is its only permitted page
         {
           titleKey: 'nav.requisitions',
           items: [
-            { titleKey: 'nav.requisitions.create-orders', to: '/requisitions/create-orders' },
+            {
+              titleKey: 'nav.requisitions.create-orders',
+              to: '/requisitions/create-orders',
+              flag: 'SHOW_REQUISITION_LESS_ORDER',
+            },
           ],
         },
       ],
     },
   ];
-  expect(navWithinRights(groups, new Set(['ORDER_CREATE']), false, false, false)).toEqual([]);
+  expect(
+    navWithinRights(groups, new Set(['ORDER_CREATE']), false, false, {
+      SHOW_REQUISITION_LESS_ORDER: false,
+    }),
+  ).toEqual([]);
 });

@@ -49,7 +49,7 @@ function setup(readable = true) {
 async function add(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' }));
   await user.click(await screen.findByRole('option', { name }));
-  await user.click(screen.getByRole('button', { name: 'facilities.form.add' }));
+  await user.click(screen.getByRole('button', { name: 'orders.add' }));
 }
 describe('create order workflow', () => {
   it('creates one legacy body per facility and opens successful ids after a partial failure', async () => {

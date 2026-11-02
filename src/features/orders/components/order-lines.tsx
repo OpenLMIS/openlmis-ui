@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Trash2Icon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +27,7 @@ import { type DraftLine, validQuantity } from '@/features/orders/lib/order-draft
 import type { Order } from '@/features/orders/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { orEmpty } from '@/lib/empty-value';
-import { packsToShip, productQuantity, type QuantityUnit } from '@/lib/quantity';
+import { cardQuantity, packsToShip, productQuantity, type QuantityUnit } from '@/lib/quantity';
 import { toWholeNumber } from '@/lib/whole-number';
 
 export function productName(line: DraftLine) {
@@ -81,6 +81,7 @@ export function OrderLines({
       orderableIds: lines.map((line) => line.product.id),
     }),
     retry: false,
+    placeholderData: keepPreviousData,
   });
   const balance = (line: DraftLine) => {
     if (stock.isPending)
@@ -90,9 +91,7 @@ export function OrderLines({
         </span>
       );
     const value = stock.data?.find((item) => item.orderable.id === line.product.id)?.stockOnHand;
-    return value == null
-      ? ''
-      : productQuantity(value, [value], line.product.netContent, unit, i18n.language);
+    return value == null ? '' : cardQuantity(value, line.product.netContent, unit, i18n.language);
   };
   const values = (line: DraftLine) => [
     { key: 'pack-size' as const, value: line.product.netContent },
@@ -177,7 +176,7 @@ export function OrderLines({
           <TableBody>
             {!lines.length && (
               <TableRow>
-                <TableCell colSpan={6}>{t('orders.create.empty')}</TableCell>
+                <TableCell colSpan={readOnly ? 5 : 6}>{t('orders.create.empty')}</TableCell>
               </TableRow>
             )}
             {lines.map((line, index) => (

@@ -1,4 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  type AnyRouter,
+  createMemoryHistory,
+  createRootRouteWithContext,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
@@ -11,8 +19,10 @@ import {
   approvedProductsOptions,
   deploymentTimeZoneOptions,
 } from '@/features/reference-data/api/queries';
+import { Route } from '@/routes/(protected)/_protected.requisitions.create-orders_.$orderIds';
 import { creatingOrder } from '@/test-utils/order-fixtures';
 
+vi.mock('@/features/auth/lib/access', () => ({ requirePermissions: vi.fn(async () => ({})) }));
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/hooks/use-discard-guard', () => ({
   useDiscardGuard: () => ({
@@ -53,12 +63,17 @@ function setup(orders = [creatingOrder('a'), creatingOrder('b')]) {
         size: 50,
       },
     );
-  const onBatchChange = vi.fn(async () => {});
+  let changeBatch: (ids: string[]) => void;
+  const onBatchChange = vi.fn(async (ids: string[]) => changeBatch(ids));
   function Harness() {
     const [tab, onTab] = useState('a');
+    const [ids, setIds] = useState(orders.map((order) => order.id));
+    changeBatch = setIds;
     return (
       <OrderEditor
-        entries={orders.map((order) => ({ id: order.id, order }))}
+        entries={orders
+          .filter((order) => ids.includes(order.id))
+          .map((order) => ({ id: order.id, order }))}
         tab={tab}
         onTab={onTab}
         onBatchChange={onBatchChange}
@@ -128,7 +143,7 @@ describe('order editor workflow', () => {
     await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
     await user.click(screen.getByRole('combobox', { name: 'orders.edit.select-product' }));
     await user.click(await screen.findByRole('option', { name: 'Medicine' }));
-    await user.click(screen.getByRole('button', { name: 'facilities.form.add' }));
+    await user.click(screen.getByRole('button', { name: 'orders.add' }));
     fireEvent.change(quantity(), { target: { value: '35' } });
     await act(async () => response.resolve(creatingOrder('a', 25)));
     await waitFor(() =>
@@ -157,6 +172,10 @@ describe('order editor workflow', () => {
     await user.click(within(dialog).getByRole('button', { name: 'orders.edit.summary-confirm' }));
     await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith(['b']));
     expect(sendOrder).toHaveBeenCalledTimes(2);
+    expect(quantity()).toHaveValue('15');
+    expect(screen.getByRole('tab', { name: /Facility b/ })).toHaveTextContent(
+      'orders.edit.unsaved',
+    );
   });
   it.each(['order', 'batch'])(
     'confirms Delete %s and passes the surviving ids to replace navigation',
@@ -213,6 +232,83 @@ describe('order editor workflow', () => {
       </QueryClientProvider>,
     );
     expect(screen.getByText('orders.edit.no-read-access')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'orders.edit.remove-from-batch' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'orders.edit.create' })).toBeDisabled();
   });
 });
+
+it.each(['delete', 'send', 'remove'] as const)(
+  'preserves surviving edits through route navigation after %s',
+  async (action) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+    vi.mocked(fetchOrder).mockImplementation(async (id) => {
+      if (id === 'a' && action === 'remove')
+        throw new AxiosError('Denied', undefined, undefined, undefined, { status: 403 } as never);
+      return creatingOrder(id);
+    });
+    vi.mocked(deleteOrders).mockResolvedValue(undefined);
+    vi.mocked(sendOrder).mockImplementation(async (body) => {
+      if (body.id === 'b') throw new Error('Failed');
+    });
+    const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
+    const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
+    const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
+    const pending = vi.fn(() => <p>Pending Orders</p>);
+    const page = createRoute({
+      getParentRoute: () => layout,
+      path: 'requisitions/create-orders/$orderIds',
+      validateSearch: Route.options.validateSearch as never,
+      loader: Route.options.loader as never,
+      component: Route.options.component as never,
+      pendingComponent: pending,
+    });
+    const router = createRouter({
+      routeTree: root.addChildren([
+        group.addChildren([layout.addChildren([page] as never)] as never),
+      ] as never),
+      history: createMemoryHistory({ initialEntries: ['/requisitions/create-orders/a,b?tab=b'] }),
+      context: { queryClient: client },
+    } as never) as AnyRouter;
+    render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole('textbox', { name: /orders.edit.quantity Medicine/ });
+    fireEvent.change(quantity(), { target: { value: '25' } });
+    const pendingBefore = pending.mock.calls.length;
+    const user = userEvent.setup();
+    if (action === 'send') {
+      await user.click(screen.getByRole('button', { name: 'orders.edit.create' }));
+      await user.click(
+        within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'orders.edit.summary-confirm',
+        }),
+      );
+    } else {
+      await user.click(screen.getByRole('tab', { name: /^(Facility a|a)/ }));
+      if (action === 'remove')
+        await user.click(screen.getByRole('button', { name: 'orders.edit.remove-from-batch' }));
+      else {
+        await user.click(screen.getByRole('button', { name: 'orders.edit.delete-order' }));
+        await user.click(
+          within(screen.getByRole('alertdialog')).getByRole('button', {
+            name: 'orders.edit.delete-order-action',
+          }),
+        );
+      }
+    }
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/requisitions/create-orders/b'),
+    );
+    expect(quantity()).toHaveValue('25');
+    expect(screen.getByRole('tab', { name: /Facility b/ })).toHaveTextContent(
+      'orders.edit.unsaved',
+    );
+    expect(pending).toHaveBeenCalledTimes(pendingBefore);
+    expect(fetchOrder).toHaveBeenCalledTimes(action === 'send' ? 3 : 2);
+  },
+);

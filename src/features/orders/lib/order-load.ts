@@ -35,3 +35,24 @@ export async function loadOrders(
     throw result.reason;
   });
 }
+
+export function cachedOrders(
+  client: QueryClient,
+  ids: readonly string[],
+): LoadedOrder[] | undefined {
+  const entries: LoadedOrder[] = [];
+  for (const id of ids) {
+    const state = client.getQueryState<Order>(orderOptions(id).queryKey);
+    if (state?.data) {
+      const order = state.data;
+      entries.push({
+        id,
+        order,
+        ...(order.status !== 'CREATING' && { problem: 'not-creating' as const }),
+      });
+    } else if (isRefused(state?.error)) entries.push({ id, problem: 'no-read-access' });
+    else if (isNotFound(state?.error)) entries.push({ id, problem: 'not-found' });
+    else return undefined;
+  }
+  return entries;
+}

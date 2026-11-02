@@ -9,7 +9,7 @@ import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { rolesOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
-import { useFlag } from '@/lib/feature-flags';
+import { type FeatureFlagKey, useFlag } from '@/lib/feature-flags';
 import { navRightFor } from '@/lib/nav-rights';
 import { hasOfflineCapability, isOfflineCapable } from '@/lib/offline-pages';
 import { useOnline } from '@/lib/online';
@@ -33,10 +33,10 @@ export function navWithinRights(
   rights: ReadonlySet<string> | undefined,
   hasDeviceEvents = false,
   offline = false,
-  createOrders = true,
+  flags: Partial<Record<FeatureFlagKey, boolean>> = {},
 ): LiveNavGroup[] {
   const allowed = (link: LiveNavLink) =>
-    (link.to !== '/requisitions/create-orders' || createOrders) &&
+    (!link.flag || flags[link.flag] !== false) &&
     canOpen(link.to, rights, hasDeviceEvents, offline);
   return groups
     .map((group) => ({
@@ -84,19 +84,19 @@ export function useNavGroups() {
       ...link,
       connectionRequired: !online && !isOfflineCapable(link.to ?? ''),
     });
-    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents, !online, createOrders).map(
-      (group) => ({
-        ...group,
-        items: group.items.map((item) =>
-          isNavParent(item)
-            ? {
-                ...item,
-                items: item.items.map(mark),
-              }
-            : mark(item),
-        ),
-      }),
-    );
+    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents, !online, {
+      SHOW_REQUISITION_LESS_ORDER: createOrders,
+    }).map((group) => ({
+      ...group,
+      items: group.items.map((item) =>
+        isNavParent(item)
+          ? {
+              ...item,
+              items: item.items.map(mark),
+            }
+          : mark(item),
+      ),
+    }));
   }, [rights, online, hasDeviceEvents, createOrders]);
 }
 

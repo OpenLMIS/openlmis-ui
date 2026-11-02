@@ -52,81 +52,79 @@ export function OrderProductPicker({
     typed: !!name.trim(),
   });
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <PickerAdd>
-        <PickerAddField ref={anchor}>
-          <Combobox
-            items={products}
-            filter={null}
-            open={open}
-            onOpenChange={setOpen}
-            value={selected}
-            itemToStringLabel={(item) => item.fullProductName ?? item.productCode}
-            isItemEqualToValue={(a, b) => a.id === b.id}
-            onInputValueChange={(value, details) => {
-              if (details.reason === 'input-change') setSearch(value);
-            }}
-            onValueChange={(item, details) => {
-              if (details.reason === 'escape-key' && !item) return details.allowPropagation();
-              setSelected(item);
-            }}
-            disabled={disabled}
-          >
-            <ComboboxInput
-              aria-label={t('orders.edit.select-product')}
-              placeholder={t('orders.edit.select-product')}
-              clearLabel={t('data-table.clear-filters')}
-              size="lg"
-              width="full"
-            >
-              <PickerAddIcon>
-                <PackageIcon />
-              </PickerAddIcon>
-            </ComboboxInput>
-            <ComboboxContent anchor={anchor}>
-              <ComboboxEmpty>
-                {query.isFetching ? t('stock-events.products-loading') : t('orders.create.empty')}
-              </ComboboxEmpty>
-              <ComboboxList>
-                {(item: OrderProduct) => (
-                  <ComboboxItem key={item.id} value={item} disabled={added.includes(item.id)}>
-                    <span>{item.fullProductName ?? item.productCode}</span>
-                    {added.includes(item.id) && (
-                      <span className="text-muted-foreground text-xs">
-                        {t('orders.edit.already-added')}
-                      </span>
-                    )}
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-              {status && (
-                <ComboboxStatus>
-                  {t(status.key, { shown: status.shown, count: status.count })}
-                </ComboboxStatus>
-              )}
-              {query.isError && (
-                <ComboboxStatus>
-                  <Button variant="outline" onClick={() => query.refetch()}>
-                    {t('error.try-again')}
-                  </Button>
-                </ComboboxStatus>
-              )}
-            </ComboboxContent>
-          </Combobox>
-        </PickerAddField>
-        <PickerAddButton
-          disabled={!selected || added.includes(selected.id) || disabled}
-          onClick={() => {
-            if (selected) {
-              onAdd(selected);
-              setSelected(null);
-              setSearch('');
-            }
+    <PickerAdd>
+      <PickerAddField ref={anchor}>
+        <Combobox
+          items={products}
+          filter={null}
+          open={open}
+          onOpenChange={setOpen}
+          value={selected}
+          itemToStringLabel={(item) => item.fullProductName ?? item.productCode}
+          isItemEqualToValue={(a, b) => a.id === b.id}
+          onInputValueChange={(value, details) => {
+            if (details.reason === 'input-change') setSearch(value);
           }}
+          onValueChange={(item, details) => {
+            if (details.reason === 'escape-key' && !item) return details.allowPropagation();
+            setSelected(item);
+          }}
+          disabled={disabled}
         >
-          {t('facilities.form.add')}
-        </PickerAddButton>
-      </PickerAdd>
-    </div>
+          <ComboboxInput
+            aria-label={t('orders.edit.select-product')}
+            placeholder={t('orders.edit.select-product')}
+            clearLabel={t('orders.clear-selection')}
+            size="lg"
+            width="full"
+          >
+            <PickerAddIcon>
+              <PackageIcon />
+            </PickerAddIcon>
+          </ComboboxInput>
+          <ComboboxContent anchor={anchor}>
+            <ComboboxEmpty>
+              {query.isFetching ? t('orders.edit.products-loading') : t('orders.edit.no-products')}
+            </ComboboxEmpty>
+            <ComboboxList>
+              {(item: OrderProduct) => (
+                <ComboboxItem key={item.id} value={item} disabled={added.includes(item.id)}>
+                  <span>{item.fullProductName ?? item.productCode}</span>
+                  {added.includes(item.id) && (
+                    <span className="text-muted-foreground text-xs">
+                      {t('orders.edit.already-added')}
+                    </span>
+                  )}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+            {status && (
+              <ComboboxStatus>
+                {t(status.key, { shown: status.shown, count: status.count })}
+              </ComboboxStatus>
+            )}
+            {query.isError && (
+              <ComboboxStatus>
+                <Button variant="outline" onClick={() => query.refetch()}>
+                  {t('error.try-again')}
+                </Button>
+              </ComboboxStatus>
+            )}
+          </ComboboxContent>
+        </Combobox>
+      </PickerAddField>
+      <PickerAddButton
+        disabled={!selected || added.includes(selected.id) || disabled}
+        onClick={() => {
+          if (selected) {
+            onAdd(selected);
+            setSelected(null);
+            setSearch('');
+          }
+        }}
+      >
+        {t('orders.add')}
+      </PickerAddButton>
+    </PickerAdd>
   );
 }

@@ -50,7 +50,7 @@ export function OrderSelect({
           placeholder={placeholder}
           size="lg"
           width="full"
-          clearLabel={t('data-table.clear-filters')}
+          clearLabel={t('orders.clear-selection')}
         >
           {compact && (
             <PickerAddIcon>
@@ -59,7 +59,7 @@ export function OrderSelect({
           )}
         </ComboboxInput>
         <ComboboxContent>
-          <ComboboxEmpty>{t('orders.create.empty')}</ComboboxEmpty>
+          <ComboboxEmpty>{t('orders.no-options')}</ComboboxEmpty>
           <ComboboxList>
             {(item: Option) => (
               <ComboboxItem key={item.id} value={item}>

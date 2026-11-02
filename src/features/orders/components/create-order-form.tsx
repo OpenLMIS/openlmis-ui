@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTable, dataTableFeatures } from '@/components/data-table/data-table';
-import { RowActions } from '@/components/display/card-actions';
+import { CardActions } from '@/components/display/card-actions';
 import { serverMessage as getErrorMessage } from '@/components/display/dialog-parts';
 import { TableCards } from '@/components/display/table-cards';
 import { PickerAdd, PickerAddButton, PickerAddField } from '@/components/pickers/picker-add';
@@ -113,24 +113,38 @@ export function CreateOrderForm({
       {
         id: 'actions',
         header: t('orders.edit.actions'),
-        cell: ({ row }) => (
-          <RowActions
-            label={t('orders.edit.actions')}
-            actions={[
-              {
-                id: 'remove',
-                icon: <Trash2Icon />,
-                label: t('orders.create.remove-facility', { facility: row.original.name }),
-                destructive: true,
-                disabled: mutation.isPending,
-                onSelect: () => {
-                  setIds((current) => current.filter((id) => id !== row.original.id));
-                  setSupplier('');
+        cell: ({ row }) => {
+          const label = t('orders.create.remove-facility', { facility: row.original.name });
+          const remove = () => {
+            setIds((current) => current.filter((id) => id !== row.original.id));
+            setSupplier('');
+          };
+          return cards ? (
+            <CardActions
+              label={t('orders.edit.actions')}
+              actions={[
+                {
+                  id: 'remove',
+                  icon: <Trash2Icon />,
+                  label,
+                  destructive: true,
+                  disabled: mutation.isPending,
+                  onSelect: remove,
                 },
-              },
-            ]}
-          />
-        ),
+              ]}
+            />
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={label}
+              disabled={mutation.isPending}
+              onClick={remove}
+            >
+              <Trash2Icon />
+            </Button>
+          );
+        },
       },
     ],
   });
@@ -160,31 +174,29 @@ export function CreateOrderForm({
           />
         </div>
       </FieldGroup>
-      <div className="flex flex-wrap items-end gap-2">
-        <PickerAdd>
-          <PickerAddField>
-            <OrderSelect
-              compact
-              label={t('orders.create.requesting-facility')}
-              placeholder={t('orders.create.select-requesting-facility')}
-              options={requesting.filter((f) => !ids.includes(f.id))}
-              value={picked}
-              disabled={mutation.isPending}
-              onChange={setPicked}
-            />
-          </PickerAddField>
-          <PickerAddButton
-            disabled={!picked || mutation.isPending}
-            onClick={() => {
-              setIds((current) => [...current, picked]);
-              setPicked('');
-              setSupplier('');
-            }}
-          >
-            {t('facilities.form.add')}
-          </PickerAddButton>
-        </PickerAdd>
-      </div>
+      <PickerAdd>
+        <PickerAddField>
+          <OrderSelect
+            compact
+            label={t('orders.create.requesting-facility')}
+            placeholder={t('orders.create.select-requesting-facility')}
+            options={requesting.filter((f) => !ids.includes(f.id))}
+            value={picked}
+            disabled={mutation.isPending}
+            onChange={setPicked}
+          />
+        </PickerAddField>
+        <PickerAddButton
+          disabled={!picked || mutation.isPending}
+          onClick={() => {
+            setIds((current) => [...current, picked]);
+            setPicked('');
+            setSupplier('');
+          }}
+        >
+          {t('orders.add')}
+        </PickerAddButton>
+      </PickerAdd>
       <Separator />
       <div ref={measure}>
         {cards ? (
