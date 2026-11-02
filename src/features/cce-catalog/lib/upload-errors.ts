@@ -1,17 +1,15 @@
 import { isAxiosError } from 'axios';
 import type { TFunction } from 'i18next';
+import { serverMessage, serverMessageKey } from '@/components/display/dialog-parts';
 
-export type CatalogUploadIssue =
-  | { kind: 'unknown-columns'; columns: string }
+type InvalidValueKind = 'energy-source' | 'storage-temperature' | 'dimensions' | 'integer';
+
+type CatalogUploadIssue =
+  | { kind: 'unknown-columns' | 'missing-columns'; columns: string }
   | { kind: 'byte-order-mark' }
-  | { kind: 'missing-columns'; columns: string }
   | { kind: 'missing-heading'; column: string }
-  | {
-      kind: 'energy-source' | 'storage-temperature' | 'dimensions' | 'integer';
-      line: number;
-      value: string;
-    }
-  | { kind: 'empty-cell'; line: number; columns: string }
+  | { kind: InvalidValueKind; line: number; value: string }
+  | { kind: 'empty-cell'; line: number }
   | { kind: 'row'; line: number; reason: string }
   | { kind: 'duplicate-in-file'; manufacturer: string; model: string };
 
@@ -19,21 +17,19 @@ export type CatalogUploadIssue =
 const REQUIRED_COLUMNS =
   'From PQS catalog, Type, Model, Manufacturer, Energy source, Storage temperature, Archived';
 
-const PARSED_AS = {
-  EnergySource: 'energy-source',
-  StorageTemperature: 'storage-temperature',
-  Dimensions: 'dimensions',
-  Integer: 'integer',
-} as const;
+const INVALID_VALUE_KINDS = new Map<string, InvalidValueKind>([
+  ['EnergySource', 'energy-source'],
+  ['StorageTemperature', 'storage-temperature'],
+  ['Dimensions', 'dimensions'],
+  ['Integer', 'integer'],
+]);
 
 /** Reads a refused catalog upload from the service's English message; undefined if unknown. */
 export function catalogUploadIssue(error: unknown): CatalogUploadIssue | undefined {
   if (!isAxiosError(error) || error.response?.status !== 400) return undefined;
-  const body: unknown = error.response.data;
-  if (!body || typeof body !== 'object') return undefined;
-  const key = 'messageKey' in body ? body.messageKey : undefined;
-  const message = 'message' in body ? body.message : undefined;
-  if (typeof key !== 'string' || typeof message !== 'string') return undefined;
+  const key = serverMessageKey(error);
+  const message = serverMessage(error);
+  if (!key || !message) return undefined;
 
   switch (key) {
     case 'cce.error.upload.header.invalid': {
@@ -56,10 +52,9 @@ export function catalogUploadIssue(error: unknown): CatalogUploadIssue | undefin
       if (!match) return undefined;
       // The server counts data rows from 1, so its row 1 is the second line of the file.
       const line = Number(match[1]) + 1;
-      if (match[2] === 'null value encountered')
-        return { kind: 'empty-cell', line, columns: REQUIRED_COLUMNS };
+      if (match[2] === 'null value encountered') return { kind: 'empty-cell', line };
       const parsed = /^'(.*)' could not be parsed as (?:an? )?(\w+)$/.exec(match[2]);
-      const kind = parsed && PARSED_AS[parsed[2] as keyof typeof PARSED_AS];
+      const kind = parsed && INVALID_VALUE_KINDS.get(parsed[2]);
       return kind ? { kind, line, value: parsed[1] } : { kind: 'row', line, reason: match[2] };
     }
     case 'cce.error.catalog.duplicateInFile': {
@@ -73,9 +68,9 @@ export function catalogUploadIssue(error: unknown): CatalogUploadIssue | undefin
   }
 }
 
-export function catalogUploadErrorText(
-  { kind, ...values }: CatalogUploadIssue,
-  t: TFunction,
-): string {
-  return t(`cce-catalog.error.${kind}`, values);
+export function describeCatalogUploadError(error: unknown, t: TFunction): string | undefined {
+  const issue = catalogUploadIssue(error);
+  if (!issue) return undefined;
+  const { kind, ...values } = issue;
+  return t(`cce-catalog.error.${kind}`, { columns: REQUIRED_COLUMNS, ...values });
 }

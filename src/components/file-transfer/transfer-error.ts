@@ -1,5 +1,5 @@
 import { isAxiosError } from 'axios';
-import { serverMessage } from '@/components/display/dialog-parts';
+import { serverMessage, serverMessageKey } from '@/components/display/dialog-parts';
 
 type TransferErrorText = {
   fallback: string;
@@ -17,13 +17,9 @@ export function transferErrorMessage(
   const status = error.response?.status;
   if (status === 413) return tooLarge;
   if (!status || status < 400 || status >= 500) return fallback;
-  const body: unknown = error.response?.data;
-  if (!body || typeof body !== 'object') return fallback;
-  const rawKey = 'messageKey' in body ? body.messageKey : undefined;
-  const key = typeof rawKey === 'string' ? rawKey.trim() : undefined;
+  const key = serverMessageKey(error)?.trim();
   const message = serverMessage(error)?.trim();
   if (key && message && message !== key) return message;
-  if ((key && emptyFileKeys.includes(key)) || (message && emptyFileKeys.includes(message)))
-    return emptyFile;
-  return fallback;
+  const code = key || message;
+  return code && emptyFileKeys.includes(code) ? emptyFile : fallback;
 }

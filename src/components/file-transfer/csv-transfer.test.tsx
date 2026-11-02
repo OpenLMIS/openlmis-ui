@@ -198,15 +198,16 @@ it.each([
 );
 
 it('shows an explained refusal with the server message kept below it', async () => {
-  const { user, input, submit, chooser } = await renderUpload((error) =>
-    error === refusal ? 'Line 2: "gasoline" is not an energy source.' : undefined,
+  const { user, input, submit, chooser } = await renderUpload(
+    () => 'Line 2: "gasoline" is not an energy source.',
   );
-  const refusal = httpError(400, {
-    messageKey: 'cce.error.upload.record.invalid',
-    message:
-      "Error found while parsing in row 1: 'gasoline' could not be parsed as an EnergySource.",
-  });
-  api.uploadCsv.mockRejectedValueOnce(refusal);
+  api.uploadCsv.mockRejectedValueOnce(
+    httpError(400, {
+      messageKey: 'cce.error.upload.record.invalid',
+      message:
+        "Error found while parsing in row 1: 'gasoline' could not be parsed as an EnergySource.",
+    }),
+  );
   await user.upload(input, new File(['header'], 'values.csv'));
   await user.click(submit);
   const alert = await screen.findByRole('alert');

@@ -2,9 +2,13 @@ import { createFileRoute } from '@tanstack/react-router';
 import { BookOpenIcon, FileSpreadsheetIcon } from 'lucide-react';
 import { type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { CsvTransfer, CsvTransferSkeleton } from '@/components/file-transfer/csv-transfer';
-import { TransferInstructionsDialog } from '@/components/file-transfer/transfer-instructions-dialog';
+import {
+  CLOSED_INSTRUCTIONS,
+  type InstructionsSearch,
+  instructionsSearchSchema,
+  TransferInstructionsDialog,
+} from '@/components/file-transfer/transfer-instructions-dialog';
 import type { CsvTransferCopy } from '@/components/file-transfer/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,12 +25,6 @@ import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { IDEAL_STOCK_AMOUNTS_API } from '@/features/ideal-stock-amounts/api/api';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-
-const instructionsSearchSchema = z.object({
-  instructions: z.literal(true).optional().catch(undefined),
-});
-type InstructionsSearch = z.infer<typeof instructionsSearchSchema>;
-const CLOSED_DIALOGS = { instructions: undefined };
 
 export const Route = createFileRoute('/(protected)/_protected/administration/ideal-stock-amounts')({
   validateSearch: instructionsSearchSchema,
@@ -65,7 +63,7 @@ function IdealStockAmountsPage() {
   const { t } = useTranslation();
   const copy = useIdealStockAmountsCopy();
   const instructions = Route.useSearch({ select: (search) => search.instructions });
-  const { openDialog, closeDialog } = useSearchNavigation<InstructionsSearch>(CLOSED_DIALOGS);
+  const { openDialog, closeDialog } = useSearchNavigation<InstructionsSearch>(CLOSED_INSTRUCTIONS);
   const instructionsButton = useRef<HTMLButtonElement>(null);
   return (
     <>

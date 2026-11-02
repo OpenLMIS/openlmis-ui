@@ -2,9 +2,13 @@ import { createFileRoute } from '@tanstack/react-router';
 import { BookOpenIcon, RefrigeratorIcon } from 'lucide-react';
 import { type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { CsvTransfer, CsvTransferSkeleton } from '@/components/file-transfer/csv-transfer';
-import { TransferInstructionsDialog } from '@/components/file-transfer/transfer-instructions-dialog';
+import {
+  CLOSED_INSTRUCTIONS,
+  type InstructionsSearch,
+  instructionsSearchSchema,
+  TransferInstructionsDialog,
+} from '@/components/file-transfer/transfer-instructions-dialog';
 import type { CsvTransferCopy } from '@/components/file-transfer/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,17 +24,8 @@ import {
 import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { CCE_CATALOG_API } from '@/features/cce-catalog/api/api';
-import {
-  catalogUploadErrorText,
-  catalogUploadIssue,
-} from '@/features/cce-catalog/lib/upload-errors';
+import { describeCatalogUploadError } from '@/features/cce-catalog/lib/upload-errors';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-
-const instructionsSearchSchema = z.object({
-  instructions: z.literal(true).optional().catch(undefined),
-});
-type InstructionsSearch = z.infer<typeof instructionsSearchSchema>;
-const CLOSED_DIALOGS = { instructions: undefined };
 
 export const Route = createFileRoute('/(protected)/_protected/administration/equipment-catalog')({
   validateSearch: instructionsSearchSchema,
@@ -68,7 +63,7 @@ function EquipmentCatalogPage() {
   const { t } = useTranslation();
   const copy = useCatalogCopy();
   const instructions = Route.useSearch({ select: (search) => search.instructions });
-  const { openDialog, closeDialog } = useSearchNavigation<InstructionsSearch>(CLOSED_DIALOGS);
+  const { openDialog, closeDialog } = useSearchNavigation<InstructionsSearch>(CLOSED_INSTRUCTIONS);
   const instructionsButton = useRef<HTMLButtonElement>(null);
   return (
     <>
@@ -88,10 +83,7 @@ function EquipmentCatalogPage() {
           <CsvTransfer
             api={CCE_CATALOG_API}
             copy={copy}
-            describeUploadError={(error) => {
-              const issue = catalogUploadIssue(error);
-              return issue && catalogUploadErrorText(issue, t);
-            }}
+            describeUploadError={(error) => describeCatalogUploadError(error, t)}
           />
         </WorkspaceContent>
       </Workspace>

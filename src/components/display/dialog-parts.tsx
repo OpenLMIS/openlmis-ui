@@ -25,6 +25,13 @@ export function serverMessage(error: unknown): string | undefined {
   return typeof message === 'string' && message ? message : undefined;
 }
 
+/** The key of the server's message, e.g. `cce.error.file.empty`, when it sent one. */
+export function serverMessageKey(error: unknown): string | undefined {
+  if (!isAxiosError(error)) return undefined;
+  const key = (error.response?.data as { messageKey?: unknown } | undefined)?.messageKey;
+  return typeof key === 'string' && key ? key : undefined;
+}
+
 type ErrorAlertProps = {
   title: string;
   description: ReactNode;

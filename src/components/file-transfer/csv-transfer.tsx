@@ -1,20 +1,16 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { DownloadIcon, Loader2Icon, PaperclipIcon, UploadIcon } from 'lucide-react';
-import { useId, useState } from 'react';
+import { type ReactNode, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorAlert } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
-import {
-  FileTransferExport,
-  FileTransferPanel,
-  FileTransferUpload,
-} from '@/components/file-transfer/file-transfer-panel';
 import { transferErrorMessage } from '@/components/file-transfer/transfer-error';
 import type { CsvTransferApi, CsvTransferCopy } from '@/components/file-transfer/types';
 import { useAppForm } from '@/components/form/form';
 import { FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -32,7 +28,6 @@ type CsvTransferProps = {
 export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps) {
   const { t, i18n } = useTranslation();
   const errorId = useId();
-  const [attempt, setAttempt] = useState(0);
   const errorMessage = (error: unknown, fallback: string) =>
     transferErrorMessage(error, {
       fallback,
@@ -76,97 +71,94 @@ export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps
 
   return (
     <>
-      <div className="flex flex-col gap-4">
-        <FileTransferPanel>
-          <FileTransferExport>
-            <ExportHeading label={copy.exportLabel} />
-            <div className="ms-auto">
-              <Button
-                disabled={exporting.isPending}
-                focusableWhenDisabled={exporting.isPending}
-                onClick={() => {
-                  if (!exporting.isPending) exporting.mutate();
-                }}
-                type="button"
-                variant="outline"
-              >
-                {exporting.isPending ? (
-                  <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                ) : (
-                  <DownloadIcon data-icon="inline-start" />
-                )}
-                {t('file-transfer.export')}
-              </Button>
-            </div>
-          </FileTransferExport>
-          <Separator />
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!selected || form.state.isSubmitting || upload.isPending) return;
-              upload.reset();
-              setAttempt((previous) => previous + 1);
-              void form.handleSubmit();
-            }}
-          >
-            <FileTransferUpload>
-              <div className="grid min-w-0 gap-5 @2xl/main:grid-cols-2">
-                <UploadHeading label={copy.uploadLabel} />
-                <div className="ms-auto w-full min-w-0 max-w-xs">
-                  <FieldGroup>
-                    <form.AppField listeners={{ onChange: () => upload.reset() }} name="file">
-                      {(field) => (
-                        <field.FileField
-                          accept=".csv"
-                          describedBy={upload.isError ? errorId : undefined}
-                          disabled={pending}
-                          emptyLabel={t('file-transfer.no-file')}
-                          fileSize={
-                            field.state.value
-                              ? formatFileSize(field.state.value.size, i18n.language)
-                              : undefined
-                          }
-                          label={t('file-transfer.file')}
-                          removeLabel={t('file-transfer.remove-file')}
-                          required
-                        />
-                      )}
-                    </form.AppField>
-                    {upload.isError && (
-                      <div id={errorId} key={attempt}>
-                        <ErrorAlert
-                          description={
-                            <UploadErrorText
-                              explained={describeUploadError?.(upload.error)}
-                              message={errorMessage(upload.error, copy.uploadError)}
-                            />
-                          }
-                          title={t('file-transfer.upload-error-title')}
-                        />
-                      </div>
+      <Card>
+        <ExportSection>
+          <TransferHeading hint={t('file-transfer.export-hint')} label={copy.exportLabel} />
+          <div className="ms-auto">
+            <Button
+              disabled={exporting.isPending}
+              focusableWhenDisabled={exporting.isPending}
+              onClick={() => {
+                if (!exporting.isPending) exporting.mutate();
+              }}
+              type="button"
+              variant="outline"
+            >
+              {exporting.isPending ? (
+                <Loader2Icon className="animate-spin" data-icon="inline-start" />
+              ) : (
+                <DownloadIcon data-icon="inline-start" />
+              )}
+              {t('file-transfer.export')}
+            </Button>
+          </div>
+        </ExportSection>
+        <Separator />
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!selected || form.state.isSubmitting || upload.isPending) return;
+            upload.reset();
+            void form.handleSubmit();
+          }}
+        >
+          <UploadSection>
+            <div className="grid min-w-0 gap-5 @2xl/main:grid-cols-2">
+              <TransferHeading hint={t('file-transfer.upload-hint')} label={copy.uploadLabel} />
+              <div className="ms-auto w-full min-w-0 max-w-xs">
+                <FieldGroup>
+                  <form.AppField listeners={{ onChange: () => upload.reset() }} name="file">
+                    {(field) => (
+                      <field.FileField
+                        accept=".csv"
+                        describedBy={upload.isError ? errorId : undefined}
+                        disabled={pending}
+                        emptyLabel={t('file-transfer.no-file')}
+                        fileSize={
+                          field.state.value
+                            ? formatFileSize(field.state.value.size, i18n.language)
+                            : undefined
+                        }
+                        label={t('file-transfer.file')}
+                        removeLabel={t('file-transfer.remove-file')}
+                        required
+                      />
                     )}
-                    <div className="flex justify-end">
-                      <Button
-                        disabled={!selected || pending}
-                        focusableWhenDisabled={pending || upload.isSuccess}
-                        type="submit"
-                      >
-                        {pending ? (
-                          <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                        ) : (
-                          <UploadIcon data-icon="inline-start" />
-                        )}
-                        {t('file-transfer.upload')}
-                      </Button>
+                  </form.AppField>
+                  {upload.isError && (
+                    <div id={errorId}>
+                      <ErrorAlert
+                        description={
+                          <UploadErrorText
+                            explanation={describeUploadError?.(upload.error)}
+                            message={errorMessage(upload.error, copy.uploadError)}
+                          />
+                        }
+                        title={t('file-transfer.upload-error-title')}
+                      />
                     </div>
-                  </FieldGroup>
-                </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button
+                      disabled={!selected || pending}
+                      focusableWhenDisabled={pending || upload.isSuccess}
+                      type="submit"
+                    >
+                      {pending ? (
+                        <Loader2Icon className="animate-spin" data-icon="inline-start" />
+                      ) : (
+                        <UploadIcon data-icon="inline-start" />
+                      )}
+                      {t('file-transfer.upload')}
+                    </Button>
+                  </div>
+                </FieldGroup>
               </div>
-            </FileTransferUpload>
-          </form>
-        </FileTransferPanel>
-      </div>
+            </div>
+          </UploadSection>
+        </form>
+      </Card>
       <DiscardChangesDialog
         description={t('file-transfer.discard-description')}
         {...guard.dialog}
@@ -182,54 +174,52 @@ export function CsvTransferSkeleton({
 }) {
   const { t } = useTranslation();
   return (
-    <div aria-busy className="flex flex-col gap-4">
-      <FileTransferPanel>
-        <FileTransferExport>
-          <ExportHeading label={copy.exportLabel} />
-          <div className="ms-auto">
-            <Button disabled variant="outline">
-              <DownloadIcon data-icon="inline-start" />
-              {t('file-transfer.export')}
-            </Button>
+    <Card aria-busy>
+      <ExportSection>
+        <TransferHeading hint={t('file-transfer.export-hint')} label={copy.exportLabel} />
+        <div className="ms-auto">
+          <Button disabled variant="outline">
+            <DownloadIcon data-icon="inline-start" />
+            {t('file-transfer.export')}
+          </Button>
+        </div>
+      </ExportSection>
+      <Separator />
+      <UploadSection>
+        <div className="grid min-w-0 gap-5 @2xl/main:grid-cols-2">
+          <TransferHeading hint={t('file-transfer.upload-hint')} label={copy.uploadLabel} />
+          <div className="ms-auto w-full min-w-0 max-w-xs">
+            <FieldGroup>
+              <Field spacing="tight">
+                <FieldLabel>
+                  <FieldLabelText label={t('file-transfer.file')} required />
+                </FieldLabel>
+                <Button align="start" disabled variant="outline" width="full">
+                  <PaperclipIcon data-icon="inline-start" />
+                  <span className="min-w-0 flex-1 truncate">{t('file-transfer.no-file')}</span>
+                </Button>
+              </Field>
+              <div className="flex justify-end">
+                <Button disabled>
+                  <UploadIcon data-icon="inline-start" />
+                  {t('file-transfer.upload')}
+                </Button>
+              </div>
+            </FieldGroup>
           </div>
-        </FileTransferExport>
-        <Separator />
-        <FileTransferUpload>
-          <div className="grid min-w-0 gap-5 @2xl/main:grid-cols-2">
-            <UploadHeading label={copy.uploadLabel} />
-            <div className="ms-auto w-full min-w-0 max-w-xs">
-              <FieldGroup>
-                <Field spacing="tight">
-                  <FieldLabel>
-                    <FieldLabelText label={t('file-transfer.file')} required />
-                  </FieldLabel>
-                  <Button align="start" disabled variant="outline" width="full">
-                    <PaperclipIcon data-icon="inline-start" />
-                    <span className="min-w-0 flex-1 truncate">{t('file-transfer.no-file')}</span>
-                  </Button>
-                </Field>
-                <div className="flex justify-end">
-                  <Button disabled>
-                    <UploadIcon data-icon="inline-start" />
-                    {t('file-transfer.upload')}
-                  </Button>
-                </div>
-              </FieldGroup>
-            </div>
-          </div>
-        </FileTransferUpload>
-      </FileTransferPanel>
-    </div>
+        </div>
+      </UploadSection>
+    </Card>
   );
 }
 
-function UploadErrorText({ explained, message }: { explained?: string; message: string }) {
+function UploadErrorText({ explanation, message }: { explanation?: string; message: string }) {
   const { t } = useTranslation();
   // The server's English text keeps its own direction on RTL pages.
-  if (!explained) return <span dir="auto">{message}</span>;
+  if (!explanation) return <span dir="auto">{message}</span>;
   return (
     <span className="flex flex-col gap-1">
-      <span>{explained}</span>
+      <span>{explanation}</span>
       <span className="text-muted-foreground text-xs">
         {t('file-transfer.server-detail', { message })}
       </span>
@@ -237,29 +227,38 @@ function UploadErrorText({ explained, message }: { explained?: string; message: 
   );
 }
 
-function ExportHeading({ label }: { label: string }) {
-  const { t } = useTranslation();
+function ExportSection({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <h2 className="font-medium">{label}</h2>
-      <p className="text-muted-foreground text-sm">{t('file-transfer.export-hint')}</p>
-    </div>
+    <CardContent>
+      <div className="flex flex-wrap items-center justify-between gap-3">{children}</div>
+    </CardContent>
   );
 }
 
-function UploadHeading({ label }: { label: string }) {
-  const { t } = useTranslation();
+function UploadSection({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
+    <CardContent>
+      <FieldGroup>{children}</FieldGroup>
+    </CardContent>
+  );
+}
+
+function TransferHeading({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
       <h2 className="font-medium">{label}</h2>
-      <p className="text-muted-foreground text-sm">{t('file-transfer.upload-hint')}</p>
+      <p className="text-muted-foreground text-sm">{hint}</p>
     </div>
   );
 }
 
 function formatFileSize(bytes: number, language: string) {
-  const divisor = bytes >= 1_000_000 ? 1_000_000 : bytes >= 1_000 ? 1_000 : 1;
-  const unit = divisor === 1_000_000 ? 'megabyte' : divisor === 1_000 ? 'kilobyte' : 'byte';
+  const [divisor, unit]: [number, 'megabyte' | 'kilobyte' | 'byte'] =
+    bytes >= 1_000_000
+      ? [1_000_000, 'megabyte']
+      : bytes >= 1_000
+        ? [1_000, 'kilobyte']
+        : [1, 'byte'];
   return new Intl.NumberFormat(language, {
     style: 'unit',
     unit,

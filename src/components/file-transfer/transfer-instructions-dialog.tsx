@@ -1,5 +1,6 @@
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import {
   Dialog,
   DialogContent,
@@ -8,6 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+export const instructionsSearchSchema = z.object({
+  instructions: z.literal(true).optional().catch(undefined),
+});
+export type InstructionsSearch = z.infer<typeof instructionsSearchSchema>;
+export const CLOSED_INSTRUCTIONS = { instructions: undefined };
 
 type TransferInstructionsDialogProps = {
   open: boolean;

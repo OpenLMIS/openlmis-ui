@@ -4,9 +4,10 @@ import { httpError, networkError } from '@/test-utils/http-error';
 
 const refused = (messageKey: string, message: string) => httpError(400, { messageKey, message });
 
+// Messages as the local cce 1.5.2 returned them, plus formats read from the service source.
 it.each([
   [
-    'real unknown heading',
+    'unknown heading',
     refused('cce.error.upload.header.invalid', 'Invalid Headers in upload file: [maker].'),
     { kind: 'unknown-columns', columns: 'maker' },
   ],
@@ -16,7 +17,7 @@ it.each([
     { kind: 'unknown-columns', columns: 'maker, size' },
   ],
   [
-    'real byte order mark',
+    'byte order mark',
     refused(
       'cce.error.upload.header.invalid',
       'Invalid Headers in upload file: [\uFEFFfrom pqs catalog].',
@@ -37,7 +38,7 @@ it.each([
     { kind: 'missing-heading', column: '3' },
   ],
   [
-    'real lowercase energy source',
+    'lowercase energy source',
     refused(
       'cce.error.upload.record.invalid',
       "Error found while parsing in row 1: 'gasoline' could not be parsed as an EnergySource.",
@@ -53,7 +54,7 @@ it.each([
     { kind: 'storage-temperature', line: 13, value: 'minus5' },
   ],
   [
-    'real malformed dimensions',
+    'malformed dimensions',
     refused(
       'cce.error.upload.record.invalid',
       "Error found while parsing in row 1: 'abc' could not be parsed as Dimensions.",
@@ -85,17 +86,12 @@ it.each([
     { kind: 'duplicate-in-file', manufacturer: 'B Medical', model: 'RCW 50 EG' },
   ],
   [
-    'real empty required cell',
+    'empty required cell',
     refused(
       'cce.error.upload.record.invalid',
       'Error found while parsing in row 5: null value encountered.',
     ),
-    {
-      kind: 'empty-cell',
-      line: 6,
-      columns:
-        'From PQS catalog, Type, Model, Manufacturer, Energy source, Storage temperature, Archived',
-    },
+    { kind: 'empty-cell', line: 6 },
   ],
 ])('explains a refused upload: %s', (_name, error, issue) => {
   expect(catalogUploadIssue(error)).toEqual(issue);
