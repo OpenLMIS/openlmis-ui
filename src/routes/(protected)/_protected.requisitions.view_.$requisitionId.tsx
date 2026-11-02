@@ -77,6 +77,7 @@ import { RequisitionComments } from '@/features/requisitions/components/requisit
 import { RequisitionError } from '@/features/requisitions/components/requisition-error';
 import { RequisitionFooter } from '@/features/requisitions/components/requisition-footer';
 import { RequisitionHeader } from '@/features/requisitions/components/requisition-header';
+import { RequisitionOutdatedAlert } from '@/features/requisitions/components/requisition-outdated-alert';
 import {
   type PendingEditing,
   RequisitionCommentsSkeleton,
@@ -853,20 +854,16 @@ function RequisitionBody({
             </p>
           )}
           {editor.device.outdated && (
-            <Alert variant="warning">
-              <AlertTitle>{t('requisitions.edit.outdated-title')}</AlertTitle>
-              <AlertDescription>{t('requisitions.edit.outdated-description')}</AlertDescription>
-              <AlertAction>
-                <RequisitionUpdate
-                  tone="warning"
-                  pending={pending}
-                  onUpdate={() => {
-                    setFailure(null);
-                    setAction('update');
-                  }}
-                />
-              </AlertAction>
-            </Alert>
+            <RequisitionOutdatedAlert>
+              <RequisitionUpdate
+                tone="warning"
+                pending={pending}
+                onUpdate={() => {
+                  setFailure(null);
+                  setAction('update');
+                }}
+              />
+            </RequisitionOutdatedAlert>
           )}
 
           <div className="flex flex-col gap-4">
