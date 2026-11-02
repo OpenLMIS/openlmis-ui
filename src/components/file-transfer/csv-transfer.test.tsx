@@ -6,20 +6,28 @@ import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { toast } from 'sonner';
 import { beforeAll, expect, it, vi } from 'vitest';
+import { CsvTransfer } from '@/components/file-transfer/csv-transfer';
+import type { CsvTransferApi, CsvTransferCopy } from '@/components/file-transfer/types';
 import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
-import {
-  exportIdealStockAmounts,
-  uploadIdealStockAmounts,
-} from '@/features/ideal-stock-amounts/api/api';
-import { IdealStockAmountsUpload } from '@/features/ideal-stock-amounts/components/ideal-stock-amounts-upload';
+import { downloadFile } from '@/lib/download-file';
 import { httpError, networkError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
-import en from '../../../../public/locales/en.json';
+import en from '../../../public/locales/en.json';
 
-vi.mock('@/features/ideal-stock-amounts/api/api', () => ({
-  exportIdealStockAmounts: vi.fn(),
-  uploadIdealStockAmounts: vi.fn(),
-}));
+vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
+
+const api = {
+  exportCsv: vi.fn<CsvTransferApi['exportCsv']>(),
+  uploadCsv: vi.fn<CsvTransferApi['uploadCsv']>(),
+  exportFilename: 'values.csv',
+  emptyFileKeys: ['referenceData.error.upload.file.empty'],
+} satisfies CsvTransferApi;
+
+const copy = {
+  exportLabel: 'Current Values',
+  uploadLabel: 'Upload Updated Values',
+  uploadError: 'The upload result could not be confirmed.',
+} satisfies CsvTransferCopy;
 
 beforeAll(async () => {
   await i18n
@@ -34,10 +42,10 @@ beforeAll(async () => {
     });
 });
 
-async function renderUpload() {
+async function renderUpload(describeUploadError?: (error: unknown) => string | undefined) {
   renderPage(
     <TranslatedFormMessages>
-      <IdealStockAmountsUpload />
+      <CsvTransfer api={api} copy={copy} describeUploadError={describeUploadError} />
     </TranslatedFormMessages>,
     { queryClient: new QueryClient({ defaultOptions: { mutations: { retry: false } } }) },
   );
@@ -61,7 +69,7 @@ it('validates chosen files, preserves a canceled selection and clears errors wit
   expect(await screen.findByText('Choose a .csv file.')).toBeVisible();
   expect(chooser()).toBeInvalid();
   expect(chooser()).toHaveAccessibleDescription(/Choose a \.csv file\./);
-  expect(uploadIdealStockAmounts).not.toHaveBeenCalled();
+  expect(api.uploadCsv).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Remove File' }));
   expect(chooser()).toHaveFocus();
   expect(chooser()).not.toBeInvalid();
@@ -71,7 +79,7 @@ it('validates chosen files, preserves a canceled selection and clears errors wit
   await user.upload(input, new File([], 'empty.csv'));
   await user.click(submit);
   expect(await screen.findByText('Selected file is empty')).toBeVisible();
-  expect(uploadIdealStockAmounts).not.toHaveBeenCalled();
+  expect(api.uploadCsv).not.toHaveBeenCalled();
   fireEvent.change(input, { target: { files: [] } });
   expect(chooser()).toHaveAccessibleName('CSV File empty.csv');
   await user.click(screen.getByRole('button', { name: 'Remove File' }));
@@ -85,16 +93,21 @@ it('retains a refused file through export failure, supports same-file retry and 
   const exportError = vi.spyOn(toast, 'error');
   const { user, input, submit, chooser } = await renderUpload();
   const file = new File(['header\nvalue'], 'Amounts.CSV');
-  vi.mocked(uploadIdealStockAmounts).mockRejectedValueOnce(
-    httpError(400, { messageKey: 'referenceData.invalid', message: 'Row 2: unknown facility.' }),
+  api.uploadCsv.mockRejectedValueOnce(
+    httpError(400, {
+      messageKey: 'cce.error.upload.header.invalid',
+      message: 'Invalid Headers in upload file: [maker].',
+    }),
   );
   await user.upload(input, file);
   await user.click(submit);
-  expect(await screen.findByRole('alert')).toHaveTextContent('Row 2: unknown facility.');
-  expect(chooser()).toHaveAccessibleDescription(/Row 2: unknown facility\./);
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Invalid Headers in upload file: [maker].',
+  );
+  expect(chooser()).toHaveAccessibleDescription(/Invalid Headers in upload file: \[maker\]\./);
   expect(chooser()).toHaveAccessibleName('CSV File Amounts.CSV');
   let rejectExport: (error: Error) => void = () => undefined;
-  vi.mocked(exportIdealStockAmounts).mockReturnValueOnce(
+  api.exportCsv.mockReturnValueOnce(
     new Promise((_resolve, reject) => {
       rejectExport = reject;
     }),
@@ -105,17 +118,21 @@ it('retains a refused file through export failure, supports same-file retry and 
   await waitFor(() => expect(exportButton).toHaveAttribute('aria-disabled', 'true'));
   expect(exportButton).toHaveFocus();
   await user.keyboard('{Enter}');
-  expect(exportIdealStockAmounts).toHaveBeenCalledOnce();
+  expect(api.exportCsv).toHaveBeenCalledOnce();
   await act(async () => rejectExport(networkError()));
   await waitFor(() => expect(exportError).toHaveBeenCalledWith('Export Failed', expect.anything()));
   expect(exportButton).toHaveFocus();
-  expect(screen.getByRole('alert')).toHaveTextContent('Row 2: unknown facility.');
+  expect(screen.getByRole('alert')).toHaveTextContent('Invalid Headers in upload file: [maker].');
   expect(chooser()).toHaveAccessibleName('CSV File Amounts.CSV');
+  const exported = new Blob(['header']);
+  api.exportCsv.mockResolvedValueOnce(exported);
+  await user.click(exportButton);
+  await waitFor(() => expect(downloadFile).toHaveBeenCalledWith(exported, 'values.csv'));
 
   await user.upload(input, file);
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   let complete: (value: { amount: number }) => void = () => undefined;
-  vi.mocked(uploadIdealStockAmounts).mockReturnValueOnce(
+  api.uploadCsv.mockReturnValueOnce(
     new Promise((resolve) => {
       complete = resolve;
     }),
@@ -128,7 +145,7 @@ it('retains a refused file through export failure, supports same-file retry and 
   expect(screen.getByRole('button', { name: 'Remove File' })).toBeDisabled();
   await user.keyboard('{Enter}');
   fireEvent.submit(submit.closest('form') as HTMLFormElement);
-  expect(uploadIdealStockAmounts).toHaveBeenCalledTimes(2);
+  expect(api.uploadCsv).toHaveBeenCalledTimes(2);
   await act(async () => complete({ amount: 7080 }));
   await waitFor(() => expect(chooser()).toHaveAccessibleName('CSV File No File Chosen'));
   expect(success).toHaveBeenLastCalledWith('Upload Complete', {
@@ -137,16 +154,16 @@ it('retains a refused file through export failure, supports same-file retry and 
   expect(submit).toHaveAttribute('aria-disabled', 'true');
   expect(submit).toHaveFocus();
   await user.keyboard('{Enter}');
-  expect(uploadIdealStockAmounts).toHaveBeenCalledTimes(2);
+  expect(api.uploadCsv).toHaveBeenCalledTimes(2);
 
-  vi.mocked(uploadIdealStockAmounts).mockResolvedValueOnce({ amount: 0 });
+  api.uploadCsv.mockResolvedValueOnce({ amount: 0 });
   await user.upload(input, file);
   await user.click(submit);
   await waitFor(() => expect(chooser()).toHaveAccessibleName('CSV File No File Chosen'));
   expect(success).toHaveBeenLastCalledWith('Upload Complete', {
     description: 'File uploaded successfully. Number of records processed: 0',
   });
-  expect(uploadIdealStockAmounts).toHaveBeenLastCalledWith(file, expect.anything());
+  expect(api.uploadCsv).toHaveBeenLastCalledWith(file, expect.anything());
 });
 
 it.each([
@@ -157,18 +174,18 @@ it.each([
     }),
     'Selected file is empty',
   ],
-  [httpError(413, '<html>too large</html>'), en['ideal-stock-amounts.file-too-large']],
+  [httpError(413, '<html>too large</html>'), en['file-transfer.file-too-large']],
   [
     httpError(500, { messageKey: 'referenceData.internal', message: 'Technical exception' }),
-    en['ideal-stock-amounts.upload-error'],
+    copy.uploadError,
   ],
-  [httpError(400, { message: 'Framework exception' }), en['ideal-stock-amounts.upload-error']],
-  [networkError(), en['ideal-stock-amounts.upload-error']],
+  [httpError(400, { message: 'Framework exception' }), copy.uploadError],
+  [networkError(), copy.uploadError],
 ])(
   'shows a safe upload error and clears it when removing the retained file (%#)',
   async (error, message) => {
     const { user, input, submit, chooser } = await renderUpload();
-    vi.mocked(uploadIdealStockAmounts).mockRejectedValueOnce(error);
+    api.uploadCsv.mockRejectedValueOnce(error);
     await user.upload(input, new File(['header'], 'values.csv'));
     await user.click(submit);
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
@@ -179,3 +196,24 @@ it.each([
     expect(submit).toBeDisabled();
   },
 );
+
+it('shows an explained refusal with the server message kept below it', async () => {
+  const { user, input, submit, chooser } = await renderUpload(
+    () => 'Line 2: "gasoline" is not an energy source.',
+  );
+  api.uploadCsv.mockRejectedValueOnce(
+    httpError(400, {
+      messageKey: 'cce.error.upload.record.invalid',
+      message:
+        "Error found while parsing in row 1: 'gasoline' could not be parsed as an EnergySource.",
+    }),
+  );
+  await user.upload(input, new File(['header'], 'values.csv'));
+  await user.click(submit);
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Line 2: "gasoline" is not an energy source.');
+  expect(alert).toHaveTextContent(
+    "Server message: Error found while parsing in row 1: 'gasoline' could not be parsed as an EnergySource.",
+  );
+  expect(chooser()).toHaveAccessibleDescription(/Line 2: "gasoline" is not an energy source\./);
+});

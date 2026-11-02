@@ -1,7 +1,7 @@
 import type { AxiosAdapter } from 'axios';
 import { afterEach, expect, it, vi } from 'vitest';
-import { uploadIdealStockAmounts } from '@/features/ideal-stock-amounts/api/api';
 import { client } from '@/integrations/axios';
+import { uploadCsv } from '@/lib/csv-upload';
 
 const originalAdapter = client.defaults.adapter;
 
@@ -30,12 +30,12 @@ it('sends original CSV bytes as a multipart file with only its extension normali
   const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 70, 97, 99, 105, 108, 105, 116, 121, 13, 10]);
   const file = new File([bytes], 'Current Amounts.CSV', { type: '' });
 
-  await expect(uploadIdealStockAmounts(file)).resolves.toEqual({ amount: 0 });
+  await expect(uploadCsv('/catalogItems', file)).resolves.toEqual({ amount: 0 });
 
   expect(adapter).toHaveBeenCalledOnce();
   const config = adapter.mock.calls[0][0];
   expect(config.method).toBe('post');
-  expect(config.url).toBe('/idealStockAmounts');
+  expect(config.url).toBe('/catalogItems');
   expect(config.params).toEqual({ format: 'csv' });
   expect(config.timeout).toBe(300_000);
   expect(client.defaults.timeout).toBe(60_000);
@@ -60,6 +60,6 @@ it.each([{}, '<html>proxy login</html>'])(
       config,
     });
 
-    await expect(uploadIdealStockAmounts(new File(['header'], 'values.csv'))).rejects.toThrow();
+    await expect(uploadCsv('/catalogItems', new File(['header'], 'values.csv'))).rejects.toThrow();
   },
 );
