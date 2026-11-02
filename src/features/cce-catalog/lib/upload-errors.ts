@@ -11,7 +11,7 @@ export type CatalogUploadIssue =
       line: number;
       value: string;
     }
-  | { kind: 'empty-cell'; line: number }
+  | { kind: 'empty-cell'; line: number; columns: string }
   | { kind: 'row'; line: number; reason: string }
   | { kind: 'duplicate-in-file'; manufacturer: string; model: string };
 
@@ -56,7 +56,8 @@ export function catalogUploadIssue(error: unknown): CatalogUploadIssue | undefin
       if (!match) return undefined;
       // The server counts data rows from 1, so its row 1 is the second line of the file.
       const line = Number(match[1]) + 1;
-      if (match[2] === 'null value encountered') return { kind: 'empty-cell', line };
+      if (match[2] === 'null value encountered')
+        return { kind: 'empty-cell', line, columns: REQUIRED_COLUMNS };
       const parsed = /^'(.*)' could not be parsed as (?:an? )?(\w+)$/.exec(match[2]);
       const kind = parsed && PARSED_AS[parsed[2] as keyof typeof PARSED_AS];
       return kind ? { kind, line, value: parsed[1] } : { kind: 'row', line, reason: match[2] };
@@ -72,30 +73,9 @@ export function catalogUploadIssue(error: unknown): CatalogUploadIssue | undefin
   }
 }
 
-/** The translated explanation of a refused catalog upload. */
-export function catalogUploadErrorText(issue: CatalogUploadIssue, t: TFunction): string {
-  switch (issue.kind) {
-    case 'unknown-columns':
-      return t('cce-catalog.error.unknown-columns', { columns: issue.columns });
-    case 'byte-order-mark':
-      return t('cce-catalog.error.byte-order-mark');
-    case 'missing-columns':
-      return t('cce-catalog.error.missing-columns', { columns: issue.columns });
-    case 'missing-heading':
-      return t('cce-catalog.error.missing-heading', { column: issue.column });
-    case 'energy-source':
-    case 'storage-temperature':
-    case 'dimensions':
-    case 'integer':
-      return t(`cce-catalog.error.${issue.kind}`, { line: issue.line, value: issue.value });
-    case 'empty-cell':
-      return t('cce-catalog.error.empty-cell', { line: issue.line, columns: REQUIRED_COLUMNS });
-    case 'row':
-      return t('cce-catalog.error.row', { line: issue.line, reason: issue.reason });
-    case 'duplicate-in-file':
-      return t('cce-catalog.error.duplicate-in-file', {
-        manufacturer: issue.manufacturer,
-        model: issue.model,
-      });
-  }
+export function catalogUploadErrorText(
+  { kind, ...values }: CatalogUploadIssue,
+  t: TFunction,
+): string {
+  return t(`cce-catalog.error.${kind}`, values);
 }

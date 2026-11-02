@@ -3,12 +3,9 @@ import { BookOpenIcon, FileSpreadsheetIcon } from 'lucide-react';
 import { type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import {
-  CsvTransfer,
-  type CsvTransferCopy,
-  CsvTransferSkeleton,
-} from '@/components/file-transfer/csv-transfer';
+import { CsvTransfer, CsvTransferSkeleton } from '@/components/file-transfer/csv-transfer';
 import { TransferInstructionsDialog } from '@/components/file-transfer/transfer-instructions-dialog';
+import type { CsvTransferCopy } from '@/components/file-transfer/types';
 import { Button } from '@/components/ui/button';
 import {
   Workspace,
@@ -96,7 +93,6 @@ function IdealStockAmountsPage() {
         steps={{
           export: t('ideal-stock-amounts.instructions-export'),
           edit: t('ideal-stock-amounts.instructions-edit'),
-          upload: t('file-transfer.instructions-upload'),
         }}
       />
     </>

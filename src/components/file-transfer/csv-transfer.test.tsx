@@ -6,11 +6,8 @@ import ICU from 'i18next-icu';
 import { initReactI18next } from 'react-i18next';
 import { toast } from 'sonner';
 import { beforeAll, expect, it, vi } from 'vitest';
-import {
-  CsvTransfer,
-  type CsvTransferApi,
-  type CsvTransferCopy,
-} from '@/components/file-transfer/csv-transfer';
+import { CsvTransfer } from '@/components/file-transfer/csv-transfer';
+import type { CsvTransferApi, CsvTransferCopy } from '@/components/file-transfer/types';
 import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 import { downloadFile } from '@/lib/download-file';
 import { httpError, networkError } from '@/test-utils/http-error';

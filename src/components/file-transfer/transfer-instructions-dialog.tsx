@@ -12,10 +12,9 @@ import {
 type TransferInstructionsDialogProps = {
   open: boolean;
   onClose: () => void;
-  /** The button that opened the dialog, focused again on close. */
+  /** Focused again on close. */
   finalFocus: RefObject<HTMLButtonElement | null>;
-  /** Translated bodies of the Export, Edit and Upload steps. */
-  steps: { export: string; edit: string; upload: string };
+  steps: { export: string; edit: string };
   note: string;
 };
 
@@ -30,7 +29,10 @@ export function TransferInstructionsDialog({
   const items = [
     { title: t('file-transfer.instructions-export-title'), body: steps.export },
     { title: t('file-transfer.instructions-edit-title'), body: steps.edit },
-    { title: t('file-transfer.instructions-upload-title'), body: steps.upload },
+    {
+      title: t('file-transfer.instructions-upload-title'),
+      body: t('file-transfer.instructions-upload'),
+    },
   ];
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>

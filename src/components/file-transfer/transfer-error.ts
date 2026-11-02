@@ -5,7 +5,6 @@ type TransferErrorText = {
   fallback: string;
   emptyFile: string;
   tooLarge: string;
-  /** Server message keys that mean the uploaded file was empty. */
   emptyFileKeys?: readonly string[];
 };
 

@@ -90,7 +90,12 @@ it.each([
       'cce.error.upload.record.invalid',
       'Error found while parsing in row 5: null value encountered.',
     ),
-    { kind: 'empty-cell', line: 6 },
+    {
+      kind: 'empty-cell',
+      line: 6,
+      columns:
+        'From PQS catalog, Type, Model, Manufacturer, Energy source, Storage temperature, Archived',
+    },
   ],
 ])('explains a refused upload: %s', (_name, error, issue) => {
   expect(catalogUploadIssue(error)).toEqual(issue);

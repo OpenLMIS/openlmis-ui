@@ -11,6 +11,7 @@ import {
   FileTransferUpload,
 } from '@/components/file-transfer/file-transfer-panel';
 import { transferErrorMessage } from '@/components/file-transfer/transfer-error';
+import type { CsvTransferApi, CsvTransferCopy } from '@/components/file-transfer/types';
 import { useAppForm } from '@/components/form/form';
 import { FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
@@ -18,29 +19,13 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { csvFileSchema, type UploadResult } from '@/lib/csv-upload';
+import { csvFileSchema } from '@/lib/csv-upload';
 import { downloadFile } from '@/lib/download-file';
-
-export type CsvTransferApi = {
-  exportCsv: () => Promise<Blob>;
-  uploadCsv: (file: File) => Promise<UploadResult>;
-  /** The name the browser saves the export under. */
-  exportFilename: string;
-  /** Server message keys that mean the uploaded file was empty. */
-  emptyFileKeys?: readonly string[];
-};
-
-export type CsvTransferCopy = {
-  exportLabel: string;
-  uploadLabel: string;
-  /** Shown when the upload outcome is unknown. */
-  uploadError: string;
-};
 
 type CsvTransferProps = {
   api: CsvTransferApi;
   copy: CsvTransferCopy;
-  /** A translated explanation of a refused upload, shown above the server's own message. */
+  /** Translated explanation shown above the server's message. */
   describeUploadError?: (error: unknown) => string | undefined;
 };
 
@@ -240,7 +225,7 @@ export function CsvTransferSkeleton({
 
 function UploadErrorText({ explained, message }: { explained?: string; message: string }) {
   const { t } = useTranslation();
-  // Server messages are English, so they keep their own direction in RTL pages.
+  // The server's English text keeps its own direction on RTL pages.
   if (!explained) return <span dir="auto">{message}</span>;
   return (
     <span className="flex flex-col gap-1">

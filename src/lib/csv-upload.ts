@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { client } from '@/integrations/axios';
 import { fetchReport } from '@/lib/fetch-report';
 
-export const uploadResultSchema = z.object({
+const uploadResultSchema = z.object({
   amount: z.number().int().nonnegative(),
 });
 
@@ -16,7 +16,6 @@ export const csvFileSchema = z.object({
     .refine((file) => !file || file.size > 0, 'file-transfer.file-empty'),
 });
 
-/** Downloads a resource's CSV export with the bearer header. */
 export function exportCsv(path: string): Promise<Blob> {
   return fetchReport(path, { format: 'csv' });
 }
