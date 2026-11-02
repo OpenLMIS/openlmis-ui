@@ -66,7 +66,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         titleKey: 'nav.cce',
         icon: RefrigeratorIcon,
-        items: [{ titleKey: 'nav.cce.inventory', to: '#' }],
+        items: [{ titleKey: 'nav.cce.inventory', to: '/cce/inventory' }],
       },
       {
         titleKey: 'nav.orders',

@@ -40,6 +40,7 @@ import { Route as protectedProtectedAdministrationSupplyPartnersRouteImport } fr
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
 import { Route as protectedProtectedAdministrationValidDestinationsRouteImport } from './routes/(protected)/_protected.administration.valid-destinations'
 import { Route as protectedProtectedAdministrationValidSourcesRouteImport } from './routes/(protected)/_protected.administration.valid-sources'
+import { Route as protectedProtectedCceInventoryRouteImport } from './routes/(protected)/_protected.cce.inventory'
 import { Route as protectedProtectedProfileIndexRouteImport } from './routes/(protected)/_protected.profile.index'
 import { Route as protectedProtectedProfileNotificationsRouteImport } from './routes/(protected)/_protected.profile.notifications'
 import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(protected)/_protected.profile.roles'
@@ -264,6 +265,12 @@ const protectedProtectedAdministrationValidSourcesRoute =
   protectedProtectedAdministrationValidSourcesRouteImport.update({
     id: '/administration/valid-sources',
     path: '/administration/valid-sources',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedCceInventoryRoute =
+  protectedProtectedCceInventoryRouteImport.update({
+    id: '/cce/inventory',
+    path: '/cce/inventory',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedProfileIndexRoute =
@@ -580,6 +587,7 @@ export interface FileRoutesByFullPath {
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
+  '/cce/inventory': typeof protectedProtectedCceInventoryRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/requisitions/approve': typeof protectedProtectedRequisitionsApproveRoute
@@ -656,6 +664,7 @@ export interface FileRoutesByTo {
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
+  '/cce/inventory': typeof protectedProtectedCceInventoryRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/requisitions/approve': typeof protectedProtectedRequisitionsApproveRoute
@@ -735,6 +744,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/(protected)/_protected/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/(protected)/_protected/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
+  '/(protected)/_protected/cce/inventory': typeof protectedProtectedCceInventoryRoute
   '/(protected)/_protected/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/(protected)/_protected/requisitions/approve': typeof protectedProtectedRequisitionsApproveRoute
@@ -815,6 +825,7 @@ export interface FileRouteTypes {
     | '/administration/users'
     | '/administration/valid-destinations'
     | '/administration/valid-sources'
+    | '/cce/inventory'
     | '/profile/notifications'
     | '/profile/roles'
     | '/requisitions/approve'
@@ -891,6 +902,7 @@ export interface FileRouteTypes {
     | '/administration/users'
     | '/administration/valid-destinations'
     | '/administration/valid-sources'
+    | '/cce/inventory'
     | '/profile/notifications'
     | '/profile/roles'
     | '/requisitions/approve'
@@ -969,6 +981,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/users'
     | '/(protected)/_protected/administration/valid-destinations'
     | '/(protected)/_protected/administration/valid-sources'
+    | '/(protected)/_protected/cce/inventory'
     | '/(protected)/_protected/profile/notifications'
     | '/(protected)/_protected/profile/roles'
     | '/(protected)/_protected/requisitions/approve'
@@ -1242,6 +1255,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/valid-sources'
       fullPath: '/administration/valid-sources'
       preLoaderRoute: typeof protectedProtectedAdministrationValidSourcesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/cce/inventory': {
+      id: '/(protected)/_protected/cce/inventory'
+      path: '/cce/inventory'
+      fullPath: '/cce/inventory'
+      preLoaderRoute: typeof protectedProtectedCceInventoryRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/profile/': {
@@ -1661,6 +1681,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
+  protectedProtectedCceInventoryRoute: typeof protectedProtectedCceInventoryRoute
   protectedProtectedRequisitionsApproveRoute: typeof protectedProtectedRequisitionsApproveRoute
   protectedProtectedRequisitionsConvertRoute: typeof protectedProtectedRequisitionsConvertRoute
   protectedProtectedRequisitionsInitiateRoute: typeof protectedProtectedRequisitionsInitiateRoute
@@ -1747,6 +1768,7 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidDestinationsRoute,
   protectedProtectedAdministrationValidSourcesRoute:
     protectedProtectedAdministrationValidSourcesRoute,
+  protectedProtectedCceInventoryRoute: protectedProtectedCceInventoryRoute,
   protectedProtectedRequisitionsApproveRoute:
     protectedProtectedRequisitionsApproveRoute,
   protectedProtectedRequisitionsConvertRoute:

@@ -1,15 +1,32 @@
-import { CircleCheckIcon, CircleXIcon, TriangleAlertIcon, WrenchIcon } from 'lucide-react';
+import type { ParseKeys } from 'i18next';
+import {
+  CircleCheckIcon,
+  CircleXIcon,
+  type LucideIcon,
+  TriangleAlertIcon,
+  WrenchIcon,
+} from 'lucide-react';
 
-export const EQUIPMENT_STATUSES = [
+export type EquipmentStatus =
+  | 'FUNCTIONING'
+  | 'NEEDS_ATTENTION'
+  | 'AWAITING_REPAIR'
+  | 'UNSERVICEABLE';
+
+export const EQUIPMENT_STATUSES: readonly [EquipmentStatus, ...EquipmentStatus[]] = [
   'FUNCTIONING',
   'NEEDS_ATTENTION',
   'AWAITING_REPAIR',
   'UNSERVICEABLE',
-] as const;
-export type EquipmentStatus = (typeof EQUIPMENT_STATUSES)[number];
+];
 
-/** Status colours carry good-to-critical meaning, so each also has its own icon and label. */
-export const EQUIPMENT_STATUS = {
+type EquipmentStatusStyle = {
+  labelKey: ParseKeys;
+  tone: 'success' | 'warning' | 'destructive';
+  icon: LucideIcon;
+};
+
+export const EQUIPMENT_STATUS: Record<EquipmentStatus, EquipmentStatusStyle> = {
   FUNCTIONING: {
     labelKey: 'cce-equipment.status.functioning',
     tone: 'success',
@@ -30,4 +47,23 @@ export const EQUIPMENT_STATUS = {
     tone: 'destructive',
     icon: CircleXIcon,
   },
-} as const;
+};
+
+export type EquipmentReason =
+  | 'NEEDS_SPARE_PARTS'
+  | 'NO_FINANCE'
+  | 'NO_FUEL'
+  | 'SURPLUS'
+  | 'DEAD'
+  | 'NOT_IN_USE'
+  | 'DECOMMISSIONED';
+
+export const EQUIPMENT_REASON_KEYS: Record<EquipmentReason, ParseKeys> = {
+  NEEDS_SPARE_PARTS: 'cce-equipment.reason.needs-spare-parts',
+  NO_FINANCE: 'cce-equipment.reason.no-finance',
+  NO_FUEL: 'cce-equipment.reason.no-fuel',
+  SURPLUS: 'cce-equipment.reason.surplus',
+  DEAD: 'cce-equipment.reason.dead',
+  NOT_IN_USE: 'cce-equipment.reason.not-in-use',
+  DECOMMISSIONED: 'cce-equipment.reason.decommissioned',
+};

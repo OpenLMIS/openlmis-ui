@@ -1,0 +1,72 @@
+import { z } from 'zod';
+import type { InventoryQuery } from '@/features/cce-inventory/lib/types';
+import { EQUIPMENT_STATUSES } from '@/lib/cce-equipment-status';
+import { facilityProgramSearchSchema } from '@/lib/facility-program-selection';
+import { tableSearchSchema, toPaginationState, toSortParam } from '@/lib/table-search';
+
+export type InventorySortField =
+  | 'referenceName'
+  | 'equipmentTrackingId'
+  | 'type'
+  | 'functionalStatus'
+  | 'modifiedDate'
+  | 'yearOfInstallation';
+
+export const INVENTORY_SORT_FIELDS: readonly [InventorySortField, ...InventorySortField[]] = [
+  'referenceName',
+  'equipmentTrackingId',
+  'type',
+  'functionalStatus',
+  'modifiedDate',
+  'yearOfInstallation',
+];
+
+export const INVENTORY_SORT = { id: 'referenceName', desc: false };
+
+export const INVENTORY_PAGE_SIZE = 10;
+
+export const inventorySearchSchema = tableSearchSchema(INVENTORY_SORT_FIELDS).extend({
+  ...facilityProgramSearchSchema.shape,
+  functionalStatus: z.enum(EQUIPMENT_STATUSES).optional().catch(undefined),
+});
+
+export type InventorySearch = z.infer<typeof inventorySearchSchema>;
+
+export const CLEARED_INVENTORY_FILTERS = {
+  functionalStatus: undefined,
+  page: undefined,
+} satisfies Partial<InventorySearch>;
+
+export const hasInventoryFilters = (search: Pick<InventorySearch, 'functionalStatus'>) =>
+  Boolean(search.functionalStatus);
+
+export function toInventoryQuery(
+  search: InventorySearch,
+  { facilityId, programId }: { facilityId: string; programId: string },
+): InventoryQuery {
+  const { pageIndex, pageSize } = toPaginationState(search, INVENTORY_PAGE_SIZE);
+  return {
+    facilityId,
+    programId,
+    page: pageIndex,
+    size: pageSize,
+    ...((search.sort || search.dir) && { sort: toSortParam(search, INVENTORY_SORT) }),
+    ...(search.functionalStatus && { functionalStatus: search.functionalStatus }),
+  };
+}
+
+export function legacyInventoryHash(
+  path: string,
+  search: InventorySearch,
+  { facilityId, programId, mode }: { facilityId: string; programId: string; mode: string },
+) {
+  const { pageIndex, pageSize } = toPaginationState(search, INVENTORY_PAGE_SIZE);
+  const params = new URLSearchParams({
+    page: String(pageIndex),
+    size: String(pageSize),
+    facility: facilityId,
+    program: programId,
+    supervised: String(mode === 'supervised'),
+  });
+  return `#!/cce/inventory/${path}?${params}`;
+}
