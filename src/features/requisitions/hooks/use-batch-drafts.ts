@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { batchText } from '@/features/requisitions/lib/batch';
+import {
+  readBatchSessionMarker,
+  writeBatchSessionMarker,
+} from '@/features/requisitions/lib/batch-session-markers';
 import type {
   BatchLine,
   BatchQuantities,
   BatchRequisition,
 } from '@/features/requisitions/lib/batch-types';
+import i18n from '@/integrations/i18n';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { saveRevisionedDraft } from '@/lib/draft-store';
 import { createDraftWriter, type DraftSaveState } from '@/lib/draft-writer';
@@ -58,8 +63,8 @@ function createBatchDrafts(
   scope: number,
   memory?: { scope: number; entries: BatchMemory },
 ) {
-  const userId = isSecureOrigin ? getSessionUserId() : null;
-  const db = userId ? getLocalDb() : undefined;
+  const userId = getSessionUserId();
+  const db = isSecureOrigin && userId ? getLocalDb() : undefined;
   const table = db?.table<BatchLocalDraft, string>(LOCAL_TABLES.requisitionBatchDrafts);
   const entries = new Map(
     records.map((base) => [
@@ -75,13 +80,18 @@ function createBatchDrafts(
           !db && memory?.scope === scope
             ? memory.entries.get(base.id)?.unresolved
             : (undefined as BatchLocalDraft['unresolvedApproval']),
-        outdated: false,
+        outdated:
+          !db &&
+          memory?.scope === scope &&
+          (memory.entries.get(base.id)?.outdated ||
+            (!!Object.keys(memory.entries.get(base.id)?.changes ?? {}).length &&
+              memory.entries.get(base.id)?.base.modifiedDate !== base.modifiedDate)),
       },
     ]),
   );
   let active = false;
-  let ready = !db;
-  let status: DraftSaveState = { status: db ? 'loading' : 'saved' };
+  let ready = false;
+  let status: DraftSaveState = { status: 'loading' };
   const listeners = new Map<string, Set<() => void>>();
   const versions = new Map<string, number>();
   const emit = (key: string) => {
@@ -108,6 +118,20 @@ function createBatchDrafts(
     const entry = entries.get(id);
     if (!entry) return;
     if (!db) {
+      const marker = userId ? readBatchSessionMarker(userId, id) : undefined;
+      entry.unresolved = marker ? { attemptedAt: marker.attemptedAt } : undefined;
+      entry.expected = marker
+        ? {
+            draftId: id,
+            userId: marker.userId,
+            formatVersion: 1,
+            revision: 0,
+            baselineModifiedDate: marker.baselineModifiedDate,
+            baselineStatus: marker.baselineStatus,
+            approvedQuantities: {},
+            unresolvedApproval: entry.unresolved,
+          }
+        : undefined;
       notifyRecord(id);
       return;
     }
@@ -232,7 +256,8 @@ function createBatchDrafts(
       assertSessionScope(scope);
       const outcomes = await Promise.all([...writers.values()].map((w) => w.flush()));
       assertSessionScope(scope);
-      if (outcomes.some((ok) => !ok)) throw status.error;
+      if (outcomes.some((ok) => !ok))
+        throw status.error ?? new Error(i18n.t('requisitions.batch.save-failed'));
       publish({ status: 'saved' });
     },
     async clear(
@@ -265,6 +290,7 @@ function createBatchDrafts(
           }
           assertSessionScope(scope);
         }
+        if (!db && userId && !preserveUnresolved) writeBatchSessionMarker(userId, id);
         entry.changes = {};
         if (!preserveUnresolved) entry.unresolved = undefined;
         entry.base = fresh.find((r) => r.id === id) ?? entry.base;
@@ -278,7 +304,25 @@ function createBatchDrafts(
       for (const id of ids) {
         const entry = entries.get(id);
         if (!entry) continue;
-        entry.unresolved = unresolved ? { attemptedAt: new Date().toISOString() } : undefined;
+        const marker = unresolved ? { attemptedAt: new Date().toISOString() } : undefined;
+        if (!db) {
+          if (!userId) throw new Error(i18n.t('requisitions.batch.save-failed'));
+          entry.expected = undefined;
+          writeBatchSessionMarker(
+            userId,
+            id,
+            marker
+              ? {
+                  userId,
+                  requisitionId: id,
+                  attemptedAt: marker.attemptedAt,
+                  baselineModifiedDate: entry.base.modifiedDate,
+                  baselineStatus: entry.base.status,
+                }
+              : undefined,
+          );
+        }
+        entry.unresolved = marker;
         enqueue(id);
         notifyRecord(id);
       }

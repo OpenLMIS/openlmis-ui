@@ -15,6 +15,7 @@ vi.mock('@/lib/secure-context', () => ({
 }));
 beforeEach(() => {
   security.secure = true;
+  sessionStorage.clear();
 });
 const records = fp.requisitionDtos;
 const r = records[0];
@@ -96,7 +97,7 @@ it('notifies only the changed cell, product and totals in a 10 by 200 batch', as
   });
 });
 
-it('keeps HTTP edits and unresolved approvals in memory across refreshes without writing Dexie', async () => {
+it('keeps HTTP edits and unresolved approvals across refreshes without writing Dexie', async () => {
   security.secure = false;
   const hook = renderHook(({ data }) => useBatchDrafts(data), { initialProps: { data: records } });
   await waitFor(() => expect(hook.result.current.getStatus().status).toBe('saved'));
@@ -108,6 +109,16 @@ it('keeps HTTP edits and unresolved approvals in memory across refreshes without
   expect(hook.result.current.text(r.id, line)).toBe('42');
   expect(hook.result.current.unresolved(r.id)).toBe(true);
   expect(await getLocalDb().table('requisitionBatchDrafts').count()).toBe(0);
+  await act(() => hook.result.current.mark([r.id], false));
+  const refreshed = records.map((record) => ({ ...record, modifiedDate: 'new baseline' }));
+  hook.rerender({ data: refreshed });
+  await waitFor(() => expect(hook.result.current.ready()).toBe(true));
+  expect(hook.result.current.outdated(r.id)).toBe(true);
+  hook.rerender({ data: [...refreshed] });
+  await waitFor(() => expect(hook.result.current.ready()).toBe(true));
+  expect(hook.result.current.outdated(r.id)).toBe(true);
+  act(() => hook.result.current.set(r.id, line.id, '99'));
+  expect(hook.result.current.text(r.id, line)).toBe('42');
 });
 
 it('keeps fields locked after a draft read failure and loads the copy on Retry', async () => {
@@ -124,4 +135,63 @@ it('keeps fields locked after a draft read failure and loads the copy on Retry',
   await waitFor(() => expect(hook.result.current.ready()).toBe(true));
   expect(hook.result.current.getStatus().status).toBe('saved');
   read.mockRestore();
+});
+
+it('increments revisions and removes the row when the original quantity is restored', async () => {
+  const hook = renderHook(() => useBatchDrafts(records));
+  await waitFor(() => expect(hook.result.current.ready()).toBe(true));
+  act(() => hook.result.current.set(r.id, line.id, '12'));
+  await act(() => hook.result.current.flush());
+  act(() => hook.result.current.set(r.id, line.id, '24'));
+  await act(() => hook.result.current.flush());
+  expect(await getLocalDb().table('requisitionBatchDrafts').get(r.id)).toMatchObject({
+    revision: 2,
+  });
+  act(() => hook.result.current.set(r.id, line.id, String(line.approvedQuantity ?? 0)));
+  await act(() => hook.result.current.flush());
+  expect(await getLocalDb().table('requisitionBatchDrafts').get(r.id)).toBeUndefined();
+});
+it('ignores edits to unresolved and outdated records', async () => {
+  const hook = renderHook(() => useBatchDrafts(records));
+  await waitFor(() => expect(hook.result.current.ready()).toBe(true));
+  await act(() => hook.result.current.mark([r.id], true));
+  act(() => hook.result.current.set(r.id, line.id, '91'));
+  expect(hook.result.current.text(r.id, line)).toBe('0');
+  await act(() => hook.result.current.mark([r.id], false));
+  act(() => hook.result.current.set(r.id, line.id, '42'));
+  await act(() => hook.result.current.flush());
+  hook.unmount();
+  const stale = renderHook(() => useBatchDrafts([{ ...r, modifiedDate: 'changed' }]));
+  await waitFor(() => expect(stale.result.current.outdated(r.id)).toBe(true));
+  act(() => stale.result.current.set(r.id, line.id, '99'));
+  expect(stale.result.current.text(r.id, line)).toBe('42');
+});
+it('reloads HTTP approval markers without persisting quantities and clears them on resolution', async () => {
+  security.secure = false;
+  const hook = renderHook(() => useBatchDrafts(records));
+  await waitFor(() => expect(hook.result.current.ready()).toBe(true));
+  act(() => hook.result.current.set(r.id, line.id, '42'));
+  await act(() => hook.result.current.mark([r.id], true));
+  hook.unmount();
+  const reload = renderHook(() => useBatchDrafts(records));
+  await waitFor(() => expect(reload.result.current.unresolved(r.id)).toBe(true));
+  expect(reload.result.current.text(r.id, line)).toBe('0');
+  await act(() => reload.result.current.mark([r.id], false));
+  reload.unmount();
+  const resolved = renderHook(() => useBatchDrafts(records));
+  await waitFor(() => expect(resolved.result.current.ready()).toBe(true));
+  expect(resolved.result.current.unresolved(r.id)).toBe(false);
+});
+
+it('throws a generic error when a failed writer has no error value', async () => {
+  const writer = await import('@/lib/draft-writer');
+  const create = writer.createDraftWriter;
+  const spy = vi.spyOn(writer, 'createDraftWriter').mockImplementation((...args) => ({
+    ...create(...args),
+    flush: async () => false,
+  }));
+  const hook = renderHook(() => useBatchDrafts(records));
+  await waitFor(() => expect(hook.result.current.ready()).toBe(true));
+  await expect(hook.result.current.flush()).rejects.toBeInstanceOf(Error);
+  spy.mockRestore();
 });

@@ -1,15 +1,42 @@
 import type { BatchLocalDraft } from '@/features/requisitions/hooks/use-batch-drafts';
 import { batchLabel, orderBatch } from '@/features/requisitions/lib/batch';
+import {
+  readBatchSessionMarker,
+  writeBatchSessionMarker,
+} from '@/features/requisitions/lib/batch-session-markers';
 import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { saveRevisionedDraft } from '@/lib/draft-store';
 import { readOwnedRecord } from '@/lib/local-records';
 import { isSecureOrigin } from '@/lib/secure-context';
-import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { assertSessionScope, getSessionScope, getSessionUserId } from '@/lib/session-scope';
 
 export async function recoverBatchApprovals(ids: readonly string[], response: BatchResponse) {
   const removed = new Map<string, string>();
-  if (!isSecureOrigin) return { response: orderBatch(response, ids), removed };
+  if (!isSecureOrigin) {
+    const userId = getSessionUserId();
+    if (userId)
+      for (const id of ids) {
+        const marker = readBatchSessionMarker(userId, id);
+        if (!marker) continue;
+        const record = response.requisitionDtos?.find((r) => r.id === id);
+        if (
+          record &&
+          record.status === marker.baselineStatus &&
+          record.modifiedDate === marker.baselineModifiedDate
+        )
+          continue;
+        writeBatchSessionMarker(userId, id);
+        removed.set(id, record ? batchLabel(record) : id);
+      }
+    return {
+      response: orderBatch(
+        response,
+        ids.filter((id) => !removed.has(id)),
+      ),
+      removed,
+    };
+  }
   const scope = getSessionScope();
   const db = getLocalDb();
   const table = db.table<BatchLocalDraft, string>(LOCAL_TABLES.requisitionBatchDrafts);
