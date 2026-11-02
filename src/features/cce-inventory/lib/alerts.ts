@@ -1,13 +1,13 @@
 import type { InventoryAlert } from '@/features/cce-inventory/lib/types';
 
-export type DeviceAlerts = { active: InventoryAlert[]; past: InventoryAlert[] };
-
-export function alertsByDevice(alerts: readonly InventoryAlert[]): Map<string, DeviceAlerts> {
-  const grouped = new Map<string, DeviceAlerts>();
+export function activeAlertsByDevice(
+  alerts: readonly InventoryAlert[],
+): Map<string, InventoryAlert[]> {
+  const grouped = new Map<string, InventoryAlert[]>();
   for (const alert of alerts) {
-    const device = grouped.get(alert.device_id) ?? { active: [], past: [] };
-    (alert.end_ts || alert.dismissed ? device.past : device.active).push(alert);
-    grouped.set(alert.device_id, device);
+    const active = grouped.get(alert.device_id) ?? [];
+    if (!alert.end_ts && !alert.dismissed) active.push(alert);
+    grouped.set(alert.device_id, active);
   }
   return grouped;
 }

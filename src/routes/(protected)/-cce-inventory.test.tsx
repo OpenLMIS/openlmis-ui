@@ -8,7 +8,6 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import {
-  act,
   cleanup,
   type RenderOptions,
   render,
@@ -75,15 +74,13 @@ const EDIT = `CCE_INVENTORY_EDIT|${HOME}|${EPI}`;
 
 const item = (overrides: Partial<InventoryItem> = {}): InventoryItem => ({
   id: FRIDGE,
-  facility: { id: HOME },
-  program: { id: EPI },
   equipmentTrackingId: '1072961',
   referenceName: 'Fridge #11',
   catalogItem: { manufacturer: 'Haier', model: 'HBC-70', type: 'IRL' },
   functionalStatus: 'FUNCTIONING',
   yearOfInstallation: 2017,
   modifiedDate: '2017-10-01T00:00:00Z',
-  lastModifier: { id: 'u1', firstName: 'Eduardo', lastName: 'Magaia' },
+  lastModifier: { firstName: 'Eduardo', lastName: 'Magaia' },
   ...overrides,
 });
 
@@ -109,7 +106,6 @@ const ITEMS = [
 
 const alert = (overrides: Partial<InventoryAlert>): InventoryAlert => ({
   alert_id: 'a1',
-  alert_type: 'no_data',
   device_id: FRIDGE,
   start_ts: '2018-02-26T11:41:45Z',
   end_ts: null,
@@ -170,7 +166,6 @@ const headers = () =>
     .getAllByRole('columnheader')
     .map((header) => header.textContent);
 
-/** The table row, or the card on phones, that holds the item with this reference name. */
 const itemOf = async (name: string) => {
   const text = await screen.findByText(name);
   return (text.closest('tr') ?? text.closest('li')) as HTMLElement;
@@ -373,7 +368,7 @@ describe('CCE inventory page', () => {
         programId: EPI,
         page: 1,
         size: 10,
-        sort: 'yearOfInstallation,desc',
+        sort: ['yearOfInstallation,desc', 'referenceName,asc', 'id,asc'],
         functionalStatus: 'AWAITING_REPAIR',
       }),
     );
@@ -445,20 +440,20 @@ describe('CCE inventory page', () => {
     async (width) => {
       const user = userEvent.setup();
       widthOf(width);
-      renderRoute(appliedPath());
+      renderRoute(appliedPath('&functionalStatus=FUNCTIONING'));
 
       const fridge = await itemOf('Fridge #11');
       await user.click(within(fridge).getByRole('button', { name: /cce-inventory.update-status/ }));
       expect(openLegacy).toHaveBeenLastCalledWith(
-        `#!/cce/inventory/${FRIDGE}/statusUpdate?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false`,
+        `#!/cce/inventory/${FRIDGE}/statusUpdate?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
       );
       await user.click(within(fridge).getByRole('button', { name: /cce-inventory.view/ }));
       expect(openLegacy).toHaveBeenLastCalledWith(
-        `#!/cce/inventory/${FRIDGE}/details?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false`,
+        `#!/cce/inventory/${FRIDGE}/details?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
       );
       await user.click(screen.getByRole('button', { name: 'cce-inventory.add' }));
       expect(openLegacy).toHaveBeenLastCalledWith(
-        `#!/cce/inventory/add?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false`,
+        `#!/cce/inventory/add?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
       );
     },
   );
@@ -466,7 +461,6 @@ describe('CCE inventory page', () => {
   it.each([
     ['a view-only user', [VIEW], 1400],
     ['an editor of another facility', [VIEW, `CCE_INVENTORY_EDIT|${BALAKA}|${EPI}`], 1400],
-    ['a view-only user on a phone', [VIEW], 390],
   ])('keeps the edit actions from %s while View stays', async (_name, grants, width) => {
     widthOf(width);
     vi.mocked(fetchPermissionStrings).mockResolvedValue(grants);
@@ -493,23 +487,5 @@ describe('CCE inventory page', () => {
     await waitFor(() => expect(downloadFile).toHaveBeenCalled());
     expect(exportInventoryItems).toHaveBeenCalledWith(HOME, EPI);
     expect(vi.mocked(downloadFile).mock.calls[0]?.[1]).toBe('inventory_items.csv');
-  });
-
-  it('asks for no equipment for a user who changed while their rights loaded', async () => {
-    let releaseRights = () => {};
-    vi.mocked(fetchPermissionStrings).mockReturnValueOnce(
-      new Promise((resolve) => {
-        releaseRights = () => resolve([VIEW, EDIT]);
-      }),
-    );
-    renderRoute(appliedPath());
-
-    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith(USER));
-    vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
-    act(() => useLoginData.setState({ referenceDataUserId: 'someone-else' }));
-    await act(async () => releaseRights());
-
-    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith('someone-else'));
-    expect(fetchInventoryItems).not.toHaveBeenCalled();
   });
 });

@@ -2,7 +2,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { ParseKeys } from 'i18next';
 import { EyeIcon, RefrigeratorIcon, SearchXIcon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import { use, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -23,11 +23,12 @@ import {
   inventoryAlertsOptions,
   inventoryItemsOptions,
 } from '@/features/cce-inventory/api/queries';
+import { FunctionalStatusCell } from '@/features/cce-inventory/components/functional-status-cell';
 import {
-  DeviceAlertsContext,
-  FunctionalStatusCell,
-} from '@/features/cce-inventory/components/functional-status-cell';
-import { alertsByDevice, type DeviceAlerts } from '@/features/cce-inventory/lib/alerts';
+  type InventoryRowActions,
+  InventoryRowsContext,
+} from '@/features/cce-inventory/components/inventory-rows-context';
+import { activeAlertsByDevice } from '@/features/cce-inventory/lib/alerts';
 import {
   CLEARED_INVENTORY_FILTERS,
   hasInventoryFilters,
@@ -35,6 +36,7 @@ import {
   INVENTORY_SORT,
   type InventorySearch,
   type InventorySortField,
+  isInventorySortField,
   legacyInventoryHash,
   toInventoryQuery,
 } from '@/features/cce-inventory/lib/search';
@@ -50,49 +52,20 @@ type ColumnId = 'facility' | 'makeModel' | InventorySortField;
 type InventoryColumn = ResponsiveColumn & {
   id: ColumnId;
   labelKey: ParseKeys;
-  sortable: boolean;
   hideable: boolean;
 };
 
 const COLUMNS: InventoryColumn[] = [
-  {
-    id: 'facility',
-    labelKey: 'cce-inventory.facility',
-    sortable: false,
-    hideable: true,
-    hideBelow: 1152,
-  },
-  {
-    id: 'equipmentTrackingId',
-    labelKey: 'cce-inventory.serial-no',
-    sortable: true,
-    hideable: true,
-  },
-  {
-    id: 'referenceName',
-    labelKey: 'cce-inventory.reference-name',
-    sortable: true,
-    hideable: false,
-  },
-  { id: 'makeModel', labelKey: 'cce-inventory.make-model', sortable: false, hideable: true },
-  { id: 'type', labelKey: 'cce-inventory.type', sortable: true, hideable: true, hideBelow: 896 },
-  {
-    id: 'functionalStatus',
-    labelKey: 'cce-inventory.functional-status',
-    sortable: true,
-    hideable: true,
-  },
-  {
-    id: 'modifiedDate',
-    labelKey: 'cce-inventory.last-updated',
-    sortable: true,
-    hideable: true,
-    hideBelow: 1024,
-  },
+  { id: 'facility', labelKey: 'cce-inventory.facility', hideable: false },
+  { id: 'equipmentTrackingId', labelKey: 'cce-inventory.serial-no', hideable: true },
+  { id: 'referenceName', labelKey: 'cce-inventory.reference-name', hideable: false },
+  { id: 'makeModel', labelKey: 'cce-inventory.make-model', hideable: true },
+  { id: 'type', labelKey: 'cce-inventory.type', hideable: true, hideBelow: 896 },
+  { id: 'functionalStatus', labelKey: 'cce-inventory.functional-status', hideable: false },
+  { id: 'modifiedDate', labelKey: 'cce-inventory.last-updated', hideable: true, hideBelow: 1024 },
   {
     id: 'yearOfInstallation',
     labelKey: 'cce-inventory.year-installed',
-    sortable: true,
     hideable: true,
     hideBelow: 768,
   },
@@ -100,12 +73,11 @@ const COLUMNS: InventoryColumn[] = [
 
 export const INVENTORY_HIDEABLE_COLUMNS = COLUMNS.filter((column) => column.hideable);
 
-export const INVENTORY_SORT_COLUMNS = COLUMNS.filter((column) => column.sortable);
+export const INVENTORY_SORT_COLUMNS = COLUMNS.filter((column) => isInventorySortField(column.id));
 
 const helper = createColumnHelper<DataTableFeatures, InventoryItem>();
 const getRowId = (item: InventoryItem) => item.id;
 const NO_ITEMS: InventoryItem[] = [];
-const NO_ALERTS = new Map<string, DeviceAlerts>();
 const noop = () => {};
 
 type CellContext = {
@@ -143,25 +115,13 @@ function cellText(id: ColumnId, item: InventoryItem, context: CellContext) {
   }
 }
 
-type LegacyLinks = {
-  details: (item: InventoryItem) => void;
-  statusUpdate: ((item: InventoryItem) => void) | undefined;
-};
-
-const SKELETON_LINKS: LegacyLinks = { details: noop, statusUpdate: undefined };
-
-function ViewItem({
-  item,
-  links,
-  disabled,
-}: {
-  item: InventoryItem;
-  links: LegacyLinks;
-  disabled: boolean;
-}) {
+function ViewItem({ item }: { item: InventoryItem }) {
   const { t } = useTranslation();
+  const { actions, stale } = use(InventoryRowsContext);
+  const inCards = useInCards();
+  if (!actions) return null;
   const name = t('cce-inventory.view-label', { name: item.referenceName });
-  if (useInCards()) {
+  if (inCards) {
     return (
       <CardActions
         label={t('card-actions.actions-for', { name: item.referenceName })}
@@ -171,50 +131,45 @@ function ViewItem({
             icon: <EyeIcon />,
             label: t('cce-inventory.view'),
             name,
-            disabled,
-            onSelect: () => links.details(item),
+            disabled: stale,
+            onSelect: () => actions.details(item),
           },
         ]}
       />
     );
   }
   return (
-    <Button aria-label={name} disabled={disabled} onClick={() => links.details(item)} size="sm">
+    <Button aria-label={name} disabled={stale} onClick={() => actions.details(item)} size="sm">
       {t('cce-inventory.view')}
     </Button>
   );
 }
 
-type ColumnsOptions = CellContext & {
-  links: LegacyLinks | undefined;
-  stale: boolean;
-};
-
-function useInventoryColumns({ links, stale, ...context }: ColumnsOptions) {
+function useInventoryColumns({
+  facilityName,
+  language,
+  timeZone,
+  withActions,
+}: CellContext & { withActions: boolean }) {
   const { t } = useTranslation();
-  const { facilityName, language, timeZone } = context;
   return useMemo(() => {
     const cellContext = { facilityName, language, timeZone };
     return helper.columns([
-      ...COLUMNS.map(({ id, labelKey, sortable }) =>
+      ...COLUMNS.map(({ id, labelKey }) =>
         helper.accessor((item) => cellText(id, item, cellContext), {
           id,
-          enableSorting: sortable,
+          enableSorting: isInventorySortField(id),
           meta: { label: t(labelKey) },
           header: ({ column }) => <DataTableColumnHeader column={column} title={t(labelKey)} />,
           cell: ({ row: { original: item }, getValue }) =>
             id === 'functionalStatus' ? (
-              <FunctionalStatusCell
-                item={item}
-                onUpdateStatus={links?.statusUpdate && (() => links.statusUpdate?.(item))}
-                timeZone={timeZone}
-              />
+              <FunctionalStatusCell item={item} timeZone={timeZone} />
             ) : getValue() ? (
               <CellText overflow="clamp">{getValue()}</CellText>
             ) : null,
         }),
       ),
-      ...(links
+      ...(withActions
         ? [
             helper.display({
               id: 'actions',
@@ -222,12 +177,12 @@ function useInventoryColumns({ links, stale, ...context }: ColumnsOptions) {
               header: () => (
                 <DataTableHeaderLabel>{t('cce-inventory.actions')}</DataTableHeaderLabel>
               ),
-              cell: ({ row }) => <ViewItem disabled={stale} item={row.original} links={links} />,
+              cell: ({ row }) => <ViewItem item={row.original} />,
             }),
           ]
         : []),
     ]);
-  }, [t, links, stale, facilityName, language, timeZone]);
+  }, [t, facilityName, language, timeZone, withActions]);
 }
 
 type ResultsProps = {
@@ -249,7 +204,7 @@ function useInventoryTable({
   onSearchChange,
   ...columnsOptions
 }: Pick<ResultsProps, 'cards' | 'search' | 'columns' | 'onSearchChange'> &
-  ColumnsOptions & { data: InventoryItem[]; rowCount: number }) {
+  CellContext & { withActions: boolean; data: InventoryItem[]; rowCount: number }) {
   const columnDefs = useInventoryColumns(columnsOptions);
   const { pageStart, searchState } = usePagedTableSearch({
     cards,
@@ -272,15 +227,20 @@ function useInventoryTable({
   return { table, pageStart };
 }
 
-function useLegacyLinks(search: InventorySearch, selection: CompleteSelection, canEdit: boolean) {
-  return useMemo<LegacyLinks | undefined>(() => {
+function useRowActions(
+  search: InventorySearch,
+  { mode, facilityId, programId }: CompleteSelection,
+  canEdit: boolean,
+) {
+  return useMemo<InventoryRowActions | undefined>(() => {
     if (!legacyAvailable()) return undefined;
-    const open = (path: string) => openLegacy(legacyInventoryHash(path, search, selection));
+    const open = (path: string) =>
+      openLegacy(legacyInventoryHash(path, search, { mode, facilityId, programId }));
     return {
       details: (item) => open(`${item.id}/details`),
       statusUpdate: canEdit ? (item) => open(`${item.id}/statusUpdate`) : undefined,
     };
-  }, [search, selection, canEdit]);
+  }, [search, mode, facilityId, programId, canEdit]);
 }
 
 export function InventoryResults({
@@ -299,8 +259,12 @@ export function InventoryResults({
   );
   const ids = useMemo(() => page.content.map((item) => item.id), [page.content]);
   const { data: alertList } = useQuery(inventoryAlertsOptions(ids));
-  const alerts = useMemo(() => (alertList ? alertsByDevice(alertList) : NO_ALERTS), [alertList]);
+  const actions = useRowActions(deferredSearch, selection, canEdit);
   const stale = search !== deferredSearch;
+  const rows = useMemo(
+    () => ({ activeAlerts: activeAlertsByDevice(alertList ?? []), actions, stale }),
+    [alertList, actions, stale],
+  );
   const { table, pageStart } = useInventoryTable({
     cards,
     data: page.content,
@@ -308,8 +272,7 @@ export function InventoryResults({
     search: deferredSearch,
     columns,
     onSearchChange,
-    links: useLegacyLinks(deferredSearch, selection, canEdit),
-    stale,
+    withActions: actions !== undefined,
     facilityName,
     language: i18n.language,
     timeZone: useDeploymentTimeZone(),
@@ -341,7 +304,7 @@ export function InventoryResults({
   const footer = !pastEnd && page.totalElements > 0 && <DataTablePagination table={table} />;
 
   return (
-    <DeviceAlertsContext value={alerts}>
+    <InventoryRowsContext value={rows}>
       {cards ? (
         <TableCards
           busy={stale}
@@ -361,7 +324,7 @@ export function InventoryResults({
           table={table}
         />
       )}
-    </DeviceAlertsContext>
+    </InventoryRowsContext>
   );
 }
 
@@ -377,8 +340,7 @@ export function InventoryResultsSkeleton({
     search,
     columns,
     onSearchChange: noop,
-    links: legacyAvailable() ? SKELETON_LINKS : undefined,
-    stale: false,
+    withActions: legacyAvailable(),
     facilityName: '',
     language: '',
     timeZone: undefined,

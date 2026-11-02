@@ -2,8 +2,6 @@ import type { EquipmentReason, EquipmentStatus } from '@/lib/cce-equipment-statu
 
 export type InventoryItem = {
   id: string;
-  facility: { id: string };
-  program: { id: string };
   equipmentTrackingId?: string;
   referenceName: string;
   catalogItem: { manufacturer: string; model: string; type: string };
@@ -11,12 +9,11 @@ export type InventoryItem = {
   reasonNotWorkingOrNotInUse?: EquipmentReason;
   yearOfInstallation: number;
   modifiedDate?: string;
-  lastModifier?: { id?: string; firstName?: string; lastName?: string };
+  lastModifier?: { firstName?: string; lastName?: string };
 };
 
 export type InventoryAlert = {
   alert_id: string;
-  alert_type: string;
   device_id: string;
   start_ts: string;
   end_ts: string | null;
@@ -29,6 +26,6 @@ export type InventoryQuery = {
   programId: string;
   page: number;
   size: number;
-  sort?: string;
+  sort?: string[];
   functionalStatus?: EquipmentStatus;
 };

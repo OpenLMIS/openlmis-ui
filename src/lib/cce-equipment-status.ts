@@ -20,9 +20,11 @@ export const EQUIPMENT_STATUSES: readonly [EquipmentStatus, ...EquipmentStatus[]
   'UNSERVICEABLE',
 ];
 
+export type EquipmentTone = 'success' | 'warning' | 'destructive';
+
 type EquipmentStatusStyle = {
   labelKey: ParseKeys;
-  tone: 'success' | 'warning' | 'destructive';
+  tone: EquipmentTone;
   icon: LucideIcon;
 };
 

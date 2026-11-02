@@ -6,7 +6,11 @@ import { DataTableSelectFilter } from '@/components/data-table/data-table-filter
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { InventorySearch } from '@/features/cce-inventory/lib/search';
+import {
+  CLEARED_INVENTORY_FILTERS,
+  hasInventoryFilters,
+  type InventorySearch,
+} from '@/features/cce-inventory/lib/search';
 import { EQUIPMENT_STATUS, EQUIPMENT_STATUSES } from '@/lib/cce-equipment-status';
 
 type InventoryToolbarProps = {
@@ -15,8 +19,8 @@ type InventoryToolbarProps = {
   view?: ReactNode;
   disabled?: boolean;
   exporting?: boolean;
-  onExport?: (() => void) | undefined;
-  onAdd?: (() => void) | undefined;
+  onExport?: () => void;
+  onAdd?: () => void;
 };
 
 export function InventoryToolbar({
@@ -37,9 +41,9 @@ export function InventoryToolbar({
     <DataTableToolbar>
       <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
         <DataTableFilters
-          activeCount={search.functionalStatus ? 1 : 0}
+          activeCount={Number(hasInventoryFilters(search))}
           disabled={disabled}
-          onClear={() => onFilterChange({ functionalStatus: undefined, page: undefined })}
+          onClear={() => onFilterChange(CLEARED_INVENTORY_FILTERS)}
           size="lg"
         >
           <DataTableSelectFilter

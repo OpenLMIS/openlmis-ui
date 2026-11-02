@@ -10,6 +10,7 @@ import type { Page } from '@/lib/types';
 export async function fetchInventoryItems(query: InventoryQuery) {
   const { data } = await client.get<Page<InventoryItem>>('/inventoryItems', {
     params: { ...query, expand: 'lastModifier' },
+    paramsSerializer: { indexes: null },
   });
   return data;
 }

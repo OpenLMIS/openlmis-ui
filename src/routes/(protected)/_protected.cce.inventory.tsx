@@ -1,7 +1,7 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { ClipboardListIcon, RefrigeratorIcon, ShieldAlertIcon } from 'lucide-react';
-import { type ReactNode, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ListError } from '@/components/app-shell/list-error';
@@ -328,22 +328,6 @@ type InventoryOutcomeProps = Omit<InventoryBodyProps, 'grants' | 'userId'> & {
   valid: CompleteSelection | null;
 };
 
-function OutcomeMessage({
-  icon,
-  title,
-  description,
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <DataTableCard>
-      <DataTableEmpty description={description} icon={icon} title={title} />
-    </DataTableCard>
-  );
-}
-
 function InventoryOutcome({
   search,
   columnView,
@@ -359,13 +343,15 @@ function InventoryOutcome({
     return (
       <div className="flex flex-col gap-4">
         <InventoryToolbar onFilterChange={(patch) => onSearchChange(patch, true)} search={search} />
-        <OutcomeMessage
-          description={t(
-            refused ? 'cce-inventory.refused-description' : 'cce-inventory.pick-description',
-          )}
-          icon={refused ? <ShieldAlertIcon /> : <ClipboardListIcon />}
-          title={t(refused ? 'cce-inventory.refused-title' : 'cce-inventory.pick-title')}
-        />
+        <DataTableCard>
+          <DataTableEmpty
+            description={t(
+              refused ? 'cce-inventory.refused-description' : 'cce-inventory.pick-description',
+            )}
+            icon={refused ? <ShieldAlertIcon /> : <ClipboardListIcon />}
+            title={t(refused ? 'cce-inventory.refused-title' : 'cce-inventory.pick-title')}
+          />
+        </DataTableCard>
       </div>
     );
   }
@@ -461,6 +447,7 @@ function InventoryList({
         resetKey={JSON.stringify(query)}
       >
         <InventoryResults
+          key={`${selection.facilityId}:${selection.programId}`}
           canEdit={canEdit}
           cards={columnView.cards}
           columns={columnView.visibility}

@@ -13,13 +13,14 @@ import {
   EQUIPMENT_STATUS,
   EQUIPMENT_STATUSES,
   type EquipmentStatus,
+  type EquipmentTone,
 } from '@/lib/cce-equipment-status';
 
-const ICON_CLASS = {
+const ICON_CLASS: Record<EquipmentTone, string> = {
   success: 'text-success',
   warning: 'text-warning',
   destructive: 'text-destructive',
-} as const;
+};
 
 const totalCount = (counts: Record<EquipmentStatus, number>) => sum(Object.values(counts));
 

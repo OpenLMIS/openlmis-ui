@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import type { InventoryQuery } from '@/features/cce-inventory/lib/types';
 import { EQUIPMENT_STATUSES } from '@/lib/cce-equipment-status';
-import { facilityProgramSearchSchema } from '@/lib/facility-program-selection';
+import {
+  type CompleteSelection,
+  facilityProgramSearchSchema,
+} from '@/lib/facility-program-selection';
 import { tableSearchSchema, toPaginationState, toSortParam } from '@/lib/table-search';
 
 export type InventorySortField =
@@ -37,8 +40,17 @@ export const CLEARED_INVENTORY_FILTERS = {
   page: undefined,
 } satisfies Partial<InventorySearch>;
 
-export const hasInventoryFilters = (search: Pick<InventorySearch, 'functionalStatus'>) =>
-  Boolean(search.functionalStatus);
+export const hasInventoryFilters = (search: InventorySearch) => Boolean(search.functionalStatus);
+
+export const isInventorySortField = (id: string): id is InventorySortField =>
+  INVENTORY_SORT_FIELDS.some((field) => field === id);
+
+function sortParams(search: InventorySearch) {
+  const chosen = toSortParam(search, INVENTORY_SORT);
+  const tieBreakers =
+    search.sort === 'referenceName' ? ['id,asc'] : ['referenceName,asc', 'id,asc'];
+  return [chosen, ...tieBreakers];
+}
 
 export function toInventoryQuery(
   search: InventorySearch,
@@ -50,7 +62,7 @@ export function toInventoryQuery(
     programId,
     page: pageIndex,
     size: pageSize,
-    ...((search.sort || search.dir) && { sort: toSortParam(search, INVENTORY_SORT) }),
+    ...((search.sort || search.dir) && { sort: sortParams(search) }),
     ...(search.functionalStatus && { functionalStatus: search.functionalStatus }),
   };
 }
@@ -58,7 +70,7 @@ export function toInventoryQuery(
 export function legacyInventoryHash(
   path: string,
   search: InventorySearch,
-  { facilityId, programId, mode }: { facilityId: string; programId: string; mode: string },
+  { facilityId, programId, mode }: CompleteSelection,
 ) {
   const { pageIndex, pageSize } = toPaginationState(search, INVENTORY_PAGE_SIZE);
   const params = new URLSearchParams({
@@ -67,6 +79,7 @@ export function legacyInventoryHash(
     facility: facilityId,
     program: programId,
     supervised: String(mode === 'supervised'),
+    ...(search.functionalStatus && { functionalStatus: search.functionalStatus }),
   });
   return `#!/cce/inventory/${path}?${params}`;
 }
