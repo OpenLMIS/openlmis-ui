@@ -69,12 +69,13 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   )
 }
 
-function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
+function TableFooter({ className, sticky = false, ...props }: React.ComponentProps<"tfoot"> & { sticky?: boolean }) {
   return (
     <tfoot
       data-slot="table-footer"
       className={cn(
         "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+        sticky && "sticky bottom-0 z-10 bg-card",
         className
       )}
       {...props}
@@ -111,10 +112,11 @@ function TableRow({
   )
 }
 
-const stickyClasses = (sticky: boolean) =>
+const stickyClasses = (sticky: boolean | "end") =>
   sticky &&
   cn(
-    "sticky border-e-0! bg-inherit after:pointer-events-none after:absolute after:inset-y-0 after:end-0 after:w-px after:bg-border"
+    "sticky bg-inherit after:pointer-events-none after:absolute after:inset-y-0 after:w-px after:bg-border",
+    sticky === "end" ? "border-s-0! after:start-0" : "border-e-0! after:end-0"
   )
 
 function TableHead({
@@ -124,11 +126,11 @@ function TableHead({
   stickyOffset = 0,
   style,
   ...props
-}: React.ComponentProps<"th"> & { width?: "default" | "icon" | "fit"; sticky?: boolean; stickyOffset?: number }) {
+}: React.ComponentProps<"th"> & { width?: "default" | "icon" | "fit"; sticky?: boolean | "end"; stickyOffset?: number }) {
   return (
     <th
       data-slot="table-head"
-      style={sticky ? { ...style, insetInlineStart: stickyOffset } : style}
+      style={sticky ? { ...style, ...(sticky === "end" ? { insetInlineEnd: stickyOffset } : { insetInlineStart: stickyOffset }) } : style}
       className={cn(
         "h-10 px-2 text-start align-middle font-medium whitespace-nowrap text-foreground",
         width === "icon" && "w-16",
@@ -149,11 +151,11 @@ function TableCell({
   stickyOffset = 0,
   style,
   ...props
-}: React.ComponentProps<"td"> & { tone?: "default" | "danger"; sticky?: boolean; stickyOffset?: number }) {
+}: React.ComponentProps<"td"> & { tone?: "default" | "danger"; sticky?: boolean | "end"; stickyOffset?: number }) {
   return (
     <td
       data-slot="table-cell"
-      style={sticky ? { ...style, insetInlineStart: stickyOffset } : style}
+      style={sticky ? { ...style, ...(sticky === "end" ? { insetInlineEnd: stickyOffset } : { insetInlineStart: stickyOffset }) } : style}
       className={cn(
         "p-2 align-middle whitespace-nowrap",
         stickyClasses(sticky),

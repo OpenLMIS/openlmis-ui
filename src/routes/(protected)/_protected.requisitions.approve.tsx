@@ -1,5 +1,5 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
-import { createFileRoute, type ErrorComponentProps } from '@tanstack/react-router';
+import { createFileRoute, type ErrorComponentProps, useNavigate } from '@tanstack/react-router';
 import { ClipboardCheckIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -43,9 +43,10 @@ import {
   type ApprovalSelection,
   approvalScope,
   approvalSearchSchema,
+  approvalSelectedIds,
   approvalSelectionError,
 } from '@/features/requisitions/lib/approval-search';
-import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
+import { returnState } from '@/features/requisitions/lib/requisition-return';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useFlag } from '@/lib/feature-flags';
@@ -136,13 +137,21 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
   const scope = approvalScope(search);
   const [picked, setPicked] = useFilterScoped(scope, NOTHING_PICKED);
   const [error, setError] = useFilterScoped<'none' | 'mixed' | null>(scope, null);
-  const legacy = useBackToLegacy(
-    `#!/requisitions/batchApproval?ids=${[...picked.keys()].map(encodeURIComponent).join(',')}`,
-  );
+  const navigate = useNavigate();
   const viewSelected = () => {
     const problem = approvalSelectionError([...picked.values()]);
     if (problem) setError(problem, scope);
-    else legacy.onClick();
+    else
+      void navigate({
+        to: '/requisitions/approve/batch',
+        search: { ids: approvalSelectedIds(picked).join(',') },
+        state: {
+          ...returnState({ to: '/requisitions/approve', search }),
+          requisitionBatchLabels: Object.fromEntries(
+            [...picked].map(([id, value]) => [id, value.label]),
+          ),
+        },
+      });
   };
   const columnsMenu = (
     <DataTableViewOptions
@@ -216,7 +225,7 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
           )}
           {batch && (
             <>
-              {legacy.available && !picked.size && (
+              {!picked.size && (
                 <div>
                   <Button size="lg" variant="outline" disabled={pending} onClick={viewSelected}>
                     {t('requisitions.approve.view-selected')}
@@ -227,14 +236,12 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
                 count={picked.size}
                 onClear={() => setPicked(NOTHING_PICKED, scope)}
               >
-                {legacy.available && (
-                  <Button size="sm" onClick={viewSelected}>
-                    <SelectionBarLabel
-                      full={t('requisitions.approve.view-selected')}
-                      short={t('requisitions.approve.view-selected-short')}
-                    />
-                  </Button>
-                )}
+                <Button size="sm" onClick={viewSelected}>
+                  <SelectionBarLabel
+                    full={t('requisitions.approve.view-selected')}
+                    short={t('requisitions.approve.view-selected-short')}
+                  />
+                </Button>
               </DataTableSelectionBar>
             </>
           )}

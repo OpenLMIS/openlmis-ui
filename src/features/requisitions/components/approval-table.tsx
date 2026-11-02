@@ -164,10 +164,13 @@ function useResultsTable({
       if (!onSelection || stale) return;
       const selected = functionalUpdate(updater, rowSelection);
       const visible = new Map(
-        data.map((row) => [
+        data.map((row, index) => [
           row.id,
           {
             programId: row.program.id,
+            rowIndex:
+              toPaginationState(search, 20).pageIndex * toPaginationState(search, 20).pageSize +
+              index,
             label: requisitionRowLabel(row, t('requisitions.columns.emergency')),
           },
         ]),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { batchText } from '@/features/requisitions/lib/batch';
 import type {
   BatchLine,
@@ -30,8 +30,13 @@ export type BatchLocalDraft = {
 
 export function useBatchDrafts(records: readonly BatchRequisition[]) {
   const scope = useSessionScope();
-  const controller = useMemo(() => createBatchDrafts(records, scope), [records, scope]);
+  const previous = useRef<BatchDrafts | null>(null);
+  const controller = useMemo(
+    () => createBatchDrafts(records, scope, previous.current?.memory()),
+    [records, scope],
+  );
   useEffect(() => {
+    previous.current = controller;
     controller.activate();
     return controller.dispose;
   }, [controller]);
@@ -39,7 +44,20 @@ export function useBatchDrafts(records: readonly BatchRequisition[]) {
 }
 
 export type BatchDrafts = ReturnType<typeof createBatchDrafts>;
-function createBatchDrafts(records: readonly BatchRequisition[], scope: number) {
+type BatchMemory = Map<
+  string,
+  {
+    base: BatchRequisition;
+    changes: Record<string, string>;
+    unresolved: BatchLocalDraft['unresolvedApproval'];
+    outdated: boolean;
+  }
+>;
+function createBatchDrafts(
+  records: readonly BatchRequisition[],
+  scope: number,
+  memory?: { scope: number; entries: BatchMemory },
+) {
   const userId = isSecureOrigin ? getSessionUserId() : null;
   const db = userId ? getLocalDb() : undefined;
   const table = db?.table<BatchLocalDraft, string>(LOCAL_TABLES.requisitionBatchDrafts);
@@ -49,13 +67,20 @@ function createBatchDrafts(records: readonly BatchRequisition[], scope: number) 
       {
         base,
         expected: undefined as BatchLocalDraft | undefined,
-        changes: {} as Record<string, string>,
-        unresolved: undefined as BatchLocalDraft['unresolvedApproval'],
+        changes:
+          !db && memory?.scope === scope
+            ? { ...memory.entries.get(base.id)?.changes }
+            : ({} as Record<string, string>),
+        unresolved:
+          !db && memory?.scope === scope
+            ? memory.entries.get(base.id)?.unresolved
+            : (undefined as BatchLocalDraft['unresolvedApproval']),
         outdated: false,
       },
     ]),
   );
   let active = false;
+  let ready = !db;
   let status: DraftSaveState = { status: db ? 'loading' : 'saved' };
   const listeners = new Map<string, Set<() => void>>();
   const versions = new Map<string, number>();
@@ -82,11 +107,13 @@ function createBatchDrafts(records: readonly BatchRequisition[], scope: number) 
   const loadRecord = async (id: string) => {
     const entry = entries.get(id);
     if (!entry) return;
-    const stored = db
-      ? await readOwnedRecord<BatchLocalDraft>(LOCAL_TABLES.requisitionBatchDrafts, id, {
-          formats: [1],
-        })
-      : undefined;
+    if (!db) {
+      notifyRecord(id);
+      return;
+    }
+    const stored = await readOwnedRecord<BatchLocalDraft>(LOCAL_TABLES.requisitionBatchDrafts, id, {
+      formats: [1],
+    });
     assertSessionScope(scope);
     entry.expected = stored;
     entry.outdated = !!stored && stored.baselineModifiedDate !== entry.base.modifiedDate;
@@ -98,6 +125,7 @@ function createBatchDrafts(records: readonly BatchRequisition[], scope: number) 
   const load = () =>
     (loaded ??= Promise.all([...entries.keys()].map(loadRecord)).then(() => {
       assertSessionScope(scope);
+      ready = true;
       publish({ status: 'saved' });
       emit('meta');
     }));
@@ -154,6 +182,8 @@ function createBatchDrafts(records: readonly BatchRequisition[], scope: number) 
   };
   const api = {
     deviceAvailable: !!db,
+    ready: () => ready,
+    memory: () => ({ scope, entries }),
     subscribe(key: string, listener: () => void) {
       let group = listeners.get(key);
       if (!group) {
@@ -187,7 +217,7 @@ function createBatchDrafts(records: readonly BatchRequisition[], scope: number) 
       assertSessionScope(scope);
       const e = entries.get(id);
       const line = e?.base.requisitionLineItems.find((l) => l.id === lineId);
-      if (!e || !line || e.outdated || e.unresolved || status.status === 'loading') return;
+      if (!e || !line || e.outdated || e.unresolved || !ready) return;
       if (text === String(line.approvedQuantity ?? 0)) delete e.changes[lineId];
       else e.changes[lineId] = text;
       enqueue(id);
@@ -267,13 +297,19 @@ function createBatchDrafts(records: readonly BatchRequisition[], scope: number) 
       publish({ status: 'saved' });
     },
     retry() {
+      if (!ready) {
+        loaded = undefined;
+        publish({ status: 'loading' });
+        void load().catch((error) => {
+          if (scope === getSessionScope()) publish({ status: 'failed', error });
+        });
+      }
       for (const writer of writers.values()) writer.retry();
     },
     activate() {
       active = true;
       void load().catch((error) => {
-        assertSessionScope(scope);
-        publish({ status: 'failed', error });
+        if (scope === getSessionScope()) publish({ status: 'failed', error });
       });
     },
     dispose() {

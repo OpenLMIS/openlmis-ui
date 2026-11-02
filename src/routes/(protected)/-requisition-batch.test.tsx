@@ -1,0 +1,303 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  type AnyRouter,
+  createMemoryHistory,
+  createRootRouteWithContext,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { fetchPermissionStrings } from '@/features/auth/api/api';
+import { ForbiddenError } from '@/features/auth/lib/access';
+import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  approveBatchRequisitions,
+  fetchBatchRequisitions,
+  saveBatchRequisitions,
+} from '@/features/requisitions/api/api';
+import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
+import { Route } from '@/routes/(protected)/_protected.requisitions.approve_.batch';
+
+const security = vi.hoisted(() => ({ secure: true }));
+vi.mock('@/lib/secure-context', () => ({
+  get isSecureOrigin() {
+    return security.secure;
+  },
+}));
+vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
+vi.mock('@/features/requisitions/api/api', () => ({
+  fetchBatchRequisitions: vi.fn(),
+  saveBatchRequisitions: vi.fn(),
+  approveBatchRequisitions: vi.fn(),
+}));
+vi.mock('@/features/reference-data/api/api', () => ({
+  fetchCurrencySettings: vi.fn(async () => ({
+    currencySymbol: '$',
+    currencySymbolSide: 'left',
+    currencyDecimalPlaces: 2,
+    groupingSize: 3,
+    groupingSeparator: ',',
+    decimalSeparator: '.',
+  })),
+}));
+const records = fp.requisitionDtos.slice(0, 2);
+function renderRoute(ids = records.map((r) => r.id).join(',')) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
+  const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
+  const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
+  const page = createRoute({
+    getParentRoute: () => layout,
+    path: 'requisitions/approve/batch',
+    validateSearch: Route.options.validateSearch as never,
+    loaderDeps: Route.options.loaderDeps as never,
+    loader: Route.options.loader as never,
+    component: Route.options.component as never,
+    pendingComponent: Route.options.pendingComponent as never,
+  } as never);
+  const list = createRoute({
+    getParentRoute: () => layout,
+    path: 'requisitions/approve',
+    component: () => <div>Approval List</div>,
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([
+      group.addChildren([layout.addChildren([page, list] as never)] as never),
+    ] as never),
+    context: { queryClient },
+    history: createMemoryHistory({ initialEntries: [`/requisitions/approve/batch?ids=${ids}`] }),
+  } as never) as AnyRouter;
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  return { router, queryClient };
+}
+beforeEach(() => {
+  vi.clearAllMocks();
+  security.secure = true;
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 1200,
+  } as DOMRect);
+  useLoginData.getState().setLoginData({
+    referenceDataUserId: crypto.randomUUID(),
+    username: 'u',
+    accessToken: 'token',
+  });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_APPROVE|f|p']);
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({
+    requisitionDtos: records,
+    requisitionErrors: [],
+  });
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: records,
+    requisitionErrors: [],
+  });
+  vi.mocked(approveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: records,
+    requisitionErrors: [],
+  });
+});
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+it('checks approve rights before loading any batch', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
+  const loader = Route.options.loader as (arg: unknown) => Promise<unknown>;
+  await expect(
+    loader({ context: { queryClient: new QueryClient() }, deps: { ids: [records[0].id] } }),
+  ).rejects.toBeInstanceOf(ForbiddenError);
+  expect(fetchBatchRequisitions).not.toHaveBeenCalled();
+});
+it('validates, confirms, saves then approves and returns to the approval list', async () => {
+  renderRoute();
+  const input = (await screen.findAllByRole('textbox'))[0];
+  await waitFor(() => expect(input).toBeEnabled());
+  await userEvent.clear(input);
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
+  await screen.findByRole('heading', { name: 'requisitions.batch.invalid-requisition' });
+  expect(saveBatchRequisitions).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() => expect(input).toHaveFocus());
+  await userEvent.type(input, '12');
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
+  await screen.findByText('requisitions.batch.approve-confirm');
+  expect(saveBatchRequisitions).not.toHaveBeenCalled();
+  await userEvent.dblClick(screen.getByRole('button', { name: 'requisitions.batch.confirm' }));
+  await screen.findByText('Approval List');
+  expect(saveBatchRequisitions).toHaveBeenCalledOnce();
+  expect(approveBatchRequisitions).toHaveBeenCalledWith(records.map((r) => r.id));
+});
+it('keeps only partial failures and shows the server reason', async () => {
+  vi.mocked(approveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [records[0]],
+    requisitionErrors: [
+      {
+        requisitionId: records[1].id,
+        errorMessage: { message: 'Not authorized at this facility' },
+      },
+    ],
+  });
+  const { router } = renderRoute();
+  await screen.findAllByRole('textbox');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeEnabled(),
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await screen.findAllByText(/Not authorized at this facility/);
+  await waitFor(() => expect(router.state.location.search).toMatchObject({ ids: records[1].id }));
+});
+it('refetches a lost approval response and blocks a resend after reload', async () => {
+  vi.mocked(approveBatchRequisitions).mockRejectedValue(
+    new AxiosError('Lost response', '500', undefined, undefined, {
+      status: 500,
+      data: {},
+    } as never),
+  );
+  const first = renderRoute();
+  await screen.findAllByRole('textbox');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeEnabled(),
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await screen.findAllByText('requisitions.batch.uncertain');
+  expect(vi.mocked(fetchBatchRequisitions).mock.calls.length).toBeGreaterThan(1);
+  await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledOnce());
+  cleanup();
+  first.queryClient.clear();
+  renderRoute();
+  await screen.findAllByText('requisitions.batch.uncertain');
+  expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeDisabled();
+  await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledOnce());
+});
+
+it('orders columns by ids and names refused and missing records above the grid', async () => {
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [...records].reverse(),
+    requisitionErrors: [
+      { requisitionId: 'refused', errorMessage: { message: 'Permission refused' } },
+    ],
+  });
+  renderRoute(`${records[0].id},${records[1].id},refused,missing`);
+  await screen.findByText('Permission refused');
+  await screen.findByText('missing');
+  const headers = await screen.findAllByRole('columnheader');
+  const groupLabels = headers.filter((h) => h.textContent?.includes('requisitions.batch.group'));
+  expect(groupLabels).toHaveLength(2);
+  const inputs = screen.getAllByRole('textbox');
+  expect(inputs[0]).toHaveAccessibleName(/Feb2017/);
+  expect(inputs[1]).toHaveAccessibleName(/Jan2017/);
+});
+it('never approves a failed save and keeps its reason alongside approval failures', async () => {
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [records[0]],
+    requisitionErrors: [
+      { requisitionId: records[1].id, errorMessage: { message: 'Modified elsewhere' } },
+    ],
+  });
+  vi.mocked(approveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [],
+    requisitionErrors: [
+      { requisitionId: records[0].id, errorMessage: { message: 'No facility permission' } },
+    ],
+  });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await screen.findAllByText(/Modified elsewhere/);
+  await screen.findAllByText(/No facility permission/);
+  expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]);
+});
+it('Revert clears the durable copy so reload keeps server values', async () => {
+  const first = renderRoute();
+  const input = (await screen.findAllByRole('textbox'))[0];
+  await waitFor(() => expect(input).toBeEnabled());
+  await userEvent.clear(input);
+  await userEvent.type(input, '123');
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.revert' }));
+  await screen.findByText('requisitions.batch.revert-confirm');
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.confirm' }));
+  await waitFor(() => expect(input).toHaveValue('0'));
+  cleanup();
+  first.queryClient.clear();
+  renderRoute();
+  const reloaded = (await screen.findAllByRole('textbox'))[0];
+  await waitFor(() => expect(reloaded).toBeEnabled());
+  expect(reloaded).toHaveValue('0');
+  expect(saveBatchRequisitions).not.toHaveBeenCalled();
+});
+
+it('renders phone cards and updates costs and totals while typing', async () => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 390,
+  } as DOMRect);
+  renderRoute();
+  const input = (await screen.findAllByRole('textbox'))[0];
+  await waitFor(() => expect(input).toBeEnabled());
+  await userEvent.clear(input);
+  await userEvent.type(input, '10');
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.getAllByText('$51.00').length).toBeGreaterThan(1);
+});
+it('keeps every record after an exception-style approval 400 and shows the reason', async () => {
+  vi.mocked(approveBatchRequisitions).mockRejectedValue(
+    new AxiosError('400', '400', undefined, undefined, {
+      status: 400,
+      data: { message: 'The period has not ended' },
+    } as never),
+  );
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await screen.findAllByText(/The period has not ended/);
+  expect(screen.queryByText('Approval List')).not.toBeInTheDocument();
+  expect(approveBatchRequisitions).toHaveBeenCalledOnce();
+});
+it('Sync sends an empty cell as zero and holds back a record above the Java limit', async () => {
+  renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  await userEvent.clear(inputs[0]);
+  await userEvent.type(inputs[0], '2147483648');
+  await userEvent.clear(inputs[1]);
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  expect(vi.mocked(saveBatchRequisitions).mock.calls[0][0]).toEqual([
+    {
+      id: records[1].id,
+      modifiedDate: records[1].modifiedDate,
+      requisitionLineItems: records[1].requisitionLineItems.map((l) => ({
+        id: l.id,
+        approvedQuantity: 0,
+      })),
+    },
+  ]);
+  expect(approveBatchRequisitions).not.toHaveBeenCalled();
+});
+
+it('blocks approval on HTTP where an uncertain outcome cannot be retained across reloads', async () => {
+  security.secure = false;
+  renderRoute();
+  const input = (await screen.findAllByRole('textbox'))[0];
+  await waitFor(() => expect(input).toBeEnabled());
+  await screen.findByText('requisitions.batch.memory');
+  const approve = screen.getByRole('button', { name: 'requisitions.batch.approve' });
+  expect(approve).toHaveAttribute('data-disabled');
+  expect(approve).toHaveAttribute('aria-description', 'requisitions.batch.secure-approval');
+  await userEvent.click(approve);
+  expect(approveBatchRequisitions).not.toHaveBeenCalled();
+});

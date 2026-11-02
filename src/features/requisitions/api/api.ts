@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import type { RejectionReason } from '@/features/reference-data/lib/types';
 import type { toApprovalQuery } from '@/features/requisitions/lib/approval-search';
 import { type batchSaveBody, orderBatch } from '@/features/requisitions/lib/batch';
+import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
 import { isApprovalKind } from '@/features/requisitions/lib/capabilities';
 import type { ReleaseBody, toConvertQuery } from '@/features/requisitions/lib/convert-search';
 import { transformRequisition } from '@/features/requisitions/lib/transform';
@@ -180,9 +181,7 @@ export async function releaseRequisitions(body: ReleaseBody) {
   assertSessionScope(scope);
 }
 
-async function batchRequest(
-  request: () => Promise<{ data: import('../lib/batch-types').BatchResponse }>,
-) {
+async function batchRequest(request: () => Promise<{ data: BatchResponse }>) {
   const scope = getSessionScope();
   try {
     const { data } = await request();
@@ -196,11 +195,12 @@ async function batchRequest(
       (Array.isArray(error.response.data?.requisitionDtos) ||
         Array.isArray(error.response.data?.requisitionErrors))
     )
-      return error.response.data as import('../lib/batch-types').BatchResponse;
+      return error.response.data as BatchResponse;
     throw error;
   }
 }
 export async function fetchBatchRequisitions(ids: readonly string[]) {
+  if (!ids.length) return { requisitionDtos: [], requisitionErrors: [] };
   const data = await batchRequest(() =>
     client.get('/requisitions', { params: { retrieveAll: '', id: ids.join(',') } }),
   );

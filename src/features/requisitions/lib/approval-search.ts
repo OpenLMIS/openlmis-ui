@@ -15,10 +15,16 @@ export function toApprovalQuery(search: ApprovalSearch) {
     ...(search.program && { program: search.program }),
   };
 }
-export type ApprovalSelection = ReadonlyMap<string, { programId: string; label: string }>;
+export type ApprovalSelection = ReadonlyMap<
+  string,
+  { programId: string; label: string; rowIndex: number }
+>;
 export function approvalSelectionError(selected: readonly { programId: string }[]) {
   if (!selected.length) return 'none';
   if (new Set(selected.map(({ programId }) => programId)).size !== 1) return 'mixed';
 }
 export const approvalScope = (search: ApprovalSearch) =>
   JSON.stringify([search.program, search.sort, search.dir]);
+
+export const approvalSelectedIds = (picked: ApprovalSelection) =>
+  [...picked].sort((a, b) => a[1].rowIndex - b[1].rowIndex).map(([id]) => id);

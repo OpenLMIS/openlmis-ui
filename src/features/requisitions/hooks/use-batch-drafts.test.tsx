@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { useBatchDrafts } from '@/features/requisitions/hooks/use-batch-drafts';
 import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
@@ -7,6 +7,15 @@ import { countUnsyncedBatchDrafts } from '@/features/requisitions/lib/unsynced-d
 import { getLocalDb } from '@/integrations/local-db';
 import { DraftConflictError } from '@/lib/draft-store';
 
+const security = vi.hoisted(() => ({ secure: true }));
+vi.mock('@/lib/secure-context', () => ({
+  get isSecureOrigin() {
+    return security.secure;
+  },
+}));
+beforeEach(() => {
+  security.secure = true;
+});
 const records = fp.requisitionDtos;
 const r = records[0];
 const line = r.requisitionLineItems[0];
@@ -62,4 +71,57 @@ it('durably marks uncertain approval even with no edited quantities', async () =
   await waitFor(() => expect(reload.result.current.unresolved(r.id)).toBe(true));
   await act(() => reload.result.current.mark([r.id], false));
   expect(await countUnsyncedBatchDrafts()).toBe(0);
+});
+
+it('notifies only the changed cell, product and totals in a 10 by 200 batch', async () => {
+  const { generateBatch } = await import('@/features/requisitions/lib/fixtures/batch/generate');
+  const large = generateBatch();
+  const hook = renderHook(() => useBatchDrafts(large));
+  await waitFor(() => expect(hook.result.current.getStatus().status).toBe('saved'));
+  let changed = 0;
+  let unrelated = 0;
+  let product = 0;
+  let totals = 0;
+  hook.result.current.subscribe('requisition-0:line-0-0', () => changed++);
+  hook.result.current.subscribe('requisition-1:line-1-0', () => unrelated++);
+  hook.result.current.subscribe('product:product-0', () => product++);
+  hook.result.current.subscribe('totals', () => totals++);
+  act(() => hook.result.current.set('requisition-0', 'line-0-0', '50'));
+  await act(() => hook.result.current.flush());
+  expect({ changed, unrelated, product, totals }).toEqual({
+    changed: 1,
+    unrelated: 0,
+    product: 1,
+    totals: 1,
+  });
+});
+
+it('keeps HTTP edits and unresolved approvals in memory across refreshes without writing Dexie', async () => {
+  security.secure = false;
+  const hook = renderHook(({ data }) => useBatchDrafts(data), { initialProps: { data: records } });
+  await waitFor(() => expect(hook.result.current.getStatus().status).toBe('saved'));
+  act(() => hook.result.current.set(r.id, line.id, '42'));
+  await act(() => hook.result.current.mark([r.id], true));
+  hook.rerender({ data: [...records] });
+  await waitFor(() => expect(hook.result.current.getStatus().status).toBe('saved'));
+  expect(hook.result.current.deviceAvailable).toBe(false);
+  expect(hook.result.current.text(r.id, line)).toBe('42');
+  expect(hook.result.current.unresolved(r.id)).toBe(true);
+  expect(await getLocalDb().table('requisitionBatchDrafts').count()).toBe(0);
+});
+
+it('keeps fields locked after a draft read failure and loads the copy on Retry', async () => {
+  const local = await import('@/lib/local-records');
+  const read = vi
+    .spyOn(local, 'readOwnedRecord')
+    .mockRejectedValueOnce(new Error('Storage unavailable'));
+  const hook = renderHook(() => useBatchDrafts(records));
+  await waitFor(() => expect(hook.result.current.getStatus().status).toBe('failed'));
+  expect(hook.result.current.ready()).toBe(false);
+  act(() => hook.result.current.set(r.id, line.id, '12'));
+  expect(hook.result.current.text(r.id, line)).toBe('0');
+  act(() => hook.result.current.retry());
+  await waitFor(() => expect(hook.result.current.ready()).toBe(true));
+  expect(hook.result.current.getStatus().status).toBe('saved');
+  read.mockRestore();
 });

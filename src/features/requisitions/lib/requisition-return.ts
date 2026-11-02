@@ -19,5 +19,6 @@ declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: router types extend by interface merging.
   interface HistoryState {
     requisitionReturn?: RequisitionReturn;
+    requisitionBatchLabels?: Record<string, string>;
   }
 }
