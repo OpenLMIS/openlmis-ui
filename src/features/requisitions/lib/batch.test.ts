@@ -86,3 +86,21 @@ describe('batch results', () => {
     );
   });
 });
+
+it('rounds a partial pack to zero when roundToZero is enabled', () => {
+  const line = arv.requisitionDtos[0].requisitionLineItems[0];
+  expect(
+    batchCost(
+      {
+        ...line,
+        orderable: {
+          ...line.orderable,
+          netContent: 10,
+          packRoundingThreshold: 5,
+          roundToZero: true,
+        },
+      },
+      '5',
+    ),
+  ).toBe(0);
+});
