@@ -14,7 +14,11 @@ export async function loadOrders(
   const scope = getSessionScope();
   const results = await Promise.allSettled(
     ids.map((id) =>
-      client.fetchQuery({ ...orderOptions(id), ...(fresh && { staleTime: 0 }), retry: false }),
+      client.fetchQuery({
+        ...orderOptions(id),
+        staleTime: fresh ? 0 : Number.POSITIVE_INFINITY,
+        retry: false,
+      }),
     ),
   );
   assertSessionScope(scope);

@@ -1,4 +1,6 @@
+import { Building2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { PickerAddIcon } from '@/components/pickers/picker-add';
 import {
   Combobox,
   ComboboxContent,
@@ -38,7 +40,10 @@ export function OrderSelect({
         disabled={disabled}
         itemToStringLabel={(item) => item.name}
         isItemEqualToValue={(a, b) => a.id === b.id}
-        onValueChange={(item) => onChange(item?.id ?? '')}
+        onValueChange={(item, details) => {
+          if (details.reason === 'escape-key' && !item) return details.allowPropagation();
+          onChange(item?.id ?? '');
+        }}
       >
         <ComboboxInput
           aria-label={label}
@@ -46,7 +51,13 @@ export function OrderSelect({
           size="lg"
           width="full"
           clearLabel={t('data-table.clear-filters')}
-        />
+        >
+          {compact && (
+            <PickerAddIcon>
+              <Building2Icon />
+            </PickerAddIcon>
+          )}
+        </ComboboxInput>
         <ComboboxContent>
           <ComboboxEmpty>{t('orders.create.empty')}</ComboboxEmpty>
           <ComboboxList>

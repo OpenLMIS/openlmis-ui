@@ -3,7 +3,21 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Workspace,
+  WorkspaceContent,
+  WorkspaceDescription,
+  WorkspaceHeader,
+  WorkspaceHeading,
+  WorkspaceTitle,
+} from '@/components/workspace/workspace';
+import {
+  WorkspaceActionsPortal,
+  WorkspaceActionsSlot,
+  WorkspaceSlots,
+} from '@/components/workspace/workspace-tabs';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { CreateOrderForm } from '@/features/orders/components/create-order-form';
@@ -26,16 +40,49 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/creat
   component: Page,
 });
 function Page() {
+  const { t } = useTranslation();
   return (
-    <QueryBoundary
-      resetKey="create-orders"
-      errorComponent={CreateError}
-      pendingFallback={<Skeleton />}
-    >
-      <Content />
-    </QueryBoundary>
+    <WorkspaceSlots>
+      <Workspace>
+        <WorkspaceHeader>
+          <WorkspaceHeading>
+            <WorkspaceTitle>{t('orders.create.title')}</WorkspaceTitle>
+            <WorkspaceDescription>{t('orders.create.description')}</WorkspaceDescription>
+          </WorkspaceHeading>
+          <WorkspaceActionsSlot />
+        </WorkspaceHeader>
+        <WorkspaceContent>
+          <QueryBoundary
+            resetKey="create-orders"
+            errorComponent={CreateError}
+            pendingFallback={<CreatePending />}
+          >
+            <Content />
+          </QueryBoundary>
+        </WorkspaceContent>
+      </Workspace>
+    </WorkspaceSlots>
   );
 }
+function CreatePending() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <WorkspaceActionsPortal>
+        <Button size="lg" disabled>
+          {t('orders.create.create')}
+        </Button>
+      </WorkspaceActionsPortal>
+      <div className="h-9">
+        <Skeleton fill />
+      </div>
+      <div className="h-40">
+        <Skeleton fill />
+      </div>
+    </>
+  );
+}
+
 function Content() {
   const { userId } = Route.useLoaderData();
   const navigate = Route.useNavigate();

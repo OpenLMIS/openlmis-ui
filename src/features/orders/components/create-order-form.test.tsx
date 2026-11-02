@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { WorkspaceActionsSlot, WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { createOrder } from '@/features/orders/api/api';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { CreateOrderForm } from '@/features/orders/components/create-order-form';
@@ -31,13 +32,16 @@ function setup(readable = true) {
   const onCreated = vi.fn();
   render(
     <QueryClientProvider client={client}>
-      <CreateOrderForm
-        userId="user"
-        facilities={facilities}
-        requesting={facilities.slice(0, 2)}
-        canRead={() => readable}
-        onCreated={onCreated}
-      />
+      <WorkspaceSlots>
+        <WorkspaceActionsSlot />
+        <CreateOrderForm
+          userId="user"
+          facilities={facilities}
+          requesting={facilities.slice(0, 2)}
+          canRead={() => readable}
+          onCreated={onCreated}
+        />
+      </WorkspaceSlots>
     </QueryClientProvider>,
   );
   return { onCreated, user: userEvent.setup() };

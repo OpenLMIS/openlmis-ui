@@ -13,15 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
-import {
-  Workspace,
-  WorkspaceActions,
-  WorkspaceContent,
-  WorkspaceDescription,
-  WorkspaceHeader,
-  WorkspaceHeading,
-  WorkspaceTitle,
-} from '@/components/workspace/workspace';
+import { WorkspaceActionsPortal } from '@/components/workspace/workspace-tabs';
 import { createOrder } from '@/features/orders/api/api';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { OrderSelect } from '@/features/orders/components/order-select';
@@ -80,7 +72,7 @@ export function CreateOrderForm({
         }),
       })),
     onSuccess: (result) => {
-      const reason = getErrorMessage(result.error);
+      const reason = getErrorMessage(result.error) ?? t('error.description');
       if (result.failed.length) {
         const names = result.failed
           .map((id) => facilities.find((f) => f.id === id)?.name ?? id)
@@ -102,7 +94,7 @@ export function CreateOrderForm({
     onError: (error) =>
       toast.error(t('orders.create.create-failed-title'), {
         description: t('orders.create.create-failed-description', {
-          reason: getErrorMessage(error),
+          reason: getErrorMessage(error) ?? t('error.description'),
         }),
       }),
   });
@@ -143,102 +135,94 @@ export function CreateOrderForm({
     ],
   });
   return (
-    <Workspace>
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceTitle>{t('orders.create.title')}</WorkspaceTitle>
-          <WorkspaceDescription>{t('orders.create.description')}</WorkspaceDescription>
-        </WorkspaceHeading>
-        <WorkspaceActions>
-          <Button
-            size="lg"
-            disabled={!readable || mutation.isPending}
-            onClick={() => mutation.mutate()}
-          >
-            {t('orders.create.create')}
-          </Button>
-        </WorkspaceActions>
-      </WorkspaceHeader>
-      <WorkspaceContent>
-        <FieldGroup>
-          <div className="min-w-0 @3xl/main:max-w-96">
-            <OrderSelect
-              label={t('orders.create.program')}
-              placeholder={t('orders.create.select-program')}
-              options={programs.map((p) => ({ id: p.id, name: p.name ?? p.code }))}
-              value={programId}
-              disabled={mutation.isPending}
-              onChange={(id) => {
-                setProgram(id);
-                setSupplier('');
-              }}
-            />
-          </div>
-        </FieldGroup>
-        <div className="flex flex-wrap items-end gap-2">
-          <PickerAdd>
-            <PickerAddField>
-              <OrderSelect
-                compact
-                label={t('orders.create.requesting-facility')}
-                placeholder={t('orders.create.select-requesting-facility')}
-                options={requesting.filter((f) => !ids.includes(f.id))}
-                value={picked}
-                disabled={mutation.isPending}
-                onChange={setPicked}
-              />
-            </PickerAddField>
-            <PickerAddButton
-              disabled={!picked || mutation.isPending}
-              onClick={() => {
-                setIds((current) => [...current, picked]);
-                setPicked('');
-                setSupplier('');
-              }}
-            >
-              {t('facilities.form.add')}
-            </PickerAddButton>
-          </PickerAdd>
-        </div>
-        <Separator />
-        <div ref={measure}>
-          {cards ? (
-            <TableCards table={table} title="name" empty={t('orders.create.empty')} />
-          ) : (
-            <DataTable table={table} empty={t('orders.create.empty')} />
-          )}
-        </div>
+    <>
+      <WorkspaceActionsPortal>
+        <Button
+          size="lg"
+          disabled={!readable || mutation.isPending}
+          onClick={() => mutation.mutate()}
+        >
+          {t('orders.create.create')}
+        </Button>
+      </WorkspaceActionsPortal>
+      <FieldGroup>
         <div className="min-w-0 @3xl/main:max-w-96">
           <OrderSelect
-            label={t('orders.create.supplying-facility')}
-            placeholder={t('orders.create.select-supplying-facility')}
-            options={options}
-            value={supplierId}
-            disabled={!programId || !ids.length || suppliers.isFetching || mutation.isPending}
-            onChange={setSupplier}
+            label={t('orders.create.program')}
+            placeholder={t('orders.create.select-program')}
+            options={programs.map((p) => ({ id: p.id, name: p.name ?? p.code }))}
+            value={programId}
+            disabled={mutation.isPending}
+            onChange={(id) => {
+              setProgram(id);
+              setSupplier('');
+            }}
           />
         </div>
-        {suppliers.isError && (
-          <Alert variant="destructive">
-            <AlertDescription>
-              {getErrorMessage(suppliers.error)}{' '}
-              <Button variant="outline" onClick={() => suppliers.refetch()}>
-                {t('error.try-again')}
-              </Button>
-            </AlertDescription>
-          </Alert>
+      </FieldGroup>
+      <div className="flex flex-wrap items-end gap-2">
+        <PickerAdd>
+          <PickerAddField>
+            <OrderSelect
+              compact
+              label={t('orders.create.requesting-facility')}
+              placeholder={t('orders.create.select-requesting-facility')}
+              options={requesting.filter((f) => !ids.includes(f.id))}
+              value={picked}
+              disabled={mutation.isPending}
+              onChange={setPicked}
+            />
+          </PickerAddField>
+          <PickerAddButton
+            disabled={!picked || mutation.isPending}
+            onClick={() => {
+              setIds((current) => [...current, picked]);
+              setPicked('');
+              setSupplier('');
+            }}
+          >
+            {t('facilities.form.add')}
+          </PickerAddButton>
+        </PickerAdd>
+      </div>
+      <Separator />
+      <div ref={measure}>
+        {cards ? (
+          <TableCards table={table} title="name" empty={t('orders.create.empty')} />
+        ) : (
+          <DataTable table={table} empty={t('orders.create.empty')} />
         )}
-        {!!programId && ids.length > 0 && suppliers.isSuccess && !options.length && (
-          <Alert>
-            <AlertDescription>{t('orders.create.no-supplier')}</AlertDescription>
-          </Alert>
-        )}
-        {ready && !readable && (
-          <Alert>
-            <AlertDescription>{t('orders.create.no-read-right')}</AlertDescription>
-          </Alert>
-        )}
-      </WorkspaceContent>
-    </Workspace>
+      </div>
+      <div className="min-w-0 @3xl/main:max-w-96">
+        <OrderSelect
+          label={t('orders.create.supplying-facility')}
+          placeholder={t('orders.create.select-supplying-facility')}
+          options={options}
+          value={supplierId}
+          disabled={!programId || !ids.length || suppliers.isFetching || mutation.isPending}
+          onChange={setSupplier}
+        />
+      </div>
+      {suppliers.isError && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {getErrorMessage(suppliers.error) ?? t('error.description')}{' '}
+            <Button variant="outline" onClick={() => suppliers.refetch()}>
+              {t('error.try-again')}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {!!programId && ids.length > 0 && suppliers.isSuccess && !options.length && (
+        <Alert>
+          <AlertDescription>{t('orders.create.no-supplier')}</AlertDescription>
+        </Alert>
+      )}
+      {ready && !readable && (
+        <Alert>
+          <AlertDescription>{t('orders.create.no-read-right')}</AlertDescription>
+        </Alert>
+      )}
+    </>
   );
 }

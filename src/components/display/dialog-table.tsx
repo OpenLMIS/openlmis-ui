@@ -45,6 +45,7 @@ function DialogCards({
 
 type DialogTableProps<TData extends RowData> = {
   table: DataTableInstance<TData>;
+  heading?: (row: TData) => string | undefined;
   cards: boolean;
   title: string;
   empty: ReactNode;
@@ -60,6 +61,7 @@ export function DialogTable<TData extends RowData>({
   table,
   cards,
   title,
+  heading,
   empty,
   footer,
   after,
@@ -70,7 +72,14 @@ export function DialogTable<TData extends RowData>({
     return (
       <DialogCards footer={footer} page={table.state.pagination.pageIndex}>
         <div className="flex flex-col gap-4">
-          <TableCards busy={busy} empty={empty} surface="flat" table={table} title={title} />
+          <TableCards
+            busy={busy}
+            empty={empty}
+            surface="flat"
+            table={table}
+            title={title}
+            heading={heading}
+          />
           {after}
         </div>
       </DialogCards>
@@ -78,7 +87,14 @@ export function DialogTable<TData extends RowData>({
   }
   return (
     <>
-      <DataTable {...tableProps} empty={empty} footer={footer} isStale={busy} table={table} />
+      <DataTable
+        heading={heading}
+        {...tableProps}
+        empty={empty}
+        footer={footer}
+        isStale={busy}
+        table={table}
+      />
       {after}
     </>
   );

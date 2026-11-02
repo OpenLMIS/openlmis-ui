@@ -66,6 +66,7 @@ type DataTableProps<TData extends RowData> = {
   layout?: 'fixed' | 'auto';
   /** Rendered across the whole body when there are no rows. */
   empty?: ReactNode;
+  heading?: (row: TData) => string | undefined;
   isRowInvalid?: (row: TData) => boolean;
   /** Dims the rows while the next page is loading in the background. */
   isStale?: boolean;
@@ -80,6 +81,7 @@ export function DataTable<TData extends RowData>({
   columnWidths,
   empty,
   isRowInvalid,
+  heading,
   isStale = false,
   footer,
   density = 'comfortable',
@@ -124,19 +126,27 @@ export function DataTable<TData extends RowData>({
           <DataTableHeader table={table} columnWidths={columnWidths} />
           <TableBody>
             {rows.length > 0 ? (
-              rows.map((row) => (
-                <TableRow
-                  data-invalid={isRowInvalid?.(row.original) || undefined}
-                  data-state={row.getIsSelected() ? 'selected' : undefined}
-                  key={row.id}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      <FlexRender cell={cell} />
+              rows.map((row) =>
+                heading?.(row.original) !== undefined ? (
+                  <TableRow key={row.id}>
+                    <TableCell colSpan={columns.length}>
+                      <strong>{heading(row.original)}</strong>
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                  </TableRow>
+                ) : (
+                  <TableRow
+                    data-invalid={isRowInvalid?.(row.original) || undefined}
+                    data-state={row.getIsSelected() ? 'selected' : undefined}
+                    key={row.id}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        <FlexRender cell={cell} />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ),
+              )
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length}>

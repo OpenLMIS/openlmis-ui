@@ -626,6 +626,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   into the registry.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
+- `DataTable` and `DialogTable` accept `heading` for full-width group rows; `DialogTable`
+  passes the same headings to phone cards. `useDialogCardLayout` also accepts `2xl`.
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
   default, `default` for compact tables needing room, `compact` for tighter cell padding;
   `layout="fixed"` by default, `auto`

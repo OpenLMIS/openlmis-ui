@@ -1,3 +1,4 @@
+import type { OrderBody } from '@/features/orders/lib/order-draft';
 import type { CreateOrderBody, Order } from '@/features/orders/lib/types';
 import { client } from '@/integrations/axios';
 import { fetchIdBatches } from '@/lib/fetch-by-ids';
@@ -11,12 +12,10 @@ export async function createOrder(body: CreateOrderBody) {
 export async function fetchOrder(id: string): Promise<Order> {
   return (await client.get<Order>(`/orders/${id}`)).data;
 }
-export async function saveOrder(
-  body: import('@/features/orders/lib/order-draft').OrderBody,
-): Promise<Order> {
+export async function saveOrder(body: OrderBody): Promise<Order> {
   return (await client.put<Order>(`/orders/${body.id}`, body)).data;
 }
-export async function sendOrder(body: import('@/features/orders/lib/order-draft').OrderBody) {
+export async function sendOrder(body: OrderBody) {
   await client.put(`/orders/${body.id}/requisitionLess/send`, body);
 }
 export async function deleteOrders(ids: readonly string[]) {
@@ -29,11 +28,21 @@ export async function fetchOrderStockOnHand(filter: {
 }) {
   const scope = getSessionScope();
   const batches = await fetchIdBatches(filter.orderableIds, async (orderableId) => {
-    const entries: { orderable: { id: string }; stockOnHand: number | null }[] = [];
+    const entries: {
+      orderable: { id: string };
+      lot?: { id: string } | null;
+      stockOnHand: number | null;
+    }[] = [];
     for (let page = 0; ; page++) {
       assertSessionScope(scope);
       const { data } = await client.get<
-        Page<{ canFulfillForMe: { orderable: { id: string }; stockOnHand: number | null }[] }>
+        Page<{
+          canFulfillForMe: {
+            orderable: { id: string };
+            lot?: { id: string } | null;
+            stockOnHand: number | null;
+          }[];
+        }>
       >('/v2/stockCardSummaries', {
         params: {
           programId: filter.programId,
@@ -50,8 +59,11 @@ export async function fetchOrderStockOnHand(filter: {
     }
     return entries;
   });
+  const balances = new Map(
+    batches.flat().map((entry) => [`${entry.orderable.id}|${entry.lot?.id ?? ''}`, entry]),
+  );
   const totals = new Map<string, number | null>();
-  for (const entry of batches.flat()) {
+  for (const entry of balances.values()) {
     const previous = totals.get(entry.orderable.id);
     totals.set(
       entry.orderable.id,
