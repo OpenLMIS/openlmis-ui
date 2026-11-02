@@ -75,6 +75,7 @@ export function useNavGroups() {
   const rights = useSignedInRights();
   const { hasDeviceEvents } = useDeviceWork();
   const online = useOnline();
+  const createOrders = useFlag('SHOW_REQUISITION_LESS_ORDER');
   return useMemo<LiveNavGroup[]>(() => {
     const mark = (link: LiveNavLink) => ({
       ...link,
@@ -83,10 +84,17 @@ export function useNavGroups() {
     return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents, !online).map((group) => ({
       ...group,
       items: group.items.map((item) =>
-        isNavParent(item) ? { ...item, items: item.items.map(mark) } : mark(item),
+        isNavParent(item)
+          ? {
+              ...item,
+              items: item.items
+                .filter((link) => link.to !== '/requisitions/create-orders' || createOrders)
+                .map(mark),
+            }
+          : mark(item),
       ),
     }));
-  }, [rights, online, hasDeviceEvents]);
+  }, [rights, online, hasDeviceEvents, createOrders]);
 }
 
 export function useHasRight(right: string) {

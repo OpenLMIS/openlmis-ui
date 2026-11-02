@@ -823,6 +823,9 @@ home facility, user programs, all facilities and page grants, following legacy:
   only: `fetchQuery`/`ensureQueryData` ignore `select`. Features never import auth; see Home.
 - Facility/program pages check exact grants with `hasProgramGrant`. Unscoped rights or
   grants elsewhere never count.
+- Create Orders deliberately offers requesting facilities with `ORDER_CREATE` for any program,
+  matching the server's program-independent receiving-facility check. Order reads still need
+  supplier facility-only grants or exact requesting-facility/program POD grants.
 - User-changing saves call `invalidateUserQueries(queryClient, userId)`
   (`src/lib/user-queries.ts`). Per-user caches hold only the signed-in user's data; rights,
   Profile and Home refresh only when saving that user.

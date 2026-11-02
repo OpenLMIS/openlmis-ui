@@ -1,4 +1,5 @@
 export const RIGHTS = {
+  orderCreate: 'ORDER_CREATE',
   requisitionGroupsManage: 'REQUISITION_GROUPS_MANAGE',
   requisitionTemplatesManage: 'REQUISITION_TEMPLATES_MANAGE',
   requisitionCreate: 'REQUISITION_CREATE',
