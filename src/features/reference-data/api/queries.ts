@@ -11,6 +11,7 @@ import {
   fetchFacility,
   fetchFacilityOperators,
   fetchFacilityOrderableFulfills,
+  fetchFacilitySupervisoryNodes,
   fetchFacilityTypeApprovedOrderables,
   fetchFacilityTypes,
   fetchGeographicLevels,
@@ -37,6 +38,7 @@ import {
   fetchSupervisedFacilities,
   fetchSupervisoryNodes,
   fetchSupervisoryNodesByIds,
+  fetchSupplyLines,
   fetchTradeItemByGtin,
   fetchUserPrograms,
   fetchUserRecord,
@@ -401,3 +403,19 @@ export const approvedProductsByIdentitiesOptions = (identities: readonly Orderab
     staleTime: LOOKUP_STALE_TIME,
   });
 };
+
+export const facilitySupervisoryNodesOptions = (filter: {
+  programId: string;
+  facilityId: string;
+}) =>
+  queryOptions({
+    queryKey: [...queryKeys.supervisoryNodes.all, 'facility', filter],
+    queryFn: () => fetchFacilitySupervisoryNodes(filter),
+    staleTime: LOOKUP_STALE_TIME,
+  });
+export const supplyLinesOptions = (filter: { programId: string; supervisoryNodeId: string }) =>
+  queryOptions({
+    queryKey: [...queryKeys.supplyLines.all, 'lookup', filter],
+    queryFn: () => fetchSupplyLines(filter),
+    staleTime: LOOKUP_STALE_TIME,
+  });

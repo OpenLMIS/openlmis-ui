@@ -45,6 +45,7 @@ import { Route as protectedProtectedProfileNotificationsRouteImport } from './ro
 import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(protected)/_protected.profile.roles'
 import { Route as protectedProtectedRequisitionsApproveRouteImport } from './routes/(protected)/_protected.requisitions.approve'
 import { Route as protectedProtectedRequisitionsConvertRouteImport } from './routes/(protected)/_protected.requisitions.convert'
+import { Route as protectedProtectedRequisitionsCreateOrdersRouteImport } from './routes/(protected)/_protected.requisitions.create-orders'
 import { Route as protectedProtectedRequisitionsInitiateRouteImport } from './routes/(protected)/_protected.requisitions.initiate'
 import { Route as protectedProtectedRequisitionsViewRouteImport } from './routes/(protected)/_protected.requisitions.view'
 import { Route as protectedProtectedSettingsIndexRouteImport } from './routes/(protected)/_protected.settings.index'
@@ -70,6 +71,7 @@ import { Route as protectedProtectedAdministrationRequisitionTemplatesIdRouteImp
 import { Route as protectedProtectedAdministrationSupervisoryNodesIdRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes_.$id'
 import { Route as protectedProtectedAdministrationSupplyPartnersIdRouteImport } from './routes/(protected)/_protected.administration.supply-partners_.$id'
 import { Route as protectedProtectedRequisitionsApproveBatchRouteImport } from './routes/(protected)/_protected.requisitions.approve_.batch'
+import { Route as protectedProtectedRequisitionsCreateOrdersOrderIdsRouteImport } from './routes/(protected)/_protected.requisitions.create-orders_.$orderIds'
 import { Route as protectedProtectedRequisitionsViewRequisitionIdRouteImport } from './routes/(protected)/_protected.requisitions.view_.$requisitionId'
 import { Route as protectedProtectedStockManagementAdjustmentsProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.adjustments_.$programId'
 import { Route as protectedProtectedStockManagementIssueProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.issue_.$programId'
@@ -296,6 +298,12 @@ const protectedProtectedRequisitionsConvertRoute =
     path: '/requisitions/convert',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedRequisitionsCreateOrdersRoute =
+  protectedProtectedRequisitionsCreateOrdersRouteImport.update({
+    id: '/requisitions/create-orders',
+    path: '/requisitions/create-orders',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedRequisitionsInitiateRoute =
   protectedProtectedRequisitionsInitiateRouteImport.update({
     id: '/requisitions/initiate',
@@ -448,6 +456,12 @@ const protectedProtectedRequisitionsApproveBatchRoute =
     path: '/requisitions/approve/batch',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedRequisitionsCreateOrdersOrderIdsRoute =
+  protectedProtectedRequisitionsCreateOrdersOrderIdsRouteImport.update({
+    id: '/requisitions/create-orders_/$orderIds',
+    path: '/requisitions/create-orders/$orderIds',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedRequisitionsViewRequisitionIdRoute =
   protectedProtectedRequisitionsViewRequisitionIdRouteImport.update({
     id: '/requisitions/view_/$requisitionId',
@@ -584,6 +598,7 @@ export interface FileRoutesByFullPath {
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/requisitions/approve': typeof protectedProtectedRequisitionsApproveRoute
   '/requisitions/convert': typeof protectedProtectedRequisitionsConvertRoute
+  '/requisitions/create-orders': typeof protectedProtectedRequisitionsCreateOrdersRoute
   '/requisitions/initiate': typeof protectedProtectedRequisitionsInitiateRoute
   '/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
@@ -610,6 +625,7 @@ export interface FileRoutesByFullPath {
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
+  '/requisitions/create-orders/$orderIds': typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -660,6 +676,7 @@ export interface FileRoutesByTo {
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/requisitions/approve': typeof protectedProtectedRequisitionsApproveRoute
   '/requisitions/convert': typeof protectedProtectedRequisitionsConvertRoute
+  '/requisitions/create-orders': typeof protectedProtectedRequisitionsCreateOrdersRoute
   '/requisitions/initiate': typeof protectedProtectedRequisitionsInitiateRoute
   '/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
@@ -685,6 +702,7 @@ export interface FileRoutesByTo {
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
+  '/requisitions/create-orders/$orderIds': typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -739,6 +757,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/(protected)/_protected/requisitions/approve': typeof protectedProtectedRequisitionsApproveRoute
   '/(protected)/_protected/requisitions/convert': typeof protectedProtectedRequisitionsConvertRoute
+  '/(protected)/_protected/requisitions/create-orders': typeof protectedProtectedRequisitionsCreateOrdersRoute
   '/(protected)/_protected/requisitions/initiate': typeof protectedProtectedRequisitionsInitiateRoute
   '/(protected)/_protected/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/(protected)/_protected/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
@@ -765,6 +784,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/supervisory-nodes_/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/(protected)/_protected/administration/supply-partners_/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
   '/(protected)/_protected/requisitions/approve_/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
+  '/(protected)/_protected/requisitions/create-orders_/$orderIds': typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   '/(protected)/_protected/requisitions/view_/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/(protected)/_protected/stock-management/adjustments_/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/(protected)/_protected/stock-management/issue_/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -819,6 +839,7 @@ export interface FileRouteTypes {
     | '/profile/roles'
     | '/requisitions/approve'
     | '/requisitions/convert'
+    | '/requisitions/create-orders'
     | '/requisitions/initiate'
     | '/requisitions/view'
     | '/settings/feature-flags'
@@ -845,6 +866,7 @@ export interface FileRouteTypes {
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
     | '/requisitions/approve/batch'
+    | '/requisitions/create-orders/$orderIds'
     | '/requisitions/view/$requisitionId'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
@@ -895,6 +917,7 @@ export interface FileRouteTypes {
     | '/profile/roles'
     | '/requisitions/approve'
     | '/requisitions/convert'
+    | '/requisitions/create-orders'
     | '/requisitions/initiate'
     | '/requisitions/view'
     | '/settings/feature-flags'
@@ -920,6 +943,7 @@ export interface FileRouteTypes {
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
     | '/requisitions/approve/batch'
+    | '/requisitions/create-orders/$orderIds'
     | '/requisitions/view/$requisitionId'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
@@ -973,6 +997,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/profile/roles'
     | '/(protected)/_protected/requisitions/approve'
     | '/(protected)/_protected/requisitions/convert'
+    | '/(protected)/_protected/requisitions/create-orders'
     | '/(protected)/_protected/requisitions/initiate'
     | '/(protected)/_protected/requisitions/view'
     | '/(protected)/_protected/settings/feature-flags'
@@ -999,6 +1024,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/supervisory-nodes_/$id'
     | '/(protected)/_protected/administration/supply-partners_/$id'
     | '/(protected)/_protected/requisitions/approve_/batch'
+    | '/(protected)/_protected/requisitions/create-orders_/$orderIds'
     | '/(protected)/_protected/requisitions/view_/$requisitionId'
     | '/(protected)/_protected/stock-management/adjustments_/$programId'
     | '/(protected)/_protected/stock-management/issue_/$programId'
@@ -1279,6 +1305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedRequisitionsConvertRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/requisitions/create-orders': {
+      id: '/(protected)/_protected/requisitions/create-orders'
+      path: '/requisitions/create-orders'
+      fullPath: '/requisitions/create-orders'
+      preLoaderRoute: typeof protectedProtectedRequisitionsCreateOrdersRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/requisitions/initiate': {
       id: '/(protected)/_protected/requisitions/initiate'
       path: '/requisitions/initiate'
@@ -1452,6 +1485,13 @@ declare module '@tanstack/react-router' {
       path: '/requisitions/approve/batch'
       fullPath: '/requisitions/approve/batch'
       preLoaderRoute: typeof protectedProtectedRequisitionsApproveBatchRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/requisitions/create-orders_/$orderIds': {
+      id: '/(protected)/_protected/requisitions/create-orders_/$orderIds'
+      path: '/requisitions/create-orders/$orderIds'
+      fullPath: '/requisitions/create-orders/$orderIds'
+      preLoaderRoute: typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/requisitions/view_/$requisitionId': {
@@ -1663,6 +1703,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
   protectedProtectedRequisitionsApproveRoute: typeof protectedProtectedRequisitionsApproveRoute
   protectedProtectedRequisitionsConvertRoute: typeof protectedProtectedRequisitionsConvertRoute
+  protectedProtectedRequisitionsCreateOrdersRoute: typeof protectedProtectedRequisitionsCreateOrdersRoute
   protectedProtectedRequisitionsInitiateRoute: typeof protectedProtectedRequisitionsInitiateRoute
   protectedProtectedRequisitionsViewRoute: typeof protectedProtectedRequisitionsViewRoute
   protectedProtectedStockManagementAdjustmentsRoute: typeof protectedProtectedStockManagementAdjustmentsRoute
@@ -1685,6 +1726,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationSupervisoryNodesIdRoute: typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   protectedProtectedAdministrationSupplyPartnersIdRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRoute
   protectedProtectedRequisitionsApproveBatchRoute: typeof protectedProtectedRequisitionsApproveBatchRoute
+  protectedProtectedRequisitionsCreateOrdersOrderIdsRoute: typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   protectedProtectedRequisitionsViewRequisitionIdRoute: typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   protectedProtectedStockManagementAdjustmentsProgramIdRoute: typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   protectedProtectedStockManagementIssueProgramIdRoute: typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -1751,6 +1793,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedRequisitionsApproveRoute,
   protectedProtectedRequisitionsConvertRoute:
     protectedProtectedRequisitionsConvertRoute,
+  protectedProtectedRequisitionsCreateOrdersRoute:
+    protectedProtectedRequisitionsCreateOrdersRoute,
   protectedProtectedRequisitionsInitiateRoute:
     protectedProtectedRequisitionsInitiateRoute,
   protectedProtectedRequisitionsViewRoute:
@@ -1795,6 +1839,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationSupplyPartnersIdRoute,
   protectedProtectedRequisitionsApproveBatchRoute:
     protectedProtectedRequisitionsApproveBatchRoute,
+  protectedProtectedRequisitionsCreateOrdersOrderIdsRoute:
+    protectedProtectedRequisitionsCreateOrdersOrderIdsRoute,
   protectedProtectedRequisitionsViewRequisitionIdRoute:
     protectedProtectedRequisitionsViewRequisitionIdRoute,
   protectedProtectedStockManagementAdjustmentsProgramIdRoute:

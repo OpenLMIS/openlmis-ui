@@ -1,4 +1,5 @@
 export const RIGHTS = {
+  orderCreate: 'ORDER_CREATE',
   requisitionGroupsManage: 'REQUISITION_GROUPS_MANAGE',
   requisitionTemplatesManage: 'REQUISITION_TEMPLATES_MANAGE',
   requisitionCreate: 'REQUISITION_CREATE',
@@ -6,6 +7,9 @@ export const RIGHTS = {
   requisitionDelete: 'REQUISITION_DELETE',
   requisitionView: 'REQUISITION_VIEW',
   requisitionApprove: 'REQUISITION_APPROVE',
+  shipmentsView: 'SHIPMENTS_VIEW',
+  shipmentsEdit: 'SHIPMENTS_EDIT',
+  podsView: 'PODS_VIEW',
   ordersEdit: 'ORDERS_EDIT',
   ordersView: 'ORDERS_VIEW',
   podsManage: 'PODS_MANAGE',

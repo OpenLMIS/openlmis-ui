@@ -17,7 +17,11 @@ export function useDiscardGuard(
   // Opening a dialog keeps the page, so only a different page, or tab, can lose the draft.
   const blocker = useBlocker({
     shouldBlockFn: async ({ current, next }) => {
-      if (allowLeave?.() || current.pathname === next.pathname || next.pathname === '/login')
+      if (
+        allowLeave?.() ||
+        current.pathname.replace(/%2c/gi, ',') === next.pathname.replace(/%2c/gi, ',') ||
+        next.pathname === '/login'
+      )
         return false;
       if (pending) return true;
       if (flushBeforeLeave) return !(await flushBeforeLeave());
