@@ -20,6 +20,7 @@ import {
   saveBatchRequisitions,
 } from '@/features/requisitions/api/api';
 import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
+import { getLocalDb } from '@/integrations/local-db';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve_.batch';
 
 const security = vi.hoisted(() => ({ secure: true }));
@@ -83,6 +84,7 @@ function renderRoute(ids = records.map((r) => r.id).join(',')) {
 beforeEach(() => {
   vi.clearAllMocks();
   security.secure = true;
+  sessionStorage.clear();
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     width: 1200,
   } as DOMRect);
@@ -131,7 +133,7 @@ it('validates, confirms, saves then approves and returns to the approval list', 
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
   await screen.findByText('requisitions.batch.approve-confirm');
   expect(saveBatchRequisitions).not.toHaveBeenCalled();
-  await userEvent.dblClick(screen.getByRole('button', { name: 'requisitions.batch.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.confirm' }));
   await screen.findByText('Approval List');
   expect(saveBatchRequisitions).toHaveBeenCalledOnce();
   expect(approveBatchRequisitions).toHaveBeenCalledWith(records.map((r) => r.id));
@@ -289,15 +291,182 @@ it('Sync sends an empty cell as zero and holds back a record above the Java limi
   expect(approveBatchRequisitions).not.toHaveBeenCalled();
 });
 
-it('blocks approval on HTTP where an uncertain outcome cannot be retained across reloads', async () => {
-  security.secure = false;
+it.each([true, false])('stores approval markers before the POST on secure=%s', async (secure) => {
+  security.secure = secure;
+  vi.mocked(approveBatchRequisitions).mockImplementation(async (ids) => {
+    for (const id of ids) {
+      if (secure) {
+        expect(await getLocalDb().table('requisitionBatchDrafts').get(id)).toMatchObject({
+          unresolvedApproval: { attemptedAt: expect.any(String) },
+        });
+      } else {
+        const markers = Object.keys(sessionStorage).map((key) =>
+          JSON.parse(sessionStorage.getItem(key) ?? 'null'),
+        );
+        expect(markers).toContainEqual(
+          expect.objectContaining({
+            userId: useLoginData.getState().referenceDataUserId,
+            requisitionId: id,
+            attemptedAt: expect.any(String),
+            baselineModifiedDate: expect.any(String),
+            baselineStatus: expect.any(String),
+          }),
+        );
+      }
+    }
+    return { requisitionDtos: records, requisitionErrors: [] };
+  });
   renderRoute();
-  const input = (await screen.findAllByRole('textbox'))[0];
-  await waitFor(() => expect(input).toBeEnabled());
-  await screen.findByText('requisitions.batch.memory');
-  const approve = screen.getByRole('button', { name: 'requisitions.batch.approve' });
-  expect(approve).toHaveAttribute('data-disabled');
-  expect(approve).toHaveAttribute('aria-description', 'requisitions.batch.secure-approval');
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
   await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await screen.findByText('Approval List');
+  expect(approveBatchRequisitions).toHaveBeenCalledOnce();
+});
+it('keeps the failed record typed quantity when other records synchronize', async () => {
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [records[0]],
+    requisitionErrors: [
+      { requisitionId: records[1].id, errorMessage: { message: 'Save refused' } },
+    ],
+  });
+  renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[1]).toBeEnabled());
+  await userEvent.clear(inputs[1]);
+  await userEvent.type(inputs[1], '123');
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  await screen.findAllByText(/Save refused/);
+  expect(await getLocalDb().table('requisitionBatchDrafts').get(records[1].id)).toMatchObject({
+    approvedQuantities: { [records[1].requisitionLineItems[0].id]: '123' },
+  });
+});
+it('refreshes after a failed Sync and names only affected records for review', async () => {
+  vi.mocked(saveBatchRequisitions).mockRejectedValueOnce(new Error('Lost save'));
+  vi.mocked(fetchBatchRequisitions)
+    .mockResolvedValueOnce({ requisitionDtos: records })
+    .mockResolvedValue({
+      requisitionDtos: [
+        { ...records[0], modifiedDate: 'changed', facilityName: 'Refreshed facility' },
+        records[1],
+      ],
+    });
+  renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  await userEvent.type(inputs[1], '2147483648');
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  await screen.findByText('Lost save');
+  expect(screen.getAllByRole('textbox', { hidden: true })[0]).toHaveAccessibleName(
+    /Refreshed facility/,
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  await screen.findAllByText(/requisitions.batch.review-refreshed/);
+  const description = screen.getByRole('alertdialog').textContent ?? '';
+  expect(description).toContain(records[0].periodName);
+  expect(description).not.toContain(records[1].periodName);
+});
+it('keeps a refusal reason after the Sync refetch', async () => {
+  vi.mocked(fetchBatchRequisitions)
+    .mockResolvedValueOnce({ requisitionDtos: records })
+    .mockResolvedValue({
+      requisitionDtos: [records[0]],
+      requisitionErrors: [
+        { requisitionId: records[1].id, errorMessage: { message: 'Access revoked' } },
+      ],
+    });
+  renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  await userEvent.click(sync);
+  await screen.findByText('Access revoked');
+  expect(screen.queryByText('requisitions.batch.missing')).not.toBeInTheDocument();
+});
+it('unlocks Approve only after confirming Approve Anyway for an opening marker', async () => {
+  await getLocalDb()
+    .table('requisitionBatchDrafts')
+    .put({
+      draftId: records[0].id,
+      userId: useLoginData.getState().referenceDataUserId,
+      formatVersion: 1,
+      revision: 1,
+      baselineModifiedDate: records[0].modifiedDate,
+      baselineStatus: records[0].status,
+      approvedQuantities: {},
+      unresolvedApproval: { attemptedAt: 'now' },
+    });
+  renderRoute();
+  await screen.findByText('requisitions.batch.uncertain');
+  const approve = screen.getByRole('button', { name: 'requisitions.batch.approve' });
+  expect(approve).toBeDisabled();
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.anyway' }));
+  await screen.findByText('requisitions.batch.anyway-confirm');
+  expect(approve).toBeDisabled();
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.confirm' }));
+  await waitFor(() => expect(approve).toBeEnabled());
   expect(approveBatchRequisitions).not.toHaveBeenCalled();
+});
+
+it('shows missing product placeholders, invalid markers and save failure reasons on phone cards', async () => {
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [
+      records[0],
+      { ...records[1], requisitionLineItems: records[1].requisitionLineItems.slice(0, -1) },
+    ],
+  });
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 390,
+  } as DOMRect);
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [records[0]],
+    requisitionErrors: [
+      { requisitionId: records[1].id, errorMessage: { message: 'Card save refused' } },
+    ],
+  });
+  renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+  await userEvent.clear(inputs[1]);
+  expect(screen.getAllByText('requisitions.batch.invalid-requisition').length).toBeGreaterThan(0);
+  await userEvent.type(inputs[1], '12');
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  await screen.findAllByText(/Card save refused/);
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  expect(screen.getAllByText('Card save refused').length).toBeGreaterThan(0);
+});
+
+it('does not show removed approved ids as missing while URL replacement is loading', async () => {
+  let release: (() => void) | undefined;
+  const navigating = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.mocked(fetchBatchRequisitions)
+    .mockResolvedValueOnce({ requisitionDtos: records })
+    .mockResolvedValueOnce({ requisitionDtos: records })
+    .mockImplementation(async () => {
+      await navigating;
+      return { requisitionDtos: [records[1]] };
+    });
+  vi.mocked(approveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [records[0]],
+    requisitionErrors: [
+      { requisitionId: records[1].id, errorMessage: { message: 'Still needs approval' } },
+    ],
+  });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await waitFor(() => expect(fetchBatchRequisitions).toHaveBeenCalledTimes(3));
+  const missing = screen.queryByText('requisitions.batch.missing');
+  release?.();
+  expect(missing).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeEnabled(),
+  );
 });

@@ -1,4 +1,3 @@
-import { TriangleAlertIcon } from 'lucide-react';
 import {
   createContext,
   Fragment,
@@ -21,8 +20,9 @@ import {
 } from '@/components/ui/table';
 import { useBatch, useBatchVersion } from '@/features/requisitions/components/batch-context';
 import { BatchCost, BatchInputCell } from '@/features/requisitions/components/batch-quantity';
+import { BatchRecordStatus } from '@/features/requisitions/components/batch-record-status';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
-import { batchCost, batchTotals, validateBatchQuantity } from '@/features/requisitions/lib/batch';
+import { batchCost, batchTotals } from '@/features/requisitions/lib/batch';
 import type { BatchRequisition, BatchRow } from '@/features/requisitions/lib/batch-types';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
 import { toWholeNumber } from '@/lib/whole-number';
@@ -31,13 +31,6 @@ const BatchPins = createContext({ end: false, costWidth: 0 });
 
 const BatchGroup = memo(function BatchGroup({ record }: { record: BatchRequisition }) {
   const { t } = useTranslation();
-  const { drafts, reasons } = useBatch();
-  useBatchVersion(`record:${record.id}`);
-  useBatchVersion('meta');
-  const invalid = record.requisitionLineItems.some(
-    (l) => !l.skipped && validateBatchQuantity(drafts.text(record.id, l)),
-  );
-  const reason = reasons.get(record.id);
   return (
     <div className="flex flex-col gap-1 whitespace-normal py-2">
       <RequisitionGridHeader
@@ -46,12 +39,7 @@ const BatchGroup = memo(function BatchGroup({ record }: { record: BatchRequisiti
           period: record.periodName,
         })}
       />
-      {(invalid || reason) && (
-        <span className="flex items-center gap-1 text-destructive text-xs">
-          <TriangleAlertIcon className="size-4 shrink-0" />
-          {reason || t('requisitions.batch.invalid-requisition')}
-        </span>
-      )}
+      <BatchRecordStatus record={record} />
     </div>
   );
 });

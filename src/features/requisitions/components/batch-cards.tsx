@@ -10,9 +10,11 @@ import {
 import { SettingsItem } from '@/components/form/settings-list';
 import { useBatch, useBatchVersion } from '@/features/requisitions/components/batch-context';
 import { BatchCost, BatchQuantity } from '@/features/requisitions/components/batch-quantity';
+import { BatchRecordStatus } from '@/features/requisitions/components/batch-record-status';
 import { batchLabel, batchTotals } from '@/features/requisitions/lib/batch';
 import type { BatchRow } from '@/features/requisitions/lib/batch-types';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
+import { EMPTY_VALUE } from '@/lib/empty-value';
 
 function CardTotals({ row }: { row?: BatchRow }) {
   const { t } = useTranslation();
@@ -60,11 +62,18 @@ export const BatchCards = memo(function BatchCards() {
             const line = row.lines.get(record.id);
             return (
               <CardRows key={record.id}>
-                <CardControlRow label={batchLabel(record)}>
-                  {line && <BatchQuantity record={record} line={line} />}
+                <CardControlRow
+                  label={
+                    <span>
+                      {batchLabel(record)}
+                      <BatchRecordStatus record={record} />
+                    </span>
+                  }
+                >
+                  {line ? <BatchQuantity record={record} line={line} /> : EMPTY_VALUE}
                 </CardControlRow>
                 <SettingsItem label={t('requisitions.batch.cost')}>
-                  {line && <BatchCost recordId={record.id} line={line} />}
+                  {line ? <BatchCost recordId={record.id} line={line} /> : EMPTY_VALUE}
                 </SettingsItem>
               </CardRows>
             );

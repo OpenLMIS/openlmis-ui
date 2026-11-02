@@ -12,7 +12,6 @@ import { DataTableEmpty } from '@/components/data-table/data-table';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { DraftStatus, DraftStatusSkeleton } from '@/components/display/draft-status';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
-import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -180,7 +179,7 @@ function BatchPage() {
     (listener) => drafts.subscribe('dirty', listener),
     drafts.dirty,
   );
-  const needsRefresh = useRef(false);
+  const needsRefresh = useRef<string[]>([]);
   const scope = useRef(getSessionScope()).current;
   const ids = records.map((r) => r.id);
   const unresolved = records.filter((r) => drafts.unresolved(r.id));
@@ -236,7 +235,6 @@ function BatchPage() {
   const mutation = useSessionMutation({
     mutationFn: async (kind: 'sync' | Action | 'check') => {
       if (kind !== 'revert' && kind !== 'remove' && !online) return;
-      if (kind === 'approve' && !drafts.deviceAvailable) return;
       await drafts.flush();
       assertSessionScope(scope);
       if (kind === 'revert' || kind === 'update') {
@@ -273,12 +271,13 @@ function BatchPage() {
         } else setResponse(orderBatch(fresh, ids));
         return;
       }
-      if (needsRefresh.current) {
+      if (needsRefresh.current.length) {
         const fresh = await refresh();
         assertSessionScope(scope);
-        needsRefresh.current = false;
+        const affected = needsRefresh.current;
+        needsRefresh.current = [];
         setResponse(fresh);
-        report(new Map(ids.map((id) => [id, t('requisitions.batch.review-refreshed')])));
+        report(new Map(affected.map((id) => [id, t('requisitions.batch.review-refreshed')])));
         return;
       }
       const failures = new Map<string, string>();
@@ -309,9 +308,11 @@ function BatchPage() {
         assertSessionScope(scope);
       } catch (error) {
         assertSessionScope(scope);
-        needsRefresh.current = true;
+        needsRefresh.current = eligible.map((r) => r.id);
         try {
-          await refresh();
+          const fresh = await refresh();
+          assertSessionScope(scope);
+          setResponse(fresh);
         } catch {
           assertSessionScope(scope);
         }
@@ -324,12 +325,12 @@ function BatchPage() {
       );
       for (const [id, reason] of save.failed)
         failures.set(id, reason || t('requisitions.batch.save-failed'));
-      needsRefresh.current = true;
+      needsRefresh.current = eligible.map((r) => r.id);
       const fresh = await refresh();
       assertSessionScope(scope);
       await drafts.clear(save.succeeded, fresh.requisitionDtos, false);
       assertSessionScope(scope);
-      needsRefresh.current = false;
+      needsRefresh.current = [];
       if (kind === 'sync') {
         setResponse(fresh);
         report(failures);
@@ -342,7 +343,11 @@ function BatchPage() {
       const available = new Set(fresh.requisitionDtos?.map((r) => r.id));
       const saved = save.succeeded.filter((id) => available.has(id));
       for (const id of save.succeeded)
-        if (!available.has(id)) failures.set(id, t('requisitions.batch.missing'));
+        if (!available.has(id))
+          failures.set(
+            id,
+            parseBatchResult(fresh, [id]).failed.get(id) || t('requisitions.batch.missing'),
+          );
       let approved: string[] = [];
       if (saved.length) {
         await drafts.mark(saved, true);
@@ -398,8 +403,6 @@ function BatchPage() {
         leaving.current = true;
         await returnToList();
       } else {
-        if (drafts.deviceAvailable || !saved.some((id) => drafts.unresolved(id)))
-          setResponse(orderBatch(fresh, [...failures.keys()]));
         await replaceIds([...failures.keys()]);
       }
       assertSessionScope(scope);
@@ -458,7 +461,10 @@ function BatchPage() {
     }),
     [records, drafts, loaded.currency, pending, reasons],
   );
-  const refused = parseBatchResult(response, loaded.ids).failed;
+  const refused = parseBatchResult(
+    response,
+    loaded.ids.filter((id) => !loaded.removed.has(id)),
+  ).failed;
   const approve = () => {
     const first = records.flatMap((record) =>
       record.requisitionLineItems
@@ -493,7 +499,9 @@ function BatchPage() {
               {[...refused].map(([id, reason]) => (
                 <Alert key={id} variant="warning">
                   <AlertTitle>{recordLabel(id)}</AlertTitle>
-                  <AlertDescription>{reason || t('requisitions.batch.missing')}</AlertDescription>
+                  <AlertDescription>
+                    {reason || reasons.get(id) || t('requisitions.batch.missing')}
+                  </AlertDescription>
                 </Alert>
               ))}
               {outdated.map((r) => (
@@ -585,28 +593,15 @@ function BatchPage() {
           >
             {t('requisitions.batch.sync')}
           </Button>
-          <ActionTooltip
-            reason={!drafts.deviceAvailable ? t('requisitions.batch.secure-approval') : undefined}
+          <Button
+            size="lg"
+            disabled={
+              pending || !online || !records.length || !!unresolved.length || !drafts.ready()
+            }
+            onClick={approve}
           >
-            <Button
-              size="lg"
-              disabled={
-                pending ||
-                !online ||
-                !drafts.deviceAvailable ||
-                !records.length ||
-                !!unresolved.length ||
-                !drafts.ready()
-              }
-              aria-description={
-                !drafts.deviceAvailable ? t('requisitions.batch.secure-approval') : undefined
-              }
-              focusableWhenDisabled={!drafts.deviceAvailable}
-              onClick={approve}
-            >
-              {t('requisitions.batch.approve')}
-            </Button>
-          </ActionTooltip>
+            {t('requisitions.batch.approve')}
+          </Button>
         </div>
       </WorkspaceFooter>
       <AlertDialog
