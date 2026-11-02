@@ -1,0 +1,225 @@
+{
+  "requisitionDtos": [
+    {
+      "id": "c6ce0209-6caf-4f40-bea8-01ce529fdc67",
+      "emergency": false,
+      "status": "AUTHORIZED",
+      "modifiedDate": "2017-02-26T03:50:31Z",
+      "periodName": "Feb2017",
+      "facilityName": "Comfort Health Clinic",
+      "requisitionLineItems": [
+        {
+          "id": "f27415c4-7049-46a6-9e59-818990c85390",
+          "orderable": {
+            "id": "7b9b66e0-f008-4c38-93ec-7a5f4868cca9",
+            "productCode": "C600",
+            "fullProductName": "Levonorgestrel",
+            "netContent": 1,
+            "packRoundingThreshold": 0,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": null,
+          "pricePerPack": 5.1,
+          "totalCost": null,
+          "skipped": false
+        },
+        {
+          "id": "05119a44-5f7a-4ad3-b49f-739661304c59",
+          "orderable": {
+            "id": "7f7b83db-580d-4269-88d2-7f9c80a591a9",
+            "productCode": "C300",
+            "fullProductName": "Depo-Estradiol",
+            "netContent": 5,
+            "packRoundingThreshold": 2,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": null,
+          "pricePerPack": 20.77,
+          "totalCost": null,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "id": "fd575c05-c469-4bb4-b5d3-4e8937a8c1ff",
+      "emergency": false,
+      "status": "AUTHORIZED",
+      "modifiedDate": "2017-01-01T01:53:43Z",
+      "periodName": "Jan2017",
+      "facilityName": "Comfort Health Clinic",
+      "requisitionLineItems": [
+        {
+          "id": "99118ee8-ec30-400a-bb05-0b1512bd4fb8",
+          "orderable": {
+            "id": "7b9b66e0-f008-4c38-93ec-7a5f4868cca9",
+            "productCode": "C600",
+            "fullProductName": "Levonorgestrel",
+            "netContent": 1,
+            "packRoundingThreshold": 0,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": null,
+          "pricePerPack": 5.1,
+          "totalCost": null,
+          "skipped": false
+        },
+        {
+          "id": "ad4fe511-43ba-4b3c-8ea3-602c469aca6f",
+          "orderable": {
+            "id": "7f7b83db-580d-4269-88d2-7f9c80a591a9",
+            "productCode": "C300",
+            "fullProductName": "Depo-Estradiol",
+            "netContent": 5,
+            "packRoundingThreshold": 2,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": null,
+          "pricePerPack": 20.77,
+          "totalCost": null,
+          "skipped": false
+        }
+      ]
+    },
+    {
+      "id": "074a49af-12c3-429f-b5da-ed3f9e65787c",
+      "emergency": false,
+      "status": "AUTHORIZED",
+      "modifiedDate": "2017-03-26T04:24:00Z",
+      "periodName": "Mar2017",
+      "facilityName": "Comfort Health Clinic",
+      "requisitionLineItems": [
+        {
+          "id": "8e724d8f-d714-409b-baa9-fe732d7175a7",
+          "orderable": {
+            "id": "7b9b66e0-f008-4c38-93ec-7a5f4868cca9",
+            "productCode": "C600",
+            "fullProductName": "Levonorgestrel",
+            "netContent": 1,
+            "packRoundingThreshold": 0,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 0,
+          "pricePerPack": 5.1,
+          "totalCost": null,
+          "skipped": false
+        },
+        {
+          "id": "4b5cde6e-2771-4b64-afd1-5ee4f4452fda",
+          "orderable": {
+            "id": "bfde33c3-83f1-4feb-a27c-842852f66b71",
+            "productCode": "C400",
+            "fullProductName": "Male Condom",
+            "netContent": 1,
+            "packRoundingThreshold": 0,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 1278,
+          "pricePerPack": 25.46,
+          "totalCost": null,
+          "skipped": false
+        },
+        {
+          "id": "6e3b9044-eb81-45a9-9567-3461cfa6e1d7",
+          "orderable": {
+            "id": "880cf2eb-7b68-4450-a037-a0dec1a17987",
+            "productCode": "C500",
+            "fullProductName": "Implanon",
+            "netContent": 1,
+            "packRoundingThreshold": 0,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 2019,
+          "pricePerPack": 30.98,
+          "totalCost": null,
+          "skipped": false
+        },
+        {
+          "id": "2efd35db-fa98-4a1a-b711-1aaa9d6b1fcc",
+          "orderable": {
+            "id": "d602d0c6-4052-456c-8ccd-61b4ad77bece",
+            "productCode": "C100",
+            "fullProductName": "Levora",
+            "netContent": 84,
+            "packRoundingThreshold": 42,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 0,
+          "pricePerPack": 5.23,
+          "totalCost": null,
+          "skipped": false
+        },
+        {
+          "id": "90df5393-16e8-419b-8a36-3f5daf9a0f89",
+          "orderable": {
+            "id": "23819693-0670-4c4b-b400-28e009b86b51",
+            "productCode": "C200",
+            "fullProductName": "Ortho-Novum",
+            "netContent": 63,
+            "packRoundingThreshold": 31,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 999,
+          "pricePerPack": 15.94,
+          "totalCost": null,
+          "skipped": false
+        },
+        {
+          "id": "46c607b1-a8da-40de-93d6-9dcae3a34068",
+          "orderable": {
+            "id": "7f7b83db-580d-4269-88d2-7f9c80a591a9",
+            "productCode": "C300",
+            "fullProductName": "Depo-Estradiol",
+            "netContent": 5,
+            "packRoundingThreshold": 2,
+            "roundToZero": false,
+            "meta": {
+              "versionNumber": 1,
+              "lastUpdated": "2026-10-30T10:58:22.132039Z"
+            }
+          },
+          "approvedQuantity": 999,
+          "pricePerPack": 20.77,
+          "totalCost": null,
+          "skipped": false
+        }
+      ]
+    }
+  ],
+  "requisitionErrors": []
+}

@@ -34,6 +34,7 @@ import {
   APPROVAL_SORT,
   type ApprovalSearch,
   type ApprovalSelection,
+  approvalRowIndex,
   approvalScope,
 } from '@/features/requisitions/lib/approval-search';
 import { returnState } from '@/features/requisitions/lib/requisition-return';
@@ -164,10 +165,11 @@ function useResultsTable({
       if (!onSelection || stale) return;
       const selected = functionalUpdate(updater, rowSelection);
       const visible = new Map(
-        data.map((row) => [
+        data.map((row, index) => [
           row.id,
           {
             programId: row.program.id,
+            rowIndex: approvalRowIndex(search, index),
             label: requisitionRowLabel(row, t('requisitions.columns.emergency')),
           },
         ]),

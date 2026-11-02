@@ -21,7 +21,10 @@ import { TranslatedFormMessages } from '@/components/i18n/translated-form-messag
 import { DialogCloseLabelProvider } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { countUnsyncedRequisitionDrafts } from '@/features/requisitions/lib/unsynced-device-work';
+import {
+  countUnsyncedBatchDrafts,
+  countUnsyncedRequisitionDrafts,
+} from '@/features/requisitions/lib/unsynced-device-work';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import type { InitialTrigger } from '@/lib/offline-coordinator';
 import { isSecureOrigin } from '@/lib/secure-context';
@@ -34,7 +37,11 @@ const DeviceWorkProvider = lazy(() =>
 );
 
 async function countUnsyncedWork() {
-  const counts = await Promise.all([countUnsyncedDeviceWork(), countUnsyncedRequisitionDrafts()]);
+  const counts = await Promise.all([
+    countUnsyncedDeviceWork(),
+    countUnsyncedRequisitionDrafts(),
+    countUnsyncedBatchDrafts(),
+  ]);
   return counts.reduce((total, count) => total + count, 0);
 }
 

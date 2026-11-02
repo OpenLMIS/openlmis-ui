@@ -184,3 +184,26 @@
     display: none;
   }
 }
+
+.batch-grid [data-slot="table-container"] {
+  scroll-padding-inline-start: calc(var(--batch-code-width) + var(--batch-name-width));
+}
+
+.batch-grid[data-pin-end] [data-slot="table-container"] {
+  scroll-padding-inline-end: calc(var(--batch-quantity-width) + var(--batch-cost-width));
+}
+
+.batch-grid:not([data-pin-end]) [data-slot="table-head"][style*="inset-inline-end"],
+.batch-grid:not([data-pin-end]) [data-slot="table-cell"][style*="inset-inline-end"] {
+  position: static;
+}
+
+.batch-grid .batch-spacer {
+  height: var(--batch-spacer-height);
+  padding: 0;
+  border: 0;
+}
+
+.batch-grid:not([data-pin-end]) [data-sticky="end"]::after {
+  display: none;
+}

@@ -51,6 +51,7 @@ export function getLocalDb(): Dexie {
       physicalInventoryReference: 'draftId',
     });
     database.version(14).stores({ requisitionDrafts: 'draftId' });
+    database.version(15).stores({ requisitionBatchDrafts: 'draftId' });
   }
   return database;
 }
@@ -67,6 +68,7 @@ export const LOCAL_TABLES = {
   receiveCatalogDownloads: 'receiveCatalogDownloads',
   stockCardHistory: 'stockCardHistory',
   requisitionDrafts: 'requisitionDrafts',
+  requisitionBatchDrafts: 'requisitionBatchDrafts',
   physicalInventoryDrafts: 'physicalInventoryDrafts',
   physicalInventoryReference: 'physicalInventoryReference',
   stockEventDrafts: 'stockEventDrafts',

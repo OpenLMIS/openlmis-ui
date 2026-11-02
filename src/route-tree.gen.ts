@@ -68,6 +68,7 @@ import { Route as protectedProtectedAdministrationRequisitionGroupsNewRouteImpor
 import { Route as protectedProtectedAdministrationRequisitionTemplatesIdRouteImport } from './routes/(protected)/_protected.administration.requisition-templates_.$id'
 import { Route as protectedProtectedAdministrationSupervisoryNodesIdRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes_.$id'
 import { Route as protectedProtectedAdministrationSupplyPartnersIdRouteImport } from './routes/(protected)/_protected.administration.supply-partners_.$id'
+import { Route as protectedProtectedRequisitionsApproveBatchRouteImport } from './routes/(protected)/_protected.requisitions.approve_.batch'
 import { Route as protectedProtectedRequisitionsViewRequisitionIdRouteImport } from './routes/(protected)/_protected.requisitions.view_.$requisitionId'
 import { Route as protectedProtectedStockManagementAdjustmentsProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.adjustments_.$programId'
 import { Route as protectedProtectedStockManagementIssueProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.issue_.$programId'
@@ -434,6 +435,12 @@ const protectedProtectedAdministrationSupplyPartnersIdRoute =
     path: '/administration/supply-partners/$id',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedRequisitionsApproveBatchRoute =
+  protectedProtectedRequisitionsApproveBatchRouteImport.update({
+    id: '/requisitions/approve_/batch',
+    path: '/requisitions/approve/batch',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedRequisitionsViewRequisitionIdRoute =
   protectedProtectedRequisitionsViewRequisitionIdRouteImport.update({
     id: '/requisitions/view_/$requisitionId',
@@ -594,6 +601,7 @@ export interface FileRoutesByFullPath {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -667,6 +675,7 @@ export interface FileRoutesByTo {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/stock-management/issue/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -745,6 +754,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/requisition-templates_/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/(protected)/_protected/administration/supervisory-nodes_/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/(protected)/_protected/administration/supply-partners_/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/(protected)/_protected/requisitions/approve_/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/(protected)/_protected/requisitions/view_/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/(protected)/_protected/stock-management/adjustments_/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   '/(protected)/_protected/stock-management/issue_/$programId': typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -823,6 +833,7 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/requisitions/approve/batch'
     | '/requisitions/view/$requisitionId'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
@@ -896,6 +907,7 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/requisitions/approve/batch'
     | '/requisitions/view/$requisitionId'
     | '/stock-management/adjustments/$programId'
     | '/stock-management/issue/$programId'
@@ -973,6 +985,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/requisition-templates_/$id'
     | '/(protected)/_protected/administration/supervisory-nodes_/$id'
     | '/(protected)/_protected/administration/supply-partners_/$id'
+    | '/(protected)/_protected/requisitions/approve_/batch'
     | '/(protected)/_protected/requisitions/view_/$requisitionId'
     | '/(protected)/_protected/stock-management/adjustments_/$programId'
     | '/(protected)/_protected/stock-management/issue_/$programId'
@@ -1414,6 +1427,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/requisitions/approve_/batch': {
+      id: '/(protected)/_protected/requisitions/approve_/batch'
+      path: '/requisitions/approve/batch'
+      fullPath: '/requisitions/approve/batch'
+      preLoaderRoute: typeof protectedProtectedRequisitionsApproveBatchRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/requisitions/view_/$requisitionId': {
       id: '/(protected)/_protected/requisitions/view_/$requisitionId'
       path: '/requisitions/view/$requisitionId'
@@ -1643,6 +1663,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationRequisitionTemplatesIdRoute: typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   protectedProtectedAdministrationSupervisoryNodesIdRoute: typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   protectedProtectedAdministrationSupplyPartnersIdRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  protectedProtectedRequisitionsApproveBatchRoute: typeof protectedProtectedRequisitionsApproveBatchRoute
   protectedProtectedRequisitionsViewRequisitionIdRoute: typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   protectedProtectedStockManagementAdjustmentsProgramIdRoute: typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
   protectedProtectedStockManagementIssueProgramIdRoute: typeof protectedProtectedStockManagementIssueProgramIdRoute
@@ -1749,6 +1770,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationSupervisoryNodesIdRoute,
   protectedProtectedAdministrationSupplyPartnersIdRoute:
     protectedProtectedAdministrationSupplyPartnersIdRoute,
+  protectedProtectedRequisitionsApproveBatchRoute:
+    protectedProtectedRequisitionsApproveBatchRoute,
   protectedProtectedRequisitionsViewRequisitionIdRoute:
     protectedProtectedRequisitionsViewRequisitionIdRoute,
   protectedProtectedStockManagementAdjustmentsProgramIdRoute:
