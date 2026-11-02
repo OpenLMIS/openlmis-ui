@@ -139,7 +139,9 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
       const costWidth = cost.current?.getBoundingClientRect().width ?? 0;
       const quantityWidth = quantity.current?.getBoundingClientRect().width ?? 0;
       frame.current?.style.setProperty('--batch-code-width', `${codeWidth}px`);
+      frame.current?.style.setProperty('--batch-name-width', `${nameWidth}px`);
       frame.current?.style.setProperty('--batch-cost-width', `${costWidth}px`);
+      frame.current?.style.setProperty('--batch-quantity-width', `${quantityWidth}px`);
       const end =
         codeWidth +
           nameWidth +

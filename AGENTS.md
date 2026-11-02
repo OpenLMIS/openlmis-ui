@@ -286,7 +286,7 @@ edits, which have no prop for TypeScript to detect:
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
 | `sidebar.tsx` | Keep both menu button variants free of `aria-disabled:pointer-events-none` so connection-dependent entries remain clickable offline |
-| `table.tsx` | Keep TableFooter `sticky`, opaque headers with `scroll="both"`, TableCell `rowHeader`, and TableHead/TableCell `sticky="end"` with CSS-variable logical offsets and end-pin data attributes |
+| `table.tsx` | Keep TableFooter `sticky`, opaque headers and zero-spacing separate cell borders with `scroll="both"` so sticky dividers and measured end offsets stay gapless, TableCell `rowHeader`, and TableHead/TableCell `sticky="end"` with CSS-variable logical offsets and end-pin data attributes |
 | `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `data-[invalid]:bg-destructive/10` for invalid draft lines |
 | `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |

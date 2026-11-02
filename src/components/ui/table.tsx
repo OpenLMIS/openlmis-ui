@@ -32,7 +32,7 @@ function Table({
           density === "compact" && "[&_td]:px-1.5 [&_th]:px-1.5",
           layout === "fixed" && "table-fixed [&_td]:truncate",
           scroll === "both" &&
-            "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_thead]:shadow-[inset_0_-1px_0_var(--color-border)] [&_thead_tr]:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))]",
+            "border-separate border-spacing-0 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_thead_tr]:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))] [&_thead_th]:border-b [&_tbody_tr:not(:last-child)>*]:border-b [&_tfoot_tr:first-child>*]:border-t",
           className
         )}
         {...props}
