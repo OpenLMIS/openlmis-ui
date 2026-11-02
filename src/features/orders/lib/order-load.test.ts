@@ -37,6 +37,7 @@ describe('batch order loading', () => {
     expect(await loadOrders(client, ['a'], true)).toMatchObject([
       { id: 'a', problem: 'not-creating' },
     ]);
+    expect(cachedOrders(client, ['a'])).toMatchObject([{ id: 'a', problem: 'not-creating' }]);
     expect(fetchOrder).toHaveBeenCalledTimes(4);
   });
   it('lets an unexpected failure reach the route error and retry boundary', async () => {

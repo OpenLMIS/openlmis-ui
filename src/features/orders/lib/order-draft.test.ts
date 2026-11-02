@@ -43,6 +43,10 @@ describe('order drafts', () => {
     for (const value of ['', '-1', '1.5', '2147483648'])
       expect(validLines([{ ...lines[0], quantity: quantityValue(value, 10) }], false)).toBe(false);
     expect(validLines([{ ...lines[0], quantity: quantityValue('0', 10) }], false)).toBe(true);
+    expect(validLines([{ ...lines[0], quantity: quantityValue('2147483647', 10) }], true)).toBe(
+      true,
+    );
+    expect(validLines([lines[0], { ...lines[0], key: 'again' }], false)).toBe(false);
     expect(validLines([{ ...lines[0], quantity: quantityValue('0', 10) }], true)).toBe(false);
   });
   it('merges ids only onto surviving client lines and preserves newer typing and markers', () => {

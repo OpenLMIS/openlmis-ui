@@ -26,6 +26,7 @@ describe('order facility choices', () => {
       'ORDER_CREATE|a|p',
       'ORDER_CREATE|a|q',
       'ORDER_CREATE|b|q',
+      'REQUISITION_CREATE|c|p',
     ]);
     expect(
       requestingFacilities(permissions, [
@@ -43,6 +44,7 @@ describe('order facility choices', () => {
     expect(
       canReadOrders(parsePermissions(['PODS_VIEW|a|p', 'PODS_MANAGE|b|p']), 'p', 's', ['a', 'b']),
     ).toBe(true);
+    expect(canReadOrders(parsePermissions(['PODS_VIEW|a|p']), 'p', 's', ['a', 'b'])).toBe(false);
     expect(canReadOrders(parsePermissions(['PODS_VIEW|a|q']), 'p', 's', ['a'])).toBe(false);
   });
 });

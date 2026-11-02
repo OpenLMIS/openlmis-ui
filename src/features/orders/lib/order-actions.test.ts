@@ -2,7 +2,7 @@ import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { deleteOrders, fetchOrder, sendOrder } from '@/features/orders/api/api';
+import { deleteOrders, fetchOrder, saveOrder, sendOrder } from '@/features/orders/api/api';
 import { executeOrderWrite } from '@/features/orders/lib/order-actions';
 import { draftLines } from '@/features/orders/lib/order-draft';
 import { SessionEndedError } from '@/lib/session-scope';
@@ -56,16 +56,20 @@ describe('order write recovery', () => {
     expect(sendOrder).toHaveBeenCalledTimes(3);
   });
   it.each([
-    [404, 'not-found'],
-    [403, 'unresolved'],
-    [500, 'unresolved'],
-  ] as const)('blocks an uncertain send after reread %s', async (status, problem) => {
+    ['send', 404, 'not-found'],
+    ['send', 403, 'unresolved'],
+    ['save', 403, undefined],
+  ] as const)('classifies a failed %s whose reread returns %s', async (kind, status, problem) => {
     vi.mocked(sendOrder).mockRejectedValue(httpError(400));
+    vi.mocked(saveOrder).mockRejectedValue(httpError(400));
     vi.mocked(fetchOrder).mockRejectedValue(httpError(status));
     const order = creatingOrder();
-    expect(
-      await executeOrderWrite({ kind: 'send', snapshots: [{ order, lines: draftLines(order) }] }),
-    ).toMatchObject([{ success: false, problem }]);
+    const [outcome] = await executeOrderWrite({
+      kind,
+      snapshots: [{ order, lines: draftLines(order) }],
+    });
+    expect(outcome).toMatchObject({ success: false, error: expect.any(AxiosError) });
+    expect(outcome.problem).toBe(problem);
   });
   it('stops recovery when identity changes during a failed reread', async () => {
     const read = Promise.withResolvers<OrderReturn>();

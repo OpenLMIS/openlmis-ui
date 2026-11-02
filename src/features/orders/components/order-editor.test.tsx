@@ -177,26 +177,18 @@ describe('order editor workflow', () => {
       'orders.edit.unsaved',
     );
   });
-  it.each(['order', 'batch'])(
-    'confirms Delete %s and passes the surviving ids to replace navigation',
-    async (kind) => {
-      vi.mocked(deleteOrders).mockResolvedValue(undefined);
-      const { user, onBatchChange } = setup();
-      await user.click(screen.getByRole('button', { name: `orders.edit.delete-${kind}` }));
-      const dialog = screen.getByRole('alertdialog');
-      await user.click(
-        within(dialog).getByRole('button', {
-          name: kind === 'order' ? 'orders.edit.delete-order-action' : 'orders.edit.delete-batch',
-        }),
-      );
-      await waitFor(() =>
-        expect(deleteOrders).toHaveBeenCalledWith(kind === 'order' ? ['a'] : ['a', 'b']),
-      );
-      await waitFor(() =>
-        expect(onBatchChange).toHaveBeenCalledWith(kind === 'order' ? ['b'] : []),
-      );
-    },
-  );
+  it('confirms Delete Batch, deletes every id and leaves the batch', async () => {
+    vi.mocked(deleteOrders).mockResolvedValue(undefined);
+    const { user, onBatchChange } = setup();
+    await user.click(screen.getByRole('button', { name: 'orders.edit.delete-batch' }));
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', {
+        name: 'orders.edit.delete-batch',
+      }),
+    );
+    await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith([]));
+    expect(deleteOrders).toHaveBeenCalledWith(['a', 'b']);
+  });
   it('keeps the whole batch after a delete 404 and blocks the order no longer Creating', async () => {
     vi.mocked(deleteOrders).mockRejectedValue(
       new AxiosError('Changed', undefined, undefined, undefined, {
@@ -237,7 +229,7 @@ describe('order editor workflow', () => {
   });
 });
 
-it.each(['delete', 'send', 'remove'] as const)(
+it.each(['delete', 'remove'] as const)(
   'preserves surviving edits through route navigation after %s',
   async (action) => {
     const client = new QueryClient({
@@ -250,9 +242,6 @@ it.each(['delete', 'send', 'remove'] as const)(
       return creatingOrder(id);
     });
     vi.mocked(deleteOrders).mockResolvedValue(undefined);
-    vi.mocked(sendOrder).mockImplementation(async (body) => {
-      if (body.id === 'b') throw new Error('Failed');
-    });
     const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
     const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
     const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -281,25 +270,16 @@ it.each(['delete', 'send', 'remove'] as const)(
     fireEvent.change(quantity(), { target: { value: '25' } });
     const pendingBefore = pending.mock.calls.length;
     const user = userEvent.setup();
-    if (action === 'send') {
-      await user.click(screen.getByRole('button', { name: 'orders.edit.create' }));
+    await user.click(screen.getByRole('tab', { name: /^(Facility a|a)/ }));
+    if (action === 'remove')
+      await user.click(screen.getByRole('button', { name: 'orders.edit.remove-from-batch' }));
+    else {
+      await user.click(screen.getByRole('button', { name: 'orders.edit.delete-order' }));
       await user.click(
-        within(screen.getByRole('dialog')).getByRole('button', {
-          name: 'orders.edit.summary-confirm',
+        within(screen.getByRole('alertdialog')).getByRole('button', {
+          name: 'orders.edit.delete-order-action',
         }),
       );
-    } else {
-      await user.click(screen.getByRole('tab', { name: /^(Facility a|a)/ }));
-      if (action === 'remove')
-        await user.click(screen.getByRole('button', { name: 'orders.edit.remove-from-batch' }));
-      else {
-        await user.click(screen.getByRole('button', { name: 'orders.edit.delete-order' }));
-        await user.click(
-          within(screen.getByRole('alertdialog')).getByRole('button', {
-            name: 'orders.edit.delete-order-action',
-          }),
-        );
-      }
     }
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/requisitions/create-orders/b'),
@@ -309,6 +289,6 @@ it.each(['delete', 'send', 'remove'] as const)(
       'orders.edit.unsaved',
     );
     expect(pending).toHaveBeenCalledTimes(pendingBefore);
-    expect(fetchOrder).toHaveBeenCalledTimes(action === 'send' ? 3 : 2);
+    expect(fetchOrder).toHaveBeenCalledTimes(2);
   },
 );

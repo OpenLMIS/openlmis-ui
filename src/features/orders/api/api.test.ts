@@ -32,7 +32,9 @@ it('uses each summary balance across every page and defaults absent products to 
     { orderable: { id: 'c' }, stockOnHand: 0 },
   ]);
   expect(client.get).toHaveBeenCalledTimes(2);
-  expect(vi.mocked(client.get).mock.calls[1][1]).toMatchObject({ params: { page: 1 } });
+  expect(vi.mocked(client.get).mock.calls[1][1]).toMatchObject({
+    params: { orderableId: ['a', 'b', 'c'], page: 1 },
+  });
 });
 it('does not turn a refused stock request into zero balances', async () => {
   const error = new Error('Refused');
