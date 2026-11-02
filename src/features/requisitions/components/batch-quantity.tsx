@@ -5,7 +5,12 @@ import { Input } from '@/components/ui/input';
 import { TableCell } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useBatch, useBatchVersion } from '@/features/requisitions/components/batch-context';
-import { batchCost, batchLabel, validateBatchQuantity } from '@/features/requisitions/lib/batch';
+import {
+  batchCost,
+  batchLabel,
+  lineInvalid,
+  validateBatchQuantity,
+} from '@/features/requisitions/lib/batch';
 import type { BatchLine, BatchRequisition } from '@/features/requisitions/lib/batch-types';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
 
@@ -13,8 +18,10 @@ export const batchFieldId = (recordId: string, lineId: string) => `batch-${recor
 export const BatchQuantity = memo(function BatchQuantity({
   record,
   line,
+  controlSize,
 }: {
   record: BatchRequisition;
+  controlSize?: 'sm';
   line: BatchLine;
 }) {
   const { t } = useTranslation();
@@ -43,7 +50,7 @@ export const BatchQuantity = memo(function BatchQuantity({
             aria-label={`${batchLabel(record)}: ${line.orderable.productCode}: ${t('requisitions.batch.approved-quantity')}`}
             aria-invalid={!!error}
             aria-describedby={error ? `${id}-error` : undefined}
-            controlSize="sm"
+            controlSize={controlSize}
             sizing="full-minimum"
             inputMode="numeric"
             value={value}
@@ -82,10 +89,10 @@ export const BatchInputCell = memo(function BatchInputCell({
 }) {
   const { drafts } = useBatch();
   useBatchVersion(`${record.id}:${line?.id ?? ''}`);
-  const invalid = line && !line.skipped && validateBatchQuantity(drafts.text(record.id, line));
+  const invalid = line && lineInvalid(line, drafts.text(record.id, line));
   return (
     <TableCell tone={invalid ? 'danger' : 'default'}>
-      {line && <BatchQuantity record={record} line={line} />}
+      {line && <BatchQuantity record={record} line={line} controlSize="sm" />}
     </TableCell>
   );
 });

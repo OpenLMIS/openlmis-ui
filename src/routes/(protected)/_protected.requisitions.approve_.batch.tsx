@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import type { ErrorComponentProps } from '@tanstack/react-router';
+import type { ErrorComponentProps, HistoryState } from '@tanstack/react-router';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardCheckIcon } from 'lucide-react';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { DataTableEmpty } from '@/components/data-table/data-table';
+import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { DraftStatus, DraftStatusSkeleton } from '@/components/display/draft-status';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
@@ -44,18 +45,18 @@ import {
 import { batchRequisitionsOptions } from '@/features/requisitions/api/queries';
 import { BatchCards } from '@/features/requisitions/components/batch-cards';
 import { BatchContext } from '@/features/requisitions/components/batch-context';
-import { BatchGrid } from '@/features/requisitions/components/batch-grid';
+import { BatchGrid, type BatchGridHandle } from '@/features/requisitions/components/batch-grid';
 import { batchFieldId } from '@/features/requisitions/components/batch-quantity';
 import { RequisitionOutdatedAlert } from '@/features/requisitions/components/requisition-outdated-alert';
-import { useBatchDrafts } from '@/features/requisitions/hooks/use-batch-drafts';
+import { type BatchDrafts, useBatchDrafts } from '@/features/requisitions/hooks/use-batch-drafts';
 import {
   batchIds,
   batchLabel,
   batchRows,
   batchSaveBody,
+  lineInvalid,
   orderBatch,
   parseBatchResult,
-  validateBatchQuantity,
 } from '@/features/requisitions/lib/batch';
 import { recoverBatchApprovals } from '@/features/requisitions/lib/batch-recovery';
 import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
@@ -107,19 +108,10 @@ function BatchError(props: ErrorComponentProps) {
   return (
     <ErrorFallback
       {...props}
-      title={t('requisitions.edit.error-title')}
-      description={t('requisitions.edit.error-description')}
+      title={t('requisitions.batch.load-error-title')}
+      description={t('requisitions.batch.load-error-description')}
       back={
-        <Button
-          variant="outline"
-          onClick={() =>
-            void navigate(
-              state.requisitionReturn?.to === '/requisitions/approve'
-                ? state.requisitionReturn
-                : { to: '/requisitions/approve', search: {} },
-            )
-          }
-        >
+        <Button variant="outline" onClick={() => void navigate(approvalReturn(state))}>
           {t('requisitions.approve.title')}
         </Button>
       }
@@ -127,18 +119,66 @@ function BatchError(props: ErrorComponentProps) {
   );
 }
 function BatchPending() {
+  const { t } = useTranslation();
   return (
-    <Workspace width="wide">
-      <BatchHeader />
-      <WorkspaceContent>
-        <DraftStatusSkeleton />
-        <div className="h-128">
-          <Skeleton fill />
+    <>
+      <Workspace width="wide">
+        <BatchHeader />
+        <WorkspaceContent>
+          <DraftStatusSkeleton />
+          <div className="h-128">
+            <Skeleton fill />
+          </div>
+        </WorkspaceContent>
+      </Workspace>
+      <WorkspaceFooter width="wide">
+        <Button size="lg" variant="outline" disabled>
+          {t('dialog.cancel')}
+        </Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button size="lg" variant="outline" disabled>
+            {t('requisitions.batch.revert')}
+          </Button>
+          <Button size="lg" variant="outline" disabled>
+            {t('requisitions.batch.sync')}
+          </Button>
+          <Button size="lg" disabled>
+            {t('requisitions.batch.approve')}
+          </Button>
         </div>
-      </WorkspaceContent>
-    </Workspace>
+      </WorkspaceFooter>
+    </>
   );
 }
+function BatchDraftStatus({ drafts }: { drafts: BatchDrafts }) {
+  const { t } = useTranslation();
+  const status = useSyncExternalStore(drafts.subscribeStatus, drafts.getStatus);
+  return drafts.deviceAvailable ? (
+    <DraftStatus
+      {...status}
+      labels={{
+        copy: null,
+        conflictDescription: t('requisitions.edit.draft-conflict-description'),
+      }}
+      onRetry={drafts.retry}
+      onResolve={drafts.resolve}
+    />
+  ) : (
+    <p role="note">{t('requisitions.batch.memory')}</p>
+  );
+}
+function approvalReturn(state: HistoryState) {
+  return state.requisitionReturn?.to === '/requisitions/approve'
+    ? state.requisitionReturn
+    : { to: '/requisitions/approve' as const, search: {} };
+}
+const actionCopy = {
+  approve: ['requisitions.batch.approve', 'requisitions.batch.approve-confirm'],
+  remove: ['requisitions.batch.remove', 'requisitions.batch.remove-confirm'],
+  anyway: ['requisitions.batch.anyway', 'requisitions.batch.anyway-confirm'],
+  update: ['requisitions.edit.update', 'requisitions.edit.actions.update-confirm'],
+  revert: ['requisitions.batch.revert', 'requisitions.batch.revert-confirm'],
+} as const;
 type Action = 'approve' | 'revert' | 'anyway' | 'update' | 'remove';
 function BatchPage() {
   const loaded = Route.useLoaderData();
@@ -154,7 +194,6 @@ function BatchPage() {
   }
   const records = response.requisitionDtos;
   const drafts = useBatchDrafts(records);
-  const status = useSyncExternalStore(drafts.subscribeStatus, drafts.getStatus);
   const meta = useSyncExternalStore(
     (listener) => drafts.subscribe('meta', listener),
     () => drafts.version('meta'),
@@ -173,6 +212,7 @@ function BatchPage() {
   );
   const [invalid, setInvalid] = useState<string | null>(null);
   const invalidTarget = useRef<string | null>(null);
+  const grid = useRef<BatchGridHandle>(null);
   const busy = useRef(false);
   const leaving = useRef(false);
   const dirty = useSyncExternalStore(
@@ -184,12 +224,7 @@ function BatchPage() {
   const ids = records.map((r) => r.id);
   const unresolved = records.filter((r) => drafts.unresolved(r.id));
   const outdated = records.filter((r) => drafts.outdated(r.id));
-  const returnToList = () =>
-    navigate(
-      locationState.requisitionReturn?.to === '/requisitions/approve'
-        ? locationState.requisitionReturn
-        : { to: '/requisitions/approve', search: {} },
-    );
+  const returnToList = () => navigate(approvalReturn(locationState));
   const replaceIds = (next: readonly string[]) =>
     navigate({
       to: '/requisitions/approve/batch',
@@ -205,8 +240,9 @@ function BatchPage() {
     setReasons(failures);
     if (failures.size)
       setDialog(
-        [...failures]
-          .map(([id, reason]) => `${recordLabel(id)}: ${reason || t('requisitions.batch.missing')}`)
+        ids
+          .filter((id) => failures.has(id))
+          .map((id) => `${recordLabel(id)}: ${failures.get(id) || t('requisitions.batch.missing')}`)
           .join('\n'),
       );
   };
@@ -224,11 +260,10 @@ function BatchPage() {
     );
     if (removed.length) {
       await drafts.clear(removed, [], false);
-      assertSessionScope(scope);
       const labels = removed.map(recordLabel).join(', ');
       const description = `${labels}: ${t('requisitions.batch.possibly-approved')}`;
       setDialog(description);
-      toast.warning(t('offline-events.status-uncertain'), { description });
+      toast.warning(t('requisitions.batch.status-uncertain'), { description });
     }
     return removed;
   };
@@ -236,21 +271,17 @@ function BatchPage() {
     mutationFn: async (kind: 'sync' | Action | 'check') => {
       if (kind !== 'revert' && kind !== 'remove' && !online) return;
       await drafts.flush();
-      assertSessionScope(scope);
       if (kind === 'revert' || kind === 'update') {
         await drafts.clear(kind === 'update' ? target : ids);
-        assertSessionScope(scope);
         return;
       }
       if (kind === 'anyway') {
         await drafts.mark(target, false);
-        assertSessionScope(scope);
         return;
       }
       if (kind === 'remove') {
         const kept = ids.filter((id) => !target.includes(id));
         await drafts.clear(target, [], false);
-        assertSessionScope(scope);
         if (!kept.length) {
           leaving.current = true;
           await returnToList();
@@ -260,7 +291,6 @@ function BatchPage() {
       }
       if (kind === 'check') {
         const fresh = await refresh();
-        assertSessionScope(scope);
         const removed = await reconcile(fresh);
         assertSessionScope(scope);
         const kept = ids.filter((id) => !removed.includes(id));
@@ -273,7 +303,6 @@ function BatchPage() {
       }
       if (needsRefresh.current.length) {
         const fresh = await refresh();
-        assertSessionScope(scope);
         const affected = needsRefresh.current;
         needsRefresh.current = [];
         setResponse(fresh);
@@ -284,8 +313,7 @@ function BatchPage() {
       const eligible = records.filter((r) => {
         const invalidNumber = r.requisitionLineItems.some(
           (l) =>
-            !l.skipped &&
-            validateBatchQuantity(drafts.text(r.id, l)) &&
+            lineInvalid(l, drafts.text(r.id, l)) &&
             (kind === 'approve' || drafts.text(r.id, l).trim() !== ''),
         );
         const reason = drafts.unresolved(r.id)
@@ -311,7 +339,6 @@ function BatchPage() {
         needsRefresh.current = eligible.map((r) => r.id);
         try {
           const fresh = await refresh();
-          assertSessionScope(scope);
           setResponse(fresh);
         } catch {
           assertSessionScope(scope);
@@ -326,10 +353,9 @@ function BatchPage() {
       for (const [id, reason] of save.failed)
         failures.set(id, reason || t('requisitions.batch.save-failed'));
       needsRefresh.current = eligible.map((r) => r.id);
-      const fresh = await refresh();
-      assertSessionScope(scope);
+      const fresh =
+        kind === 'sync' || failures.size ? await refresh() : orderBatch(saveResponse, ids);
       await drafts.clear(save.succeeded, fresh.requisitionDtos, false);
-      assertSessionScope(scope);
       needsRefresh.current = [];
       if (kind === 'sync') {
         setResponse(fresh);
@@ -350,11 +376,12 @@ function BatchPage() {
           );
       let approved: string[] = [];
       if (saved.length) {
+        let confirmed = false;
         await drafts.mark(saved, true);
-        assertSessionScope(scope);
         try {
           const approvalResponse = await approveBatchRequisitions(saved);
           assertSessionScope(scope);
+          confirmed = true;
           const approval = parseBatchResult(approvalResponse, saved);
           approved = approval.succeeded;
           for (const [id, reason] of approval.failed) {
@@ -368,20 +395,16 @@ function BatchPage() {
                 : reason || t('requisitions.batch.missing'),
             );
           }
-          await drafts.mark(saved, false);
-          assertSessionScope(scope);
         } catch (error) {
           assertSessionScope(scope);
           const uncertain = !isAxiosError(error) || !error.response || error.response.status >= 500;
           if (!uncertain) {
             await drafts.mark(saved, false);
-            assertSessionScope(scope);
           }
           for (const id of saved)
             failures.set(id, uncertain ? t('requisitions.batch.uncertain') : errorMessage(error));
           try {
             const latest = await refresh();
-            assertSessionScope(scope);
             const removed = await reconcile(latest);
             assertSessionScope(scope);
             for (const id of removed) failures.delete(id);
@@ -389,9 +412,11 @@ function BatchPage() {
             assertSessionScope(scope);
           }
         }
+        if (confirmed) {
+          await drafts.mark(saved, false);
+        }
       }
       await drafts.clear(approved, [], false);
-      assertSessionScope(scope);
       void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all });
       if (approved.length)
@@ -403,7 +428,7 @@ function BatchPage() {
         leaving.current = true;
         await returnToList();
       } else {
-        await replaceIds([...failures.keys()]);
+        await replaceIds(ids.filter((id) => failures.has(id)));
       }
       assertSessionScope(scope);
     },
@@ -437,16 +462,11 @@ function BatchPage() {
   useEffect(() => {
     if (recoveredOpening.current || !loaded.removed.size) return;
     recoveredOpening.current = true;
-    setDialog(
-      [...loaded.removed.values()]
-        .map((label) => `${label}: ${t('requisitions.batch.possibly-approved')}`)
-        .join('\n'),
-    );
     void replaceIds(ids);
   });
   const initialReconcile = useRef(false);
   useEffect(() => {
-    if (initialReconcile.current || status.status !== 'saved' || !unresolved.length) return;
+    if (initialReconcile.current || !drafts.ready() || !unresolved.length) return;
     initialReconcile.current = true;
     if (unresolved.some((r) => drafts.unresolvedChanged(r.id, r))) run('check');
   });
@@ -468,7 +488,7 @@ function BatchPage() {
   const approve = () => {
     const first = records.flatMap((record) =>
       record.requisitionLineItems
-        .filter((line) => !line.skipped && validateBatchQuantity(drafts.text(record.id, line)))
+        .filter((line) => lineInvalid(line, drafts.text(record.id, line)))
         .map((line) => batchFieldId(record.id, line.id)),
     )[0];
     if (first) {
@@ -483,19 +503,7 @@ function BatchPage() {
         <WorkspaceContent>
           <div ref={layout.measure} className="min-w-0" data-batch-version={meta}>
             <div className="mb-4 flex flex-col gap-3">
-              {drafts.deviceAvailable ? (
-                <DraftStatus
-                  {...status}
-                  labels={{
-                    copy: null,
-                    conflictDescription: t('requisitions.edit.draft-conflict-description'),
-                  }}
-                  onRetry={drafts.retry}
-                  onResolve={drafts.resolve}
-                />
-              ) : (
-                <p role="note">{t('requisitions.batch.memory')}</p>
-              )}
+              <BatchDraftStatus drafts={drafts} />
               {[...refused].map(([id, reason]) => (
                 <Alert key={id} variant="warning">
                   <AlertTitle>{recordLabel(id)}</AlertTitle>
@@ -566,7 +574,7 @@ function BatchPage() {
               ) : layout.cards ? (
                 <BatchCards />
               ) : (
-                <BatchGrid />
+                <BatchGrid ref={grid} />
               )}
             </BatchContext>
           </div>
@@ -612,32 +620,8 @@ function BatchPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t(
-                action === 'approve'
-                  ? 'requisitions.batch.approve'
-                  : action === 'remove'
-                    ? 'requisitions.batch.remove'
-                    : action === 'anyway'
-                      ? 'requisitions.batch.anyway'
-                      : action === 'update'
-                        ? 'requisitions.edit.update'
-                        : 'requisitions.batch.revert',
-              )}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                action === 'approve'
-                  ? 'requisitions.batch.approve-confirm'
-                  : action === 'remove'
-                    ? 'requisitions.batch.remove-confirm'
-                    : action === 'anyway'
-                      ? 'requisitions.batch.anyway-confirm'
-                      : action === 'update'
-                        ? 'requisitions.edit.actions.update-confirm'
-                        : 'requisitions.batch.revert-confirm',
-              )}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t(actionCopy[action ?? 'revert'][0])}</AlertDialogTitle>
+            <AlertDialogDescription>{t(actionCopy[action ?? 'revert'][1])}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>{t('dialog.cancel')}</AlertDialogCancel>
@@ -649,8 +633,8 @@ function BatchPage() {
       </AlertDialog>
       <InvalidSubmitDialog
         open={!!invalid}
-        title={t('requisitions.batch.invalid-requisition')}
-        description={t('requisitions.edit.validation-description')}
+        title={t('requisitions.batch.invalid-title')}
+        description={t('requisitions.batch.invalid-description')}
         closeLabel={t('dialog.close')}
         finalFocus={() => false}
         onOpenChange={(open) => {
@@ -658,7 +642,9 @@ function BatchPage() {
         }}
         onOpenChangeComplete={(open) => {
           if (open) return;
-          const element = document.getElementById(invalidTarget.current ?? '');
+          const id = invalidTarget.current ?? '';
+          if (grid.current) grid.current.reveal(id);
+          const element = document.getElementById(id);
           invalidTarget.current = null;
           if (element) revealField(element, !!element.closest('li'));
         }}
@@ -680,9 +666,5 @@ function BatchPage() {
   );
 }
 function errorMessage(error: unknown) {
-  return isAxiosError(error)
-    ? error.response?.data?.message || error.message
-    : error instanceof Error
-      ? error.message
-      : String(error);
+  return serverMessage(error) ?? (error instanceof Error ? error.message : String(error));
 }

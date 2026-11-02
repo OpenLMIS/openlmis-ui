@@ -11,7 +11,7 @@ import { SettingsItem } from '@/components/form/settings-list';
 import { useBatch, useBatchVersion } from '@/features/requisitions/components/batch-context';
 import { BatchCost, BatchQuantity } from '@/features/requisitions/components/batch-quantity';
 import { BatchRecordStatus } from '@/features/requisitions/components/batch-record-status';
-import { batchLabel, batchTotals } from '@/features/requisitions/lib/batch';
+import { batchLabel, batchRowTotals, batchTotals } from '@/features/requisitions/lib/batch';
 import type { BatchRow } from '@/features/requisitions/lib/batch-types';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
 import { EMPTY_VALUE } from '@/lib/empty-value';
@@ -20,21 +20,12 @@ function CardTotals({ row }: { row?: BatchRow }) {
   const { t } = useTranslation();
   const { drafts, records, currency } = useBatch();
   useBatchVersion(row ? `product:${row.product.id}` : 'totals');
-  const totals = batchTotals(
-    row
-      ? records.map((r) => ({
-          ...r,
-          requisitionLineItems: [...row.lines]
-            .filter(([id]) => id === r.id)
-            .map(([, line]) => line),
-        }))
-      : records,
-    drafts.quantities(),
-  );
+  const totals = batchTotals(row ? [] : records, drafts.quantities());
+  const product = row ? batchRowTotals(row, drafts.quantities()) : totals;
   return (
     <CardRows>
       {row && (
-        <SettingsItem label={t('requisitions.batch.quantity')}>{totals.quantity}</SettingsItem>
+        <SettingsItem label={t('requisitions.batch.quantity')}>{product.quantity}</SettingsItem>
       )}
       {!row &&
         records.map((record) => (
@@ -43,7 +34,7 @@ function CardTotals({ row }: { row?: BatchRow }) {
           </SettingsItem>
         ))}
       <SettingsItem label={t('requisitions.batch.total-all')}>
-        {formatCurrency(totals.cost, currency)}
+        {formatCurrency(product.cost, currency)}
       </SettingsItem>
     </CardRows>
   );

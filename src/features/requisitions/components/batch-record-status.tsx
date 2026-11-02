@@ -1,7 +1,7 @@
 import { TriangleAlertIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useBatch, useBatchVersion } from '@/features/requisitions/components/batch-context';
-import { validateBatchQuantity } from '@/features/requisitions/lib/batch';
+import { lineInvalid } from '@/features/requisitions/lib/batch';
 import type { BatchRequisition } from '@/features/requisitions/lib/batch-types';
 
 export function BatchRecordStatus({ record }: { record: BatchRequisition }) {
@@ -9,8 +9,8 @@ export function BatchRecordStatus({ record }: { record: BatchRequisition }) {
   const { drafts, reasons } = useBatch();
   useBatchVersion(`record:${record.id}`);
   useBatchVersion('meta');
-  const invalid = record.requisitionLineItems.some(
-    (line) => !line.skipped && validateBatchQuantity(drafts.text(record.id, line)),
+  const invalid = record.requisitionLineItems.some((line) =>
+    lineInvalid(line, drafts.text(record.id, line)),
   );
   const reason = reasons.get(record.id);
   if (!invalid && !reason) return null;

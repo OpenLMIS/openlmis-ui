@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -19,9 +19,11 @@ import {
   fetchBatchRequisitions,
   saveBatchRequisitions,
 } from '@/features/requisitions/api/api';
+import * as batchMarkers from '@/features/requisitions/lib/batch-session-markers';
 import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
 import { getLocalDb } from '@/integrations/local-db';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve_.batch';
+import { generateBatch } from '@/test-utils/batch-fixtures';
 
 const security = vi.hoisted(() => ({ secure: true }));
 vi.mock('@/lib/secure-context', () => ({
@@ -87,7 +89,21 @@ beforeEach(() => {
   sessionStorage.clear();
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     width: 1200,
+    height: 49,
   } as DOMRect);
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.tagName === 'TR' ? 49 : 512;
+  });
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.getBoundingClientRect().width;
+  });
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1200);
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(512);
+  vi.spyOn(HTMLElement.prototype, 'scrollTo').mockImplementation(() => {});
   useLoginData.getState().setLoginData({
     referenceDataUserId: crypto.randomUUID(),
     username: 'u',
@@ -125,7 +141,7 @@ it('validates, confirms, saves then approves and returns to the approval list', 
   await waitFor(() => expect(input).toBeEnabled());
   await userEvent.clear(input);
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
-  await screen.findByRole('heading', { name: 'requisitions.batch.invalid-requisition' });
+  await screen.findByRole('heading', { name: 'requisitions.batch.invalid-title' });
   expect(saveBatchRequisitions).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
   await waitFor(() => expect(input).toHaveFocus());
@@ -136,6 +152,7 @@ it('validates, confirms, saves then approves and returns to the approval list', 
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.confirm' }));
   await screen.findByText('Approval List');
   expect(saveBatchRequisitions).toHaveBeenCalledOnce();
+  expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
   expect(approveBatchRequisitions).toHaveBeenCalledWith(records.map((r) => r.id));
 });
 it('keeps only partial failures and shows the server reason', async () => {
@@ -173,7 +190,9 @@ it('refetches a lost approval response and blocks a resend after reload', async 
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
   await screen.findAllByText('requisitions.batch.uncertain');
-  expect(vi.mocked(fetchBatchRequisitions).mock.calls.length).toBeGreaterThan(1);
+  await waitFor(() =>
+    expect(vi.mocked(fetchBatchRequisitions).mock.calls.length).toBeGreaterThan(1),
+  );
   await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledOnce());
   cleanup();
   first.queryClient.clear();
@@ -213,12 +232,18 @@ it('never approves a failed save and keeps its reason alongside approval failure
       { requisitionId: records[0].id, errorMessage: { message: 'No facility permission' } },
     ],
   });
-  renderRoute();
+  const { router } = renderRoute();
   const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
   await waitFor(() => expect(approve).toBeEnabled());
   await userEvent.click(approve);
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
   await screen.findAllByText(/Modified elsewhere/);
+  await waitFor(() =>
+    expect(router.state.location.search).toMatchObject({ ids: records.map((r) => r.id).join(',') }),
+  );
+  expect(screen.getByRole('alertdialog').textContent).toMatch(
+    /No facility permission[\s\S]*Modified elsewhere/,
+  );
   await screen.findAllByText(/No facility permission/);
   expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]);
 });
@@ -293,11 +318,19 @@ it('Sync sends an empty cell as zero and holds back a record above the Java limi
 
 it.each([true, false])('stores approval markers before the POST on secure=%s', async (secure) => {
   security.secure = secure;
+  const saved = records.map((record) => ({
+    ...record,
+    modifiedDate: '2026-11-02T12:00:00Z',
+    status: 'IN_APPROVAL',
+  }));
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({ requisitionDtos: saved });
   vi.mocked(approveBatchRequisitions).mockImplementation(async (ids) => {
     for (const id of ids) {
       if (secure) {
         expect(await getLocalDb().table('requisitionBatchDrafts').get(id)).toMatchObject({
           unresolvedApproval: { attemptedAt: expect.any(String) },
+          baselineModifiedDate: saved[0].modifiedDate,
+          baselineStatus: saved[0].status,
         });
       } else {
         const markers = Object.keys(sessionStorage).map((key) =>
@@ -308,8 +341,8 @@ it.each([true, false])('stores approval markers before the POST on secure=%s', a
             userId: useLoginData.getState().referenceDataUserId,
             requisitionId: id,
             attemptedAt: expect.any(String),
-            baselineModifiedDate: expect.any(String),
-            baselineStatus: expect.any(String),
+            baselineModifiedDate: saved[0].modifiedDate,
+            baselineStatus: saved[0].status,
           }),
         );
       }
@@ -445,7 +478,6 @@ it('does not show removed approved ids as missing while URL replacement is loadi
   });
   vi.mocked(fetchBatchRequisitions)
     .mockResolvedValueOnce({ requisitionDtos: records })
-    .mockResolvedValueOnce({ requisitionDtos: records })
     .mockImplementation(async () => {
       await navigating;
       return { requisitionDtos: [records[1]] };
@@ -461,7 +493,7 @@ it('does not show removed approved ids as missing while URL replacement is loadi
   await waitFor(() => expect(approve).toBeEnabled());
   await userEvent.click(approve);
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
-  await waitFor(() => expect(fetchBatchRequisitions).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(fetchBatchRequisitions).toHaveBeenCalledTimes(2));
   const missing = screen.queryByText('requisitions.batch.missing');
   release?.();
   expect(missing).not.toBeInTheDocument();
@@ -469,4 +501,72 @@ it('does not show removed approved ids as missing while URL replacement is loadi
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeEnabled(),
   );
+});
+
+it('does not classify a confirmed POST as uncertain when local marker removal fails', async () => {
+  security.secure = false;
+  vi.mocked(approveBatchRequisitions).mockImplementation(async () => {
+    vi.spyOn(batchMarkers, 'writeBatchSessionMarker').mockImplementation(() => {
+      throw new Error('Marker removal failed');
+    });
+    return { requisitionDtos: records };
+  });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await screen.findByText('Marker removal failed');
+  expect(screen.getByRole('alertdialog').textContent).not.toContain('requisitions.batch.uncertain');
+  expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
+});
+
+it.each(['ltr', 'rtl'])(
+  'virtualizes rows and tabs to an unmounted row in %s',
+  async (direction) => {
+    document.documentElement.dir = direction;
+    const large = generateBatch(2, 200);
+    vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: large });
+    renderRoute(large.map((r) => r.id).join(','));
+    const inputs = await screen.findAllByRole('textbox');
+    await waitFor(() => expect(inputs[0]).toBeEnabled());
+    expect(inputs.length).toBeLessThan(100);
+    const table = screen.getByRole('table', { name: 'requisitions.batch.title' });
+    expect(table).toHaveAttribute('aria-rowcount', '203');
+    expect(screen.getByRole('rowheader', { name: 'P0000' })).toBeInTheDocument();
+    const last = screen.getAllByRole('textbox').at(-1) as HTMLInputElement;
+    const nextRow = Number(last.id.split('-').at(-1)) + 1;
+    act(() => last.focus());
+    await userEvent.tab();
+    expect(document.activeElement).toHaveAttribute('id', `batch-requisition-0-line-0-${nextRow}`);
+    await userEvent.tab({ shift: true });
+    expect(last).toHaveFocus();
+    document.documentElement.dir = 'ltr';
+  },
+);
+it('reveals and focuses an off-screen invalid quantity after closing the invalid dialog', async () => {
+  const large = generateBatch(1, 200);
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: large });
+  await getLocalDb()
+    .table('requisitionBatchDrafts')
+    .put({
+      draftId: large[0].id,
+      userId: useLoginData.getState().referenceDataUserId,
+      formatVersion: 1,
+      revision: 1,
+      baselineModifiedDate: large[0].modifiedDate,
+      baselineStatus: large[0].status,
+      approvedQuantities: { 'line-0-199': '' },
+    });
+  renderRoute(large[0].id);
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  expect(document.getElementById('batch-requisition-0-line-0-199')).toBeNull();
+  await userEvent.click(approve);
+  await screen.findByRole('heading', { name: 'requisitions.batch.invalid-title' });
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() =>
+    expect(document.activeElement).toHaveAttribute('id', 'batch-requisition-0-line-0-199'),
+  );
+  expect(saveBatchRequisitions).not.toHaveBeenCalled();
 });

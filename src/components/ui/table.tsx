@@ -32,7 +32,7 @@ function Table({
           density === "compact" && "[&_td]:px-1.5 [&_th]:px-1.5",
           layout === "fixed" && "table-fixed [&_td]:truncate",
           scroll === "both" &&
-            "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_thead]:shadow-[inset_0_-1px_0_var(--color-border)] [&_thead_tr]:bg-muted/50",
+            "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_thead]:shadow-[inset_0_-1px_0_var(--color-border)] [&_thead_tr]:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))]",
           className
         )}
         {...props}
@@ -126,10 +126,11 @@ function TableHead({
   stickyOffset = 0,
   style,
   ...props
-}: React.ComponentProps<"th"> & { width?: "default" | "icon" | "fit"; sticky?: boolean | "end"; stickyOffset?: number }) {
+}: React.ComponentProps<"th"> & { width?: "default" | "icon" | "fit"; sticky?: boolean | "end"; stickyOffset?: number | string }) {
   return (
     <th
       data-slot="table-head"
+      data-sticky={sticky === "end" ? "end" : undefined}
       style={sticky ? { ...style, ...(sticky === "end" ? { insetInlineEnd: stickyOffset } : { insetInlineStart: stickyOffset }) } : style}
       className={cn(
         "h-10 px-2 text-start align-middle font-medium whitespace-nowrap text-foreground",
@@ -147,17 +148,22 @@ function TableHead({
 function TableCell({
   className,
   tone = "default",
+  rowHeader = false,
   sticky = false,
   stickyOffset = 0,
   style,
   ...props
-}: React.ComponentProps<"td"> & { tone?: "default" | "danger"; sticky?: boolean | "end"; stickyOffset?: number }) {
+}: React.ComponentProps<"td"> & { rowHeader?: boolean; tone?: "default" | "danger"; sticky?: boolean | "end"; stickyOffset?: number | string }) {
+  const Component = rowHeader ? "th" : "td"
   return (
-    <td
+    <Component
+      scope={rowHeader ? "row" : undefined}
       data-slot="table-cell"
+      data-sticky={sticky === "end" ? "end" : undefined}
       style={sticky ? { ...style, ...(sticky === "end" ? { insetInlineEnd: stickyOffset } : { insetInlineStart: stickyOffset }) } : style}
       className={cn(
-        "p-2 align-middle whitespace-nowrap",
+        "p-2 text-start align-middle whitespace-nowrap",
+        rowHeader && "font-normal",
         stickyClasses(sticky),
         sticky && "z-1",
         tone === "danger" && "bg-destructive/10 text-destructive",
