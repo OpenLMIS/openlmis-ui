@@ -105,6 +105,7 @@ function IdealStockAmountsPage() {
 
 function IdealStockAmountsPagePending() {
   const { t } = useTranslation();
+  const copy = useIdealStockAmountsCopy();
   return (
     <Workspace width="narrow">
       <IdealStockAmountsHeader>
@@ -114,7 +115,7 @@ function IdealStockAmountsPagePending() {
         </Button>
       </IdealStockAmountsHeader>
       <WorkspaceContent>
-        <CsvTransferSkeleton copy={useIdealStockAmountsCopy()} />
+        <CsvTransferSkeleton copy={copy} />
       </WorkspaceContent>
     </Workspace>
   );

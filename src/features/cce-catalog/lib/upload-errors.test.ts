@@ -19,7 +19,7 @@ it.each([
     'real byte order mark',
     refused(
       'cce.error.upload.header.invalid',
-      'Invalid Headers in upload file: [﻿from pqs catalog].',
+      'Invalid Headers in upload file: [\uFEFFfrom pqs catalog].',
     ),
     { kind: 'byte-order-mark' },
   ],
@@ -85,9 +85,12 @@ it.each([
     { kind: 'duplicate-in-file', manufacturer: 'B Medical', model: 'RCW 50 EG' },
   ],
   [
-    'required field',
-    refused('cce.error.catalog.field.required', 'CCE Catalog Item must have type field.'),
-    { kind: 'required-field', field: 'type' },
+    'real empty required cell',
+    refused(
+      'cce.error.upload.record.invalid',
+      'Error found while parsing in row 5: null value encountered.',
+    ),
+    { kind: 'empty-cell', line: 6 },
   ],
 ])('explains a refused upload: %s', (_name, error, issue) => {
   expect(catalogUploadIssue(error)).toEqual(issue);
@@ -99,7 +102,13 @@ it.each([
     'a reworded known message',
     refused('cce.error.upload.record.invalid', 'Row 1 has a problem with gasoline.'),
   ],
-  ['a server error', httpError(500, { messageKey: 'cce.error.upload.header.invalid' })],
+  [
+    'a server error',
+    httpError(500, {
+      messageKey: 'cce.error.upload.header.invalid',
+      message: 'Invalid Headers in upload file: [maker].',
+    }),
+  ],
   ['no response', networkError()],
 ])('leaves %s to the server text', (_name, error) => {
   expect(catalogUploadIssue(error)).toBeUndefined();

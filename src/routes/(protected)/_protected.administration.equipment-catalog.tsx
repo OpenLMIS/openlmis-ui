@@ -115,6 +115,7 @@ function EquipmentCatalogPage() {
 
 function EquipmentCatalogPagePending() {
   const { t } = useTranslation();
+  const copy = useCatalogCopy();
   return (
     <Workspace width="narrow">
       <EquipmentCatalogHeader>
@@ -124,7 +125,7 @@ function EquipmentCatalogPagePending() {
         </Button>
       </EquipmentCatalogHeader>
       <WorkspaceContent>
-        <CsvTransferSkeleton copy={useCatalogCopy()} />
+        <CsvTransferSkeleton copy={copy} />
       </WorkspaceContent>
     </Workspace>
   );

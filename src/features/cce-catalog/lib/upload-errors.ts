@@ -11,9 +11,13 @@ export type CatalogUploadIssue =
       line: number;
       value: string;
     }
+  | { kind: 'empty-cell'; line: number }
   | { kind: 'row'; line: number; reason: string }
-  | { kind: 'duplicate-in-file'; manufacturer: string; model: string }
-  | { kind: 'required-field'; field: string };
+  | { kind: 'duplicate-in-file'; manufacturer: string; model: string };
+
+// Mandatory columns of the cce catalog CSV, as headed in its export.
+const REQUIRED_COLUMNS =
+  'From PQS catalog, Type, Model, Manufacturer, Energy source, Storage temperature, Archived';
 
 const PARSED_AS = {
   EnergySource: 'energy-source',
@@ -35,8 +39,8 @@ export function catalogUploadIssue(error: unknown): CatalogUploadIssue | undefin
     case 'cce.error.upload.header.invalid': {
       const columns = /^Invalid Headers in upload file: \[(.+)\]\.$/.exec(message)?.[1];
       if (!columns) return undefined;
-      // Excel's CSV UTF-8 starts the file with a byte order mark, which the server keeps in the first heading.
-      if (columns.startsWith('﻿')) return { kind: 'byte-order-mark' };
+      // Excel's CSV UTF-8 adds a byte order mark, which the server keeps in the first heading.
+      if (columns.startsWith('\uFEFF')) return { kind: 'byte-order-mark' };
       return { kind: 'unknown-columns', columns };
     }
     case 'cce.error.upload.mandatory.columns.missing': {
@@ -52,6 +56,7 @@ export function catalogUploadIssue(error: unknown): CatalogUploadIssue | undefin
       if (!match) return undefined;
       // The server counts data rows from 1, so its row 1 is the second line of the file.
       const line = Number(match[1]) + 1;
+      if (match[2] === 'null value encountered') return { kind: 'empty-cell', line };
       const parsed = /^'(.*)' could not be parsed as (?:an? )?(\w+)$/.exec(match[2]);
       const kind = parsed && PARSED_AS[parsed[2] as keyof typeof PARSED_AS];
       return kind ? { kind, line, value: parsed[1] } : { kind: 'row', line, reason: match[2] };
@@ -61,10 +66,6 @@ export function catalogUploadIssue(error: unknown): CatalogUploadIssue | undefin
       return match
         ? { kind: 'duplicate-in-file', manufacturer: match[1], model: match[2] }
         : undefined;
-    }
-    case 'cce.error.catalog.field.required': {
-      const field = /^CCE Catalog Item must have (.+) field\.$/.exec(message)?.[1];
-      return field ? { kind: 'required-field', field } : undefined;
     }
     default:
       return undefined;
@@ -87,6 +88,8 @@ export function catalogUploadErrorText(issue: CatalogUploadIssue, t: TFunction):
     case 'dimensions':
     case 'integer':
       return t(`cce-catalog.error.${issue.kind}`, { line: issue.line, value: issue.value });
+    case 'empty-cell':
+      return t('cce-catalog.error.empty-cell', { line: issue.line, columns: REQUIRED_COLUMNS });
     case 'row':
       return t('cce-catalog.error.row', { line: issue.line, reason: issue.reason });
     case 'duplicate-in-file':
@@ -94,7 +97,5 @@ export function catalogUploadErrorText(issue: CatalogUploadIssue, t: TFunction):
         manufacturer: issue.manufacturer,
         model: issue.model,
       });
-    case 'required-field':
-      return t('cce-catalog.error.required-field', { field: issue.field });
   }
 }
