@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
+import { fetchOrder, fetchOrderStockOnHand } from '@/features/orders/api/api';
 import { commonNodeIds, supplierIds } from '@/features/orders/lib/supplying-facilities';
 import {
   facilitySupervisoryNodesOptions,
@@ -22,4 +23,20 @@ export const supplyingFacilitiesOptions = (programId: string, facilityIds: reado
       );
       return supplierIds(lines.flat());
     },
+  });
+
+export const orderOptions = (id: string) =>
+  queryOptions({ queryKey: queryKeys.orders.detail(id), queryFn: () => fetchOrder(id) });
+export const orderStockOnHandOptions = (filter: {
+  programId: string;
+  facilityId: string;
+  orderableIds: readonly string[];
+}) =>
+  queryOptions({
+    queryKey: [
+      ...queryKeys.stockCardSummaries.all,
+      'orders',
+      { ...filter, orderableIds: filter.orderableIds.toSorted() },
+    ],
+    queryFn: () => fetchOrderStockOnHand(filter),
   });
