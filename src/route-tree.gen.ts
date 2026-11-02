@@ -43,6 +43,7 @@ import { Route as protectedProtectedProfileIndexRouteImport } from './routes/(pr
 import { Route as protectedProtectedProfileNotificationsRouteImport } from './routes/(protected)/_protected.profile.notifications'
 import { Route as protectedProtectedProfileRolesRouteImport } from './routes/(protected)/_protected.profile.roles'
 import { Route as protectedProtectedRequisitionsApproveRouteImport } from './routes/(protected)/_protected.requisitions.approve'
+import { Route as protectedProtectedRequisitionsConvertRouteImport } from './routes/(protected)/_protected.requisitions.convert'
 import { Route as protectedProtectedRequisitionsInitiateRouteImport } from './routes/(protected)/_protected.requisitions.initiate'
 import { Route as protectedProtectedRequisitionsViewRouteImport } from './routes/(protected)/_protected.requisitions.view'
 import { Route as protectedProtectedSettingsIndexRouteImport } from './routes/(protected)/_protected.settings.index'
@@ -279,6 +280,12 @@ const protectedProtectedRequisitionsApproveRoute =
   protectedProtectedRequisitionsApproveRouteImport.update({
     id: '/requisitions/approve',
     path: '/requisitions/approve',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedRequisitionsConvertRoute =
+  protectedProtectedRequisitionsConvertRouteImport.update({
+    id: '/requisitions/convert',
+    path: '/requisitions/convert',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedRequisitionsInitiateRoute =
@@ -561,6 +568,7 @@ export interface FileRoutesByFullPath {
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/requisitions/approve': typeof protectedProtectedRequisitionsApproveRoute
+  '/requisitions/convert': typeof protectedProtectedRequisitionsConvertRoute
   '/requisitions/initiate': typeof protectedProtectedRequisitionsInitiateRoute
   '/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
@@ -634,6 +642,7 @@ export interface FileRoutesByTo {
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/requisitions/approve': typeof protectedProtectedRequisitionsApproveRoute
+  '/requisitions/convert': typeof protectedProtectedRequisitionsConvertRoute
   '/requisitions/initiate': typeof protectedProtectedRequisitionsInitiateRoute
   '/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
@@ -710,6 +719,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
   '/(protected)/_protected/profile/roles': typeof protectedProtectedProfileRolesRoute
   '/(protected)/_protected/requisitions/approve': typeof protectedProtectedRequisitionsApproveRoute
+  '/(protected)/_protected/requisitions/convert': typeof protectedProtectedRequisitionsConvertRoute
   '/(protected)/_protected/requisitions/initiate': typeof protectedProtectedRequisitionsInitiateRoute
   '/(protected)/_protected/requisitions/view': typeof protectedProtectedRequisitionsViewRoute
   '/(protected)/_protected/settings/feature-flags': typeof protectedProtectedSettingsFeatureFlagsRoute
@@ -787,6 +797,7 @@ export interface FileRouteTypes {
     | '/profile/notifications'
     | '/profile/roles'
     | '/requisitions/approve'
+    | '/requisitions/convert'
     | '/requisitions/initiate'
     | '/requisitions/view'
     | '/settings/feature-flags'
@@ -860,6 +871,7 @@ export interface FileRouteTypes {
     | '/profile/notifications'
     | '/profile/roles'
     | '/requisitions/approve'
+    | '/requisitions/convert'
     | '/requisitions/initiate'
     | '/requisitions/view'
     | '/settings/feature-flags'
@@ -935,6 +947,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/profile/notifications'
     | '/(protected)/_protected/profile/roles'
     | '/(protected)/_protected/requisitions/approve'
+    | '/(protected)/_protected/requisitions/convert'
     | '/(protected)/_protected/requisitions/initiate'
     | '/(protected)/_protected/requisitions/view'
     | '/(protected)/_protected/settings/feature-flags'
@@ -1224,6 +1237,13 @@ declare module '@tanstack/react-router' {
       path: '/requisitions/approve'
       fullPath: '/requisitions/approve'
       preLoaderRoute: typeof protectedProtectedRequisitionsApproveRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/requisitions/convert': {
+      id: '/(protected)/_protected/requisitions/convert'
+      path: '/requisitions/convert'
+      fullPath: '/requisitions/convert'
+      preLoaderRoute: typeof protectedProtectedRequisitionsConvertRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/requisitions/initiate': {
@@ -1601,6 +1621,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
   protectedProtectedRequisitionsApproveRoute: typeof protectedProtectedRequisitionsApproveRoute
+  protectedProtectedRequisitionsConvertRoute: typeof protectedProtectedRequisitionsConvertRoute
   protectedProtectedRequisitionsInitiateRoute: typeof protectedProtectedRequisitionsInitiateRoute
   protectedProtectedRequisitionsViewRoute: typeof protectedProtectedRequisitionsViewRoute
   protectedProtectedStockManagementAdjustmentsRoute: typeof protectedProtectedStockManagementAdjustmentsRoute
@@ -1684,6 +1705,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidSourcesRoute,
   protectedProtectedRequisitionsApproveRoute:
     protectedProtectedRequisitionsApproveRoute,
+  protectedProtectedRequisitionsConvertRoute:
+    protectedProtectedRequisitionsConvertRoute,
   protectedProtectedRequisitionsInitiateRoute:
     protectedProtectedRequisitionsInitiateRoute,
   protectedProtectedRequisitionsViewRoute:

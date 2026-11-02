@@ -8,6 +8,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import {
   fetchApprovalList,
+  fetchConvertList,
   fetchPeriodsForInitiate,
   fetchRequisition,
   fetchStatusMessages,
@@ -15,6 +16,7 @@ import {
   searchRequisitions,
 } from '@/features/requisitions/api/api';
 import { type ApprovalSearch, toApprovalQuery } from '@/features/requisitions/lib/approval-search';
+import { type ConvertSearch, toConvertQuery } from '@/features/requisitions/lib/convert-search';
 import type {
   InitiateQuery,
   RequisitionRecord,
@@ -67,4 +69,10 @@ export const approvalListOptions = (search: ApprovalSearch) =>
   queryOptions({
     queryKey: [...queryKeys.requisitions.all, 'approval', search] as const,
     queryFn: () => fetchApprovalList(toApprovalQuery(search)),
+  });
+
+export const convertListOptions = (search: ConvertSearch) =>
+  queryOptions({
+    queryKey: [...queryKeys.requisitions.all, 'convert', search] as const,
+    queryFn: () => fetchConvertList(toConvertQuery(search)),
   });

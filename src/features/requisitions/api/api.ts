@@ -2,9 +2,11 @@ import { isAxiosError } from 'axios';
 import type { RejectionReason } from '@/features/reference-data/lib/types';
 import type { toApprovalQuery } from '@/features/requisitions/lib/approval-search';
 import { isApprovalKind } from '@/features/requisitions/lib/capabilities';
+import type { ReleaseBody, toConvertQuery } from '@/features/requisitions/lib/convert-search';
 import { transformRequisition } from '@/features/requisitions/lib/transform';
 import type {
   ApprovalListRow,
+  ConvertListRow,
   InitiatePeriod,
   InitiateQuery,
   RequisitionRecord,
@@ -153,4 +155,26 @@ export async function fetchApprovalList(params: ReturnType<typeof toApprovalQuer
     { params, paramsSerializer: { indexes: null } },
   );
   return data;
+}
+
+export async function fetchConvertList(params: ReturnType<typeof toConvertQuery>) {
+  const { data } = await client.get<Page<ConvertListRow>>('/requisitions/requisitionsForConvert', {
+    params,
+  });
+  const seen = new Set<string>();
+  return {
+    ...data,
+    content: data.content.filter(({ requisition }) => {
+      if (seen.has(requisition.id)) return false;
+      seen.add(requisition.id);
+      return true;
+    }),
+  };
+}
+export async function releaseRequisitions(body: ReleaseBody) {
+  const scope = getSessionScope();
+  await client.post('/requisitions/batchReleases', body, {
+    headers: { 'Idempotency-Key': randomId() },
+  });
+  assertSessionScope(scope);
 }
