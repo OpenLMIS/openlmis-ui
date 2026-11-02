@@ -98,46 +98,48 @@ const DepotSelect = memo(function DepotSelect({
   const id = `depot-${row.requisition.id}`;
   const offered = row.supplyingDepots.filter((depot) => depot !== null);
   return (
-    <Field surface="background" data-invalid={invalid || undefined}>
-      <HiddenFromView>
-        <FieldLabel htmlFor={id}>
-          {t('requisitions.convert.depot-label', {
-            name: requisitionRowLabel(row.requisition, t('requisitions.columns.emergency')),
-          })}
-        </FieldLabel>
-      </HiddenFromView>
-      <Select
-        value={value || null}
-        onValueChange={(next) => onChange(row.requisition.id, next ?? '')}
-        disabled={disabled}
-        items={offered.map((depot) => ({ value: depot.id, label: depot.name ?? depot.id }))}
-      >
-        <SelectTrigger
-          id={id}
-          width={cards ? 'full' : 'default'}
-          wrap={cards ? 'wrap' : 'nowrap'}
-          size={cards ? 'default' : 'sm'}
-          aria-invalid={invalid || undefined}
-          aria-describedby={invalid ? `${id}-error` : undefined}
-        >
-          <SelectValue placeholder={t('requisitions.convert.select-depot')} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {offered.map((depot) => (
-              <SelectItem key={depot.id} value={depot.id}>
-                {depot.name ?? depot.id}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      {invalid && (
+    <div className={cards ? 'inline-block w-44 max-w-full align-middle' : undefined}>
+      <Field surface="background" data-invalid={invalid || undefined}>
         <HiddenFromView>
-          <span id={`${id}-error`}>{t('requisitions.convert.no-depot')}</span>
+          <FieldLabel htmlFor={id}>
+            {t('requisitions.convert.depot-label', {
+              name: requisitionRowLabel(row.requisition, t('requisitions.columns.emergency')),
+            })}
+          </FieldLabel>
         </HiddenFromView>
-      )}
-    </Field>
+        <Select
+          value={value || null}
+          onValueChange={(next) => onChange(row.requisition.id, next ?? '')}
+          disabled={disabled}
+          items={offered.map((depot) => ({ value: depot.id, label: depot.name ?? depot.id }))}
+        >
+          <SelectTrigger
+            id={id}
+            width={cards ? 'full' : 'default'}
+            wrap={cards ? 'wrap' : 'nowrap'}
+            size={cards ? 'default' : 'sm'}
+            aria-invalid={invalid || undefined}
+            aria-describedby={invalid ? `${id}-error` : undefined}
+          >
+            <SelectValue placeholder={t('requisitions.convert.select-depot')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {offered.map((depot) => (
+                <SelectItem key={depot.id} value={depot.id}>
+                  {depot.name ?? depot.id}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        {invalid && (
+          <HiddenFromView>
+            <span id={`${id}-error`}>{t('requisitions.convert.no-depot')}</span>
+          </HiddenFromView>
+        )}
+      </Field>
+    </div>
   );
 });
 type DepotState = Pick<Props, 'depots' | 'picked' | 'invalid' | 'pending' | 'onDepot'> & {
