@@ -22,6 +22,7 @@ import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  createInventoryItem,
   exportInventoryItems,
   fetchInventoryAlerts,
   fetchInventoryItems,
@@ -496,12 +497,49 @@ describe('CCE inventory page', () => {
     expect(router.state.location.search).toHaveProperty('item', 'new');
   });
 
-  it('opens no Add Equipment from a link for a user who cannot edit', async () => {
+  it('opens no Add Equipment from a link for a user who cannot edit, and drops it', async () => {
     vi.mocked(fetchPermissionStrings).mockResolvedValue([VIEW]);
-    renderRoute(appliedPath('&item=new'));
+    const { router } = renderRoute(appliedPath('&item=new'));
 
     await itemOf('Fridge #11');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
+  });
+
+  it('closes Add Equipment onto the list of the saved pair after Save', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createInventoryItem).mockResolvedValue();
+    const { router } = renderRoute(appliedPath('&item=new'));
+    const choose = async (name: RegExp, option: RegExp) => {
+      await user.click(await screen.findByRole('combobox', { name }));
+      await user.click(await screen.findByRole('option', { name: option }));
+    };
+
+    await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.next' }));
+    await user.type(
+      await screen.findByRole('textbox', { name: /cce-inventory.form.serial-number/ }),
+      'SN-1',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /cce-inventory.form.reference-name/ }),
+      'Fridge 2',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /cce-inventory.form.year-of-installation/ }),
+      '2019',
+    );
+    await choose(/cce-inventory.form.utilization/, /cce-inventory.form.active/);
+    for (const field of ['voltage-stabilizer', 'voltage-regulator', 'backup-generator']) {
+      await choose(new RegExp(`cce-inventory.form.${field}`), /^cce-inventory.form.yes$/);
+    }
+    await choose(/cce-inventory.form.manual-temperature-gauge/, /cce-inventory.form.built-in/);
+    await choose(/cce-inventory.form.remote-temperature-monitor/, /cce-inventory.form.no-rtm/);
+    await choose(/cce-inventory.form.functional-status/, /cce-equipment.status.functioning/);
+    await user.click(screen.getByRole('button', { name: 'cce-inventory.form.save' }));
+
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
+    expect(createInventoryItem).toHaveBeenCalledTimes(1);
+    expect(router.state.location.search).toEqual({ mode: 'my', programId: EPI, facilityId: HOME });
   });
 
   it.each([

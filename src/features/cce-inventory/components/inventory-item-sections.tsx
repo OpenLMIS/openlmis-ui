@@ -2,6 +2,7 @@ import { useStore } from '@tanstack/react-form';
 import type { ParseKeys } from 'i18next';
 import { type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SettingsItem } from '@/components/form/settings-list';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import type { InventoryItemFormApi } from '@/features/cce-inventory/components/use-inventory-item-form';
 import {
@@ -64,12 +65,59 @@ export function Section({ legend, children }: { legend: string; children: ReactN
   return (
     <FieldSet>
       <FieldLegend>{legend}</FieldLegend>
-      <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/main:grid-cols-2">{children}</div>
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/item:grid-cols-2">{children}</div>
     </FieldSet>
   );
 }
 
 export type SectionProps = { form: InventoryItemFormApi };
+
+export type ChosenEquipmentLabels = {
+  facility: string;
+  program: string;
+  type: string;
+  model: string;
+};
+
+export function ChosenEquipment({ facility, program, type, model }: ChosenEquipmentLabels) {
+  const { t } = useTranslation();
+  return (
+    <Section legend={t('cce-inventory.form.equipment')}>
+      <SettingsItem label={t('facility-program.facility')}>
+        <bdi>{facility}</bdi>
+      </SettingsItem>
+      <SettingsItem label={t('facility-program.program')}>
+        <bdi>{program}</bdi>
+      </SettingsItem>
+      <SettingsItem label={t('cce-inventory.form.equipment-type')}>
+        <bdi>{type}</bdi>
+      </SettingsItem>
+      <SettingsItem label={t('cce-inventory.form.make-model')}>
+        <bdi>{model}</bdi>
+      </SettingsItem>
+    </Section>
+  );
+}
+
+export function DetailsFields({
+  form,
+  catalog,
+}: SectionProps & { catalog: readonly CatalogItem[] }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <IdentificationSection form={form} />
+      <HistorySection form={form} />
+      <InstallationSection catalog={catalog} form={form} />
+      <StatusSection form={form} />
+      <form.AppField name="details.additionalNotes">
+        {(field) => (
+          <field.TextareaField dir="auto" label={t('cce-inventory.form.additional-notes')} />
+        )}
+      </form.AppField>
+    </>
+  );
+}
 
 export function IdentificationSection({ form }: SectionProps) {
   const { t } = useTranslation();

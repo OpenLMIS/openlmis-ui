@@ -38,9 +38,81 @@ export function PairFields({ form, options }: SectionProps & { options: Facility
       }))
     : [];
 
+  const programField = (
+    <form.AppField
+      key="program"
+      listeners={{
+        onChange: ({ value }) =>
+          form.setFieldValue(
+            'facilityId',
+            changeProgram(selection(), value ?? undefined, options).facilityId ?? null,
+          ),
+      }}
+      name="programId"
+    >
+      {(field) =>
+        programItems.length > 0 ? (
+          <field.ComboboxField
+            clearLabel={t('facility-program.clear-program')}
+            emptyMessage={t('facility-program.no-programs')}
+            items={programItems}
+            label={t('facility-program.program')}
+            limit={-1}
+            placeholder={t('facility-program.program-placeholder')}
+            required
+          />
+        ) : (
+          <NoOptions
+            label={t('facility-program.program')}
+            message={t(
+              mode === 'my'
+                ? 'facility-program.no-home-programs'
+                : 'facility-program.no-supervised-programs',
+            )}
+          />
+        )
+      }
+    </form.AppField>
+  );
+
+  const facilityField = (
+    <form.AppField key="facility" name="facilityId">
+      {(field) =>
+        mode !== 'my' ? (
+          <field.ComboboxField
+            clearLabel={t('facility-program.clear-facility')}
+            disabled={!programId}
+            emptyMessage={t('facility-program.no-facilities')}
+            items={facilityItems}
+            label={t('facility-program.facility')}
+            limit={-1}
+            placeholder={
+              programId
+                ? t('facility-program.facility-placeholder')
+                : t('facility-program.facility-after-program')
+            }
+            required
+          />
+        ) : options.home ? (
+          <field.SelectField
+            disabled
+            items={[{ value: options.home.id, label: recordLabel(options.home) }]}
+            label={t('facility-program.facility')}
+            required
+          />
+        ) : (
+          <NoOptions
+            label={t('facility-program.facility')}
+            message={t('facility-program.no-home')}
+          />
+        )
+      }
+    </form.AppField>
+  );
+
   return (
     <>
-      <div className="@3xl/main:col-span-2">
+      <div className="@3xl/item:col-span-2">
         <form.AppField
           listeners={{ onChange: ({ value }) => apply(changeMode(value, options)) }}
           name="mode"
@@ -65,71 +137,8 @@ export function PairFields({ form, options }: SectionProps & { options: Facility
           )}
         </form.AppField>
       </div>
-      <form.AppField
-        listeners={{
-          onChange: ({ value }) =>
-            form.setFieldValue(
-              'facilityId',
-              changeProgram(selection(), value ?? undefined, options).facilityId ?? null,
-            ),
-        }}
-        name="programId"
-      >
-        {(field) =>
-          programItems.length > 0 ? (
-            <field.ComboboxField
-              clearLabel={t('facility-program.clear-program')}
-              emptyMessage={t('facility-program.no-programs')}
-              items={programItems}
-              label={t('facility-program.program')}
-              limit={-1}
-              placeholder={t('facility-program.program-placeholder')}
-              required
-            />
-          ) : (
-            <NoOptions
-              label={t('facility-program.program')}
-              message={t(
-                mode === 'my'
-                  ? 'facility-program.no-home-programs'
-                  : 'facility-program.no-supervised-programs',
-              )}
-            />
-          )
-        }
-      </form.AppField>
-      <form.AppField name="facilityId">
-        {(field) =>
-          mode !== 'my' ? (
-            <field.ComboboxField
-              clearLabel={t('facility-program.clear-facility')}
-              disabled={!programId}
-              emptyMessage={t('facility-program.no-facilities')}
-              items={facilityItems}
-              label={t('facility-program.facility')}
-              limit={-1}
-              placeholder={
-                programId
-                  ? t('facility-program.facility-placeholder')
-                  : t('facility-program.facility-after-program')
-              }
-              required
-            />
-          ) : options.home ? (
-            <field.SelectField
-              disabled
-              items={[{ value: options.home.id, label: recordLabel(options.home) }]}
-              label={t('facility-program.facility')}
-              required
-            />
-          ) : (
-            <NoOptions
-              label={t('facility-program.facility')}
-              message={t('facility-program.no-home')}
-            />
-          )
-        }
-      </form.AppField>
+      {mode === 'my' ? facilityField : programField}
+      {mode === 'my' ? programField : facilityField}
     </>
   );
 }

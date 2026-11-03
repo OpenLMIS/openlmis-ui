@@ -80,6 +80,8 @@
   "cce-inventory.form.make-model-after-type": "Pick a type first",
   "cce-inventory.form.make-model-placeholder": "Select Make/Model",
   "cce-inventory.form.manual-temperature-gauge": "Manual Temperature Gauge",
+  "cce-inventory.form.model-gone": "The chosen model has left the catalog. Pick another one.",
+  "cce-inventory.form.model-gone-title": "Model No Longer Available",
   "cce-inventory.form.next": "Next",
   "cce-inventory.form.no": "No",
   "cce-inventory.form.no-equipment-types": "No equipment types in the catalog.",

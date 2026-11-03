@@ -80,6 +80,8 @@
   "cce-inventory.form.make-model-after-type": "Choisissez d'abord un type",
   "cce-inventory.form.make-model-placeholder": "Sélectionner une marque/un modèle",
   "cce-inventory.form.manual-temperature-gauge": "Indicateur de température manuel",
+  "cce-inventory.form.model-gone": "Le modèle choisi n’est plus dans le catalogue. Choisissez-en un autre.",
+  "cce-inventory.form.model-gone-title": "Modèle plus disponible",
   "cce-inventory.form.next": "Suivant",
   "cce-inventory.form.no": "Non",
   "cce-inventory.form.no-equipment-types": "Aucun type de matériel dans le catalogue.",

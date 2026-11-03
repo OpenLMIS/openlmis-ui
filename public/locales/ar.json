@@ -80,6 +80,8 @@
   "cce-inventory.form.make-model-after-type": "اختر نوعًا أولًا",
   "cce-inventory.form.make-model-placeholder": "اختر الشركة المصنعة/الطراز",
   "cce-inventory.form.manual-temperature-gauge": "مقياس درجة الحرارة اليدوي",
+  "cce-inventory.form.model-gone": "لم يعد الطراز المختار في الكتالوج. اختر طرازًا آخر.",
+  "cce-inventory.form.model-gone-title": "الطراز لم يعد متاحًا",
   "cce-inventory.form.next": "التالي",
   "cce-inventory.form.no": "لا",
   "cce-inventory.form.no-equipment-types": "لا توجد أنواع معدات في الكتالوج.",

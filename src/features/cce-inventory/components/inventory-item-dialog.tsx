@@ -1,7 +1,7 @@
 import { useStore } from '@tanstack/react-form';
 import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
@@ -11,7 +11,6 @@ import {
   serverMessage,
 } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
-import { SettingsItem } from '@/components/form/settings-list';
 import {
   FormDialog,
   FormDialogBody,
@@ -29,11 +28,10 @@ import { Button } from '@/components/ui/button';
 import { createInventoryItem } from '@/features/cce-inventory/api/api';
 import { catalogItemsOptions } from '@/features/cce-inventory/api/queries';
 import {
-  HistorySection,
-  IdentificationSection,
-  InstallationSection,
+  ChosenEquipment,
+  type ChosenEquipmentLabels,
+  DetailsFields,
   Section,
-  StatusSection,
 } from '@/features/cce-inventory/components/inventory-item-sections';
 import { ModelFields } from '@/features/cce-inventory/components/inventory-model-fields';
 import { PairFields } from '@/features/cce-inventory/components/inventory-pair-fields';
@@ -50,6 +48,7 @@ import {
   hasFixedPowerModel,
   type InventoryItemValues,
   inventoryItemSchema,
+  POWER_FIELDS,
   toInventoryItemBody,
 } from '@/features/cce-inventory/lib/inventory-item-form';
 import type { CatalogItem, InventoryItemBody } from '@/features/cce-inventory/lib/types';
@@ -96,12 +95,19 @@ export function InventoryItemDialog({
   const { t } = useTranslation();
   const { shown, dialogProps } = useDialogTarget(open ? userId : undefined, onClose);
   const pending = useIsMutating({ mutationKey: ADD_KEY }) > 0;
+  const openingKey = useOpeningKey(open);
+  const closedOpening = useRef<number | null>(null);
+  const requestClose = () => {
+    if (closedOpening.current === openingKey) return;
+    closedOpening.current = openingKey;
+    onClose();
+  };
 
   return (
     <FormDialog
       {...dialogProps(pending)}
       onOpenChange={(next) => {
-        if (!next && !pending) onClose();
+        if (!next && !pending) requestClose();
       }}
       size="2xl"
     >
@@ -118,11 +124,28 @@ export function InventoryItemDialog({
           pendingFallback={<AddEquipmentSkeleton />}
           resetKey={userId}
         >
-          <AddEquipmentForm grants={grants} initial={initial} onSaved={onSaved} userId={shown} />
+          <AddEquipmentForm
+            grants={grants}
+            initial={initial}
+            key={openingKey}
+            onCloseCancelled={() => {
+              closedOpening.current = null;
+            }}
+            onSaved={onSaved}
+            userId={shown}
+          />
         </QueryBoundary>
       )}
     </FormDialog>
   );
+}
+
+function useOpeningKey(open: boolean) {
+  const [opening, setOpening] = useState({ open, key: 0 });
+  if (opening.open === open) return opening.key;
+  const next = { open, key: open ? opening.key + 1 : opening.key };
+  setOpening(next);
+  return next.key;
 }
 
 function startSelection(initial: FacilityProgramSelection, options: FacilityProgramOptions) {
@@ -156,24 +179,67 @@ function startValues(
   };
 }
 
+const FIRST_FIELD = [
+  '[role=radio][aria-checked=true]:not([aria-disabled=true])',
+  'input:not([type=hidden]):not(:disabled):not([tabindex="-1"]):not([aria-hidden=true])',
+  'textarea:not(:disabled)',
+].join(', ');
+
 function focusFirstError(container: HTMLElement | null) {
   requestAnimationFrame(() =>
     container?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
   );
 }
 
-type AddEquipmentFormProps = Omit<InventoryItemDialogProps, 'open' | 'onClose'>;
+function chosenLabels(
+  values: InventoryItemValues,
+  options: FacilityProgramOptions,
+  catalog: readonly CatalogItem[],
+): ChosenEquipmentLabels {
+  const programs = values.mode === 'my' ? options.myPrograms : options.supervisedPrograms;
+  const program = programs.find((record) => record.id === values.programId);
+  const facility = values.programId
+    ? options.facilitiesFor(values.programId).find((record) => record.id === values.facilityId)
+    : undefined;
+  const model = catalog.find((item) => item.id === values.catalogItemId);
+  return {
+    facility: facility ? recordLabel(facility) : '',
+    program: program ? recordLabel(program) : '',
+    type: values.equipmentType ?? '',
+    model: model ? makeModelLabel(model) : '',
+  };
+}
 
-function AddEquipmentForm({ userId, grants, initial, onSaved }: AddEquipmentFormProps) {
+type Step = 'equipment' | 'details';
+
+type AddEquipmentFormProps = Omit<InventoryItemDialogProps, 'open' | 'onClose'> & {
+  onCloseCancelled: () => void;
+};
+
+function AddEquipmentForm({
+  userId,
+  grants,
+  initial,
+  onSaved,
+  onCloseCancelled,
+}: AddEquipmentFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const options = useFacilityProgramOptions(userId, grants);
   const { data: catalog } = useSuspenseQuery({ ...catalogItemsOptions(), staleTime: 0 });
   const [defaultValues] = useState(() => startValues(startSelection(initial, options), catalog));
-  const [step, setStep] = useState<'equipment' | 'details'>('equipment');
+  const [step, setStep] = useState<Step>('equipment');
+  const [modelGone, setModelGone] = useState(false);
   const fields = useRef<HTMLDivElement>(null);
   const errorAlert = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
+  const shownStep = useRef(step);
+
+  useEffect(() => {
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    requestAnimationFrame(() => fields.current?.querySelector<HTMLElement>(FIRST_FIELD)?.focus());
+  }, [step]);
 
   const mutation = useSessionMutation({
     mutationKey: ADD_KEY,
@@ -196,6 +262,8 @@ function AddEquipmentForm({ userId, grants, initial, onSaved }: AddEquipmentForm
       const catalogItem = catalog.find((item) => item.id === catalogItemId);
       if (!catalogItem) {
         form.setFieldValue('catalogItemId', null);
+        for (const name of POWER_FIELDS) form.setFieldValue(name, '');
+        setModelGone(true);
         setStep('equipment');
         return;
       }
@@ -221,12 +289,18 @@ function AddEquipmentForm({ userId, grants, initial, onSaved }: AddEquipmentForm
     allowLeave: () => leaving.current,
   });
 
+  const toDetails = () => {
+    if (!chosen) return;
+    setModelGone(false);
+    setStep('details');
+  };
+  const toEquipment = () => {
+    mutation.reset();
+    setStep('equipment');
+  };
   const submit = () => {
-    if (step === 'equipment') {
-      if (chosen) setStep('details');
-      return;
-    }
-    if (!form.state.isSubmitting && !leaving.current) void form.handleSubmit();
+    if (step === 'equipment') toDetails();
+    else if (!form.state.isSubmitting && !leaving.current) void form.handleSubmit();
   };
 
   return (
@@ -235,15 +309,23 @@ function AddEquipmentForm({ userId, grants, initial, onSaved }: AddEquipmentForm
         <AddEquipmentHeader step={step} />
         <FormDialogBody>
           <div
-            className="@container/main flex flex-col gap-8"
+            className="@container/item flex flex-col gap-8"
             inert={mutation.isPending}
             ref={fields}
           >
             {step === 'equipment' ? (
-              <Section legend={t('cce-inventory.form.equipment')}>
-                <PairFields form={form} options={options} />
-                <ModelFields catalog={catalog} form={form} />
-              </Section>
+              <>
+                {modelGone && (
+                  <ErrorAlert
+                    description={t('cce-inventory.form.model-gone')}
+                    title={t('cce-inventory.form.model-gone-title')}
+                  />
+                )}
+                <Section legend={t('cce-inventory.form.equipment')}>
+                  <PairFields form={form} options={options} />
+                  <ModelFields catalog={catalog} form={form} />
+                </Section>
+              </>
             ) : (
               <>
                 {mutation.isError && (
@@ -256,52 +338,50 @@ function AddEquipmentForm({ userId, grants, initial, onSaved }: AddEquipmentForm
                     />
                   </div>
                 )}
-                <ChosenEquipment catalog={catalog} options={options} values={form.state.values} />
-                <IdentificationSection form={form} />
-                <HistorySection form={form} />
-                <InstallationSection catalog={catalog} form={form} />
-                <StatusSection form={form} />
-                <form.AppField name="details.additionalNotes">
-                  {(field) => (
-                    <field.TextareaField
-                      dir="auto"
-                      label={t('cce-inventory.form.additional-notes')}
-                    />
-                  )}
-                </form.AppField>
+                <ChosenEquipment {...chosenLabels(form.state.values, options, catalog)} />
+                <DetailsFields catalog={catalog} form={form} />
               </>
             )}
           </div>
         </FormDialogBody>
         <FormDialogFooter>
+          <FormDialogCancel disabled={mutation.isPending}>
+            {t('cce-inventory.form.cancel')}
+          </FormDialogCancel>
           {step === 'equipment' ? (
-            <>
-              <FormDialogCancel>{t('cce-inventory.form.cancel')}</FormDialogCancel>
-              <FormDialogSubmit disabled={!chosen}>{t('cce-inventory.form.next')}</FormDialogSubmit>
-            </>
+            <FormDialogSubmit disabled={!chosen} key="next">
+              {t('cce-inventory.form.next')}
+            </FormDialogSubmit>
           ) : (
             <>
               <Button
                 disabled={mutation.isPending}
-                onClick={() => setStep('equipment')}
+                onClick={toEquipment}
                 type="button"
                 variant="outline"
               >
                 {t('cce-inventory.form.back')}
               </Button>
-              <FormDialogSubmit pending={mutation.isPending}>
+              <FormDialogSubmit key="save" pending={mutation.isPending}>
                 {t('cce-inventory.form.save')}
               </FormDialogSubmit>
             </>
           )}
         </FormDialogFooter>
       </FormDialogForm>
-      <DiscardChangesDialog description={t('cce-inventory.form.discard-description')} {...guard} />
+      <DiscardChangesDialog
+        description={t('cce-inventory.form.discard-description')}
+        {...guard}
+        onKeepEditing={() => {
+          guard.onKeepEditing();
+          onCloseCancelled();
+        }}
+      />
     </>
   );
 }
 
-function AddEquipmentHeader({ step }: { step: 'equipment' | 'details' }) {
+function AddEquipmentHeader({ step }: { step: Step }) {
   const { t } = useTranslation();
   return (
     <FormDialogHeader>
@@ -317,44 +397,10 @@ function AddEquipmentHeader({ step }: { step: 'equipment' | 'details' }) {
   );
 }
 
-function ChosenEquipment({
-  values,
-  options,
-  catalog,
-}: {
-  values: InventoryItemValues;
-  options: FacilityProgramOptions;
-  catalog: readonly CatalogItem[];
-}) {
-  const { t } = useTranslation();
-  const programs = values.mode === 'my' ? options.myPrograms : options.supervisedPrograms;
-  const program = programs.find((record) => record.id === values.programId);
-  const facility = values.programId
-    ? options.facilitiesFor(values.programId).find((record) => record.id === values.facilityId)
-    : undefined;
-  const model = catalog.find((item) => item.id === values.catalogItemId);
-  return (
-    <Section legend={t('cce-inventory.form.equipment')}>
-      <SettingsItem label={t('facility-program.facility')}>
-        <bdi>{facility ? recordLabel(facility) : ''}</bdi>
-      </SettingsItem>
-      <SettingsItem label={t('facility-program.program')}>
-        <bdi>{program ? recordLabel(program) : ''}</bdi>
-      </SettingsItem>
-      <SettingsItem label={t('cce-inventory.form.equipment-type')}>
-        <bdi>{values.equipmentType}</bdi>
-      </SettingsItem>
-      <SettingsItem label={t('cce-inventory.form.make-model')}>
-        <bdi>{model ? makeModelLabel(model) : ''}</bdi>
-      </SettingsItem>
-    </Section>
-  );
-}
-
 const SKELETON_FIELDS: readonly { label: ParseKeys; required?: boolean }[] = [
   { label: 'facility-program.mode' },
-  { label: 'facility-program.program', required: true },
   { label: 'facility-program.facility', required: true },
+  { label: 'facility-program.program', required: true },
   { label: 'cce-inventory.form.equipment-type', required: true },
   { label: 'cce-inventory.form.make-model', required: true },
 ];
@@ -365,16 +411,20 @@ function AddEquipmentSkeleton() {
     <>
       <AddEquipmentHeader step="equipment" />
       <FormDialogBody>
-        <div aria-busy className="@container/main">
+        <div aria-busy className="@container/item">
           <Section legend={t('cce-inventory.form.equipment')}>
             {SKELETON_FIELDS.map(({ label, required }, index) => (
-              <div className={index === 0 ? '@3xl/main:col-span-2' : undefined} key={label}>
+              <div className={index === 0 ? '@3xl/item:col-span-2' : undefined} key={label}>
                 <FieldSkeleton label={t(label)} required={required} />
               </div>
             ))}
           </Section>
         </div>
       </FormDialogBody>
+      <FormDialogFooter>
+        <FormDialogCancel>{t('cce-inventory.form.cancel')}</FormDialogCancel>
+        <Button disabled>{t('cce-inventory.form.next')}</Button>
+      </FormDialogFooter>
     </>
   );
 }

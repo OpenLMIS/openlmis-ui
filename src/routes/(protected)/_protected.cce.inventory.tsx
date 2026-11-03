@@ -1,7 +1,7 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { ClipboardListIcon, RefrigeratorIcon, ShieldAlertIcon } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ListError } from '@/components/app-shell/list-error';
@@ -32,7 +32,7 @@ import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { exportInventoryItems } from '@/features/cce-inventory/api/api';
-import { inventoryItemsOptions } from '@/features/cce-inventory/api/queries';
+import { catalogItemsOptions, inventoryItemsOptions } from '@/features/cce-inventory/api/queries';
 import {
   InventoryItemDialog,
   type SavedInventoryItem,
@@ -90,6 +90,7 @@ export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     prefetchFacilityProgramOptions(queryClient, userId);
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
+    if (search.item === 'new') queryClient.prefetchQuery(catalogItemsOptions());
     const selection = {
       mode: search.mode,
       programId: search.programId,
@@ -240,11 +241,11 @@ function InventoryContent({ userId }: { userId: string }) {
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
   const editable = useMemo(() => editableGrants(permissions), [permissions]);
   const { measure: measureContent, columnView } = useColumnView();
-  const pair = useMemo(
-    () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
-    [search.mode, search.programId, search.facilityId],
-  );
-  const onAdd = useCallback(() => openDialog({ item: 'new' }), [openDialog]);
+  const addRefused = search.item === 'new' && editable.length === 0;
+  useEffect(() => {
+    if (addRefused) updateSearch(CLOSED_INVENTORY_DIALOGS, true);
+  }, [addRefused, updateSearch]);
+  const onAdd = () => openDialog({ item: 'new' });
   const onSaved = ({ selection, status, name }: SavedInventoryItem) => {
     toast.success(t('cce-inventory.form.saved-title'), {
       description: t('cce-inventory.form.saved', { name }),
@@ -285,10 +286,10 @@ function InventoryContent({ userId }: { userId: string }) {
       </Workspace>
       <InventoryItemDialog
         grants={editable}
-        initial={pair}
+        initial={search}
         onClose={closeDialog}
         onSaved={onSaved}
-        open={search.item === 'new' && editable.length > 0}
+        open={search.item === 'new' && !addRefused}
         userId={userId}
       />
     </>
