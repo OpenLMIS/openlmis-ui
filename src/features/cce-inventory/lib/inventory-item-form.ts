@@ -183,13 +183,12 @@ export function toInventoryItemBody(
   { facilityId, programId }: { facilityId: string; programId: string },
   catalogItem: CatalogItem,
 ): InventoryItemBody {
-  const status = details.functionalStatus;
   const power = (value: PowerStatus) =>
     hasFixedPower(catalogItem.energySource) ? 'NOT_APPLICABLE' : value;
   const source = optionalText(details.source);
   const additionalNotes = optionalText(details.additionalNotes);
   const yearOfWarrantyExpiry = toOptionalWholeNumber(details.yearOfWarrantyExpiry);
-  const reason = details.reasonNotWorkingOrNotInUse;
+  const { reasonNotWorkingOrNotInUse, decommissionDate } = details;
   return {
     facility: { id: facilityId },
     program: { id: programId },
@@ -206,9 +205,8 @@ export function toInventoryItemBody(
     manualTemperatureGauge: details.manualTemperatureGauge,
     remoteTemperatureMonitor: details.remoteTemperatureMonitor,
     ...(additionalNotes && { additionalNotes }),
-    functionalStatus: status,
-    ...(statusUsesReason(status) && reason && { reasonNotWorkingOrNotInUse: reason }),
-    ...(statusUsesDecommission(status) &&
-      details.decommissionDate && { decommissionDate: details.decommissionDate }),
+    functionalStatus: details.functionalStatus,
+    ...(reasonNotWorkingOrNotInUse && { reasonNotWorkingOrNotInUse }),
+    ...(decommissionDate && { decommissionDate }),
   };
 }

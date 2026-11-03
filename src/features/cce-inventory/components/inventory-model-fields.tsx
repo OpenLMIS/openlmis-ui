@@ -1,5 +1,5 @@
 import { useStore } from '@tanstack/react-form';
-import { type RefObject, useRef } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CatalogFormProps } from '@/features/cce-inventory/components/inventory-item-sections';
 import {
@@ -14,14 +14,11 @@ import {
   powerFor,
 } from '@/features/cce-inventory/lib/inventory-item-form';
 
-export function ModelFields({
-  form,
-  catalog,
-  lockedPower,
-}: CatalogFormProps & { lockedPower: RefObject<boolean> }) {
+export function ModelFields({ form, catalog }: CatalogFormProps) {
   const { t } = useTranslation();
   const equipmentType = useStore(form.store, (state) => state.values.equipmentType);
   const shownType = useRef(equipmentType);
+  const lockedPower = useRef(hasFixedPowerModel(catalog, form.state.values.catalogItemId));
 
   const applyModel = (catalogItemId: string | null) => {
     const fixed = hasFixedPowerModel(catalog, catalogItemId);
@@ -72,7 +69,7 @@ export function ModelFields({
             disabled={!equipmentType}
             emptyMessage={t('cce-inventory.form.no-models')}
             items={modelItems}
-            label={t('cce-inventory.form.make-model')}
+            label={t('cce-inventory.make-model')}
             limit={-1}
             placeholder={
               equipmentType

@@ -256,44 +256,42 @@ function InventoryContent({ userId }: { userId: string }) {
   };
 
   return (
-    <>
-      <Workspace>
-        <InventoryHeader />
-        <WorkspaceContent>
-          <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
-            <QueryBoundary
-              errorComponent={({ error, reset }) => (
-                <LoadError
-                  description={t('facility-program.load-error-description')}
-                  error={error}
-                  reset={reset}
-                  title={t('facility-program.load-error-title')}
-                />
-              )}
-              pendingFallback={<InventoryPageSkeleton columnView={columnView} search={search} />}
-              resetKey={userId}
-            >
-              <InventoryBody
-                columnView={columnView}
-                grants={grants}
-                onSearchChange={updateSearch}
-                permissions={permissions}
-                search={search}
-                userId={userId}
+    <Workspace>
+      <InventoryHeader />
+      <WorkspaceContent>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+          <QueryBoundary
+            errorComponent={({ error, reset }) => (
+              <LoadError
+                description={t('facility-program.load-error-description')}
+                error={error}
+                reset={reset}
+                title={t('facility-program.load-error-title')}
               />
-            </QueryBoundary>
-          </div>
-        </WorkspaceContent>
-      </Workspace>
-      <InventoryItemDialog
-        grants={editable}
-        initial={search}
-        onClose={closeDialog}
-        onSaved={onSaved}
-        open={search.item === 'new'}
-        userId={userId}
-      />
-    </>
+            )}
+            pendingFallback={<InventoryPageSkeleton columnView={columnView} search={search} />}
+            resetKey={userId}
+          >
+            <InventoryBody
+              columnView={columnView}
+              grants={grants}
+              onSearchChange={updateSearch}
+              permissions={permissions}
+              search={search}
+              userId={userId}
+            />
+          </QueryBoundary>
+        </div>
+        <InventoryItemDialog
+          grants={editable}
+          initial={search}
+          onClose={closeDialog}
+          onSaved={onSaved}
+          open={search.item === 'new'}
+          userId={userId}
+        />
+      </WorkspaceContent>
+    </Workspace>
   );
 }
 

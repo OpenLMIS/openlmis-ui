@@ -39,10 +39,8 @@ import { useItemDialogGuard } from '@/features/cce-inventory/components/use-item
 import { equipmentTypes, soleItem, soleModelId } from '@/features/cce-inventory/lib/catalog';
 import {
   EMPTY_INVENTORY_ITEM_DETAILS,
-  hasFixedPowerModel,
   type InventoryItemValues,
   inventoryItemSchema,
-  POWER_FIELDS,
   powerFor,
   toInventoryItemBody,
 } from '@/features/cce-inventory/lib/inventory-item-form';
@@ -116,7 +114,7 @@ export function InventoryItemDialog({
               title={t('cce-inventory.form.title')}
             />
           )}
-          pendingFallback={<AddEquipmentSkeleton mode={initial.mode ?? 'my'} />}
+          pendingFallback={<AddEquipmentSkeleton />}
           resetKey={userId}
         >
           <AddEquipmentForm
@@ -180,12 +178,6 @@ function startValues(
   };
 }
 
-function focusFirstError(container: HTMLElement | null) {
-  requestAnimationFrame(() =>
-    container?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
-  );
-}
-
 type Step = 'equipment' | 'details';
 
 type AddEquipmentFormProps = Omit<InventoryItemDialogProps, 'open' | 'onClose'> & {
@@ -202,22 +194,17 @@ function AddEquipmentForm({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const options = useFacilityProgramOptions(userId, grants);
-  const { data: catalog } = useSuspenseQuery({ ...catalogItemsOptions(), staleTime: 0 });
+  const { data } = useSuspenseQuery({ ...catalogItemsOptions(), staleTime: 0 });
+  const [catalog] = useState(data);
   const [defaultValues] = useState(() => startValues(startSelection(initial, options), catalog));
   const [step, setStep] = useState<Step>('equipment');
-  const [modelGone, setModelGone] = useState(false);
   const fields = useRef<HTMLDivElement>(null);
   const stepHeading = useRef<HTMLDivElement>(null);
-  const errorAlert = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
-  const lockedPower = useRef(hasFixedPowerModel(catalog, defaultValues.catalogItemId));
 
-  const showStep = (
-    next: Step,
-    focus: () => HTMLElement | null | undefined = () => stepHeading.current,
-  ) => {
+  const showStep = (next: Step) => {
     setStep(next);
-    requestAnimationFrame(() => focus()?.focus());
+    requestAnimationFrame(() => stepHeading.current?.focus());
   };
 
   const mutation = useSessionMutation({
@@ -229,8 +216,6 @@ function AddEquipmentForm({
       leaving.current = true;
       onSaved({ selection, status: body.functionalStatus, name: body.referenceName });
     },
-    onError: () =>
-      requestAnimationFrame(() => errorAlert.current?.scrollIntoView({ block: 'center' })),
   });
 
   const form = useInventoryItemForm(
@@ -238,23 +223,15 @@ function AddEquipmentForm({
     async (values) => {
       const { pair, catalogItemId, details } = inventoryItemSchema.parse(values);
       const catalogItem = catalog.find((item) => item.id === catalogItemId);
-      if (!catalogItem) {
-        form.setFieldValue('catalogItemId', null);
-        if (lockedPower.current) {
-          lockedPower.current = false;
-          for (const name of POWER_FIELDS) form.setFieldValue(name, '');
-        }
-        setModelGone(true);
-        showStep('equipment', () =>
-          fields.current?.querySelector<HTMLElement>('[id="catalogItemId"]'),
-        );
-        return;
-      }
+      if (!catalogItem) return;
       await mutation
         .mutateAsync({ body: toInventoryItemBody(details, pair, catalogItem), selection: pair })
         .catch(() => undefined);
     },
-    () => focusFirstError(fields.current),
+    () =>
+      requestAnimationFrame(() =>
+        fields.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+      ),
   );
 
   const chosen = useStore(form.store, (state) =>
@@ -266,18 +243,10 @@ function AddEquipmentForm({
   const allowLeave = useCallback(() => leaving.current, []);
   const guard = useItemDialogGuard({ dirty, pending: mutation.isPending, allowLeave });
 
-  const toDetails = () => {
-    if (!chosen) return;
-    setModelGone(false);
-    showStep('details');
-  };
-  const toEquipment = () => {
-    mutation.reset();
-    showStep('equipment');
-  };
   const submit = () => {
-    if (step === 'equipment') toDetails();
-    else if (!form.state.isSubmitting && !leaving.current) void form.handleSubmit();
+    if (step === 'equipment') {
+      if (chosen) showStep('details');
+    } else if (!form.state.isSubmitting && !leaving.current) void form.handleSubmit();
   };
 
   return (
@@ -291,29 +260,19 @@ function AddEquipmentForm({
             ref={fields}
           >
             {step === 'equipment' ? (
-              <>
-                {modelGone && (
-                  <ErrorAlert
-                    description={t('cce-inventory.form.model-gone')}
-                    title={t('cce-inventory.form.model-gone-title')}
-                  />
-                )}
-                <Section legend={t('cce-inventory.form.equipment')}>
-                  <PairFields form={form} options={options} />
-                  <ModelFields catalog={catalog} form={form} lockedPower={lockedPower} />
-                </Section>
-              </>
+              <Section legend={t('cce-inventory.form.equipment')}>
+                <PairFields form={form} options={options} />
+                <ModelFields catalog={catalog} form={form} />
+              </Section>
             ) : (
               <>
                 {mutation.isError && (
-                  <div ref={errorAlert}>
-                    <ErrorAlert
-                      description={
-                        serverMessage(mutation.error) ?? t('cce-inventory.form.save-error')
-                      }
-                      title={t('cce-inventory.form.save-error-title')}
-                    />
-                  </div>
+                  <ErrorAlert
+                    description={
+                      serverMessage(mutation.error) ?? t('cce-inventory.form.save-error')
+                    }
+                    title={t('cce-inventory.form.save-error-title')}
+                  />
                 )}
                 <ChosenEquipment catalog={catalog} form={form} options={options} />
                 <DetailsFields catalog={catalog} form={form} />
@@ -331,7 +290,10 @@ function AddEquipmentForm({
             <>
               <Button
                 disabled={mutation.isPending}
-                onClick={toEquipment}
+                onClick={() => {
+                  mutation.reset();
+                  showStep('equipment');
+                }}
                 type="button"
                 variant="outline"
               >
@@ -374,18 +336,15 @@ function AddEquipmentHeader({ step, stepRef }: { step: Step; stepRef?: Ref<HTMLD
   );
 }
 
-const PAIR_SKELETON: Record<SelectionMode, readonly ParseKeys[]> = {
-  my: ['facility-program.facility', 'facility-program.program'],
-  supervised: ['facility-program.program', 'facility-program.facility'],
-};
+const SKELETON_FIELDS: readonly ParseKeys[] = [
+  'facility-program.facility',
+  'facility-program.program',
+  'cce-inventory.form.equipment-type',
+  'cce-inventory.make-model',
+];
 
-function AddEquipmentSkeleton({ mode }: { mode: SelectionMode }) {
+function AddEquipmentSkeleton() {
   const { t } = useTranslation();
-  const required: readonly ParseKeys[] = [
-    ...PAIR_SKELETON[mode],
-    'cce-inventory.form.equipment-type',
-    'cce-inventory.form.make-model',
-  ];
   return (
     <>
       <AddEquipmentHeader step="equipment" />
@@ -395,7 +354,7 @@ function AddEquipmentSkeleton({ mode }: { mode: SelectionMode }) {
             <div className="@3xl/item:col-span-2">
               <FieldSkeleton label={t('facility-program.mode')} />
             </div>
-            {required.map((label) => (
+            {SKELETON_FIELDS.map((label) => (
               <FieldSkeleton key={label} label={t(label)} required />
             ))}
           </Section>

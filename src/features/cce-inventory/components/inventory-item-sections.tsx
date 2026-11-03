@@ -1,6 +1,6 @@
 import { useStore } from '@tanstack/react-form';
 import type { ParseKeys } from 'i18next';
-import { type ReactNode, useId, useRef } from 'react';
+import { type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
@@ -76,51 +76,34 @@ export type FormProps = { form: InventoryItemFormApi };
 
 export type CatalogFormProps = FormProps & { catalog: readonly CatalogItem[] };
 
-function chosenLabels(
-  { pair, equipmentType, catalogItemId }: InventoryItemFormApi['state']['values'],
-  options: FacilityProgramOptions,
-  catalog: readonly CatalogItem[],
-) {
-  const programs = pair.mode === 'my' ? options.myPrograms : options.supervisedPrograms;
-  const program = programs.find((record) => record.id === pair.programId);
-  const facility = pair.programId
-    ? options.facilitiesFor(pair.programId).find((record) => record.id === pair.facilityId)
-    : undefined;
-  const model = catalog.find((item) => item.id === catalogItemId);
-  return {
-    facility: facility ? recordLabel(facility) : '',
-    program: program ? recordLabel(program) : '',
-    type: equipmentType ?? '',
-    model: model ? makeModelLabel(model) : '',
-  };
-}
-
 export function ChosenEquipment({
   form,
   options,
   catalog,
 }: CatalogFormProps & { options: FacilityProgramOptions }) {
   const { t } = useTranslation();
-  const headingId = useId();
-  const { facility, program, type, model } = chosenLabels(form.state.values, options, catalog);
+  const { pair, equipmentType, catalogItemId } = form.state.values;
+  const programs = pair.mode === 'my' ? options.myPrograms : options.supervisedPrograms;
+  const program = programs.find((record) => record.id === pair.programId);
+  const facility = pair.programId
+    ? options.facilitiesFor(pair.programId).find((record) => record.id === pair.facilityId)
+    : undefined;
+  const model = catalog.find((item) => item.id === catalogItemId);
+  const rows: [ParseKeys, string][] = [
+    ['facility-program.facility', facility ? recordLabel(facility) : ''],
+    ['facility-program.program', program ? recordLabel(program) : ''],
+    ['cce-inventory.form.equipment-type', equipmentType ?? ''],
+    ['cce-inventory.make-model', model ? makeModelLabel(model) : ''],
+  ];
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3">
-      <h3 className="font-medium text-base" id={headingId}>
-        {t('cce-inventory.form.equipment')}
-      </h3>
+    <section className="flex flex-col gap-3">
+      <h3 className="font-medium text-base">{t('cce-inventory.form.equipment')}</h3>
       <SettingsList>
-        <SettingsItem label={t('facility-program.facility')}>
-          <bdi>{facility}</bdi>
-        </SettingsItem>
-        <SettingsItem label={t('facility-program.program')}>
-          <bdi>{program}</bdi>
-        </SettingsItem>
-        <SettingsItem label={t('cce-inventory.form.equipment-type')}>
-          <bdi>{type}</bdi>
-        </SettingsItem>
-        <SettingsItem label={t('cce-inventory.form.make-model')}>
-          <bdi>{model}</bdi>
-        </SettingsItem>
+        {rows.map(([label, value]) => (
+          <SettingsItem key={label} label={t(label)}>
+            <bdi>{value}</bdi>
+          </SettingsItem>
+        ))}
       </SettingsList>
     </section>
   );
@@ -163,7 +146,7 @@ function IdentificationSection({ form }: FormProps) {
             autoComplete="off"
             description={t('cce-inventory.form.reference-name-description')}
             dir="auto"
-            label={t('cce-inventory.form.reference-name')}
+            label={t('cce-inventory.reference-name')}
             required
           />
         )}
@@ -222,7 +205,6 @@ function InstallationSection({ form, catalog }: CatalogFormProps) {
           {(field) => (
             <field.SelectField
               placeholder={t('cce-inventory.form.select-option')}
-              description={fixed ? t('cce-inventory.form.fixed-power') : undefined}
               disabled={fixed}
               items={powerItems}
               label={t(POWER_LABELS[name])}

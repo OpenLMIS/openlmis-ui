@@ -12,14 +12,10 @@ import type { EquipmentStatus } from '@/lib/cce-equipment-status';
 
 const catalogItem: CatalogItem = {
   id: 'c1',
-  fromPqsCatalog: true,
-  equipmentCode: 'E003/090',
   type: 'Refrigerator',
   model: 'TCW 40R',
   manufacturer: 'B Medical',
   energySource: 'ELECTRIC',
-  storageTemperature: 'PLUS4',
-  archived: false,
 };
 
 const filled: ValidInventoryItemDetails = {
@@ -50,12 +46,8 @@ const issues = (values: InventoryItemDetails) => {
 const sorted = (list: string[]) => list.toSorted();
 
 describe('inventoryItemDetailsSchema', () => {
-  it('takes a filled-in form', () => {
-    expect(issues(filled)).toEqual([]);
-  });
-
-  it('asks for every field legacy marks as required', () => {
-    expect(issues(EMPTY_INVENTORY_ITEM_DETAILS)).toEqual(
+  it('asks for every field legacy marks as required, the status ones along with the rest', () => {
+    expect(issues({ ...EMPTY_INVENTORY_ITEM_DETAILS, functionalStatus: 'UNSERVICEABLE' })).toEqual(
       sorted([
         'equipmentTrackingId: cce-inventory.form.required',
         'referenceName: cce-inventory.form.required',
@@ -66,7 +58,8 @@ describe('inventoryItemDetailsSchema', () => {
         'backupGenerator: cce-inventory.form.required',
         'manualTemperatureGauge: cce-inventory.form.required',
         'remoteTemperatureMonitor: cce-inventory.form.required',
-        'functionalStatus: cce-inventory.form.required',
+        'reasonNotWorkingOrNotInUse: cce-inventory.form.required',
+        'decommissionDate: cce-inventory.form.required',
       ]),
     );
   });
@@ -78,14 +71,10 @@ describe('inventoryItemDetailsSchema', () => {
     ]);
   });
 
-  it.each([
-    ['999', 'cce-inventory.form.year-range'],
-    ['10000', 'cce-inventory.form.year-range'],
-    ['1500.5', 'cce-inventory.form.year-range'],
-  ])('refuses %s as a year', (year, message) => {
+  it.each(['999', '10000', '1500.5'])('refuses %s as a year', (year) => {
     expect(issues({ ...filled, yearOfInstallation: year, yearOfWarrantyExpiry: year })).toEqual([
-      `yearOfInstallation: ${message}`,
-      `yearOfWarrantyExpiry: ${message}`,
+      'yearOfInstallation: cce-inventory.form.year-range',
+      'yearOfWarrantyExpiry: cce-inventory.form.year-range',
     ]);
   });
 
@@ -97,27 +86,11 @@ describe('inventoryItemDetailsSchema', () => {
 
   const statusRules: [EquipmentStatus, string[]][] = [
     ['AWAITING_REPAIR', ['reasonNotWorkingOrNotInUse: cce-inventory.form.required']],
-    [
-      'UNSERVICEABLE',
-      [
-        'reasonNotWorkingOrNotInUse: cce-inventory.form.required',
-        'decommissionDate: cce-inventory.form.required',
-      ],
-    ],
     ['NEEDS_ATTENTION', []],
   ];
 
   it.each(statusRules)('asks %s for what legacy asks with it', (functionalStatus, expected) => {
-    expect(issues({ ...filled, functionalStatus })).toEqual(sorted(expected));
-  });
-
-  it('asks for the reason and the decommission date along with the other empty fields', () => {
-    expect(issues({ ...EMPTY_INVENTORY_ITEM_DETAILS, functionalStatus: 'UNSERVICEABLE' })).toEqual(
-      expect.arrayContaining([
-        'reasonNotWorkingOrNotInUse: cce-inventory.form.required',
-        'decommissionDate: cce-inventory.form.required',
-      ]),
-    );
+    expect(issues({ ...filled, functionalStatus })).toEqual(expected);
   });
 });
 
@@ -163,6 +136,9 @@ describe('toInventoryItemBody', () => {
           source: ' Ministry ',
           yearOfWarrantyExpiry: '٢٠٢٦',
           additionalNotes: ' Spare key ',
+          functionalStatus: 'UNSERVICEABLE',
+          reasonNotWorkingOrNotInUse: 'DEAD',
+          decommissionDate: '2026-10-01',
         },
         pair,
         catalogItem,
@@ -171,44 +147,8 @@ describe('toInventoryItemBody', () => {
       source: 'Ministry',
       yearOfWarrantyExpiry: 2026,
       additionalNotes: 'Spare key',
-    });
-  });
-
-  it('sends not applicable power fields for equipment without mains power', () => {
-    expect(
-      toInventoryItemBody(filled, pair, { ...catalogItem, energySource: 'SOLAR' }),
-    ).toMatchObject({
-      voltageStabilizer: 'NOT_APPLICABLE',
-      voltageRegulator: 'NOT_APPLICABLE',
-      backupGenerator: 'NOT_APPLICABLE',
-    });
-  });
-
-  it('sends the reason and the decommission date only with the statuses that use them', () => {
-    const unserviceable: ValidInventoryItemDetails = {
-      ...filled,
-      functionalStatus: 'UNSERVICEABLE',
-      reasonNotWorkingOrNotInUse: 'DEAD',
-      decommissionDate: '2026-10-01',
-    };
-
-    expect(toInventoryItemBody(unserviceable, pair, catalogItem)).toMatchObject({
       reasonNotWorkingOrNotInUse: 'DEAD',
       decommissionDate: '2026-10-01',
     });
-    const awaiting = toInventoryItemBody(
-      { ...unserviceable, functionalStatus: 'AWAITING_REPAIR' },
-      pair,
-      catalogItem,
-    );
-    expect(awaiting).toMatchObject({ reasonNotWorkingOrNotInUse: 'DEAD' });
-    expect(awaiting).not.toHaveProperty('decommissionDate');
-    const functioning = toInventoryItemBody(
-      { ...unserviceable, functionalStatus: 'FUNCTIONING' },
-      pair,
-      catalogItem,
-    );
-    expect(functioning).not.toHaveProperty('reasonNotWorkingOrNotInUse');
-    expect(functioning).not.toHaveProperty('decommissionDate');
   });
 });

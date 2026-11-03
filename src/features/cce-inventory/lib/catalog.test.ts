@@ -4,13 +4,10 @@ import type { CatalogItem } from '@/features/cce-inventory/lib/types';
 
 const item = (id: string, type: string, manufacturer: string, model: string): CatalogItem => ({
   id,
-  fromPqsCatalog: false,
   type,
   manufacturer,
   model,
   energySource: 'ELECTRIC',
-  storageTemperature: 'PLUS4',
-  archived: false,
 });
 
 const CATALOG = [

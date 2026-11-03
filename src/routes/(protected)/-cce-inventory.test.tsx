@@ -52,16 +52,7 @@ vi.mock('@/features/cce-inventory/api/api', () => ({
   fetchInventoryAlerts: vi.fn(),
   exportInventoryItems: vi.fn(),
   fetchCatalogItems: vi.fn(async () => [
-    {
-      id: 'c1',
-      fromPqsCatalog: true,
-      type: 'Freezer',
-      manufacturer: 'Haier',
-      model: 'HBD-286',
-      energySource: 'ELECTRIC',
-      storageTemperature: 'PLUS4',
-      archived: false,
-    },
+    { id: 'c1', type: 'Solar fridge', manufacturer: 'Sun', model: 'S1', energySource: 'SOLAR' },
   ]),
   createInventoryItem: vi.fn(),
 }));
@@ -521,7 +512,7 @@ describe('CCE inventory page', () => {
       'SN-1',
     );
     await user.type(
-      screen.getByRole('textbox', { name: /cce-inventory.form.reference-name/ }),
+      screen.getByRole('textbox', { name: /^cce-inventory.reference-name/ }),
       'Fridge 2',
     );
     await user.type(
@@ -529,9 +520,6 @@ describe('CCE inventory page', () => {
       '2019',
     );
     await choose(/cce-inventory.form.utilization/, /cce-inventory.form.active/);
-    for (const field of ['voltage-stabilizer', 'voltage-regulator', 'backup-generator']) {
-      await choose(new RegExp(`cce-inventory.form.${field}`), /^cce-inventory.form.yes$/);
-    }
     await choose(/cce-inventory.form.manual-temperature-gauge/, /cce-inventory.form.built-in/);
     await choose(/cce-inventory.form.remote-temperature-monitor/, /cce-inventory.form.no-rtm/);
     await choose(/cce-inventory.form.functional-status/, /cce-equipment.status.functioning/);

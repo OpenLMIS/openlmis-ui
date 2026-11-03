@@ -82,7 +82,7 @@ export function InventoryToolbar({
         <TooltipContent>{t('cce-inventory.export-hint')}</TooltipContent>
       </Tooltip>
       {onAdd && (
-        <Button onClick={onAdd} size="lg">
+        <Button disabled={disabled} onClick={onAdd} size="lg">
           <PlusIcon data-icon="inline-start" />
           {t('cce-inventory.add')}
         </Button>
