@@ -53,7 +53,7 @@ export async function captureBatch(
       session,
     );
   } catch (error) {
-    if (isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0))
+    if (isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
       for (const lease of leases) await revokeBatchApproval(lease);
     throw error;
   }

@@ -138,6 +138,17 @@ export async function readCopies() {
   assertSessionScope(session);
   return copies.filter((copy) => copy.userId === userId && isCompleteCopy(copy));
 }
+export function newerServerRecord(
+  next: { modifiedDate?: string | null },
+  previous: { modifiedDate?: string | null },
+) {
+  const timestamp = (value?: string | null) => (value ? Date.parse(value) : Number.NaN);
+  const difference = timestamp(next.modifiedDate) - timestamp(previous.modifiedDate);
+  if (difference !== 0) return difference > 0;
+  const fraction = (value?: string | null) => (value?.match(/\.(\d+)/)?.[1] ?? '').padEnd(9, '0');
+  return fraction(next.modifiedDate) > fraction(previous.modifiedDate);
+}
+
 export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
   const db = getLocalDb();
   await db.transaction('rw', tables, async () => {
@@ -158,7 +169,7 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
       (Object.keys(batchDraft.approvedQuantities).length || batchDraft.unresolvedApproval);
     const single =
       singleDirty && previous?.single ? previous.single : (next.single ?? previous?.single);
-    const batch =
+    let batch =
       batchDirty && previous?.batch
         ? {
             ...previous.batch,
@@ -166,15 +177,27 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
             approvalVerified: next.batch?.approvalVerified ?? previous.batch.approvalVerified,
           }
         : (next.batch ?? previous?.batch);
+    const confirmed = previous?.batch?.confirmedApproval;
+    if (batch && confirmed) {
+      const candidate = next.batch?.record;
+      batch = {
+        ...batch,
+        confirmedApproval:
+          candidate && newerServerRecord(candidate, confirmed) ? candidate : confirmed,
+      };
+    }
+    const confirmedStatus = batch?.confirmedApproval;
+    const summaryStatus =
+      confirmedStatus && next.single && newerServerRecord(next.single.record, confirmedStatus)
+        ? next.single.record.status
+        : confirmedStatus?.status;
     await table.put({
       ...next,
       single,
       batch,
       summary: {
         ...((singleDirty || batchDirty) && previous ? previous.summary : next.summary),
-        ...(batch?.confirmedApproval && {
-          status: batch.confirmedApproval.status as CopySummary['status'],
-        }),
+        ...(summaryStatus && { status: summaryStatus as CopySummary['status'] }),
       },
       fetchedAt: (singleDirty || batchDirty) && previous ? previous.fetchedAt : next.fetchedAt,
       revision: (previous?.revision ?? 0) + 1,
@@ -259,13 +282,18 @@ export async function confirmBatchApproval(lease: CopyLease, record: BatchRequis
     );
     const dirty =
       draft && (Object.keys(draft.approvedQuantities).length || draft.unresolvedApproval);
+    const latest =
+      previous.batch.confirmedApproval &&
+      !newerServerRecord(record, previous.batch.confirmedApproval)
+        ? previous.batch.confirmedApproval
+        : record;
     await localTable<RequisitionCopy>(LOCAL_TABLES.requisitionCopies).put({
       ...previous,
-      summary: { ...previous.summary, status: record.status as CopySummary['status'] },
+      summary: { ...previous.summary, status: latest.status as CopySummary['status'] },
       batch: {
         ...previous.batch,
-        record: dirty ? previous.batch.record : record,
-        confirmedApproval: record,
+        record: dirty ? previous.batch.record : latest,
+        confirmedApproval: latest,
         fetchedAt: dirty ? previous.batch.fetchedAt : Date.now(),
       },
       revision: previous.revision + 1,

@@ -286,7 +286,7 @@ it('recertifies dirty batch access after grant removal without changing quantiti
   });
 });
 
-it.each([403, 503])(
+it.each([401, 403, 503])(
   'preserves payload on approval-list failure %s and revokes only definitive denials',
   async (status) => {
     await publish(access());

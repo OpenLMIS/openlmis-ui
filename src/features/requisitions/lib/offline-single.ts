@@ -28,6 +28,7 @@ import {
   type CopySummary,
   commitCopy,
   completeSingle,
+  newerServerRecord,
   readCopy,
 } from '@/features/requisitions/lib/offline-copies';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
@@ -133,7 +134,19 @@ export async function readSingle(id: string) {
   const access = await readRequisitionAccess();
   if (!mayViewCopy(access, copy.summary.facility.id, copy.summary.program.id))
     throw new LocalDataUnavailableError();
-  return { ...copy, single: copy.single };
+  const confirmed = copy.batch?.confirmedApproval;
+  const single =
+    confirmed && !newerServerRecord(copy.single.record, confirmed)
+      ? {
+          ...copy.single,
+          record: {
+            ...copy.single.record,
+            status: confirmed.status as RequisitionRecord['status'],
+            modifiedDate: confirmed.modifiedDate,
+          },
+        }
+      : copy.single;
+  return { ...copy, single };
 }
 export function hydrateSingle(
   client: QueryClient,

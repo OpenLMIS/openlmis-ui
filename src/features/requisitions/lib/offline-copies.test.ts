@@ -1,6 +1,7 @@
 import { beforeEach, expect, it } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
+import type { RequisitionStatus } from '@/lib/requisition-status';
 import {
   beginCopy,
   commitCopy,
@@ -26,7 +27,7 @@ const bundle = (lease: Awaited<ReturnType<typeof beginCopy>>) => ({
   summary: {
     id: 'r',
     emergency: false,
-    status: 'INITIATED' as const,
+    status: 'INITIATED' as RequisitionStatus,
     facility: { id: 'f' },
     program: { id: 'p' },
     processingPeriod: { id: 'period' },
@@ -253,6 +254,35 @@ it('records confirmed server advancement while preserving independent dirty sing
   await getLocalDb().table(LOCAL_TABLES.requisitionBatchDrafts).put(batchDraft);
   const confirmed = { ...copy.batch.record, status: 'APPROVED', modifiedDate: 'new' };
   await confirmBatchApproval(lease, confirmed);
+  await getLocalDb()
+    .table(LOCAL_TABLES.offlineAccess)
+    .put({
+      userId: lease.userId,
+      formatVersion: 1,
+      generation: 'g',
+      fetchedAt: 1,
+      permissionStrings: ['REQUISITION_VIEW|f|p'],
+      programs: [single.references.program],
+      homeFacility: null,
+      user: { id: lease.userId, username: 'owner', active: true, roleAssignments: [] },
+    });
+  await getLocalDb()
+    .table(LOCAL_TABLES.requisitionAccess)
+    .put({
+      userId: lease.userId,
+      formatVersion: 1,
+      generation: 'g',
+      fetchedAt: 1,
+      roles: [],
+      nodes: [],
+      groups: [],
+      programs: [single.references.program],
+      facilities: [{ id: 'f', code: 'F', name: 'Clinic', active: true }],
+    });
+  const { readSingle } = await import('./offline-single');
+  const reopened = await readSingle('r');
+  expect(reopened.single.record.status).toBe('APPROVED');
+  expect(reopened.single.record.modifiedDate).toBe(confirmed.modifiedDate);
   expect(await readCopy('r')).toMatchObject({
     summary: { status: 'APPROVED' },
     single,
@@ -276,4 +306,34 @@ it('cannot recreate removed copies or certify an unverified copy from an approva
     confirmBatchApproval(lease, { ...copy.batch.record, status: 'APPROVED' }),
   ).rejects.toThrow();
   expect(await readCopy('r')).toBeUndefined();
+});
+
+it('keeps confirmed status when an older clean capture finishes later, but accepts newer server evidence', async () => {
+  const lease = await beginCopy('r');
+  const stale = ready(lease);
+  stale.summary.status = 'AUTHORIZED';
+  stale.batch.record.modifiedDate = '2026-11-03T11:00:00Z';
+  await commitCopy(lease, stale);
+  await confirmBatchApproval(lease, {
+    ...stale.batch.record,
+    status: 'IN_APPROVAL',
+    modifiedDate: '2026-11-03T11:01:00.000001Z',
+  });
+  await commitCopy(lease, stale);
+  expect(await readCopy('r')).toMatchObject({
+    summary: { status: 'IN_APPROVAL' },
+    batch: { confirmedApproval: { status: 'IN_APPROVAL' } },
+  });
+  const newer = ready(lease);
+  newer.summary.status = 'APPROVED';
+  newer.batch.record = {
+    ...newer.batch.record,
+    status: 'APPROVED',
+    modifiedDate: '2026-11-03T11:01:00.000002Z',
+  };
+  await commitCopy(lease, newer);
+  expect(await readCopy('r')).toMatchObject({
+    summary: { status: 'APPROVED' },
+    batch: { confirmedApproval: { status: 'APPROVED' } },
+  });
 });
