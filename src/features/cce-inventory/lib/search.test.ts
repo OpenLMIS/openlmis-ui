@@ -11,6 +11,7 @@ const listSearch: InventorySearch = {
   sort: 'type',
   dir: 'desc',
   functionalStatus: 'FUNCTIONING',
+  item: 'new',
 };
 
 const home: CompleteSelection = { mode: 'my', programId: 'epi', facilityId: 'home' };

@@ -1,9 +1,9 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInventoryItem, fetchCatalogItems } from '@/features/cce-inventory/api/api';
-import { InventoryItemEditor } from '@/features/cce-inventory/components/inventory-item-editor';
+import { InventoryItemDialog } from '@/features/cce-inventory/components/inventory-item-dialog';
 import type { CatalogItem, InventoryItemBody } from '@/features/cce-inventory/lib/types';
 import {
   fetchMinimalFacilities,
@@ -69,7 +69,9 @@ const NO_PAIR: FacilityProgramSelection = {
   facilityId: undefined,
 };
 
-function renderEditor({
+const HOME_EPI: FacilityProgramSelection = { mode: 'my', programId: EPI, facilityId: HOME };
+
+function renderDialog({
   grants = [grant(HOME, EPI), grant(LURIO, EPI), grant(HOME, FP)],
   initial = NO_PAIR,
 }: {
@@ -77,30 +79,41 @@ function renderEditor({
   initial?: FacilityProgramSelection;
 } = {}) {
   const onSaved = vi.fn();
-  const onCancel = vi.fn();
+  const onClose = vi.fn();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
   renderPage(
-    <InventoryItemEditor
+    <InventoryItemDialog
       grants={grants}
       initial={initial}
-      onCancel={onCancel}
+      onClose={onClose}
       onSaved={onSaved}
+      open
       userId={USER}
     />,
     { queryClient },
   );
-  return { onSaved, onCancel, invalidate };
+  return { onSaved, onClose, invalidate };
 }
+
+type User = ReturnType<typeof userEvent.setup>;
 
 const combobox = (name: string) => screen.findByRole('combobox', { name: new RegExp(name) });
 
-async function choose(user: ReturnType<typeof userEvent.setup>, field: string, option: RegExp) {
+const button = (name: string) => screen.findByRole('button', { name });
+
+async function choose(user: User, field: string, option: RegExp) {
   await user.click(await combobox(field));
   await user.click(await screen.findByRole('option', { name: option }));
 }
 
-async function fillDetails(user: ReturnType<typeof userEvent.setup>) {
+async function toDetails(user: User, type: RegExp) {
+  await choose(user, 'cce-inventory.form.equipment-type', type);
+  await user.click(await button('cce-inventory.form.next'));
+  await screen.findByRole('textbox', { name: /cce-inventory.form.serial-number/ });
+}
+
+async function fillDetails(user: User) {
   await user.type(
     screen.getByRole('textbox', { name: /cce-inventory.form.serial-number/ }),
     'SN-1',
@@ -149,9 +162,9 @@ beforeEach(() => {
   vi.mocked(createInventoryItem).mockResolvedValue();
 });
 
-describe('InventoryItemEditor', () => {
+describe('InventoryItemDialog', () => {
   it('opens on the facility and program searched in the inventory', async () => {
-    renderEditor({ initial: { mode: 'supervised', programId: EPI, facilityId: LURIO } });
+    renderDialog({ initial: { mode: 'supervised', programId: EPI, facilityId: LURIO } });
 
     expect(
       await screen.findByRole('radio', { name: /facility-program.supervised-facility/ }),
@@ -162,7 +175,7 @@ describe('InventoryItemEditor', () => {
 
   it('offers only facilities the user may edit and picks a sole program by itself', async () => {
     const user = userEvent.setup();
-    renderEditor({ grants: [grant(HOME, EPI), grant(LURIO, EPI)] });
+    renderDialog({ grants: [grant(HOME, EPI), grant(LURIO, EPI)] });
 
     await waitFor(async () =>
       expect(await combobox('facility-program.program')).toHaveValue('EPI'),
@@ -178,13 +191,13 @@ describe('InventoryItemEditor', () => {
   });
 
   it('leaves a facility the user may not edit blank instead of offering it', async () => {
-    renderEditor({ initial: { mode: 'supervised', programId: EPI, facilityId: BALAKA } });
+    renderDialog({ initial: { mode: 'supervised', programId: EPI, facilityId: BALAKA } });
 
     expect(await combobox('facility-program.facility')).toHaveValue('');
   });
 
   it('keeps to supervised facilities when the home facility offers no program to edit', async () => {
-    renderEditor({ grants: [grant(LURIO, EPI)] });
+    renderDialog({ grants: [grant(LURIO, EPI)] });
 
     expect(
       await screen.findByRole('radio', { name: /facility-program.supervised-facility/ }),
@@ -198,7 +211,7 @@ describe('InventoryItemEditor', () => {
 
   it('lists the models of exactly the chosen type and clears the model when the type changes', async () => {
     const user = userEvent.setup();
-    renderEditor({ initial: { mode: 'my', programId: EPI, facilityId: HOME } });
+    renderDialog({ initial: HOME_EPI });
 
     await choose(user, 'cce-inventory.form.equipment-type', /^Freezer$/);
     await user.click(await combobox('cce-inventory.form.make-model'));
@@ -216,11 +229,47 @@ describe('InventoryItemEditor', () => {
     expect(await combobox('cce-inventory.form.make-model')).toHaveValue('Zanotti WF-1');
   });
 
+  it('keeps Next off until the facility, program, type and model are chosen', async () => {
+    const user = userEvent.setup();
+    renderDialog({ initial: { mode: 'supervised', programId: EPI, facilityId: undefined } });
+
+    const next = await button('cce-inventory.form.next');
+    expect(next).toBeDisabled();
+    await choose(user, 'facility-program.facility', /Lurio District Hospital/);
+    await choose(user, 'cce-inventory.form.equipment-type', /^Freezer$/);
+    expect(next).toBeDisabled();
+    await choose(user, 'cce-inventory.form.make-model', /^Haier HBD-286$/);
+
+    expect(next).toBeEnabled();
+  });
+
+  it('shows the choice read only in step two and keeps the details on Back', async () => {
+    const user = userEvent.setup();
+    renderDialog({ initial: HOME_EPI });
+
+    await toDetails(user, /^Solar fridge$/);
+    const choice = screen.getByRole('group', { name: 'cce-inventory.form.equipment' });
+    for (const value of ['Comfort Health Clinic', 'EPI', 'Solar fridge', 'SunDanzer BFRV 55']) {
+      expect(within(choice).getByText(value)).toBeInTheDocument();
+    }
+    await user.type(
+      screen.getByRole('textbox', { name: /cce-inventory.form.serial-number/ }),
+      'SN-1',
+    );
+    await user.click(await button('cce-inventory.form.back'));
+    expect(await combobox('cce-inventory.form.make-model')).toHaveValue('SunDanzer BFRV 55');
+    await user.click(await button('cce-inventory.form.next'));
+
+    expect(
+      await screen.findByRole('textbox', { name: /cce-inventory.form.serial-number/ }),
+    ).toHaveValue('SN-1');
+  });
+
   it('fixes the power fields of solar equipment to not applicable', async () => {
     const user = userEvent.setup();
-    renderEditor({ initial: { mode: 'my', programId: EPI, facilityId: HOME } });
+    renderDialog({ initial: HOME_EPI });
 
-    await choose(user, 'cce-inventory.form.equipment-type', /^Solar fridge$/);
+    await toDetails(user, /^Solar fridge$/);
 
     for (const field of ['voltage-stabilizer', 'voltage-regulator', 'backup-generator']) {
       const select = await combobox(`cce-inventory.form.${field}`);
@@ -231,10 +280,10 @@ describe('InventoryItemEditor', () => {
 
   it('unlocks and clears the power fields when an electric model replaces a solar one', async () => {
     const user = userEvent.setup();
-    renderEditor({ initial: { mode: 'my', programId: EPI, facilityId: HOME } });
+    renderDialog({ initial: HOME_EPI });
 
     await choose(user, 'cce-inventory.form.equipment-type', /^Solar fridge$/);
-    await choose(user, 'cce-inventory.form.equipment-type', /^Walk-in freezer$/);
+    await toDetails(user, /^Walk-in freezer$/);
 
     const stabilizer = await combobox('cce-inventory.form.voltage-stabilizer');
     expect(stabilizer).toBeEnabled();
@@ -243,8 +292,9 @@ describe('InventoryItemEditor', () => {
 
   it('clears the reason and the decommission date only when the status changes', async () => {
     const user = userEvent.setup();
-    renderEditor({ initial: { mode: 'my', programId: EPI, facilityId: HOME } });
+    renderDialog({ initial: HOME_EPI });
 
+    await toDetails(user, /^Walk-in freezer$/);
     await choose(
       user,
       'cce-inventory.form.functional-status',
@@ -272,12 +322,12 @@ describe('InventoryItemEditor', () => {
     );
   });
 
-  it('shows what is missing on Save, not on a model still waiting for its type, and sends nothing', async () => {
+  it('shows what is missing on Save and sends nothing', async () => {
     const user = userEvent.setup();
-    renderEditor({ initial: { mode: 'my', programId: EPI, facilityId: HOME } });
+    renderDialog({ initial: HOME_EPI });
 
-    await combobox('cce-inventory.form.equipment-type');
-    await user.click(screen.getByRole('button', { name: 'cce-inventory.form.save' }));
+    await toDetails(user, /^Walk-in freezer$/);
+    await user.click(await button('cce-inventory.form.save'));
 
     for (const field of [
       'cce-inventory.form.serial-number',
@@ -289,7 +339,6 @@ describe('InventoryItemEditor', () => {
       );
     }
     for (const field of [
-      'cce-inventory.form.equipment-type',
       'cce-inventory.form.utilization',
       'cce-inventory.form.voltage-stabilizer',
       'cce-inventory.form.voltage-regulator',
@@ -300,21 +349,16 @@ describe('InventoryItemEditor', () => {
     ]) {
       expect(await combobox(field)).toHaveAccessibleDescription(/cce-inventory.form.required/);
     }
-    expect(await combobox('cce-inventory.form.make-model')).not.toHaveAccessibleDescription(
-      /cce-inventory.form.required/,
-    );
     expect(createInventoryItem).not.toHaveBeenCalled();
   });
 
   it('saves the equipment once and refreshes the inventory and Home', async () => {
     const user = userEvent.setup();
-    const { onSaved, invalidate } = renderEditor({
-      initial: { mode: 'my', programId: EPI, facilityId: HOME },
-    });
+    const { onSaved, invalidate } = renderDialog({ initial: HOME_EPI });
 
-    await choose(user, 'cce-inventory.form.equipment-type', /^Solar fridge$/);
+    await toDetails(user, /^Solar fridge$/);
     await fillDetails(user);
-    await user.click(screen.getByRole('button', { name: 'cce-inventory.form.save' }));
+    await user.click(await button('cce-inventory.form.save'));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(createInventoryItem).toHaveBeenCalledTimes(1);
@@ -339,11 +383,11 @@ describe('InventoryItemEditor', () => {
 
   it('sends one request when Save is double-clicked', async () => {
     const user = userEvent.setup();
-    const { onSaved } = renderEditor({ initial: { mode: 'my', programId: EPI, facilityId: HOME } });
+    const { onSaved } = renderDialog({ initial: HOME_EPI });
 
-    await choose(user, 'cce-inventory.form.equipment-type', /^Solar fridge$/);
+    await toDetails(user, /^Solar fridge$/);
     await fillDetails(user);
-    await user.dblClick(screen.getByRole('button', { name: 'cce-inventory.form.save' }));
+    await user.dblClick(await button('cce-inventory.form.save'));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(createInventoryItem).toHaveBeenCalledTimes(1);
@@ -358,11 +402,11 @@ describe('InventoryItemEditor', () => {
           'Equipment of the SN-1 serial number, Solar fridge type, and BFRV 55 model already exists.',
       }),
     );
-    const { onSaved } = renderEditor({ initial: { mode: 'my', programId: EPI, facilityId: HOME } });
+    const { onSaved } = renderDialog({ initial: HOME_EPI });
 
-    await choose(user, 'cce-inventory.form.equipment-type', /^Solar fridge$/);
+    await toDetails(user, /^Solar fridge$/);
     await fillDetails(user);
-    await user.click(screen.getByRole('button', { name: 'cce-inventory.form.save' }));
+    await user.click(await button('cce-inventory.form.save'));
 
     expect(await screen.findByText(/SN-1 serial number/)).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /cce-inventory.form.serial-number/ })).toHaveValue(
@@ -371,15 +415,13 @@ describe('InventoryItemEditor', () => {
     expect(onSaved).not.toHaveBeenCalled();
   });
 
-  it('goes back without a request on Cancel', async () => {
+  it('closes without a request on Cancel', async () => {
     const user = userEvent.setup();
-    const { onCancel } = renderEditor({
-      initial: { mode: 'my', programId: EPI, facilityId: HOME },
-    });
+    const { onClose } = renderDialog({ initial: HOME_EPI });
 
-    await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.cancel' }));
+    await user.click(await button('cce-inventory.form.cancel'));
 
-    expect(onCancel).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
     expect(createInventoryItem).not.toHaveBeenCalled();
   });
 });

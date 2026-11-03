@@ -50,6 +50,19 @@ vi.mock('@/features/cce-inventory/api/api', () => ({
   fetchInventoryItems: vi.fn(),
   fetchInventoryAlerts: vi.fn(),
   exportInventoryItems: vi.fn(),
+  fetchCatalogItems: vi.fn(async () => [
+    {
+      id: 'c1',
+      fromPqsCatalog: true,
+      type: 'Freezer',
+      manufacturer: 'Haier',
+      model: 'HBD-286',
+      energySource: 'ELECTRIC',
+      storageTemperature: 'PLUS4',
+      archived: false,
+    },
+  ]),
+  createInventoryItem: vi.fn(),
 }));
 vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
 vi.mock('@/hooks/use-back-to-legacy', async (importOriginal) => ({
@@ -138,10 +151,9 @@ function renderRoute(path: string, renderOptions: Pick<RenderOptions, 'onCaughtE
     component: Route.options.component as never,
     pendingComponent: Route.options.pendingComponent as never,
   });
-  const addEquipment = createRoute({ getParentRoute: () => layout, path: 'cce/inventory/new' });
   const router = createRouter({
     routeTree: root.addChildren([
-      group.addChildren([layout.addChildren([list, addEquipment] as never)] as never),
+      group.addChildren([layout.addChildren([list] as never)] as never),
     ] as never),
     context: { queryClient },
     defaultErrorComponent: ErrorFallback,
@@ -232,7 +244,7 @@ describe('CCE inventory page', () => {
 
     expect(await screen.findByText('cce-inventory.pick-title')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'cce-inventory.export' })).toBeDisabled();
-    expect(screen.queryByRole('link', { name: 'cce-inventory.add' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'cce-inventory.add' })).not.toBeInTheDocument();
     expect(fetchInventoryItems).not.toHaveBeenCalled();
   });
 
@@ -453,16 +465,44 @@ describe('CCE inventory page', () => {
       expect(openLegacy).toHaveBeenLastCalledWith(
         `#!/cce/inventory/${FRIDGE}/details?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
       );
-      await user.click(screen.getByRole('link', { name: 'cce-inventory.add' }));
-      await waitFor(() => expect(router.state.location.pathname).toBe('/cce/inventory/new'));
-      const pair = { mode: 'my', programId: EPI, facilityId: HOME };
-      expect(router.state.location.search).toEqual(pair);
-      expect(router.state.location.state.inventoryListSearch).toEqual({
-        ...pair,
+      await user.click(screen.getByRole('button', { name: 'cce-inventory.add' }));
+      expect(await screen.findByRole('dialog', { name: 'cce-inventory.form.title' })).toBeVisible();
+      expect(router.state.location.search).toEqual({
+        mode: 'my',
+        programId: EPI,
+        facilityId: HOME,
         functionalStatus: 'FUNCTIONING',
+        item: 'new',
       });
+      await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.cancel' }));
+      await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
     },
   );
+
+  it('asks before closing Add Equipment with details typed', async () => {
+    const user = userEvent.setup();
+    const { router } = renderRoute(appliedPath('&item=new'));
+
+    await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.next' }));
+    await user.type(
+      await screen.findByRole('textbox', { name: /cce-inventory.form.serial-number/ }),
+      'SN-1',
+    );
+    await user.keyboard('{Escape}');
+
+    expect(
+      await screen.findByRole('alertdialog', { name: /discard-changes/ }),
+    ).toHaveAccessibleDescription('cce-inventory.form.discard-description');
+    expect(router.state.location.search).toHaveProperty('item', 'new');
+  });
+
+  it('opens no Add Equipment from a link for a user who cannot edit', async () => {
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([VIEW]);
+    renderRoute(appliedPath('&item=new'));
+
+    await itemOf('Fridge #11');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 
   it.each([
     ['a view-only user', [VIEW], 1400],
@@ -477,7 +517,7 @@ describe('CCE inventory page', () => {
     expect(
       within(fridge).queryByRole('button', { name: /cce-inventory.update-status/ }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'cce-inventory.add' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'cce-inventory.add' })).not.toBeInTheDocument();
   });
 
   it('exports the searched facility and program, not a choice left unsearched in the picker', async () => {

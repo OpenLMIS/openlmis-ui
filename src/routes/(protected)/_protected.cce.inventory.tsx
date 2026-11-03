@@ -34,15 +34,22 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import { exportInventoryItems } from '@/features/cce-inventory/api/api';
 import { inventoryItemsOptions } from '@/features/cce-inventory/api/queries';
 import {
+  InventoryItemDialog,
+  type SavedInventoryItem,
+} from '@/features/cce-inventory/components/inventory-item-dialog';
+import {
   INVENTORY_HIDEABLE_COLUMNS,
   INVENTORY_SORT_COLUMNS,
   InventoryResults,
   InventoryResultsSkeleton,
 } from '@/features/cce-inventory/components/inventory-results';
 import { InventoryToolbar } from '@/features/cce-inventory/components/inventory-toolbar';
+import { editableGrants } from '@/features/cce-inventory/lib/grants';
 import {
+  CLOSED_INVENTORY_DIALOGS,
   INVENTORY_SORT,
   type InventorySearch,
+  inventorySavedSearch,
   inventorySearchSchema,
   toInventoryQuery,
 } from '@/features/cce-inventory/lib/search';
@@ -70,16 +77,8 @@ import {
 } from '@/lib/permissions';
 import { type SearchChange, searchSort } from '@/lib/table-search';
 
-declare module '@tanstack/react-router' {
-  // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
-  interface HistoryState {
-    inventoryListSearch?: InventorySearch;
-  }
-}
-
 const RIGHT = RIGHTS.cceInventoryView;
 const EXPORT_FILENAME = 'inventory_items.csv';
-const NO_DIALOGS = {} satisfies Partial<InventorySearch>;
 const noop = () => {};
 
 export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
@@ -234,40 +233,65 @@ function InventoryPage() {
 function InventoryContent({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const search = Route.useSearch();
-  const { updateSearch } = useSearchNavigation<InventorySearch>(NO_DIALOGS);
+  const navigate = Route.useNavigate();
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<InventorySearch>(CLOSED_INVENTORY_DIALOGS);
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
+  const editable = useMemo(() => editableGrants(permissions), [permissions]);
   const { measure: measureContent, columnView } = useColumnView();
+  const pair = useMemo(
+    () => ({ mode: search.mode, programId: search.programId, facilityId: search.facilityId }),
+    [search.mode, search.programId, search.facilityId],
+  );
+  const onAdd = useCallback(() => openDialog({ item: 'new' }), [openDialog]);
+  const onSaved = ({ selection, status, name }: SavedInventoryItem) => {
+    toast.success(t('cce-inventory.form.saved-title'), {
+      description: t('cce-inventory.form.saved', { name }),
+    });
+    void navigate({ search: inventorySavedSearch(search, selection, status), replace: true });
+  };
 
   return (
-    <Workspace>
-      <InventoryHeader />
-      <WorkspaceContent>
-        <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
-          <QueryBoundary
-            errorComponent={({ error, reset }) => (
-              <LoadError
-                description={t('facility-program.load-error-description')}
-                error={error}
-                reset={reset}
-                title={t('facility-program.load-error-title')}
+    <>
+      <Workspace>
+        <InventoryHeader />
+        <WorkspaceContent>
+          <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measureContent}>
+            <QueryBoundary
+              errorComponent={({ error, reset }) => (
+                <LoadError
+                  description={t('facility-program.load-error-description')}
+                  error={error}
+                  reset={reset}
+                  title={t('facility-program.load-error-title')}
+                />
+              )}
+              pendingFallback={<InventoryPageSkeleton columnView={columnView} search={search} />}
+              resetKey={userId}
+            >
+              <InventoryBody
+                columnView={columnView}
+                grants={grants}
+                onAdd={onAdd}
+                onSearchChange={updateSearch}
+                permissions={permissions}
+                search={search}
+                userId={userId}
               />
-            )}
-            pendingFallback={<InventoryPageSkeleton columnView={columnView} search={search} />}
-            resetKey={userId}
-          >
-            <InventoryBody
-              columnView={columnView}
-              grants={grants}
-              onSearchChange={updateSearch}
-              permissions={permissions}
-              search={search}
-              userId={userId}
-            />
-          </QueryBoundary>
-        </div>
-      </WorkspaceContent>
-    </Workspace>
+            </QueryBoundary>
+          </div>
+        </WorkspaceContent>
+      </Workspace>
+      <InventoryItemDialog
+        grants={editable}
+        initial={pair}
+        onClose={closeDialog}
+        onSaved={onSaved}
+        open={search.item === 'new' && editable.length > 0}
+        userId={userId}
+      />
+    </>
   );
 }
 
@@ -277,6 +301,7 @@ type InventoryBodyProps = {
   permissions: Permissions;
   search: InventorySearch;
   columnView: ColumnView;
+  onAdd: () => void;
   onSearchChange: SearchChange<InventorySearch>;
 };
 
@@ -286,6 +311,7 @@ function InventoryBody({
   permissions,
   search,
   columnView,
+  onAdd,
   onSearchChange,
 }: InventoryBodyProps) {
   const queryClient = useQueryClient();
@@ -317,6 +343,7 @@ function InventoryBody({
       <InventoryOutcome
         applied={applied}
         columnView={columnView}
+        onAdd={onAdd}
         onSearchChange={onSearchChange}
         options={options}
         permissions={permissions}
@@ -336,6 +363,7 @@ type InventoryOutcomeProps = Omit<InventoryBodyProps, 'grants' | 'userId'> & {
 function InventoryOutcome({
   search,
   columnView,
+  onAdd,
   onSearchChange,
   options,
   applied,
@@ -369,6 +397,7 @@ function InventoryOutcome({
         valid.programId,
       )}
       columnView={columnView}
+      onAdd={onAdd}
       facility={options
         .facilitiesFor(valid.programId)
         .find((facility) => facility.id === valid.facilityId)}
@@ -391,6 +420,7 @@ type InventoryListProps = {
   program: NamedRecord | undefined;
   canEdit: boolean;
   columnView: ColumnView;
+  onAdd: () => void;
   onSearchChange: SearchChange<InventorySearch>;
 };
 
@@ -401,6 +431,7 @@ function InventoryList({
   program,
   canEdit,
   columnView,
+  onAdd,
   onSearchChange,
 }: InventoryListProps) {
   const { t } = useTranslation();
@@ -421,7 +452,7 @@ function InventoryList({
       </h2>
       <InventoryToolbar
         exporting={exporting.isPending}
-        addTo={canEdit ? selection : undefined}
+        onAdd={canEdit ? onAdd : undefined}
         onExport={() => exporting.mutate()}
         onFilterChange={(patch) => onSearchChange(patch, true)}
         search={search}
