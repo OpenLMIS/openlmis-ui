@@ -1,7 +1,16 @@
 import { beforeEach, expect, it } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
-import { beginCopy, commitCopy, readCopies, removalDecision, removeCopy } from './offline-copies';
+import {
+  beginCopy,
+  commitCopy,
+  confirmBatchApproval,
+  readCopies,
+  readCopy,
+  removalDecision,
+  removeCopy,
+} from './offline-copies';
+import type { SingleReferences } from './offline-single';
 
 beforeEach(() => {
   const id = crypto.randomUUID();
@@ -61,6 +70,7 @@ const ready = (lease: Awaited<ReturnType<typeof beginCopy>>) => ({
   batch: {
     fetchedAt: 1,
     approvalNodes: ['node'],
+    approvalVerified: true,
     requestedIds: [lease.id],
     errors: [],
     record: {
@@ -176,4 +186,94 @@ it('does not read foreign or unsupported records or publish across an owner swit
     .setLoginData({ referenceDataUserId: 'another', username: 'another', accessToken: 'token' });
   await expect(commitCopy(lease, ready(lease))).rejects.toThrow();
   expect(await readCopies()).toEqual([]);
+});
+
+it('records confirmed server advancement while preserving independent dirty single and batch baselines and unknown evidence', async () => {
+  const { buildRequisitionDraft } = await import('./draft');
+  const { record } = await import('./fixtures/builders');
+  const lease = await beginCopy('r');
+  const copy = ready(lease);
+  const singleRecord = {
+    ...record(),
+    id: 'r',
+    status: 'AUTHORIZED' as const,
+    modifiedDate: 'old',
+    facility: { id: 'f' },
+    program: { id: 'p' },
+    processingPeriod: { id: 'period' },
+    requisitionLineItems: [],
+  };
+  const single = {
+    record: singleRecord,
+    fetchedAt: 1,
+    references: {
+      facility: {
+        id: 'f',
+        code: 'F',
+        name: 'Clinic',
+        active: true,
+        enabled: true,
+        type: { id: 'type', code: 'T', name: 'Type' },
+        geographicZone: { id: 'zone', code: 'Z', name: 'Zone', level: { name: 'Level' } },
+      },
+      program: { id: 'p', code: 'P', name: 'Program', active: true },
+      period: {
+        id: 'period',
+        name: 'November',
+        startDate: '2026-11-01',
+        endDate: '2026-11-30',
+        durationInMonths: 1,
+      },
+      products: [],
+      approved: [],
+      messages: [],
+      currency: copy.batch.currency,
+      unskip: { unskipRequisition: true },
+    } satisfies SingleReferences,
+  };
+  await commitCopy(lease, { ...copy, single });
+  const singleDraft = {
+    draftId: 'r',
+    userId: lease.userId,
+    formatVersion: 1,
+    revision: 3,
+    draft: { ...buildRequisitionDraft(singleRecord), draftStatusMessage: 'Independent work' },
+  };
+  const batchDraft = {
+    draftId: 'r',
+    userId: lease.userId,
+    formatVersion: 1,
+    revision: 4,
+    baselineModifiedDate: 'old',
+    baselineStatus: 'AUTHORIZED',
+    approvedQuantities: { line: '7' },
+    unresolvedApproval: { attemptedAt: 'unknown' },
+  };
+  await getLocalDb().table(LOCAL_TABLES.requisitionDrafts).put(singleDraft);
+  await getLocalDb().table(LOCAL_TABLES.requisitionBatchDrafts).put(batchDraft);
+  const confirmed = { ...copy.batch.record, status: 'APPROVED', modifiedDate: 'new' };
+  await confirmBatchApproval(lease, confirmed);
+  expect(await readCopy('r')).toMatchObject({
+    summary: { status: 'APPROVED' },
+    single,
+    batch: { record: copy.batch.record, fetchedAt: 1, confirmedApproval: confirmed },
+  });
+  expect(await getLocalDb().table(LOCAL_TABLES.requisitionDrafts).get('r')).toEqual(singleDraft);
+  expect(await getLocalDb().table(LOCAL_TABLES.requisitionBatchDrafts).get('r')).toEqual(
+    batchDraft,
+  );
+  await commitCopy(lease, { ...copy, single });
+  expect((await readCopy('r'))?.summary.status).toBe('APPROVED');
+});
+it('cannot recreate removed copies or certify an unverified copy from an approval response', async () => {
+  const lease = await beginCopy('r');
+  const copy = ready(lease);
+  await commitCopy(lease, { ...copy, batch: { ...copy.batch, approvalVerified: false } });
+  await confirmBatchApproval(lease, { ...copy.batch.record, status: 'APPROVED' });
+  expect((await readCopy('r'))?.summary.status).toBe(copy.summary.status);
+  await removeCopy(await removalDecision('r'));
+  await expect(
+    confirmBatchApproval(lease, { ...copy.batch.record, status: 'APPROVED' }),
+  ).rejects.toThrow();
+  expect(await readCopy('r')).toBeUndefined();
 });

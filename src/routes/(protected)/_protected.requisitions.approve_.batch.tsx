@@ -53,6 +53,7 @@ import { RequisitionCopyNotice } from '@/features/requisitions/components/requis
 import { RequisitionOutdatedAlert } from '@/features/requisitions/components/requisition-outdated-alert';
 import { type BatchDrafts, useBatchDrafts } from '@/features/requisitions/hooks/use-batch-drafts';
 import {
+  batchApprovable,
   batchIds,
   batchLabel,
   batchRows,
@@ -67,6 +68,7 @@ import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-ac
 import { captureBatch, readBatch } from '@/features/requisitions/lib/offline-batch';
 import {
   beginCopy,
+  confirmBatchApproval,
   RequisitionCopyRemovedError,
   readCopy,
 } from '@/features/requisitions/lib/offline-copies';
@@ -91,7 +93,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   validateSearch: z.object({ ids: z.string().catch('') }),
   loaderDeps: ({ search }) => ({ ids: batchIds(search.ids) }),
   preload: false,
-  loader: async ({ context: { queryClient }, deps: { ids }, location }) => {
+  loader: async ({ context: { queryClient }, deps: { ids } }) => {
     await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
     const leases = isSecureOrigin ? await Promise.all(ids.map(beginCopy)) : [];
@@ -103,12 +105,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
           queryClient.ensureQueryData(currencySettingsOptions()),
         ]);
         if (isSecureOrigin) {
-          copyResult = captureBatch(
-            leases,
-            response,
-            currency,
-            location.state.requisitionBatchRecords,
-          ).then(
+          copyResult = captureBatch(leases, response, currency).then(
             () => undefined,
             (error: unknown) => error,
           );
@@ -127,6 +124,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
       removed: recovered.removed,
       ids,
       copyResult,
+      copyLeases: leases,
       accessEpoch: fresh ? uploadAccessEpoch() : undefined,
     };
   },
@@ -411,13 +409,15 @@ function BatchPage() {
             lineInvalid(l, drafts.text(r.id, l)) &&
             (kind === 'approve' || drafts.text(r.id, l).trim() !== ''),
         );
-        const reason = drafts.unresolved(r.id)
-          ? t('requisitions.batch.uncertain')
-          : drafts.outdated(r.id)
-            ? t('requisitions.edit.outdated-title')
-            : invalidNumber
-              ? t('requisitions.batch.invalid-requisition')
-              : undefined;
+        const reason = !batchApprovable(r)
+          ? t('requisitions.batch.possibly-approved')
+          : drafts.unresolved(r.id)
+            ? t('requisitions.batch.uncertain')
+            : drafts.outdated(r.id)
+              ? t('requisitions.edit.outdated-title')
+              : invalidNumber
+                ? t('requisitions.batch.invalid-requisition')
+                : undefined;
         if (reason) failures.set(r.id, reason);
         return !reason;
       });
@@ -425,6 +425,8 @@ function BatchPage() {
         report(failures);
         return;
       }
+      await loaded.copyResult;
+      assertSessionScope(scope);
       let saveResponse: BatchResponse;
       try {
         saveResponse = await saveBatchRequisitions(batchSaveBody(eligible, drafts.quantities()));
@@ -452,15 +454,9 @@ function BatchPage() {
         kind === 'sync' || failures.size ? await refresh() : orderBatch(saveResponse, ids);
       await drafts.clear(save.succeeded, fresh.requisitionDtos, false);
       if (isSecureOrigin && save.succeeded.length) {
-        const leases = await Promise.all(save.succeeded.map(beginCopy));
+        const leases = loaded.copyLeases.filter((lease) => save.succeeded.includes(lease.id));
         try {
-          await captureBatch(
-            leases,
-            orderBatch(fresh, save.succeeded),
-            loaded.currency,
-            locationState.requisitionBatchRecords,
-            'read',
-          );
+          await captureBatch(leases, orderBatch(fresh, save.succeeded), loaded.currency, 'read');
           setCopyFailure(null);
         } catch (error) {
           assertSessionScope(scope);
@@ -488,6 +484,7 @@ function BatchPage() {
       let approved: string[] = [];
       if (saved.length) {
         let confirmed = false;
+        let resolvedApprovals: string[] = [];
         await drafts.mark(saved, true);
         try {
           const approvalResponse = await approveBatchRequisitions(saved);
@@ -495,6 +492,23 @@ function BatchPage() {
           confirmed = true;
           const approval = parseBatchResult(approvalResponse, saved);
           approved = approval.succeeded;
+          resolvedApprovals = saved.filter(
+            (id) =>
+              approved.includes(id) ||
+              approvalResponse.requisitionErrors?.some((error) => error.requisitionId === id),
+          );
+          if (isSecureOrigin) {
+            try {
+              for (const record of approvalResponse.requisitionDtos ?? []) {
+                const lease = loaded.copyLeases.find((lease) => lease.id === record.id);
+                if (lease && approved.includes(record.id))
+                  await confirmBatchApproval(lease, record);
+              }
+            } catch (error) {
+              assertSessionScope(scope);
+              setCopyFailure(error);
+            }
+          }
           for (const [id, reason] of approval.failed) {
             const alreadyApproved = approvalResponse.requisitionErrors
               ?.find((e) => e.requisitionId === id)
@@ -524,7 +538,7 @@ function BatchPage() {
           }
         }
         if (confirmed) {
-          await drafts.mark(saved, false);
+          await drafts.mark(resolvedApprovals, false);
         }
       }
       await drafts.clear(approved, [], false);
@@ -714,7 +728,7 @@ function BatchPage() {
           <Button
             size="lg"
             variant="outline"
-            disabled={pending || !online || !records.length || !drafts.ready()}
+            disabled={pending || !online || !records.some(batchApprovable) || !drafts.ready()}
             onClick={() => run('sync')}
           >
             {t('requisitions.batch.sync')}
@@ -722,7 +736,11 @@ function BatchPage() {
           <Button
             size="lg"
             disabled={
-              pending || !online || !records.length || !!unresolved.length || !drafts.ready()
+              pending ||
+              !online ||
+              !records.some(batchApprovable) ||
+              !!unresolved.length ||
+              !drafts.ready()
             }
             onClick={approve}
           >

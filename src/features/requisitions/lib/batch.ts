@@ -149,3 +149,6 @@ export function matchesBaseline(
     record.status === baseline.baselineStatus
   );
 }
+
+export const batchApprovable = (record: BatchRequisition) =>
+  ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status);

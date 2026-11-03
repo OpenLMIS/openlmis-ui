@@ -1,6 +1,6 @@
 import { liveQuery } from 'dexie';
 import { useEffect, useMemo, useRef } from 'react';
-import { batchText, matchesBaseline } from '@/features/requisitions/lib/batch';
+import { batchApprovable, batchText, matchesBaseline } from '@/features/requisitions/lib/batch';
 import {
   readBatchSessionMarker,
   writeBatchSessionMarker,
@@ -257,7 +257,7 @@ function createBatchDrafts(
       assertSessionScope(scope);
       const e = entries.get(id);
       const line = e?.base.requisitionLineItems.find((l) => l.id === lineId);
-      if (!e || !line || e.outdated || e.unresolved || !ready) return;
+      if (!e || !line || !batchApprovable(e.base) || e.outdated || e.unresolved || !ready) return;
       if (text === String(line.approvedQuantity ?? 0)) delete e.changes[lineId];
       else e.changes[lineId] = text;
       enqueue(id);

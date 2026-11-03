@@ -17,6 +17,7 @@ import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   approveBatchRequisitions,
+  fetchApprovalList,
   fetchBatchRequisitions,
   saveBatchRequisitions,
 } from '@/features/requisitions/api/api';
@@ -36,10 +37,12 @@ vi.mock('@/lib/secure-context', () => ({
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/requisitions/api/api', () => ({
   fetchBatchRequisitions: vi.fn(),
+  fetchApprovalList: vi.fn(),
   saveBatchRequisitions: vi.fn(),
   approveBatchRequisitions: vi.fn(),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  storedTimeZone: vi.fn(() => 'UTC'),
   fetchCurrencySettings: vi.fn(async () => ({
     currencySymbol: '$',
     currencySymbolSide: 'left',
@@ -49,7 +52,7 @@ vi.mock('@/features/reference-data/api/api', () => ({
     decimalSeparator: '.',
   })),
 }));
-const records = fp.requisitionDtos.slice(0, 2);
+let records = fp.requisitionDtos.slice(0, 2);
 function renderRoute(ids = records.map((r) => r.id).join(','), state?: HistoryState) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -94,6 +97,7 @@ function renderRoute(ids = records.map((r) => r.id).join(','), state?: HistorySt
   return { router, queryClient };
 }
 beforeEach(() => {
+  records = structuredClone(fp.requisitionDtos.slice(0, 2));
   vi.clearAllMocks();
   security.secure = true;
   sessionStorage.clear();
@@ -631,3 +635,164 @@ it('returns from a saved batch to the originating View list with its search inta
   await screen.findByText('View List');
   expect(router.state.location.search).toEqual(search);
 });
+
+async function publishBatchAccess() {
+  const { LOCAL_TABLES } = await import('@/integrations/local-db');
+  const userId = useLoginData.getState().referenceDataUserId;
+  await getLocalDb()
+    .table(LOCAL_TABLES.offlineAccess)
+    .put({
+      userId,
+      generation: 'g',
+      formatVersion: 1,
+      fetchedAt: Date.now(),
+      permissionStrings: ['REQUISITION_APPROVE|f|p'],
+      programs: [],
+      homeFacility: null,
+      user: {
+        id: userId,
+        roleAssignments: [{ roleId: 'approver', programId: 'p', supervisoryNodeId: 'node' }],
+      },
+    });
+  await getLocalDb()
+    .table(LOCAL_TABLES.requisitionAccess)
+    .put({
+      userId,
+      generation: 'g',
+      formatVersion: 1,
+      fetchedAt: Date.now(),
+      roles: [{ id: 'approver', rights: [{ name: 'REQUISITION_APPROVE' }] }],
+      nodes: [],
+      groups: [],
+      facilities: [],
+      programs: [],
+    });
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: records.map((record) => ({
+      id: record.id,
+      status: 'AUTHORIZED',
+      emergency: false,
+      facility: { id: 'f' },
+      program: { id: 'p' },
+      processingPeriod: { id: 'period' },
+    })),
+    totalPages: 1,
+  } as never);
+}
+
+it.each([false, true])(
+  'persists only confirmed approval statuses and reopens read-only with partial failures=%s',
+  async (partial) => {
+    const { readCopy } = await import('@/features/requisitions/lib/offline-copies');
+    await publishBatchAccess();
+    const id = records[0].id;
+    vi.mocked(fetchBatchRequisitions).mockResolvedValue({
+      requisitionDtos: partial ? records : [records[0]],
+      requisitionErrors: [],
+    });
+    vi.mocked(saveBatchRequisitions).mockResolvedValue({
+      requisitionDtos: partial ? records : [records[0]],
+      requisitionErrors: [],
+    });
+    vi.mocked(approveBatchRequisitions).mockImplementation(async () => {
+      vi.mocked(fetchApprovalList).mockResolvedValue({ content: [], totalPages: 0 } as never);
+      return {
+        requisitionDtos: [
+          { ...records[0], status: 'APPROVED', modifiedDate: '2026-11-03T00:00:00Z' },
+        ],
+        requisitionErrors: partial
+          ? [{ requisitionId: records[1].id, errorMessage: { message: 'Still needs approval' } }]
+          : [],
+      };
+    });
+    renderRoute(partial ? records.map((record) => record.id).join(',') : id, {
+      requisitionBatchRecords: [
+        {
+          id,
+          status: 'AUTHORIZED',
+          emergency: false,
+          facility: { id: 'stale-facility' },
+          program: { id: 'stale-program' },
+          processingPeriod: { id: 'stale-period' },
+        },
+      ],
+    });
+    await screen.findAllByRole('textbox');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeEnabled(),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'requisitions.batch.confirm' }),
+    );
+    if (partial) {
+      await screen.findAllByText('Still needs approval');
+      expect((await readCopy(records[1].id))?.batch?.confirmedApproval).toBeUndefined();
+      expect((await readCopy(records[1].id))?.summary.status).toBe('AUTHORIZED');
+    } else await screen.findByText('Approval List');
+    expect(approveBatchRequisitions).toHaveBeenCalledWith(
+      partial ? records.map((record) => record.id) : [id],
+    );
+    expect((await readCopy(id))?.batch?.confirmedApproval?.status).toBe('APPROVED');
+    expect((await readCopy(id))?.summary.status).toBe('APPROVED');
+    const { localApprovals } = await import('@/features/requisitions/lib/offline-search');
+    expect((await localApprovals({ program: 'p' })).content.map((r) => r.id)).not.toContain(id);
+    const reopened = await savedBatches.readBatch([id]);
+    expect(reopened.response.requisitionDtos[0].status).toBe('APPROVED');
+    cleanup();
+    vi.mocked(fetchBatchRequisitions).mockRejectedValue(
+      new AxiosError('Timeout', AxiosError.ECONNABORTED),
+    );
+    renderRoute(id);
+    const quantity = (await screen.findAllByRole('textbox'))[0];
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeDisabled(),
+    );
+    expect(quantity).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'dialog.cancel' }));
+    await screen.findByText('Approval List');
+  },
+);
+
+it.each(['missing', 'timeout', 'refused'] as const)(
+  'does not save approval proof for a %s response and preserves unknown attempts when needed',
+  async (outcome) => {
+    const { readCopy } = await import('@/features/requisitions/lib/offline-copies');
+    await publishBatchAccess();
+    const id = records[0].id;
+    vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: [records[0]] });
+    vi.mocked(saveBatchRequisitions).mockResolvedValue({ requisitionDtos: [records[0]] });
+    if (outcome === 'timeout')
+      vi.mocked(approveBatchRequisitions).mockRejectedValue(
+        new AxiosError('Timeout', AxiosError.ECONNABORTED),
+      );
+    else
+      vi.mocked(approveBatchRequisitions).mockResolvedValue({
+        requisitionDtos: [],
+        requisitionErrors:
+          outcome === 'refused'
+            ? [{ requisitionId: id, errorMessage: { message: 'Approval refused' } }]
+            : [],
+      });
+    renderRoute(id);
+    const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+    await waitFor(() => expect(approve).toBeEnabled());
+    await userEvent.click(approve);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'requisitions.batch.confirm' }),
+    );
+    const reason =
+      outcome === 'refused'
+        ? 'Approval refused'
+        : outcome === 'timeout'
+          ? 'requisitions.batch.uncertain'
+          : 'requisitions.batch.missing';
+    await waitFor(() => expect(screen.getByRole('alertdialog').textContent).toContain(reason));
+    const copy = await readCopy(id);
+    expect(copy?.summary.status).toBe('AUTHORIZED');
+    expect(copy?.batch?.confirmedApproval).toBeUndefined();
+    const draft = await getLocalDb().table('requisitionBatchDrafts').get(id);
+    if (outcome === 'refused') expect(draft?.unresolvedApproval).toBeUndefined();
+    else expect(draft?.unresolvedApproval).toEqual({ attemptedAt: expect.any(String) });
+  },
+);

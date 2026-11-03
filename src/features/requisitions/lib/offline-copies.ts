@@ -35,6 +35,8 @@ export type RequisitionCopy = {
     fetchedAt: number;
     currency: SingleReferences['currency'];
     approvalNodes: string[];
+    approvalVerified?: boolean;
+    confirmedApproval?: BatchRequisition;
     requestedIds: string[];
     errors: NonNullable<BatchResponse['requisitionErrors']>;
   };
@@ -156,12 +158,24 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
       (Object.keys(batchDraft.approvedQuantities).length || batchDraft.unresolvedApproval);
     const single =
       singleDirty && previous?.single ? previous.single : (next.single ?? previous?.single);
-    const batch = batchDirty && previous?.batch ? previous.batch : (next.batch ?? previous?.batch);
+    const batch =
+      batchDirty && previous?.batch
+        ? {
+            ...previous.batch,
+            approvalNodes: next.batch?.approvalNodes ?? previous.batch.approvalNodes,
+            approvalVerified: next.batch?.approvalVerified ?? previous.batch.approvalVerified,
+          }
+        : (next.batch ?? previous?.batch);
     await table.put({
       ...next,
       single,
       batch,
-      summary: (singleDirty || batchDirty) && previous ? previous.summary : next.summary,
+      summary: {
+        ...((singleDirty || batchDirty) && previous ? previous.summary : next.summary),
+        ...(batch?.confirmedApproval && {
+          status: batch.confirmedApproval.status as CopySummary['status'],
+        }),
+      },
       fetchedAt: (singleDirty || batchDirty) && previous ? previous.fetchedAt : next.fetchedAt,
       revision: (previous?.revision ?? 0) + 1,
     });
@@ -219,3 +233,43 @@ export function attachCopyLease(record: object, lease: CopyLease) {
   leases.set(record, lease);
 }
 export const copyLeaseFor = (record: object) => leases.get(record);
+
+export async function revokeBatchApproval(lease: CopyLease) {
+  const db = getLocalDb();
+  await db.transaction('rw', tables, async () => {
+    await assertCopyLease(lease);
+    const previous = await readCopy(lease.id);
+    if (!previous?.batch) return;
+    await localTable<RequisitionCopy>(LOCAL_TABLES.requisitionCopies).put({
+      ...previous,
+      batch: { ...previous.batch, approvalVerified: false },
+      revision: previous.revision + 1,
+    });
+    await assertCopyLease(lease);
+  });
+}
+export async function confirmBatchApproval(lease: CopyLease, record: BatchRequisition) {
+  const db = getLocalDb();
+  await db.transaction('rw', tables, async () => {
+    await assertCopyLease(lease);
+    const previous = await readCopy(lease.id);
+    if (!previous?.batch?.approvalVerified || record.id !== lease.id) return;
+    const draft = await localTable<BatchLocalDraft>(LOCAL_TABLES.requisitionBatchDrafts).get(
+      lease.id,
+    );
+    const dirty =
+      draft && (Object.keys(draft.approvedQuantities).length || draft.unresolvedApproval);
+    await localTable<RequisitionCopy>(LOCAL_TABLES.requisitionCopies).put({
+      ...previous,
+      summary: { ...previous.summary, status: record.status as CopySummary['status'] },
+      batch: {
+        ...previous.batch,
+        record: dirty ? previous.batch.record : record,
+        confirmedApproval: record,
+        fetchedAt: dirty ? previous.batch.fetchedAt : Date.now(),
+      },
+      revision: previous.revision + 1,
+    });
+    await assertCopyLease(lease);
+  });
+}

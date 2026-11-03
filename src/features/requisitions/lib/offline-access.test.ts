@@ -1,5 +1,7 @@
-import { beforeEach, expect, it } from 'vitest';
+import { AxiosError } from 'axios';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { fetchApprovalList } from '@/features/requisitions/api/api';
 import {
   mayApproveCopy,
   mayViewCopy,
@@ -8,8 +10,13 @@ import {
 } from '@/features/requisitions/lib/offline-access';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import type { OfflineAccess } from '@/lib/offline-access';
+import { captureBatch, readBatch } from './offline-batch';
+import { beginCopy, readCopy } from './offline-copies';
+
+vi.mock('@/features/requisitions/api/api', () => ({ fetchApprovalList: vi.fn() }));
 
 beforeEach(() => {
+  vi.mocked(fetchApprovalList).mockReset();
   useLoginData.getState().setLoginData({
     referenceDataUserId: crypto.randomUUID(),
     username: 'owner',
@@ -110,17 +117,20 @@ it('retains server-authorized batch access without guessing a missing current no
     summary: {
       id: 'r',
       status: 'IN_APPROVAL' as const,
+      supervisoryNode: 'node',
       emergency: false,
       facility: { id: 'f' },
       processingPeriod: { id: 'period' },
       program: { id: 'p' },
     },
-    batch: { approvalNodes: ['node', 'later-node'] },
+    batch: { approvalVerified: true, approvalNodes: ['node', 'later-node'] },
   };
   expect(mayApproveSavedCopy(data, copy)).toBe(true);
   data.access.user.roleAssignments.pop();
   expect(mayApproveSavedCopy(data, copy)).toBe(false);
-  expect(mayApproveSavedCopy(data, { ...copy, batch: { approvalNodes: [] } })).toBe(false);
+  expect(
+    mayApproveSavedCopy(data, { ...copy, batch: { approvalVerified: true, approvalNodes: [] } }),
+  ).toBe(false);
 });
 it('reopens saved batch successes with their original per-record errors without inventing single copies', async () => {
   const { beginCopy, commitCopy } = await import('./offline-copies');
@@ -149,6 +159,7 @@ it('reopens saved batch successes with their original per-record errors without 
       fetchedAt: 1,
       requestedIds: ['r', 'denied'],
       approvalNodes: ['node'],
+      approvalVerified: true,
       errors: [{ requisitionId: 'denied', errorMessage: { message: 'Not authorized' } }],
       record: {
         id: 'r',
@@ -174,4 +185,148 @@ it('reopens saved batch successes with their original per-record errors without 
   expect(batch.response.requisitionErrors).toMatchObject([{ requisitionId: 'denied' }]);
   await expect(readBatch(['r', 'unknown'])).rejects.toThrow();
   await expect(readSingle('r')).rejects.toThrow();
+});
+
+const summary = {
+  id: 'r',
+  status: 'AUTHORIZED' as const,
+  emergency: false,
+  facility: { id: 'f' },
+  program: { id: 'p' },
+  processingPeriod: { id: 'period' },
+};
+const batchRecord = {
+  id: 'r',
+  status: 'AUTHORIZED',
+  modifiedDate: 'unchanged',
+  facilityName: 'Clinic',
+  periodName: 'November',
+  requisitionLineItems: [],
+};
+const currency = {
+  currencyCode: 'USD',
+  currencySymbol: '$',
+  currencySymbolSide: 'left' as const,
+  currencyDecimalPlaces: 2,
+  groupingSize: 3,
+  groupingSeparator: ',',
+  decimalSeparator: '.',
+};
+async function publish(data: ReturnType<typeof access>) {
+  await getLocalDb().table(LOCAL_TABLES.offlineAccess).put(data.access);
+  await getLocalDb().table(LOCAL_TABLES.requisitionAccess).put(data.saved);
+}
+function approvalPage(content: (typeof summary)[], number = 0, totalPages = 1) {
+  return { content, number, totalPages, size: 100, totalElements: content.length };
+}
+it('reads fresh approval membership through later pages, rejects absent ids and preserves previous payloads', async () => {
+  await publish(access());
+  const lease = await beginCopy('r');
+  vi.mocked(fetchApprovalList)
+    .mockResolvedValueOnce(approvalPage([{ ...summary, id: 'unrelated' }], 0, 3))
+    .mockResolvedValueOnce(approvalPage([summary], 1, 3));
+  await captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read');
+  expect(vi.mocked(fetchApprovalList).mock.calls.map(([query]) => query.page)).toEqual([0, 1]);
+  const previous = await readCopy('r');
+  vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([]));
+  await expect(
+    captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read'),
+  ).rejects.toThrow();
+  expect(await readCopy('r')).toMatchObject({
+    fetchedAt: previous?.fetchedAt,
+    batch: { record: batchRecord },
+  });
+  await expect(readBatch(['r'])).rejects.toThrow();
+});
+it('does not certify a VIEW-only batch read from stale history and an unrelated APPROVE grant', async () => {
+  const data = access();
+  data.saved.groups[0].memberFacilities = [];
+  await publish(data);
+  vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([]));
+  await expect(
+    captureBatch([await beginCopy('r')], { requisitionDtos: [batchRecord] }, currency, 'read'),
+  ).rejects.toThrow();
+  expect(await readCopy('r')).toBeUndefined();
+});
+it('recertifies dirty batch access after grant removal without changing quantities, baseline or unknown evidence', async () => {
+  const data = access();
+  data.access.user.roleAssignments.push({
+    roleId: 'approve',
+    programId: 'p',
+    supervisoryNodeId: 'unrelated',
+  });
+  await publish(data);
+  vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([summary]));
+  const lease = await beginCopy('r');
+  await captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read');
+  const before = await readCopy('r');
+  const draft = {
+    draftId: 'r',
+    userId: lease.userId,
+    formatVersion: 1,
+    revision: 1,
+    approvedQuantities: { line: '7' },
+    baselineModifiedDate: 'unchanged',
+    baselineStatus: 'AUTHORIZED',
+    unresolvedApproval: { attemptedAt: 'unknown' },
+  };
+  await getLocalDb().table(LOCAL_TABLES.requisitionBatchDrafts).put(draft);
+  data.access.user.roleAssignments.pop();
+  await publish(data);
+  await expect(readBatch(['r'])).rejects.toThrow();
+  await captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read');
+  expect((await readCopy('r'))?.batch).toMatchObject({
+    approvalNodes: ['node'],
+    record: batchRecord,
+    fetchedAt: before?.batch?.fetchedAt,
+  });
+  expect(await getLocalDb().table(LOCAL_TABLES.requisitionBatchDrafts).get('r')).toEqual(draft);
+  await expect(readBatch(['r'])).resolves.toMatchObject({
+    response: { requisitionDtos: [batchRecord] },
+  });
+});
+
+it.each([403, 503])(
+  'preserves payload on approval-list failure %s and revokes only definitive denials',
+  async (status) => {
+    await publish(access());
+    const lease = await beginCopy('r');
+    vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([summary]));
+    await captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read');
+    const previous = await readCopy('r');
+    vi.mocked(fetchApprovalList).mockRejectedValue(
+      new AxiosError('Denied', String(status), undefined, undefined, { status } as never),
+    );
+    await expect(
+      captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read'),
+    ).rejects.toThrow();
+    expect(await readCopy('r')).toMatchObject({
+      fetchedAt: previous?.fetchedAt,
+      batch: { record: batchRecord },
+    });
+    if (status === 403) await expect(readBatch(['r'])).rejects.toThrow();
+    else await expect(readBatch(['r'])).resolves.toBeDefined();
+  },
+);
+
+it('does not retain approval certification after a per-record batch read refusal', async () => {
+  await publish(access());
+  const lease = await beginCopy('r');
+  vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([summary]));
+  await captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read');
+  const previous = await readCopy('r');
+  await captureBatch(
+    [lease],
+    {
+      requisitionDtos: [batchRecord],
+      requisitionErrors: [{ requisitionId: 'r', errorMessage: { message: 'Not authorized' } }],
+    },
+    currency,
+    'read',
+  );
+  expect(await readCopy('r')).toMatchObject({
+    fetchedAt: previous?.fetchedAt,
+    batch: { record: batchRecord },
+  });
+  await expect(readBatch(['r'])).rejects.toThrow();
 });

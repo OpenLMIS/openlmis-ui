@@ -164,16 +164,17 @@ export function mayApproveCopy(
 export function mayApproveSavedCopy(
   data: Awaited<ReturnType<typeof readRequisitionAccess>>,
   copy: Pick<RequisitionCopy, 'summary'> & {
-    batch?: Pick<NonNullable<RequisitionCopy['batch']>, 'approvalNodes'>;
+    batch?: Pick<NonNullable<RequisitionCopy['batch']>, 'approvalNodes' | 'approvalVerified'>;
   },
 ) {
-  if (copy.summary.supervisoryNode || !copy.batch)
+  if (!copy.batch)
     return mayApproveCopy(
       data,
       copy.summary.facility.id,
       copy.summary.program.id,
       copy.summary.supervisoryNode,
     );
+  if (!copy.batch.approvalVerified) return false;
   const current = supervisoryNodesWithRight(
     data.access.user,
     data.saved.roles,

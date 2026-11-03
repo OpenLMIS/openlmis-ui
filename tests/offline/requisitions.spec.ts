@@ -360,3 +360,75 @@ test('supervision-only VIEW access keeps its sidebar link after a cold offline b
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('confirmed batch approval persists its status and reopens read-only offline', {
+  tag: '@offline-requisitions',
+}, async ({ persistentContext }) => {
+  const directory = await mkdtemp(join(tmpdir(), 'openlmis-approved-batch-'));
+  const context = await persistentContext(directory);
+  const mutations: string[] = [];
+  const stubbedWrites: string[] = [];
+  try {
+    await requisitionStubs(context, mutations);
+    const page = context.pages()[0];
+    await login(page, 'download-user', 'View Requisitions', '/requisitions/view');
+    await page.goto(`./requisitions/approve/batch?ids=${batchId}`);
+    await expect.poll(async () => (await records(page, 'requisitionCopies')).length).toBe(1);
+    const copy = (await records(page, 'requisitionCopies'))[0];
+    const batch = (copy.batch as { record: Record<string, unknown> }).record;
+    const origin = new URL(page.url()).origin;
+    let approved = false;
+    await context.route(
+      (url) => url.origin === origin && url.pathname === '/api/requisitions',
+      async (route) => {
+        const request = route.request();
+        const url = new URL(request.url());
+        if (request.method() === 'PUT' && url.searchParams.has('saveAll')) {
+          stubbedWrites.push('PUT');
+          await route.fulfill({ json: { requisitionDtos: [batch] } });
+        } else if (request.method() === 'POST' && url.searchParams.has('approveAll')) {
+          stubbedWrites.push('POST');
+          approved = true;
+          await route.fulfill({
+            json: {
+              requisitionDtos: [
+                { ...batch, status: 'APPROVED', modifiedDate: '2026-11-03T11:00:00Z' },
+              ],
+            },
+          });
+        } else await route.fallback();
+      },
+    );
+    await context.route(
+      (url) =>
+        url.origin === origin && url.pathname === '/api/requisitions/requisitionsForApproval',
+      async (route) => {
+        if (approved)
+          await route.fulfill({ json: { content: [], totalElements: 0, totalPages: 0 } });
+        else await route.fallback();
+      },
+    );
+    await page.getByRole('button', { name: 'Approve', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(page).toHaveURL(/requisitions\/approve(?:\?|$)/);
+    await expect
+      .poll(async () => {
+        const saved = (await records(page, 'requisitionCopies'))[0];
+        return (saved.summary as { status: string }).status;
+      })
+      .toBe('APPROVED');
+    await waitForOfflineShell(page);
+    await context.setOffline(true);
+    await page.goto(`./requisitions/approve/batch?ids=${batchId}`);
+    await expect(page.getByRole('textbox').first()).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Approve', exact: true })).toBeDisabled();
+    await page.goto(`./requisitions/approve?program=${program}`);
+    await expect(page.getByText('November 2026', { exact: true })).toHaveCount(0);
+    expect(stubbedWrites).toEqual(['PUT', 'POST']);
+    expect(mutations).toEqual([]);
+  } finally {
+    await context.unrouteAll({ behavior: 'ignoreErrors' });
+    await context.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
