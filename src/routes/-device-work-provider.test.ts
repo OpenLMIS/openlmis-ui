@@ -40,6 +40,11 @@ it('recovers a failed service import on reconnect and stops both services on unm
   expect(reloadOnce).not.toHaveBeenCalled();
   onlineManager.setOnline(true);
   await waitFor(() => expect(coordinator).toHaveBeenCalledOnce());
+  expect(coordinator).toHaveBeenCalledWith(
+    expect.objectContaining({
+      providers: expect.arrayContaining([expect.objectContaining({ id: 'requisition-access' })]),
+    }),
+  );
   expect(reloadOnce).not.toHaveBeenCalled();
   expect(whenLeaveAllowed).not.toHaveBeenCalled();
   expect(uploader).toHaveBeenCalledExactlyOnceWith({ access, refresh });

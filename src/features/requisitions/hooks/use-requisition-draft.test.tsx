@@ -370,3 +370,19 @@ it('does not rerender the editor for device writes while publishing status trans
   expect(statuses).toEqual(['saving', 'saved']);
   unsubscribe();
 });
+
+it('stops a clean editor from creating a delta after its copy is removed in another tab', async () => {
+  const hook = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(hook.result.current.status.status).toBe('saved'));
+  const { removalDecision, removeCopy } = await import(
+    '@/features/requisitions/lib/offline-copies'
+  );
+  await act(async () => {
+    await removeCopy(await removalDecision(base.id));
+  });
+  act(() => hook.result.current.write(draft));
+  await act(async () => {
+    await expect(hook.result.current.flush()).rejects.toBeInstanceOf(DraftConflictError);
+  });
+  expect(await getLocalDb().table('requisitionDrafts').get(base.id)).toBeUndefined();
+});

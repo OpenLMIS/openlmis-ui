@@ -1407,13 +1407,17 @@ it.each(['APPROVED', 'IN_APPROVAL', 'REJECTED'] as const)(
   },
 );
 
-it('treats a 503 approval as uncertain and completes it from the refetched record', async () => {
+it('reconciles a 503 approval after reconnect without sending it again', async () => {
   const { base, queryClient } = await openApprover();
   vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
   const post = vi.spyOn(client, 'post').mockRejectedValue(httpError(503));
   await confirmApproval();
   await screen.findByText('requisitions.edit.reconciling');
   fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  act(() => {
+    onlineManager.setOnline(false);
+    onlineManager.setOnline(true);
+  });
   vi.mocked(fetchRequisition).mockResolvedValue({ ...base, status: 'APPROVED' });
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
   await screen.findByText('Approval List');

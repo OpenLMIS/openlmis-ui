@@ -179,13 +179,17 @@ it.each([1200, 390])('keeps row details and navigation in the %ipx layout', asyn
   await screen.findByText('January');
   expect(screen.getByText('Jan 1, 2026')).toBeVisible();
   expect(screen.getByText('requisitions.status.authorized')).toBeVisible();
-  expect(screen.getByText('requisitions.no')).toBeVisible();
   const link = screen.getByRole('button', { name: 'requisitions.view.action-name' });
   const destination = new URL(link.getAttribute('href') ?? '', 'http://localhost');
   expect(destination.pathname).toBe('/requisitions/view/r1');
   expect(Object.fromEntries(destination.searchParams)).toEqual({ facility: 'f', page: '3' });
   if (width === 1200) {
     const table = screen.getByRole('table');
+    const index = within(table)
+      .getAllByRole('columnheader')
+      .findIndex((cell) => cell.textContent === 'requisitions.columns.emergency');
+    const row = screen.getByText('January').closest('tr');
+    expect(row && within(row).getAllByRole('cell')[index]).toHaveTextContent('requisitions.no');
     await userEvent.click(
       within(table).getByRole('button', { name: 'requisitions.columns.date-initiated' }),
     );
@@ -193,6 +197,9 @@ it.each([1200, 390])('keeps row details and navigation in the %ipx layout', asyn
     expect(router.state.location.search.page).toBeUndefined();
   } else {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(link.closest('li')).toHaveTextContent(
+      /requisitions.columns.emergency\s*requisitions.no/,
+    );
     expect(screen.getByRole('group', { name: 'card-actions.actions-for' })).toContainElement(link);
   }
   queryClient.clear();

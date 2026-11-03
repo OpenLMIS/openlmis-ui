@@ -46,10 +46,12 @@ import {
   approvalSelectedIds,
   approvalSelectionError,
 } from '@/features/requisitions/lib/approval-search';
+import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
 import { returnState } from '@/features/requisitions/lib/requisition-return';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useFlag } from '@/lib/feature-flags';
+import { useOnline } from '@/lib/online';
 import { RIGHTS } from '@/lib/rights';
 import { searchSort } from '@/lib/table-search';
 
@@ -58,7 +60,9 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   validateSearch: approvalSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
+    await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
+    await prepareRequisitionAccess(queryClient);
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
     queryClient.prefetchQuery(approvalListOptions(search));
@@ -134,7 +138,8 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
   const { updateSearch } = useSearchNavigation<ApprovalSearch>({});
   const view = useCardView(APPROVAL_HIDEABLE_COLUMNS, 'requisitions.approve.column-visibility');
   const batch = useFlag('BATCH_APPROVE_SCREEN');
-  const scope = approvalScope(search);
+  const online = useOnline();
+  const scope = approvalScope(search, online);
   const [picked, setPicked] = useFilterScoped(scope, NOTHING_PICKED);
   const [error, setError] = useFilterScoped<'none' | 'mixed' | null>(scope, null);
   const navigate = useNavigate();
@@ -147,6 +152,9 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
         search: { ids: approvalSelectedIds(picked).join(',') },
         state: {
           ...returnState({ to: '/requisitions/approve', search }),
+          requisitionBatchRecords: [...picked.values()].flatMap((value) =>
+            value.record ? [value.record] : [],
+          ),
           requisitionBatchLabels: Object.fromEntries(
             [...picked].map(([id, value]) => [id, value.label]),
           ),

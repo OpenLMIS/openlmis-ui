@@ -14,6 +14,7 @@ import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchApprovalList } from '@/features/requisitions/api/api';
+import * as offlineSearch from '@/features/requisitions/lib/offline-search';
 import { useFlag } from '@/lib/feature-flags';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve';
 
@@ -154,3 +155,24 @@ it.each([1200, 390])(
     queryClient.clear();
   },
 );
+
+it('explains an empty device list without clearing its required program', async () => {
+  const program = '11111111-1111-4111-8111-111111111111';
+  vi.spyOn(offlineSearch, 'localApprovals').mockResolvedValue({
+    content: [],
+    number: 0,
+    size: 20,
+    totalElements: 0,
+    totalPages: 0,
+  });
+  const { router, queryClient } = renderRoute(
+    `/requisitions/approve?program=${program}&offline=true`,
+  );
+  await screen.findByText('requisitions.offline.empty-title');
+  expect(
+    screen.queryByRole('button', { name: 'data-table.clear-filters' }),
+  ).not.toBeInTheDocument();
+  expect(router.state.location.search.program).toBe(program);
+  expect(fetchApprovalList).not.toHaveBeenCalled();
+  queryClient.clear();
+});

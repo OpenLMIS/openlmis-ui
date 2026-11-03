@@ -6,6 +6,7 @@ import { TableCell } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useBatch, useBatchVersion } from '@/features/requisitions/components/batch-context';
 import {
+  batchApprovable,
   batchCost,
   batchLabel,
   lineInvalid,
@@ -56,6 +57,7 @@ export const BatchQuantity = memo(function BatchQuantity({
             value={value}
             disabled={
               disabled ||
+              !batchApprovable(record) ||
               !drafts.ready() ||
               drafts.outdated(record.id) ||
               drafts.unresolved(record.id)

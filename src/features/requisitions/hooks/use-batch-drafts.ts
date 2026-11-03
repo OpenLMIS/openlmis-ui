@@ -1,5 +1,6 @@
+import { liveQuery } from 'dexie';
 import { useEffect, useMemo, useRef } from 'react';
-import { batchText, matchesBaseline } from '@/features/requisitions/lib/batch';
+import { batchApprovable, batchText, matchesBaseline } from '@/features/requisitions/lib/batch';
 import {
   readBatchSessionMarker,
   writeBatchSessionMarker,
@@ -9,6 +10,12 @@ import type {
   BatchQuantities,
   BatchRequisition,
 } from '@/features/requisitions/lib/batch-types';
+import {
+  assertCopyLease,
+  beginCopy,
+  type CopyLease,
+  copyLeaseFor,
+} from '@/features/requisitions/lib/offline-copies';
 import i18n from '@/integrations/i18n';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { saveRevisionedDraft } from '@/lib/draft-store';
@@ -74,6 +81,7 @@ function createBatchDrafts(
         {
           base,
           expected: undefined as BatchLocalDraft | undefined,
+          lease: copyLeaseFor(base) as CopyLease | undefined,
           changes: { ...previous?.changes } as Record<string, string>,
           unresolved: previous?.unresolved,
           outdated:
@@ -86,6 +94,7 @@ function createBatchDrafts(
     }),
   );
   let active = false;
+  let unsubscribe: (() => void) | undefined;
   let ready = false;
   let status: DraftSaveState = { status: 'loading' };
   const listeners = new Map<string, Set<() => void>>();
@@ -131,6 +140,8 @@ function createBatchDrafts(
       notifyRecord(id);
       return;
     }
+    entry.lease ??= await beginCopy(id);
+    await assertCopyLease(entry.lease);
     const stored = await readOwnedRecord<BatchLocalDraft>(LOCAL_TABLES.requisitionBatchDrafts, id, {
       formats: [1],
     });
@@ -166,7 +177,11 @@ function createBatchDrafts(
             table,
             sessionScope: scope,
             expected: entry.expected,
-            read: () => table.get(id),
+            tables: [LOCAL_TABLES.requisitionCopyLifecycles],
+            read: async () => {
+              if (entry.lease) await assertCopyLease(entry.lease);
+              return table.get(id);
+            },
             next: (stored) =>
               Object.keys(value.changes).length || value.unresolved
                 ? {
@@ -228,6 +243,7 @@ function createBatchDrafts(
       const e = entries.get(id);
       return (
         !!e?.unresolved &&
+        !!fresh &&
         !matchesBaseline(
           fresh,
           e.expected ?? {
@@ -241,7 +257,7 @@ function createBatchDrafts(
       assertSessionScope(scope);
       const e = entries.get(id);
       const line = e?.base.requisitionLineItems.find((l) => l.id === lineId);
-      if (!e || !line || e.outdated || e.unresolved || !ready) return;
+      if (!e || !line || !batchApprovable(e.base) || e.outdated || e.unresolved || !ready) return;
       if (text === String(line.approvedQuantity ?? 0)) delete e.changes[lineId];
       else e.changes[lineId] = text;
       enqueue(id);
@@ -277,7 +293,11 @@ function createBatchDrafts(
               table,
               sessionScope: scope,
               expected: entry.expected,
-              read: () => table.get(id),
+              tables: [LOCAL_TABLES.requisitionCopyLifecycles],
+              read: async () => {
+                if (entry.lease) await assertCopyLease(entry.lease);
+                return table.get(id);
+              },
               next: (stored) =>
                 preserveUnresolved && stored?.unresolvedApproval
                   ? { ...stored, revision: stored.revision + 1, approvedQuantities: {} }
@@ -352,12 +372,29 @@ function createBatchDrafts(
     },
     activate() {
       active = true;
+      if (db) {
+        const sub = liveQuery(() =>
+          db.table(LOCAL_TABLES.requisitionCopyLifecycles).bulkGet([...entries.keys()]),
+        ).subscribe(() => {
+          for (const [id, entry] of entries)
+            if (entry.lease)
+              void assertCopyLease(entry.lease).catch((error) => {
+                if (active && scope === getSessionScope()) {
+                  entry.outdated = true;
+                  writers.get(id)?.fail(error, true);
+                  notifyRecord(id);
+                }
+              });
+        });
+        unsubscribe = () => sub.unsubscribe();
+      }
       void load().catch((error) => {
         if (scope === getSessionScope()) publish({ status: 'failed', error });
       });
     },
     dispose() {
       active = false;
+      unsubscribe?.();
     },
   };
   return api;

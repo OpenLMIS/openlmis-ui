@@ -19,6 +19,8 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { selectionColumn } from '@/components/data-table/data-table-selection';
 import { Button } from '@/components/ui/button';
 import { approvalListOptions } from '@/features/requisitions/api/queries';
+import { OfflineMarker } from '@/features/requisitions/components/offline-marker';
+import { RequisitionCopyNotice } from '@/features/requisitions/components/requisition-copy-notice';
 import {
   cardColumns,
   EMERGENCY_COLUMN,
@@ -31,6 +33,10 @@ import {
   ViewRequisition,
 } from '@/features/requisitions/components/requisition-list-parts';
 import {
+  RequisitionCopiesContext,
+  useOfflineCopies,
+} from '@/features/requisitions/hooks/use-offline-copies';
+import {
   APPROVAL_SORT,
   type ApprovalSearch,
   type ApprovalSelection,
@@ -41,6 +47,8 @@ import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { ApprovalListRow } from '@/features/requisitions/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { isDeviceAccess } from '@/lib/offline-access';
+import { useOnline } from '@/lib/online';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const helper = createColumnHelper<DataTableFeatures, ApprovalListRow>();
@@ -49,6 +57,7 @@ const COLUMNS = [
   ['submittedDate', 'requisitions.approve.date-submitted'],
   ['authorizedDate', 'requisitions.approve.date-authorized'],
   EMERGENCY_COLUMN,
+  ['offline', 'requisitions.offline.label'],
 ] as const;
 export const APPROVAL_HIDEABLE_COLUMNS = hideableColumns(COLUMNS);
 const CARD_COLUMNS = cardColumns(COLUMNS);
@@ -95,7 +104,11 @@ function useColumns(search: ApprovalSearch, stale: boolean, cards: boolean, batc
                 <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
               ),
             cell: ({ row: { original: record } }) =>
-              requisitionListCell(id, record, i18n.language, timeZone, t),
+              id === 'offline' ? (
+                <OfflineMarker id={record.id} />
+              ) : (
+                requisitionListCell(id, record, i18n.language, timeZone, t)
+              ),
           }),
         ),
         helper.display({
@@ -135,6 +148,7 @@ function useResultsTable({
   stale: boolean;
 }) {
   const { t } = useTranslation();
+  const online = useOnline();
   const rowSelection = Object.fromEntries(
     [...(picked?.keys() ?? [])].map((id) => [id, true as const]),
   );
@@ -168,6 +182,7 @@ function useResultsTable({
         data.map((row, index) => [
           row.id,
           {
+            record: row,
             programId: row.program.id,
             rowIndex: approvalRowIndex(search, index),
             label: requisitionRowLabel(row, t('requisitions.columns.emergency')),
@@ -181,7 +196,7 @@ function useResultsTable({
             return chosen && value ? [[id, value] as const] : [];
           }),
         ),
-        approvalScope(search),
+        approvalScope(search, online),
       );
     },
   });
@@ -198,8 +213,10 @@ export function ApprovalTable({
   onSelection,
 }: Props) {
   const { t } = useTranslation();
+  const copies = useOfflineCopies();
   const deferred = useDeferredValue(search);
-  const { data: page } = useSuspenseQuery(approvalListOptions(deferred));
+  const online = useOnline();
+  const { data: page } = useSuspenseQuery(approvalListOptions(deferred, online));
   const stale = deferred !== search;
   const { table, pageStart } = useResultsTable({
     cards,
@@ -217,7 +234,20 @@ export function ApprovalTable({
   useEffect(() => {
     if (pastEnd) onSearchChange({ page: page.totalPages > 1 ? page.totalPages : undefined }, true);
   }, [pastEnd, page.totalPages, onSearchChange]);
-  const empty = deferred.program ? (
+  const local = !online || !!deferred.offline || isDeviceAccess(page);
+  const empty = local ? (
+    <DataTableEmpty
+      description={t(
+        copies?.length
+          ? 'requisitions.view.no-matches-description'
+          : 'requisitions.offline.empty-description',
+      )}
+      icon={copies?.length ? <SearchXIcon /> : <ClipboardListIcon />}
+      title={t(
+        copies?.length ? 'requisitions.view.no-matches-title' : 'requisitions.offline.empty-title',
+      )}
+    />
+  ) : deferred.program ? (
     <DataTableEmpty
       action={
         <Button
@@ -240,14 +270,20 @@ export function ApprovalTable({
   );
   const footer = !pastEnd && page.totalElements > 0 && <DataTablePagination table={table} />;
   return (
-    <RequisitionListTable
-      cards={cards}
-      table={table}
-      stale={stale}
-      empty={!pastEnd && empty}
-      footer={footer}
-      listRef={pageStart.ref}
-    />
+    <RequisitionCopiesContext value={copies}>
+      <RequisitionCopyNotice
+        local={!!deferred.offline || isDeviceAccess(page)}
+        ids={page.content.map((record) => record.id)}
+      />
+      <RequisitionListTable
+        cards={cards}
+        table={table}
+        stale={stale}
+        empty={!pastEnd && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+      />
+    </RequisitionCopiesContext>
   );
 }
 

@@ -1,9 +1,15 @@
+import { liveQuery } from 'dexie';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   buildRequisitionDraft,
   type RequisitionDraft,
   rebaseRequisitionDraft,
 } from '@/features/requisitions/lib/draft';
+import {
+  assertCopyLease,
+  beginCopy,
+  copyLeaseFor,
+} from '@/features/requisitions/lib/offline-copies';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { hasUnsyncedRequisitionDraft } from '@/features/requisitions/lib/unsynced-device-work';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
@@ -46,6 +52,8 @@ export function useRequisitionDraft(
     const db = userId ? getLocalDb() : undefined;
     const table = db?.table<RequisitionLocalDraft, string>(LOCAL_TABLES.requisitionDrafts);
     let expected: RequisitionLocalDraft | undefined;
+    let lease = copyLeaseFor(initial.current);
+    let unsubscribe: (() => void) | undefined;
     let pendingBase: RequisitionRecord | undefined;
     let active = false;
     let closed = false;
@@ -81,14 +89,22 @@ export function useRequisitionDraft(
         table,
         sessionScope: scope,
         expected,
-        read: () => table.get(draftId),
+        tables: [LOCAL_TABLES.requisitionCopyLifecycles],
+        read: async () => {
+          if (lease) await assertCopyLease(lease);
+          return table.get(draftId);
+        },
         next: () => undefined,
       });
       assertSessionScope(scope);
     };
     let loaded: Promise<void> | undefined;
     const load = () => {
-      loaded ??= readStored().then(async (stored) => {
+      loaded ??= (async () => {
+        if (db) lease ??= await beginCopy(draftId);
+        if (lease) await assertCopyLease(lease);
+        return readStored();
+      })().then(async (stored) => {
         assertSessionScope(scope);
         expected = stored;
         if (
@@ -96,8 +112,9 @@ export function useRequisitionDraft(
           db &&
           table &&
           (!hasUnsyncedRequisitionDraft(stored) ||
-            JSON.stringify(rebaseRequisitionDraft(baseline, stored.draft)) ===
-              JSON.stringify(buildRequisitionDraft(baseline)))
+            (stored.modifiedDate === baseline.modifiedDate &&
+              JSON.stringify(rebaseRequisitionDraft(baseline, stored.draft)) ===
+                JSON.stringify(buildRequisitionDraft(baseline))))
         ) {
           await removeStored();
           expected = undefined;
@@ -122,7 +139,11 @@ export function useRequisitionDraft(
           table,
           sessionScope: scope,
           expected,
-          read: () => table.get(draftId),
+          tables: [LOCAL_TABLES.requisitionCopyLifecycles],
+          read: async () => {
+            if (lease) await assertCopyLease(lease);
+            return table.get(draftId);
+          },
           next: (stored) => {
             const currentBase = base ?? baseline;
             const rebased = rebaseRequisitionDraft(currentBase, draft);
@@ -164,6 +185,21 @@ export function useRequisitionDraft(
       activate() {
         active = true;
         closed = false;
+        if (db) {
+          const subscription = liveQuery(() =>
+            db.table(LOCAL_TABLES.requisitionCopyLifecycles).get(draftId),
+          ).subscribe(() => {
+            if (lease)
+              void assertCopyLease(lease).catch((error) => {
+                if (active && scope === getSessionScope()) {
+                  closed = true;
+                  outdated = true;
+                  writer.fail(error, true);
+                }
+              });
+          });
+          unsubscribe = () => subscription.unsubscribe();
+        }
         void load().catch((error) => {
           if (active && scope === getSessionScope()) writer.fail(error);
         });
@@ -219,6 +255,7 @@ export function useRequisitionDraft(
         await writer.wait();
         assertSessionScope(scope);
         try {
+          if (lease) await assertCopyLease(lease);
           const stored = await readStored();
           assertSessionScope(scope);
           expected = stored;
@@ -232,6 +269,7 @@ export function useRequisitionDraft(
       },
       dispose() {
         active = false;
+        unsubscribe?.();
         closed = true;
         writer.clear();
       },

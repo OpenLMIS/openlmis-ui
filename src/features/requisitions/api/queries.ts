@@ -1,8 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
-  approvedProductsByIdentitiesOptions,
   currencySettingsOptions,
-  orderablesByIdentitiesOptions,
   processingPeriodOptions,
   programLookupOptions,
 } from '@/features/reference-data/api/queries';
@@ -16,36 +14,68 @@ import {
   fetchUnskipSetting,
   searchRequisitions,
 } from '@/features/requisitions/api/api';
+import { LOCAL_LIST_KEY } from '@/features/requisitions/hooks/use-offline-copies';
 import { type ApprovalSearch, toApprovalQuery } from '@/features/requisitions/lib/approval-search';
 import { type ConvertSearch, toConvertQuery } from '@/features/requisitions/lib/convert-search';
+import { localApprovals, localRequisitions } from '@/features/requisitions/lib/offline-search';
+import {
+  readSingle,
+  savedApprovedOptions,
+  savedProductsOptions,
+} from '@/features/requisitions/lib/offline-single';
 import type {
   InitiateQuery,
   RequisitionRecord,
   RequisitionsQuery,
 } from '@/features/requisitions/lib/types';
+import { deviceQuery } from '@/lib/device-query';
 import { queryKeys } from '@/lib/key-factory';
+import { onlineOrDevice } from '@/lib/local-data';
+import { isOnline } from '@/lib/online';
 
-export const requisitionSearchOptions = (params: RequisitionsQuery) =>
-  queryOptions({
-    queryKey: queryKeys.requisitions.list(params),
-    queryFn: () => searchRequisitions(params),
+export const requisitionSearchOptions = (
+  params: RequisitionsQuery,
+  online = isOnline(),
+  offline = false,
+  timeZone = 'UTC',
+) =>
+  deviceQuery({
+    queryKey:
+      !online || offline
+        ? [...LOCAL_LIST_KEY, 'view', params]
+        : queryKeys.requisitions.list(params),
+    online: online && !offline,
+    server: () => (offline ? localRequisitions(params, timeZone) : searchRequisitions(params)),
+    device: () => localRequisitions(params, timeZone),
+    staleTime: 0,
   });
 
 export const requisitionOptions = (id: string) =>
-  queryOptions({
+  deviceQuery({
     queryKey: queryKeys.requisitions.detail(id),
-    queryFn: () => fetchRequisition(id),
+    online: isOnline(),
+    server: () => fetchRequisition(id),
+    device: async () => (await readSingle(id)).single.record,
+    staleTime: 0,
   });
 export const requisitionStatusMessagesOptions = (id: string) =>
   queryOptions({
     queryKey: [...queryKeys.requisitions.all, 'statusMessages', id] as const,
-    queryFn: () => fetchStatusMessages(id),
+    queryFn: () =>
+      onlineOrDevice(
+        () => fetchStatusMessages(id),
+        async () => (await readSingle(id)).single.references.messages,
+      ),
   });
 
 export const requisitionGridQueries = (record: RequisitionRecord) =>
   [
-    orderablesByIdentitiesOptions(record.requisitionLineItems.map((l) => l.orderable)),
-    approvedProductsByIdentitiesOptions(
+    savedProductsOptions(
+      record.id,
+      record.requisitionLineItems.map((l) => l.orderable),
+    ),
+    savedApprovedOptions(
+      record.id,
       record.requisitionLineItems.flatMap((l) => (l.approvedProduct ? [l.approvedProduct] : [])),
     ),
     processingPeriodOptions(record.processingPeriod.id),
@@ -66,10 +96,17 @@ export const unskipSettingOptions = () =>
     queryFn: fetchUnskipSetting,
   });
 
-export const approvalListOptions = (search: ApprovalSearch) =>
-  queryOptions({
-    queryKey: [...queryKeys.requisitions.all, 'approval', search] as const,
-    queryFn: () => fetchApprovalList(toApprovalQuery(search)),
+export const approvalListOptions = (search: ApprovalSearch, online = isOnline()) =>
+  deviceQuery({
+    queryKey:
+      !online || search.offline
+        ? [...LOCAL_LIST_KEY, 'approve', search]
+        : [...queryKeys.requisitions.all, 'approval', search],
+    online: online && !search.offline,
+    server: () =>
+      search.offline ? localApprovals(search) : fetchApprovalList(toApprovalQuery(search)),
+    device: () => localApprovals(search),
+    staleTime: 0,
   });
 
 export const convertListOptions = (search: ConvertSearch) =>
