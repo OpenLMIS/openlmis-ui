@@ -1,10 +1,11 @@
 import { useStore } from '@tanstack/react-form';
 import type { ParseKeys } from 'i18next';
-import { type ReactNode, useRef } from 'react';
+import { type ReactNode, useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SettingsItem } from '@/components/form/settings-list';
+import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import type { InventoryItemFormApi } from '@/features/cce-inventory/components/use-inventory-item-form';
+import { makeModelLabel } from '@/features/cce-inventory/lib/catalog';
 import {
   EQUIPMENT_REASONS,
   hasFixedPowerModel,
@@ -29,6 +30,7 @@ import {
   EQUIPMENT_STATUS,
   EQUIPMENT_STATUSES,
 } from '@/lib/cce-equipment-status';
+import { type FacilityProgramOptions, recordLabel } from '@/lib/facility-program-selection';
 
 const UTILIZATION_KEYS: Record<Utilization, ParseKeys> = {
   ACTIVE: 'cce-inventory.form.active',
@@ -70,39 +72,61 @@ export function Section({ legend, children }: { legend: string; children: ReactN
   );
 }
 
-export type SectionProps = { form: InventoryItemFormApi };
+export type FormProps = { form: InventoryItemFormApi };
 
-export type ChosenEquipmentLabels = {
-  facility: string;
-  program: string;
-  type: string;
-  model: string;
-};
+export type CatalogFormProps = FormProps & { catalog: readonly CatalogItem[] };
 
-export function ChosenEquipment({ facility, program, type, model }: ChosenEquipmentLabels) {
+function chosenLabels(
+  { pair, equipmentType, catalogItemId }: InventoryItemFormApi['state']['values'],
+  options: FacilityProgramOptions,
+  catalog: readonly CatalogItem[],
+) {
+  const programs = pair.mode === 'my' ? options.myPrograms : options.supervisedPrograms;
+  const program = programs.find((record) => record.id === pair.programId);
+  const facility = pair.programId
+    ? options.facilitiesFor(pair.programId).find((record) => record.id === pair.facilityId)
+    : undefined;
+  const model = catalog.find((item) => item.id === catalogItemId);
+  return {
+    facility: facility ? recordLabel(facility) : '',
+    program: program ? recordLabel(program) : '',
+    type: equipmentType ?? '',
+    model: model ? makeModelLabel(model) : '',
+  };
+}
+
+export function ChosenEquipment({
+  form,
+  options,
+  catalog,
+}: CatalogFormProps & { options: FacilityProgramOptions }) {
   const { t } = useTranslation();
+  const headingId = useId();
+  const { facility, program, type, model } = chosenLabels(form.state.values, options, catalog);
   return (
-    <Section legend={t('cce-inventory.form.equipment')}>
-      <SettingsItem label={t('facility-program.facility')}>
-        <bdi>{facility}</bdi>
-      </SettingsItem>
-      <SettingsItem label={t('facility-program.program')}>
-        <bdi>{program}</bdi>
-      </SettingsItem>
-      <SettingsItem label={t('cce-inventory.form.equipment-type')}>
-        <bdi>{type}</bdi>
-      </SettingsItem>
-      <SettingsItem label={t('cce-inventory.form.make-model')}>
-        <bdi>{model}</bdi>
-      </SettingsItem>
-    </Section>
+    <section aria-labelledby={headingId} className="flex flex-col gap-3">
+      <h3 className="font-medium text-base" id={headingId}>
+        {t('cce-inventory.form.equipment')}
+      </h3>
+      <SettingsList>
+        <SettingsItem label={t('facility-program.facility')}>
+          <bdi>{facility}</bdi>
+        </SettingsItem>
+        <SettingsItem label={t('facility-program.program')}>
+          <bdi>{program}</bdi>
+        </SettingsItem>
+        <SettingsItem label={t('cce-inventory.form.equipment-type')}>
+          <bdi>{type}</bdi>
+        </SettingsItem>
+        <SettingsItem label={t('cce-inventory.form.make-model')}>
+          <bdi>{model}</bdi>
+        </SettingsItem>
+      </SettingsList>
+    </section>
   );
 }
 
-export function DetailsFields({
-  form,
-  catalog,
-}: SectionProps & { catalog: readonly CatalogItem[] }) {
+export function DetailsFields({ form, catalog }: CatalogFormProps) {
   const { t } = useTranslation();
   return (
     <>
@@ -119,7 +143,7 @@ export function DetailsFields({
   );
 }
 
-export function IdentificationSection({ form }: SectionProps) {
+function IdentificationSection({ form }: FormProps) {
   const { t } = useTranslation();
   return (
     <Section legend={t('cce-inventory.form.identification')}>
@@ -148,7 +172,7 @@ export function IdentificationSection({ form }: SectionProps) {
   );
 }
 
-export function HistorySection({ form }: SectionProps) {
+function HistorySection({ form }: FormProps) {
   const { t } = useTranslation();
   return (
     <Section legend={t('cce-inventory.form.history')}>
@@ -184,10 +208,7 @@ export function HistorySection({ form }: SectionProps) {
   );
 }
 
-export function InstallationSection({
-  form,
-  catalog,
-}: SectionProps & { catalog: readonly CatalogItem[] }) {
+function InstallationSection({ form, catalog }: CatalogFormProps) {
   const { t } = useTranslation();
   const fixed = useStore(form.store, (state) =>
     hasFixedPowerModel(catalog, state.values.catalogItemId),
@@ -234,7 +255,7 @@ export function InstallationSection({
   );
 }
 
-export function StatusSection({ form }: SectionProps) {
+function StatusSection({ form }: FormProps) {
   const { t } = useTranslation();
   const status = useStore(form.store, (state) => state.values.details.functionalStatus);
   const shownStatus = useRef(status);

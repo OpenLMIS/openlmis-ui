@@ -1,17 +1,14 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import {
-  createInventoryItem,
   fetchCatalogItems,
   fetchInventoryAlerts,
   fetchInventoryItems,
 } from '@/features/cce-inventory/api/api';
-import type { InventoryItemBody } from '@/features/cce-inventory/lib/types';
 import { client } from '@/integrations/axios';
 
-vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
 
 const get = vi.mocked(client.get);
-const post = vi.mocked(client.post);
 
 beforeEach(() => {
   get.mockReset();
@@ -56,35 +53,4 @@ it('reads every visible, unarchived catalog item in one request, as legacy', asy
   expect(get).toHaveBeenCalledWith('/catalogItems', {
     params: { archived: false, visibleInCatalog: true },
   });
-});
-
-it('creates the equipment with the body it is given', async () => {
-  const body: InventoryItemBody = {
-    facility: { id: 'f1' },
-    program: { id: 'p1' },
-    catalogItem: {
-      id: 'c1',
-      fromPqsCatalog: false,
-      type: 'Refrigerator',
-      manufacturer: 'B Medical',
-      model: 'TCW 40R',
-      energySource: 'ELECTRIC',
-      storageTemperature: 'PLUS4',
-      archived: false,
-    },
-    equipmentTrackingId: 'SN-1',
-    referenceName: 'Fridge 2',
-    utilization: 'ACTIVE',
-    yearOfInstallation: 2019,
-    voltageStabilizer: 'YES',
-    voltageRegulator: 'NO',
-    backupGenerator: 'NO',
-    manualTemperatureGauge: 'BUILD_IN',
-    remoteTemperatureMonitor: 'NO_RTM',
-    functionalStatus: 'FUNCTIONING',
-  };
-  post.mockResolvedValueOnce({ data: {} });
-
-  await createInventoryItem(body);
-  expect(post).toHaveBeenCalledWith('/inventoryItems', body);
 });

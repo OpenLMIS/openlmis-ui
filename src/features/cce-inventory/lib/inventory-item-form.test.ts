@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   EMPTY_INVENTORY_ITEM_DETAILS,
-  hasFixedPower,
   type InventoryItemDetails,
   inventoryItemDetailsSchema,
   inventoryItemSchema,
   toInventoryItemBody,
   type ValidInventoryItemDetails,
 } from '@/features/cce-inventory/lib/inventory-item-form';
-import type { CatalogItem, EnergySource } from '@/features/cce-inventory/lib/types';
+import type { CatalogItem } from '@/features/cce-inventory/lib/types';
 import type { EquipmentStatus } from '@/lib/cce-equipment-status';
 
 const catalogItem: CatalogItem = {
@@ -125,9 +124,7 @@ describe('inventoryItemDetailsSchema', () => {
 describe('inventoryItemSchema', () => {
   it('asks for the model of a chosen type along with the other empty fields', () => {
     const result = inventoryItemSchema.safeParse({
-      mode: 'my',
-      programId: 'p1',
-      facilityId: 'f1',
+      pair: { mode: 'my', programId: 'p1', facilityId: 'f1' },
       equipmentType: 'Refrigerator',
       catalogItemId: null,
       details: EMPTY_INVENTORY_ITEM_DETAILS,
@@ -135,21 +132,6 @@ describe('inventoryItemSchema', () => {
 
     expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('catalogItemId');
   });
-});
-
-describe('hasFixedPower', () => {
-  const energyRules: [EnergySource, boolean][] = [
-    ['SOLAR', true],
-    ['NOT_APPLICABLE', true],
-    ['ELECTRIC', false],
-  ];
-
-  it.each(energyRules)(
-    'tells whether %s equipment has fixed power fields',
-    (energySource, expected) => {
-      expect(hasFixedPower(energySource)).toBe(expected);
-    },
-  );
 });
 
 describe('toInventoryItemBody', () => {

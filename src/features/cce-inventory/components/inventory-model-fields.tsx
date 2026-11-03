@@ -1,27 +1,33 @@
 import { useStore } from '@tanstack/react-form';
-import { useRef } from 'react';
+import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { SectionProps } from '@/features/cce-inventory/components/inventory-item-sections';
+import type { CatalogFormProps } from '@/features/cce-inventory/components/inventory-item-sections';
 import {
   equipmentTypes,
   makeModelLabel,
   modelsOfType,
-  soleItem,
+  soleModelId,
 } from '@/features/cce-inventory/lib/catalog';
-import { hasFixedPowerModel, POWER_FIELDS } from '@/features/cce-inventory/lib/inventory-item-form';
-import type { CatalogItem } from '@/features/cce-inventory/lib/types';
+import {
+  hasFixedPowerModel,
+  POWER_FIELDS,
+  powerFor,
+} from '@/features/cce-inventory/lib/inventory-item-form';
 
-export function ModelFields({ form, catalog }: SectionProps & { catalog: readonly CatalogItem[] }) {
+export function ModelFields({
+  form,
+  catalog,
+  lockedPower,
+}: CatalogFormProps & { lockedPower: RefObject<boolean> }) {
   const { t } = useTranslation();
   const equipmentType = useStore(form.store, (state) => state.values.equipmentType);
   const shownType = useRef(equipmentType);
-  const lockedPower = useRef(hasFixedPowerModel(catalog, form.state.values.catalogItemId));
 
   const applyModel = (catalogItemId: string | null) => {
     const fixed = hasFixedPowerModel(catalog, catalogItemId);
     if (fixed === lockedPower.current) return;
     lockedPower.current = fixed;
-    for (const name of POWER_FIELDS) form.setFieldValue(name, fixed ? 'NOT_APPLICABLE' : '');
+    for (const name of POWER_FIELDS) form.setFieldValue(name, powerFor(catalog, catalogItemId));
   };
 
   const typeItems = equipmentTypes(catalog).map((type) => ({ value: type, label: type }));
@@ -39,8 +45,7 @@ export function ModelFields({ form, catalog }: SectionProps & { catalog: readonl
           onChange: ({ value }) => {
             if (value === shownType.current) return;
             shownType.current = value;
-            const model = value ? soleItem(modelsOfType(catalog, value)) : null;
-            form.setFieldValue('catalogItemId', model?.id ?? null);
+            form.setFieldValue('catalogItemId', soleModelId(catalog, value));
           },
         }}
         name="equipmentType"

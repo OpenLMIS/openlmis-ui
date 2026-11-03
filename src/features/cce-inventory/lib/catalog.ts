@@ -16,3 +16,7 @@ export function modelsOfType(items: readonly CatalogItem[], type: string) {
     .filter((item) => item.type === type)
     .toSorted((a, b) => makeModelLabel(a).localeCompare(makeModelLabel(b)));
 }
+
+export function soleModelId(items: readonly CatalogItem[], type: string | null) {
+  return type ? (soleItem(modelsOfType(items, type))?.id ?? null) : null;
+}

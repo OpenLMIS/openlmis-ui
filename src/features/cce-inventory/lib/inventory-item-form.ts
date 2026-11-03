@@ -62,42 +62,6 @@ export const statusUsesReason = (status: EquipmentStatus | '') =>
 
 export const statusUsesDecommission = (status: EquipmentStatus | '') => status === 'UNSERVICEABLE';
 
-export type InventoryItemDetails = {
-  equipmentTrackingId: string;
-  referenceName: string;
-  utilization: Utilization | '';
-  yearOfInstallation: string;
-  source: string;
-  yearOfWarrantyExpiry: string;
-  voltageStabilizer: PowerStatus | '';
-  voltageRegulator: PowerStatus | '';
-  backupGenerator: PowerStatus | '';
-  manualTemperatureGauge: TemperatureGauge | '';
-  remoteTemperatureMonitor: TemperatureMonitor | '';
-  additionalNotes: string;
-  functionalStatus: EquipmentStatus | '';
-  reasonNotWorkingOrNotInUse: EquipmentReason | '';
-  decommissionDate: string;
-};
-
-export const EMPTY_INVENTORY_ITEM_DETAILS: InventoryItemDetails = {
-  equipmentTrackingId: '',
-  referenceName: '',
-  utilization: '',
-  yearOfInstallation: '',
-  source: '',
-  yearOfWarrantyExpiry: '',
-  voltageStabilizer: '',
-  voltageRegulator: '',
-  backupGenerator: '',
-  manualTemperatureGauge: '',
-  remoteTemperatureMonitor: '',
-  additionalNotes: '',
-  functionalStatus: '',
-  reasonNotWorkingOrNotInUse: '',
-  decommissionDate: '',
-};
-
 const ALONG_WITH_OTHER_ISSUES = { when: () => true };
 
 const optionalChoice = <T extends string>(values: readonly [T, ...T[]]) =>
@@ -141,12 +105,30 @@ export const inventoryItemDetailsSchema = z
     }
   }, ALONG_WITH_OTHER_ISSUES);
 
+export type InventoryItemDetails = z.input<typeof inventoryItemDetailsSchema>;
+
 export type ValidInventoryItemDetails = z.output<typeof inventoryItemDetailsSchema>;
 
+export const EMPTY_INVENTORY_ITEM_DETAILS: InventoryItemDetails = {
+  equipmentTrackingId: '',
+  referenceName: '',
+  utilization: '',
+  yearOfInstallation: '',
+  source: '',
+  yearOfWarrantyExpiry: '',
+  voltageStabilizer: '',
+  voltageRegulator: '',
+  backupGenerator: '',
+  manualTemperatureGauge: '',
+  remoteTemperatureMonitor: '',
+  additionalNotes: '',
+  functionalStatus: '',
+  reasonNotWorkingOrNotInUse: '',
+  decommissionDate: '',
+};
+
 export type InventoryItemValues = {
-  mode: SelectionMode;
-  programId: string | null;
-  facilityId: string | null;
+  pair: { mode: SelectionMode; programId: string | null; facilityId: string | null };
   equipmentType: string | null;
   catalogItemId: string | null;
   details: InventoryItemDetails;
@@ -156,9 +138,11 @@ const picked = (message: ParseKeys) => z.string({ error: message }).min(1, messa
 
 export const inventoryItemSchema = z
   .object({
-    mode: z.enum(['my', 'supervised']),
-    programId: picked(PROGRAM_REQUIRED),
-    facilityId: picked(FACILITY_REQUIRED),
+    pair: z.object({
+      mode: z.enum(['my', 'supervised']),
+      programId: picked(PROGRAM_REQUIRED),
+      facilityId: picked(FACILITY_REQUIRED),
+    }),
     equipmentType: picked(REQUIRED),
     catalogItemId: z.string().nullable(),
     details: inventoryItemDetailsSchema,
@@ -169,11 +153,14 @@ export const inventoryItemSchema = z
     }
   }, ALONG_WITH_OTHER_ISSUES);
 
-export const hasFixedPower = (energySource: EnergySource) =>
+const hasFixedPower = (energySource: EnergySource) =>
   energySource === 'SOLAR' || energySource === 'NOT_APPLICABLE';
 
 export const hasFixedPowerModel = (catalog: readonly CatalogItem[], id: string | null) =>
   catalog.some((item) => item.id === id && hasFixedPower(item.energySource));
+
+export const powerFor = (catalog: readonly CatalogItem[], id: string | null): PowerStatus | '' =>
+  hasFixedPowerModel(catalog, id) ? 'NOT_APPLICABLE' : '';
 
 export type PowerField =
   | 'details.voltageStabilizer'

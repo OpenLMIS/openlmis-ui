@@ -89,11 +89,11 @@ export function legacyInventoryHash(
 }
 
 export function inventorySavedSearch(
-  listSearch: InventorySearch | undefined,
+  listSearch: InventorySearch,
   { mode, programId, facilityId }: CompleteSelection,
   savedStatus: EquipmentStatus,
 ): InventorySearch {
-  const { page, functionalStatus, item, ...kept } = listSearch ?? {};
+  const { page, functionalStatus, item, ...kept } = listSearch;
   return {
     ...kept,
     mode,

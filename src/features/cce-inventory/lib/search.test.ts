@@ -33,8 +33,4 @@ describe('inventorySavedSearch', () => {
       'functionalStatus',
     );
   });
-
-  it('opens the list on the pair when the page was not opened from the list', () => {
-    expect(inventorySavedSearch(undefined, lurio, 'FUNCTIONING')).toEqual(lurio);
-  });
 });

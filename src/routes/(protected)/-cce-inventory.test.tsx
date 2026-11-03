@@ -475,7 +475,7 @@ describe('CCE inventory page', () => {
         functionalStatus: 'FUNCTIONING',
         item: 'new',
       });
-      await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.cancel' }));
+      await user.click(await screen.findByRole('button', { name: 'dialog.cancel' }));
       await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
     },
   );

@@ -1,7 +1,8 @@
 import { useStore } from '@tanstack/react-form';
 import { useTranslation } from 'react-i18next';
 import { FieldLabelText } from '@/components/form/form-fields';
-import type { SectionProps } from '@/features/cce-inventory/components/inventory-item-sections';
+import { Field, FieldDescription, FieldTitle } from '@/components/ui/field';
+import type { FormProps } from '@/features/cce-inventory/components/inventory-item-sections';
 import {
   changeMode,
   changeProgram,
@@ -10,19 +11,19 @@ import {
   recordLabel,
 } from '@/lib/facility-program-selection';
 
-export function PairFields({ form, options }: SectionProps & { options: FacilityProgramOptions }) {
+export function PairFields({ form, options }: FormProps & { options: FacilityProgramOptions }) {
   const { t } = useTranslation();
-  const mode = useStore(form.store, (state) => state.values.mode);
-  const programId = useStore(form.store, (state) => state.values.programId);
+  const mode = useStore(form.store, (state) => state.values.pair.mode);
+  const programId = useStore(form.store, (state) => state.values.pair.programId);
 
   const selection = (): FacilityProgramSelection => ({
-    mode: form.state.values.mode,
-    programId: form.state.values.programId ?? undefined,
-    facilityId: form.state.values.facilityId ?? undefined,
+    mode: form.state.values.pair.mode,
+    programId: form.state.values.pair.programId ?? undefined,
+    facilityId: form.state.values.pair.facilityId ?? undefined,
   });
   const apply = (next: FacilityProgramSelection) => {
-    form.setFieldValue('programId', next.programId ?? null);
-    form.setFieldValue('facilityId', next.facilityId ?? null);
+    form.setFieldValue('pair.programId', next.programId ?? null);
+    form.setFieldValue('pair.facilityId', next.facilityId ?? null);
   };
 
   const programs = mode === 'my' ? options.myPrograms : options.supervisedPrograms;
@@ -44,11 +45,11 @@ export function PairFields({ form, options }: SectionProps & { options: Facility
       listeners={{
         onChange: ({ value }) =>
           form.setFieldValue(
-            'facilityId',
+            'pair.facilityId',
             changeProgram(selection(), value ?? undefined, options).facilityId ?? null,
           ),
       }}
-      name="programId"
+      name="pair.programId"
     >
       {(field) =>
         programItems.length > 0 ? (
@@ -76,7 +77,7 @@ export function PairFields({ form, options }: SectionProps & { options: Facility
   );
 
   const facilityField = (
-    <form.AppField key="facility" name="facilityId">
+    <form.AppField key="facility" name="pair.facilityId">
       {(field) =>
         mode !== 'my' ? (
           <field.ComboboxField
@@ -115,7 +116,7 @@ export function PairFields({ form, options }: SectionProps & { options: Facility
       <div className="@3xl/item:col-span-2">
         <form.AppField
           listeners={{ onChange: ({ value }) => apply(changeMode(value, options)) }}
-          name="mode"
+          name="pair.mode"
         >
           {(field) => (
             <field.RadioGroupField
@@ -145,11 +146,11 @@ export function PairFields({ form, options }: SectionProps & { options: Facility
 
 function NoOptions({ label, message }: { label: string; message: string }) {
   return (
-    <div className="flex flex-col gap-2">
-      <span className="font-medium text-sm">
+    <Field>
+      <FieldTitle>
         <FieldLabelText label={label} required />
-      </span>
-      <p className="text-muted-foreground text-sm">{message}</p>
-    </div>
+      </FieldTitle>
+      <FieldDescription>{message}</FieldDescription>
+    </Field>
   );
 }
