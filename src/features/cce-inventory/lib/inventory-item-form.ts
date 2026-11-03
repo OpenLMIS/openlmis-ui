@@ -98,6 +98,8 @@ export const EMPTY_INVENTORY_ITEM_DETAILS: InventoryItemDetails = {
   decommissionDate: '',
 };
 
+const ALONG_WITH_OTHER_ISSUES = { when: () => true };
+
 const optionalChoice = <T extends string>(values: readonly [T, ...T[]]) =>
   z.union([z.enum(values), z.literal('')]);
 
@@ -137,7 +139,7 @@ export const inventoryItemDetailsSchema = z
     if (statusUsesDecommission(details.functionalStatus) && !details.decommissionDate) {
       context.addIssue({ code: 'custom', message: REQUIRED, path: ['decommissionDate'] });
     }
-  });
+  }, ALONG_WITH_OTHER_ISSUES);
 
 export type ValidInventoryItemDetails = z.output<typeof inventoryItemDetailsSchema>;
 
@@ -165,7 +167,7 @@ export const inventoryItemSchema = z
     if (values.equipmentType && !values.catalogItemId) {
       context.addIssue({ code: 'custom', message: REQUIRED, path: ['catalogItemId'] });
     }
-  });
+  }, ALONG_WITH_OTHER_ISSUES);
 
 export const hasFixedPower = (energySource: EnergySource) =>
   energySource === 'SOLAR' || energySource === 'NOT_APPLICABLE';

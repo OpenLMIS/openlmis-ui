@@ -26,13 +26,15 @@ import {
 import { ModelFields } from '@/features/cce-inventory/components/inventory-model-fields';
 import { PairFields } from '@/features/cce-inventory/components/inventory-pair-fields';
 import { useInventoryItemForm } from '@/features/cce-inventory/components/use-inventory-item-form';
+import { equipmentTypes, modelsOfType, soleItem } from '@/features/cce-inventory/lib/catalog';
 import {
   EMPTY_INVENTORY_ITEM_DETAILS,
+  hasFixedPowerModel,
   type InventoryItemValues,
   inventoryItemSchema,
   toInventoryItemBody,
 } from '@/features/cce-inventory/lib/inventory-item-form';
-import type { InventoryItemBody } from '@/features/cce-inventory/lib/types';
+import type { CatalogItem, InventoryItemBody } from '@/features/cce-inventory/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import type { EquipmentStatus } from '@/lib/cce-equipment-status';
@@ -157,14 +159,27 @@ function startSelection(initial: FacilityProgramSelection, options: FacilityProg
   return homeOffersNothing ? changeMode('supervised', options) : start;
 }
 
-function startValues(selection: FacilityProgramSelection): InventoryItemValues {
+function startValues(
+  selection: FacilityProgramSelection,
+  catalog: readonly CatalogItem[],
+): InventoryItemValues {
+  const equipmentType = soleItem(equipmentTypes(catalog));
+  const catalogItemId = equipmentType
+    ? (soleItem(modelsOfType(catalog, equipmentType))?.id ?? null)
+    : null;
+  const power = hasFixedPowerModel(catalog, catalogItemId) ? 'NOT_APPLICABLE' : '';
   return {
     mode: selection.mode ?? 'supervised',
     programId: selection.programId ?? null,
     facilityId: selection.facilityId ?? null,
-    equipmentType: null,
-    catalogItemId: null,
-    details: EMPTY_INVENTORY_ITEM_DETAILS,
+    equipmentType,
+    catalogItemId,
+    details: {
+      ...EMPTY_INVENTORY_ITEM_DETAILS,
+      voltageStabilizer: power,
+      voltageRegulator: power,
+      backupGenerator: power,
+    },
   };
 }
 
@@ -185,37 +200,26 @@ function InventoryItemForm({
   const { t } = useTranslation();
   const options = useFacilityProgramOptions(userId, grants);
   const { data: catalog } = useSuspenseQuery(catalogItemsOptions());
-  const [defaultValues] = useState(() => startValues(startSelection(initial, options)));
+  const [defaultValues] = useState(() => startValues(startSelection(initial, options), catalog));
   const formRef = useRef<HTMLFormElement>(null);
-  const submitting = useRef(false);
-
-  const save = async (values: InventoryItemValues) => {
-    const { mode, programId, facilityId, catalogItemId, details } =
-      inventoryItemSchema.parse(values);
-    const catalogItem = catalog.find((item) => item.id === catalogItemId);
-    if (!catalogItem) {
-      form.setFieldValue('catalogItemId', null);
-      focusFirstError(formRef.current);
-      return;
-    }
-    const selection = { mode, programId, facilityId };
-    const body = toInventoryItemBody(details, selection, catalogItem);
-    await onSave({
-      body,
-      saved: { selection, status: body.functionalStatus, name: body.referenceName },
-    });
-  };
 
   const form = useInventoryItemForm(
     defaultValues,
     async (values) => {
-      if (submitting.current || allowLeave()) return;
-      submitting.current = true;
-      try {
-        await save(values);
-      } finally {
-        submitting.current = false;
+      const { mode, programId, facilityId, catalogItemId, details } =
+        inventoryItemSchema.parse(values);
+      const catalogItem = catalog.find((item) => item.id === catalogItemId);
+      if (!catalogItem) {
+        form.setFieldValue('catalogItemId', null);
+        focusFirstError(formRef.current);
+        return;
       }
+      const selection = { mode, programId, facilityId };
+      const body = toInventoryItemBody(details, selection, catalogItem);
+      await onSave({
+        body,
+        saved: { selection, status: body.functionalStatus, name: body.referenceName },
+      });
     },
     () => focusFirstError(formRef.current),
   );
@@ -230,7 +234,7 @@ function InventoryItemForm({
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        void form.handleSubmit();
+        if (!form.state.isSubmitting && !allowLeave()) void form.handleSubmit();
       }}
       ref={formRef}
     >

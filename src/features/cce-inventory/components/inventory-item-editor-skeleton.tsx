@@ -32,7 +32,7 @@ export function EditorHeader() {
 
 type SkeletonField = {
   label: ParseKeys;
-  required: boolean;
+  required?: boolean;
   description?: ParseKeys;
   wide?: boolean;
 };
@@ -41,7 +41,7 @@ const SKELETON_SECTIONS: readonly { legend: ParseKeys; fields: readonly Skeleton
   {
     legend: 'cce-inventory.form.equipment',
     fields: [
-      { label: 'facility-program.mode', required: false, wide: true },
+      { label: 'facility-program.mode', wide: true },
       { label: 'facility-program.program', required: true },
       { label: 'facility-program.facility', required: true },
       { label: 'cce-inventory.form.equipment-type', required: true },
@@ -66,10 +66,9 @@ const SKELETON_SECTIONS: readonly { legend: ParseKeys; fields: readonly Skeleton
       { label: 'cce-inventory.form.year-of-installation', required: true },
       {
         label: 'cce-inventory.form.source',
-        required: false,
         description: 'cce-inventory.form.source-description',
       },
-      { label: 'cce-inventory.form.year-of-warranty-expiry', required: false },
+      { label: 'cce-inventory.form.year-of-warranty-expiry' },
     ],
   },
   {

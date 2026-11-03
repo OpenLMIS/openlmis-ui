@@ -183,13 +183,17 @@ describe('InventoryItemEditor', () => {
     expect(await combobox('facility-program.facility')).toHaveValue('');
   });
 
-  it('opens on supervised facilities when the home facility offers no program to edit', async () => {
+  it('keeps to supervised facilities when the home facility offers no program to edit', async () => {
     renderEditor({ grants: [grant(LURIO, EPI)] });
 
     expect(
       await screen.findByRole('radio', { name: /facility-program.supervised-facility/ }),
     ).toBeChecked();
     expect(await combobox('facility-program.program')).toHaveValue('EPI');
+    expect(screen.getByRole('radio', { name: /facility-program.my-facility/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   });
 
   it('lists the models of exactly the chosen type and clears the model when the type changes', async () => {
@@ -203,6 +207,8 @@ describe('InventoryItemEditor', () => {
       'Vestfrost MF 314',
     ]);
     await user.click(screen.getByRole('option', { name: 'Haier HBD-286' }));
+    await choose(user, 'cce-inventory.form.equipment-type', /^Freezer$/);
+    expect(await combobox('cce-inventory.form.make-model')).toHaveValue('Haier HBD-286');
     await choose(user, 'cce-inventory.form.equipment-type', /^Refrigerator$/);
     expect(await combobox('cce-inventory.form.make-model')).toHaveValue('');
 

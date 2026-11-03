@@ -4,6 +4,7 @@ import {
   hasFixedPower,
   type InventoryItemDetails,
   inventoryItemDetailsSchema,
+  inventoryItemSchema,
   toInventoryItemBody,
   type ValidInventoryItemDetails,
 } from '@/features/cce-inventory/lib/inventory-item-form';
@@ -109,6 +110,30 @@ describe('inventoryItemDetailsSchema', () => {
 
   it.each(statusRules)('asks %s for what legacy asks with it', (functionalStatus, expected) => {
     expect(issues({ ...filled, functionalStatus })).toEqual(sorted(expected));
+  });
+
+  it('asks for the reason and the decommission date along with the other empty fields', () => {
+    expect(issues({ ...EMPTY_INVENTORY_ITEM_DETAILS, functionalStatus: 'UNSERVICEABLE' })).toEqual(
+      expect.arrayContaining([
+        'reasonNotWorkingOrNotInUse: cce-inventory.form.required',
+        'decommissionDate: cce-inventory.form.required',
+      ]),
+    );
+  });
+});
+
+describe('inventoryItemSchema', () => {
+  it('asks for the model of a chosen type along with the other empty fields', () => {
+    const result = inventoryItemSchema.safeParse({
+      mode: 'my',
+      programId: 'p1',
+      facilityId: 'f1',
+      equipmentType: 'Refrigerator',
+      catalogItemId: null,
+      details: EMPTY_INVENTORY_ITEM_DETAILS,
+    });
+
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('catalogItemId');
   });
 });
 

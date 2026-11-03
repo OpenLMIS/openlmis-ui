@@ -52,7 +52,7 @@ export function PairFields({ form, options }: SectionProps & { options: Facility
                 {
                   value: 'my',
                   label: t('facility-program.my-facility'),
-                  disabled: !options.home,
+                  disabled: !options.home || options.myPrograms.length === 0,
                 },
                 {
                   value: 'supervised',

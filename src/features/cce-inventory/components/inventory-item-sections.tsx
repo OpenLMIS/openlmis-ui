@@ -107,7 +107,7 @@ export function HistorySection({ form }: SectionProps) {
       <form.AppField name="details.utilization">
         {(field) => (
           <field.SelectField
-            placeholder={t('cce-inventory.form.choose-option')}
+            placeholder={t('cce-inventory.form.select-option')}
             items={UTILIZATIONS.map((value) => ({ value, label: t(UTILIZATION_KEYS[value]) }))}
             label={t('cce-inventory.form.utilization')}
             required
@@ -152,7 +152,7 @@ export function InstallationSection({
         <form.AppField key={name} name={name}>
           {(field) => (
             <field.SelectField
-              placeholder={t('cce-inventory.form.choose-option')}
+              placeholder={t('cce-inventory.form.select-option')}
               description={fixed ? t('cce-inventory.form.fixed-power') : undefined}
               disabled={fixed}
               items={powerItems}
@@ -165,7 +165,7 @@ export function InstallationSection({
       <form.AppField name="details.manualTemperatureGauge">
         {(field) => (
           <field.SelectField
-            placeholder={t('cce-inventory.form.choose-option')}
+            placeholder={t('cce-inventory.form.select-option')}
             items={TEMPERATURE_GAUGES.map((value) => ({ value, label: t(GAUGE_KEYS[value]) }))}
             label={t('cce-inventory.form.manual-temperature-gauge')}
             required
@@ -175,7 +175,7 @@ export function InstallationSection({
       <form.AppField name="details.remoteTemperatureMonitor">
         {(field) => (
           <field.SelectField
-            placeholder={t('cce-inventory.form.choose-option')}
+            placeholder={t('cce-inventory.form.select-option')}
             items={TEMPERATURE_MONITORS.map((value) => ({ value, label: t(MONITOR_KEYS[value]) }))}
             label={t('cce-inventory.form.remote-temperature-monitor')}
             required
@@ -206,7 +206,7 @@ export function StatusSection({ form }: SectionProps) {
       >
         {(field) => (
           <field.SelectField
-            placeholder={t('cce-inventory.form.choose-option')}
+            placeholder={t('cce-inventory.form.select-option')}
             items={EQUIPMENT_STATUSES.map((value) => ({
               value,
               label: t(EQUIPMENT_STATUS[value].labelKey),
@@ -220,7 +220,7 @@ export function StatusSection({ form }: SectionProps) {
         <form.AppField name="details.reasonNotWorkingOrNotInUse">
           {(field) => (
             <field.SelectField
-              placeholder={t('cce-inventory.form.choose-option')}
+              placeholder={t('cce-inventory.form.select-option')}
               items={EQUIPMENT_REASONS.map((value) => ({
                 value,
                 label: t(EQUIPMENT_REASON_KEYS[value]),
