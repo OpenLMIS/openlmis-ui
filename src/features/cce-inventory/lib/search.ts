@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { InventoryQuery } from '@/features/cce-inventory/lib/types';
-import { EQUIPMENT_STATUSES } from '@/lib/cce-equipment-status';
+import { EQUIPMENT_STATUSES, type EquipmentStatus } from '@/lib/cce-equipment-status';
 import {
   type CompleteSelection,
   facilityProgramSearchSchema,
@@ -83,4 +83,19 @@ export function legacyInventoryHash(
     ...(search.functionalStatus && { functionalStatus: search.functionalStatus }),
   });
   return `#!/cce/inventory/${path}?${params}`;
+}
+
+export function inventorySavedSearch(
+  listSearch: InventorySearch | undefined,
+  { mode, programId, facilityId }: CompleteSelection,
+  savedStatus: EquipmentStatus,
+): InventorySearch {
+  const { page, functionalStatus, ...kept } = listSearch ?? {};
+  return {
+    ...kept,
+    mode,
+    programId,
+    facilityId,
+    ...(functionalStatus === savedStatus && { functionalStatus }),
+  };
 }

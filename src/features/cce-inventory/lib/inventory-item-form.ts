@@ -1,0 +1,225 @@
+import type { ParseKeys } from 'i18next';
+import { z } from 'zod';
+import type {
+  CatalogItem,
+  EnergySource,
+  InventoryItemBody,
+  PowerStatus,
+  TemperatureGauge,
+  TemperatureMonitor,
+  Utilization,
+} from '@/features/cce-inventory/lib/types';
+import {
+  EQUIPMENT_STATUSES,
+  type EquipmentReason,
+  type EquipmentStatus,
+} from '@/lib/cce-equipment-status';
+import type { SelectionMode } from '@/lib/facility-program-selection';
+import { toOptionalWholeNumber, toWholeNumber, wholeNumberText } from '@/lib/whole-number';
+
+const REQUIRED: ParseKeys = 'cce-inventory.form.required';
+const YEAR_RANGE: ParseKeys = 'cce-inventory.form.year-range';
+const PROGRAM_REQUIRED: ParseKeys = 'facility-program.program-required';
+const FACILITY_REQUIRED: ParseKeys = 'facility-program.facility-required';
+
+export const EQUIPMENT_REASONS: readonly [EquipmentReason, ...EquipmentReason[]] = [
+  'NEEDS_SPARE_PARTS',
+  'NO_FINANCE',
+  'NO_FUEL',
+  'SURPLUS',
+  'DEAD',
+  'NOT_IN_USE',
+  'DECOMMISSIONED',
+];
+
+export const UTILIZATIONS: readonly [Utilization, ...Utilization[]] = [
+  'ACTIVE',
+  'NOT_IN_USE',
+  'IN_STORE_FOR_ALLOCATION',
+];
+
+export const POWER_STATUSES: readonly [PowerStatus, ...PowerStatus[]] = [
+  'YES',
+  'NO',
+  'UNKNOWN',
+  'NOT_APPLICABLE',
+];
+
+export const TEMPERATURE_GAUGES: readonly [TemperatureGauge, ...TemperatureGauge[]] = [
+  'BUILD_IN',
+  'PAIRED',
+  'NO_GAUGE',
+];
+
+export const TEMPERATURE_MONITORS: readonly [TemperatureMonitor, ...TemperatureMonitor[]] = [
+  'BUILD_IN',
+  'PAIRED',
+  'NO_RTM',
+];
+
+export const statusUsesReason = (status: EquipmentStatus | '') =>
+  status === 'AWAITING_REPAIR' || status === 'UNSERVICEABLE';
+
+export const statusUsesDecommission = (status: EquipmentStatus | '') => status === 'UNSERVICEABLE';
+
+export type InventoryItemDetails = {
+  equipmentTrackingId: string;
+  referenceName: string;
+  utilization: Utilization | '';
+  yearOfInstallation: string;
+  source: string;
+  yearOfWarrantyExpiry: string;
+  voltageStabilizer: PowerStatus | '';
+  voltageRegulator: PowerStatus | '';
+  backupGenerator: PowerStatus | '';
+  manualTemperatureGauge: TemperatureGauge | '';
+  remoteTemperatureMonitor: TemperatureMonitor | '';
+  additionalNotes: string;
+  functionalStatus: EquipmentStatus | '';
+  reasonNotWorkingOrNotInUse: EquipmentReason | '';
+  decommissionDate: string;
+};
+
+export const EMPTY_INVENTORY_ITEM_DETAILS: InventoryItemDetails = {
+  equipmentTrackingId: '',
+  referenceName: '',
+  utilization: '',
+  yearOfInstallation: '',
+  source: '',
+  yearOfWarrantyExpiry: '',
+  voltageStabilizer: '',
+  voltageRegulator: '',
+  backupGenerator: '',
+  manualTemperatureGauge: '',
+  remoteTemperatureMonitor: '',
+  additionalNotes: '',
+  functionalStatus: '',
+  reasonNotWorkingOrNotInUse: '',
+  decommissionDate: '',
+};
+
+const optionalChoice = <T extends string>(values: readonly [T, ...T[]]) =>
+  z.union([z.enum(values), z.literal('')]);
+
+const choice = <T extends string>(values: readonly [T, ...T[]]) =>
+  optionalChoice(values).pipe(z.enum(values, { error: REQUIRED }));
+
+const filledText = z.string().refine((value) => value.trim() !== '', REQUIRED);
+
+const year = (optional: boolean) =>
+  wholeNumberText(
+    { required: REQUIRED, invalid: YEAR_RANGE, tooLarge: YEAR_RANGE },
+    { min: { value: 1000, tooSmall: YEAR_RANGE }, max: 9999, optional },
+  );
+
+export const inventoryItemDetailsSchema = z
+  .object({
+    equipmentTrackingId: filledText,
+    referenceName: filledText,
+    utilization: choice(UTILIZATIONS),
+    yearOfInstallation: year(false),
+    source: z.string(),
+    yearOfWarrantyExpiry: year(true),
+    voltageStabilizer: choice(POWER_STATUSES),
+    voltageRegulator: choice(POWER_STATUSES),
+    backupGenerator: choice(POWER_STATUSES),
+    manualTemperatureGauge: choice(TEMPERATURE_GAUGES),
+    remoteTemperatureMonitor: choice(TEMPERATURE_MONITORS),
+    additionalNotes: z.string(),
+    functionalStatus: choice(EQUIPMENT_STATUSES),
+    reasonNotWorkingOrNotInUse: optionalChoice(EQUIPMENT_REASONS),
+    decommissionDate: z.string(),
+  })
+  .superRefine((details, context) => {
+    if (statusUsesReason(details.functionalStatus) && !details.reasonNotWorkingOrNotInUse) {
+      context.addIssue({ code: 'custom', message: REQUIRED, path: ['reasonNotWorkingOrNotInUse'] });
+    }
+    if (statusUsesDecommission(details.functionalStatus) && !details.decommissionDate) {
+      context.addIssue({ code: 'custom', message: REQUIRED, path: ['decommissionDate'] });
+    }
+  });
+
+export type ValidInventoryItemDetails = z.output<typeof inventoryItemDetailsSchema>;
+
+export type InventoryItemValues = {
+  mode: SelectionMode;
+  programId: string | null;
+  facilityId: string | null;
+  equipmentType: string | null;
+  catalogItemId: string | null;
+  details: InventoryItemDetails;
+};
+
+const picked = (message: ParseKeys) => z.string({ error: message }).min(1, message);
+
+export const inventoryItemSchema = z
+  .object({
+    mode: z.enum(['my', 'supervised']),
+    programId: picked(PROGRAM_REQUIRED),
+    facilityId: picked(FACILITY_REQUIRED),
+    equipmentType: picked(REQUIRED),
+    catalogItemId: z.string().nullable(),
+    details: inventoryItemDetailsSchema,
+  })
+  .superRefine((values, context) => {
+    if (values.equipmentType && !values.catalogItemId) {
+      context.addIssue({ code: 'custom', message: REQUIRED, path: ['catalogItemId'] });
+    }
+  });
+
+export const hasFixedPower = (energySource: EnergySource) =>
+  energySource === 'SOLAR' || energySource === 'NOT_APPLICABLE';
+
+export const hasFixedPowerModel = (catalog: readonly CatalogItem[], id: string | null) =>
+  catalog.some((item) => item.id === id && hasFixedPower(item.energySource));
+
+export type PowerField =
+  | 'details.voltageStabilizer'
+  | 'details.voltageRegulator'
+  | 'details.backupGenerator';
+
+export const POWER_FIELDS: readonly PowerField[] = [
+  'details.voltageStabilizer',
+  'details.voltageRegulator',
+  'details.backupGenerator',
+];
+
+const optionalText = (value: string) => {
+  const text = value.trim();
+  return text ? text : undefined;
+};
+
+export function toInventoryItemBody(
+  details: ValidInventoryItemDetails,
+  { facilityId, programId }: { facilityId: string; programId: string },
+  catalogItem: CatalogItem,
+): InventoryItemBody {
+  const status = details.functionalStatus;
+  const power = (value: PowerStatus) =>
+    hasFixedPower(catalogItem.energySource) ? 'NOT_APPLICABLE' : value;
+  const source = optionalText(details.source);
+  const additionalNotes = optionalText(details.additionalNotes);
+  const yearOfWarrantyExpiry = toOptionalWholeNumber(details.yearOfWarrantyExpiry);
+  const reason = details.reasonNotWorkingOrNotInUse;
+  return {
+    facility: { id: facilityId },
+    program: { id: programId },
+    catalogItem,
+    equipmentTrackingId: details.equipmentTrackingId.trim(),
+    referenceName: details.referenceName.trim(),
+    utilization: details.utilization,
+    yearOfInstallation: toWholeNumber(details.yearOfInstallation),
+    ...(yearOfWarrantyExpiry !== null && { yearOfWarrantyExpiry }),
+    ...(source && { source }),
+    voltageStabilizer: power(details.voltageStabilizer),
+    voltageRegulator: power(details.voltageRegulator),
+    backupGenerator: power(details.backupGenerator),
+    manualTemperatureGauge: details.manualTemperatureGauge,
+    remoteTemperatureMonitor: details.remoteTemperatureMonitor,
+    ...(additionalNotes && { additionalNotes }),
+    functionalStatus: status,
+    ...(statusUsesReason(status) && reason && { reasonNotWorkingOrNotInUse: reason }),
+    ...(statusUsesDecommission(status) &&
+      details.decommissionDate && { decommissionDate: details.decommissionDate }),
+  };
+}

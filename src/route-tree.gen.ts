@@ -70,6 +70,7 @@ import { Route as protectedProtectedAdministrationRequisitionGroupsNewRouteImpor
 import { Route as protectedProtectedAdministrationRequisitionTemplatesIdRouteImport } from './routes/(protected)/_protected.administration.requisition-templates_.$id'
 import { Route as protectedProtectedAdministrationSupervisoryNodesIdRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes_.$id'
 import { Route as protectedProtectedAdministrationSupplyPartnersIdRouteImport } from './routes/(protected)/_protected.administration.supply-partners_.$id'
+import { Route as protectedProtectedCceInventoryNewRouteImport } from './routes/(protected)/_protected.cce.inventory_.new'
 import { Route as protectedProtectedRequisitionsApproveBatchRouteImport } from './routes/(protected)/_protected.requisitions.approve_.batch'
 import { Route as protectedProtectedRequisitionsViewRequisitionIdRouteImport } from './routes/(protected)/_protected.requisitions.view_.$requisitionId'
 import { Route as protectedProtectedStockManagementAdjustmentsProgramIdRouteImport } from './routes/(protected)/_protected.stock-management.adjustments_.$programId'
@@ -449,6 +450,12 @@ const protectedProtectedAdministrationSupplyPartnersIdRoute =
     path: '/administration/supply-partners/$id',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedCceInventoryNewRoute =
+  protectedProtectedCceInventoryNewRouteImport.update({
+    id: '/cce/inventory_/new',
+    path: '/cce/inventory/new',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedRequisitionsApproveBatchRoute =
   protectedProtectedRequisitionsApproveBatchRouteImport.update({
     id: '/requisitions/approve_/batch',
@@ -617,6 +624,7 @@ export interface FileRoutesByFullPath {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/cce/inventory/new': typeof protectedProtectedCceInventoryNewRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
@@ -693,6 +701,7 @@ export interface FileRoutesByTo {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/cce/inventory/new': typeof protectedProtectedCceInventoryNewRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/stock-management/adjustments/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
@@ -774,6 +783,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/requisition-templates_/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/(protected)/_protected/administration/supervisory-nodes_/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/(protected)/_protected/administration/supply-partners_/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/(protected)/_protected/cce/inventory_/new': typeof protectedProtectedCceInventoryNewRoute
   '/(protected)/_protected/requisitions/approve_/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/(protected)/_protected/requisitions/view_/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   '/(protected)/_protected/stock-management/adjustments_/$programId': typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
@@ -855,6 +865,7 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/cce/inventory/new'
     | '/requisitions/approve/batch'
     | '/requisitions/view/$requisitionId'
     | '/stock-management/adjustments/$programId'
@@ -931,6 +942,7 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/cce/inventory/new'
     | '/requisitions/approve/batch'
     | '/requisitions/view/$requisitionId'
     | '/stock-management/adjustments/$programId'
@@ -1011,6 +1023,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/requisition-templates_/$id'
     | '/(protected)/_protected/administration/supervisory-nodes_/$id'
     | '/(protected)/_protected/administration/supply-partners_/$id'
+    | '/(protected)/_protected/cce/inventory_/new'
     | '/(protected)/_protected/requisitions/approve_/batch'
     | '/(protected)/_protected/requisitions/view_/$requisitionId'
     | '/(protected)/_protected/stock-management/adjustments_/$programId'
@@ -1467,6 +1480,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/cce/inventory_/new': {
+      id: '/(protected)/_protected/cce/inventory_/new'
+      path: '/cce/inventory/new'
+      fullPath: '/cce/inventory/new'
+      preLoaderRoute: typeof protectedProtectedCceInventoryNewRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/requisitions/approve_/batch': {
       id: '/(protected)/_protected/requisitions/approve_/batch'
       path: '/requisitions/approve/batch'
@@ -1705,6 +1725,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationRequisitionTemplatesIdRoute: typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   protectedProtectedAdministrationSupervisoryNodesIdRoute: typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   protectedProtectedAdministrationSupplyPartnersIdRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  protectedProtectedCceInventoryNewRoute: typeof protectedProtectedCceInventoryNewRoute
   protectedProtectedRequisitionsApproveBatchRoute: typeof protectedProtectedRequisitionsApproveBatchRoute
   protectedProtectedRequisitionsViewRequisitionIdRoute: typeof protectedProtectedRequisitionsViewRequisitionIdRoute
   protectedProtectedStockManagementAdjustmentsProgramIdRoute: typeof protectedProtectedStockManagementAdjustmentsProgramIdRoute
@@ -1815,6 +1836,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationSupervisoryNodesIdRoute,
   protectedProtectedAdministrationSupplyPartnersIdRoute:
     protectedProtectedAdministrationSupplyPartnersIdRoute,
+  protectedProtectedCceInventoryNewRoute:
+    protectedProtectedCceInventoryNewRoute,
   protectedProtectedRequisitionsApproveBatchRoute:
     protectedProtectedRequisitionsApproveBatchRoute,
   protectedProtectedRequisitionsViewRequisitionIdRoute:

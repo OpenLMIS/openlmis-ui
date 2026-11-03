@@ -44,11 +44,9 @@ import {
   INVENTORY_SORT,
   type InventorySearch,
   inventorySearchSchema,
-  legacyInventoryHash,
   toInventoryQuery,
 } from '@/features/cce-inventory/lib/search';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
-import { legacyAvailable, openLegacy } from '@/hooks/use-back-to-legacy';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -71,6 +69,13 @@ import {
   programGrants,
 } from '@/lib/permissions';
 import { type SearchChange, searchSort } from '@/lib/table-search';
+
+declare module '@tanstack/react-router' {
+  // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
+  interface HistoryState {
+    inventoryListSearch?: InventorySearch;
+  }
+}
 
 const RIGHT = RIGHTS.cceInventoryView;
 const EXPORT_FILENAME = 'inventory_items.csv';
@@ -408,10 +413,6 @@ function InventoryList({
         description: t('cce-inventory.export-error'),
       }),
   });
-  const onAdd =
-    canEdit && legacyAvailable()
-      ? () => openLegacy(legacyInventoryHash('add', search, selection))
-      : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -420,7 +421,7 @@ function InventoryList({
       </h2>
       <InventoryToolbar
         exporting={exporting.isPending}
-        onAdd={onAdd}
+        addTo={canEdit ? selection : undefined}
         onExport={() => exporting.mutate()}
         onFilterChange={(patch) => onSearchChange(patch, true)}
         search={search}

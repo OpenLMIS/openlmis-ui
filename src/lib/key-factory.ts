@@ -9,6 +9,7 @@ export const queryKeys = {
   appConfiguration: createQueryKeys('appConfiguration'),
   auth: createQueryKeys('auth'),
   availableRequisitionColumns: createQueryKeys('availableRequisitionColumns'),
+  catalogItems: createQueryKeys('catalogItems'),
   facilities: createQueryKeys('facilities'),
   facilityOperators: createQueryKeys('facilityOperators'),
   facilityTypeApprovedProducts: createQueryKeys('facilityTypeApprovedProducts'),

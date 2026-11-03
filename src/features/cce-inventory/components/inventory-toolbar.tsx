@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { DownloadIcon, Loader2Icon, PlusIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +13,7 @@ import {
   type InventorySearch,
 } from '@/features/cce-inventory/lib/search';
 import { EQUIPMENT_STATUS, EQUIPMENT_STATUSES } from '@/lib/cce-equipment-status';
+import type { CompleteSelection } from '@/lib/facility-program-selection';
 
 type InventoryToolbarProps = {
   search: InventorySearch;
@@ -20,7 +22,7 @@ type InventoryToolbarProps = {
   disabled?: boolean;
   exporting?: boolean;
   onExport?: () => void;
-  onAdd?: () => void;
+  addTo?: CompleteSelection;
 };
 
 export function InventoryToolbar({
@@ -30,7 +32,7 @@ export function InventoryToolbar({
   disabled = false,
   exporting = false,
   onExport,
-  onAdd,
+  addTo,
 }: InventoryToolbarProps) {
   const { t } = useTranslation();
   const statusOptions = EQUIPMENT_STATUSES.map((status) => ({
@@ -81,8 +83,15 @@ export function InventoryToolbar({
         </TooltipTrigger>
         <TooltipContent>{t('cce-inventory.export-hint')}</TooltipContent>
       </Tooltip>
-      {onAdd && (
-        <Button disabled={disabled} onClick={onAdd} size="lg">
+      {addTo && (
+        <Button
+          nativeButton={false}
+          role="link"
+          render={
+            <Link search={addTo} state={{ inventoryListSearch: search }} to="/cce/inventory/new" />
+          }
+          size="lg"
+        >
           <PlusIcon data-icon="inline-start" />
           {t('cce-inventory.add')}
         </Button>

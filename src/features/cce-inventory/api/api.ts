@@ -1,6 +1,8 @@
 import type {
+  CatalogItem,
   InventoryAlert,
   InventoryItem,
+  InventoryItemBody,
   InventoryQuery,
 } from '@/features/cce-inventory/lib/types';
 import { client } from '@/integrations/axios';
@@ -21,6 +23,17 @@ export async function fetchInventoryAlerts(deviceIds: readonly string[]) {
     paramsSerializer: { indexes: null },
   });
   return data.content;
+}
+
+export async function fetchCatalogItems() {
+  const { data } = await client.get<Page<CatalogItem>>('/catalogItems', {
+    params: { archived: false, visibleInCatalog: true },
+  });
+  return data.content;
+}
+
+export async function createInventoryItem(body: InventoryItemBody) {
+  await client.post('/inventoryItems', body);
 }
 
 export function exportInventoryItems(facilityId: string, programId: string) {

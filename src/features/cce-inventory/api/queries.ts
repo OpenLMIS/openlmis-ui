@@ -1,5 +1,9 @@
 import { queryOptions } from '@tanstack/react-query';
-import { fetchInventoryAlerts, fetchInventoryItems } from '@/features/cce-inventory/api/api';
+import {
+  fetchCatalogItems,
+  fetchInventoryAlerts,
+  fetchInventoryItems,
+} from '@/features/cce-inventory/api/api';
 import type { InventoryQuery } from '@/features/cce-inventory/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -14,4 +18,10 @@ export const inventoryAlertsOptions = (deviceIds: readonly string[]) =>
     queryKey: [...queryKeys.inventoryItems.all, 'alerts', deviceIds],
     queryFn: () => fetchInventoryAlerts(deviceIds),
     enabled: deviceIds.length > 0,
+  });
+
+export const catalogItemsOptions = () =>
+  queryOptions({
+    queryKey: queryKeys.catalogItems.list(),
+    queryFn: fetchCatalogItems,
   });
