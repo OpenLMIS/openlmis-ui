@@ -234,7 +234,20 @@ export function ApprovalTable({
   useEffect(() => {
     if (pastEnd) onSearchChange({ page: page.totalPages > 1 ? page.totalPages : undefined }, true);
   }, [pastEnd, page.totalPages, onSearchChange]);
-  const empty = deferred.program ? (
+  const local = !online || !!deferred.offline || isDeviceAccess(page);
+  const empty = local ? (
+    <DataTableEmpty
+      description={t(
+        copies?.length
+          ? 'requisitions.view.no-matches-description'
+          : 'requisitions.offline.empty-description',
+      )}
+      icon={copies?.length ? <SearchXIcon /> : <ClipboardListIcon />}
+      title={t(
+        copies?.length ? 'requisitions.view.no-matches-title' : 'requisitions.offline.empty-title',
+      )}
+    />
+  ) : deferred.program ? (
     <DataTableEmpty
       action={
         <Button

@@ -5,6 +5,7 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  type HistoryState,
   RouterProvider,
 } from '@tanstack/react-router';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
@@ -49,7 +50,7 @@ vi.mock('@/features/reference-data/api/api', () => ({
   })),
 }));
 const records = fp.requisitionDtos.slice(0, 2);
-function renderRoute(ids = records.map((r) => r.id).join(',')) {
+function renderRoute(ids = records.map((r) => r.id).join(','), state?: HistoryState) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -70,12 +71,20 @@ function renderRoute(ids = records.map((r) => r.id).join(',')) {
     path: 'requisitions/approve',
     component: () => <div>Approval List</div>,
   });
+  const view = createRoute({
+    getParentRoute: () => layout,
+    path: 'requisitions/view',
+    component: () => <div>View List</div>,
+  });
+  const path = `/requisitions/approve/batch?ids=${ids}`;
+  const history = createMemoryHistory({ initialEntries: [path] });
+  if (state) history.replace(path, state);
   const router = createRouter({
     routeTree: root.addChildren([
-      group.addChildren([layout.addChildren([page, list] as never)] as never),
+      group.addChildren([layout.addChildren([page, list, view] as never)] as never),
     ] as never),
     context: { queryClient },
-    history: createMemoryHistory({ initialEntries: [`/requisitions/approve/batch?ids=${ids}`] }),
+    history,
   } as never) as AnyRouter;
   render(
     <QueryClientProvider client={queryClient}>
@@ -610,4 +619,15 @@ it('does not reconcile an uncertain attempt against a timeout fallback snapshot'
     (await getLocalDb().table('requisitionBatchDrafts').get(id)).unresolvedApproval,
   ).toBeDefined();
   queryClient.clear();
+});
+
+it('returns from a saved batch to the originating View list with its search intact', async () => {
+  const search = { facility: 'f', program: 'p', offline: true, page: 3, dir: 'asc' as const };
+  const { router } = renderRoute(records[0].id, {
+    requisitionReturn: { to: '/requisitions/view', search },
+  });
+  await screen.findAllByRole('textbox');
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.cancel' }));
+  await screen.findByText('View List');
+  expect(router.state.location.search).toEqual(search);
 });

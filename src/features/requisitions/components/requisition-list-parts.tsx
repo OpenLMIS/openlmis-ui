@@ -17,6 +17,7 @@ import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
 import { FlagBadge } from '@/components/shared/flag-badge';
 import { Button } from '@/components/ui/button';
 import { RequisitionCopiesContext } from '@/features/requisitions/hooks/use-offline-copies';
+import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { RequisitionSearch } from '@/features/requisitions/lib/search-facilities';
 import type { ApprovalListRow, RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { tableValue } from '@/lib/empty-value';
@@ -146,7 +147,11 @@ export function ViewRequisition({
       aria-label={name}
       to="/requisitions/approve/batch"
       search={{ ids: record.id }}
-      state={'state' in linkProps ? linkProps.state : undefined}
+      state={
+        'state' in linkProps
+          ? linkProps.state
+          : returnState({ to: '/requisitions/view', search: linkProps.search })
+      }
     />
   ) : (
     <Link

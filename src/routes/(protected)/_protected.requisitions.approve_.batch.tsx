@@ -217,7 +217,8 @@ function BatchDraftStatus({ drafts }: { drafts: BatchDrafts }) {
   );
 }
 function approvalReturn(state: HistoryState) {
-  return state.requisitionReturn?.to === '/requisitions/approve'
+  return state.requisitionReturn?.to === '/requisitions/approve' ||
+    state.requisitionReturn?.to === '/requisitions/view'
     ? state.requisitionReturn
     : { to: '/requisitions/approve' as const, search: {} };
 }

@@ -42,6 +42,7 @@ import { parsePermissions, programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 import { isSecureOrigin } from '@/lib/secure-context';
 import { assertSessionScope, getSessionScope, subscribeSessionScope } from '@/lib/session-scope';
+import { supervisoryNodesWithRight } from '@/lib/supervisory-nodes';
 
 export type RequisitionAccess = {
   userId: string;
@@ -53,25 +54,6 @@ export type RequisitionAccess = {
   groups: RequisitionGroup[];
   facilities: MinimalFacility[];
   programs: Program[];
-};
-export const nodesWithRight = (
-  access: Awaited<ReturnType<typeof readOfflineAccess>>,
-  roles: readonly Role[],
-  right: string,
-  programId?: string,
-) => {
-  const ids = new Set(
-    roles.filter((role) => role.rights.some((r) => r.name === right)).map((r) => r.id),
-  );
-  return [
-    ...new Set(
-      access.user.roleAssignments.flatMap((a) =>
-        a.supervisoryNodeId && ids.has(a.roleId) && (!programId || a.programId === programId)
-          ? [a.supervisoryNodeId]
-          : [],
-      ),
-    ),
-  ];
 };
 export async function readRequisitionAccess() {
   if (!isSecureOrigin) throw new LocalDataUnavailableError();
@@ -137,7 +119,7 @@ export async function waitForRequisitionAccess() {
 export function viewChoices({ access, saved }: Awaited<ReturnType<typeof readRequisitionAccess>>) {
   const permissions = parsePermissions(access.permissionStrings);
   const viewNodes = saved.nodes.filter((n) =>
-    nodesWithRight(access, saved.roles, RIGHTS.requisitionView).includes(n.id),
+    supervisoryNodesWithRight(access.user, saved.roles, RIGHTS.requisitionView).includes(n.id),
   );
   const partners = saved.nodes.filter((n) => partnerNodeIds(viewNodes).includes(n.id));
   return searchFacilityOptions(
@@ -162,7 +144,12 @@ export function mayApproveCopy(
   programId: string,
   nodeId?: string | null,
 ) {
-  const nodes = nodesWithRight(data.access, data.saved.roles, RIGHTS.requisitionApprove, programId);
+  const nodes = supervisoryNodesWithRight(
+    data.access.user,
+    data.saved.roles,
+    RIGHTS.requisitionApprove,
+    programId,
+  );
   if (nodeId) return nodes.includes(nodeId);
   return data.saved.nodes.some(
     (node) =>
@@ -187,8 +174,8 @@ export function mayApproveSavedCopy(
       copy.summary.program.id,
       copy.summary.supervisoryNode,
     );
-  const current = nodesWithRight(
-    data.access,
+  const current = supervisoryNodesWithRight(
+    data.access.user,
     data.saved.roles,
     RIGHTS.requisitionApprove,
     copy.summary.program.id,
@@ -225,8 +212,8 @@ export const requisitionAccessProvider = defineDownloadProvider({
     check();
     const ids = [
       ...new Set([
-        ...nodesWithRight(access, roles, RIGHTS.requisitionView),
-        ...nodesWithRight(access, roles, RIGHTS.requisitionApprove),
+        ...supervisoryNodesWithRight(access.user, roles, RIGHTS.requisitionView),
+        ...supervisoryNodesWithRight(access.user, roles, RIGHTS.requisitionApprove),
       ]),
     ];
     const nodes = await fetchSupervisoryNodesByIds(ids);
@@ -273,12 +260,14 @@ export async function prepareRequisitionAccess(client: QueryClient, force = fals
       supervisoryNodesByIdsOptions(ids).queryKey,
       ids.map((id) => saved.nodes.find((n) => n.id === id)).filter((n) => n !== undefined),
     );
-  const viewIds = nodesWithRight(access, saved.roles, RIGHTS.requisitionView);
+  const viewIds = supervisoryNodesWithRight(access.user, saved.roles, RIGHTS.requisitionView);
   seedNodes(viewIds);
   seedNodes(partnerNodeIds(saved.nodes.filter((n) => viewIds.includes(n.id))));
   seedNodes([]);
   for (const program of saved.programs)
-    seedNodes(nodesWithRight(access, saved.roles, RIGHTS.requisitionApprove, program.id));
+    seedNodes(
+      supervisoryNodesWithRight(access.user, saved.roles, RIGHTS.requisitionApprove, program.id),
+    );
   for (const group of saved.groups)
     client.setQueryData(requisitionGroupOptions(group.id).queryKey, group);
 }

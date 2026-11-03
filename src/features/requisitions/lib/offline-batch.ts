@@ -3,7 +3,6 @@ import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
 import {
   mayApproveCopy,
   mayApproveSavedCopy,
-  nodesWithRight,
   readRequisitionAccess,
   waitForRequisitionAccess,
 } from '@/features/requisitions/lib/offline-access';
@@ -19,6 +18,7 @@ import type { ApprovalListRow } from '@/features/requisitions/lib/types';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { RIGHTS } from '@/lib/rights';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { supervisoryNodesWithRight } from '@/lib/supervisory-nodes';
 
 async function findBatchSummaries(ids: readonly string[], session: number) {
   const remaining = new Set(ids);
@@ -71,8 +71,8 @@ export async function captureBatch(
       ? waitForRequisitionAccess()
       : readRequisitionAccess());
     assertSessionScope(lease.session);
-    const approvalNodes = nodesWithRight(
-      access.access,
+    const approvalNodes = supervisoryNodesWithRight(
+      access.access.user,
       access.saved.roles,
       RIGHTS.requisitionApprove,
       summary.program.id,

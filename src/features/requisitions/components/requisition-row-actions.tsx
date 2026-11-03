@@ -21,6 +21,7 @@ import {
   RequisitionCopiesContext,
 } from '@/features/requisitions/hooks/use-offline-copies';
 import { removalDecision, removeCopy } from '@/features/requisitions/lib/offline-copies';
+import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { RequisitionSearch } from '@/features/requisitions/lib/search-facilities';
 import type { RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -108,7 +109,13 @@ export function RequisitionRowActions({
                   icon: <ClipboardCheckIcon />,
                   label: t('requisitions.batch.title'),
                   disabled,
-                  link: <Link to="/requisitions/approve/batch" search={{ ids: record.id }} />,
+                  link: (
+                    <Link
+                      to="/requisitions/approve/batch"
+                      search={{ ids: record.id }}
+                      state={returnState({ to: '/requisitions/view', search })}
+                    />
+                  ),
                 },
               ]
             : []),
@@ -165,7 +172,13 @@ export function RequisitionRowActions({
             {decision?.batchBlocked ? (
               <Button
                 nativeButton={false}
-                render={<Link to="/requisitions/approve/batch" search={{ ids: record.id }} />}
+                render={
+                  <Link
+                    to="/requisitions/approve/batch"
+                    search={{ ids: record.id }}
+                    state={returnState({ to: '/requisitions/view', search })}
+                  />
+                }
               >
                 {t('requisitions.batch.title')}
               </Button>

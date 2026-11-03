@@ -13,14 +13,9 @@ export function useOfflineCopies() {
   const client = useQueryClient();
   useEffect(() => {
     if (!isSecureOrigin) return;
-    let first = true;
     const subscription = liveQuery(readCopies).subscribe({
       next: () => {
         if (scope !== getSessionScope()) return;
-        if (first) {
-          first = false;
-          return;
-        }
         void client.invalidateQueries({ queryKey: COPIES_KEY });
         void client.invalidateQueries({ queryKey: LOCAL_LIST_KEY });
       },
