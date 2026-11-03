@@ -36,7 +36,7 @@ it('removal invalidates in-flight captures even when no payload was stored', asy
   const lease = await beginCopy('r');
   const decision = await removalDecision('r');
   await removeCopy(decision);
-  await expect(commitCopy(lease, bundle(lease))).rejects.toThrow();
+  await expect(commitCopy(lease, ready(lease))).rejects.toThrow();
   expect(await readCopies()).toEqual([]);
 });
 it('retains independent batch edits and uncertain approval evidence', async () => {

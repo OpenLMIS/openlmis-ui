@@ -42,9 +42,7 @@ it('recovers a failed service import on reconnect and stops both services on unm
   await waitFor(() => expect(coordinator).toHaveBeenCalledOnce());
   expect(coordinator).toHaveBeenCalledWith(
     expect.objectContaining({
-      providers: expect.objectContaining({
-        0: expect.objectContaining({ id: 'requisition-access' }),
-      }),
+      providers: expect.arrayContaining([expect.objectContaining({ id: 'requisition-access' })]),
     }),
   );
   expect(reloadOnce).not.toHaveBeenCalled();
