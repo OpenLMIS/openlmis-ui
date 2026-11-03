@@ -20,7 +20,7 @@ beforeEach(() =>
   }),
 );
 it.each([true, false])(
-  'removes changed and refused uncertain records but keeps unchanged records blocked on secure=%s',
+  'clears changed records but retains unchanged and refused uncertain evidence on secure=%s',
   async (secure) => {
     security.secure = secure;
     sessionStorage.clear();
@@ -62,16 +62,16 @@ it.each([true, false])(
       records.map((r) => r.id),
       response,
     );
-    expect([...result.removed.keys()]).toEqual([records[1].id, records[2].id]);
+    expect([...result.removed.keys()]).toEqual([records[1].id]);
     expect(result.response.requisitionDtos).toEqual([records[0]]);
     if (!secure) {
       expect(readBatchSessionMarker(userId, records[0].id)).toBeDefined();
       expect(readBatchSessionMarker(userId, records[1].id)).toBeUndefined();
-      expect(readBatchSessionMarker(userId, records[2].id)).toBeUndefined();
+      expect(readBatchSessionMarker(userId, records[2].id)).toBeDefined();
       return;
     }
     expect((await table.get(records[0].id)).unresolvedApproval).toBeDefined();
     expect(await table.get(records[1].id)).toBeUndefined();
-    expect(await table.get(records[2].id)).toBeUndefined();
+    expect((await table.get(records[2].id)).unresolvedApproval).toBeDefined();
   },
 );

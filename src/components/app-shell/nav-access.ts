@@ -7,7 +7,8 @@ import { rightsOptions } from '@/features/auth/api/queries';
 import { requisitionViewNodes } from '@/features/auth/lib/requisition-access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { rolesOptions, userRecordOptions } from '@/features/reference-data/api/queries';
+import { userRecordOptions } from '@/features/reference-data/api/queries';
+import { requisitionRolesOptions } from '@/features/requisitions/lib/offline-access';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { type FeatureFlagKey, useFlag } from '@/lib/feature-flags';
 import { navRightFor } from '@/lib/nav-rights';
@@ -61,7 +62,7 @@ function useSignedInRights() {
     throwOnError: false,
   });
   const roles = useQuery({
-    ...rolesOptions({ connectionStatus: false }),
+    ...requisitionRolesOptions({ connectionStatus: false }),
     enabled: lookup,
     retry: false,
     throwOnError: false,

@@ -21,6 +21,7 @@ import {
 } from '@/features/requisitions/api/api';
 import * as batchMarkers from '@/features/requisitions/lib/batch-session-markers';
 import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
+import * as savedBatches from '@/features/requisitions/lib/offline-batch';
 import { getLocalDb } from '@/integrations/local-db';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve_.batch';
 import { generateBatch } from '@/test-utils/batch-fixtures';
@@ -569,4 +570,44 @@ it('reveals and focuses an off-screen invalid quantity after closing the invalid
     expect(document.activeElement).toHaveAttribute('id', 'batch-requisition-0-line-0-199'),
   );
   expect(saveBatchRequisitions).not.toHaveBeenCalled();
+});
+
+it('does not reconcile an uncertain attempt against a timeout fallback snapshot', async () => {
+  const id = records[0].id;
+  const userId = useLoginData.getState().referenceDataUserId;
+  await getLocalDb()
+    .table('requisitionBatchDrafts')
+    .put({
+      draftId: id,
+      userId,
+      formatVersion: 1,
+      revision: 1,
+      baselineModifiedDate: 'newer-than-the-saved-copy',
+      baselineStatus: records[0].status,
+      approvedQuantities: {},
+      unresolvedApproval: { attemptedAt: 'now' },
+    });
+  vi.mocked(fetchBatchRequisitions).mockRejectedValue(
+    new AxiosError('Timeout', AxiosError.ECONNABORTED),
+  );
+  vi.spyOn(savedBatches, 'readBatch').mockResolvedValue({
+    response: { requisitionDtos: [records[0]], requisitionErrors: [] },
+    fetchedAt: 1,
+    currency: {
+      currencyCode: 'USD',
+      currencySymbol: '$',
+      currencySymbolSide: 'left',
+      currencyDecimalPlaces: 2,
+      groupingSize: 3,
+      groupingSeparator: ',',
+      decimalSeparator: '.',
+    },
+  });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const loader = Route.options.loader as (args: unknown) => Promise<unknown>;
+  await loader({ context: { queryClient }, deps: { ids: [id] }, location: { state: {} } });
+  expect(
+    (await getLocalDb().table('requisitionBatchDrafts').get(id)).unresolvedApproval,
+  ).toBeDefined();
+  queryClient.clear();
 });

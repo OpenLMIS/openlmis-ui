@@ -32,8 +32,9 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
+import { ForbiddenError } from '@/features/auth/lib/access';
 import {
-  requireRequisitionView,
+  type requireRequisitionView,
   supervisoryNodesWithRight,
 } from '@/features/auth/lib/requisition-access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -44,7 +45,6 @@ import {
   processingPeriodOptions,
   programLookupOptions,
   requisitionGroupOptions,
-  supervisoryNodesByIdsOptions,
 } from '@/features/reference-data/api/queries';
 import type { Orderable, Program, RejectionReason } from '@/features/reference-data/lib/types';
 import {
@@ -74,6 +74,7 @@ import {
   RequisitionValidationDialog,
 } from '@/features/requisitions/components/requisition-action-dialogs';
 import { RequisitionComments } from '@/features/requisitions/components/requisition-comments';
+import { RequisitionCopyNotice } from '@/features/requisitions/components/requisition-copy-notice';
 import { RequisitionError } from '@/features/requisitions/components/requisition-error';
 import { RequisitionFooter } from '@/features/requisitions/components/requisition-footer';
 import { RequisitionHeader } from '@/features/requisitions/components/requisition-header';
@@ -101,6 +102,16 @@ import {
 } from '@/features/requisitions/lib/failure';
 import { buildLines, filterLines } from '@/features/requisitions/lib/lines';
 import {
+  prepareRequisitionAccess,
+  requisitionNodesOptions,
+} from '@/features/requisitions/lib/offline-access';
+import { attachCopyLease, beginCopy } from '@/features/requisitions/lib/offline-copies';
+import {
+  captureSingle,
+  hydrateSingle,
+  readSingle,
+} from '@/features/requisitions/lib/offline-single';
+import {
   applyPatientChanges,
   parsePatients,
   patientCountError,
@@ -120,8 +131,9 @@ import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
-import { requireOnline } from '@/lib/local-data';
-import { useOnline } from '@/lib/online';
+import { onlineOrDevice, requireOnline } from '@/lib/local-data';
+import { isDeviceAccess } from '@/lib/offline-access';
+import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { randomId } from '@/lib/random-id';
 import { REQUISITION_STATUS, REQUISITION_STATUSES } from '@/lib/requisition-status';
@@ -130,6 +142,12 @@ import { RIGHTS } from '@/lib/rights';
 import { isSecureOrigin } from '@/lib/secure-context';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { detailPagingSchema, textFilterSchema } from '@/lib/table-search';
+import { uploadAccessEpoch } from '@/lib/upload-access';
+import {
+  currentApprovalNodes,
+  freshRequisitionAccess,
+  requireRequisitionViewWithDevice,
+} from '@/routes/-requisition-access';
 
 const dialogFlag = z.boolean().optional().catch(undefined);
 const searchSchema = requisitionSearchSchema.extend({
@@ -149,6 +167,8 @@ type RequisitionData = {
   record: RequisitionRecord;
   userId: string;
   access: Awaited<ReturnType<typeof requireRequisitionView>>;
+  copyResult?: Promise<unknown>;
+  accessEpoch?: string;
 };
 
 const CLOSED_DIALOGS = {
@@ -169,15 +189,31 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
   },
   preload: false,
   loader: async ({ context: { queryClient }, params, cause }) => {
+    await prepareRequisitionAccess(queryClient);
     const userId = useLoginData.getState().referenceDataUserId;
-    const options = requisitionOptions(params.requisitionId);
+    const lease = isSecureOrigin ? await beginCopy(params.requisitionId) : undefined;
+    let copyResult: Promise<unknown> | undefined;
+    const serverOptions = requisitionOptions(params.requisitionId);
+    const options = {
+      ...serverOptions,
+      queryFn: () =>
+        onlineOrDevice(
+          () => fetchRequisition(params.requisitionId),
+          async () => {
+            const copy = await readSingle(params.requisitionId);
+            await prepareRequisitionAccess(queryClient);
+            hydrateSingle(queryClient, copy.single.record, copy.single.references);
+            return copy.single.record;
+          },
+        ),
+    };
     const state = queryClient.getQueryState(options.queryKey);
     const sameRecord = cause === 'stay' && shownRequisitionId === params.requisitionId;
     shownRequisitionId = undefined;
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
     const [access, record] =
       (await Promise.all([
-        requireRequisitionView(queryClient),
+        requireRequisitionViewWithDevice(queryClient),
         sameRecord && !state?.error && !state?.isInvalidated
           ? queryClient.ensureQueryData(options)
           : queryClient.fetchQuery({ ...options, staleTime: 0 }),
@@ -187,6 +223,15 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
         throw error;
       })) ?? [];
     if (!userId || userChanged() || !access || !record) return;
+    if (lease) {
+      attachCopyLease(record, lease);
+      if (isOnline() && !isDeviceAccess(record)) {
+        copyResult = captureSingle(queryClient, lease, record).then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+      }
+    }
     if (needsUnskipSetting(record)) queryClient.prefetchQuery(unskipSettingOptions());
     queryClient.prefetchQuery(requisitionStatusMessagesOptions(record.id));
     queryClient.prefetchQuery(facilityOptions(record.facility.id));
@@ -197,7 +242,13 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
     queryClient.prefetchQuery(currency);
     queryClient.prefetchQuery(program);
     shownRequisitionId = record.id;
-    return { record, userId, access };
+    return {
+      record,
+      userId,
+      access,
+      copyResult,
+      accessEpoch: isOnline() && !isDeviceAccess(record) ? uploadAccessEpoch() : undefined,
+    };
   },
   component: RequisitionPage,
   pendingComponent: RequisitionPending,
@@ -264,6 +315,12 @@ function RequisitionReadShell({
         </WorkspaceHeader>
         <WorkspaceContent>
           <div className="flex flex-col gap-4">
+            <RequisitionCopyNotice
+              representation="single"
+              local={isDeviceAccess(record)}
+              id={data.record.id}
+              result={data.copyResult}
+            />
             <QueryBoundary
               resetKey={record.id}
               errorComponent={SectionError}
@@ -319,6 +376,13 @@ function RequisitionBody({
   quantity: ReturnType<typeof useQuantityUnit>;
 }) {
   const [record, setRecord] = useState(data.record);
+  const [copyFailure, setCopyFailure] = useState<unknown>();
+  const copyOpening = useRef(data.copyResult);
+  if (copyOpening.current !== data.copyResult) {
+    copyOpening.current = data.copyResult;
+    setCopyFailure(undefined);
+  }
+  const accessEpoch = useRef(data.accessEpoch);
   const currentData = { ...data, record };
   const editor = useRequisitionForm(record);
   const addedLines = useStore(editor.form.store, (state) => state.values.draft.addedLines);
@@ -387,6 +451,17 @@ function RequisitionBody({
     assertSessionScope(scope);
     await editor.device.update(fresh);
     assertSessionScope(scope);
+    if (isSecureOrigin) {
+      const lease = await beginCopy(fresh.id);
+      try {
+        await captureSingle(queryClient, lease, fresh, 'read');
+        setCopyFailure(null);
+      } catch (error) {
+        assertSessionScope(scope);
+        setCopyFailure(error);
+      }
+      attachCopyLease(fresh, lease);
+    }
     setRecord(fresh);
     queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
     setFailure(null);
@@ -411,6 +486,17 @@ function RequisitionBody({
     queryClient.setQueryData(requisitionOptions(saved.id).queryKey, saved);
     await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
+    if (isSecureOrigin) {
+      const lease = await beginCopy(saved.id);
+      try {
+        await captureSingle(queryClient, lease, saved, 'read');
+        setCopyFailure(null);
+      } catch (error) {
+        assertSessionScope(scope);
+        setCopyFailure(error);
+      }
+      attachCopyLease(saved, lease);
+    }
     return saved;
   };
   const sync = async () => {
@@ -510,6 +596,29 @@ function RequisitionBody({
         return;
       }
       requireOnline();
+      let checkedPolicy: ReturnType<typeof requisitionCapabilities> | undefined;
+      if (accessEpoch.current !== uploadAccessEpoch()) {
+        const epoch = uploadAccessEpoch();
+        const access = await freshRequisitionAccess(queryClient);
+        assertSessionScope(scope);
+        const nodes = await currentApprovalNodes(queryClient, access, record);
+        assertSessionScope(scope);
+        checkedPolicy = requisitionCapabilities({
+          ...capabilityContext(record, access, program),
+          currentNodeId: nodes[0],
+        });
+        if (!uncertain.current) {
+          if (!checkedPolicy.actions.includes(kind))
+            throw new ForbiddenError(RIGHTS.requisitionView);
+          const fresh = await fetchRequisition(record.id);
+          assertSessionScope(scope);
+          if (fresh.modifiedDate !== record.modifiedDate || fresh.status !== record.status)
+            throw new RequisitionRetryConflict();
+        }
+        requireOnline();
+        if (epoch !== uploadAccessEpoch()) throw new RequisitionRetryConflict();
+        if (checkedPolicy.actions.includes(kind)) accessEpoch.current = epoch;
+      }
       let advanced = false;
       let saved: RequisitionRecord | undefined;
       const retry = uncertain.current;
@@ -560,6 +669,8 @@ function RequisitionBody({
         assertSessionScope(scope);
       }
       requireOnline();
+      if (!advanced && checkedPolicy && !checkedPolicy.actions.includes(kind))
+        throw new ForbiddenError(RIGHTS.requisitionView);
       if (!advanced) {
         if (
           kind === 'submit' ||
@@ -829,6 +940,13 @@ function RequisitionBody({
           </WorkspaceActions>
         </WorkspaceHeader>
         <WorkspaceContent>
+          <RequisitionCopyNotice
+            representation="single"
+            local={isDeviceAccess(record)}
+            id={record.id}
+            result={data.copyResult}
+            failure={copyFailure}
+          />
           {serverStatus && (
             <Alert variant="info">
               <AlertTitle>{t('requisitions.edit.key-used-title')}</AlertTitle>
@@ -1070,7 +1188,11 @@ function RequisitionBody({
         })()}
       {search.addProduct && canAdd && !editingBlocked && !editor.locked && (
         <AddProductsDialog
-          load={{ identities: record.availableProducts ?? [], select: selectOffered }}
+          load={{
+            requisitionId: record.id,
+            identities: record.availableProducts ?? [],
+            select: selectOffered,
+          }}
           onClose={closeDialog}
           onSave={(picked) => {
             const nextLines = [
@@ -1246,7 +1368,7 @@ function useRequisitionPolicy(data: RequisitionData) {
   const { data: program } = useSuspenseQuery(programLookupOptions(record.program.id));
   const approvalNodes = approvalNodesFor(access, record.program.id);
   const { data: nodes } = useSuspenseQuery(
-    supervisoryNodesByIdsOptions(
+    requisitionNodesOptions(
       !record.supervisoryNode && ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status)
         ? approvalNodes
         : [],

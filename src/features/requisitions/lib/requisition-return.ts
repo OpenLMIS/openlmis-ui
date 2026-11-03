@@ -2,6 +2,7 @@ import type { HistoryState } from '@tanstack/react-router';
 import type { ApprovalSearch } from '@/features/requisitions/lib/approval-search';
 import type { InitiateSearch } from '@/features/requisitions/lib/initiate-search';
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
+import type { ApprovalListRow } from '@/features/requisitions/lib/types';
 
 export type RequisitionReturn =
   | { to: '/requisitions/initiate'; search: InitiateSearch }
@@ -20,5 +21,6 @@ declare module '@tanstack/react-router' {
   interface HistoryState {
     requisitionReturn?: RequisitionReturn;
     requisitionBatchLabels?: Record<string, string>;
+    requisitionBatchRecords?: ApprovalListRow[];
   }
 }

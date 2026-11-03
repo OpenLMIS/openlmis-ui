@@ -6,9 +6,11 @@ export type RequisitionSearchResult = {
   emergency: boolean;
   status: RequisitionStatus;
   createdDate?: string | null;
-  program?: { name?: string | null } | null;
-  facility?: { code?: string | null; name?: string | null } | null;
+  supervisoryNode?: string | null;
+  program?: { id?: string; name?: string | null } | null;
+  facility?: { id?: string; code?: string | null; name?: string | null } | null;
   processingPeriod?: {
+    id?: string;
     name?: string | null;
     startDate?: string | null;
     endDate?: string | null;
@@ -33,6 +35,7 @@ export type RequisitionRecord = Omit<Requisition, 'requisitionLineItems'> & {
   })[];
   draftStatusMessage?: string | null;
   availableProducts?: readonly { id: string; versionNumber: number }[];
+  createdDate?: string | null;
   modifiedDate?: string | null;
   eTag?: string;
   id: string;
@@ -44,6 +47,7 @@ export type RequisitionRecord = Omit<Requisition, 'requisitionLineItems'> & {
   extraData?: { originalRequisition?: string } | null;
   supplyingFacilities?: { id: string; name?: string }[];
   supplyingFacilityAccessDenied?: boolean;
+  statusChanges?: Partial<Record<RequisitionStatus, { changeDate?: string }>>;
   statusHistory?: {
     status: RequisitionStatus;
     createdDate: string;

@@ -63,6 +63,13 @@ export function RequisitionsToolbar({
               change({ status: status ? (status as RequisitionStatus) : undefined })
             }
           />
+          <DataTableSelectFilter
+            label={t('requisitions.offline.label')}
+            value={search.offline ? 'yes' : ''}
+            allLabel={t('requisitions.offline.all')}
+            options={[{ value: 'yes', label: t('requisitions.offline.only') }]}
+            onValueChange={(value) => change({ offline: value === 'yes' || undefined })}
+          />
           <DatePicker
             clearLabel={t('data-table.clear-filter', {
               label: t('requisitions.filters.initiated-from'),

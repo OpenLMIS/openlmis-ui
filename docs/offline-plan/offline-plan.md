@@ -8,8 +8,9 @@ submission, ordered sync and failure recovery. Issue and Receive now use the sam
 
 The app's files and all language catalogs are saved after an online visit. Home, Adjustments,
 Issue, Receive, Offline Events, Stock On Hand and Stock Card summaries can then reopen offline,
-including after a browser restart. Transaction history, other pages and print/PDF actions need a
-connection.
+including after a browser restart. View and Approve also search complete saved requisitions;
+saved single records and batches reopen with local editing. Server requisition actions,
+transaction history, other pages and print/PDF actions need a connection.
 
 At sign-in, the app downloads home-facility programs where the user can view Stock Cards.
 Downloads run in the background. Offline, the Adjustments, Issue and Receive program lists show

@@ -36,6 +36,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { requireRight } from '@/features/auth/lib/access';
+import { supervisoryNodesWithRight } from '@/features/auth/lib/requisition-access';
 import { currencySettingsOptions } from '@/features/reference-data/api/queries';
 import {
   approveBatchRequisitions,
@@ -47,6 +48,8 @@ import { BatchCards } from '@/features/requisitions/components/batch-cards';
 import { BatchContext } from '@/features/requisitions/components/batch-context';
 import { BatchGrid, type BatchGridHandle } from '@/features/requisitions/components/batch-grid';
 import { batchFieldId } from '@/features/requisitions/components/batch-quantity';
+import { RemovedCopyDialog } from '@/features/requisitions/components/removed-copy-dialog';
+import { RequisitionCopyNotice } from '@/features/requisitions/components/requisition-copy-notice';
 import { RequisitionOutdatedAlert } from '@/features/requisitions/components/requisition-outdated-alert';
 import { type BatchDrafts, useBatchDrafts } from '@/features/requisitions/hooks/use-batch-drafts';
 import {
@@ -60,27 +63,72 @@ import {
 } from '@/features/requisitions/lib/batch';
 import { recoverBatchApprovals } from '@/features/requisitions/lib/batch-recovery';
 import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
+import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
+import { captureBatch, readBatch } from '@/features/requisitions/lib/offline-batch';
+import {
+  beginCopy,
+  RequisitionCopyRemovedError,
+  readCopy,
+} from '@/features/requisitions/lib/offline-copies';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
-import { useOnline } from '@/lib/online';
+import { onlineOrDevice, requireOnline } from '@/lib/local-data';
+import { isOnline, useOnline } from '@/lib/online';
 import { revealField } from '@/lib/reveal-field';
 import { RIGHTS } from '@/lib/rights';
+import { isSecureOrigin } from '@/lib/secure-context';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { uploadAccessEpoch } from '@/lib/upload-access';
+import {
+  currentApprovalNodes,
+  freshRequisitionAccess,
+  requireApprovalNode,
+} from '@/routes/-requisition-access';
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/approve_/batch')({
   validateSearch: z.object({ ids: z.string().catch('') }),
   loaderDeps: ({ search }) => ({ ids: batchIds(search.ids) }),
   preload: false,
-  loader: async ({ context: { queryClient }, deps: { ids } }) => {
+  loader: async ({ context: { queryClient }, deps: { ids }, location }) => {
+    await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
-    const [response, currency] = await Promise.all([
-      queryClient.fetchQuery(batchRequisitionsOptions(ids)),
-      queryClient.ensureQueryData(currencySettingsOptions()),
-    ]);
-    const recovered = await recoverBatchApprovals(ids, response);
-    return { response: recovered.response, removed: recovered.removed, currency, ids };
+    const leases = isSecureOrigin ? await Promise.all(ids.map(beginCopy)) : [];
+    let copyResult: Promise<unknown> | undefined;
+    const loaded = await onlineOrDevice(
+      async () => {
+        const [response, currency] = await Promise.all([
+          queryClient.fetchQuery(batchRequisitionsOptions(ids)),
+          queryClient.ensureQueryData(currencySettingsOptions()),
+        ]);
+        if (isSecureOrigin) {
+          copyResult = captureBatch(
+            leases,
+            response,
+            currency,
+            location.state.requisitionBatchRecords,
+          ).then(
+            () => undefined,
+            (error: unknown) => error,
+          );
+        }
+        return { response, currency, fetchedAt: undefined as number | undefined };
+      },
+      () => readBatch(ids),
+    );
+    const fresh = isOnline() && loaded.fetchedAt === undefined;
+    const recovered = fresh
+      ? await recoverBatchApprovals(ids, loaded.response)
+      : { response: loaded.response, removed: new Map<string, string>() };
+    return {
+      ...loaded,
+      response: recovered.response,
+      removed: recovered.removed,
+      ids,
+      copyResult,
+      accessEpoch: fresh ? uploadAccessEpoch() : undefined,
+    };
   },
   component: BatchPage,
   pendingComponent: BatchPending,
@@ -153,6 +201,7 @@ function BatchPending() {
 function BatchDraftStatus({ drafts }: { drafts: BatchDrafts }) {
   const { t } = useTranslation();
   const status = useSyncExternalStore(drafts.subscribeStatus, drafts.getStatus);
+  if (status.error instanceof RequisitionCopyRemovedError) return <RemovedCopyDialog />;
   return drafts.deviceAvailable ? (
     <DraftStatus
       {...status}
@@ -187,9 +236,12 @@ function BatchPage() {
   const navigate = Route.useNavigate();
   const locationState = useRouterState({ select: (state) => state.location.state });
   const [response, setResponse] = useState(loaded.response);
+  const [copyFailure, setCopyFailure] = useState<unknown>();
+  const accessEpoch = useRef(loaded.accessEpoch);
   const opening = useRef(loaded);
   if (opening.current !== loaded) {
     opening.current = loaded;
+    setCopyFailure(undefined);
     setResponse(loaded.response);
   }
   const records = response.requisitionDtos;
@@ -269,8 +321,50 @@ function BatchPage() {
   };
   const mutation = useSessionMutation({
     mutationFn: async (kind: 'sync' | Action | 'check') => {
-      if (kind !== 'revert' && kind !== 'remove' && !online) return;
+      if (kind !== 'revert' && kind !== 'remove') requireOnline();
       await drafts.flush();
+      if (kind !== 'revert' && kind !== 'remove' && accessEpoch.current !== uploadAccessEpoch()) {
+        const epoch = uploadAccessEpoch();
+        const access = await freshRequisitionAccess(queryClient);
+        assertSessionScope(scope);
+        for (const record of records) {
+          const copy = await readCopy(record.id);
+          assertSessionScope(scope);
+          if (!copy) {
+            if (!loaded.accessEpoch) throw new Error(t('requisitions.offline.failed-description'));
+            continue;
+          }
+          const nodes = copy.summary.supervisoryNode
+            ? await currentApprovalNodes(queryClient, access, copy.summary)
+            : supervisoryNodesWithRight(
+                access.user,
+                access.roles,
+                RIGHTS.requisitionApprove,
+                copy.summary.program.id,
+              );
+          assertSessionScope(scope);
+          requireApprovalNode(nodes);
+        }
+        if (kind !== 'check') {
+          const fresh = await refresh();
+          assertSessionScope(scope);
+          if (
+            records.some((record) => {
+              const next = fresh.requisitionDtos?.find((next) => next.id === record.id);
+              return (
+                !next || next.status !== record.status || next.modifiedDate !== record.modifiedDate
+              );
+            })
+          ) {
+            setResponse(fresh);
+            throw new Error(t('requisitions.batch.review-refreshed'));
+          }
+        }
+        requireOnline();
+        if (epoch !== uploadAccessEpoch())
+          throw new Error(t('requisitions.batch.review-refreshed'));
+        accessEpoch.current = epoch;
+      }
       if (kind === 'revert' || kind === 'update') {
         await drafts.clear(kind === 'update' ? target : ids);
         return;
@@ -356,6 +450,22 @@ function BatchPage() {
       const fresh =
         kind === 'sync' || failures.size ? await refresh() : orderBatch(saveResponse, ids);
       await drafts.clear(save.succeeded, fresh.requisitionDtos, false);
+      if (isSecureOrigin && save.succeeded.length) {
+        const leases = await Promise.all(save.succeeded.map(beginCopy));
+        try {
+          await captureBatch(
+            leases,
+            orderBatch(fresh, save.succeeded),
+            loaded.currency,
+            locationState.requisitionBatchRecords,
+            'read',
+          );
+          setCopyFailure(null);
+        } catch (error) {
+          assertSessionScope(scope);
+          setCopyFailure(error);
+        }
+      }
       needsRefresh.current = [];
       if (kind === 'sync') {
         setResponse(fresh);
@@ -466,7 +576,7 @@ function BatchPage() {
   });
   const initialReconcile = useRef(false);
   useEffect(() => {
-    if (initialReconcile.current || !drafts.ready() || !unresolved.length) return;
+    if (!online || initialReconcile.current || !drafts.ready() || !unresolved.length) return;
     initialReconcile.current = true;
     if (unresolved.some((r) => drafts.unresolvedChanged(r.id, r))) run('check');
   });
@@ -503,6 +613,13 @@ function BatchPage() {
         <WorkspaceContent>
           <div ref={layout.measure} className="min-w-0" data-batch-version={meta}>
             <div className="mb-4 flex flex-col gap-3">
+              <RequisitionCopyNotice
+                representation="batch"
+                local={loaded.fetchedAt !== undefined}
+                id={ids[0]}
+                result={loaded.copyResult}
+                failure={copyFailure}
+              />
               <BatchDraftStatus drafts={drafts} />
               {[...refused].map(([id, reason]) => (
                 <Alert key={id} variant="warning">
