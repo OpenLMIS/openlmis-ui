@@ -44,8 +44,9 @@ export function CreateOrderForm({
   const programId = pickedProgram || (programs.length === 1 ? programs[0].id : '');
   const picker = useRef<HTMLDivElement>(null);
   const [ids, setIds] = useState<string[]>([]);
+  const selectedFacilities = facilities.filter((facility) => ids.includes(facility.id));
   const focus = useRemovalFocus(
-    ids,
+    selectedFacilities.map((facility) => facility.id),
     () => picker.current?.querySelector<HTMLElement>('[role=combobox]') ?? null,
   );
   const [picked, setPicked] = useState('');
@@ -108,7 +109,7 @@ export function CreateOrderForm({
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   const table = useTable({
     features: dataTableFeatures,
-    data: facilities.filter((f) => ids.includes(f.id)),
+    data: selectedFacilities,
     columns: [
       {
         id: 'name',
