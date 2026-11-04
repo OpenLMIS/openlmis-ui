@@ -149,3 +149,25 @@ Portuguese, Arabic and French corrections requested by the reviewer.
 
 Verification remains limited to touched test files, TypeScript, Biome and design-system lint.
 No full suite, browser, server writes, pushes or PR creation were run in this follow-up.
+
+## Implementation Follow-Up (2026-11-04)
+
+Failed loader adoption reopens draft writing and Retry and exposes Update. A delayed loader
+adoption cannot replace a newer Sync baseline. Single-copy captures reuse status messages;
+only post-action capture forces fresh messages.
+
+Batch retrieval and approval-list membership run in parallel and share membership with copy
+capture. Definitive membership failures retain status-based online editing and show the usual
+copy failure notice. Network failures retain device fallback. Old optional approval flags use
+approvability semantics. Membership refusal uses the same no-longer-awaiting reason in rows
+and action results, retaining its translation key until rendering.
+
+Conversion retires each released id independently. Retirement uses a multi-entry membership
+index added in database version 17, preserving version 16 data. Cleanup notices distinguish
+retirement from failed replacement capture and suppress resolved draft-removal errors. All
+five catalogs include the new text; Arabic terminology and European Portuguese copy agree
+with their catalogs. F14 tracks actual line ids and proves only the edited line renders.
+
+Verification covers the touched test files, translation sorting, TypeScript, Biome and
+design-system lint. This pass does not push, use a browser, run the full suite or write to
+servers.

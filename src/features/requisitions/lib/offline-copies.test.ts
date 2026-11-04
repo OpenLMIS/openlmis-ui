@@ -1,4 +1,4 @@
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import type { RequisitionStatus } from '@/lib/requisition-status';
@@ -347,7 +347,10 @@ it('retires both representations after an action and prevents an old capture res
       .table(name)
       .bulkPut([{ draftId: 'r' }, { draftId: 'other' }]);
   }
+  const scan = vi.spyOn(getLocalDb().table(LOCAL_TABLES.requisitionCopies), 'toArray');
   await retireCopy(lease);
+  expect(scan).not.toHaveBeenCalled();
+  scan.mockRestore();
   for (const name of [LOCAL_TABLES.requisitionDrafts, LOCAL_TABLES.requisitionBatchDrafts]) {
     expect(await getLocalDb().table(name).get('r')).toBeUndefined();
     expect(await getLocalDb().table(name).get('other')).toBeDefined();

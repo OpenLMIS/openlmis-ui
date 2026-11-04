@@ -272,6 +272,7 @@ export function useRequisitionDraft(
           adopt.current?.(buildRequisitionDraft(base));
         } catch (error) {
           assertSessionScope(scope);
+          closed = false;
           writer.fail(error);
           throw error;
         }

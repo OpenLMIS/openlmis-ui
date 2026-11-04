@@ -671,3 +671,20 @@ it('reports successful release even when local copy retirement fails', async () 
   expect(screen.queryByText('requisitions.convert.release-unknown')).not.toBeInTheDocument();
   queryClient.clear();
 });
+
+it('retires later released copies when the first retirement fails', async () => {
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const retire = vi
+    .spyOn(copies, 'retireCopy')
+    .mockRejectedValueOnce(new Error('Storage unavailable'));
+  rows([row('March'), row('April')], 2);
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await screen.findAllByText('March');
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  await action(false);
+  await confirm();
+  await waitFor(() => expect(releaseRequisitions).toHaveBeenCalledOnce());
+  await waitFor(() => expect(retire).toHaveBeenCalledTimes(2));
+  expect(retire.mock.calls.map(([lease]) => lease.id)).toEqual(['March', 'April']);
+  queryClient.clear();
+});

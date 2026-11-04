@@ -48,6 +48,11 @@ it('reuses the grid and available-product queries when capturing a copy', async 
     [{ ...product(), id: 'another' }],
   );
   vi.mocked(fetchStatusMessages).mockResolvedValueOnce([{ id: 'new-message' }] as never);
+  vi.mocked(fetchStatusMessages).mockClear();
+  const lease = { id: base.id, userId: 'u', generation: 0, session: getSessionScope() };
+  await captureSingle(client, lease, base, 'read');
+  await captureSingle(client, lease, base, 'read');
+  expect(fetchStatusMessages).not.toHaveBeenCalled();
   const refs = await captureSingle(
     client,
     {
@@ -58,7 +63,9 @@ it('reuses the grid and available-product queries when capturing a copy', async 
     },
     base,
     'read',
+    { freshMessages: true },
   );
+  expect(fetchStatusMessages).toHaveBeenCalledOnce();
   expect(refs.messages).toEqual([{ id: 'new-message' }]);
   expect(refs.products.map((p) => p.id)).toEqual(['product', 'another']);
   client.clear();

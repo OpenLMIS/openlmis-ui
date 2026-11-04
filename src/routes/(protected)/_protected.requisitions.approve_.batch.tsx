@@ -66,7 +66,9 @@ import { recoverBatchApprovals } from '@/features/requisitions/lib/batch-recover
 import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
 import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
 import {
+  type BatchMembership,
   captureBatch,
+  fetchBatchMembership,
   readBatch,
   verifyBatchMembership,
 } from '@/features/requisitions/lib/offline-batch';
@@ -103,15 +105,19 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
     await requireRight(queryClient, RIGHTS.requisitionApprove);
     const leases = isSecureOrigin ? await Promise.all(ids.map(beginCopy)) : [];
     let copyResult: Promise<unknown> | undefined;
+    let membership: BatchMembership | undefined;
     const loaded = await onlineOrDevice(
       async () => {
-        const [rawResponse, currency] = await Promise.all([
+        const [rawResponse, currency, found] = await Promise.all([
           queryClient.fetchQuery(batchRequisitionsOptions(ids)),
           queryClient.ensureQueryData(currencySettingsOptions()),
+          fetchBatchMembership(ids, scope),
         ]);
-        const response = await verifyBatchMembership(rawResponse, scope);
+        assertSessionScope(scope);
+        membership = found;
+        const response = verifyBatchMembership(rawResponse, found);
         if (isSecureOrigin) {
-          copyResult = captureBatch(leases, response, currency).then(
+          copyResult = captureBatch(leases, response, currency, 'wait', found).then(
             () => undefined,
             (error: unknown) => error,
           );
@@ -130,6 +136,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
       removed: recovered.removed,
       ids,
       copyResult,
+      membership,
       copyLeases: leases,
       accessEpoch: fresh ? uploadAccessEpoch() : undefined,
     };
@@ -243,10 +250,12 @@ function BatchPage() {
   const [response, setResponse] = useState(loaded.response);
   const [copyFailure, setCopyFailure] = useState<unknown>();
   const accessEpoch = useRef(loaded.accessEpoch);
+  const membership = useRef(loaded.membership);
   const opening = useRef(loaded);
   if (opening.current !== loaded) {
     opening.current = loaded;
     setCopyFailure(undefined);
+    membership.current = loaded.membership;
     setResponse(loaded.response);
   }
   const records = response.requisitionDtos;
@@ -260,7 +269,7 @@ function BatchPage() {
   const [reasons, setReasons] = useState(new Map<string, string>());
   const [action, setAction] = useState<Action | null>(null);
   const [target, setTarget] = useState<string[]>([]);
-  const [dialog, setDialog] = useState<string | null>(() =>
+  const [dialog, setDialog] = useState<string | Map<string, string> | null>(() =>
     loaded.removed.size
       ? [...loaded.removed.values()]
           .map((label) => `${label}: ${t('requisitions.batch.possibly-approved')}`)
@@ -295,18 +304,16 @@ function BatchPage() {
   };
   const report = (failures: Map<string, string>) => {
     setReasons(failures);
-    if (failures.size)
-      setDialog(
-        ids
-          .filter((id) => failures.has(id))
-          .map((id) => `${recordLabel(id)}: ${failures.get(id) || t('requisitions.batch.missing')}`)
-          .join('\n'),
-      );
+    if (failures.size) setDialog(failures);
   };
   const refresh = async () => {
-    const result = await fetchBatchRequisitions(ids);
+    const [result, found] = await Promise.all([
+      fetchBatchRequisitions(ids),
+      fetchBatchMembership(ids, scope),
+    ]);
     assertSessionScope(scope);
-    return orderBatch(await verifyBatchMembership(result, scope), ids);
+    membership.current = found;
+    return orderBatch(verifyBatchMembership(result, found), ids);
   };
   const reconcile = async (fresh: BatchResponse) => {
     const removed = ids.filter((id) =>
@@ -360,7 +367,7 @@ function BatchPage() {
                 !next ||
                 next.status !== record.status ||
                 next.modifiedDate !== record.modifiedDate ||
-                next.approvalAvailable !== record.approvalAvailable
+                batchApprovable(next) !== batchApprovable(record)
               );
             })
           ) {
@@ -419,7 +426,11 @@ function BatchPage() {
             (kind === 'approve' || drafts.text(r.id, l).trim() !== ''),
         );
         const reason = !batchApprovable(r)
-          ? t('requisitions.batch.possibly-approved')
+          ? t(
+              r.approvalAvailable === false
+                ? 'requisitions.batch.no-longer-awaiting'
+                : 'requisitions.batch.possibly-approved',
+            )
           : drafts.unresolved(r.id)
             ? t('requisitions.batch.uncertain')
             : drafts.outdated(r.id)
@@ -468,7 +479,14 @@ function BatchPage() {
       if (isSecureOrigin && save.succeeded.length) {
         const leases = loaded.copyLeases.filter((lease) => save.succeeded.includes(lease.id));
         try {
-          await captureBatch(leases, orderBatch(fresh, save.succeeded), loaded.currency, 'read');
+          await captureBatch(
+            leases,
+            orderBatch(fresh, save.succeeded),
+            loaded.currency,
+            'read',
+            membership.current,
+          );
+          assertSessionScope(scope);
           setCopyFailure(null);
         } catch (error) {
           assertSessionScope(scope);
@@ -658,7 +676,9 @@ function BatchPage() {
                 <Alert key={id} variant="warning">
                   <AlertTitle>{recordLabel(id)}</AlertTitle>
                   <AlertDescription>
-                    {reason || reasons.get(id) || t('requisitions.batch.missing')}
+                    {reason === 'requisitions.batch.no-longer-awaiting'
+                      ? t(reason)
+                      : reason || reasons.get(id) || t('requisitions.batch.missing')}
                   </AlertDescription>
                 </Alert>
               ))}
@@ -806,7 +826,19 @@ function BatchPage() {
       <InvalidSubmitDialog
         open={!!dialog}
         title={t('requisitions.batch.errors', { count: reasons.size || 1 })}
-        description={<span className="whitespace-pre-line">{dialog}</span>}
+        description={
+          <span className="whitespace-pre-line">
+            {dialog instanceof Map
+              ? ids
+                  .filter((id) => dialog.has(id))
+                  .map((id) => {
+                    const reason = dialog.get(id);
+                    return `${recordLabel(id)}: ${reason === 'requisitions.batch.no-longer-awaiting' ? t(reason) : reason || t('requisitions.batch.missing')}`;
+                  })
+                  .join('\n')
+              : dialog}
+          </span>
+        }
         closeLabel={t('dialog.close')}
         onOpenChange={(open) => {
           if (!open) setDialog(null);

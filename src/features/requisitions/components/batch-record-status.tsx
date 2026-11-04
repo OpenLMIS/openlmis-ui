@@ -23,7 +23,9 @@ export function BatchRecordStatus({ record }: { record: BatchRequisition }) {
   return (
     <span className="flex items-center gap-1 text-destructive text-xs">
       <TriangleAlertIcon className="size-4 shrink-0" />
-      {reason || t('requisitions.batch.invalid-requisition')}
+      {reason === 'requisitions.batch.no-longer-awaiting'
+        ? t(reason)
+        : reason || t('requisitions.batch.invalid-requisition')}
     </span>
   );
 }
