@@ -601,8 +601,8 @@ function BatchPage() {
             const latest = await refresh();
             await retireUnavailable(latest);
             const removed = await reconcile(latest);
-            setResponse(latest);
             assertSessionScope(scope);
+            setResponse(latest);
             for (const id of removed) failures.delete(id);
           } catch {
             assertSessionScope(scope);

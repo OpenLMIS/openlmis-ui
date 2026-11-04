@@ -803,6 +803,7 @@ function RequisitionBody({
             }
           : opening,
       );
+      assertSessionScope(scope);
       router.clearCache({
         filter: (match) =>
           'requisitionId' in match.params && match.params.requisitionId === record.id,
