@@ -231,15 +231,6 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
         throw error;
       })) ?? [];
     if (!userId || userChanged() || !access || !record) return;
-    if (lease) {
-      attachCopyLease(record, lease);
-      if (isOnline() && !isDeviceAccess(record)) {
-        copyResult = captureSingle(queryClient, lease, record).then(
-          () => undefined,
-          (error: unknown) => error,
-        );
-      }
-    }
     if (needsUnskipSetting(record)) queryClient.prefetchQuery(unskipSettingOptions());
     queryClient.prefetchQuery(requisitionStatusMessagesOptions(record.id));
     queryClient.prefetchQuery(facilityOptions(record.facility.id));
@@ -249,6 +240,15 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
     queryClient.prefetchQuery(period);
     queryClient.prefetchQuery(currency);
     queryClient.prefetchQuery(program);
+    if (lease) {
+      attachCopyLease(record, lease);
+      if (isOnline() && !isDeviceAccess(record)) {
+        copyResult = captureSingle(queryClient, lease, record).then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+      }
+    }
     shownRequisitionId = record.id;
     return {
       record,

@@ -17,7 +17,12 @@ import {
   processingPeriodOptions,
   programLookupOptions,
 } from '@/features/reference-data/api/queries';
-import { fetchStatusMessages, fetchUnskipSetting } from '@/features/requisitions/api/api';
+import type { fetchStatusMessages, fetchUnskipSetting } from '@/features/requisitions/api/api';
+import {
+  requisitionGridQueries,
+  requisitionStatusMessagesOptions,
+  unskipSettingOptions,
+} from '@/features/requisitions/api/queries';
 import {
   mayViewCopy,
   readRequisitionAccess,
@@ -82,30 +87,36 @@ export async function captureSingle(
   record: RequisitionRecord,
   accessMode: 'wait' | 'read' = 'wait',
 ) {
-  const [products, approved, facility, period, currency, program, messages, unskip] =
-    await Promise.all([
-      client.fetchQuery(
-        orderablesByIdentitiesOptions([
-          ...record.requisitionLineItems.map((l) => l.orderable),
-          ...(record.availableProducts ?? []),
-        ]),
-      ),
-      client.fetchQuery(
-        approvedProductsByIdentitiesOptions(
-          record.requisitionLineItems.flatMap((l) =>
-            l.approvedProduct ? [l.approvedProduct] : [],
-          ),
-        ),
-      ),
-      client.fetchQuery(facilityOptions(record.facility.id)),
-      client.fetchQuery(processingPeriodOptions(record.processingPeriod.id)),
-      client.fetchQuery(currencySettingsOptions()),
-      client.fetchQuery(programLookupOptions(record.program.id)),
-      fetchStatusMessages(record.id),
-      ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status)
-        ? fetchUnskipSetting()
-        : Promise.resolve(undefined),
-    ]);
+  const [productsQuery, approvedQuery, periodQuery, currencyQuery, programQuery] =
+    requisitionGridQueries(record);
+  const [
+    lineProducts,
+    availableProducts,
+    approved,
+    facility,
+    period,
+    currency,
+    program,
+    messages,
+    unskip,
+  ] = await Promise.all([
+    client.ensureQueryData(productsQuery),
+    client.ensureQueryData(orderablesByIdentitiesOptions(record.availableProducts ?? [])),
+    client.ensureQueryData(approvedQuery),
+    client.ensureQueryData(facilityOptions(record.facility.id)),
+    client.ensureQueryData(periodQuery),
+    client.ensureQueryData(currencyQuery),
+    client.ensureQueryData(programQuery),
+    client.ensureQueryData(requisitionStatusMessagesOptions(record.id)),
+    ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status)
+      ? client.ensureQueryData(unskipSettingOptions())
+      : Promise.resolve(undefined),
+  ]);
+  const products = [
+    ...new Map(
+      [...lineProducts, ...availableProducts].map((p) => [`${p.id}:${p.meta?.versionNumber}`, p]),
+    ).values(),
+  ];
   assertSessionScope(lease.session);
   const references = { products, approved, facility, period, currency, program, messages, unskip };
   if (!singleComplete(record, references)) throw new LocalDataUnavailableError();
