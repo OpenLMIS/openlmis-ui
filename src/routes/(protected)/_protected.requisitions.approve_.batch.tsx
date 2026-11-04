@@ -65,7 +65,11 @@ import {
 import { recoverBatchApprovals } from '@/features/requisitions/lib/batch-recovery';
 import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
 import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
-import { captureBatch, readBatch } from '@/features/requisitions/lib/offline-batch';
+import {
+  captureBatch,
+  readBatch,
+  verifyBatchMembership,
+} from '@/features/requisitions/lib/offline-batch';
 import {
   beginCopy,
   confirmBatchApproval,
@@ -94,16 +98,18 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   loaderDeps: ({ search }) => ({ ids: batchIds(search.ids) }),
   preload: false,
   loader: async ({ context: { queryClient }, deps: { ids } }) => {
+    const scope = getSessionScope();
     await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
     const leases = isSecureOrigin ? await Promise.all(ids.map(beginCopy)) : [];
     let copyResult: Promise<unknown> | undefined;
     const loaded = await onlineOrDevice(
       async () => {
-        const [response, currency] = await Promise.all([
+        const [rawResponse, currency] = await Promise.all([
           queryClient.fetchQuery(batchRequisitionsOptions(ids)),
           queryClient.ensureQueryData(currencySettingsOptions()),
         ]);
+        const response = await verifyBatchMembership(rawResponse, scope);
         if (isSecureOrigin) {
           copyResult = captureBatch(leases, response, currency).then(
             () => undefined,
@@ -300,7 +306,7 @@ function BatchPage() {
   const refresh = async () => {
     const result = await fetchBatchRequisitions(ids);
     assertSessionScope(scope);
-    return orderBatch(result, ids);
+    return orderBatch(await verifyBatchMembership(result, scope), ids);
   };
   const reconcile = async (fresh: BatchResponse) => {
     const removed = ids.filter((id) =>
@@ -351,7 +357,10 @@ function BatchPage() {
             records.some((record) => {
               const next = fresh.requisitionDtos?.find((next) => next.id === record.id);
               return (
-                !next || next.status !== record.status || next.modifiedDate !== record.modifiedDate
+                !next ||
+                next.status !== record.status ||
+                next.modifiedDate !== record.modifiedDate ||
+                next.approvalAvailable !== record.approvalAvailable
               );
             })
           ) {
@@ -468,7 +477,6 @@ function BatchPage() {
       }
       needsRefresh.current = [];
       if (kind === 'sync') {
-        setResponse(fresh);
         report(failures);
         if (save.succeeded.length)
           toast.success(t('requisitions.batch.synced', { count: save.succeeded.length }), {

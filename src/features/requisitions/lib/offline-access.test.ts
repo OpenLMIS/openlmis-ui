@@ -11,7 +11,7 @@ import {
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import type { OfflineAccess } from '@/lib/offline-access';
 import { captureBatch, readBatch } from './offline-batch';
-import { beginCopy, readCopy } from './offline-copies';
+import { beginCopy, readCopy, retireCopy } from './offline-copies';
 
 vi.mock('@/features/requisitions/api/api', () => ({ fetchApprovalList: vi.fn() }));
 
@@ -335,4 +335,56 @@ it('saves the remaining approval copies when one record has left the approval li
   );
   expect((await readCopy('r'))?.batch?.record.id).toBe('r');
   expect(await readCopy('gone')).toBeUndefined();
+  const saved = await readBatch(['gone', 'r']);
+  expect(saved.response.requisitionDtos?.map((r) => r.id)).toEqual(['r']);
+  expect(saved.response.requisitionErrors).toEqual([
+    expect.objectContaining({ requisitionId: 'gone' }),
+  ]);
+});
+
+it('reopens sibling batch copies after one saved requisition is retired', async () => {
+  await publish(access());
+  vi.mocked(fetchApprovalList).mockResolvedValue(
+    approvalPage([summary, { ...summary, id: 'other' }]),
+  );
+  const leases = await Promise.all(['r', 'other'].map(beginCopy));
+  await captureBatch(
+    leases,
+    { requisitionDtos: [batchRecord, { ...batchRecord, id: 'other' }] },
+    currency,
+    'read',
+  );
+  await retireCopy(leases[0]);
+  const saved = await readBatch(['r', 'other']);
+  expect(saved.response.requisitionDtos?.map((r) => r.id)).toEqual(['other']);
+  expect(saved.response.requisitionErrors).toEqual([
+    expect.objectContaining({ requisitionId: 'r' }),
+  ]);
+});
+
+it('reopens siblings when an existing copy loses its approval-list membership', async () => {
+  await publish(access());
+  const leases = await Promise.all(['r', 'gone'].map(beginCopy));
+  const response = { requisitionDtos: [batchRecord, { ...batchRecord, id: 'gone' }] };
+  vi.mocked(fetchApprovalList).mockResolvedValue(
+    approvalPage([summary, { ...summary, id: 'gone' }]),
+  );
+  await captureBatch(leases, response, currency, 'read');
+  await getLocalDb()
+    .table(LOCAL_TABLES.requisitionBatchDrafts)
+    .put({
+      draftId: 'r',
+      userId: leases[0].userId,
+      formatVersion: 1,
+      revision: 1,
+      approvedQuantities: { line: '5' },
+    });
+  vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([summary]));
+  await captureBatch(leases, response, currency, 'read');
+  await captureBatch([leases[0]], { requisitionDtos: [batchRecord] }, currency, 'read');
+  const saved = await readBatch(['r', 'gone']);
+  expect(saved.response.requisitionDtos?.map((r) => r.id)).toEqual(['r']);
+  expect(saved.response.requisitionErrors).toEqual([
+    expect.objectContaining({ requisitionId: 'gone' }),
+  ]);
 });

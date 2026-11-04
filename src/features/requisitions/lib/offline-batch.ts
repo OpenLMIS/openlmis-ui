@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios';
 import { fetchApprovalList } from '@/features/requisitions/api/api';
-import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
+import type { BatchRequisition, BatchResponse } from '@/features/requisitions/lib/batch-types';
 import {
   mayApproveCopy,
   mayApproveSavedCopy,
@@ -33,6 +33,23 @@ async function findBatchSummaries(ids: readonly string[], session: number) {
     if (page + 1 >= result.totalPages) break;
   }
   return { found, remaining };
+}
+export async function verifyBatchMembership(
+  response: BatchResponse,
+  session: number,
+): Promise<BatchResponse & { requisitionDtos: BatchRequisition[] }> {
+  assertSessionScope(session);
+  const { remaining } = await findBatchSummaries(
+    (response.requisitionDtos ?? []).map((r) => r.id),
+    session,
+  );
+  return {
+    ...response,
+    requisitionDtos: (response.requisitionDtos ?? []).map((record) => ({
+      ...record,
+      approvalAvailable: !remaining.has(record.id),
+    })),
+  };
 }
 export async function captureBatch(
   leases: CopyLease[],
@@ -108,7 +125,20 @@ export async function captureBatch(
         approvalNodes,
         approvalVerified: true,
         requestedIds: leases.map((lease) => lease.id),
-        errors: response.requisitionErrors ?? [],
+        errors: [
+          ...(response.requisitionErrors ?? []),
+          ...leases
+            .filter(
+              (lease) =>
+                !refused.has(lease.id) &&
+                (membership.remaining.has(lease.id) ||
+                  !records.some((record) => record.id === lease.id)),
+            )
+            .map((lease) => ({
+              requisitionId: lease.id,
+              errorMessage: { messageKey: 'requisitions.batch.no-longer-awaiting' },
+            })),
+        ],
       },
     });
     attachCopyLease(record, lease);
@@ -117,11 +147,13 @@ export async function captureBatch(
 export async function readBatch(ids: readonly string[]) {
   const access = await readRequisitionAccess();
   const copies = await Promise.all(ids.map(readCopy));
-  const ready = copies.flatMap((copy) => (copy?.batch ? [{ ...copy, batch: copy.batch }] : []));
+  const ready = copies.flatMap((copy) =>
+    copy?.batch?.approvalVerified ? [{ ...copy, batch: copy.batch }] : [],
+  );
   if (ready.some((copy) => !copy.batch.approvalVerified || !mayApproveSavedCopy(access, copy)))
     throw new LocalDataUnavailableError();
   const errors = ids.flatMap((id, index) => {
-    if (copies[index]?.batch) return [];
+    if (copies[index]?.batch?.approvalVerified) return [];
     const error = ready
       .flatMap((copy) => (copy.batch.requestedIds.includes(id) ? copy.batch.errors : []))
       .find((error) => error.requisitionId === id);
