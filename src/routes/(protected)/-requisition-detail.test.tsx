@@ -30,7 +30,11 @@ import { Route } from '@/routes/(protected)/_protected.requisitions.view_.$requi
 import { expectRouteWarning } from '@/test-utils/expect-route-warning';
 import { httpError } from '@/test-utils/http-error';
 
-const modelTracking = vi.hoisted(() => ({ enabled: false, models: [] as unknown[][] }));
+const modelTracking = vi.hoisted(() => ({
+  enabled: false,
+  models: [] as unknown[][],
+  rows: [] as string[],
+}));
 vi.mock('@/features/requisitions/components/requisition-grid', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@/features/requisitions/components/requisition-grid')>();
@@ -41,6 +45,22 @@ vi.mock('@/features/requisitions/components/requisition-grid', async (importOrig
     ) => {
       if (modelTracking.enabled) modelTracking.models.push(props.models);
       return <actual.RequisitionGridView {...props} />;
+    },
+  };
+});
+
+vi.mock('@/components/ui/table', async (original) => {
+  const actual = await original<typeof import('@/components/ui/table')>();
+  return {
+    ...actual,
+    TableRow: (
+      props: import('react').ComponentProps<typeof actual.TableRow> & {
+        'data-requisition-line'?: string;
+      },
+    ) => {
+      if (modelTracking.enabled && props['data-requisition-line'])
+        modelTracking.rows.push(props['data-requisition-line']);
+      return <actual.TableRow {...props} />;
     },
   };
 });
@@ -1887,3 +1907,27 @@ it.each([false, true])(
     queryClient.clear();
   },
 );
+
+it('renders only the edited requisition line while typing', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1200);
+  const { queryClient, router } = await openEditor();
+  await act(async () => {
+    await router.navigate({
+      to: '/requisitions/view/$requisitionId',
+      params: { requisitionId: 'r' },
+      search: { detailSize: 100 },
+    });
+  });
+  modelTracking.enabled = true;
+  modelTracking.rows = [];
+  try {
+    fireEvent.change(
+      screen.getAllByRole('textbox', { name: 'beginningBalance: Product (P1)' })[0],
+      { target: { value: '42' } },
+    );
+    await waitFor(() => expect(modelTracking.rows).toEqual(['line']));
+  } finally {
+    modelTracking.enabled = false;
+    queryClient.clear();
+  }
+});

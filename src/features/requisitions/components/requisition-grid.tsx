@@ -1,7 +1,6 @@
 import {
   type CellContext,
   createColumnHelper,
-  FlexRender,
   functionalUpdate,
   useTable,
 } from '@tanstack/react-table';
@@ -262,16 +261,16 @@ export function RequisitionGridView({
     [cellContext, supplyingHasStock, editing, errors],
   );
   const removable = canRemoveLine(tab === 'fullSupply', !!editing?.editable);
-  const removeLine = useCallback(
-    (id: string) => {
-      if (!editing || editing.pending) return;
-      const ids = data.flatMap((row) => (row.model ? [row.id] : []));
-      const index = ids.indexOf(id);
-      setFocusAfterRemoval(ids[index + 1] ?? ids[index - 1] ?? '__grid');
-      editing.editor.removeLine(id);
-    },
-    [editing, data],
-  );
+  const removal = useRef({ data, editing });
+  removal.current = { data, editing };
+  const removeLine = useCallback((id: string) => {
+    const { data, editing } = removal.current;
+    if (!editing || editing.pending) return;
+    const ids = data.flatMap((row) => (row.model ? [row.id] : []));
+    const index = ids.indexOf(id);
+    setFocusAfterRemoval(ids[index + 1] ?? ids[index - 1] ?? '__grid');
+    editing.editor.removeLine(id);
+  }, []);
   useLayoutEffect(() => {
     if (!focusAfterRemoval) return;
     const target =
@@ -440,6 +439,11 @@ export function RequisitionGridView({
     }
     return pinned;
   }, [pinnedKey, pinnedWidths]);
+  const visibleKey = visible.map((column) => column.id).join('|');
+  const rowColumns = useMemo(
+    () => columns.filter((column) => visibleKey.split('|').includes(column.name)),
+    [columns, visibleKey],
+  );
   const pin = (id: string) => pinnedColumns.get(id);
   const leadingPinned = visible.findIndex((column) => !pinnedColumns.has(column.id));
   const totalSpan = Math.max(1, leadingPinned === -1 ? visible.length : leadingPinned);
@@ -564,18 +568,17 @@ export function RequisitionGridView({
                         </TableCell>
                       </TableRow>
                     ) : (
-                      <TableRow
+                      <RequisitionProductRow
                         key={row.id}
-                        pinned
-                        data-invalid={!!errors[row.id] || undefined}
-                        tone={gridRowTone(row.original, supplyingHasStock)}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} {...pin(cell.column.id)}>
-                            <FlexRender cell={cell} />
-                          </TableCell>
-                        ))}
-                      </TableRow>
+                        model={row.original.model}
+                        columns={rowColumns}
+                        errors={errors[row.id]}
+                        context={cellContext}
+                        shortfall={supplyingHasStock}
+                        editing={editing}
+                        pinned={pinnedColumns}
+                        remove={removable ? removeLine : undefined}
+                      />
                     ),
                   )
                 ) : (
@@ -622,6 +625,66 @@ export function RequisitionGridView({
     </RequisitionCells>
   );
 }
+const RequisitionProductRow = memo(function RequisitionProductRow({
+  model,
+  columns,
+  errors,
+  context,
+  shortfall,
+  editing,
+  pinned,
+  remove,
+}: {
+  model?: GridModel;
+  columns: GridColumn[];
+  errors?: Record<string, ParseKeys>;
+  context: Parameters<typeof renderValue>[2];
+  shortfall: boolean;
+  editing?: GridEditing;
+  pinned: Map<string, { sticky: true; stickyOffset: number }>;
+  remove?: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  if (!model) return null;
+  const tone = gridRowTone({ model }, shortfall);
+  return (
+    <TableRow
+      pinned
+      data-requisition-line={model.line.id}
+      data-invalid={!!errors || undefined}
+      tone={tone}
+    >
+      {columns.map((column) => (
+        <TableCell key={column.name} {...pinned.get(column.name)}>
+          <RequisitionLineCell
+            column={column}
+            model={model}
+            context={context}
+            shortfall={tone === 'shortfall'}
+            editing={editing}
+            error={errors?.[column.name]}
+          />
+        </TableCell>
+      ))}
+      {remove && (
+        <TableCell>
+          <ActionTooltip reason={t('requisitions.edit.remove-product')}>
+            <Button
+              variant="destructive-ghost"
+              size="icon-sm"
+              aria-label={`${t('requisitions.edit.remove-product')}: ${model.product?.fullProductName}`}
+              data-requisition-remove={model.line.id}
+              disabled={editing?.pending}
+              onClick={() => remove(model.line.id)}
+            >
+              <Trash2Icon />
+            </Button>
+          </ActionTooltip>
+        </TableCell>
+      )}
+    </TableRow>
+  );
+});
 const RequisitionLineCell = memo(function RequisitionLineCell({
   column,
   model,
