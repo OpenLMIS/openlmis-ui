@@ -261,6 +261,16 @@ describe('InventoryItemView', () => {
     await waitFor(() => expect(dismissAlert).toHaveBeenCalledWith(ALERT, expect.anything()));
   });
 
+  it('shows the details instead of transfer to a user who may transfer elsewhere only', async () => {
+    renderView({
+      action: 'transfer',
+      transferGrants: [{ right: 'CCE_INVENTORY_TRANSFER', facilityId: 'f2', programId: 'p1' }],
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Fridge 2' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'cce-inventory.transfer.open' })).toBeNull();
+  });
+
   it('transfers the item to a facility the user may transfer to', async () => {
     const user = userEvent.setup();
     const transfer = (facilityId: string): ProgramGrant => ({
