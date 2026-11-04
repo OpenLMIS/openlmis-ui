@@ -395,7 +395,7 @@ function RequisitionBody({
   }
   const accessEpoch = useRef(data.accessEpoch);
   const currentData = { ...data, record };
-  const editor = useRequisitionForm(record);
+  const editor = useRequisitionForm(record, data.record);
   const addedLines = useStore(editor.form.store, (state) => state.values.draft.addedLines);
   const gridRecord = useMemo(
     () => ({
@@ -774,6 +774,8 @@ function RequisitionBody({
         toast.error(t('requisitions.edit.error-title'), {
           description: t('requisitions.edit.clear-error'),
         });
+      queryClient.removeQueries({ queryKey: requisitionOptions(record.id).queryKey });
+      queryClient.removeQueries({ queryKey: requisitionStatusMessagesOptions(record.id).queryKey });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),
@@ -790,6 +792,10 @@ function RequisitionBody({
         },
       );
       await router.navigate(opening);
+      router.clearCache({
+        filter: (match) =>
+          'requisitionId' in match.params && match.params.requisitionId === record.id,
+      });
       assertSessionScope(scope);
     },
   });
@@ -844,7 +850,8 @@ function RequisitionBody({
     refusedDescription: t('requisitions.requisition.print-refused'),
   });
   const pending = busy || print.isPending;
-  const editingBlocked = pending || !!uncertainty || loaderOutdated;
+  const adoptingLoader = newerServerRecord(data.record, record);
+  const editingBlocked = pending || !!uncertainty || loaderOutdated || adoptingLoader;
   const baseline = useMemo(() => JSON.stringify(buildRequisitionDraft(record)), [record]);
   const dirty = useStore(
     editor.form.store,
@@ -1125,7 +1132,7 @@ function RequisitionBody({
       <RequisitionFooter
         policy={policy}
         pending={pending}
-        disabled={!!serverStatus || editor.locked || loaderOutdated}
+        disabled={!!serverStatus || editor.locked || loaderOutdated || adoptingLoader}
         onAction={begin}
         reconciling={uncertainty && isApprovalKind(uncertainty.kind) ? uncertainty.kind : undefined}
       />

@@ -38,11 +38,16 @@ export type RequisitionLocalDraft = {
 export function useRequisitionDraft(
   record: RequisitionRecord,
   onLoad?: (draft: RequisitionDraft) => void,
+  loaderRecord = record,
 ) {
   const scope = useSessionScope();
   const draftId = record.id;
   const initial = useRef(record);
-  if (initial.current.id !== draftId) initial.current = record;
+  initial.current = record;
+  const leaseSource = useRef(copyLeaseFor(loaderRecord));
+  const nextLease = copyLeaseFor(loaderRecord);
+  if (leaseSource.current?.generation !== nextLease?.generation) leaseSource.current = nextLease;
+  const currentLease = leaseSource.current;
   const adopt = useRef(onLoad);
   adopt.current = onLoad;
   const [, setVersion] = useState(0);
@@ -52,7 +57,7 @@ export function useRequisitionDraft(
     const db = userId ? getLocalDb() : undefined;
     const table = db?.table<RequisitionLocalDraft, string>(LOCAL_TABLES.requisitionDrafts);
     let expected: RequisitionLocalDraft | undefined;
-    let lease = copyLeaseFor(initial.current);
+    let lease = currentLease;
     let unsubscribe: (() => void) | undefined;
     let pendingBase: RequisitionRecord | undefined;
     let active = false;
@@ -305,7 +310,7 @@ export function useRequisitionDraft(
       },
     };
     return api;
-  }, [draftId, scope]);
+  }, [draftId, scope, currentLease]);
   useEffect(() => {
     controller.activate();
     return () => controller.dispose();
