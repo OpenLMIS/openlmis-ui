@@ -53,13 +53,8 @@ vi.mock('@/components/ui/table', async (original) => {
   const actual = await original<typeof import('@/components/ui/table')>();
   return {
     ...actual,
-    TableRow: (
-      props: import('react').ComponentProps<typeof actual.TableRow> & {
-        'data-requisition-line'?: string;
-      },
-    ) => {
-      if (modelTracking.enabled && props['data-requisition-line'])
-        modelTracking.rows.push(props['data-requisition-line']);
+    TableRow: (props: import('react').ComponentProps<typeof actual.TableRow>) => {
+      if (modelTracking.enabled && props.pinned && !props.surface) modelTracking.rows.push('row');
       return <actual.TableRow {...props} />;
     },
   };
@@ -476,6 +471,7 @@ async function openEditor(
   return { ...rendered, base };
 }
 it('syncs with If-Match before submitting with an idempotency key and returns to the list', async () => {
+  const errorToast = vi.spyOn(toast, 'error');
   const { base, router, queryClient } = await openEditor(false, true);
   const calls: string[] = [];
   const put = vi.spyOn(client, 'put').mockImplementation(async () => {
@@ -493,6 +489,7 @@ it('syncs with If-Match before submitting with an idempotency key and returns to
     }),
   );
   await screen.findByText('Opening List');
+  expect(errorToast).not.toHaveBeenCalled();
   expect(calls).toEqual(['put', 'post']);
   expect(put.mock.calls[0][2]).toEqual({ headers: { 'If-Match': '"base"' } });
   expect(post.mock.calls[0][2]).toEqual({ headers: { 'Idempotency-Key': expect.any(String) } });
@@ -906,7 +903,7 @@ it.each(['submit', 'authorize'] as const)(
     const reads = vi.mocked(fetchRequisition).mock.calls.length;
     await confirmAction(kind);
     await screen.findByText('Opening List');
-    expect(vi.mocked(fetchRequisition).mock.calls.length).toBeGreaterThanOrEqual(reads + 1);
+    expect(vi.mocked(fetchRequisition).mock.calls.length).toBe(reads + 2);
     expect(put).toHaveBeenCalledOnce();
     expect(post).toHaveBeenCalledTimes(2);
     expect(post.mock.calls[1][2]).toEqual(post.mock.calls[0][2]);
@@ -1896,15 +1893,20 @@ it.each(['overflowing', 'unreadable'] as const)(
   },
 );
 
-it.each([false, true])(
-  'shows a refreshed reopened record, or keeps local edits as outdated (edited: %s)',
-  async (edited) => {
+it.each([
+  [false, false],
+  [false, true],
+  [true, false],
+])(
+  'shows a refreshed reopened record, or keeps local edits as outdated (edited: %s, comment: %s)',
+  async (edited, comment) => {
     const { base, router, queryClient } = await openEditor();
     const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
     if (edited) fireEvent.change(input, { target: { value: '42' } });
     vi.mocked(fetchRequisition).mockResolvedValue({
       ...base,
-      modifiedDate: 'newer',
+      modifiedDate: '2026-10-28T11:00:00Z',
+      draftStatusMessage: comment ? 'New server comment' : base.draftStatusMessage,
       requisitionLineItems: base.requisitionLineItems.map((item) => ({
         ...item,
         beginningBalance: 12,
@@ -1915,8 +1917,12 @@ it.each([false, true])(
       await router.invalidate();
     });
     await waitFor(() => expect(input).toHaveValue(edited ? '42' : '12'));
-    if (edited)
+    if (edited) {
       expect(await screen.findByText('requisitions.edit.outdated-title')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'requisitions.edit.actions.submit' }),
+      ).toBeDisabled();
+    }
     queryClient.clear();
   },
 );
@@ -1938,7 +1944,7 @@ it('renders only the edited requisition line while typing', async () => {
       screen.getAllByRole('textbox', { name: 'beginningBalance: Product (P1)' })[0],
       { target: { value: '42' } },
     );
-    await waitFor(() => expect(modelTracking.rows).toEqual(['line']));
+    await waitFor(() => expect(modelTracking.rows).toEqual(['row']));
   } finally {
     modelTracking.enabled = false;
     queryClient.clear();
@@ -1972,5 +1978,51 @@ it('preserves approval edits on a conflict after another approver acted and relo
     ).not.toBeInTheDocument(),
   );
   expect(post).not.toHaveBeenCalled();
+  queryClient.clear();
+});
+
+it.each(['submit', 'approve'] as const)('updates the saved single copy after %s', async (kind) => {
+  const access = await import('@/features/requisitions/lib/offline-access');
+  const references = await import('@/features/reference-data/api/api');
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const { readSingle } = await import('@/features/requisitions/lib/offline-single');
+  const savedAccess = {
+    access: {
+      userId: 'u',
+      permissionStrings: ['REQUISITION_VIEW|f|program'],
+      user: { roleAssignments: [] },
+    },
+    saved: {
+      nodes: [],
+      roles: [],
+      groups: [],
+      facilities: [{ id: 'f', name: 'Comfort' }],
+      programs: [{ id: 'program', name: 'Family Planning' }],
+    },
+  };
+  vi.spyOn(access, 'readRequisitionAccess').mockResolvedValue(savedAccess as never);
+  vi.spyOn(access, 'waitForRequisitionAccess').mockResolvedValue(savedAccess as never);
+  vi.mocked(references.fetchApprovedProductsByIdentities).mockResolvedValue([
+    { id: 'approved', meta: { versionNumber: 1 } },
+  ] as never);
+  const { base, queryClient } =
+    kind === 'submit' ? await openEditor(false, true) : await openApprover();
+  await waitFor(async () =>
+    expect((await copies.readCopy('r'))?.single?.record.status).toBe(base.status),
+  );
+  const status = kind === 'submit' ? 'SUBMITTED' : 'APPROVED';
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"saved"' } });
+  vi.spyOn(client, 'post').mockImplementation(async () => {
+    vi.mocked(fetchRequisition).mockResolvedValue({
+      ...base,
+      status,
+      modifiedDate: '2026-10-28T10:01:00Z',
+    });
+    return { data: {} };
+  });
+  if (kind === 'submit') await confirmAction();
+  else await confirmApproval();
+  await screen.findByText(kind === 'submit' ? 'Opening List' : 'Approval List');
+  expect((await readSingle('r')).single.record.status).toBe(status);
   queryClient.clear();
 });

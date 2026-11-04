@@ -313,27 +313,10 @@ export function RequisitionGridView({
   }, [columns, view.cards, cellContext, supplyingHasStock, removable, t]);
   const renderColumn = useCallback(
     (id: string, row: GridRow) => {
-      if (id === 'actions')
-        return row.model && editing ? (
-          <ActionTooltip reason={t('requisitions.edit.remove-product')}>
-            <Button
-              variant="destructive-ghost"
-              size="icon-sm"
-              aria-label={t('requisitions.edit.remove-product-label', {
-                product: row.model.product?.fullProductName ?? '',
-              })}
-              data-requisition-remove={row.id}
-              disabled={editing.pending}
-              onClick={() => removeLine(row.id)}
-            >
-              <Trash2Icon />
-            </Button>
-          </ActionTooltip>
-        ) : null;
       const column = columns.find((column) => column.name === id);
       return column ? renderCell(column, row) : null;
     },
-    [columns, renderCell, editing, removeLine, t],
+    [columns, renderCell],
   );
   const table = useTable({
     features: dataTableFeatures,
@@ -650,12 +633,7 @@ const RequisitionProductRow = memo(function RequisitionProductRow({
   if (!model) return null;
   const tone = gridRowTone({ model }, shortfall);
   return (
-    <TableRow
-      pinned
-      data-requisition-line={model.line.id}
-      data-invalid={!!errors || undefined}
-      tone={tone}
-    >
+    <TableRow pinned data-invalid={!!errors || undefined} tone={tone}>
       {columns.map((column) => (
         <TableCell key={column.name} {...pinned.get(column.name)}>
           <RequisitionLineCell
