@@ -113,12 +113,14 @@ import {
   prepareRequisitionAccess,
   requisitionNodesOptions,
 } from '@/features/requisitions/lib/offline-access';
-import { attachCopyLease, beginCopy, retireCopy } from '@/features/requisitions/lib/offline-copies';
+import { captureSingle } from '@/features/requisitions/lib/offline-capture-single';
 import {
-  captureSingle,
-  hydrateSingle,
-  readSingle,
-} from '@/features/requisitions/lib/offline-single';
+  attachCopyLease,
+  beginCopy,
+  newerServerRecord,
+  retireCopy,
+} from '@/features/requisitions/lib/offline-copies';
+import { hydrateSingle, readSingle } from '@/features/requisitions/lib/offline-single';
 import {
   applyPatientChanges,
   parsePatients,
@@ -139,7 +141,7 @@ import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
-import { onlineOrDevice, requireOnline } from '@/lib/local-data';
+import { LocalDataUnavailableError, onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isDeviceAccess } from '@/lib/offline-access';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
@@ -752,11 +754,12 @@ function RequisitionBody({
             assertSessionScope(scope);
             await captureSingle(queryClient, await beginCopy(record.id), fresh, 'read');
           }
-        } catch {
+        } catch (error) {
           assertSessionScope(scope);
-          toast.error(t('requisitions.edit.error-title'), {
-            description: t('requisitions.edit.clear-error'),
-          });
+          if (!(error instanceof LocalDataUnavailableError))
+            toast.error(t('requisitions.offline.failed-title'), {
+              description: t('requisitions.offline.failed-description'),
+            });
         }
       }
       assertSessionScope(scope);
@@ -840,28 +843,22 @@ function RequisitionBody({
   useEffect(() => {
     if (loaderRecord.current === data.record) return;
     loaderRecord.current = data.record;
-    if (record.modifiedDate === data.record.modifiedDate && record.status === data.record.status)
-      return;
+    if (!newerServerRecord(data.record, record)) return;
     if (dirty) {
       setLoaderOutdated(true);
       return;
     }
     const scope = getSessionScope();
-    let cancelled = false;
-    void editor.device.update(data.record).then(
+    const next = data.record;
+    void editor.device.update(next).then(
       () => {
-        if (cancelled || scope !== getSessionScope()) return;
-        setRecord(data.record);
+        if (loaderRecord.current !== next || scope !== getSessionScope()) return;
+        setRecord(next);
         accessEpoch.current = data.accessEpoch;
         setLoaderOutdated(false);
       },
-      (error: unknown) => {
-        if (!cancelled && scope === getSessionScope()) setCopyFailure(error);
-      },
+      () => undefined,
     );
-    return () => {
-      cancelled = true;
-    };
   }, [data.record, data.accessEpoch, record, dirty, editor]);
   const guard = useDiscardGuard(dirty, {
     pending,
@@ -1113,7 +1110,7 @@ function RequisitionBody({
       <RequisitionFooter
         policy={policy}
         pending={pending}
-        disabled={!!serverStatus || editor.locked}
+        disabled={!!serverStatus || editor.locked || loaderOutdated}
         onAction={begin}
         reconciling={uncertainty && isApprovalKind(uncertainty.kind) ? uncertainty.kind : undefined}
       />
