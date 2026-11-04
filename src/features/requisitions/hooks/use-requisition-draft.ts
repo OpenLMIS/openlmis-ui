@@ -191,9 +191,9 @@ export function useRequisitionDraft(
           const subscription = liveQuery(() =>
             db.table(LOCAL_TABLES.requisitionCopyLifecycles).get(draftId),
           ).subscribe(() => {
-            if (lease)
+            if (lease && !closed)
               void assertCopyLease(lease).catch((error) => {
-                if (active && scope === getSessionScope()) {
+                if (active && !closed && scope === getSessionScope()) {
                   closed = true;
                   outdated = true;
                   writer.fail(error, true);
@@ -264,11 +264,17 @@ export function useRequisitionDraft(
         writer.reset();
       },
       async update(base: RequisitionRecord) {
-        await api.clear();
-        assertSessionScope(scope);
-        baseline = base;
-        closed = false;
-        adopt.current?.(buildRequisitionDraft(base));
+        try {
+          await api.clear();
+          assertSessionScope(scope);
+          baseline = base;
+          closed = false;
+          adopt.current?.(buildRequisitionDraft(base));
+        } catch (error) {
+          assertSessionScope(scope);
+          writer.fail(error);
+          throw error;
+        }
       },
       async resolve() {
         await writer.wait();
@@ -280,7 +286,11 @@ export function useRequisitionDraft(
           expected = stored;
           pendingBase = undefined;
           outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;
-          adopt.current?.(stored?.draft ?? buildRequisitionDraft(baseline));
+          adopt.current?.(
+            stored
+              ? rebaseRequisitionDraft(baseline, stored.draft)
+              : buildRequisitionDraft(baseline),
+          );
           writer.reset();
         } catch (error) {
           writer.fail(error, true);
