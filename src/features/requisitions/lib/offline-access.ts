@@ -63,7 +63,6 @@ export async function readRequisitionAccess() {
     access.userId,
     {
       formats: [1],
-      accept: (record) => record.generation === access.generation,
     },
   );
   return { access, saved };
@@ -241,8 +240,7 @@ export const requisitionAccessProvider = defineDownloadProvider({
       groups,
     };
   },
-  accepts: (record, access) =>
-    record.formatVersion === 1 && record.generation === access.generation,
+  accepts: (record, access) => record.formatVersion === 1 && record.userId === access.userId,
   isFresh: (record, access) =>
     !!record &&
     record.generation === access.generation &&
