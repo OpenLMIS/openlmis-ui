@@ -20,7 +20,7 @@ import {
   fetchProgramLookup,
   fetchSupervisoryNodesByIds,
 } from '@/features/reference-data/api/api';
-import { fetchRequisition } from '@/features/requisitions/api/api';
+import { fetchRequisition, fetchStatusMessages } from '@/features/requisitions/api/api';
 import { buildRequisitionDraft } from '@/features/requisitions/lib/draft';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
@@ -643,6 +643,7 @@ it('deletes only after confirmation, removes the saved copy and toasts before re
   await copies.put({ id: 'r', userId: 'u' });
   const success = vi.spyOn(toast, 'success');
   const navigate = vi.spyOn(router, 'navigate');
+  const messageReads = vi.mocked(fetchStatusMessages).mock.calls.length;
   const remove = vi.spyOn(client, 'delete').mockImplementation(async () => {
     expect(success).not.toHaveBeenCalled();
     return { data: undefined };
@@ -653,6 +654,7 @@ it('deletes only after confirmation, removes the saved copy and toasts before re
   fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.actions.delete' }));
   await screen.findByText('Opening List');
   expect(remove).toHaveBeenCalledWith('/requisitions/r');
+  expect(vi.mocked(fetchStatusMessages).mock.calls).toHaveLength(messageReads);
   expect(await copies.get('r')).toBeUndefined();
   expect(success).toHaveBeenCalledWith('requisitions.edit.success.delete', {
     description: 'requisitions.edit.success.delete-description',
@@ -890,7 +892,7 @@ it('locks grid and comment editing while Submit is pending', async () => {
     screen.getByRole('button', { name: 'requisitions.edit.remove-comment', hidden: true }),
   ).toBeDisabled();
   complete({ data: {} });
-  await screen.findByText('Opening List');
+  await screen.findByText('Create Authorize Search');
   queryClient.clear();
 });
 it.each(['submit', 'authorize'] as const)(
@@ -909,7 +911,7 @@ it.each(['submit', 'authorize'] as const)(
     vi.mocked(fetchRequisition).mockResolvedValue(saved);
     const reads = vi.mocked(fetchRequisition).mock.calls.length;
     await confirmAction(kind);
-    await screen.findByText('Opening List');
+    await screen.findByText('Create Authorize Search');
     expect(vi.mocked(fetchRequisition).mock.calls.length).toBe(reads + 2);
     expect(put).toHaveBeenCalledOnce();
     expect(post).toHaveBeenCalledTimes(2);
@@ -933,7 +935,7 @@ it.each(['submit', 'authorize'] as const)(
       modifiedDate: 'advanced',
     });
     await confirmAction(kind);
-    await screen.findByText('Opening List');
+    await screen.findByText('Create Authorize Search');
     expect(put).toHaveBeenCalledOnce();
     expect(post).toHaveBeenCalledOnce();
     queryClient.clear();
@@ -1115,7 +1117,7 @@ it.each(['submit', 'authorize'] as const)('uses the GET base for %s after Sync',
     expect(toast.success).toHaveBeenCalledWith('requisitions.edit.synced-title', expect.anything()),
   );
   await confirmAction(kind);
-  await screen.findByText('Opening List');
+  await screen.findByText('Create Authorize Search');
   expect(post).toHaveBeenCalledOnce();
   expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': 'W/"2"' } });
   expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
@@ -1328,7 +1330,7 @@ it('returns to Create/Authorize after tab and grid paging changes before finishi
   queryClient.clear();
 });
 
-async function openApprover(invalid = false, reasons = false) {
+async function openApprover(invalid = false, reasons = false, fromList = true) {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
@@ -1365,9 +1367,14 @@ async function openApprover(invalid = false, reasons = false) {
     ],
   };
   vi.mocked(fetchRequisition).mockResolvedValue(base);
-  const rendered = renderRoute('/requisitions/view/r', {
-    requisitionReturn: { to: '/requisitions/approve', search: { page: 3 } },
-  });
+  const rendered = renderRoute(
+    '/requisitions/view/r',
+    fromList
+      ? {
+          requisitionReturn: { to: '/requisitions/approve', search: { page: 3 } },
+        }
+      : undefined,
+  );
   await waitFor(() =>
     expect(screen.getByRole('textbox', { name: 'approvedQuantity: Product (P1)' })).toBeEnabled(),
   );
@@ -2086,7 +2093,7 @@ it.each(['capture', 'clear'] as const)(
   },
 );
 
-it('keeps the Sync baseline when an older loader adoption finishes later', async () => {
+it('blocks Sync until loader adoption finishes and then uses the latest Sync baseline', async () => {
   vi.spyOn(toast, 'success');
   const drafts = await import('@/features/requisitions/hooks/use-requisition-draft');
   const useDraft = drafts.useRequisitionDraft;
@@ -2112,6 +2119,12 @@ it('keeps the Sync baseline when an older loader adoption finishes later', async
   const synced = { ...base, modifiedDate: '2026-10-28T12:00:00Z', eTag: '"synced"' };
   vi.mocked(fetchRequisition).mockResolvedValue(synced);
   const put = vi.spyOn(client, 'put').mockResolvedValue({ data: synced, headers: {} });
+  expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeDisabled();
+  expect(put).not.toHaveBeenCalled();
+  await act(async () => adoption.resolve());
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   await waitFor(() =>
     expect(toast.success).toHaveBeenCalledWith('requisitions.edit.synced-title', expect.anything()),
@@ -2170,3 +2183,29 @@ it.each(['submit', 'approve', 'reject'] as const)(
     queryClient.clear();
   },
 );
+
+it('returns a directly opened submitted requisition to Create Authorize', async () => {
+  const { base, queryClient } = await openEditor();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  await confirmAction();
+  await screen.findByText('Create Authorize Search');
+  queryClient.clear();
+});
+
+it.each(['approve', 'reject'] as const)('returns direct %s to the approval list', async (kind) => {
+  const { base, queryClient } = await openApprover(false, false, false);
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  if (kind === 'approve') await confirmApproval();
+  else {
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.reject' }));
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'requisitions.edit.actions.reject',
+      }),
+    );
+  }
+  await screen.findByText('Approval List');
+  queryClient.clear();
+});

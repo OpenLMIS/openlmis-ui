@@ -791,7 +791,18 @@ function RequisitionBody({
           ),
         },
       );
-      await router.navigate(opening);
+      const direct =
+        !router.state.location.state.requisitionReturn &&
+        !search.facility &&
+        ['submit', 'submitAndAuthorize', 'authorize', 'approve', 'reject'].includes(kind);
+      await router.navigate(
+        direct
+          ? {
+              to: isApprovalKind(kind) ? '/requisitions/approve' : '/requisitions/initiate',
+              search: {},
+            }
+          : opening,
+      );
       router.clearCache({
         filter: (match) =>
           'requisitionId' in match.params && match.params.requisitionId === record.id,
@@ -852,11 +863,18 @@ function RequisitionBody({
   const pending = busy || print.isPending;
   const adoptingLoader = newerServerRecord(data.record, record);
   const editingBlocked = pending || !!uncertainty || loaderOutdated || adoptingLoader;
-  const baseline = useMemo(() => JSON.stringify(buildRequisitionDraft(record)), [record]);
-  const dirty = useStore(
-    editor.form.store,
-    (state) => JSON.stringify(state.values.draft) !== baseline,
-  );
+  const baseline = useMemo(() => buildRequisitionDraft(record), [record]);
+  const dirty = useStore(editor.form.store, (state) => {
+    const draft = state.values.draft;
+    return !!(
+      draft.patients ||
+      Object.keys(draft.lines).length ||
+      draft.addedLines.length ||
+      draft.removedLineIds.length ||
+      draft.draftStatusMessage !== baseline.draftStatusMessage ||
+      draft.datePhysicalStockCountCompleted !== baseline.datePhysicalStockCountCompleted
+    );
+  });
   const loaderRecord = useRef(data.record);
   useEffect(() => {
     if (loaderRecord.current === data.record) return;

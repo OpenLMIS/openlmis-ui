@@ -1,10 +1,10 @@
 import { InfoIcon } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { type CSSProperties, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-export function RequisitionGridHeader({
+export const RequisitionGridHeader = memo(function RequisitionGridHeader({
   label,
   definition,
   align = 'start',
@@ -46,4 +46,4 @@ export function RequisitionGridHeader({
       )}
     </div>
   );
-}
+});
