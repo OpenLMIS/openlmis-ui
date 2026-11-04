@@ -17,6 +17,13 @@ import type { GridColumn } from '@/features/requisitions/lib/template';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
 
+export const cardControlWidth = (column: GridColumn, unit: QuantityUnit) =>
+  column.kind === 'skip' || column.kind === 'adjustments'
+    ? 'fit'
+    : column.convertsToPacks && unit === 'PACKS'
+      ? 'wide'
+      : 'half';
+
 export function RequisitionEditCards({
   rows,
   supplyingStock,
@@ -96,7 +103,7 @@ export function RequisitionEditCards({
                       <CardControlRow
                         key={column.name}
                         label={column.label}
-                        width={column.convertsToPacks && unit === 'PACKS' ? 'wide' : 'half'}
+                        width={cardControlWidth(column, unit)}
                       >
                         {renderCell(column, row) ?? EMPTY_VALUE}
                       </CardControlRow>

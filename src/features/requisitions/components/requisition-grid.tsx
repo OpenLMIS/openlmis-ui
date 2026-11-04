@@ -417,8 +417,12 @@ export function RequisitionGridView({
   const leadingPinned = visible.findIndex((column) => !pinnedColumns.has(column.id));
   const totalSpan = Math.max(1, leadingPinned === -1 ? visible.length : leadingPinned);
   const adjustment = models.find((model) => model.line.id === search.adjustments);
+  const status = editing?.editable && editing.editor.device.deviceAvailable && (
+    <RequisitionDraftStatus editor={editing.editor} />
+  );
   return (
     <div ref={measure} tabIndex={-1} className="flex min-w-0 flex-col gap-4 outline-none">
+      {view.cards && status && <div className="flex">{status}</div>}
       {supplyingStock && <SupplyingStockNote record={record} />}
       <RequisitionGridToolbar
         disabled={editing?.pending}
@@ -446,13 +450,7 @@ export function RequisitionGridView({
               )
             : undefined
         }
-        status={
-          editing?.editable
-            ? editing.editor.device.deviceAvailable && (
-                <RequisitionDraftStatus editor={editing.editor} />
-              )
-            : undefined
-        }
+        status={!view.cards && status}
         columns={columns}
         view={view}
         search={search}
@@ -885,6 +883,7 @@ function RequisitionEditCell({
   if (editing.editable && column.kind === 'skip') {
     const checkbox = (
       <Checkbox
+        surface={cards ? 'background' : 'default'}
         checked={!!model.line.skipped}
         disabled={editing.pending || !editing.skipLines || (!model.line.skipped && !model.canSkip)}
         aria-label={label}

@@ -279,7 +279,7 @@ edits, which have no prop for TypeScript to detect:
 | `dropdown-menu.tsx` | Preserve the warning item variant for Back To Legacy |
 | `command.tsx` | Keep disabled items muted without lowering their explanation opacity |
 | `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
-| `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
+| `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled`; `surface="background"` keeps an opaque box on tinted card rows |
 | `skeleton.tsx` | Keep `inline`, which renders a span so placeholders can sit inside text such as `WorkspaceDescription` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus; keep `components` parts module-level and memoize DayButton, so re-renders never remount the calendar mid-click |
@@ -454,7 +454,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 **Responsive tables:**
 
 - Requisition grids pin Skip, product code and name at the inline start, with matching opaque header, body
-  and category surfaces.
+  and category surfaces. Requisition editor cards end-align Skip and Losses And Adjustments like other
+  values, show errors only through tooltips and put the draft status directly below the tabs.
 - `TableRow`, `TableCards` and `CardListItem` accept per-row `tone`: `skipped` keeps full-strength
   text on grey; pair `shortfall` warning tint with a labelled icon. `CardListItem` also accepts
   `invalid`, which takes precedence over other row tones.

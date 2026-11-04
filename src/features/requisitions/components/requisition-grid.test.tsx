@@ -529,38 +529,40 @@ it('includes the visible packs total in editable adjustment button names', async
   ).toBeInTheDocument();
 });
 
-it.each([1000, 390])('keeps stockout-day errors accessible in the %s layout', async (width) => {
-  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
-  render(
-    <Harness
-      editable
-      value={{
-        ...requisition,
-        template: {
-          columnsMap: {
-            'orderable.fullProductName': column('orderable.fullProductName', 0),
-            totalStockoutDays: column('totalStockoutDays', 1, {
-              source: 'USER_INPUT',
-              columnDefinition: { columnType: 'NUMERIC' },
-            }),
+it.each([1000, 390])(
+  'shows stockout-day errors only through the tooltip in the %s layout',
+  async (width) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+    render(
+      <Harness
+        editable
+        value={{
+          ...requisition,
+          template: {
+            columnsMap: {
+              'orderable.fullProductName': column('orderable.fullProductName', 0),
+              totalStockoutDays: column('totalStockoutDays', 1, {
+                source: 'USER_INPUT',
+                columnDefinition: { columnType: 'NUMERIC' },
+              }),
+            },
           },
-        },
-        requisitionLineItems: requisition.requisitionLineItems.slice(0, 1),
-      }}
-    />,
-  );
-  const input = screen.getByRole('textbox', { name: 'totalStockoutDays: Medicine 0 (P0)' });
-  await userEvent.type(input, '31');
-  expect(input).toHaveAttribute('aria-invalid', 'true');
-  expect(input).toHaveAccessibleDescription('requisitions.edit.validation.stockout-days');
-  await userEvent.tab();
-  fireEvent.focus(input);
-  if (width >= 672)
+          requisitionLineItems: requisition.requisitionLineItems.slice(0, 1),
+        }}
+      />,
+    );
+    const input = screen.getByRole('textbox', { name: 'totalStockoutDays: Medicine 0 (P0)' });
+    await userEvent.type(input, '31');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription('requisitions.edit.validation.stockout-days');
+    await userEvent.tab();
+    fireEvent.focus(input);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
       'requisitions.edit.validation.stockout-days',
     );
-  else expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-});
+    expect(screen.getAllByText('requisitions.edit.validation.stockout-days')).toHaveLength(2);
+  },
+);
 
 it('lets editors hide skipped lines on disable templates through Filters and clear the choice', async () => {
   const user = userEvent.setup();

@@ -50,13 +50,15 @@ export function RequisitionInput({
   const parts = unit === 'PACKS' ? (['packs', 'remainder'] as const) : (['doses'] as const);
   return (
     <Field spacing="tight" surface="background" data-invalid={!!error}>
-      <div className="sr-only">
-        <label id={`${name}-label`} htmlFor={name}>
-          {label}
-        </label>
-        <span id={`${name}-error`}>{message}</span>
+      <div className="contents">
+        <div className="sr-only">
+          <label id={`${name}-label`} htmlFor={name}>
+            {label}
+          </label>
+          <span id={`${name}-error`}>{message}</span>
+        </div>
       </div>
-      <Tooltip disabled={!error || cards} open={!!error && !cards && open} onOpenChange={setOpen}>
+      <Tooltip disabled={!error} open={!!error && open} onOpenChange={setOpen}>
         <TooltipTrigger
           render={<div className="min-w-0" />}
           tabIndex={-1}
@@ -154,7 +156,6 @@ export function RequisitionInput({
         </TooltipTrigger>
         <ErrorContent message={message} />
       </Tooltip>
-      {cards && error && <p className="text-destructive text-sm">{message}</p>}
     </Field>
   );
 }
