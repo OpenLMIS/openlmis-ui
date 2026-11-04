@@ -230,9 +230,7 @@ it('reads fresh approval membership through later pages, rejects absent ids and 
   expect(vi.mocked(fetchApprovalList).mock.calls.map(([query]) => query.page)).toEqual([0, 1]);
   const previous = await readCopy('r');
   vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([]));
-  await expect(
-    captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read'),
-  ).rejects.toThrow();
+  await captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read');
   expect(await readCopy('r')).toMatchObject({
     fetchedAt: previous?.fetchedAt,
     batch: { record: batchRecord },
@@ -244,9 +242,7 @@ it('does not certify a VIEW-only batch read from stale history and an unrelated 
   data.saved.groups[0].memberFacilities = [];
   await publish(data);
   vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([]));
-  await expect(
-    captureBatch([await beginCopy('r')], { requisitionDtos: [batchRecord] }, currency, 'read'),
-  ).rejects.toThrow();
+  await captureBatch([await beginCopy('r')], { requisitionDtos: [batchRecord] }, currency, 'read');
   expect(await readCopy('r')).toBeUndefined();
 });
 it('recertifies dirty batch access after grant removal without changing quantities, baseline or unknown evidence', async () => {
@@ -330,4 +326,18 @@ it('does not retain approval certification after a per-record batch read refusal
     batch: { record: batchRecord },
   });
   await expect(readBatch(['r'])).rejects.toThrow();
+});
+
+it('saves the remaining approval copies when one record has left the approval list', async () => {
+  await publish(access());
+  vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([summary]));
+  const leases = await Promise.all(['gone', 'r'].map(beginCopy));
+  await captureBatch(
+    leases,
+    { requisitionDtos: [{ ...batchRecord, id: 'gone', status: 'APPROVED' }, batchRecord] },
+    currency,
+    'read',
+  );
+  expect((await readCopy('r'))?.batch?.record.id).toBe('r');
+  expect(await readCopy('gone')).toBeUndefined();
 });

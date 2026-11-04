@@ -61,8 +61,8 @@ export async function captureBatch(
     const lease = leases.find((lease) => lease.id === id);
     if (lease) await revokeBatchApproval(lease);
   }
-  if (membership.remaining.size) throw new LocalDataUnavailableError();
   for (const record of records) {
+    if (membership.remaining.has(record.id)) continue;
     const lease = leases.find((lease) => lease.id === record.id);
     if (!lease) throw new LocalDataUnavailableError();
     const source = membership.found.find(

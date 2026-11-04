@@ -1704,6 +1704,7 @@
   "requisitions.batch.memory": "لا يتم حفظ التغييرات على هذا الجهاز",
   "requisitions.batch.missing": "لم يُرجع الخادم هذا الطلب. راجع قائمة الموافقة.",
   "requisitions.batch.name": "الاسم",
+  "requisitions.batch.no-longer-awaiting": "لم يعد هذا الطلب بانتظار الموافقة.",
   "requisitions.batch.possibly-approved": "ربما تمت الموافقة على هذا الطلب؛ راجع قائمة الموافقة.",
   "requisitions.batch.product": "المنتج",
   "requisitions.batch.quantity": "الكمية",

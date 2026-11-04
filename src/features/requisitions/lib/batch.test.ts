@@ -104,3 +104,8 @@ it('rounds a partial pack to zero when roundToZero is enabled', () => {
     ),
   ).toBe(0);
 });
+
+it('excludes records that are no longer awaiting approval from batch totals', () => {
+  const approved = { ...arv.requisitionDtos[0], status: 'APPROVED' };
+  expect(batchTotals([approved]).cost).toBe(0);
+});
