@@ -736,33 +736,44 @@ function RequisitionBody({
         return;
       }
       finished.current = true;
+      let clearFailed = false;
+      let retired = false;
       try {
         await editor.device.clear();
       } catch {
         assertSessionScope(scope);
-        toast.error(t('requisitions.edit.error-title'), {
-          description: t('requisitions.edit.clear-error'),
-        });
+        clearFailed = true;
       }
       assertSessionScope(scope);
       if (isSecureOrigin) {
         try {
           await retireCopy(await beginCopy(record.id));
           assertSessionScope(scope);
+          retired = true;
           if (kind !== 'delete' && kind !== 'skip') {
             const fresh = await fetchRequisition(record.id);
             assertSessionScope(scope);
-            await captureSingle(queryClient, await beginCopy(record.id), fresh, 'read');
+            await captureSingle(queryClient, await beginCopy(record.id), fresh, 'read', {
+              freshMessages: true,
+            });
           }
         } catch (error) {
           assertSessionScope(scope);
           if (!(error instanceof LocalDataUnavailableError))
             toast.error(t('requisitions.offline.failed-title'), {
-              description: t('requisitions.offline.failed-description'),
+              description: t(
+                retired
+                  ? 'requisitions.offline.refresh-failed-description'
+                  : 'requisitions.offline.failed-description',
+              ),
             });
         }
       }
       assertSessionScope(scope);
+      if (clearFailed && !retired)
+        toast.error(t('requisitions.edit.error-title'), {
+          description: t('requisitions.edit.clear-error'),
+        });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),
@@ -853,11 +864,15 @@ function RequisitionBody({
     void editor.device.update(next).then(
       () => {
         if (loaderRecord.current !== next || scope !== getSessionScope()) return;
+        if (!newerServerRecord(next, latest.current.record)) return;
         setRecord(next);
         accessEpoch.current = data.accessEpoch;
         setLoaderOutdated(false);
       },
-      () => undefined,
+      () => {
+        if (loaderRecord.current !== next || scope !== getSessionScope()) return;
+        setLoaderOutdated(true);
+      },
     );
   }, [data.record, data.accessEpoch, record, dirty, editor]);
   const guard = useDiscardGuard(dirty, {

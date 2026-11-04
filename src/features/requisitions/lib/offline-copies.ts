@@ -319,7 +319,7 @@ export async function retireCopy(lease: CopyLease) {
   await db.transaction('rw', tables, async () => {
     await assertCopyLease(lease);
     const copies = db.table<RequisitionCopy, string>(LOCAL_TABLES.requisitionCopies);
-    for (const copy of await copies.toArray()) {
+    for (const copy of await copies.where('batch.requestedIds').equals(lease.id).toArray()) {
       if (copy.id === lease.id || !copy.batch?.requestedIds.includes(lease.id)) continue;
       await copies.put({
         ...copy,

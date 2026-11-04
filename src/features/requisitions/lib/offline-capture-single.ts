@@ -24,6 +24,7 @@ export async function captureSingle(
   lease: CopyLease,
   record: RequisitionRecord,
   accessMode: 'wait' | 'read' = 'wait',
+  { freshMessages = false }: { freshMessages?: boolean } = {},
 ) {
   const [productsQuery, approvedQuery, periodQuery, currencyQuery, programQuery] =
     requisitionGridQueries(record);
@@ -35,7 +36,9 @@ export async function captureSingle(
       client.ensureQueryData(periodQuery),
       client.ensureQueryData(currencyQuery),
       client.ensureQueryData(programQuery),
-      client.fetchQuery({ ...requisitionStatusMessagesOptions(record.id), staleTime: 0 }),
+      freshMessages
+        ? client.fetchQuery({ ...requisitionStatusMessagesOptions(record.id), staleTime: 0 })
+        : client.ensureQueryData(requisitionStatusMessagesOptions(record.id)),
       ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status)
         ? client.ensureQueryData(unskipSettingOptions())
         : Promise.resolve(undefined),

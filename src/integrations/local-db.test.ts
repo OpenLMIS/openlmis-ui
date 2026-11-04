@@ -234,3 +234,27 @@ it('adds the Receive catalog at v12 without losing any v11 records', async () =>
     'programId',
   ]);
 });
+
+it('indexes saved batch membership when upgrading v16 without losing copies or drafts', async () => {
+  signIn('requisition-upgrade-v16');
+  const old = new Dexie(getLocalDb().name);
+  old.version(16).stores({ requisitionCopies: 'id', requisitionDrafts: 'draftId' });
+  const copy = {
+    id: 'sibling',
+    batch: { requestedIds: ['retired', 'sibling'], record: { quantity: 12 } },
+  };
+  const draft = { draftId: 'retired', revision: 2, draft: { quantity: '23' } };
+  await old.table(LOCAL_TABLES.requisitionCopies).put(copy);
+  await old.table(LOCAL_TABLES.requisitionDrafts).put(draft);
+  old.close();
+  const db = getLocalDb();
+  await db.open();
+  expect(
+    await db
+      .table(LOCAL_TABLES.requisitionCopies)
+      .where('batch.requestedIds')
+      .equals('retired')
+      .toArray(),
+  ).toEqual([copy]);
+  expect(await db.table(LOCAL_TABLES.requisitionDrafts).get('retired')).toEqual(draft);
+});

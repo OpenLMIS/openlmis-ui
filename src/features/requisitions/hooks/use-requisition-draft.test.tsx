@@ -425,7 +425,7 @@ it('rebases a conflicting stored draft on the current server baseline', async ()
   expect(onLoad).toHaveBeenLastCalledWith(draft);
 });
 
-it('reports a failed loader adoption through the draft save status', async () => {
+it('keeps edits after a failed loader adoption and saves them on Retry', async () => {
   const { result } = renderHook(() => useRequisitionDraft(base));
   await waitFor(() => expect(result.current.status.status).toBe('saved'));
   const store = await import('@/lib/draft-store');
@@ -436,4 +436,11 @@ it('reports a failed loader adoption through the draft save status', async () =>
   });
   expect(result.current.status).toEqual({ status: 'failed', error });
   spy.mockRestore();
+  act(() => result.current.write(draft));
+  await act(async () => {
+    await result.current.retry();
+    await result.current.flush();
+  });
+  expect(result.current.status.status).toBe('saved');
+  expect((await getLocalDb().table('requisitionDrafts').get('r')).draft).toEqual(draft);
 });

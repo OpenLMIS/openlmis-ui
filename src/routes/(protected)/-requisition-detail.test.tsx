@@ -10,6 +10,7 @@ import {
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
+import { Children, isValidElement } from 'react';
 import { toast } from 'sonner';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -54,7 +55,13 @@ vi.mock('@/components/ui/table', async (original) => {
   return {
     ...actual,
     TableRow: (props: import('react').ComponentProps<typeof actual.TableRow>) => {
-      if (modelTracking.enabled && props.pinned && !props.surface) modelTracking.rows.push('row');
+      if (modelTracking.enabled && props.pinned && !props.surface) {
+        const cell = Children.toArray(props.children).find(isValidElement);
+        const content = cell?.props as
+          | { children?: { props?: { model?: { line: { id: string } } } } }
+          | undefined;
+        modelTracking.rows.push(content?.children?.props?.model?.line.id ?? 'unknown');
+      }
       return <actual.TableRow {...props} />;
     },
   };
@@ -1944,7 +1951,7 @@ it('renders only the edited requisition line while typing', async () => {
       screen.getAllByRole('textbox', { name: 'beginningBalance: Product (P1)' })[0],
       { target: { value: '42' } },
     );
-    await waitFor(() => expect(modelTracking.rows).toEqual(['row']));
+    await waitFor(() => expect(modelTracking.rows).toEqual(['line']));
   } finally {
     modelTracking.enabled = false;
     queryClient.clear();
@@ -2024,5 +2031,94 @@ it.each(['submit', 'approve'] as const)('updates the saved single copy after %s'
   else await confirmApproval();
   await screen.findByText(kind === 'submit' ? 'Opening List' : 'Approval List');
   expect((await readSingle('r')).single.record.status).toBe(status);
+  queryClient.clear();
+});
+
+it('offers Update after a refreshed loader cannot adopt its device baseline', async () => {
+  const { base, router, queryClient } = await openEditor();
+  const store = await import('@/lib/draft-store');
+  const save = vi
+    .spyOn(store, 'saveRevisionedDraft')
+    .mockRejectedValueOnce(new Error('Storage unavailable'));
+  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: '2026-10-28T11:00:00Z' });
+  await queryClient.invalidateQueries({ queryKey: ['requisitions'], refetchType: 'none' });
+  await act(() => router.invalidate());
+  expect(await screen.findByText('requisitions.edit.outdated-title')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'requisitions.edit.update' })).toBeEnabled();
+  save.mockRestore();
+  queryClient.clear();
+});
+
+it.each(['capture', 'clear'] as const)(
+  'reports terminal device cleanup accurately after a %s failure',
+  async (failure) => {
+    const capture = await import('@/features/requisitions/lib/offline-capture-single');
+    if (failure === 'clear') {
+      const drafts = await import('@/features/requisitions/hooks/use-requisition-draft');
+      const useDraft = drafts.useRequisitionDraft;
+      vi.spyOn(drafts, 'useRequisitionDraft').mockImplementation((...args) => ({
+        ...useDraft(...args),
+        clear: async () => {
+          throw new Error('Storage unavailable');
+        },
+      }));
+    }
+    vi.spyOn(toast, 'error');
+    const saveCopy = vi.spyOn(capture, 'captureSingle').mockResolvedValue({} as never);
+    const { base, queryClient } = await openEditor(false, true);
+    vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+    await waitFor(() => expect(saveCopy).toHaveBeenCalledOnce());
+    if (failure === 'capture')
+      saveCopy
+        .mockResolvedValueOnce({} as never)
+        .mockRejectedValueOnce(new Error('Storage unavailable'));
+    await confirmAction();
+    await screen.findByText('Opening List');
+    expect(toast.error).not.toHaveBeenCalledWith('requisitions.edit.error-title', {
+      description: 'requisitions.edit.clear-error',
+    });
+    if (failure === 'capture')
+      expect(toast.error).toHaveBeenCalledWith('requisitions.offline.failed-title', {
+        description: 'requisitions.offline.refresh-failed-description',
+      });
+    queryClient.clear();
+  },
+);
+
+it('keeps the Sync baseline when an older loader adoption finishes later', async () => {
+  vi.spyOn(toast, 'success');
+  const drafts = await import('@/features/requisitions/hooks/use-requisition-draft');
+  const useDraft = drafts.useRequisitionDraft;
+  const adoption = Promise.withResolvers<void>();
+  let adopting = false;
+  vi.spyOn(drafts, 'useRequisitionDraft').mockImplementation((...args) => {
+    const device = useDraft(...args);
+    return {
+      ...device,
+      update: async (base) => {
+        await device.update(base);
+        adopting = true;
+        await adoption.promise;
+      },
+    };
+  });
+  const { base, router, queryClient } = await openEditor();
+  const loaded = { ...base, modifiedDate: '2026-10-28T11:00:00Z' };
+  vi.mocked(fetchRequisition).mockResolvedValue(loaded);
+  await queryClient.invalidateQueries({ queryKey: ['requisitions'], refetchType: 'none' });
+  await act(() => router.invalidate());
+  await waitFor(() => expect(adopting).toBe(true));
+  const synced = { ...base, modifiedDate: '2026-10-28T12:00:00Z', eTag: '"synced"' };
+  vi.mocked(fetchRequisition).mockResolvedValue(synced);
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: synced, headers: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() =>
+    expect(toast.success).toHaveBeenCalledWith('requisitions.edit.synced-title', expect.anything()),
+  );
+  await act(async () => adoption.resolve());
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+  expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: synced.modifiedDate });
   queryClient.clear();
 });

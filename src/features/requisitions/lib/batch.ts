@@ -6,7 +6,6 @@ import type {
   BatchResponse,
   BatchRow,
 } from '@/features/requisitions/lib/batch-types';
-import i18n from '@/integrations/i18n';
 import { packsToShip } from '@/lib/quantity';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
@@ -99,7 +98,7 @@ export function batchSaveBody(
 }
 function batchErrorMessage(error: NonNullable<BatchResponse['requisitionErrors']>[number]) {
   if (error.errorMessage?.messageKey === 'requisitions.batch.no-longer-awaiting')
-    return i18n.t('requisitions.batch.no-longer-awaiting');
+    return 'requisitions.batch.no-longer-awaiting';
   return (
     error.errorMessage?.message ??
     Object.values(error.fieldErrors ?? {})

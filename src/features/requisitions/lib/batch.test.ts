@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   batchCost,
   batchRows,
@@ -11,6 +11,7 @@ import {
 } from '@/features/requisitions/lib/batch';
 import arv from '@/features/requisitions/lib/fixtures/batch/retrieveall-arv.json';
 import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
+import i18n from '@/integrations/i18n';
 
 describe('legacy batch calculations', () => {
   it('matches the captured ARV line costs, including rounded packs, and FP totals', () => {
@@ -112,4 +113,16 @@ it('excludes records that are no longer awaiting approval from batch and product
   const [row] = batchRows([approved]);
   expect(batchRowTotals(row, {}).cost).toBeGreaterThan(0);
   expect(batchRowTotals(row, {}, [approved])).toEqual({ quantity: 0, cost: 0 });
+});
+
+it('retains translated failure keys until rendering', () => {
+  const translate = vi.spyOn(i18n, 't').mockReturnValue('Translated message' as never);
+  const key = 'requisitions.batch.no-longer-awaiting';
+  expect(
+    parseBatchResult(
+      { requisitionErrors: [{ requisitionId: 'r', errorMessage: { messageKey: key } }] },
+      ['r'],
+    ).failed.get('r'),
+  ).toBe(key);
+  translate.mockRestore();
 });

@@ -884,4 +884,69 @@ it('blocks a requisition moved to another node while still in approval', async (
   await waitFor(() => expect(inputs[0]).toBeEnabled());
   expect(inputs[1]).toBeDisabled();
   expect(screen.getByText('requisitions.batch.no-longer-awaiting')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  expect(
+    await screen.findByText(/requisitions.batch.no-longer-awaiting/, {
+      selector: '.whitespace-pre-line',
+    }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/requisitions.batch.possibly-approved/)).not.toBeInTheDocument();
+});
+
+it('fetches membership once in parallel with the batch and reuses it for capture', async () => {
+  await publishBatchAccess();
+  const pending = Promise.withResolvers<Awaited<ReturnType<typeof fetchBatchRequisitions>>>();
+  vi.mocked(fetchBatchRequisitions).mockReturnValue(pending.promise);
+  const loader = Route.options.loader as (
+    arg: unknown,
+  ) => Promise<{ copyResult?: Promise<unknown> }>;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const loaded = loader({
+    context: { queryClient: client },
+    deps: { ids: records.map((r) => r.id) },
+  });
+  await waitFor(() => expect(fetchBatchRequisitions).toHaveBeenCalledOnce());
+  expect(fetchApprovalList).toHaveBeenCalledOnce();
+  pending.resolve({ requisitionDtos: records });
+  await (await loaded).copyResult;
+  expect(fetchApprovalList).toHaveBeenCalledOnce();
+  const { readCopy } = await import('@/features/requisitions/lib/offline-copies');
+  expect((await readCopy(records[0].id))?.batch?.approvalVerified).toBe(true);
+  client.clear();
+});
+it('keeps the batch usable when approval membership returns a service error', async () => {
+  vi.mocked(fetchApprovalList).mockRejectedValue(
+    new AxiosError('Unavailable', undefined, undefined, undefined, {
+      status: 500,
+      data: {},
+    } as never),
+  );
+  const { queryClient } = renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  expect(await screen.findByText('requisitions.offline.failed-description')).toBeInTheDocument();
+  expect(fetchApprovalList).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('accepts an old saved approval flag after fresh access and membership checks', async () => {
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const access = await import('@/routes/-requisition-access');
+  await publishBatchAccess();
+  const leases = await Promise.all(records.map((record) => copies.beginCopy(record.id)));
+  await savedBatches.captureBatch(leases, { requisitionDtos: records }, {} as never, 'read');
+  vi.mocked(fetchBatchRequisitions).mockRejectedValueOnce(
+    new AxiosError('Timeout', AxiosError.ECONNABORTED),
+  );
+  vi.spyOn(access, 'freshRequisitionAccess').mockResolvedValue({
+    user: { roleAssignments: [{ roleId: 'approver', programId: 'p', supervisoryNodeId: 'node' }] },
+    roles: [{ id: 'approver', rights: [{ name: 'REQUISITION_APPROVE' }] }],
+  } as never);
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  await userEvent.click(sync);
+  await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  expect(screen.queryByText('requisitions.batch.review-refreshed')).not.toBeInTheDocument();
+  queryClient.clear();
 });
