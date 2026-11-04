@@ -1,12 +1,7 @@
 import { useStore } from '@tanstack/react-form';
-import {
-  useIsMutating,
-  useQueryClient,
-  useSuspenseQueries,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useIsMutating, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
-import { useCallback, useRef } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -39,6 +34,7 @@ import {
   SAVE_KEY,
   StatusItem,
   TransferItem,
+  useItemSave,
 } from '@/features/cce-inventory/components/inventory-item-actions';
 import {
   DetailsFields,
@@ -60,18 +56,17 @@ import {
   toInventoryItemUpdate,
   type ValidInventoryItemDetails,
 } from '@/features/cce-inventory/lib/inventory-item-form';
+import type { InventorySearch } from '@/features/cce-inventory/lib/search';
 import type { InventoryItemRecord, PowerStatus } from '@/features/cce-inventory/lib/types';
 import { facilityOptions, programLookupOptions } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useOpening } from '@/hooks/use-opening';
-import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { EQUIPMENT_REASON_KEYS, EQUIPMENT_STATUS } from '@/lib/cce-equipment-status';
 import { isNotFound, isRefused } from '@/lib/http';
-import { queryKeys } from '@/lib/key-factory';
 import type { ProgramGrant } from '@/lib/permissions';
 import { fullName } from '@/lib/text';
 
-export type ItemAction = 'edit' | 'status' | 'transfer';
+export type ItemAction = NonNullable<InventorySearch['action']>;
 
 type InventoryItemViewProps = {
   itemId: string | undefined;
@@ -331,28 +326,21 @@ function EditItem({
   onCloseCancelled: () => void;
 }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const fields = useRef<HTMLDivElement>(null);
-  const leaving = useRef(false);
-
-  const save = useSessionMutation({
-    mutationKey: SAVE_KEY,
-    mutationFn: async (details: ValidInventoryItemDetails) => {
-      await updateInventoryItem(toInventoryItemUpdate(await fetchInventoryItem(item.id), details));
-      await queryClient.invalidateQueries(
-        { queryKey: queryKeys.inventoryItems.all },
-        { throwOnError: true },
-      );
-    },
-    onSuccess: (_, details) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
+  const {
+    mutation: save,
+    leaving,
+    allowLeave,
+  } = useItemSave(
+    async (details: ValidInventoryItemDetails) =>
+      updateInventoryItem(toInventoryItemUpdate(await fetchInventoryItem(item.id), details)),
+    (details) => {
       toast.success(t('cce-inventory.details.saved-title'), {
         description: t('cce-inventory.details.saved', { name: details.referenceName.trim() }),
       });
-      leaving.current = true;
       onBack();
     },
-  });
+  );
 
   const form = useInventoryItemForm(
     toEditValues(item),
@@ -363,7 +351,6 @@ function EditItem({
       ),
   );
   const dirty = useStore(form.store, (state) => !state.isDefaultValue);
-  const allowLeave = useCallback(() => leaving.current, []);
   const guard = useItemDialogGuard({ dirty, pending: save.isPending, allowLeave });
 
   return (

@@ -1,5 +1,5 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -69,7 +69,7 @@ type ActionProps = {
   onCloseCancelled: () => void;
 };
 
-function useItemSave<TValues>(
+export function useItemSave<TValues>(
   save: (values: TValues) => Promise<void>,
   onSaved: (values: TValues) => void,
 ) {
@@ -200,7 +200,7 @@ export function StatusItem({
         }}
         pending={mutation.isPending}
         submitLabel={t('cce-inventory.status.update')}
-        title={t('cce-inventory.status.title')}
+        title={t('cce-inventory.form.status')}
       >
         <ReadOnlySection
           rows={[
@@ -222,8 +222,8 @@ export function StatusItem({
               onChange: ({ value }) => {
                 if (value === shownStatus.current) return;
                 shownStatus.current = value;
-                form.setFieldValue('reasonNotWorkingOrNotInUse', '');
-                form.setFieldValue('decommissionDate', '');
+                form.setFieldValue('reasonNotWorkingOrNotInUse', '', { dontValidate: true });
+                form.setFieldValue('decommissionDate', '', { dontValidate: true });
               },
             }}
             name="functionalStatus"
@@ -235,7 +235,6 @@ export function StatusItem({
                   label: t(EQUIPMENT_STATUS[value].labelKey),
                 }))}
                 label={t('cce-inventory.form.functional-status')}
-                placeholder={t('cce-inventory.status.placeholder')}
                 required
               />
             )}
@@ -280,13 +279,20 @@ export function StatusItem({
   );
 }
 
+const NO_ALERTS: InventoryAlert[] = [];
+
 function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: string }) {
-  const { t } = useTranslation();
-  const { data: alerts } = useSuspenseQuery(inventoryAlertsOptions([item.id]));
+  const { t, i18n } = useTranslation();
+  const timeZone = useDeploymentTimeZone();
+  const { data: alerts = NO_ALERTS } = useQuery(inventoryAlertsOptions([item.id]));
   const queryClient = useQueryClient();
+  const historyButton = useRef<HTMLButtonElement>(null);
   const dismiss = useSessionMutation({
     mutationFn: dismissAlert,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all });
+      historyButton.current?.focus();
+    },
     onError: () =>
       toast.error(t('cce-inventory.status.dismiss-error-title'), {
         description: t('cce-inventory.status.dismiss-error'),
@@ -312,8 +318,13 @@ function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: strin
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-medium text-base">{t('cce-inventory.status.alerts')}</h3>
-        <Button disabled={history.isPending} onClick={history.print} variant="outline">
+        <h3 className="font-medium text-base">{t('cce-inventory.alerts-title')}</h3>
+        <Button
+          disabled={history.isPending || history.offline}
+          onClick={history.print}
+          ref={historyButton}
+          variant="outline"
+        >
           {t('cce-inventory.status.view-history')}
         </Button>
       </div>
@@ -321,49 +332,28 @@ function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: strin
         <p className="text-muted-foreground text-sm">{t('cce-inventory.status.no-alerts')}</p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {active.map((alert) => (
-            <ActiveAlert
-              alert={alert}
-              dismissing={dismiss.isPending}
-              key={alert.alert_id}
-              onDismiss={() => dismiss.mutate(alert)}
-            />
-          ))}
+          {active.map((alert) => {
+            const time = formatTimestamp(alert.start_ts, i18n.language, { time: true, timeZone });
+            return (
+              <li className="flex items-start justify-between gap-3 text-sm" key={alert.alert_id}>
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-muted-foreground text-xs">{time}</span>
+                  <span dir="auto">{alertText(alert, i18n.language)}</span>
+                </div>
+                <Button
+                  aria-label={t('cce-inventory.status.dismiss-label', { time })}
+                  disabled={dismiss.isPending}
+                  onClick={() => dismiss.mutate(alert)}
+                  variant="outline"
+                >
+                  {t('cce-inventory.status.dismiss')}
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
-  );
-}
-
-function ActiveAlert({
-  alert,
-  dismissing,
-  onDismiss,
-}: {
-  alert: InventoryAlert;
-  dismissing: boolean;
-  onDismiss: () => void;
-}) {
-  const { t, i18n } = useTranslation();
-  const time = formatTimestamp(alert.start_ts, i18n.language, {
-    time: true,
-    timeZone: useDeploymentTimeZone(),
-  });
-  return (
-    <li className="flex items-start justify-between gap-3 text-sm">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-muted-foreground text-xs">{time}</span>
-        <span dir="auto">{alertText(alert, i18n.language)}</span>
-      </div>
-      <Button
-        aria-label={t('cce-inventory.status.dismiss-label', { time })}
-        disabled={dismissing}
-        onClick={onDismiss}
-        variant="outline"
-      >
-        {t('cce-inventory.status.dismiss')}
-      </Button>
-    </li>
   );
 }
 
@@ -384,11 +374,9 @@ export function TransferItem({
         program,
       ]),
     ).values(),
-  ];
+  ].sort((a, b) => recordLabel(a).localeCompare(recordLabel(b)));
   const facilitiesOf = (programId: string | null) =>
     programId ? options.facilitiesFor(programId) : [];
-  const offered = (programId: string, facilityId: string) =>
-    facilitiesOf(programId).some((facility) => facility.id === facilityId);
 
   const { mutation, leaving, allowLeave } = useItemSave(
     async (values: TransferValues) => {
@@ -410,7 +398,7 @@ export function TransferItem({
       onDone();
     },
   );
-  const keepsPair = offered(item.program.id, item.facility.id);
+  const keepsPair = facilitiesOf(item.program.id).some(({ id }) => id === item.facility.id);
   const defaultValues: TransferValues = {
     programId: keepsPair ? item.program.id : null,
     facilityId: keepsPair ? item.facility.id : null,
@@ -451,6 +439,8 @@ export function TransferItem({
             listeners={{
               onChange: ({ value }) => {
                 const facilities = facilitiesOf(value);
+                const facilityId = form.getFieldValue('facilityId');
+                if (facilities.some(({ id }) => id === facilityId)) return;
                 form.setFieldValue(
                   'facilityId',
                   facilities.length === 1 ? (facilities[0]?.id ?? null) : null,

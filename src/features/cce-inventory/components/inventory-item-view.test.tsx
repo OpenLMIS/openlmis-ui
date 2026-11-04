@@ -226,7 +226,7 @@ describe('InventoryItemView', () => {
     expect(onAction).not.toHaveBeenCalled();
   });
 
-  it('updates the status once the reason is chosen, and closes', async () => {
+  it('dismisses an alert, then updates the status once the reason is chosen, and closes', async () => {
     const user = userEvent.setup();
     const { onClose } = renderView({ action: 'status' });
     const choose = async (field: RegExp, option: string) => {
@@ -235,6 +235,8 @@ describe('InventoryItemView', () => {
     };
 
     expect(await screen.findByText('Too warm')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /cce-inventory.status.dismiss-label/ }));
+    await waitFor(() => expect(dismissAlert).toHaveBeenCalledWith(ALERT, expect.anything()));
     await choose(/cce-inventory.form.functional-status/, 'cce-equipment.status.unserviceable');
     await choose(/cce-inventory.form.functional-status/, 'cce-equipment.status.awaiting-repair');
     const update = screen.getByRole('button', { name: 'cce-inventory.status.update' });
@@ -248,17 +250,6 @@ describe('InventoryItemView', () => {
       functionalStatus: 'AWAITING_REPAIR',
       reasonNotWorkingOrNotInUse: 'DEAD',
     });
-  });
-
-  it('dismisses an active alert', async () => {
-    const user = userEvent.setup();
-    renderView({ action: 'status' });
-
-    await user.click(
-      await screen.findByRole('button', { name: /cce-inventory.status.dismiss-label/ }),
-    );
-
-    await waitFor(() => expect(dismissAlert).toHaveBeenCalledWith(ALERT, expect.anything()));
   });
 
   it('shows the details instead of transfer to a user who may transfer elsewhere only', async () => {
@@ -285,6 +276,8 @@ describe('InventoryItemView', () => {
 
     await user.click(await screen.findByRole('combobox', { name: /facility-program.facility/ }));
     await user.click(await screen.findByRole('option', { name: /Nandumbo Health Center/ }));
+    await user.click(screen.getByRole('combobox', { name: /facility-program.program/ }));
+    await user.click(await screen.findByRole('option', { name: 'EPI' }));
     await user.click(screen.getByRole('button', { name: 'cce-inventory.status.update' }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
