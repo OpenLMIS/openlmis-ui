@@ -30,11 +30,11 @@ import {
 } from '@/components/ui/table';
 import { cachedOrderBalance, orderStockOnHandOptions } from '@/features/orders/api/queries';
 import { OrderStockBalance, OrderStockError } from '@/features/orders/components/order-stock';
+import { useRemovalFocus } from '@/features/orders/hooks/use-removal-focus';
 import { type DraftLine, validQuantity } from '@/features/orders/lib/order-draft';
 import type { Order } from '@/features/orders/lib/types';
 import { productLabel } from '@/features/reference-data/lib/products';
 import { useCardLayout } from '@/hooks/use-card-view';
-import { useRemovalFocus } from '@/hooks/use-removal-focus';
 import { orEmpty } from '@/lib/empty-value';
 import { packsToShip, type QuantityUnit } from '@/lib/quantity';
 import { toWholeNumber } from '@/lib/whole-number';

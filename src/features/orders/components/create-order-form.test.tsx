@@ -102,3 +102,11 @@ it('keeps required picker placeholders free of spoken punctuation', () => {
     expect(picker.getAttribute('placeholder')).not.toContain('*');
   }
 });
+
+it('shows the required requesting facility label before a facility is added', async () => {
+  setup();
+  const label = (await screen.findByText('orders.create.requesting-facility')).closest('label');
+  expect(label).toBeVisible();
+  expect(label?.textContent).toContain('*');
+  expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeDisabled();
+});
