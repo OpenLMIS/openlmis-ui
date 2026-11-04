@@ -400,3 +400,40 @@ it('retries an initial storage read and loads the saved draft', async () => {
   await waitFor(() => expect(result.current.status.status).toBe('saved'));
   expect(onLoad).toHaveBeenCalledWith(draft);
 });
+
+it('ignores copy retirement after a successful terminal clear', async () => {
+  const { result } = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const { beginCopy, retireCopy } = await import('@/features/requisitions/lib/offline-copies');
+  await act(async () => {
+    await result.current.clear();
+    await retireCopy(await beginCopy(base.id));
+  });
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  expect(result.current.outdated).toBe(false);
+});
+
+it('rebases a conflicting stored draft on the current server baseline', async () => {
+  const onLoad = vi.fn();
+  const { result } = renderHook(() => useRequisitionDraft(base, onLoad));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const stored = { ...draft, lines: { removed: { requestedQuantity: '7' } } };
+  await store();
+  const table = getLocalDb().table('requisitionDrafts');
+  await table.put({ ...(await table.get('r')), draft: stored });
+  await act(() => result.current.resolve());
+  expect(onLoad).toHaveBeenLastCalledWith(draft);
+});
+
+it('reports a failed loader adoption through the draft save status', async () => {
+  const { result } = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const store = await import('@/lib/draft-store');
+  const error = new Error('Storage unavailable');
+  const spy = vi.spyOn(store, 'saveRevisionedDraft').mockRejectedValueOnce(error);
+  await act(async () => {
+    await expect(result.current.update({ ...base, modifiedDate: 'newer' })).rejects.toBe(error);
+  });
+  expect(result.current.status).toEqual({ status: 'failed', error });
+  spy.mockRestore();
+});
