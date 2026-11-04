@@ -376,15 +376,15 @@ export function TransferItem({
 
   const { mutation, leaving, allowLeave } = useItemSave(
     async (values: TransferValues) => {
-      const { programId, facilityId, yearOfInstallation } = transferSchema.parse(values);
+      const { target, yearOfInstallation } = transferSchema.parse(values);
       await transferInventoryItem(item.id, {
-        programId,
-        facilityId,
+        ...target,
         yearOfInstallation: toWholeNumber(yearOfInstallation),
       });
     },
     (values) => {
-      const facility = facilitiesOf(values.programId).find(({ id }) => id === values.facilityId);
+      const { programId, facilityId } = values.target;
+      const facility = facilitiesOf(programId).find(({ id }) => id === facilityId);
       toast.success(t('cce-inventory.transfer.saved-title'), {
         description: t('cce-inventory.transfer.saved', {
           name: item.referenceName,
@@ -397,8 +397,10 @@ export function TransferItem({
   );
   const keepsPair = facilitiesOf(item.program.id).some(({ id }) => id === item.facility.id);
   const defaultValues: TransferValues = {
-    programId: keepsPair ? item.program.id : null,
-    facilityId: keepsPair ? item.facility.id : null,
+    target: {
+      programId: keepsPair ? item.program.id : null,
+      facilityId: keepsPair ? item.facility.id : null,
+    },
     yearOfInstallation: String(item.yearOfInstallation),
   };
   const form = useAppForm({
@@ -407,7 +409,7 @@ export function TransferItem({
     validators: { onDynamic: transferSchema },
     onSubmit: ({ value }) => mutation.mutateAsync(value).catch(() => undefined),
   });
-  const programId = useStore(form.store, (state) => state.values.programId);
+  const programId = useStore(form.store, (state) => state.values.target.programId);
   const valid = useStore(form.store, (state) => transferSchema.safeParse(state.values).success);
   const dirty = useStore(form.store, (state) => !state.isDefaultValue);
   const guard = useItemDialogGuard({ dirty, pending: mutation.isPending, allowLeave });
@@ -435,15 +437,15 @@ export function TransferItem({
             listeners={{
               onChange: ({ value }) => {
                 const facilities = facilitiesOf(value);
-                const facilityId = form.getFieldValue('facilityId');
+                const facilityId = form.getFieldValue('target.facilityId');
                 if (facilities.some(({ id }) => id === facilityId)) return;
                 form.setFieldValue(
-                  'facilityId',
+                  'target.facilityId',
                   facilities.length === 1 ? (facilities[0]?.id ?? null) : null,
                 );
               },
             }}
-            name="programId"
+            name="target.programId"
           >
             {(field) => (
               <field.ComboboxField
@@ -460,7 +462,7 @@ export function TransferItem({
               />
             )}
           </form.AppField>
-          <form.AppField name="facilityId">
+          <form.AppField name="target.facilityId">
             {(field) => (
               <field.ComboboxField
                 clearLabel={t('facility-program.clear-facility')}

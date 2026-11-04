@@ -289,13 +289,14 @@ export function toStatusUpdate(
 }
 
 export const transferSchema = z.object({
-  programId: picked(PROGRAM_REQUIRED),
-  facilityId: picked(FACILITY_REQUIRED),
+  target: z.object({
+    programId: picked(PROGRAM_REQUIRED),
+    facilityId: picked(FACILITY_REQUIRED),
+  }),
   yearOfInstallation: year(false),
 });
 
 export type TransferValues = {
-  programId: string | null;
-  facilityId: string | null;
+  target: { programId: string | null; facilityId: string | null };
   yearOfInstallation: string;
 };
