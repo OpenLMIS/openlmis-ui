@@ -43,7 +43,8 @@ the epic can close.
    Evidence: `offline/s13.mjs`.
 4. **Slow first open on HTTPS.** `offline-single.ts:85-108` (`captureSingle`), started from
    `view_.$requisitionId.tsx:227-243`: the copy refetches products under different keys, every
-   available product, status messages and the unskip setting. Build the copy from the same grid query options and reuse its completed reads. Opening
+   available product, status messages and the unskip setting. Build the copy from the same grid
+   query options and reuse its completed reads. Opening
    adds no duplicate grid-product requests. Missing available products are fetched after two
    animation frames and browser idle, sequentially in batches of at most 100 identities.
    A 9,000-product program can still add up to 90 orderables/search requests in the background.
@@ -165,11 +166,11 @@ Conversion retires each released id independently. Retirement uses a multi-entry
 index added in database version 17, preserving version 16 data. Cleanup notices distinguish
 retirement from failed replacement capture and suppress resolved draft-removal errors. All
 five catalogs include the new text. The round-two pass aligns Arabic requisition terminology
-with the existing الطلب/الطلبات vocabulary and uses European Portuguese. F14 tracks actual line ids and proves only the edited line renders.
+with the existing الطلب/الطلبات vocabulary and uses European Portuguese. F14 tracks actual line ids
+and proves only the edited line renders.
 
 Verification covers the touched test files, translation sorting, TypeScript, Biome and
 design-system lint.
-
 
 ## Round-Two Fix Pass (2026-11-04)
 

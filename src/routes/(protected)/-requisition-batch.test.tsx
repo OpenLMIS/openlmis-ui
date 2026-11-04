@@ -41,6 +41,7 @@ await labels.use(IsolatingICU).init({
     en: {
       translation: {
         'requisitions.batch.quantity-label': en['requisitions.batch.quantity-label'],
+        'requisitions.batch.failure-line': en['requisitions.batch.failure-line'],
       },
     },
   },

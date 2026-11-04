@@ -127,6 +127,8 @@ export function RequisitionInput({
           ) : kind === 'text' ? (
             <Textarea
               {...shared}
+              rows={1}
+              size="inline"
               id={name}
               name={name}
               aria-label={label}

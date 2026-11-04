@@ -2,9 +2,25 @@ import { PlusIcon } from 'lucide-react';
 import type { ComponentProps, ReactNode, Ref } from 'react';
 import { Button } from '@/components/ui/button';
 import { InputGroupAddon } from '@/components/ui/input-group';
+import { cn } from '@/lib/utils';
 
-export function PickerAdd({ children }: { children: ReactNode }) {
-  return <div className="flex w-full items-center gap-2 @3xl/main:contents">{children}</div>;
+export function PickerAdd({
+  children,
+  align = 'center',
+}: {
+  children: ReactNode;
+  align?: 'center' | 'end';
+}) {
+  return (
+    <div
+      className={cn(
+        'flex w-full gap-2 @3xl/main:contents',
+        align === 'end' ? 'items-end' : 'items-center',
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function PickerAddField({

@@ -186,8 +186,8 @@ export function CreateOrderForm({
           />
         </div>
       </FieldGroup>
-      <div ref={picker} className="flex items-center gap-2 @3xl/main:max-w-xl">
-        <PickerAdd>
+      <div ref={picker} className="flex items-end gap-2 @3xl/main:max-w-xl">
+        <PickerAdd align="end">
           <PickerAddField>
             <OrderSelect
               required

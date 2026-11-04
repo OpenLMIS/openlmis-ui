@@ -573,20 +573,28 @@ function BatchPage() {
               setCopyFailure(error);
             }
           }
+          let approvedElsewhere = false;
           for (const [id, reason] of approval.failed) {
             const alreadyApproved = approvalResponse.requisitionErrors
               ?.find((e) => e.requisitionId === id)
               ?.errorMessage?.messageKey?.endsWith('requisitionMustBeAuthorized');
+            if (alreadyApproved) approvedElsewhere = true;
             failures.set(
               id,
               alreadyApproved
                 ? 'requisitions.batch.possibly-approved'
                 : reason || 'requisitions.batch.missing',
             );
-            if (alreadyApproved) {
+          }
+          if (approvedElsewhere) {
+            try {
               const latest = await refresh();
               await retireUnavailable(latest);
+              assertSessionScope(scope);
               setResponse(latest);
+            } catch (error) {
+              assertSessionScope(scope);
+              setCopyFailure(error);
             }
           }
         } catch (error) {
@@ -872,7 +880,13 @@ function BatchPage() {
                   .filter((id) => dialog.has(id))
                   .map((id) => {
                     const reason = dialog.get(id);
-                    return `${recordLabel(id)}: ${batchReasonText(batchReason(reason || 'requisitions.batch.missing'), t)}`;
+                    return t('requisitions.batch.failure-line', {
+                      requisition: recordLabel(id),
+                      reason: batchReasonText(
+                        batchReason(reason || 'requisitions.batch.missing'),
+                        t,
+                      ),
+                    });
                   })
                   .join('\n')
               : dialog}

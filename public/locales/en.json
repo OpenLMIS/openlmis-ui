@@ -1836,6 +1836,7 @@
   "requisitions.batch.crumb": "Batch Approval",
   "requisitions.batch.description": "Review approved quantities and costs for several requisitions together.",
   "requisitions.batch.errors": "{count, plural, one {There Was # Error} other {There Were # Errors}}",
+  "requisitions.batch.failure-line": "{requisition}: {reason}",
   "requisitions.batch.group": "{facility} - {period}",
   "requisitions.batch.invalid-description": "Correct the highlighted quantities to proceed.",
   "requisitions.batch.invalid-requisition": "This Requisition Is Invalid",
