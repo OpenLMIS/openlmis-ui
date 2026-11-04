@@ -56,6 +56,10 @@ export function batchTotals(
   let cost = 0;
   let quantity = 0;
   for (const record of records) {
+    if (!batchApprovable(record)) {
+      perRecord.set(record.id, 0);
+      continue;
+    }
     let total = 0;
     for (const line of record.requisitionLineItems) {
       const text = batchText(line, quantities[record.id]);
@@ -125,10 +129,15 @@ export function orderBatch(response: BatchResponse, ids: readonly string[]) {
   };
 }
 
-export function batchRowTotals(row: BatchRow, quantities: BatchQuantities) {
+export function batchRowTotals(
+  row: BatchRow,
+  quantities: BatchQuantities,
+  records?: readonly BatchRequisition[],
+) {
   let quantity = 0;
   let cost = 0;
   for (const [id, line] of row.lines) {
+    if (records && !records.some((record) => record.id === id && batchApprovable(record))) continue;
     const text = batchText(line, quantities[id]);
     const value = toWholeNumber(text);
     quantity += Number.isFinite(value) ? value : 0;

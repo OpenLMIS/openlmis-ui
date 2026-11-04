@@ -52,9 +52,9 @@ const BatchGroup = memo(function BatchGroup({ record }: { record: BatchRequisiti
   );
 });
 const ProductTotals = memo(function ProductTotals({ row }: { row: BatchRow }) {
-  const { drafts, currency } = useBatch();
+  const { drafts, currency, records } = useBatch();
   useBatchVersion(`product:${row.product.id}`);
-  const { quantity, cost } = batchRowTotals(row, drafts.quantities());
+  const { quantity, cost } = batchRowTotals(row, drafts.quantities(), records);
   return (
     <>
       <TableCell sticky="end" stickyOffset="var(--batch-cost-width)">

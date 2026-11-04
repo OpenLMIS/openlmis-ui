@@ -1841,6 +1841,7 @@
   "requisitions.batch.memory": "Les modifications ne sont pas enregistrées sur cet appareil",
   "requisitions.batch.missing": "Le serveur n’a pas renvoyé cette réquisition. Consultez la liste des approbations.",
   "requisitions.batch.name": "Nom",
+  "requisitions.batch.no-longer-awaiting": "Cette Réquisition N’attend Plus D’approbation.",
   "requisitions.batch.possibly-approved": "Cette réquisition a peut-être été approuvée ; consultez la liste des approbations.",
   "requisitions.batch.product": "Produit",
   "requisitions.batch.quantity": "Quantité",

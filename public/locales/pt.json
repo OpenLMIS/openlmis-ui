@@ -1841,6 +1841,7 @@
   "requisitions.batch.memory": "As alterações não são guardadas neste dispositivo",
   "requisitions.batch.missing": "O servidor não devolveu esta requisição. Consulte a lista de aprovação.",
   "requisitions.batch.name": "Nome",
+  "requisitions.batch.no-longer-awaiting": "Esta Requisição Já Não Aguarda Aprovação.",
   "requisitions.batch.possibly-approved": "Esta requisição pode ter sido aprovada; consulte a lista de aprovação.",
   "requisitions.batch.product": "Produto",
   "requisitions.batch.quantity": "Quantidade",
