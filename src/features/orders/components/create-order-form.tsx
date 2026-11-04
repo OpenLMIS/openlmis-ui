@@ -18,10 +18,10 @@ import { WorkspaceActionsPortal } from '@/components/workspace/workspace-tabs';
 import { createOrder } from '@/features/orders/api/api';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { OrderSelect } from '@/features/orders/components/order-select';
+import { useRemovalFocus } from '@/features/orders/hooks/use-removal-focus';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
 import type { MinimalFacility } from '@/features/reference-data/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
-import { useRemovalFocus } from '@/hooks/use-removal-focus';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { settleFew } from '@/lib/settle-few';
 
@@ -191,7 +191,6 @@ export function CreateOrderForm({
           <PickerAddField>
             <OrderSelect
               required
-              compact
               label={t('orders.create.requesting-facility')}
               placeholder={t('orders.create.select-requesting-facility')}
               options={requesting.filter((f) => !ids.includes(f.id))}
