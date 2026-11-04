@@ -59,7 +59,7 @@ it('loads a matching base and flags an older draft without discarding it', async
   const olderLoad = vi.fn();
   const older = renderHook(() => useRequisitionDraft(base, olderLoad));
   await waitFor(() => expect(older.result.current.outdated).toBe(true));
-  expect(olderLoad).not.toHaveBeenCalled();
+  expect(olderLoad).toHaveBeenCalledWith(draft);
   expect((await getLocalDb().table('requisitionDrafts').get('r')).draft).toEqual(draft);
 });
 it('never loads another owner, including a row with an incorrect owner', async () => {
