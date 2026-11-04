@@ -452,7 +452,10 @@ function BatchPage() {
       needsRefresh.current = eligible.map((r) => r.id);
       const fresh =
         kind === 'sync' || failures.size ? await refresh() : orderBatch(saveResponse, ids);
+      assertSessionScope(scope);
+      setResponse(fresh);
       await drafts.clear(save.succeeded, fresh.requisitionDtos, false);
+      assertSessionScope(scope);
       if (isSecureOrigin && save.succeeded.length) {
         const leases = loaded.copyLeases.filter((lease) => save.succeeded.includes(lease.id));
         try {
@@ -492,6 +495,13 @@ function BatchPage() {
           confirmed = true;
           const approval = parseBatchResult(approvalResponse, saved);
           approved = approval.succeeded;
+          setResponse((previous) => ({
+            ...previous,
+            requisitionDtos: previous.requisitionDtos.map(
+              (record) =>
+                approvalResponse.requisitionDtos?.find((next) => next.id === record.id) ?? record,
+            ),
+          }));
           resolvedApprovals = saved.filter(
             (id) =>
               approved.includes(id) ||

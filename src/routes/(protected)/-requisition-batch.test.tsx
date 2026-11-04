@@ -812,3 +812,24 @@ it.each(['ltr', 'rtl'])('tabs past a read-only requisition in %s', async (direct
   expect(inputs[0]).toHaveFocus();
   document.documentElement.dir = 'ltr';
 });
+
+it('shows the saved batch response before its device copy finishes', async () => {
+  const capture = vi.spyOn(savedBatches, 'captureBatch').mockResolvedValueOnce(undefined);
+  renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  await userEvent.clear(inputs[0]);
+  await userEvent.type(inputs[0], '77');
+  const saved = records.map((record) => ({
+    ...record,
+    modifiedDate: 'new',
+    requisitionLineItems: record.requisitionLineItems.map((line) => ({
+      ...line,
+      approvedQuantity: 88,
+    })),
+  }));
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: saved });
+  capture.mockImplementation(() => new Promise(() => {}));
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  await waitFor(() => expect(inputs[0]).toHaveValue('88'));
+});
