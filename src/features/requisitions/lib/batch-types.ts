@@ -14,6 +14,7 @@ export type BatchLine = {
   skipped: boolean;
 };
 export type BatchRequisition = {
+  approvalAvailable?: boolean;
   id: string;
   status: string;
   modifiedDate: string;

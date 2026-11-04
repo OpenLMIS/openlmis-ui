@@ -128,6 +128,15 @@ beforeEach(() => {
     requisitionDtos: records,
     requisitionErrors: [],
   });
+  vi.mocked(fetchApprovalList).mockImplementation(async () => {
+    const response = await vi.mocked(fetchBatchRequisitions).mock.results.at(-1)?.value;
+    return {
+      content: (response?.requisitionDtos ?? records).map((record: { id: string }) => ({
+        id: record.id,
+      })),
+      totalPages: 1,
+    } as never;
+  });
   vi.mocked(saveBatchRequisitions).mockResolvedValue({
     requisitionDtos: records,
     requisitionErrors: [],
@@ -860,4 +869,19 @@ it('sends one approval when the confirmation is double clicked', async () => {
   await screen.findByText('Approval List');
   expect(approveBatchRequisitions).toHaveBeenCalledOnce();
   queryClient.clear();
+});
+
+it('blocks a requisition moved to another node while still in approval', async () => {
+  const batch = generateBatch(2, 1);
+  batch[1].status = 'IN_APPROVAL';
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: batch });
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: [{ id: batch[0].id }],
+    totalPages: 1,
+  } as never);
+  renderRoute(batch.map((r) => r.id).join(','));
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  expect(inputs[1]).toBeDisabled();
+  expect(screen.getByText('requisitions.batch.no-longer-awaiting')).toBeInTheDocument();
 });
