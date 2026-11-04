@@ -561,7 +561,6 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Filters and states:**
 
-- Create Orders keeps a visible required Requesting Facility picker label for legacy parity.
 - Every toolbar follows one layout: one text search first and always visible, then one
   `DataTableFilters` button holding every other filter, then View, Print and Create at the end.
   Where the API filters code and name separately (Products, Stock On Hand), Name stays visible
@@ -675,6 +674,7 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
 - Dialog state belongs in the URL (`?user=new` / `?user=<id>`). Opening adds history; closing
   steps back, or replaces for a directly linked dialog. Use
   `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
+- Create Orders keeps a visible required Requesting Facility picker label for legacy parity.
 - Inline add forms with one picker, where picking reveals no further field, drop the label
   and card: a picker with a leading icon and a placeholder naming the choice, then a separate
   Add button beside it (never attached). The row sits above the toolbar, capped at
