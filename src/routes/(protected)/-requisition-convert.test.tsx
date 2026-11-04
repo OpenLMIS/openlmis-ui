@@ -636,3 +636,11 @@ it('allows release of a reselected unresolved row with only the normal release c
   expect(screen.queryByText('requisitions.convert.retry-confirm')).not.toBeInTheDocument();
   queryClient.clear();
 });
+
+it('describes a failed convert list without referring to one facility', async () => {
+  vi.mocked(fetchConvertList).mockRejectedValue(new Error('Service failed'));
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await screen.findByText('requisitions.convert.error-description');
+  expect(screen.queryByText('requisitions.view.error-description')).not.toBeInTheDocument();
+  queryClient.clear();
+});

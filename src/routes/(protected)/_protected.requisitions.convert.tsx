@@ -53,8 +53,8 @@ function ConvertError(props: ErrorComponentProps) {
   return (
     <ListError
       {...props}
-      title={t('requisitions.view.error-title')}
-      description={t('requisitions.view.error-description')}
+      title={t('requisitions.convert.error-title')}
+      description={t('requisitions.convert.error-description')}
     />
   );
 }

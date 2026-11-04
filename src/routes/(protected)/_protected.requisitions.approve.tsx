@@ -94,8 +94,8 @@ function ApprovalError(props: ErrorComponentProps) {
   return (
     <ListError
       {...props}
-      title={t('requisitions.view.error-title')}
-      description={t('requisitions.view.error-description')}
+      title={t('requisitions.approve.error-title')}
+      description={t('requisitions.approve.error-description')}
     />
   );
 }
