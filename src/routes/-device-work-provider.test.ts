@@ -77,7 +77,7 @@ it('retries on visibility and ignores an import that settles after unmount', asy
   expect(coordinator).not.toHaveBeenCalled();
 });
 
-it('retries download access timeouts while upload access fails after its first attempt', async () => {
+it('fails download and upload access timeouts after their first attempt', async () => {
   const failure = new AxiosError('Timed out', AxiosError.ECONNABORTED);
   vi.mocked(fetchPermissionStrings).mockRejectedValue(failure);
   await expect(deviceAccessReaders({}, () => {}, 'upload').permissions('user')).rejects.toBe(
@@ -88,5 +88,5 @@ it('retries download access timeouts while upload access fails after its first a
   await expect(deviceAccessReaders({}, () => {}, 'download').permissions('user')).rejects.toBe(
     failure,
   );
-  expect(fetchPermissionStrings).toHaveBeenCalledTimes(2);
+  expect(fetchPermissionStrings).toHaveBeenCalledTimes(1);
 });

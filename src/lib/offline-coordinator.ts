@@ -124,6 +124,7 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
       session: false,
       backgroundRead: true,
       backgroundDownload: true,
+      downloadProvider: 'access',
       signal: controller.signal,
       sessionScope: scope,
     };
@@ -311,9 +312,10 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
               continue;
             }
             const taskController = new AbortController();
-            const signal = AbortSignal.any([controller.signal, taskController.signal]);
+            const abortTask = () => taskController.abort();
+            controller.signal.addEventListener('abort', abortTask, { once: true });
             try {
-              const record = await wait(task.fetch(signal));
+              const record = await wait(task.fetch(taskController.signal));
               check();
               await db.transaction('rw', table, async () => {
                 check();
@@ -368,6 +370,8 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
               schedule.failed(workKey);
               unfinished.delete(workKey);
               failed.push(downloadEntry(provider, task));
+            } finally {
+              controller.signal.removeEventListener('abort', abortTask);
             }
           }
         };
@@ -397,7 +401,10 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
           ...getDownloadStatus(),
           phase: 'failed',
           reason:
-            isAxiosError(error) && error.code === AxiosError.ECONNABORTED ? 'timeout' : 'read',
+            isAxiosError(error) &&
+            [AxiosError.ECONNABORTED, AxiosError.ETIMEDOUT].includes(error.code ?? '')
+              ? 'timeout'
+              : 'read',
         });
       }
     } finally {

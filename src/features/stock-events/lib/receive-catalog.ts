@@ -59,6 +59,7 @@ export async function fetchReceiveCatalog(
     session: false,
     backgroundRead: true,
     backgroundDownload: true,
+    downloadProvider: 'receive-catalog',
     signal,
     sessionScope: getSessionScope(),
   };

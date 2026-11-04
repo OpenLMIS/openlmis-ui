@@ -197,7 +197,13 @@ export const requisitionAccessProvider = defineDownloadProvider({
       ? [{ id: access.userId, name: '', key: access.userId }]
       : [],
   fetch: async (_scope, signal): Promise<RequisitionAccess> => {
-    const config = { session: false, backgroundRead: true, backgroundDownload: true, signal };
+    const config = {
+      session: false,
+      backgroundRead: true,
+      backgroundDownload: true,
+      downloadProvider: 'requisition-access',
+      signal,
+    };
     const session = getSessionScope();
     const access = await readOfflineAccess();
     const check = () => {

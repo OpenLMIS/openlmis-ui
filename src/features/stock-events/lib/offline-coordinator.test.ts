@@ -1298,7 +1298,10 @@ it('limits all providers to two HTTP reads and gives foreground work priority', 
     return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
   };
   const requests = Array.from({ length: 6 }, (_, i) =>
-    client.get(`/background-${i}`, { backgroundDownload: true }),
+    client.get(`/background-${i}`, {
+      backgroundDownload: true,
+      downloadProvider: `provider-${i % 2}`,
+    }),
   );
   await waitFor(() => expect(sent).toHaveLength(2));
   const foreground = client.put('/foreground', {});
@@ -1388,7 +1391,11 @@ it('shares the transport budget across parallel dataset readers', async () => {
   download.mockImplementation(async ({ programId }, signal) => {
     await Promise.all(
       Array.from({ length: 4 }, (_, i) =>
-        client.get(`/stock/${programId}/${i}`, { backgroundDownload: true, signal }),
+        client.get(`/stock/${programId}/${i}`, {
+          backgroundDownload: true,
+          downloadProvider: programId,
+          signal,
+        }),
       ),
     );
     return bundle(programId);
@@ -1401,7 +1408,7 @@ it('shares the transport budget across parallel dataset readers', async () => {
       {
         ...provider,
         id: 'other',
-        tasks: (access) => provider.tasks(access).slice(0, 1),
+        tasks: (access) => provider.tasks(access).slice(1, 2),
       },
     ],
   });
@@ -1460,4 +1467,45 @@ it('accepts parsed JSON downloads and rejects gateway text before dataset public
     code: AxiosError.ERR_BAD_RESPONSE,
     response: { status: 200 },
   });
+});
+
+it('runs without AbortSignal.any and forwards stop to the active task', async () => {
+  vi.spyOn(AbortSignal, 'any').mockImplementation(() => {
+    throw new Error('Unsupported');
+  });
+  let signal: AbortSignal | undefined;
+  download.mockImplementation((_filter, taskSignal) => {
+    signal = taskSignal;
+    return new Promise(() => {});
+  });
+  begin();
+  await waitFor(() => expect(download).toHaveBeenCalledOnce());
+  expect(signal?.aborted).toBe(false);
+  stop?.();
+  expect(signal?.aborted).toBe(true);
+});
+
+it('keeps the deployment time-zone read timeout below the background cap', async () => {
+  const timeouts: number[] = [];
+  client.defaults.adapter = async (config) => {
+    timeouts.push(config.timeout ?? 0);
+    return { data: { timeZoneId: 'UTC' }, status: 200, statusText: 'OK', headers: {}, config };
+  };
+  begin();
+  await finished();
+  expect(timeouts).toEqual([10_000]);
+});
+
+it('reports ETIMEDOUT from access preparation as a timeout', async () => {
+  stop = startCoordinator({
+    access: () => ({
+      ...raw,
+      permissions: async () => {
+        throw new AxiosError('Timed out', AxiosError.ETIMEDOUT);
+      },
+    }),
+    providers: [homeStockProvider(download)],
+  });
+  await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
+  expect(getDownloadStatus().reason).toBe('timeout');
 });

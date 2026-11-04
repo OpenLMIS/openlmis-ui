@@ -213,3 +213,20 @@ Program, added requesting facilities, a valid supplying facility and read access
 empty state remains covered by the Create Orders workflow test. Other round-two items are
 implemented and covered by focused domain, hook or route tests, with static checks for the
 code moves, removed dead code, translation keys and documentation.
+
+
+## Download Follow-Up (2026-11-04)
+
+Opening captures retain newer saved single and batch server records after Sync or Approve,
+including sub-millisecond modified dates. Background downloads share two transport slots with
+at most one active request per provider while another provider waits. A freed slot goes to the
+waiting provider before more sibling reads start.
+Provider ids travel with dataset, access and time-zone request configuration. Foreground reads
+keep priority. Slot draining waits until failed tasks can abort their queued sibling reads.
+
+Task cancellation forwards the coordinator abort through ordinary AbortController listeners,
+without AbortSignal.any. Background access reads use one attempt and preserve shorter endpoint
+timeouts under the 20-second cap. Both Axios timeout codes produce timeout feedback.
+
+Verification uses failing regression tests before fixes, the touched test files, TypeScript,
+Biome and design-system lint. No full suite, browser, push or server writes are part of this pass.

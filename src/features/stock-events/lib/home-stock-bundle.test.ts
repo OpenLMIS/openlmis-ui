@@ -202,10 +202,12 @@ it('bounds timed-out background reads without declaring the browser offline', as
     throw new AxiosError('Timed out', AxiosError.ECONNABORTED);
   });
   client.defaults.adapter = adapter;
-  await expect(fetchHomeStockBundle(filter)).rejects.toMatchObject({
+  const controller = new AbortController();
+  await expect(fetchHomeStockBundle(filter, controller.signal)).rejects.toMatchObject({
     code: AxiosError.ECONNABORTED,
   });
-  expect(adapter).toHaveBeenCalledTimes(4);
+  controller.abort();
+  expect(adapter).toHaveBeenCalledTimes(2);
   expect(onlineManager.isOnline()).toBe(true);
 });
 
@@ -317,7 +319,7 @@ it.each(['foreground', 'coordinator'] as const)(
       accessToken: 'renewed',
     });
     expect((await result).cards).toHaveLength(2);
-    expect(refused).toHaveBeenCalled();
+    expect(refused).toHaveBeenCalledTimes(source === 'coordinator' ? 4 : 2);
     await background;
   },
 );

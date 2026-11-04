@@ -440,3 +440,99 @@ it('checks large product identity sets without quadratic scans', async () => {
   ).toBe(true);
   expect(reads).toBeLessThanOrEqual(products.length * 2);
 });
+
+it.each(['Sync', 'Approve'])(
+  'retains newer single and batch records when opening capture finishes after %s',
+  async (action) => {
+    const { record } = await import('./fixtures/builders');
+    const lease = await beginCopy('r');
+    const copy = ready(lease);
+    const singleRecord = {
+      ...record(),
+      id: 'r',
+      status: 'AUTHORIZED' as RequisitionStatus,
+      modifiedDate: '2026-11-04T10:00:00.000001Z',
+      facility: { id: 'f' },
+      program: { id: 'p' },
+      processingPeriod: { id: 'period' },
+      requisitionLineItems: [],
+    };
+    const single = {
+      record: singleRecord,
+      fetchedAt: 1,
+      references: {
+        facility: {
+          id: 'f',
+          code: 'F',
+          name: 'Clinic',
+          active: true,
+          enabled: true,
+          type: { id: 'type', code: 'T', name: 'Type' },
+          geographicZone: { id: 'zone', code: 'Z', name: 'Zone', level: { name: 'Level' } },
+        },
+        program: { id: 'p', code: 'P', name: 'Program', active: true },
+        period: {
+          id: 'period',
+          name: 'November',
+          startDate: '2026-11-01',
+          endDate: '2026-11-30',
+          durationInMonths: 1,
+        },
+        products: [],
+        approved: [],
+        messages: [],
+        currency: copy.batch.currency,
+        unskip: { unskipRequisition: true },
+      } satisfies SingleReferences,
+    };
+
+    copy.batch.record.modifiedDate = singleRecord.modifiedDate;
+    const opening = { ...copy, single };
+    await commitCopy(lease, opening);
+    const fresh = {
+      ...opening,
+      summary: {
+        ...opening.summary,
+        status: action === 'Approve' ? ('APPROVED' as const) : ('AUTHORIZED' as const),
+      },
+      single: {
+        ...single,
+        record: { ...singleRecord, modifiedDate: '2026-11-04T10:00:00.000002Z' },
+      },
+      batch: {
+        ...copy.batch,
+        record: {
+          ...copy.batch.record,
+          modifiedDate: '2026-11-04T10:00:00.000002Z',
+          requisitionLineItems: [
+            {
+              id: 'saved-line',
+              approvedQuantity: 25,
+              skipped: false,
+              orderable: {
+                id: 'product',
+                productCode: 'P',
+                fullProductName: 'Product',
+                netContent: 1,
+                roundToZero: false,
+              },
+            },
+          ],
+        },
+      },
+    };
+    fresh.single.record.status = fresh.summary.status;
+    fresh.batch.record.status = fresh.summary.status;
+    const access = Promise.withResolvers<void>();
+    const openingCapture = access.promise.then(() => commitCopy(lease, opening));
+    await commitCopy(lease, fresh);
+    if (action === 'Approve') await confirmBatchApproval(lease, fresh.batch.record);
+    access.resolve();
+    await openingCapture;
+    expect(await readCopy('r')).toMatchObject({
+      single: fresh.single,
+      batch: { record: fresh.batch.record },
+      summary: fresh.summary,
+    });
+  },
+);

@@ -171,10 +171,22 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
     const batchDirty =
       batchDraft &&
       (Object.keys(batchDraft.approvedQuantities).length || batchDraft.unresolvedApproval);
+    const singleOlder = !!(
+      previous?.single &&
+      next.single &&
+      newerServerRecord(previous.single.record, next.single.record)
+    );
+    const batchOlder = !!(
+      previous?.batch &&
+      next.batch &&
+      newerServerRecord(previous.batch.record, next.batch.record)
+    );
     const single =
-      singleDirty && previous?.single ? previous.single : (next.single ?? previous?.single);
+      (singleDirty || singleOlder) && previous?.single
+        ? previous.single
+        : (next.single ?? previous?.single);
     let batch =
-      batchDirty && previous?.batch
+      (batchDirty || batchOlder) && previous?.batch
         ? {
             ...previous.batch,
             approvalNodes: next.batch?.approvalNodes ?? previous.batch.approvalNodes,
@@ -212,8 +224,13 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
       single,
       batch,
       summary: {
-        ...((singleDirty || batchDirty) && previous ? previous.summary : next.summary),
-        status: (summaryStatus ?? next.summary.status) as CopySummary['status'],
+        ...((singleDirty || batchDirty || singleOlder || batchOlder) && previous
+          ? previous.summary
+          : next.summary),
+        status: (summaryStatus ??
+          ((singleOlder || batchOlder) && previous
+            ? previous.summary.status
+            : next.summary.status)) as CopySummary['status'],
       },
       fetchedAt: (singleDirty || batchDirty) && previous ? previous.fetchedAt : next.fetchedAt,
       revision: (previous?.revision ?? 0) + 1,
