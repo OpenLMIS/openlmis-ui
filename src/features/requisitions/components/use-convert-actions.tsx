@@ -103,8 +103,12 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
             assertSessionScope(scope);
             await retireCopy(lease);
             assertSessionScope(scope);
-          } catch {
+          } catch (error) {
             assertSessionScope(scope);
+            if (!(error instanceof LocalDataUnavailableError))
+              toast.error(t('requisitions.offline.failed-title'), {
+                description: t('requisitions.offline.failed-description'),
+              });
           }
         }
       }

@@ -25,7 +25,7 @@ import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
 import { reportCaughtError } from '@/lib/report-error';
 import { Route } from '@/routes/(protected)/_protected.requisitions.convert';
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/local-data', async (original) => ({
   ...(await original<typeof import('@/lib/local-data')>()),
   requireOnline: vi.fn(),
@@ -669,6 +669,9 @@ it('reports successful release even when local copy retirement fails', async () 
     ),
   );
   expect(screen.queryByText('requisitions.convert.release-unknown')).not.toBeInTheDocument();
+  expect(toast.error).toHaveBeenCalledWith('requisitions.offline.failed-title', {
+    description: 'requisitions.offline.failed-description',
+  });
   queryClient.clear();
 });
 
