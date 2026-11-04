@@ -197,7 +197,7 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
       batch,
       summary: {
         ...((singleDirty || batchDirty) && previous ? previous.summary : next.summary),
-        ...(summaryStatus && { status: summaryStatus as CopySummary['status'] }),
+        status: (summaryStatus ?? next.summary.status) as CopySummary['status'],
       },
       fetchedAt: (singleDirty || batchDirty) && previous ? previous.fetchedAt : next.fetchedAt,
       revision: (previous?.revision ?? 0) + 1,

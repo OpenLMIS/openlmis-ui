@@ -346,3 +346,32 @@ it('retires both representations after an action and prevents an old capture res
   expect(await readCopy('r')).toBeUndefined();
   await expect(commitCopy(lease, ready(lease))).rejects.toThrow();
 });
+
+it('refreshes the list status while retaining dirty batch values and their baseline', async () => {
+  const lease = await beginCopy('r');
+  const first = ready(lease);
+  await commitCopy(lease, first);
+  await getLocalDb()
+    .table(LOCAL_TABLES.requisitionBatchDrafts)
+    .put({
+      draftId: 'r',
+      userId: lease.userId,
+      formatVersion: 1,
+      revision: 1,
+      approvedQuantities: { line: 12 },
+    });
+  await commitCopy(lease, {
+    ...first,
+    summary: { ...first.summary, status: 'APPROVED' },
+    batch: {
+      ...first.batch,
+      record: { ...first.batch.record, status: 'APPROVED', modifiedDate: 'new' },
+    },
+  });
+  const copy = await readCopy('r');
+  expect(copy?.summary.status).toBe('APPROVED');
+  expect(copy?.batch?.record.status).toBe('AUTHORIZED');
+  expect(await getLocalDb().table(LOCAL_TABLES.requisitionBatchDrafts).get('r')).toMatchObject({
+    approvedQuantities: { line: 12 },
+  });
+});
