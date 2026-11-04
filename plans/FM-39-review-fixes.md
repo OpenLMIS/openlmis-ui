@@ -103,3 +103,22 @@ then the fix. Performance items are checked in a production build in review.
 1. Serious fixes 1-6, each with its reproducer test.
 2. Minor fixes 7-19.
 3. Tests 20 and plan updates 21.
+
+## Resumed Fix Pass (2026-11-04)
+
+Fixes 10-21 are implemented. Fix 10 also retains the invalid marker after the user adds and
+removes the only product. Fix 17 uses the documented `TableCell rowHeader` registry exception,
+preserving row-header semantics without changing rendering. Fix 20 reuses the existing FM-45
+URL/request and flag-off tests; the other promised workflows have focused regression tests.
+Fix 21 also corrects FM-50's contradictory Create Order acceptance summary noted by the reviewer.
+
+Focused coverage: Create Orders focus/validation/footer and final deletion; insecure list
+availability; dirty batch summary status; outdated draft adoption; approval/conversion failures;
+Arabic product-removal labels in tables/cards; double-click batch approval; named conversion
+refusal with Release Without Order recovery; single-approver conflict and explicit Update.
+
+The full suite, browser checks, live performance measurements, server writes, pushes and PR
+creation are excluded from this pass. The batch double-click regression uses plain HTTP's
+in-memory editing path; saved-copy and approval persistence remain covered by the existing
+secure-origin batch workflows. Backend Release Without Order failures and deployment flags
+remain outside scope.
