@@ -1,5 +1,6 @@
 import {
-  type UseSuspenseQueryResult,
+  useQueries,
+  useQuery,
   useQueryClient,
   useSuspenseQueries,
   useSuspenseQuery,
@@ -24,10 +25,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import {
-  type requireRequisitionView,
-  requisitionViewNodes,
-} from '@/features/auth/lib/requisition-access';
+import { requisitionViewNodes } from '@/features/auth/lib/requisition-access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   deploymentTimeZoneOptions,
@@ -75,8 +73,8 @@ import { requireRequisitionViewWithDevice } from '@/routes/-requisition-access';
 
 const NO_DIALOGS = {} satisfies Partial<RequisitionSearch>;
 const noop = () => {};
-const combineGroups = (results: UseSuspenseQueryResult<RequisitionGroup>[]) =>
-  results.map(({ data }) => data);
+const combineGroups = (results: { data?: RequisitionGroup }[]) =>
+  results.flatMap(({ data }) => data ?? []);
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/view')({
   validateSearch: (input) => {
@@ -87,20 +85,16 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view'
   loader: async ({ context: { queryClient }, deps: { search } }) => {
     await prepareRequisitionAccess(queryClient);
     const userId = useLoginData.getState().referenceDataUserId;
-    const access = await requireRequisitionViewWithDevice(queryClient);
+    if (!userId) return;
+    const permissions = await queryClient.fetchQuery(permissionsOptions(userId));
+    if (!programGrants(permissions, RIGHTS.requisitionView).length)
+      await requireRequisitionViewWithDevice(queryClient);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
     queryClient.prefetchQuery(minimalFacilitiesOptions());
-    const grants = programGrants(access.permissions, RIGHTS.requisitionView);
-    const nodesQuery = supervisoryNodesByIdsOptions(
-      requisitionViewNodes(access.user, access.roles),
-    );
-    queryClient.prefetchQuery(nodesQuery).then(() => {
-      if (useLoginData.getState().referenceDataUserId !== userId) return;
-      const nodes = queryClient.getQueryData(nodesQuery.queryKey);
-      const ids = partnerNodeIds(nodes ?? []);
-      if (ids.length) queryClient.prefetchQuery(supervisoryNodesByIdsOptions(ids));
-    });
+    const grants = programGrants(permissions, RIGHTS.requisitionView);
+    queryClient.prefetchQuery(userRecordOptions(userId));
+    queryClient.prefetchQuery(rolesOptions());
     const userProgramsQuery = userProgramsOptions(userId);
     queryClient.prefetchQuery(userProgramsQuery).then(() => {
       if (useLoginData.getState().referenceDataUserId !== userId) return;
@@ -128,13 +122,11 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view'
         ),
       );
     }
-    return { ...access, userId };
+    return { userId };
   },
   pendingComponent: RequisitionsPending,
   component: RequisitionsPage,
 });
-
-type Access = Awaited<ReturnType<typeof requireRequisitionView>> & { userId: string };
 
 function RequisitionsHeader() {
   const { t } = useTranslation();
@@ -277,41 +269,56 @@ function RequisitionsPage() {
   );
 }
 
-function useSearchFacilities(access: Access) {
+function useSearchFacilities(userId: string) {
   const [facilities, userPrograms] = useSuspenseQueries({
-    queries: [minimalFacilitiesOptions(), userProgramsOptions(access.userId)],
+    queries: [minimalFacilitiesOptions(), userProgramsOptions(userId)],
   });
-  const grants = useMemo(
-    () => programGrants(access.permissions, RIGHTS.requisitionView),
-    [access.permissions],
-  );
+  const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
+  const { data: user } = useQuery({ ...userRecordOptions(userId), throwOnError: true });
+  const { data: roles } = useQuery({ ...rolesOptions(), throwOnError: true });
+  const grants = useMemo(() => programGrants(permissions, RIGHTS.requisitionView), [permissions]);
   const missingPrograms = grants.some(
     ({ programId }) => !userPrograms.data.some(({ id }) => id === programId),
   );
   const fallback = useSuspenseQueries({
     queries: [...(missingPrograms ? [programsOptions()] : [])],
   });
-  const nodeIds = requisitionViewNodes(access.user, access.roles);
-  const nodes = useSuspenseQueries({
-    queries: [...(nodeIds.length ? [supervisoryNodesByIdsOptions(nodeIds)] : [])],
+  const nodeIds = user && roles ? requisitionViewNodes(user, roles) : [];
+  const nodes = useQueries({
+    queries: [
+      ...(nodeIds.length ? [{ ...supervisoryNodesByIdsOptions(nodeIds), throwOnError: true }] : []),
+    ],
   });
-  const viewerNodes = nodes.flatMap(({ data }) => data);
+  const viewerNodes = nodes.flatMap(({ data }) => data ?? []);
   const partnerIds = partnerNodeIds(viewerNodes);
-  const partners = useSuspenseQueries({
-    queries: [...(partnerIds.length ? [supervisoryNodesByIdsOptions(partnerIds)] : [])],
+  const partners = useQueries({
+    queries: [
+      ...(partnerIds.length
+        ? [{ ...supervisoryNodesByIdsOptions(partnerIds), throwOnError: true }]
+        : []),
+    ],
   });
-  const groupIds = groupIdsOf(partners.flatMap(({ data }) => data));
-  const groups = useSuspenseQueries({
-    queries: groupIds.map(requisitionGroupOptions),
+  const groupIds = groupIdsOf(partners.flatMap(({ data }) => data ?? []));
+  const groups = useQueries({
+    queries: groupIds.map((id) => ({ ...requisitionGroupOptions(id), throwOnError: true })),
     combine: combineGroups,
   });
   const fallbackPrograms = fallback[0]?.data;
-  return useMemo(() => {
+  const options = useMemo(() => {
     const programsById = new Map(
       [...(fallbackPrograms ?? []), ...userPrograms.data].map((program) => [program.id, program]),
     );
     return searchFacilityOptions(grants, facilities.data, [...programsById.values()], groups);
   }, [grants, facilities.data, userPrograms.data, fallbackPrograms, groups]);
+  return {
+    options,
+    pending:
+      !user ||
+      !roles ||
+      nodes.some((result) => result.isPending) ||
+      partners.some((result) => result.isPending) ||
+      groups.length < groupIds.length,
+  };
 }
 
 function RequisitionsBody({
@@ -327,10 +334,7 @@ function RequisitionsBody({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
-  const { data: user } = useSuspenseQuery(userRecordOptions(userId));
-  const { data: roles } = useSuspenseQuery(rolesOptions());
-  const options = useSearchFacilities({ userId, permissions, user, roles });
+  const { options, pending: choicesPending } = useSearchFacilities(userId);
   const facility = options.find(({ id }) => id === search.facility);
   const [draft, setDraft] = useState<string | null>(null);
   const [draftOver, setDraftOver] = useState(search.facility);
@@ -384,7 +388,15 @@ function RequisitionsBody({
     />
   );
   let outcome: ReactNode;
-  if (!facility) {
+  if (!facility && search.facility && choicesPending) {
+    outcome = (
+      <RequisitionsTableSkeleton
+        cards={columnView.cards}
+        columns={columnView.columnView.visibility}
+        search={search}
+      />
+    );
+  } else if (!facility) {
     outcome = (
       <OutcomeMessage
         icon={search.facility ? <ShieldAlertIcon /> : <ClipboardListIcon />}

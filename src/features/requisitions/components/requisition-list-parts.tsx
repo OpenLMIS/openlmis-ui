@@ -146,7 +146,7 @@ export function ViewRequisition({
     <Link
       aria-label={name}
       to="/requisitions/approve/batch"
-      search={{ ids: record.id }}
+      search={{ ids: record.id, program: record.program?.id }}
       state={
         'state' in linkProps
           ? linkProps.state

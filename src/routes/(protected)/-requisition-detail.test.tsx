@@ -137,10 +137,15 @@ vi.mock('@/features/requisitions/components/requisition-skeletons', async (impor
   ),
 }));
 
-function renderRoute(path: string, state?: import('@tanstack/react-router').HistoryState) {
+function renderRoute(
+  path: string,
+  state?: import('@tanstack/react-router').HistoryState,
+  seed?: (client: QueryClient) => void,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
+  seed?.(queryClient);
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -1996,6 +2001,9 @@ it('preserves approval edits on a conflict after another approver acted and relo
 });
 
 it.each(['submit', 'approve'] as const)('updates the saved single copy after %s', async (kind) => {
+  useLoginData.setState({ referenceDataUserId: 'u' });
+  const { getLocalDb, LOCAL_TABLES } = await import('@/integrations/local-db');
+  await getLocalDb().table(LOCAL_TABLES.requisitionCopies).clear();
   const access = await import('@/features/requisitions/lib/offline-access');
   const references = await import('@/features/reference-data/api/api');
   const copies = await import('@/features/requisitions/lib/offline-copies');
@@ -2207,5 +2215,34 @@ it.each(['approve', 'reject'] as const)('returns direct %s to the approval list'
     );
   }
   await screen.findByText('Approval List');
+  queryClient.clear();
+});
+
+it('starts known period, program and currency reads while the fresh requisition is pending', async () => {
+  const api = await import('@/features/reference-data/api/api');
+  const { queryKeys } = await import('@/lib/key-factory');
+  useLoginData.setState({ referenceDataUserId: 'u' });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
+  let finish!: (value: ReturnType<typeof patientRecord>) => void;
+  vi.mocked(fetchRequisition).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const period = vi.mocked(api.fetchProcessingPeriod).mock.calls.length;
+  const program = vi.mocked(api.fetchProgramLookup).mock.calls.length;
+  const currency = vi.mocked(api.fetchCurrencySettings).mock.calls.length;
+  const { queryClient } = renderRoute('/requisitions/view/r', undefined, (cache) => {
+    cache.setQueryData(queryKeys.requisitions.list({}), { content: [patientRecord()] });
+  });
+  await waitFor(() => {
+    expect(api.fetchProcessingPeriod).toHaveBeenCalledTimes(period + 1);
+    expect(api.fetchProgramLookup).toHaveBeenCalledTimes(program + 1);
+    expect(api.fetchCurrencySettings).toHaveBeenCalledTimes(currency + 1);
+    expect(finish).toBeDefined();
+  });
+  await act(async () => finish(patientRecord()));
+  await screen.findByRole('tab', { name: 'requisitions.requisition.patients', selected: true });
   queryClient.clear();
 });

@@ -149,7 +149,10 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
     else
       void navigate({
         to: '/requisitions/approve/batch',
-        search: { ids: approvalSelectedIds(picked).join(',') },
+        search: {
+          ids: approvalSelectedIds(picked).join(','),
+          program: [...picked.values()][0]?.programId,
+        },
         state: {
           ...returnState({ to: '/requisitions/approve', search }),
           requisitionBatchRecords: [...picked.values()].flatMap((value) =>

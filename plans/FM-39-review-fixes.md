@@ -231,3 +231,31 @@ timeouts under the 20-second cap. Both Axios timeout codes produce timeout feedb
 
 Verification uses failing regression tests before fixes, the touched test files, TypeScript,
 Biome and design-system lint. No full suite, browser, push or server writes are part of this pass.
+
+
+## Requisition Performance Follow-Up (2026-11-04)
+
+Sign-in preloads session reference queries for roles, facilities, programs, the user's record
+and programs, supervisory nodes and groups. The access download consumes the same queries and
+still publishes only complete owner-scoped snapshots. Picker references retain administrative
+invalidation; upload permission checks remain fresh. Time-zone downloads reuse the currency
+settings query, removing a second locale settings request.
+
+View offers directly granted facilities before supervisory and partner nodes finish. Partner
+choices merge when their groups arrive; linked selections never search until their facility is
+offered. The combobox renders at most 50 matches. Searches default to legacy's 10 rows and retain
+30 seconds of freshness, avoiding a second request when loader prefetch completes before mount.
+
+Leaving Home cancels its query group and forwards cancellation to every dashboard request.
+Requisition detail starts currency and known program/period lookups alongside the fresh record;
+product identity reads still depend on that record, whose template is embedded. Proceed marks
+lists stale without refetching the periods list before navigation. Batch links carry the program
+and membership reads run alongside the batch and currency requests, stopping at the first page
+that completes membership. Pages remain sequential so no later page is requested unnecessarily.
+Create Orders keeps its removal callback stable across edits. Local dev/preview proxy connections
+use HTTP or HTTPS keep-alive agents; deployed runtime traffic is unaffected.
+
+Evidence: view-timing/new-blocked.json and legacy-idle60.json in the sibling fm39-opus-review
+worktree. These changes remove measured waterfalls and duplicate reads. Unit and interaction
+checks verify ordering and request counts; no new server/browser timings were collected, so the
+legacy latency ceiling still needs measurement in the parent review.

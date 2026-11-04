@@ -7,6 +7,8 @@ import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { OfflineNotice } from '@/components/app-shell/offline-notice';
 import { PageVisibility } from '@/components/shared/page-visibility';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { requisitionReferences } from '@/features/reference-data/api/requisition-reference';
+import { queryClient } from '@/integrations/tanstack-query';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { canRetainPageOffline, isOfflineCapable } from '@/lib/offline-pages';
 import { isOnline, seedOnline, useOnline } from '@/lib/online';
@@ -37,6 +39,18 @@ export const Route = createFileRoute('/(protected)/_protected')({
 
 function ProtectedLayout() {
   const online = useOnline();
+  const userId = useLoginData((state) => state.referenceDataUserId);
+  useEffect(() => {
+    if (!userId || !online) return;
+    const controller = new AbortController();
+    void requisitionReferences(queryClient, userId, {
+      backgroundRead: true,
+      backgroundDownload: true,
+      downloadProvider: 'requisition-access',
+      signal: controller.signal,
+    }).catch(() => controller.abort());
+    return () => controller.abort();
+  }, [userId, online]);
   const { pathname } = useLocation();
   const available = online || canRetainPageOffline(pathname);
   const scope = useSessionScope();

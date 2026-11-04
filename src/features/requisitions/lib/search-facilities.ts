@@ -66,7 +66,7 @@ export function searchFacilityOptions(
   );
 }
 
-export const REQUISITIONS_PAGE_SIZE = 20;
+export const REQUISITIONS_PAGE_SIZE = 10;
 export const REQUISITIONS_SORT = { id: 'createdDate', desc: true };
 export const requisitionSearchSchema = tableSearchSchema(['createdDate']).extend({
   offline: z.boolean().optional().catch(undefined),

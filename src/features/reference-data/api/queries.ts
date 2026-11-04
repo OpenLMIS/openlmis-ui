@@ -65,11 +65,13 @@ import { offlineAccessQuery, readOfflineAccess, withOfflineAccess } from '@/lib/
 // Lookups that rarely change, so one fetch serves every screen for a while.
 export const LOOKUP_STALE_TIME = 10 * 60 * 1000;
 
-export const minimalFacilitiesOptions = () =>
+export const minimalFacilitiesOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
+    ...(config?.backgroundDownload && { retry: false }),
     queryKey: [...queryKeys.facilities.all, 'minimal'] as const,
-    queryFn: () => fetchMinimalFacilities(),
-    staleTime: LOOKUP_STALE_TIME,
+    queryFn: () => fetchMinimalFacilities(config),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
   });
 
 export const stockPickerFacilitiesOptions = (online: boolean) =>
@@ -113,16 +115,20 @@ export const facilitiesByIdsOptions = (ids: readonly string[]) =>
 
 export const rolesOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
+    ...(config?.backgroundDownload && { retry: false }),
     queryKey: queryKeys.roles.list(),
     queryFn: () => fetchRoles(config),
-    staleTime: LOOKUP_STALE_TIME,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
   });
 
-export const programsOptions = () =>
+export const programsOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
+    ...(config?.backgroundDownload && { retry: false }),
     queryKey: queryKeys.programs.list(),
-    queryFn: () => fetchPrograms(),
-    staleTime: LOOKUP_STALE_TIME,
+    queryFn: () => fetchPrograms(config),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
   });
 
 export const supervisoryNodesOptions = () =>
@@ -132,11 +138,41 @@ export const supervisoryNodesOptions = () =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const supervisoryNodesByIdsOptions = (ids: readonly string[]) =>
+export const supervisoryNodesByIdsOptions = (ids: readonly string[], config?: AxiosRequestConfig) =>
   queryOptions({
-    queryKey: [...queryKeys.supervisoryNodes.all, 'byIds', ids] as const,
-    queryFn: () => fetchSupervisoryNodesByIds(ids),
-    staleTime: LOOKUP_STALE_TIME,
+    ...(config?.backgroundDownload && { retry: false }),
+    queryKey: [...queryKeys.supervisoryNodes.all, 'byIds', [...new Set(ids)].sort()] as const,
+    queryFn: async ({
+      client,
+      queryKey,
+    }): Promise<Awaited<ReturnType<typeof fetchSupervisoryNodesByIds>>> => {
+      if (!ids.length) return [];
+      const current = client.getQueryCache().find({ queryKey, exact: true });
+      if ((current?.options as { staleTime?: number })?.staleTime !== 0) {
+        const covering = client
+          .getQueryCache()
+          .findAll({ queryKey: [...queryKeys.supervisoryNodes.all, 'byIds'] })
+          .find((query) => {
+            const knownIds = query.queryKey.at(-1);
+            return (
+              Array.isArray(knownIds) &&
+              knownIds.length > ids.length &&
+              ids.every((id) => knownIds.includes(id)) &&
+              !query.state.isInvalidated &&
+              (query.state.data || query.promise)
+            );
+          });
+        if (covering) {
+          const nodes = (
+            covering.promise ? await covering.promise : covering.state.data
+          ) as Awaited<ReturnType<typeof fetchSupervisoryNodesByIds>>;
+          return nodes.filter((node) => ids.includes(node.id));
+        }
+      }
+      return fetchSupervisoryNodesByIds([...new Set(ids)].sort(), config);
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
   });
 
 export const supervisedFacilitiesOptions = (filter: SupervisedFacilitiesFilter) =>
@@ -279,24 +315,28 @@ export const facilityOrderableFulfillsOptions = (filter: FacilityProgramFilter) 
 /** The user as the reference data holds them; not `users.detail`, which holds the Users page's richer record. */
 export const userRecordOptions = (id: string, config?: AxiosRequestConfig) =>
   queryOptions({
+    ...(config?.backgroundDownload && { retry: false }),
     queryKey: userRecordKey(id),
     queryFn: () =>
       withOfflineAccess(
         () => fetchUserRecord(id, config),
         (saved) => (saved.userId === id ? saved.user : undefined),
       ),
-    ...offlineAccessQuery(LOOKUP_STALE_TIME),
+    ...offlineAccessQuery(Number.POSITIVE_INFINITY),
+    gcTime: Number.POSITIVE_INFINITY,
   });
 
-export const userProgramsOptions = (id: string) =>
+export const userProgramsOptions = (id: string, config?: AxiosRequestConfig) =>
   queryOptions({
+    ...(config?.backgroundDownload && { retry: false }),
     queryKey: userProgramsKey(id),
     queryFn: () =>
       withOfflineAccess(
-        () => fetchUserPrograms(id),
+        () => fetchUserPrograms(id, config),
         (saved) => (saved.userId === id ? saved.programs : undefined),
       ),
-    ...offlineAccessQuery(LOOKUP_STALE_TIME),
+    ...offlineAccessQuery(Number.POSITIVE_INFINITY),
+    gcTime: Number.POSITIVE_INFINITY,
   });
 
 type DeploymentTimeZone = { zone: string; read: boolean };
@@ -371,10 +411,13 @@ export const rejectionReasonsOptions = () =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const requisitionGroupOptions = (id: string) =>
+export const requisitionGroupOptions = (id: string, config?: AxiosRequestConfig) =>
   queryOptions({
+    ...(config?.backgroundDownload && { retry: false }),
     queryKey: queryKeys.requisitionGroups.detail(id),
-    queryFn: () => fetchRequisitionGroup(id),
+    queryFn: () => fetchRequisitionGroup(id, config),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
   });
 
 export const processingPeriodOptions = (id: string) =>
@@ -389,10 +432,11 @@ export const programLookupOptions = (id: string) =>
     queryFn: () => fetchProgramLookup(id),
     staleTime: LOOKUP_STALE_TIME,
   });
-export const currencySettingsOptions = () =>
+export const currencySettingsOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
+    ...(config?.backgroundDownload && { retry: false }),
     queryKey: [...queryKeys.localeSettings.all, 'currency'] as const,
-    queryFn: fetchCurrencySettings,
+    queryFn: () => fetchCurrencySettings(config),
     staleTime: LOOKUP_STALE_TIME,
   });
 export const approvedProductsByIdentitiesOptions = (identities: readonly OrderableIdentity[]) => {

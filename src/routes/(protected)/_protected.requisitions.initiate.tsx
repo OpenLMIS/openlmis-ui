@@ -340,7 +340,10 @@ function Periods({
         });
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.requisitions.all,
+        refetchType: 'none',
+      });
       assertSessionScope(attempt.sessionScope);
       await router.navigate({
         to: '/requisitions/view/$requisitionId',

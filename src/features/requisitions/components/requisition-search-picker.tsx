@@ -47,9 +47,13 @@ export function RequisitionSearchPicker({
         formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
       ),
   });
+  const previousApplied = useRef(applied);
   useEffect(() => {
-    form.reset({ facility: start ?? '' });
-  }, [form, start]);
+    if (previousApplied.current !== applied || !form.state.values.facility) {
+      form.reset({ facility: start ?? '' });
+    }
+    previousApplied.current = applied;
+  }, [form, start, applied]);
   return (
     <form
       noValidate
@@ -78,7 +82,7 @@ export function RequisitionSearchPicker({
                 description: facility.code,
               }))}
               label={t('facility-program.facility')}
-              limit={-1}
+              limit={50}
               placeholder={t('facility-program.facility-placeholder')}
               required
               size="lg"

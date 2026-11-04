@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fetchOrderables } from '@/features/reference-data/api/api';
 import {
   approvedProductsByIdentitiesOptions,
+  LOOKUP_STALE_TIME,
   lotsByIdsOptions,
   minimalFacilitiesOptions,
   orderablesByIdentitiesOptions,
@@ -59,7 +60,7 @@ describe('orderablesSearchOptions', () => {
 
 describe('lookups by id', () => {
   it('keep products and lots as long as the other lookups', () => {
-    const lookup = minimalFacilitiesOptions().staleTime;
+    const lookup = LOOKUP_STALE_TIME;
 
     expect(orderablesByIdsOptions(['o1']).staleTime).toBe(lookup);
     expect(lotsByIdsOptions(['l1']).staleTime).toBe(lookup);
@@ -75,7 +76,7 @@ it.each([
     const filter = { programId: 'p1', facilityId: 'f1' };
     const options = lookup(filter);
     expect(options.queryKey).toEqual([...adminKey, 'lookup', filter]);
-    expect(options.staleTime).toBe(minimalFacilitiesOptions().staleTime);
+    expect(options.staleTime).toBe(LOOKUP_STALE_TIME);
     const queryClient = new QueryClient();
     queryClient.setQueryData(options.queryKey, []);
     await queryClient.invalidateQueries({ queryKey: adminKey });

@@ -288,3 +288,17 @@ it('shows a translated unsupported-program failure and retries the period query'
   await screen.findByText('January');
   queryClient.clear();
 });
+
+it('opens the initiated requisition without waiting for a periods refetch', async () => {
+  const { router, queryClient } = renderRoute();
+  const proceed = await screen.findByRole('button', {
+    name: 'requisitions.initiate.proceed-label',
+  });
+  const reads = vi.mocked(client.get).mock.calls.length;
+  vi.mocked(client.get).mockImplementation(() => new Promise(() => {}));
+  await userEvent.click(proceed);
+  await screen.findByText('Opened requisition');
+  expect(router.state.location.pathname).toBe('/requisitions/view/new');
+  expect(client.get).toHaveBeenCalledTimes(reads);
+  queryClient.clear();
+});

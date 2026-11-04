@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTable } from '@tanstack/react-table';
 import { Trash2Icon } from 'lucide-react';
-import { memo, type ReactNode } from 'react';
+import { memo, type ReactNode, useCallback, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTableHeaderLabel,
@@ -92,6 +92,14 @@ export function OrderLines({
     lines.map((line) => line.key),
     () => document.getElementById('order-product'),
   );
+  const removal = useRef({ focus, onRemove });
+  useLayoutEffect(() => {
+    removal.current = { focus, onRemove };
+  });
+  const handleRemove = useCallback((key: string) => {
+    removal.current.focus.removing(key);
+    removal.current.onRemove(key);
+  }, []);
   const row = (line: DraftLine, index: number) => (
     <OrderLine
       key={line.key}
@@ -101,10 +109,7 @@ export function OrderLines({
       unit={unit}
       disabled={disabled}
       quantity={quantity}
-      onRemove={(key) => {
-        focus.removing(key);
-        onRemove(key);
-      }}
+      onRemove={handleRemove}
       stock={
         stock.data?.find((item) => item.orderable.id === line.product.id)?.stockOnHand ??
         cachedOrderBalance(client, filter, line.product.id)

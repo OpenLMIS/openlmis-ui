@@ -47,6 +47,7 @@ import {
 } from '@/features/auth/lib/requisition-access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  currencySettingsOptions,
   deploymentTimeZoneOptions,
   facilityOptions,
   orderablesByIdentitiesOptions,
@@ -204,6 +205,21 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
     const lease = isSecureOrigin ? await beginCopy(params.requisitionId) : undefined;
     let copyResult: Promise<unknown> | undefined;
     const serverOptions = requisitionOptions(params.requisitionId);
+    queryClient.prefetchQuery(currencySettingsOptions());
+    const known = queryClient
+      .getQueriesData<{
+        content?: { id: string; program: { id: string }; processingPeriod?: { id: string } }[];
+      }>({ queryKey: queryKeys.requisitions.all })
+      .flatMap(([, data]) => data?.content ?? [])
+      .find((row) => row.id === params.requisitionId);
+    const previous = queryClient.getQueryData(serverOptions.queryKey);
+    const reference = previous ?? known;
+    if (reference) {
+      queryClient.prefetchQuery(programLookupOptions(reference.program.id));
+      if (reference.processingPeriod)
+        queryClient.prefetchQuery(processingPeriodOptions(reference.processingPeriod.id));
+    }
+
     const options = {
       ...serverOptions,
       queryFn: () =>

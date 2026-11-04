@@ -388,3 +388,17 @@ it('reopens siblings when an existing copy loses its approval-list membership', 
     expect.objectContaining({ requisitionId: 'gone' }),
   ]);
 });
+
+it('filters batch membership by program and stops as soon as all requested ids are found', async () => {
+  const { fetchBatchMembership } = await import('./offline-batch');
+  const { getSessionScope } = await import('@/lib/session-scope');
+  vi.mocked(fetchApprovalList).mockResolvedValueOnce(approvalPage([summary], 0, 50));
+  const result = await fetchBatchMembership(['r'], getSessionScope(), 'p');
+  expect(result).toMatchObject({ found: [summary], remaining: new Set() });
+  expect(fetchApprovalList).toHaveBeenCalledExactlyOnceWith({
+    page: 0,
+    size: 100,
+    sort: ['id,asc'],
+    program: 'p',
+  });
+});

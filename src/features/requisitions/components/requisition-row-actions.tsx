@@ -112,7 +112,7 @@ export function RequisitionRowActions({
                   link: (
                     <Link
                       to="/requisitions/approve/batch"
-                      search={{ ids: record.id }}
+                      search={{ ids: record.id, program: record.program?.id }}
                       state={returnState({ to: '/requisitions/view', search })}
                     />
                   ),
@@ -175,7 +175,7 @@ export function RequisitionRowActions({
                 render={
                   <Link
                     to="/requisitions/approve/batch"
-                    search={{ ids: record.id }}
+                    search={{ ids: record.id, program: record.program?.id }}
                     state={returnState({ to: '/requisitions/view', search })}
                   />
                 }

@@ -15,7 +15,11 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchMinimalFacilities,
   fetchPrograms,
+  fetchRequisitionGroup,
+  fetchRoles,
+  fetchSupervisoryNodesByIds,
   fetchUserPrograms,
+  fetchUserRecord,
 } from '@/features/reference-data/api/api';
 import { searchRequisitions } from '@/features/requisitions/api/api';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view';
@@ -29,6 +33,8 @@ vi.mock('@/lib/secure-context', () => ({
 }));
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
+  fetchSupervisoryNodesByIds: vi.fn(async () => []),
+  fetchRequisitionGroup: vi.fn(),
   fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
   storedTimeZone: vi.fn(() => null),
   fetchUserRecord: vi.fn(async () => ({ id: 'u', roleAssignments: [] })),
@@ -104,7 +110,7 @@ it('does not search until the selected facility is applied', async () => {
       expect.objectContaining({
         facility: 'f',
         page: 0,
-        size: 20,
+        size: 10,
         sort: ['createdDate,desc', 'id'],
       }),
     ),
@@ -124,7 +130,7 @@ it('restores filters from the URL and returns to page one when a status changes'
       initiatedDateFrom: '2026-01-01',
       initiatedDateTo: '2026-02-01',
       page: 2,
-      size: 20,
+      size: 10,
       sort: ['createdDate,asc', 'id'],
     }),
   );
@@ -249,4 +255,79 @@ it('ignores an offline URL filter and hides offline columns on plain HTTP', asyn
   } finally {
     security.secure = true;
   }
+});
+
+it('uses the loader search once on direct entry', async () => {
+  const { queryClient } = renderRoute('/requisitions/view?facility=f');
+  await screen.findByText('requisitions.view.empty-title');
+  expect(searchRequisitions).toHaveBeenCalledTimes(1);
+  queryClient.clear();
+});
+
+it('offers granted facilities before nodes resolve and refuses an unrelated linked facility', async () => {
+  let finish!: (nodes: never[]) => void;
+  vi.mocked(fetchUserRecord).mockResolvedValueOnce({
+    id: 'u',
+    roleAssignments: [{ roleId: 'r', programId: 'p', supervisoryNodeId: 'n' }],
+  } as never);
+  vi.mocked(fetchRoles).mockResolvedValueOnce([
+    { id: 'r', rights: [{ name: 'REQUISITION_VIEW' }] },
+  ] as never);
+  vi.mocked(fetchSupervisoryNodesByIds).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const { queryClient } = renderRoute('/requisitions/view?facility=unrelated');
+  expect(await screen.findByRole('button', { name: 'facility-program.search' })).toBeEnabled();
+  expect(screen.queryByText('requisitions.view.refused-title')).not.toBeInTheDocument();
+  expect(searchRequisitions).not.toHaveBeenCalled();
+  await act(async () => finish([]));
+  await screen.findByText('requisitions.view.refused-title');
+  expect(searchRequisitions).not.toHaveBeenCalled();
+  queryClient.clear();
+});
+
+it('merges partner facilities after nodes arrive without clearing their linked program', async () => {
+  let finish!: (nodes: never[]) => void;
+  vi.mocked(fetchUserRecord).mockResolvedValueOnce({
+    id: 'u',
+    roleAssignments: [{ roleId: 'r', programId: 'p', supervisoryNodeId: 'n' }],
+  } as never);
+  vi.mocked(fetchRoles).mockResolvedValueOnce([
+    { id: 'r', rights: [{ name: 'REQUISITION_VIEW' }] },
+  ] as never);
+  vi.mocked(fetchSupervisoryNodesByIds)
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    )
+    .mockResolvedValueOnce([{ id: 'partner-node', requisitionGroup: { id: 'g' } }] as never);
+  vi.mocked(fetchRequisitionGroup).mockResolvedValueOnce({
+    id: 'g',
+    memberFacilities: [
+      {
+        id: 'partner',
+        name: 'Partner',
+        supportedPrograms: [{ id: 'partner-program', name: 'Partner program' }],
+      },
+    ],
+  } as never);
+  const { router, queryClient } = renderRoute(
+    '/requisitions/view?facility=partner&program=partner-program',
+  );
+  expect(await screen.findByRole('button', { name: 'facility-program.search' })).toBeEnabled();
+  expect(searchRequisitions).not.toHaveBeenCalled();
+  await act(async () => finish([{ id: 'n', partnerNodeOf: { id: 'partner-node' } }] as never));
+  await waitFor(() =>
+    expect(searchRequisitions).toHaveBeenCalledWith(
+      expect.objectContaining({ facility: 'partner', program: 'partner-program' }),
+    ),
+  );
+  expect(router.state.location.search.program).toBe('partner-program');
+  expect(screen.queryByText('requisitions.view.refused-title')).not.toBeInTheDocument();
+  queryClient.clear();
 });

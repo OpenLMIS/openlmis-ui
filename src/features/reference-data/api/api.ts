@@ -461,10 +461,11 @@ export async function fetchProgramLookup(id: string) {
   return data;
 }
 
-export async function fetchCurrencySettings() {
+export async function fetchCurrencySettings(config?: AxiosRequestConfig) {
   const { data } = await client.get<CurrencySettings & { timeZoneId?: string | null }>(
     '/localeSettings',
     {
+      ...config,
       baseURL: '/',
       anonymous: true,
       connectionStatus: false,

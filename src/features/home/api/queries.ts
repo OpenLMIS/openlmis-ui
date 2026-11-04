@@ -17,25 +17,49 @@ const key = (...parts: string[]) => [...queryKeys.home.all, ...parts] as const;
 const APPROVALS_SHOWN = 5;
 
 export const approvalsOptions = () =>
-  queryOptions({ queryKey: key('approvals'), queryFn: () => fetchApprovals(APPROVALS_SHOWN) });
+  queryOptions({
+    queryKey: key('approvals'),
+    queryFn: ({ signal }) => fetchApprovals(APPROVALS_SHOWN, { signal }),
+  });
 
 export const convertCountOptions = () =>
-  queryOptions({ queryKey: key('convert-count'), queryFn: fetchConvertCount });
+  queryOptions({
+    queryKey: key('convert-count'),
+    queryFn: ({ signal }) => fetchConvertCount({ signal }),
+  });
 
 export const openOrdersCountOptions = () =>
-  queryOptions({ queryKey: key('open-orders-count'), queryFn: fetchOpenOrdersCount });
+  queryOptions({
+    queryKey: key('open-orders-count'),
+    queryFn: ({ signal }) => fetchOpenOrdersCount({ signal }),
+  });
 
 export const requisitionStatusCountsOptions = () =>
-  queryOptions({ queryKey: key('requisition-statuses'), queryFn: fetchRequisitionStatusCounts });
+  queryOptions({
+    queryKey: key('requisition-statuses'),
+    queryFn: ({ signal }) => fetchRequisitionStatusCounts({ signal }),
+  });
 
 export const recentRequisitionsOptions = () =>
-  queryOptions({ queryKey: key('recent-requisitions'), queryFn: fetchRecentRequisitions });
+  queryOptions({
+    queryKey: key('recent-requisitions'),
+    queryFn: ({ signal }) => fetchRecentRequisitions({ signal }),
+  });
 
 export const equipmentStatusCountsOptions = () =>
-  queryOptions({ queryKey: key('equipment-statuses'), queryFn: fetchEquipmentStatusCounts });
+  queryOptions({
+    queryKey: key('equipment-statuses'),
+    queryFn: ({ signal }) => fetchEquipmentStatusCounts({ signal }),
+  });
 
 export const systemNotificationsOptions = () =>
-  queryOptions({ queryKey: key('notifications'), queryFn: fetchSystemNotifications });
+  queryOptions({
+    queryKey: key('notifications'),
+    queryFn: ({ signal }) => fetchSystemNotifications({ signal }),
+  });
 
 export const firstNameOptions = (userId: string) =>
-  queryOptions({ queryKey: key('first-name', userId), queryFn: () => fetchFirstName(userId) });
+  queryOptions({
+    queryKey: key('first-name', userId),
+    queryFn: ({ signal }) => fetchFirstName(userId, { signal }),
+  });

@@ -129,6 +129,11 @@ plus the zone filter (`toZoneOption`) and program filter (`toProgramFilter`) hel
 their list uses a lookup's endpoint, reuse that query and widen its type, as Roles and
 Reasons do.
 
+- Requisition pages and background access downloads share reference-data query options through
+  `requisitionReferences`. Roles, minimal facilities, programs, user records/programs, nodes and
+  groups stay fresh for the session; administrative saves still invalidate their keys. Background
+  sign-in preloading fills the same cache, including on insecure origins. Keep exact grants and
+  fresh upload authorization separate from cached picker references.
 - Requisition lookups include requisition groups, processing periods, a program, currency settings
   and products and approved products by id and version.
 

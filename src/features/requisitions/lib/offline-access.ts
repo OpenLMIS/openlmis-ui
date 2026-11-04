@@ -1,13 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
 import { liveQuery } from 'dexie';
-import {
-  fetchMinimalFacilities,
-  fetchPrograms,
-  fetchRequisitionGroup,
-  fetchRoles,
-  fetchSupervisoryNodesByIds,
-} from '@/features/reference-data/api/api';
+import { fetchRoles, fetchSupervisoryNodesByIds } from '@/features/reference-data/api/api';
 import {
   LOOKUP_STALE_TIME,
   minimalFacilitiesOptions,
@@ -18,6 +12,7 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { requisitionReferences } from '@/features/reference-data/api/requisition-reference';
 import type {
   MinimalFacility,
   Program,
@@ -32,6 +27,7 @@ import {
   searchFacilityOptions,
 } from '@/features/requisitions/lib/search-facilities';
 import { LOCAL_TABLES } from '@/integrations/local-db';
+import { queryClient } from '@/integrations/tanstack-query';
 import { defineDownloadProvider } from '@/lib/download-provider';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { requireOwnedRecord } from '@/lib/local-records';
@@ -211,30 +207,10 @@ export const requisitionAccessProvider = defineDownloadProvider({
       signal.throwIfAborted();
     };
     check();
-    const [roles, facilities, programs] = await Promise.all([
-      fetchRoles(config),
-      fetchMinimalFacilities(config),
-      fetchPrograms(config),
-    ]);
-    check();
-    const ids = [
-      ...new Set([
-        ...supervisoryNodesWithRight(access.user, roles, RIGHTS.requisitionView),
-        ...supervisoryNodesWithRight(access.user, roles, RIGHTS.requisitionApprove),
-      ]),
-    ];
-    const nodes = await fetchSupervisoryNodesByIds(ids, config);
-    check();
-    if (ids.some((id) => !nodes.some((node) => node.id === id)))
-      throw new LocalDataUnavailableError();
-    const partnerIds = partnerNodeIds(nodes).filter((id) => !ids.includes(id));
-    const partners = await fetchSupervisoryNodesByIds(partnerIds, config);
-    if (partnerIds.some((id) => !partners.some((node) => node.id === id)))
-      throw new LocalDataUnavailableError();
-    check();
-    const allNodes = [...nodes, ...partners];
-    const groups = await Promise.all(
-      groupIdsOf(allNodes).map((id) => fetchRequisitionGroup(id, config)),
+    const { roles, facilities, programs, nodes, groups } = await requisitionReferences(
+      queryClient,
+      access.userId,
+      config,
     );
     check();
     return {
@@ -245,7 +221,7 @@ export const requisitionAccessProvider = defineDownloadProvider({
       roles,
       facilities,
       programs,
-      nodes: allNodes,
+      nodes,
       groups,
     };
   },

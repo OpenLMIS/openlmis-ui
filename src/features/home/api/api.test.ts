@@ -90,3 +90,19 @@ describe('fetchSystemNotifications', () => {
     ]);
   });
 });
+
+it('cancels every status request when the dashboard query is cancelled', async () => {
+  const { QueryClient } = await import('@tanstack/react-query');
+  const { requisitionStatusCountsOptions } = await import('./queries');
+  const { queryKeys } = await import('@/lib/key-factory');
+  const cache = new QueryClient();
+  get.mockImplementation(() => new Promise(() => {}));
+  const loading = cache.prefetchQuery(requisitionStatusCountsOptions());
+  expect(get).toHaveBeenCalledTimes(5);
+  const signals = get.mock.calls.map(([, config]) => config?.signal);
+  expect(signals.every((signal) => signal && !signal.aborted)).toBe(true);
+  await cache.cancelQueries({ queryKey: queryKeys.home.all });
+  await loading;
+  expect(signals.every((signal) => signal?.aborted)).toBe(true);
+  cache.clear();
+});

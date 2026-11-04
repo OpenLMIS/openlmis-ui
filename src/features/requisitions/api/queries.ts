@@ -47,7 +47,7 @@ export const requisitionSearchOptions = (
     online: online && !offline,
     server: () => (offline ? localRequisitions(params, timeZone) : searchRequisitions(params)),
     device: () => localRequisitions(params, timeZone),
-    staleTime: 0,
+    staleTime: 30_000,
   });
 
 export const requisitionOptions = (id: string) =>

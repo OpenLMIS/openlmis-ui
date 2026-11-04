@@ -13,6 +13,7 @@ import {
   fetchUserPrograms,
   fetchUserRecord,
 } from '@/features/reference-data/api/api';
+import { userProgramsOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import { requisitionAccessProvider } from '@/features/requisitions/lib/offline-access';
 import { useOfflineEvents } from '@/features/stock-events/hooks/use-offline-events';
 import { retryDownloadRead } from '@/features/stock-events/lib/download-read';
@@ -24,6 +25,7 @@ import {
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import i18n from '@/integrations/i18n';
+import { queryClient } from '@/integrations/tanstack-query';
 import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
 import type { InitialTrigger } from '@/lib/offline-coordinator';
 import { isOnline } from '@/lib/online';
@@ -115,8 +117,14 @@ export function deviceAccessReaders(
     purpose === 'download' ? retryDownloadRead(task, check, 1) : task();
   return {
     permissions: (id: string) => read(() => fetchPermissionStrings(id, config)),
-    user: (id: string) => read(() => fetchUserRecord(id, config)),
-    programs: (id: string) => read(() => fetchUserPrograms(id, config)),
+    user: (id: string) =>
+      purpose === 'download'
+        ? queryClient.fetchQuery(userRecordOptions(id, config))
+        : fetchUserRecord(id, config),
+    programs: (id: string) =>
+      purpose === 'download'
+        ? queryClient.fetchQuery(userProgramsOptions(id, config))
+        : fetchUserPrograms(id, config),
     home: (id: string) => read(() => fetchFacility(id, config)),
   };
 }

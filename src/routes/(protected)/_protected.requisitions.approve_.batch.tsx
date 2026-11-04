@@ -102,10 +102,10 @@ import {
 } from '@/routes/-requisition-access';
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/approve_/batch')({
-  validateSearch: z.object({ ids: z.string().catch('') }),
-  loaderDeps: ({ search }) => ({ ids: batchIds(search.ids) }),
+  validateSearch: z.object({ ids: z.string().catch(''), program: z.string().optional() }),
+  loaderDeps: ({ search }) => ({ ids: batchIds(search.ids), program: search.program }),
   preload: false,
-  loader: async ({ context: { queryClient }, deps: { ids } }) => {
+  loader: async ({ context: { queryClient }, deps: { ids, program } }) => {
     const scope = getSessionScope();
     await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
@@ -117,7 +117,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
         const [rawResponse, currency, found] = await Promise.all([
           queryClient.fetchQuery(batchRequisitionsOptions(ids)),
           queryClient.ensureQueryData(currencySettingsOptions()),
-          fetchBatchMembership(ids, scope),
+          fetchBatchMembership(ids, scope, program),
         ]);
         assertSessionScope(scope);
         membership = found;
@@ -248,6 +248,7 @@ const actionCopy = {
 } as const;
 type Action = 'approve' | 'revert' | 'anyway' | 'update' | 'remove';
 function BatchPage() {
+  const search = Route.useSearch();
   const loaded = Route.useLoaderData();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -300,7 +301,7 @@ function BatchPage() {
   const replaceIds = (next: readonly string[]) =>
     navigate({
       to: '/requisitions/approve/batch',
-      search: { ids: next.join(',') },
+      search: { ids: next.join(','), program: search.program },
       replace: true,
       state: locationState,
     });
@@ -319,7 +320,7 @@ function BatchPage() {
   const refresh = async () => {
     const [result, found] = await Promise.all([
       fetchBatchRequisitions(ids),
-      fetchBatchMembership(ids, scope),
+      fetchBatchMembership(ids, scope, search.program),
     ]);
     assertSessionScope(scope);
     membership.current = found;
