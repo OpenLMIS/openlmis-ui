@@ -33,7 +33,6 @@ import {
   fetchUserPrograms,
   fetchUserRecord,
 } from '@/features/reference-data/api/api';
-import { openLegacy } from '@/hooks/use-back-to-legacy';
 import { downloadFile } from '@/lib/download-file';
 import { Route } from '@/routes/(protected)/_protected.cce.inventory';
 import { expectRouteWarning } from '@/test-utils/expect-route-warning';
@@ -449,9 +448,9 @@ describe('CCE inventory page', () => {
 
       const fridge = await itemOf('Fridge #11');
       await user.click(within(fridge).getByRole('button', { name: /cce-inventory.update-status/ }));
-      expect(openLegacy).toHaveBeenLastCalledWith(
-        `#!/cce/inventory/${FRIDGE}/statusUpdate?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
-      );
+      expect(router.state.location.search).toMatchObject({ item: FRIDGE, action: 'status' });
+      await user.click(await screen.findByRole('button', { name: 'dialog.close' }));
+      await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
       await user.click(screen.getByRole('button', { name: 'cce-inventory.add' }));
       expect(await screen.findByRole('dialog', { name: 'cce-inventory.form.title' })).toBeVisible();
       expect(router.state.location.search).toEqual({
@@ -492,14 +491,17 @@ describe('CCE inventory page', () => {
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
   });
 
-  it('keeps the details but drops edit from a link for a user who cannot edit', async () => {
-    vi.mocked(fetchPermissionStrings).mockResolvedValue([VIEW]);
-    const { router } = renderRoute(appliedPath(`&item=${FRIDGE}&edit=true`));
+  it.each(['edit', 'status', 'transfer'])(
+    'keeps the details but drops %s from a link for a user without the right',
+    async (action) => {
+      vi.mocked(fetchPermissionStrings).mockResolvedValue([VIEW]);
+      const { router } = renderRoute(appliedPath(`&item=${FRIDGE}&action=${action}`));
 
-    await itemOf('Fridge #11');
-    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('edit'));
-    expect(router.state.location.search).toHaveProperty('item', FRIDGE);
-  });
+      await itemOf('Fridge #11');
+      await waitFor(() => expect(router.state.location.search).not.toHaveProperty('action'));
+      expect(router.state.location.search).toHaveProperty('item', FRIDGE);
+    },
+  );
 
   it('closes Add Equipment onto the list of the saved pair after Save', async () => {
     const user = userEvent.setup();

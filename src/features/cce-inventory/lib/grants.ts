@@ -1,8 +1,13 @@
 import { hasProgramGrant, type Permissions, programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 
-export function editableGrants(permissions: Permissions) {
-  return programGrants(permissions, RIGHTS.cceInventoryEdit).filter((grant) =>
+const viewableGrants = (permissions: Permissions, right: string) =>
+  programGrants(permissions, right).filter((grant) =>
     hasProgramGrant(permissions, RIGHTS.cceInventoryView, grant.facilityId, grant.programId),
   );
-}
+
+export const editableGrants = (permissions: Permissions) =>
+  viewableGrants(permissions, RIGHTS.cceInventoryEdit);
+
+export const transferableGrants = (permissions: Permissions) =>
+  viewableGrants(permissions, RIGHTS.cceInventoryTransfer);

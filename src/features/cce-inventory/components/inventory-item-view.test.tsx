@@ -2,10 +2,25 @@ import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchInventoryItem, updateInventoryItem } from '@/features/cce-inventory/api/api';
-import { InventoryItemView } from '@/features/cce-inventory/components/inventory-item-view';
-import type { InventoryItemRecord } from '@/features/cce-inventory/lib/types';
-import { fetchFacility, fetchProgramLookup } from '@/features/reference-data/api/api';
+import {
+  dismissAlert,
+  fetchInventoryAlerts,
+  fetchInventoryItem,
+  transferInventoryItem,
+  updateInventoryItem,
+} from '@/features/cce-inventory/api/api';
+import {
+  InventoryItemView,
+  type ItemAction,
+} from '@/features/cce-inventory/components/inventory-item-view';
+import type { InventoryAlert, InventoryItemRecord } from '@/features/cce-inventory/lib/types';
+import {
+  fetchFacility,
+  fetchMinimalFacilities,
+  fetchProgramLookup,
+  fetchUserPrograms,
+  fetchUserRecord,
+} from '@/features/reference-data/api/api';
 import { queryKeys } from '@/lib/key-factory';
 import type { ProgramGrant } from '@/lib/permissions';
 import { renderPage } from '@/test-utils/render-page';
@@ -13,10 +28,17 @@ import { renderPage } from '@/test-utils/render-page';
 vi.mock('@/features/cce-inventory/api/api', () => ({
   fetchInventoryItem: vi.fn(),
   updateInventoryItem: vi.fn(),
+  fetchInventoryAlerts: vi.fn(),
+  dismissAlert: vi.fn(),
+  transferInventoryItem: vi.fn(),
+  fetchAlertHistory: vi.fn(),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchFacility: vi.fn(),
   fetchProgramLookup: vi.fn(),
+  fetchUserRecord: vi.fn(),
+  fetchUserPrograms: vi.fn(),
+  fetchMinimalFacilities: vi.fn(),
 }));
 vi.mock('@/hooks/use-deployment-time-zone', () => ({ useDeploymentTimeZone: () => 'UTC' }));
 
@@ -47,21 +69,32 @@ const FRIDGE: InventoryItemRecord = {
 
 const EDIT: ProgramGrant = { right: 'CCE_INVENTORY_EDIT', facilityId: 'f1', programId: 'p1' };
 
-function renderView({ editing = false, grants = [EDIT] } = {}) {
-  const onEditing = vi.fn();
+function renderView({
+  action,
+  grants = [EDIT],
+  transferGrants = [],
+}: {
+  action?: ItemAction;
+  grants?: ProgramGrant[];
+  transferGrants?: ProgramGrant[];
+} = {}) {
+  const onAction = vi.fn();
+  const onClose = vi.fn();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
   renderPage(
     <InventoryItemView
-      editing={editing}
+      action={action}
       grants={grants}
       itemId="i1"
-      onClose={vi.fn()}
-      onEditing={onEditing}
+      onAction={onAction}
+      onClose={onClose}
+      transferGrants={transferGrants}
+      userId="u1"
     />,
     { queryClient },
   );
-  return { onEditing, invalidate };
+  return { onAction, onClose, invalidate };
 }
 
 const rowLabels = () =>
@@ -69,7 +102,35 @@ const rowLabels = () =>
     (row) => row.querySelector('span')?.textContent,
   );
 
+const ALERT: InventoryAlert = {
+  alert_id: 'a1',
+  device_id: 'i1',
+  start_ts: '2026-11-01T10:00:00Z',
+  end_ts: null,
+  dismissed: false,
+  status: { 'en-US': 'Too warm' },
+};
+
 beforeEach(() => {
+  vi.mocked(fetchInventoryAlerts).mockResolvedValue([ALERT]);
+  vi.mocked(dismissAlert).mockResolvedValue();
+  vi.mocked(transferInventoryItem).mockResolvedValue();
+  vi.mocked(fetchUserRecord).mockResolvedValue({
+    id: 'u1',
+    username: 'divo1',
+    firstName: 'Divo',
+    lastName: 'One',
+    active: true,
+    homeFacilityId: 'f1',
+    roleAssignments: [],
+  });
+  vi.mocked(fetchUserPrograms).mockResolvedValue([
+    { id: 'p1', code: 'PRG004', name: 'EPI', active: true },
+  ]);
+  vi.mocked(fetchMinimalFacilities).mockResolvedValue([
+    { id: 'f1', code: 'HC01', name: 'Comfort Health Clinic', active: true },
+    { id: 'f2', code: 'HC02', name: 'Nandumbo Health Center', active: true },
+  ]);
   vi.mocked(fetchInventoryItem).mockResolvedValue(FRIDGE);
   vi.mocked(updateInventoryItem).mockResolvedValue();
   vi.mocked(fetchFacility).mockResolvedValue({
@@ -130,7 +191,7 @@ describe('InventoryItemView', () => {
     const user = userEvent.setup();
     const fresh: InventoryItemRecord = { ...FRIDGE, functionalStatus: 'FUNCTIONING' };
     vi.mocked(fetchInventoryItem).mockResolvedValueOnce(FRIDGE).mockResolvedValueOnce(fresh);
-    const { onEditing, invalidate } = renderView({ editing: true });
+    const { onAction, invalidate } = renderView({ action: 'edit' });
 
     const name = await screen.findByRole('textbox', { name: /^cce-inventory.reference-name/ });
     expect(name).toHaveValue('Fridge 2');
@@ -138,7 +199,7 @@ describe('InventoryItemView', () => {
     await user.type(name, 'Fridge 3');
     await user.click(screen.getByRole('button', { name: 'cce-inventory.form.save' }));
 
-    await waitFor(() => expect(onEditing).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(onAction).toHaveBeenCalledWith(undefined));
     expect(updateInventoryItem).toHaveBeenCalledTimes(1);
     expect(vi.mocked(updateInventoryItem).mock.calls[0]?.[0]).toMatchObject({
       id: 'i1',
@@ -157,11 +218,70 @@ describe('InventoryItemView', () => {
       .mockResolvedValueOnce(FRIDGE)
       .mockResolvedValueOnce(FRIDGE)
       .mockRejectedValueOnce(new Error('offline'));
-    const { onEditing } = renderView({ editing: true });
+    const { onAction } = renderView({ action: 'edit' });
 
     await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.save' }));
 
     expect(await screen.findByText('cce-inventory.form.save-error')).toBeInTheDocument();
-    expect(onEditing).not.toHaveBeenCalled();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it('updates the status once the reason is chosen, and closes', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderView({ action: 'status' });
+    const choose = async (field: RegExp, option: string) => {
+      await user.click(screen.getByRole('combobox', { name: field }));
+      await user.click(await screen.findByRole('option', { name: option }));
+    };
+
+    expect(await screen.findByText('Too warm')).toBeInTheDocument();
+    await choose(/cce-inventory.form.functional-status/, 'cce-equipment.status.unserviceable');
+    await choose(/cce-inventory.form.functional-status/, 'cce-equipment.status.awaiting-repair');
+    const update = screen.getByRole('button', { name: 'cce-inventory.status.update' });
+    expect(update).toBeDisabled();
+    await choose(/cce-inventory.form.reason/, 'cce-equipment.reason.dead');
+    await user.click(update);
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(vi.mocked(updateInventoryItem).mock.calls[0]?.[0]).toMatchObject({
+      id: 'i1',
+      functionalStatus: 'AWAITING_REPAIR',
+      reasonNotWorkingOrNotInUse: 'DEAD',
+    });
+  });
+
+  it('dismisses an active alert', async () => {
+    const user = userEvent.setup();
+    renderView({ action: 'status' });
+
+    await user.click(
+      await screen.findByRole('button', { name: /cce-inventory.status.dismiss-label/ }),
+    );
+
+    await waitFor(() => expect(dismissAlert).toHaveBeenCalledWith(ALERT, expect.anything()));
+  });
+
+  it('transfers the item to a facility the user may transfer to', async () => {
+    const user = userEvent.setup();
+    const transfer = (facilityId: string): ProgramGrant => ({
+      right: 'CCE_INVENTORY_TRANSFER',
+      facilityId,
+      programId: 'p1',
+    });
+    const { onClose } = renderView({
+      action: 'transfer',
+      transferGrants: [transfer('f1'), transfer('f2')],
+    });
+
+    await user.click(await screen.findByRole('combobox', { name: /facility-program.facility/ }));
+    await user.click(await screen.findByRole('option', { name: /Nandumbo Health Center/ }));
+    await user.click(screen.getByRole('button', { name: 'cce-inventory.status.update' }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(transferInventoryItem).toHaveBeenCalledWith('i1', {
+      programId: 'p1',
+      facilityId: 'f2',
+      yearOfInstallation: 2019,
+    });
   });
 });

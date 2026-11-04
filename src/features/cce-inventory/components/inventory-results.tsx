@@ -38,11 +38,9 @@ import {
   type InventorySearch,
   type InventorySortField,
   isInventorySortField,
-  legacyInventoryHash,
   toInventoryQuery,
 } from '@/features/cce-inventory/lib/search';
 import type { InventoryItem } from '@/features/cce-inventory/lib/types';
-import { legacyAvailable, openLegacy } from '@/hooks/use-back-to-legacy';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
@@ -217,28 +215,14 @@ function useInventoryTable({
   return { table, pageStart };
 }
 
-function useRowActions(
-  search: InventorySearch,
-  { mode, facilityId, programId }: CompleteSelection,
-  canEdit: boolean,
-) {
+function useRowActions(canEdit: boolean) {
   const { openDialog } = useSearchNavigation<InventorySearch>(CLOSED_INVENTORY_DIALOGS);
   return useMemo<InventoryRowActions>(
     () => ({
       details: (item) => openDialog({ item: item.id }),
-      statusUpdate:
-        canEdit && legacyAvailable()
-          ? (item) =>
-              openLegacy(
-                legacyInventoryHash(`${item.id}/statusUpdate`, search, {
-                  mode,
-                  facilityId,
-                  programId,
-                }),
-              )
-          : undefined,
+      statusUpdate: canEdit ? (item) => openDialog({ item: item.id, action: 'status' }) : undefined,
     }),
-    [openDialog, search, mode, facilityId, programId, canEdit],
+    [openDialog, canEdit],
   );
 }
 
@@ -257,7 +241,7 @@ export function InventoryResults({
   const { data: page } = useSuspenseQuery(inventoryItemsOptions(query));
   const ids = useMemo(() => page.content.map((item) => item.id), [page.content]);
   const { data: alertList } = useQuery(inventoryAlertsOptions(ids));
-  const actions = useRowActions(deferredSearch, selection, canEdit);
+  const actions = useRowActions(canEdit);
   const stale = hashKey([toInventoryQuery(search, selection)]) !== hashKey([query]);
   const rows = useMemo(
     () => ({ activeAlerts: activeAlertsByDevice(alertList ?? []), actions, stale }),
