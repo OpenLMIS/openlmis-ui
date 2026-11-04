@@ -2122,3 +2122,51 @@ it('keeps the Sync baseline when an older loader adoption finishes later', async
   expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: synced.modifiedDate });
   queryClient.clear();
 });
+
+it.each(['submit', 'approve', 'reject'] as const)(
+  'reopens fresh without a removed-copy dialog after its own %s',
+  async (kind) => {
+    const { base, router, queryClient } =
+      kind === 'submit' ? await openEditor(false, true) : await openApprover();
+    vi.spyOn(client, 'put').mockImplementation(async (url) => {
+      if (url === '/requisitions/r/reject') vi.mocked(fetchRequisition).mockResolvedValue(fresh);
+      return { data: base, headers: {} };
+    });
+    const fresh = {
+      ...base,
+      status:
+        kind === 'submit'
+          ? ('SUBMITTED' as const)
+          : kind === 'approve'
+            ? ('APPROVED' as const)
+            : ('REJECTED' as const),
+      modifiedDate: '2026-10-28T12:00:00Z',
+    };
+    vi.spyOn(client, 'post').mockImplementation(async () => {
+      vi.mocked(fetchRequisition).mockResolvedValue(fresh);
+      return { data: {} };
+    });
+    if (kind === 'submit') await confirmAction();
+    else if (kind === 'approve') await confirmApproval();
+    else {
+      fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.reject' }));
+      fireEvent.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: 'requisitions.edit.actions.reject',
+        }),
+      );
+    }
+    await screen.findByText(kind === 'submit' ? 'Opening List' : 'Approval List');
+    const reads = vi.mocked(fetchRequisition).mock.calls.length;
+    await act(async () => {
+      router.history.back();
+    });
+    await waitFor(() =>
+      expect(vi.mocked(fetchRequisition).mock.calls.length).toBeGreaterThan(reads),
+    );
+    await screen.findByText(`requisitions.status.${fresh.status.toLowerCase()}`);
+    expect(screen.queryByText('requisitions.offline.removed-title')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    queryClient.clear();
+  },
+);
