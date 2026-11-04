@@ -1862,3 +1862,28 @@ it.each(['overflowing', 'unreadable'] as const)(
     queryClient.clear();
   },
 );
+
+it.each([false, true])(
+  'adopts a refreshed loader record while preserving edits: %s',
+  async (edited) => {
+    const { base, router, queryClient } = await openEditor();
+    const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+    if (edited) fireEvent.change(input, { target: { value: '42' } });
+    vi.mocked(fetchRequisition).mockResolvedValue({
+      ...base,
+      modifiedDate: 'newer',
+      requisitionLineItems: base.requisitionLineItems.map((item) => ({
+        ...item,
+        beginningBalance: 12,
+      })),
+    });
+    await queryClient.invalidateQueries({ queryKey: ['requisitions'], refetchType: 'none' });
+    await act(async () => {
+      await router.invalidate();
+    });
+    await waitFor(() => expect(input).toHaveValue(edited ? '42' : '12'));
+    if (edited)
+      expect(await screen.findByText('requisitions.edit.outdated-title')).toBeInTheDocument();
+    queryClient.clear();
+  },
+);
