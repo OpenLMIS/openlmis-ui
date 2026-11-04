@@ -57,11 +57,6 @@ vi.mock('@/features/cce-inventory/api/api', () => ({
   fetchInventoryItem: vi.fn(() => new Promise(() => {})),
 }));
 vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
-vi.mock('@/hooks/use-back-to-legacy', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/hooks/use-back-to-legacy')>()),
-  legacyAvailable: () => true,
-  openLegacy: vi.fn(),
-}));
 
 const USER = 'a337ec45-31a0-4f2b-9b2e-a105c4b669bb';
 const HOME = 'e6799d64-d10d-4011-b8c2-0e4d4a3f65ce';

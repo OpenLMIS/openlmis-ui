@@ -207,7 +207,7 @@ describe('InventoryItemView', () => {
       functionalStatus: 'FUNCTIONING',
     });
     expect(invalidate).toHaveBeenCalledWith(
-      { queryKey: queryKeys.inventoryItems.all },
+      expect.objectContaining({ queryKey: queryKeys.inventoryItems.all }),
       { throwOnError: true },
     );
   });
@@ -241,6 +241,7 @@ describe('InventoryItemView', () => {
     await choose(/cce-inventory.form.functional-status/, 'cce-equipment.status.awaiting-repair');
     const update = screen.getByRole('button', { name: 'cce-inventory.status.update' });
     expect(update).toBeDisabled();
+    expect(screen.queryByText('cce-inventory.form.required')).toBeNull();
     await choose(/cce-inventory.form.reason/, 'cce-equipment.reason.dead');
     await user.click(update);
 
@@ -250,6 +251,22 @@ describe('InventoryItemView', () => {
       functionalStatus: 'AWAITING_REPAIR',
       reasonNotWorkingOrNotInUse: 'DEAD',
     });
+  });
+
+  it('closes after the status update even when the alerts cannot load', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchInventoryAlerts).mockRejectedValue(new Error('offline'));
+    const { onClose } = renderView({ action: 'status' });
+
+    await user.click(
+      await screen.findByRole('combobox', { name: /cce-inventory.form.functional-status/ }),
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'cce-equipment.status.functioning' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'cce-inventory.status.update' }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it('shows the details instead of transfer to a user who may transfer elsewhere only', async () => {

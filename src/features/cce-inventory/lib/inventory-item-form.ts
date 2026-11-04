@@ -80,14 +80,13 @@ const year = (optional: boolean) =>
     { min: { value: 1000, tooSmall: YEAR_RANGE }, max: 9999, optional },
   );
 
-function requireStatusDetails(
-  details: {
-    functionalStatus: EquipmentStatus;
-    reasonNotWorkingOrNotInUse: EquipmentReason | '';
-    decommissionDate: string;
-  },
-  context: z.RefinementCtx,
-) {
+const statusFields = z.object({
+  functionalStatus: choice(EQUIPMENT_STATUSES),
+  reasonNotWorkingOrNotInUse: optionalChoice(EQUIPMENT_REASONS),
+  decommissionDate: z.string(),
+});
+
+function requireStatusDetails(details: z.output<typeof statusFields>, context: z.RefinementCtx) {
   if (statusUsesReason(details.functionalStatus) && !details.reasonNotWorkingOrNotInUse) {
     context.addIssue({ code: 'custom', message: REQUIRED, path: ['reasonNotWorkingOrNotInUse'] });
   }
@@ -96,13 +95,7 @@ function requireStatusDetails(
   }
 }
 
-export const statusSchema = z
-  .object({
-    functionalStatus: choice(EQUIPMENT_STATUSES),
-    reasonNotWorkingOrNotInUse: optionalChoice(EQUIPMENT_REASONS),
-    decommissionDate: z.string(),
-  })
-  .superRefine(requireStatusDetails, ALONG_WITH_OTHER_ISSUES);
+export const statusSchema = statusFields.superRefine(requireStatusDetails, ALONG_WITH_OTHER_ISSUES);
 
 export type StatusValues = z.input<typeof statusSchema>;
 
@@ -120,9 +113,7 @@ export const inventoryItemDetailsSchema = z
     manualTemperatureGauge: choice(TEMPERATURE_GAUGES),
     remoteTemperatureMonitor: choice(TEMPERATURE_MONITORS),
     additionalNotes: z.string(),
-    functionalStatus: choice(EQUIPMENT_STATUSES),
-    reasonNotWorkingOrNotInUse: optionalChoice(EQUIPMENT_REASONS),
-    decommissionDate: z.string(),
+    ...statusFields.shape,
   })
   .superRefine(requireStatusDetails, ALONG_WITH_OTHER_ISSUES);
 

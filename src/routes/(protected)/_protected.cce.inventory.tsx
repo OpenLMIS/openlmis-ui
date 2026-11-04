@@ -89,12 +89,9 @@ export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
-    const needsEdit =
-      search.item === 'new' || search.action === 'edit' || search.action === 'status';
-    if (
-      (needsEdit && editableGrants(permissions).length === 0) ||
-      (search.action === 'transfer' && transferableGrants(permissions).length === 0)
-    ) {
+    const allowed =
+      search.action === 'transfer' && search.item !== 'new' ? transferableGrants : editableGrants;
+    if ((search.item === 'new' || search.action) && allowed(permissions).length === 0) {
       throw redirect({
         to: '/cce/inventory',
         search: { ...search, action: undefined, ...(search.item === 'new' && { item: undefined }) },

@@ -43,7 +43,7 @@ import {
   toStatusUpdate,
   transferSchema,
 } from '@/features/cce-inventory/lib/inventory-item-form';
-import type { InventoryAlert, InventoryItemRecord } from '@/features/cce-inventory/lib/types';
+import type { InventoryItemRecord } from '@/features/cce-inventory/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -69,9 +69,13 @@ type ActionProps = {
   onCloseCancelled: () => void;
 };
 
+const notAlerts = ({ queryKey }: { queryKey: readonly unknown[] }) => queryKey[1] !== 'alerts';
+const listsOnly = ({ queryKey }: { queryKey: readonly unknown[] }) => queryKey[1] === 'list';
+
 export function useItemSave<TValues>(
   save: (values: TValues) => Promise<void>,
   onSaved: (values: TValues) => void,
+  refreshed = notAlerts,
 ) {
   const queryClient = useQueryClient();
   const leaving = useRef(false);
@@ -80,7 +84,7 @@ export function useItemSave<TValues>(
     mutationFn: async (values: TValues) => {
       await save(values);
       await queryClient.invalidateQueries(
-        { queryKey: queryKeys.inventoryItems.all },
+        { queryKey: queryKeys.inventoryItems.all, predicate: refreshed },
         { throwOnError: true },
       );
     },
@@ -100,7 +104,6 @@ type ActionFormProps = {
   pending: boolean;
   error: unknown;
   canSubmit: boolean;
-  submitLabel: string;
   onSubmit: () => void;
   onBack: () => void;
   children: ReactNode;
@@ -112,7 +115,6 @@ function ActionForm({
   pending,
   error,
   canSubmit,
-  submitLabel,
   onSubmit,
   onBack,
   children,
@@ -142,7 +144,7 @@ function ActionForm({
           {t('dialog.cancel')}
         </Button>
         <FormDialogSubmit disabled={!canSubmit} pending={pending}>
-          {submitLabel}
+          {t('cce-inventory.status.update')}
         </FormDialogSubmit>
       </FormDialogFooter>
     </FormDialogForm>
@@ -178,7 +180,7 @@ export function StatusItem({
   };
   const form = useAppForm({
     defaultValues,
-    validationLogic: revalidateLogic({ mode: 'change' }),
+    validationLogic: revalidateLogic(),
     validators: { onDynamic: statusSchema },
     onSubmit: ({ value }) => mutation.mutateAsync(value).catch(() => undefined),
   });
@@ -199,7 +201,6 @@ export function StatusItem({
           if (!form.state.isSubmitting && !leaving.current) void form.handleSubmit();
         }}
         pending={mutation.isPending}
-        submitLabel={t('cce-inventory.status.update')}
         title={t('cce-inventory.form.status')}
       >
         <ReadOnlySection
@@ -222,8 +223,8 @@ export function StatusItem({
               onChange: ({ value }) => {
                 if (value === shownStatus.current) return;
                 shownStatus.current = value;
-                form.setFieldValue('reasonNotWorkingOrNotInUse', '', { dontValidate: true });
-                form.setFieldValue('decommissionDate', '', { dontValidate: true });
+                form.setFieldValue('reasonNotWorkingOrNotInUse', '');
+                form.setFieldValue('decommissionDate', '');
               },
             }}
             name="functionalStatus"
@@ -279,12 +280,10 @@ export function StatusItem({
   );
 }
 
-const NO_ALERTS: InventoryAlert[] = [];
-
 function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: string }) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
-  const { data: alerts = NO_ALERTS } = useQuery(inventoryAlertsOptions([item.id]));
+  const { data: alerts = [] } = useQuery(inventoryAlertsOptions([item.id]));
   const queryClient = useQueryClient();
   const historyButton = useRef<HTMLButtonElement>(null);
   const dismiss = useSessionMutation({
@@ -321,6 +320,7 @@ function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: strin
         <h3 className="font-medium text-base">{t('cce-inventory.alerts-title')}</h3>
         <Button
           disabled={history.isPending || history.offline}
+          focusableWhenDisabled={history.isPending}
           onClick={history.print}
           ref={historyButton}
           variant="outline"
@@ -343,6 +343,7 @@ function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: strin
                 <Button
                   aria-label={t('cce-inventory.status.dismiss-label', { time })}
                   disabled={dismiss.isPending}
+                  focusableWhenDisabled
                   onClick={() => dismiss.mutate(alert)}
                   variant="outline"
                 >
@@ -367,14 +368,9 @@ export function TransferItem({
 }: ActionProps & { grants: readonly ProgramGrant[] }) {
   const { t } = useTranslation();
   const options = useFacilityProgramOptions(userId, grants);
-  const programs = [
-    ...new Map(
-      [...options.myPrograms, ...options.supervisedPrograms].map((program) => [
-        program.id,
-        program,
-      ]),
-    ).values(),
-  ].sort((a, b) => recordLabel(a).localeCompare(recordLabel(b)));
+  const programs = [...new Set([...options.myPrograms, ...options.supervisedPrograms])].sort(
+    (a, b) => recordLabel(a).localeCompare(recordLabel(b)),
+  );
   const facilitiesOf = (programId: string | null) =>
     programId ? options.facilitiesFor(programId) : [];
 
@@ -397,6 +393,7 @@ export function TransferItem({
       });
       onDone();
     },
+    listsOnly,
   );
   const keepsPair = facilitiesOf(item.program.id).some(({ id }) => id === item.facility.id);
   const defaultValues: TransferValues = {
@@ -431,7 +428,6 @@ export function TransferItem({
           if (!form.state.isSubmitting && !leaving.current) void form.handleSubmit();
         }}
         pending={mutation.isPending}
-        submitLabel={t('cce-inventory.status.update')}
         title={t('cce-inventory.transfer.title')}
       >
         <Section legend={t('cce-inventory.form.equipment')}>

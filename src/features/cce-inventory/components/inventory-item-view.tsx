@@ -126,7 +126,7 @@ function ItemBoundary(props: ItemContentProps) {
           />
         )
       }
-      pendingFallback={<ViewSkeleton />}
+      pendingFallback={<ViewSkeleton action={props.action} />}
       resetKey={props.id}
     >
       <ItemContent {...props} opening={opening} />
@@ -402,12 +402,20 @@ function EditItem({
   );
 }
 
-function ViewSkeleton() {
+const ACTION_TITLES: Record<ItemAction, ParseKeys> = {
+  edit: 'cce-inventory.details.edit-title',
+  status: 'cce-inventory.form.status',
+  transfer: 'cce-inventory.transfer.title',
+};
+
+function ViewSkeleton({ action }: { action: ItemAction | undefined }) {
   const { t } = useTranslation();
   return (
     <>
       <FormDialogHeader>
-        <FormDialogTitle>{t('cce-inventory.details.title')}</FormDialogTitle>
+        <FormDialogTitle>
+          {t(action ? ACTION_TITLES[action] : 'cce-inventory.details.title')}
+        </FormDialogTitle>
         <FormDialogDescription>{t('cce-inventory.details.description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
