@@ -27,7 +27,7 @@ function setup(readable = true) {
   client.setQueryData(userProgramsOptions('user').queryKey, [
     { id: 'program', name: 'Program', code: 'P', active: true },
   ]);
-  for (const ids of [['0'], ['0', '1']])
+  for (const ids of [['0'], ['0', '1'], ['2'], ['2', '0'], ['2', '0', '1']])
     client.setQueryData(supplyingFacilitiesOptions('program', ids).queryKey, ['2']);
   const onCreated = vi.fn();
   render(
@@ -37,7 +37,7 @@ function setup(readable = true) {
         <CreateOrderForm
           userId="user"
           facilities={facilities}
-          requesting={facilities.slice(0, 2)}
+          requesting={facilities}
           canRead={() => readable}
           onCreated={onCreated}
         />
@@ -91,4 +91,14 @@ it('keeps focus on the next removal control, then returns to the facility picker
   expect(remove()[0]).toHaveFocus();
   await user.click(remove()[0]);
   expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toHaveFocus();
+});
+
+it('uses displayed row order for focus when facilities were added in a different order', async () => {
+  const { user } = setup();
+  await add(user, 'Supplier');
+  await add(user, 'Alpha');
+  await add(user, 'Beta');
+  const remove = () => screen.getAllByRole('button', { name: 'orders.create.remove-facility' });
+  await user.click(remove()[0]);
+  expect(remove()[0]).toHaveFocus();
 });
