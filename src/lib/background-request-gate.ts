@@ -2,11 +2,32 @@ import { CanceledError, type GenericAbortSignal } from 'axios';
 
 let foreground = 0;
 let background = 0;
-const waiting = new Map<() => void, string>();
+const waiting = new Map<string, Set<() => void>>();
+let drainScheduled = false;
 const providers = new Map<string, number>();
 
 const drain = () => {
-  for (const resume of waiting.keys()) resume();
+  if (drainScheduled) return;
+  while (!foreground && background < 2 && waiting.size) {
+    let selected: string | undefined;
+    let fewest = Infinity;
+    for (const provider of waiting.keys()) {
+      const held = providers.get(provider) ?? 0;
+      if (held < fewest) {
+        selected = provider;
+        fewest = held;
+      }
+    }
+    if (selected === undefined) return;
+    const queue = waiting.get(selected);
+    const resume = queue?.values().next().value;
+    waiting.delete(selected);
+    if (queue && resume) {
+      queue.delete(resume);
+      if (queue.size) waiting.set(selected, queue);
+      resume();
+    }
+  }
 };
 
 export async function withRequestPriority<T>(
@@ -18,7 +39,9 @@ export async function withRequestPriority<T>(
   if (isBackground) {
     await new Promise<void>((resolve, reject) => {
       const cleanup = () => {
-        waiting.delete(resume);
+        const queue = waiting.get(provider);
+        queue?.delete(resume);
+        if (!queue?.size) waiting.delete(provider);
         signal?.removeEventListener?.('abort', abort);
       };
       const abort = () => {
@@ -27,20 +50,17 @@ export async function withRequestPriority<T>(
       };
       const resume = () => {
         if (signal?.aborted) return abort();
-        if (foreground || background >= 2) return;
-        if (
-          (providers.get(provider) ?? 0) > 0 &&
-          [...waiting.values()].some((other) => other !== provider)
-        )
-          return;
         cleanup();
         background += 1;
         providers.set(provider, (providers.get(provider) ?? 0) + 1);
         resolve();
       };
-      waiting.set(resume, provider);
+      const queue = waiting.get(provider) ?? new Set<() => void>();
+      queue.add(resume);
+      waiting.set(provider, queue);
       signal?.addEventListener?.('abort', abort);
-      resume();
+      if (signal?.aborted) abort();
+      drain();
     });
   } else foreground += 1;
   try {
@@ -53,6 +73,12 @@ export async function withRequestPriority<T>(
       if (remaining) providers.set(provider, remaining);
       else providers.delete(provider);
     } else foreground -= 1;
-    setTimeout(drain, 0);
+    if (!drainScheduled) {
+      drainScheduled = true;
+      setTimeout(() => {
+        drainScheduled = false;
+        drain();
+      }, 0);
+    }
   }
 }

@@ -218,9 +218,10 @@ code moves, removed dead code, translation keys and documentation.
 ## Download Follow-Up (2026-11-04)
 
 Opening captures retain newer saved single and batch server records after Sync or Approve,
-including sub-millisecond modified dates. Background downloads share two transport slots with
-at most one active request per provider while another provider waits. A freed slot goes to the
-waiting provider before more sibling reads start.
+including sub-millisecond modified dates, approval nodes, verification, errors and download time.
+Background downloads share two transport slots. All reads enqueue before admission; the provider
+with the fewest held slots goes next, rotating among ties and keeping FIFO within each provider.
+New arrivals cannot take a freed slot ahead of queued reads during deferred draining.
 Provider ids travel with dataset, access and time-zone request configuration. Foreground reads
 keep priority. Slot draining waits until failed tasks can abort their queued sibling reads.
 

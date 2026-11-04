@@ -491,6 +491,7 @@ it.each(['Sync', 'Approve'])(
     await commitCopy(lease, opening);
     const fresh = {
       ...opening,
+      fetchedAt: 2,
       summary: {
         ...opening.summary,
         status: action === 'Approve' ? ('APPROVED' as const) : ('AUTHORIZED' as const),
@@ -501,6 +502,9 @@ it.each(['Sync', 'Approve'])(
       },
       batch: {
         ...copy.batch,
+        approvalNodes: ['new-node'],
+        approvalVerified: false,
+        errors: [{ requisitionId: 'r', errorMessage: { message: 'New failure' } }],
         record: {
           ...copy.batch.record,
           modifiedDate: '2026-11-04T10:00:00.000002Z',
@@ -531,7 +535,13 @@ it.each(['Sync', 'Approve'])(
     await openingCapture;
     expect(await readCopy('r')).toMatchObject({
       single: fresh.single,
-      batch: { record: fresh.batch.record },
+      batch: {
+        record: fresh.batch.record,
+        approvalNodes: fresh.batch.approvalNodes,
+        approvalVerified: false,
+        errors: fresh.batch.errors,
+      },
+      fetchedAt: fresh.fetchedAt,
       summary: fresh.summary,
     });
   },

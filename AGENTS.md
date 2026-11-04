@@ -1037,7 +1037,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   deadlines under that lock; keep upload locks separate and retain complete older bundles.
 - Upload access reads bypass the download lock without publishing, reusing current-epoch access.
 - All background dataset, access and time-zone HTTP reads share a two-request transport limit,
-  with at most one active request per provider while another provider is waiting.
+  admitting queued reads from the provider with the fewest held slots and rotating among ties.
+  Reads stay FIFO within each provider; freed slots drain after failed tasks can abort siblings.
   Downloads wait while foreground HTTP requests are active; foreground work never waits on the
   download gate. Upload access checks remain foreground work with ordinary request timeouts.
 - Only background downloads use a 20-second timeout without immediate timeout retries. Run tasks

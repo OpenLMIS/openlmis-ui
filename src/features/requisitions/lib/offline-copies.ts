@@ -189,20 +189,26 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
       (batchDirty || batchOlder) && previous?.batch
         ? {
             ...previous.batch,
-            approvalNodes: next.batch?.approvalNodes ?? previous.batch.approvalNodes,
-            approvalVerified: next.batch?.approvalVerified ?? previous.batch.approvalVerified,
+            approvalNodes: batchOlder
+              ? previous.batch.approvalNodes
+              : (next.batch?.approvalNodes ?? previous.batch.approvalNodes),
+            approvalVerified: batchOlder
+              ? previous.batch.approvalVerified
+              : (next.batch?.approvalVerified ?? previous.batch.approvalVerified),
           }
         : (next.batch ?? previous?.batch);
     if (batch && next.batch && previous?.batch) {
       batch = {
         ...batch,
         requestedIds: [...new Set([...previous.batch.requestedIds, ...next.batch.requestedIds])],
-        errors: [
-          ...previous.batch.errors.filter(
-            (error) => !next.batch?.requestedIds.includes(error.requisitionId),
-          ),
-          ...next.batch.errors,
-        ],
+        errors: batchOlder
+          ? previous.batch.errors
+          : [
+              ...previous.batch.errors.filter(
+                (error) => !next.batch?.requestedIds.includes(error.requisitionId),
+              ),
+              ...next.batch.errors,
+            ],
       };
     }
     const confirmed = previous?.batch?.confirmedApproval;
@@ -232,7 +238,10 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
             ? previous.summary.status
             : next.summary.status)) as CopySummary['status'],
       },
-      fetchedAt: (singleDirty || batchDirty) && previous ? previous.fetchedAt : next.fetchedAt,
+      fetchedAt:
+        (singleDirty || batchDirty || singleOlder || batchOlder) && previous
+          ? previous.fetchedAt
+          : next.fetchedAt,
       revision: (previous?.revision ?? 0) + 1,
     });
     await assertCopyLease(lease);
