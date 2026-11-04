@@ -99,6 +99,7 @@ export function OrderEditor({
         return {
           id: entry.id,
           dirty: isChanged(lines, baselines[entry.id] ?? []),
+          touched: !!state.fieldMeta[`orders.${entry.id}`]?.isTouched,
           invalid: !!(problems[entry.id] ?? entry.problem) || !validLines(lines, true),
         };
       }),
@@ -108,6 +109,7 @@ export function OrderEditor({
         (item, index) =>
           item.id === next[index].id &&
           item.dirty === next[index].dirty &&
+          item.touched === next[index].touched &&
           item.invalid === next[index].invalid,
       ),
   );
@@ -271,6 +273,7 @@ export function OrderEditor({
                 invalid={(id) =>
                   invalid(id) &&
                   (creatingInvalid ||
+                    status.some((entry) => entry.id === id && entry.touched) ||
                     dirty(id) ||
                     !!initial[id]?.length ||
                     !!entries.find((entry) => entry.id === id)?.problem ||
