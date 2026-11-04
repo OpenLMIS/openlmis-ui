@@ -50,18 +50,21 @@ import { useItemDialogGuard } from '@/features/cce-inventory/components/use-item
 import { makeModelLabel } from '@/features/cce-inventory/lib/catalog';
 import {
   inventoryItemSchema,
+  solarPower,
   toEditValues,
   toInventoryItemUpdate,
   type ValidInventoryItemDetails,
 } from '@/features/cce-inventory/lib/inventory-item-form';
-import type { InventoryItemRecord } from '@/features/cce-inventory/lib/types';
+import type { InventoryItemRecord, PowerStatus } from '@/features/cce-inventory/lib/types';
 import { facilityOptions, programLookupOptions } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
+import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { EQUIPMENT_REASON_KEYS, EQUIPMENT_STATUS } from '@/lib/cce-equipment-status';
-import { isNotFound } from '@/lib/http';
+import { isNotFound, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import type { ProgramGrant } from '@/lib/permissions';
+import { fullName } from '@/lib/text';
 
 const SAVE_KEY = ['cce-inventory', 'edit'];
 
@@ -70,13 +73,11 @@ type InventoryItemViewProps = {
   editing: boolean;
   grants: readonly ProgramGrant[];
   onClose: () => void;
-  onEdit: () => void;
-  onDetails: () => void;
-  onStatusUpdate: ((item: InventoryItemRecord) => void) | undefined;
+  onEditing: (editing: boolean) => void;
+  onStatusUpdate?: (item: InventoryItemRecord) => void;
 };
 
 export function InventoryItemView({ itemId, onClose, ...content }: InventoryItemViewProps) {
-  const { t } = useTranslation();
   const { shown, dialogProps } = useDialogTarget(itemId, onClose);
   const pending = useIsMutating({ mutationKey: SAVE_KEY }) > 0;
   const { opening, requestClose, cancelClose } = useCloseOnce(itemId !== undefined, onClose);
@@ -90,45 +91,54 @@ export function InventoryItemView({ itemId, onClose, ...content }: InventoryItem
       size="2xl"
     >
       {shown && (
-        <QueryBoundary
-          errorComponent={({ error, reset }) =>
-            isNotFound(error) ? (
-              <DialogNotFound
-                description={t('cce-inventory.details.not-found')}
-                title={t('cce-inventory.details.title')}
-              />
-            ) : (
-              <DialogLoadError
-                error={error}
-                errorTitle={t('cce-inventory.details.load-error-title')}
-                onRetry={reset}
-                title={t('cce-inventory.details.title')}
-              />
-            )
-          }
-          pendingFallback={<ViewSkeleton />}
-          resetKey={shown}
-        >
-          <ItemContent
-            {...content}
-            id={shown}
-            key={opening}
-            onCloseCancelled={cancelClose}
-            opening={opening}
-          />
-        </QueryBoundary>
+        <ItemBoundary {...content} id={shown} key={opening} onCloseCancelled={cancelClose} />
       )}
     </FormDialog>
   );
 }
 
+function ItemBoundary(props: ItemContentProps) {
+  const { t } = useTranslation();
+  const opening = useOpening();
+  return (
+    <QueryBoundary
+      errorComponent={({ error, reset }) =>
+        isNotFound(error) || isRefused(error) ? (
+          <DialogNotFound
+            description={t(
+              isRefused(error) ? 'no-access.description' : 'cce-inventory.details.not-found',
+            )}
+            title={t('cce-inventory.details.title')}
+          />
+        ) : (
+          <DialogLoadError
+            error={error}
+            errorTitle={t('cce-inventory.details.load-error-title')}
+            onRetry={reset}
+            title={t('cce-inventory.details.title')}
+          />
+        )
+      }
+      pendingFallback={<ViewSkeleton />}
+      resetKey={props.id}
+    >
+      <ItemContent {...props} opening={opening} />
+    </QueryBoundary>
+  );
+}
+
 type ItemContentProps = Omit<InventoryItemViewProps, 'itemId' | 'onClose'> & {
   id: string;
-  opening: number;
   onCloseCancelled: () => void;
 };
 
-function ItemContent({ id, opening, editing, grants, ...actions }: ItemContentProps) {
+function ItemContent({
+  id,
+  opening,
+  editing,
+  grants,
+  ...actions
+}: ItemContentProps & { opening: number }) {
   const { data: item } = useSuspenseQuery(inventoryItemOptions(id, opening));
   const [{ data: facility }, { data: program }] = useSuspenseQueries({
     queries: [facilityOptions(item.facility.id), programLookupOptions(item.program.id)],
@@ -149,10 +159,10 @@ function ItemContent({ id, opening, editing, grants, ...actions }: ItemContentPr
   );
 }
 
-type ItemProps = Pick<
-  ItemContentProps,
-  'onEdit' | 'onDetails' | 'onStatusUpdate' | 'onCloseCancelled'
-> & { item: InventoryItemRecord; header: ReadOnlyRow[] };
+type ItemProps = Pick<ItemContentProps, 'onEditing' | 'onStatusUpdate' | 'onCloseCancelled'> & {
+  item: InventoryItemRecord;
+  header: ReadOnlyRow[];
+};
 
 const optional = (label: ParseKeys, value: string | number | undefined): ReadOnlyRow[] =>
   value === undefined || value === '' ? [] : [[label, value]];
@@ -161,17 +171,17 @@ function ItemDetails({
   item,
   header,
   canEdit,
-  onEdit,
+  onEditing,
   onStatusUpdate,
 }: ItemProps & { canEdit: boolean }) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
   const { labelKey, tone, icon: Icon } = EQUIPMENT_STATUS[item.functionalStatus];
-  const modifier = [item.lastModifier?.firstName, item.lastModifier?.lastName]
-    .filter(Boolean)
-    .join(' ');
+  const modifier = fullName(item.lastModifier ?? {});
   const modified = formatTimestamp(item.modifiedDate, i18n.language, { time: true, timeZone });
   const reason = item.reasonNotWorkingOrNotInUse;
+  const power = (value: PowerStatus) =>
+    t(POWER_KEYS[solarPower(item.catalogItem.energySource, value)]);
   const volume = item.catalogItem.netVolume;
 
   return (
@@ -198,9 +208,11 @@ function ItemDetails({
                   })}
                 </span>
               )}
-              <span className="text-muted-foreground">
-                <bdi>{modifier}</bdi> {modified}
-              </span>
+              {(modifier || modified) && (
+                <span className="text-muted-foreground">
+                  <bdi>{modifier}</bdi> {modified}
+                </span>
+              )}
             </div>
             {canEdit && onStatusUpdate && (
               <Button onClick={() => onStatusUpdate(item)} variant="outline">
@@ -221,7 +233,7 @@ function ItemDetails({
             legend={t('cce-inventory.form.identification')}
             rows={[
               ['cce-inventory.make-model', makeModelLabel(item.catalogItem)],
-              ['cce-inventory.form.serial-number', item.equipmentTrackingId ?? ''],
+              ['cce-inventory.form.serial-number', item.equipmentTrackingId],
             ]}
           />
           <ReadOnlySection
@@ -236,9 +248,9 @@ function ItemDetails({
           <ReadOnlySection
             legend={t('cce-inventory.form.installation')}
             rows={[
-              ['cce-inventory.form.voltage-stabilizer', t(POWER_KEYS[item.voltageStabilizer])],
-              ['cce-inventory.form.backup-generator', t(POWER_KEYS[item.backupGenerator])],
-              ['cce-inventory.form.voltage-regulator', t(POWER_KEYS[item.voltageRegulator])],
+              ['cce-inventory.form.voltage-stabilizer', power(item.voltageStabilizer)],
+              ['cce-inventory.form.backup-generator', power(item.backupGenerator)],
+              ['cce-inventory.form.voltage-regulator', power(item.voltageRegulator)],
               [
                 'cce-inventory.form.manual-temperature-gauge',
                 t(GAUGE_KEYS[item.manualTemperatureGauge]),
@@ -258,13 +270,17 @@ function ItemDetails({
       </FormDialogBody>
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
-        {canEdit && <Button onClick={onEdit}>{t('cce-inventory.details.edit')}</Button>}
+        {canEdit && (
+          <Button autoFocus onClick={() => onEditing(true)}>
+            {t('cce-inventory.details.edit')}
+          </Button>
+        )}
       </FormDialogFooter>
     </>
   );
 }
 
-function EditItem({ item, header, onDetails, onCloseCancelled }: ItemProps) {
+function EditItem({ item, header, onEditing, onCloseCancelled }: ItemProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const fields = useRef<HTMLDivElement>(null);
@@ -272,16 +288,17 @@ function EditItem({ item, header, onDetails, onCloseCancelled }: ItemProps) {
 
   const save = useSessionMutation({
     mutationKey: SAVE_KEY,
-    mutationFn: async (details: ValidInventoryItemDetails) =>
-      updateInventoryItem(toInventoryItemUpdate(await fetchInventoryItem(item.id), details)),
+    mutationFn: async (details: ValidInventoryItemDetails) => {
+      await updateInventoryItem(toInventoryItemUpdate(await fetchInventoryItem(item.id), details));
+      await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all });
+    },
     onSuccess: (_, details) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
       toast.success(t('cce-inventory.details.saved-title'), {
         description: t('cce-inventory.details.saved', { name: details.referenceName.trim() }),
       });
       leaving.current = true;
-      onDetails();
+      onEditing(false);
     },
   });
 
@@ -326,7 +343,12 @@ function EditItem({ item, header, onDetails, onCloseCancelled }: ItemProps) {
           </div>
         </FormDialogBody>
         <FormDialogFooter>
-          <Button disabled={save.isPending} onClick={onDetails} type="button" variant="outline">
+          <Button
+            disabled={save.isPending}
+            onClick={() => onEditing(false)}
+            type="button"
+            variant="outline"
+          >
             {t('dialog.cancel')}
           </Button>
           <FormDialogSubmit pending={save.isPending}>
@@ -351,9 +373,7 @@ function ViewSkeleton() {
   return (
     <>
       <FormDialogHeader>
-        <FormDialogTitle>
-          <SkeletonLine width="medium" />
-        </FormDialogTitle>
+        <FormDialogTitle>{t('cce-inventory.details.title')}</FormDialogTitle>
         <FormDialogDescription>{t('cce-inventory.details.description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>

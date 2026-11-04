@@ -161,6 +161,7 @@ describe('editing a saved item', () => {
     facility: { id: 'f1' },
     program: { id: 'p1' },
     catalogItem,
+    equipmentTrackingId: 'SN-1',
     referenceName: 'Fridge 2',
     utilization: 'ACTIVE',
     yearOfInstallation: 2019,
@@ -172,31 +173,29 @@ describe('editing a saved item', () => {
     manualTemperatureGauge: 'BUILD_IN',
     remoteTemperatureMonitor: 'PAIRED',
     remoteTemperatureMonitorId: 'rtm-1',
+    additionalNotes: 'Spare key',
     functionalStatus: 'UNSERVICEABLE',
     reasonNotWorkingOrNotInUse: 'DEAD',
     decommissionDate: '2026-10-01',
   };
 
-  it('fills the form with the saved values as text', () => {
-    expect(toEditValues(record).details).toMatchObject({
-      equipmentTrackingId: '',
-      yearOfInstallation: '2019',
-      yearOfWarrantyExpiry: '2030',
-      source: 'Ministry',
-      additionalNotes: '',
-    });
+  it('saves an unedited item back as it was read', () => {
+    const { details } = inventoryItemSchema.parse(toEditValues(record));
+
+    expect(toInventoryItemUpdate(record, details)).toEqual(record);
   });
 
-  it('keeps the status, its reason and date and the monitor of the fresh record', () => {
-    const edited = { ...filled, source: '', yearOfWarrantyExpiry: '' };
+  it('shows and saves not applicable power for solar equipment only, as legacy', () => {
+    const solar: InventoryItemRecord = {
+      ...record,
+      catalogItem: { ...catalogItem, energySource: 'SOLAR' },
+    };
+    const notApplicable: InventoryItemRecord = {
+      ...record,
+      catalogItem: { ...catalogItem, energySource: 'NOT_APPLICABLE' },
+    };
 
-    expect(toInventoryItemUpdate(record, edited)).toEqual({
-      ...toInventoryItemBody(edited, { facilityId: 'f1', programId: 'p1' }, catalogItem),
-      id: 'i1',
-      functionalStatus: 'UNSERVICEABLE',
-      reasonNotWorkingOrNotInUse: 'DEAD',
-      decommissionDate: '2026-10-01',
-      remoteTemperatureMonitorId: 'rtm-1',
-    });
+    expect(toEditValues(solar).details.voltageStabilizer).toBe('NOT_APPLICABLE');
+    expect(toEditValues(notApplicable).details.voltageStabilizer).toBe('YES');
   });
 });

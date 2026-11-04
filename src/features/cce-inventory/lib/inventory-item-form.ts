@@ -158,6 +158,9 @@ export const inventoryItemSchema = z
 const hasFixedPower = (energySource: EnergySource) =>
   energySource === 'SOLAR' || energySource === 'NOT_APPLICABLE';
 
+export const solarPower = (energySource: EnergySource, value: PowerStatus): PowerStatus =>
+  energySource === 'SOLAR' ? 'NOT_APPLICABLE' : value;
+
 export const hasFixedPowerModel = (catalog: readonly CatalogItem[], id: string | null) =>
   catalog.some((item) => item.id === id && hasFixedPower(item.energySource));
 
@@ -185,8 +188,7 @@ export function toInventoryItemBody(
   { facilityId, programId }: { facilityId: string; programId: string },
   catalogItem: CatalogItem,
 ): InventoryItemBody {
-  const power = (value: PowerStatus) =>
-    hasFixedPower(catalogItem.energySource) ? 'NOT_APPLICABLE' : value;
+  const power = (value: PowerStatus) => solarPower(catalogItem.energySource, value);
   const source = optionalText(details.source);
   const additionalNotes = optionalText(details.additionalNotes);
   const yearOfWarrantyExpiry = toOptionalWholeNumber(details.yearOfWarrantyExpiry);
@@ -213,31 +215,27 @@ export function toInventoryItemBody(
   };
 }
 
-const KEPT_STATUS = {
-  functionalStatus: 'FUNCTIONING',
-  reasonNotWorkingOrNotInUse: '',
-  decommissionDate: '',
-} satisfies Partial<InventoryItemDetails>;
-
 export function toEditValues(record: InventoryItemRecord): InventoryItemValues {
+  const power = (value: PowerStatus) => solarPower(record.catalogItem.energySource, value);
   return {
     pair: { mode: 'supervised', programId: record.program.id, facilityId: record.facility.id },
     equipmentType: record.catalogItem.type,
     catalogItemId: record.catalogItem.id,
     details: {
+      ...EMPTY_INVENTORY_ITEM_DETAILS,
+      functionalStatus: 'FUNCTIONING',
       equipmentTrackingId: record.equipmentTrackingId ?? '',
       referenceName: record.referenceName,
       utilization: record.utilization,
       yearOfInstallation: String(record.yearOfInstallation),
       source: record.source ?? '',
       yearOfWarrantyExpiry: record.yearOfWarrantyExpiry?.toString() ?? '',
-      voltageStabilizer: record.voltageStabilizer,
-      voltageRegulator: record.voltageRegulator,
-      backupGenerator: record.backupGenerator,
+      voltageStabilizer: power(record.voltageStabilizer),
+      voltageRegulator: power(record.voltageRegulator),
+      backupGenerator: power(record.backupGenerator),
       manualTemperatureGauge: record.manualTemperatureGauge,
       remoteTemperatureMonitor: record.remoteTemperatureMonitor,
       additionalNotes: record.additionalNotes ?? '',
-      ...KEPT_STATUS,
     },
   };
 }

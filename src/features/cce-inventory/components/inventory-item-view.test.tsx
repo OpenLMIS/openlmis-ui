@@ -48,8 +48,7 @@ const FRIDGE: InventoryItemRecord = {
 const EDIT: ProgramGrant = { right: 'CCE_INVENTORY_EDIT', facilityId: 'f1', programId: 'p1' };
 
 function renderView({ editing = false, grants = [EDIT] } = {}) {
-  const onDetails = vi.fn();
-  const onEdit = vi.fn();
+  const onEditing = vi.fn();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
   renderPage(
@@ -58,13 +57,11 @@ function renderView({ editing = false, grants = [EDIT] } = {}) {
       grants={grants}
       itemId="i1"
       onClose={vi.fn()}
-      onDetails={onDetails}
-      onEdit={onEdit}
-      onStatusUpdate={undefined}
+      onEditing={onEditing}
     />,
     { queryClient },
   );
-  return { onDetails, onEdit, invalidate };
+  return { onEditing, invalidate };
 }
 
 const rowLabels = () =>
@@ -123,7 +120,7 @@ describe('InventoryItemView', () => {
   });
 
   it('offers Edit only to an editor of the item', async () => {
-    renderView({ grants: [] });
+    renderView({ grants: [{ ...EDIT, facilityId: 'f2' }] });
 
     await screen.findByRole('heading', { name: 'Fridge 2' });
     expect(screen.queryByRole('button', { name: 'cce-inventory.details.edit' })).toBeNull();
@@ -133,7 +130,7 @@ describe('InventoryItemView', () => {
     const user = userEvent.setup();
     const fresh: InventoryItemRecord = { ...FRIDGE, functionalStatus: 'FUNCTIONING' };
     vi.mocked(fetchInventoryItem).mockResolvedValueOnce(FRIDGE).mockResolvedValueOnce(fresh);
-    const { onDetails, invalidate } = renderView({ editing: true });
+    const { onEditing, invalidate } = renderView({ editing: true });
 
     const name = await screen.findByRole('textbox', { name: /^cce-inventory.reference-name/ });
     expect(name).toHaveValue('Fridge 2');
@@ -141,7 +138,7 @@ describe('InventoryItemView', () => {
     await user.type(name, 'Fridge 3');
     await user.click(screen.getByRole('button', { name: 'cce-inventory.form.save' }));
 
-    await waitFor(() => expect(onDetails).toHaveBeenCalled());
+    await waitFor(() => expect(onEditing).toHaveBeenCalledWith(false));
     expect(updateInventoryItem).toHaveBeenCalledTimes(1);
     expect(vi.mocked(updateInventoryItem).mock.calls[0]?.[0]).toMatchObject({
       id: 'i1',

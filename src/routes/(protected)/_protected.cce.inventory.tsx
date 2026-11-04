@@ -302,8 +302,7 @@ function InventoryContent({ userId }: { userId: string }) {
           grants={editable}
           itemId={search.item === 'new' ? undefined : search.item}
           onClose={closeDialog}
-          onDetails={() => updateSearch({ edit: undefined }, true)}
-          onEdit={() => updateSearch({ edit: true }, true)}
+          onEditing={(edit) => updateSearch({ edit: edit || undefined }, true, { keepState: true })}
           onStatusUpdate={
             legacyAvailable()
               ? (item) =>

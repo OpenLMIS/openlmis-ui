@@ -146,12 +146,7 @@ function ViewItem({ item }: { item: InventoryItem }) {
   );
 }
 
-function useInventoryColumns({
-  facilityName,
-  language,
-  timeZone,
-  withActions,
-}: CellContext & { withActions: boolean }) {
+function useInventoryColumns({ facilityName, language, timeZone }: CellContext) {
   const { t } = useTranslation();
   return useMemo(() => {
     const cellContext = { facilityName, language, timeZone };
@@ -170,20 +165,14 @@ function useInventoryColumns({
             ) : null,
         }),
       ),
-      ...(withActions
-        ? [
-            helper.display({
-              id: 'actions',
-              meta: { label: t('cce-inventory.actions'), skeleton: 'control' },
-              header: () => (
-                <DataTableHeaderLabel>{t('cce-inventory.actions')}</DataTableHeaderLabel>
-              ),
-              cell: ({ row }) => <ViewItem item={row.original} />,
-            }),
-          ]
-        : []),
+      helper.display({
+        id: 'actions',
+        meta: { label: t('cce-inventory.actions'), skeleton: 'control' },
+        header: () => <DataTableHeaderLabel>{t('cce-inventory.actions')}</DataTableHeaderLabel>,
+        cell: ({ row }) => <ViewItem item={row.original} />,
+      }),
     ]);
-  }, [t, facilityName, language, timeZone, withActions]);
+  }, [t, facilityName, language, timeZone]);
 }
 
 type ResultsProps = {
@@ -205,7 +194,7 @@ function useInventoryTable({
   onSearchChange,
   ...columnsOptions
 }: Pick<ResultsProps, 'cards' | 'search' | 'columns' | 'onSearchChange'> &
-  CellContext & { withActions: boolean; data: InventoryItem[]; rowCount: number }) {
+  CellContext & { data: InventoryItem[]; rowCount: number }) {
   const columnDefs = useInventoryColumns(columnsOptions);
   const { pageStart, searchState } = usePagedTableSearch({
     cards,
@@ -281,7 +270,6 @@ export function InventoryResults({
     search: deferredSearch,
     columns,
     onSearchChange,
-    withActions: actions !== undefined,
     facilityName,
     language: i18n.language,
     timeZone: useDeploymentTimeZone(),
@@ -349,7 +337,6 @@ export function InventoryResultsSkeleton({
     search,
     columns,
     onSearchChange: noop,
-    withActions: true,
     facilityName: '',
     language: '',
     timeZone: undefined,

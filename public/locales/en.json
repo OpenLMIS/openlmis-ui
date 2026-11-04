@@ -54,7 +54,7 @@
   "cce-inventory.details.edit-description": "Correct the details of this equipment.",
   "cce-inventory.details.edit-title": "Edit Equipment Details",
   "cce-inventory.details.liters": "{volume, number} liters",
-  "cce-inventory.details.load-error-title": "Could Not Load The Equipment",
+  "cce-inventory.details.load-error-title": "Could Not Load Equipment",
   "cce-inventory.details.net-volume": "Net Volume",
   "cce-inventory.details.not-found": "This equipment no longer exists.",
   "cce-inventory.details.saved": "{name} was updated.",
