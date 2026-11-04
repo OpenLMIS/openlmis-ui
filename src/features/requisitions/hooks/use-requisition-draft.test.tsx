@@ -386,3 +386,17 @@ it('stops a clean editor from creating a delta after its copy is removed in anot
   });
   expect(await getLocalDb().table('requisitionDrafts').get(base.id)).toBeUndefined();
 });
+
+it('retries an initial storage read and loads the saved draft', async () => {
+  await store();
+  const records = await import('@/lib/local-records');
+  vi.spyOn(records, 'readOwnedRecord').mockRejectedValueOnce(new Error('Storage busy'));
+  const onLoad = vi.fn();
+  const { result } = renderHook(() => useRequisitionDraft(base, onLoad));
+  await waitFor(() => expect(result.current.status.status).toBe('failed'));
+  await act(async () => {
+    await result.current.retry();
+  });
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  expect(onLoad).toHaveBeenCalledWith(draft);
+});

@@ -99,6 +99,8 @@ export function useRequisitionDraft(
       assertSessionScope(scope);
     };
     let loaded: Promise<void> | undefined;
+    let initialized = false;
+    let stagedWrite = false;
     const load = () => {
       loaded ??= (async () => {
         if (db) lease ??= await beginCopy(draftId);
@@ -123,6 +125,7 @@ export function useRequisitionDraft(
         outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;
         if (active && stored && !outdated)
           adopt.current?.(rebaseRequisitionDraft(baseline, stored.draft));
+        initialized = true;
         status = { status: 'saved' };
         publish();
       });
@@ -213,6 +216,7 @@ export function useRequisitionDraft(
       write(draft: RequisitionDraft, base?: RequisitionRecord) {
         assertSessionScope(scope);
         if (!closed && !outdated && db) {
+          stagedWrite = true;
           pendingBase = base ?? pendingBase;
           writer.enqueue({ draft: structuredClone(draft), base: pendingBase });
         }
@@ -230,7 +234,23 @@ export function useRequisitionDraft(
         }
         assertSessionScope(scope);
       },
-      retry: writer.retry,
+      async retry() {
+        if (closed || writer.conflicted) return;
+        try {
+          if (!initialized) {
+            loaded = undefined;
+            await load();
+            assertSessionScope(scope);
+            if (!stagedWrite) {
+              writer.reset();
+              return;
+            }
+          }
+          writer.retry();
+        } catch (error) {
+          if (active && scope === getSessionScope()) writer.fail(error);
+        }
+      },
       async clear() {
         closed = true;
         writer.clear();
