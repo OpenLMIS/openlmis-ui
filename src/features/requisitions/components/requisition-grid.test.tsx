@@ -1,7 +1,9 @@
 import { useStore } from '@tanstack/react-form';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
 import { useState } from 'react';
+import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   type GridSearch,
@@ -14,6 +16,7 @@ import { column, line, product, record } from '@/features/requisitions/lib/fixtu
 import { buildLines } from '@/features/requisitions/lib/lines';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { validateRequisition } from '@/features/requisitions/lib/validation';
+import { IsolatingICU } from '@/lib/isolate-values';
 import type { SearchChange } from '@/lib/table-search';
 
 const products = Array.from({ length: 12 }, (_, index) =>
@@ -387,7 +390,7 @@ it.each([1000, 390])(
       />,
     );
     expect(
-      screen.queryByRole('button', { name: /^requisitions.edit.remove-product:/ }),
+      screen.queryByRole('button', { name: /^requisitions.edit.remove-product-label/ }),
     ).not.toBeInTheDocument();
     const label = 'requestedQuantity: Medicine 0 (P0)';
     const input = screen.getByRole('textbox', { name: label });
@@ -447,12 +450,12 @@ it.each([1000, 390])('removes saved non-full supply lines instantly at width %s'
     />,
   );
   await user.click(
-    screen.getByRole('button', { name: 'requisitions.edit.remove-product: Medicine 0' }),
+    screen.getAllByRole('button', { name: 'requisitions.edit.remove-product-label' })[0],
   );
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(
-    screen.getByRole('button', { name: 'requisitions.edit.remove-product: Medicine 1' }),
+    screen.getByRole('button', { name: 'requisitions.edit.remove-product-label' }),
   ).toHaveFocus();
 });
 
@@ -583,4 +586,23 @@ it('lets editors hide skipped lines on disable templates through Filters and cle
   expect(screen.queryByText('Medicine 0')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
   expect(screen.getByText('Medicine 0')).toBeInTheDocument();
+});
+
+it.each([1000, 390])('interpolates product removal labels in Arabic at width %s', async (width) => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+  const i18n = createInstance();
+  await i18n.use(IsolatingICU).init({
+    lng: 'ar',
+    keySeparator: false,
+    nsSeparator: false,
+    resources: {
+      ar: { translation: { 'requisitions.edit.remove-product-label': 'إزالة {product}' } },
+    },
+  });
+  render(
+    <I18nextProvider i18n={i18n}>
+      <Harness editable tab="nonFullSupply" />
+    </I18nextProvider>,
+  );
+  expect(screen.getByRole('button', { name: 'إزالة ⁨Medicine 0⁩' })).toBeInTheDocument();
 });

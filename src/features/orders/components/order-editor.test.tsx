@@ -104,7 +104,7 @@ function setup(
   return { user: userEvent.setup(), onBatchChange };
 }
 function quantity() {
-  return screen.getByRole('textbox', { name: /orders.edit.quantity Medicine/ });
+  return screen.getByRole('textbox', { name: 'orders.edit.quantity-label' });
 }
 describe('order editor workflow', () => {
   it('keeps edits across tabs and saves only changed orders while newer typing stays unsaved', async () => {
@@ -300,7 +300,7 @@ it.each(['delete', 'remove'] as const)(
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
-    await screen.findByRole('textbox', { name: /orders.edit.quantity Medicine/ });
+    await screen.findByRole('textbox', { name: 'orders.edit.quantity-label' });
     fireEvent.change(quantity(), { target: { value: '25' } });
     const pendingBefore = pending.mock.calls.length;
     const user = userEvent.setup();

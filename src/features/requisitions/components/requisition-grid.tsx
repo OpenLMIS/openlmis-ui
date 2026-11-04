@@ -319,7 +319,9 @@ export function RequisitionGridView({
             <Button
               variant="destructive-ghost"
               size="icon-sm"
-              aria-label={`${t('requisitions.edit.remove-product')}: ${row.model.product?.fullProductName}`}
+              aria-label={t('requisitions.edit.remove-product-label', {
+                product: row.model.product?.fullProductName ?? '',
+              })}
               data-requisition-remove={row.id}
               disabled={editing.pending}
               onClick={() => removeLine(row.id)}
@@ -672,7 +674,9 @@ const RequisitionProductRow = memo(function RequisitionProductRow({
             <Button
               variant="destructive-ghost"
               size="icon-sm"
-              aria-label={`${t('requisitions.edit.remove-product')}: ${model.product?.fullProductName}`}
+              aria-label={t('requisitions.edit.remove-product-label', {
+                product: model.product?.fullProductName ?? '',
+              })}
               data-requisition-remove={model.line.id}
               disabled={editing?.pending}
               onClick={() => remove(model.line.id)}

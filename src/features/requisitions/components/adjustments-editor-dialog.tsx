@@ -138,7 +138,9 @@ export function AdjustmentsEditorDialog({
           <form.AppField name={`adjustments[${row.original.index}].quantity`}>
             {(field) => (
               <field.QuantityField
-                label={`${t('requisitions.adjustments.quantity')}: ${reasonName(row.original.reasonId)}`}
+                label={t('requisitions.adjustments.quantity-label', {
+                  reason: reasonName(row.original.reasonId),
+                })}
                 layout="inline"
                 hideErrors={!cards}
                 sizing={cards ? 'fill' : undefined}
