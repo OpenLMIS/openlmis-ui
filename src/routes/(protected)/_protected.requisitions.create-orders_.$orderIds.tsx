@@ -126,14 +126,24 @@ function Pending() {
       <WorkspaceFooter>
         <div className="flex flex-wrap gap-2">
           {(['cancel', 'delete-batch'] as const).map((key) => (
-            <Button key={key} size="lg" variant="outline" disabled>
+            <Button
+              key={key}
+              size="lg"
+              variant={key === 'delete-batch' ? 'destructive' : 'outline'}
+              disabled
+            >
               {t(`orders.edit.${key}`)}
             </Button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           {(['save-draft', 'create'] as const).map((key) => (
-            <Button key={key} size="lg" disabled>
+            <Button
+              key={key}
+              size="lg"
+              variant={key === 'save-draft' ? 'outline' : 'default'}
+              disabled
+            >
               {t(`orders.edit.${key}`)}
             </Button>
           ))}
