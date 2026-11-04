@@ -473,8 +473,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 - Tables draw vertical column dividers by default.
 
-- Exception to one-line headers: the requisition and batch approval grids wrap header labels between words, up to
-  three lines, with an info icon tooltip for template definitions.
+- Exception to one-line headers: the requisition and batch approval grids wrap header labels
+  between words, up to three lines, with an info icon tooltip for template definitions.
 
 - Yes/no and active/inactive cells use `FlagBadge` (`src/components/shared/flag-badge.tsx`): a
   success check or destructive cross, always with its label.
@@ -561,6 +561,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 **Filters and states:**
 
+- Create Orders keeps a visible required Requesting Facility picker label for legacy parity.
 - Every toolbar follows one layout: one text search first and always visible, then one
   `DataTableFilters` button holding every other filter, then View, Print and Create at the end.
   Where the API filters code and name separately (Products, Stock On Hand), Name stays visible
@@ -615,10 +616,12 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Import only stock `@/components/ui/` primitives, `@/lib/utils`, `@tanstack/react-table`,
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
-  `Table density/layout/width/scroll`, `TableCell rowHeader`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
+  `Table density/layout/width/scroll`, `TableCell rowHeader`, `TableHeader surface`,
+  `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width/clearLabel`, `InputGroup size="lg"`, `PopoverContent width`, `Skeleton fill`,
-  `Button variant="destructive-solid"` and `"destructive-outline"`. These become plain
-  `className`s in the registry; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
+  `Button variant="destructive-solid"` and `"destructive-outline"`. `TableCell rowHeader` becomes
+  `<th scope="row">` in the registry. Other exceptions become plain `className`s;
+  `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
 - Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet import the app
   `@/components/shared/page-visibility` gate. Its context defaults to false, keeping these
