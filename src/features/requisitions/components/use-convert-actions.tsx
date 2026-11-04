@@ -97,10 +97,14 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
       await releaseRequisitions(body);
       assertSessionScope(scope);
       if (isSecureOrigin) {
-        for (const { requisitionId } of body.requisitionsToRelease) {
-          const lease = await beginCopy(requisitionId);
-          assertSessionScope(scope);
-          await retireCopy(lease);
+        try {
+          for (const { requisitionId } of body.requisitionsToRelease) {
+            const lease = await beginCopy(requisitionId);
+            assertSessionScope(scope);
+            await retireCopy(lease);
+            assertSessionScope(scope);
+          }
+        } catch {
           assertSessionScope(scope);
         }
       }

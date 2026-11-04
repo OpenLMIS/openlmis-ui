@@ -177,6 +177,18 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
             approvalVerified: next.batch?.approvalVerified ?? previous.batch.approvalVerified,
           }
         : (next.batch ?? previous?.batch);
+    if (batch && next.batch && previous?.batch) {
+      batch = {
+        ...batch,
+        requestedIds: [...new Set([...previous.batch.requestedIds, ...next.batch.requestedIds])],
+        errors: [
+          ...previous.batch.errors.filter(
+            (error) => !next.batch?.requestedIds.includes(error.requisitionId),
+          ),
+          ...next.batch.errors,
+        ],
+      };
+    }
     const confirmed = previous?.batch?.confirmedApproval;
     if (batch && confirmed) {
       const candidate = next.batch?.record;
@@ -306,8 +318,28 @@ export async function retireCopy(lease: CopyLease) {
   const db = getLocalDb();
   await db.transaction('rw', tables, async () => {
     await assertCopyLease(lease);
-    await localTable(LOCAL_TABLES.requisitionCopies).delete(lease.id);
-    await localTable<Lifecycle>(LOCAL_TABLES.requisitionCopyLifecycles).put({
+    const copies = db.table<RequisitionCopy, string>(LOCAL_TABLES.requisitionCopies);
+    for (const copy of await copies.toArray()) {
+      if (copy.id === lease.id || !copy.batch?.requestedIds.includes(lease.id)) continue;
+      await copies.put({
+        ...copy,
+        revision: copy.revision + 1,
+        batch: {
+          ...copy.batch,
+          errors: [
+            ...copy.batch.errors.filter((error) => error.requisitionId !== lease.id),
+            {
+              requisitionId: lease.id,
+              errorMessage: { messageKey: 'requisitions.batch.no-longer-awaiting' },
+            },
+          ],
+        },
+      });
+    }
+    await db.table(LOCAL_TABLES.requisitionCopies).delete(lease.id);
+    await db.table(LOCAL_TABLES.requisitionDrafts).delete(lease.id);
+    await db.table(LOCAL_TABLES.requisitionBatchDrafts).delete(lease.id);
+    await db.table<Lifecycle, string>(LOCAL_TABLES.requisitionCopyLifecycles).put({
       id: lease.id,
       generation: lease.generation + 1,
     });
