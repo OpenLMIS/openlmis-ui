@@ -473,7 +473,6 @@ function BatchPage() {
         report(failures);
         return;
       }
-      await loaded.copyResult;
       assertSessionScope(scope);
       let saveResponse: BatchResponse;
       try {

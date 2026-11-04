@@ -197,6 +197,7 @@ export const requisitionAccessProvider = defineDownloadProvider({
       ? [{ id: access.userId, name: '', key: access.userId }]
       : [],
   fetch: async (_scope, signal): Promise<RequisitionAccess> => {
+    const config = { session: false, backgroundRead: true, backgroundDownload: true, signal };
     const session = getSessionScope();
     const access = await readOfflineAccess();
     const check = () => {
@@ -205,9 +206,9 @@ export const requisitionAccessProvider = defineDownloadProvider({
     };
     check();
     const [roles, facilities, programs] = await Promise.all([
-      fetchRoles({ signal }),
-      fetchMinimalFacilities(),
-      fetchPrograms(),
+      fetchRoles(config),
+      fetchMinimalFacilities(config),
+      fetchPrograms(config),
     ]);
     check();
     const ids = [
@@ -216,17 +217,19 @@ export const requisitionAccessProvider = defineDownloadProvider({
         ...supervisoryNodesWithRight(access.user, roles, RIGHTS.requisitionApprove),
       ]),
     ];
-    const nodes = await fetchSupervisoryNodesByIds(ids);
+    const nodes = await fetchSupervisoryNodesByIds(ids, config);
     check();
     if (ids.some((id) => !nodes.some((node) => node.id === id)))
       throw new LocalDataUnavailableError();
     const partnerIds = partnerNodeIds(nodes).filter((id) => !ids.includes(id));
-    const partners = await fetchSupervisoryNodesByIds(partnerIds);
+    const partners = await fetchSupervisoryNodesByIds(partnerIds, config);
     if (partnerIds.some((id) => !partners.some((node) => node.id === id)))
       throw new LocalDataUnavailableError();
     check();
     const allNodes = [...nodes, ...partners];
-    const groups = await Promise.all(groupIdsOf(allNodes).map(fetchRequisitionGroup));
+    const groups = await Promise.all(
+      groupIdsOf(allNodes).map((id) => fetchRequisitionGroup(id, config)),
+    );
     check();
     return {
       userId: access.userId,

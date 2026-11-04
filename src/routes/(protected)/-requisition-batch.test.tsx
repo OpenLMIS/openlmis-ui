@@ -1041,3 +1041,17 @@ it('does not offer Update for a draft no longer awaiting approval', async () => 
   ).not.toBeInTheDocument();
   queryClient.clear();
 });
+
+it('sends Sync while the opening offline capture is pending', async () => {
+  const copy = Promise.withResolvers<void>();
+  vi.spyOn(savedBatches, 'captureBatch').mockReturnValueOnce(copy.promise);
+  renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  try {
+    await userEvent.click(sync);
+    await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  } finally {
+    await act(async () => copy.resolve());
+  }
+});

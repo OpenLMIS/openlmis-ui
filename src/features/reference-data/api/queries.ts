@@ -68,7 +68,7 @@ export const LOOKUP_STALE_TIME = 10 * 60 * 1000;
 export const minimalFacilitiesOptions = () =>
   queryOptions({
     queryKey: [...queryKeys.facilities.all, 'minimal'] as const,
-    queryFn: fetchMinimalFacilities,
+    queryFn: () => fetchMinimalFacilities(),
     staleTime: LOOKUP_STALE_TIME,
   });
 
@@ -121,7 +121,7 @@ export const rolesOptions = (config?: AxiosRequestConfig) =>
 export const programsOptions = () =>
   queryOptions({
     queryKey: queryKeys.programs.list(),
-    queryFn: fetchPrograms,
+    queryFn: () => fetchPrograms(),
     staleTime: LOOKUP_STALE_TIME,
   });
 

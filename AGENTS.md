@@ -1036,6 +1036,13 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   download Web Lock. Foreground reads never persist partial generations. Recheck shared schedule
   deadlines under that lock; keep upload locks separate and retain complete older bundles.
 - Upload access reads bypass the download lock without publishing, reusing current-epoch access.
+- All background dataset, access and time-zone HTTP reads share a two-request transport limit.
+  Downloads wait while foreground HTTP requests are active; foreground work never waits on the
+  download gate. Upload access checks remain foreground work with ordinary request timeouts.
+- Only background downloads use a 20-second timeout without immediate timeout retries. Run tasks
+  serially within each dataset. After a timeout, 5xx or non-JSON gateway response, skip its remaining
+  tasks for this run, abort sibling reads, retain complete older bundles and record every skipped
+  scope for visible retry with the existing schedule backoff. Other datasets continue.
 - Foreground bundle reads retain ordinary renewal behavior; only background downloads fail fast.
   Accepted events request scoped refreshes. Preserve trigger priority and visible retry feedback.
 - Keep business payloads, access snapshots, drafts and queues out of localStorage. The deployment

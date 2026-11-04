@@ -58,6 +58,7 @@ export async function fetchReceiveCatalog(
   const config: AxiosRequestConfig & { signal?: AbortSignal } = {
     session: false,
     backgroundRead: true,
+    backgroundDownload: true,
     signal,
     sessionScope: getSessionScope(),
   };

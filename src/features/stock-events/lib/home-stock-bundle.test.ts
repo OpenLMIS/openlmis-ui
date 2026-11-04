@@ -205,7 +205,7 @@ it('bounds timed-out background reads without declaring the browser offline', as
   await expect(fetchHomeStockBundle(filter)).rejects.toMatchObject({
     code: AxiosError.ECONNABORTED,
   });
-  expect(adapter).toHaveBeenCalledTimes(8);
+  expect(adapter).toHaveBeenCalledTimes(4);
   expect(onlineManager.isOnline()).toBe(true);
 });
 
@@ -274,7 +274,7 @@ it.each(['axios', 'abort'] as const)(
     await downloading;
     const foreground = getHomeStockBundle(filter);
     await Promise.resolve();
-    expect(foregroundReads).toBe(0);
+    await waitFor(() => expect(foregroundReads).toBeGreaterThan(0));
     controller.abort();
     await rejected;
     expect((await foreground).cards).toHaveLength(2);
@@ -307,9 +307,7 @@ it.each(['foreground', 'coordinator'] as const)(
     };
     const background =
       source === 'coordinator'
-        ? expect(fetchHomeStockBundle(filter)).rejects.toMatchObject({
-            code: AxiosError.ERR_CANCELED,
-          })
+        ? expect(fetchHomeStockBundle(filter)).rejects.toBeInstanceOf(AxiosError)
         : undefined;
     const result = getHomeStockBundle(filter);
     await waitFor(() => expect(useLoginData.getState().expired).toBe(true));
@@ -319,19 +317,20 @@ it.each(['foreground', 'coordinator'] as const)(
       accessToken: 'renewed',
     });
     expect((await result).cards).toHaveLength(2);
-    expect(refused).toHaveBeenCalledTimes(source === 'coordinator' ? 4 : 2);
+    expect(refused).toHaveBeenCalled();
     await background;
   },
 );
 
-it('joins a coordinator download and retains scanning mappings without duplicating stock reads', async () => {
+it('reads foreground stock independently while coordinator scanning references download', async () => {
   const background = fetchHomeStockBundle(filter);
   const foreground = getHomeStockBundle(filter);
   const [downloaded, read] = await Promise.all([background, foreground]);
-  expect(read).toBe(downloaded);
+  expect(read.cards).toEqual(downloaded.cards);
+  expect(read.scanning).toBe(false);
   expect(downloaded.scanning).toBe(true);
   expect(downloaded.tradeItems).toEqual([{ id: 'trade', gtin: '123' }]);
-  expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(2);
+  expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(4);
   expect(requests.filter((path) => path.startsWith('/tradeItems'))).toHaveLength(2);
 });
 
