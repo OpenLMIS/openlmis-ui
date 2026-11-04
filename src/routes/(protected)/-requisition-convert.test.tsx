@@ -644,3 +644,33 @@ it('describes a failed convert list without referring to one facility', async ()
   expect(screen.queryByText('requisitions.view.error-description')).not.toBeInTheDocument();
   queryClient.clear();
 });
+
+it('keeps the selection after cannotConvertToOrderWithoutApprovedQty so it can be released without an order', async () => {
+  rows();
+  vi.mocked(releaseRequisitions).mockRejectedValueOnce(
+    new AxiosError('Invalid template', undefined, undefined, undefined, {
+      status: 400,
+      data: {
+        messageKey: 'requisition.error.cannotConvertToOrderWithoutApprovedQty',
+        message: 'Cannot convert to order without approved quantity',
+      },
+    } as never),
+  );
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action();
+  await confirm();
+  await screen.findByText('Cannot convert to order without approved quantity');
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  expect(screen.getAllByRole('checkbox').at(-1)).toBeChecked();
+  expect(screen.queryByText('requisitions.convert.uncertain')).not.toBeInTheDocument();
+  vi.mocked(releaseRequisitions).mockResolvedValueOnce(undefined);
+  await userEvent.click(screen.getAllByRole('button', { name: /requisitions.convert.release/ })[0]);
+  await confirm();
+  await waitFor(() =>
+    expect(releaseRequisitions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ createOrder: false }),
+    ),
+  );
+  queryClient.clear();
+});

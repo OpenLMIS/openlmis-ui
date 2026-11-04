@@ -419,3 +419,64 @@ it('keeps loading footer action treatments identical to the loaded editor', () =
     labels.map((label) => screen.getByRole('button', { name: `orders.edit.${label}` }).className),
   ).toEqual(treatments);
 });
+
+it('deletes the final order and replaces its history entry with the list', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+  vi.mocked(fetchOrder).mockResolvedValue(creatingOrder('a'));
+  vi.mocked(deleteOrders).mockResolvedValue(undefined);
+  const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
+  const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
+  const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
+  const page = createRoute({
+    getParentRoute: () => layout,
+    path: 'requisitions/create-orders/$orderIds',
+    validateSearch: Route.options.validateSearch as never,
+    loader: Route.options.loader as never,
+    component: Route.options.component as never,
+  });
+  const list = createRoute({
+    getParentRoute: () => layout,
+    path: 'requisitions/create-orders',
+    component: () => (
+      <main>
+        <h1>Create Orders List</h1>
+      </main>
+    ),
+  });
+  const previous = createRoute({
+    getParentRoute: () => layout,
+    path: 'previous',
+    component: () => <p>Previous</p>,
+  });
+  const history = createMemoryHistory({
+    initialEntries: ['/previous', '/requisitions/create-orders/a'],
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([
+      group.addChildren([layout.addChildren([page, list, previous] as never)] as never),
+    ] as never),
+    history,
+    context: { queryClient: client },
+  } as never) as AnyRouter;
+  render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'orders.edit.delete-order' }));
+  await user.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', {
+      name: 'orders.edit.delete-order-action',
+    }),
+  );
+  await screen.findByRole('heading', { name: 'Create Orders List' });
+  expect(deleteOrders).toHaveBeenCalledExactlyOnceWith(['a']);
+  expect(router.state.location.pathname).toBe('/requisitions/create-orders');
+  history.back();
+  await waitFor(() => expect(router.state.location.pathname).toBe('/previous'));
+  client.clear();
+});
