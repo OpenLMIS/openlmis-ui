@@ -272,6 +272,7 @@ export function ApprovalTable({
   return (
     <RequisitionCopiesContext value={copies}>
       <RequisitionCopyNotice
+        list
         local={!!deferred.offline || isDeviceAccess(page)}
         ids={page.content.map((record) => record.id)}
       />

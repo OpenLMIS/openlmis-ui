@@ -95,3 +95,10 @@ it('moves focus to the next displayed removal control, then back to the facility
   await user.click(remove()[0]);
   expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toHaveFocus();
 });
+
+it('keeps required picker placeholders free of spoken punctuation', () => {
+  setup();
+  for (const picker of screen.getAllByRole('combobox')) {
+    expect(picker.getAttribute('placeholder')).not.toContain('*');
+  }
+});

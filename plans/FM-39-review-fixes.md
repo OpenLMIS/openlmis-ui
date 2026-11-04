@@ -122,3 +122,30 @@ creation are excluded from this pass. The batch double-click regression uses pla
 in-memory editing path; saved-copy and approval persistence remain covered by the existing
 secure-origin batch workflows. Backend Release Without Order failures and deployment flags
 remain outside scope.
+
+## Reviewer Follow-Up (2026-11-04)
+
+All F1-F17 follow-up findings were confirmed and addressed. Fresh loader adoption keeps its
+pending completion through draft updates, checks the session and latest loader, and ignores
+older server records. Outdated loaders also disable footer actions. Draft adoption failures
+use the draft status, conflict resolution rebases stored changes, and completed editors ignore
+copy lifecycle notifications.
+
+Single captures refresh status messages and wait for grid products before reading missing
+available products. Capture lives separately from saved-query readers to avoid an import
+cycle. Submit and Approve have route coverage for the saved copy's new status. Copy retirement
+is silent when access is unavailable; other copy errors have copy-specific text. Successful
+conversion remains successful if device cleanup fails. Retirement removes only the affected
+single and batch drafts and records unavailable ids on sibling copies.
+
+Online batches use approval-list membership as well as status for editing and totals. Saved
+siblings retain errors for missing, retired and revoked ids so their original batch URLs reopen
+offline. The redundant Sync response update is removed.
+
+Required order labels use the shared mark and plain placeholders. The HTTPS explanation appears
+only on View and Approve lists. The duplicate grid action renderer and test-only line attribute
+are removed. All five catalogs use sentence copy for the no-longer-awaiting message, with the
+Portuguese, Arabic and French corrections requested by the reviewer.
+
+Verification remains limited to touched test files, TypeScript, Biome and design-system lint.
+No full suite, browser, server writes, pushes or PR creation were run in this follow-up.

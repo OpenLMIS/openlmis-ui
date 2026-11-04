@@ -16,6 +16,7 @@ export function RequisitionCopyNotice({
   result,
   failure,
   local = false,
+  list = false,
 }: {
   id?: string;
   ids?: readonly string[];
@@ -23,6 +24,7 @@ export function RequisitionCopyNotice({
   result?: Promise<unknown>;
   failure?: unknown;
   local?: boolean;
+  list?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -50,11 +52,11 @@ export function RequisitionCopyNotice({
   );
   const saved = candidates?.toSorted((a, b) => a.fetchedAt - b.fetchedAt)[0];
   if (!isSecureOrigin)
-    return (
+    return list ? (
       <p role="note" className="text-muted-foreground text-sm">
         {t('requisitions.offline.insecure-description')}
       </p>
-    );
+    ) : null;
   if (saved) everSaved.current = true;
   if (id && copies && !saved && everSaved.current)
     return (
