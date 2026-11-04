@@ -2030,6 +2030,7 @@
   "requisitions.offline.empty-title": "No hay requisiciones guardadas",
   "requisitions.offline.failed-description": "No se pudo guardar la copia completa sin conexión. Conéctese e inténtelo de nuevo. Se conservan las copias anteriores y el trabajo sin sincronizar.",
   "requisitions.offline.failed-title": "Copia no guardada",
+  "requisitions.offline.insecure-description": "Las copias sin conexión requieren una conexión HTTPS segura. Abra este servidor mediante HTTPS para guardar requisiciones en este dispositivo.",
   "requisitions.offline.label": "Sin conexión",
   "requisitions.offline.only": "Solo sin conexión",
   "requisitions.offline.remove": "Eliminar de este dispositivo",

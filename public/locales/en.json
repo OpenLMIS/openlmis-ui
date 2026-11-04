@@ -2030,6 +2030,7 @@
   "requisitions.offline.empty-title": "No Saved Requisitions",
   "requisitions.offline.failed-description": "The complete offline copy could not be saved. Connect and try again. Earlier copies and unsynced work are kept.",
   "requisitions.offline.failed-title": "Copy Not Saved",
+  "requisitions.offline.insecure-description": "Offline copies require a secure HTTPS connection. Open this server over HTTPS to save requisitions on this device.",
   "requisitions.offline.label": "Offline",
   "requisitions.offline.only": "Offline Only",
   "requisitions.offline.remove": "Remove From This Device",

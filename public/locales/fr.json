@@ -2030,6 +2030,7 @@
   "requisitions.offline.empty-title": "Aucune réquisition enregistrée",
   "requisitions.offline.failed-description": "La copie hors ligne complète n’a pas pu être enregistrée. Connectez-vous et réessayez. Les copies précédentes et le travail non synchronisé sont conservés.",
   "requisitions.offline.failed-title": "Copie non enregistrée",
+  "requisitions.offline.insecure-description": "Les copies hors ligne nécessitent une connexion HTTPS sécurisée. Ouvrez ce serveur en HTTPS pour enregistrer les réquisitions sur cet appareil.",
   "requisitions.offline.label": "Hors ligne",
   "requisitions.offline.only": "Hors ligne uniquement",
   "requisitions.offline.remove": "Retirer de cet appareil",
