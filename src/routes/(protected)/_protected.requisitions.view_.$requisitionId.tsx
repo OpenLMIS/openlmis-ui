@@ -8,7 +8,15 @@ import {
 import { createFileRoute, type ErrorComponentProps, useRouter } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon } from 'lucide-react';
-import { type ComponentProps, type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -376,6 +384,7 @@ function RequisitionBody({
   quantity: ReturnType<typeof useQuantityUnit>;
 }) {
   const [record, setRecord] = useState(data.record);
+  const [loaderOutdated, setLoaderOutdated] = useState(false);
   const [copyFailure, setCopyFailure] = useState<unknown>();
   const copyOpening = useRef(data.copyResult);
   if (copyOpening.current !== data.copyResult) {
@@ -462,6 +471,7 @@ function RequisitionBody({
       }
       attachCopyLease(fresh, lease);
     }
+    setLoaderOutdated(false);
     setRecord(fresh);
     queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
     setFailure(null);
@@ -803,12 +813,39 @@ function RequisitionBody({
     refusedDescription: t('requisitions.requisition.print-refused'),
   });
   const pending = busy || print.isPending;
-  const editingBlocked = pending || !!uncertainty;
+  const editingBlocked = pending || !!uncertainty || loaderOutdated;
   const baseline = useMemo(() => JSON.stringify(buildRequisitionDraft(record)), [record]);
   const dirty = useStore(
     editor.form.store,
     (state) => JSON.stringify(state.values.draft) !== baseline,
   );
+  const loaderRecord = useRef(data.record);
+  useEffect(() => {
+    if (loaderRecord.current === data.record) return;
+    loaderRecord.current = data.record;
+    if (record.modifiedDate === data.record.modifiedDate && record.status === data.record.status)
+      return;
+    if (dirty) {
+      setLoaderOutdated(true);
+      return;
+    }
+    const scope = getSessionScope();
+    let cancelled = false;
+    void editor.device.update(data.record).then(
+      () => {
+        if (cancelled || scope !== getSessionScope()) return;
+        setRecord(data.record);
+        accessEpoch.current = data.accessEpoch;
+        setLoaderOutdated(false);
+      },
+      (error: unknown) => {
+        if (!cancelled && scope === getSessionScope()) setCopyFailure(error);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [data.record, data.accessEpoch, record, dirty, editor]);
   const guard = useDiscardGuard(dirty, {
     pending,
     allowLeave: () => finished.current,
@@ -971,7 +1008,7 @@ function RequisitionBody({
               {t('requisitions.edit.synced-title')}
             </p>
           )}
-          {editor.device.outdated && (
+          {(editor.device.outdated || loaderOutdated) && (
             <RequisitionOutdatedAlert>
               <RequisitionUpdate
                 tone="warning"
