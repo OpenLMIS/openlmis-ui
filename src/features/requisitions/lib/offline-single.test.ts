@@ -116,3 +116,62 @@ it('waits for grid products before requesting missing available products', async
   expect(fetchOrderablesByIdentities).not.toHaveBeenCalled();
   client.clear();
 });
+
+it('waits for idle before fetching extra products and limits requests to one batch', async () => {
+  const { requisitionGridQueries, requisitionStatusMessagesOptions } = await import(
+    '../api/queries'
+  );
+  const { facilityOptions } = await import('@/features/reference-data/api/queries');
+  const { getSessionScope } = await import('@/lib/session-scope');
+  const base = {
+    ...record(),
+    id: 'r',
+    facility: { id: 'f' },
+    program: { id: 'p' },
+    processingPeriod: { id: 'period' },
+    availableProducts: Array.from({ length: 250 }, (_, index) => ({
+      id: `extra-${index}`,
+      versionNumber: 1,
+    })),
+  } as RequisitionRecord;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queries = requisitionGridQueries(base);
+  for (const [index, value] of [
+    [0, []],
+    [1, []],
+    [2, { id: 'period' }],
+    [3, {}],
+    [4, { id: 'p' }],
+  ] as const)
+    client.setQueryData([...queries[index].queryKey], value);
+  client.setQueryData([...facilityOptions('f').queryKey], { id: 'f' });
+  client.setQueryData(requisitionStatusMessagesOptions('r').queryKey, []);
+  let idle: (() => void) | undefined;
+  vi.stubGlobal('requestIdleCallback', (callback: () => void) => {
+    idle = callback;
+    return 1;
+  });
+  vi.mocked(fetchOrderablesByIdentities).mockClear();
+  vi.mocked(fetchOrderablesByIdentities).mockImplementation(
+    async (ids) => ids.map((id) => ({ ...product(), id: id.id })) as never,
+  );
+  const capture = captureSingle(
+    client,
+    { id: 'r', userId: 'u', generation: 0, session: getSessionScope() },
+    base,
+    'read',
+  );
+  try {
+    const { waitFor } = await import('@testing-library/react');
+    await waitFor(() => expect(idle).toBeDefined());
+    expect(fetchOrderablesByIdentities).not.toHaveBeenCalled();
+    idle?.();
+    await capture;
+    expect(vi.mocked(fetchOrderablesByIdentities).mock.calls.map(([ids]) => ids.length)).toEqual([
+      100, 100, 50,
+    ]);
+  } finally {
+    vi.unstubAllGlobals();
+    client.clear();
+  }
+});
