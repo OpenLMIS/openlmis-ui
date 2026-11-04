@@ -301,3 +301,17 @@ export async function confirmBatchApproval(lease: CopyLease, record: BatchRequis
     await assertCopyLease(lease);
   });
 }
+
+export async function retireCopy(lease: CopyLease) {
+  const db = getLocalDb();
+  await db.transaction('rw', tables, async () => {
+    await assertCopyLease(lease);
+    await localTable(LOCAL_TABLES.requisitionCopies).delete(lease.id);
+    await localTable<Lifecycle>(LOCAL_TABLES.requisitionCopyLifecycles).put({
+      id: lease.id,
+      generation: lease.generation + 1,
+    });
+    assertSessionScope(lease.session);
+  });
+  assertSessionScope(lease.session);
+}
