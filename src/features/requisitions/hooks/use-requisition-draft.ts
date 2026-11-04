@@ -46,7 +46,13 @@ export function useRequisitionDraft(
   initial.current = record;
   const leaseSource = useRef(copyLeaseFor(loaderRecord));
   const nextLease = copyLeaseFor(loaderRecord);
-  if (leaseSource.current?.generation !== nextLease?.generation) leaseSource.current = nextLease;
+  if (
+    leaseSource.current?.generation !== nextLease?.generation ||
+    leaseSource.current?.userId !== nextLease?.userId ||
+    leaseSource.current?.session !== nextLease?.session ||
+    leaseSource.current?.id !== nextLease?.id
+  )
+    leaseSource.current = nextLease;
   const currentLease = leaseSource.current;
   const adopt = useRef(onLoad);
   adopt.current = onLoad;
@@ -105,7 +111,7 @@ export function useRequisitionDraft(
     };
     let loaded: Promise<void> | undefined;
     let initialized = false;
-    let stagedWrite = false;
+    let writeTimer: ReturnType<typeof setTimeout> | undefined;
     const load = () => {
       loaded ??= (async () => {
         if (db) lease ??= await beginCopy(draftId);
@@ -220,12 +226,14 @@ export function useRequisitionDraft(
       write(draft: RequisitionDraft, base?: RequisitionRecord) {
         assertSessionScope(scope);
         if (!closed && !outdated && db) {
-          stagedWrite = true;
           pendingBase = base ?? pendingBase;
-          writer.enqueue({ draft: structuredClone(draft), base: pendingBase });
+          writer.stage({ draft, base: pendingBase });
+          clearTimeout(writeTimer);
+          writeTimer = setTimeout(() => writer.start(), 250);
         }
       },
       async flush({ allowFailure = false }: { allowFailure?: boolean } = {}) {
+        clearTimeout(writeTimer);
         try {
           await load();
           assertSessionScope(scope);
@@ -245,10 +253,6 @@ export function useRequisitionDraft(
             loaded = undefined;
             await load();
             assertSessionScope(scope);
-            if (!stagedWrite) {
-              writer.reset();
-              return;
-            }
           }
           writer.retry();
         } catch (error) {
@@ -256,6 +260,7 @@ export function useRequisitionDraft(
         }
       },
       async clear() {
+        clearTimeout(writeTimer);
         closed = true;
         writer.clear();
         await writer.wait();
@@ -303,6 +308,7 @@ export function useRequisitionDraft(
         }
       },
       dispose() {
+        clearTimeout(writeTimer);
         active = false;
         unsubscribe?.();
         closed = true;

@@ -81,7 +81,7 @@ export function createDraftWriter<T>(
     retry() {
       if (conflict) return;
       stopped = false;
-      onStatus({ status: 'saving' });
+      onStatus({ status: latest ? 'saving' : 'saved' });
       start();
     },
   };
