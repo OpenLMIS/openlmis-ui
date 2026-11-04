@@ -480,3 +480,12 @@ it('deletes the final order and replaces its history entry with the list', async
   await waitFor(() => expect(router.state.location.pathname).toBe('/previous'));
   client.clear();
 });
+
+it('marks an empty order invalid after adding and removing its only product', async () => {
+  const { user } = setup([{ ...creatingOrder('a'), orderLineItems: [] }]);
+  await user.click(screen.getByRole('combobox', { name: 'orders.edit.select-product' }));
+  await user.click(await screen.findByRole('option', { name: 'Medicine' }));
+  await user.click(screen.getByRole('button', { name: 'orders.add' }));
+  await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
+  expect(screen.getByRole('tab', { name: /Facility a/ })).toHaveTextContent('orders.edit.invalid');
+});
