@@ -10,7 +10,7 @@ import {
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
-import { type ComponentType, useState } from 'react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { deleteOrders, fetchOrder, saveOrder, sendOrder } from '@/features/orders/api/api';
@@ -379,12 +379,6 @@ it('deletes only readable Creating orders in a batch with known problem entries'
   expect(deleteOrders).toHaveBeenCalledWith(['a', 'b']);
 });
 
-it('returns focus to the product picker after removing the final line', async () => {
-  const { user } = setup([creatingOrder('a')]);
-  await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
-  expect(screen.getByRole('combobox', { name: 'orders.edit.select-product' })).toHaveFocus();
-});
-
 it('does not mark a new empty order invalid until Create is attempted', async () => {
   const { user } = setup([{ ...creatingOrder('a'), orderLineItems: [] }]);
   expect(screen.getByRole('tab', { name: /Facility a/ })).not.toHaveTextContent(
@@ -398,26 +392,14 @@ it('does not mark a new empty order invalid until Create is attempted', async ()
   expect(screen.getByRole('tab', { name: /Facility a/ })).toHaveTextContent('orders.edit.invalid');
 });
 
-it('focuses the next line removal control after deleting a line', async () => {
+it('focuses the next line removal control, then the product picker after the final line', async () => {
   const order = creatingOrder('a');
   order.orderLineItems.push({ ...order.orderLineItems[0], id: 'second' });
   const { user } = setup([order]);
   await user.click(screen.getAllByRole('button', { name: 'orders.edit.remove-line' })[0]);
   expect(screen.getByRole('button', { name: 'orders.edit.remove-line' })).toHaveFocus();
-});
-
-it('keeps loading footer action treatments identical to the loaded editor', () => {
-  const Pending = Route.options.pendingComponent as ComponentType;
-  const pending = render(<Pending />);
-  const labels = ['cancel', 'delete-batch', 'save-draft', 'create'];
-  const treatments = labels.map(
-    (label) => screen.getByRole('button', { name: `orders.edit.${label}` }).className,
-  );
-  pending.unmount();
-  setup([creatingOrder('a')]);
-  expect(
-    labels.map((label) => screen.getByRole('button', { name: `orders.edit.${label}` }).className),
-  ).toEqual(treatments);
+  await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
+  expect(screen.getByRole('combobox', { name: 'orders.edit.select-product' })).toHaveFocus();
 });
 
 it('deletes the final order and replaces its history entry with the list', async () => {

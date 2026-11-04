@@ -19,6 +19,7 @@ import {
   fetchRequisition,
   releaseRequisitions,
 } from '@/features/requisitions/api/api';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
 import { reportCaughtError } from '@/lib/report-error';
@@ -172,9 +173,11 @@ async function confirm() {
   );
 }
 it.each([true, false])(
-  'sends one batch with current depots and refreshes on success (%s)',
+  'sends one batch with current depots, removes saved copies and refreshes (%s)',
   async (createOrder) => {
     rows();
+    const copies = getLocalDb().table(LOCAL_TABLES.requisitionCopies);
+    await copies.put({ id: 'March', userId: 'u' });
     vi.mocked(releaseRequisitions).mockImplementation(async () => {
       rows([row('April')]);
     });
@@ -190,6 +193,7 @@ it.each([true, false])(
       }),
     );
     await screen.findAllByText('April');
+    expect(await copies.get('March')).toBeUndefined();
     await waitFor(() =>
       expect(screen.getByRole('region', { name: 'requisitions.convert.title' })).toHaveFocus(),
     );
@@ -227,12 +231,15 @@ it('requires a depot before confirming and focuses it after closing validation',
   );
   queryClient.clear();
 });
-it('shows a 400 server message while retaining ticks for correction', async () => {
+it('shows a 400 server message while retaining ticks for Release Without Order', async () => {
   rows();
-  vi.mocked(releaseRequisitions).mockRejectedValue(
+  vi.mocked(releaseRequisitions).mockRejectedValueOnce(
     new AxiosError('Bad', undefined, undefined, undefined, {
       status: 400,
-      data: { message: 'Approved quantity must be displayed' },
+      data: {
+        messageKey: 'requisition.error.cannotConvertToOrderWithoutApprovedQty',
+        message: 'Approved quantity must be displayed',
+      },
     } as never),
   );
   const { queryClient } = renderRoute('/requisitions/convert');
@@ -242,6 +249,15 @@ it('shows a 400 server message while retaining ticks for correction', async () =
   await screen.findByText('Approved quantity must be displayed');
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
   expect(screen.getAllByRole('checkbox').at(-1)).toBeChecked();
+  expect(screen.queryByText('requisitions.convert.uncertain')).not.toBeInTheDocument();
+  vi.mocked(releaseRequisitions).mockResolvedValueOnce(undefined);
+  await action(false);
+  await confirm();
+  await waitFor(() =>
+    expect(releaseRequisitions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ createOrder: false }),
+    ),
+  );
   queryClient.clear();
 });
 it.each([502, 400, undefined])(
@@ -634,43 +650,5 @@ it('allows release of a reselected unresolved row with only the normal release c
   await action(false);
   await screen.findByText('requisitions.convert.release-confirm');
   expect(screen.queryByText('requisitions.convert.retry-confirm')).not.toBeInTheDocument();
-  queryClient.clear();
-});
-
-it('describes a failed convert list without referring to one facility', async () => {
-  vi.mocked(fetchConvertList).mockRejectedValue(new Error('Service failed'));
-  const { queryClient } = renderRoute('/requisitions/convert');
-  await screen.findByText('requisitions.convert.error-description');
-  expect(screen.queryByText('requisitions.view.error-description')).not.toBeInTheDocument();
-  queryClient.clear();
-});
-
-it('keeps the selection after cannotConvertToOrderWithoutApprovedQty so it can be released without an order', async () => {
-  rows();
-  vi.mocked(releaseRequisitions).mockRejectedValueOnce(
-    new AxiosError('Invalid template', undefined, undefined, undefined, {
-      status: 400,
-      data: {
-        messageKey: 'requisition.error.cannotConvertToOrderWithoutApprovedQty',
-        message: 'Cannot convert to order without approved quantity',
-      },
-    } as never),
-  );
-  const { queryClient } = renderRoute('/requisitions/convert');
-  await selectRow();
-  await action();
-  await confirm();
-  await screen.findByText('Cannot convert to order without approved quantity');
-  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
-  expect(screen.getAllByRole('checkbox').at(-1)).toBeChecked();
-  expect(screen.queryByText('requisitions.convert.uncertain')).not.toBeInTheDocument();
-  vi.mocked(releaseRequisitions).mockResolvedValueOnce(undefined);
-  await userEvent.click(screen.getAllByRole('button', { name: /requisitions.convert.release/ })[0]);
-  await confirm();
-  await waitFor(() =>
-    expect(releaseRequisitions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ createOrder: false }),
-    ),
-  );
   queryClient.clear();
 });

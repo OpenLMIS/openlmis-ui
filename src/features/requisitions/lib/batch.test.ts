@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   batchCost,
   batchRows,
+  batchRowTotals,
   batchSaveBody,
   batchTotals,
   orderBatch,
@@ -105,7 +106,10 @@ it('rounds a partial pack to zero when roundToZero is enabled', () => {
   ).toBe(0);
 });
 
-it('excludes records that are no longer awaiting approval from batch totals', () => {
+it('excludes records that are no longer awaiting approval from batch and product totals', () => {
   const approved = { ...arv.requisitionDtos[0], status: 'APPROVED' };
   expect(batchTotals([approved]).cost).toBe(0);
+  const [row] = batchRows([approved]);
+  expect(batchRowTotals(row, {}).cost).toBeGreaterThan(0);
+  expect(batchRowTotals(row, {}, [approved])).toEqual({ quantity: 0, cost: 0 });
 });
