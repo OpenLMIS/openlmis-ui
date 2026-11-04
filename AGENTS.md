@@ -282,6 +282,8 @@ edits, which have no prop for TypeScript to detect:
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
 | `button.tsx` | Keep warning tint on hover with `tone="sidebar"` |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
+| `button.tsx` | Preserve `align="between"` for labels with end-aligned values |
+| `badge.tsx` | Preserve `wrap="normal"` for wrapping badge labels |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
@@ -471,7 +473,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 - Tables draw vertical column dividers by default.
 
-- Exception to one-line headers: the requisition grid wraps header labels between words, up to
+- Exception to one-line headers: the requisition and batch approval grids wrap header labels between words, up to
   three lines, with an info icon tooltip for template definitions.
 
 - Yes/no and active/inactive cells use `FlagBadge` (`src/components/shared/flag-badge.tsx`): a
