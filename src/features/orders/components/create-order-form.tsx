@@ -1,7 +1,7 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useTable } from '@tanstack/react-table';
 import { Trash2Icon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { DataTable, dataTableFeatures } from '@/components/data-table/data-table';
@@ -21,6 +21,7 @@ import { OrderSelect } from '@/features/orders/components/order-select';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
 import type { MinimalFacility } from '@/features/reference-data/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
+import { useRemovalFocus } from '@/hooks/use-removal-focus';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { settleFew } from '@/lib/settle-few';
 
@@ -41,7 +42,12 @@ export function CreateOrderForm({
   const { data: programs } = useSuspenseQuery(userProgramsOptions(userId));
   const [pickedProgram, setProgram] = useState('');
   const programId = pickedProgram || (programs.length === 1 ? programs[0].id : '');
+  const picker = useRef<HTMLDivElement>(null);
   const [ids, setIds] = useState<string[]>([]);
+  const focus = useRemovalFocus(
+    ids,
+    () => picker.current?.querySelector<HTMLElement>('[role=combobox]') ?? null,
+  );
   const [picked, setPicked] = useState('');
   const [supplier, setSupplier] = useState('');
   const suppliers = useQuery({
@@ -116,25 +122,29 @@ export function CreateOrderForm({
         cell: ({ row }) => {
           const label = t('orders.create.remove-facility', { facility: row.original.name });
           const remove = () => {
+            focus.removing(row.original.id);
             setIds((current) => current.filter((id) => id !== row.original.id));
             setSupplier('');
           };
           return cards ? (
-            <CardActions
-              label={t('orders.edit.actions')}
-              actions={[
-                {
-                  id: 'remove',
-                  icon: <Trash2Icon />,
-                  label,
-                  destructive: true,
-                  disabled: mutation.isPending,
-                  onSelect: remove,
-                },
-              ]}
-            />
+            <div data-removal-control>
+              <CardActions
+                label={t('orders.edit.actions')}
+                actions={[
+                  {
+                    id: 'remove',
+                    icon: <Trash2Icon />,
+                    label,
+                    destructive: true,
+                    disabled: mutation.isPending,
+                    onSelect: remove,
+                  },
+                ]}
+              />
+            </div>
           ) : (
             <Button
+              data-removal-control
               variant="ghost"
               size="icon-sm"
               aria-label={label}
@@ -162,6 +172,7 @@ export function CreateOrderForm({
       <FieldGroup>
         <div className="min-w-0 @3xl/main:max-w-96">
           <OrderSelect
+            required
             label={t('orders.create.program')}
             placeholder={t('orders.create.select-program')}
             options={programs.map((p) => ({ id: p.id, name: p.name ?? p.code }))}
@@ -174,10 +185,11 @@ export function CreateOrderForm({
           />
         </div>
       </FieldGroup>
-      <div className="flex items-center gap-2 @3xl/main:max-w-xl">
+      <div ref={picker} className="flex items-center gap-2 @3xl/main:max-w-xl">
         <PickerAdd>
           <PickerAddField>
             <OrderSelect
+              required
               compact
               label={t('orders.create.requesting-facility')}
               placeholder={t('orders.create.select-requesting-facility')}
@@ -200,7 +212,12 @@ export function CreateOrderForm({
         </PickerAdd>
       </div>
       <Separator />
-      <div ref={measure}>
+      <div
+        ref={(element) => {
+          measure(element);
+          focus.region.current = element;
+        }}
+      >
         {cards ? (
           <TableCards table={table} title="name" empty={t('orders.create.empty')} />
         ) : (
@@ -209,6 +226,7 @@ export function CreateOrderForm({
       </div>
       <div className="min-w-0 @3xl/main:max-w-96">
         <OrderSelect
+          required
           label={t('orders.create.supplying-facility')}
           placeholder={t('orders.create.select-supplying-facility')}
           options={options}

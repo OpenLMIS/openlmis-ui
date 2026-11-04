@@ -21,6 +21,7 @@ export function OrderSelect({
   onChange,
   disabled,
   compact = false,
+  required = false,
 }: {
   label: string;
   placeholder: string;
@@ -29,13 +30,19 @@ export function OrderSelect({
   onChange: (id: string) => void;
   disabled?: boolean;
   compact?: boolean;
+  required?: boolean;
 }) {
   const { t } = useTranslation();
   const id = useId();
   const selected = options.find((item) => item.id === value) ?? null;
   return (
     <Field>
-      {!compact && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+      {!compact && (
+        <FieldLabel htmlFor={id}>
+          {label}
+          {required && <span aria-hidden="true"> *</span>}
+        </FieldLabel>
+      )}
       <Combobox
         items={options}
         limit={50}
@@ -51,7 +58,8 @@ export function OrderSelect({
         <ComboboxInput
           id={id}
           aria-label={label}
-          placeholder={placeholder}
+          aria-required={required}
+          placeholder={compact && required ? `${placeholder} *` : placeholder}
           size="lg"
           width="full"
           clearLabel={t('orders.clear-selection')}

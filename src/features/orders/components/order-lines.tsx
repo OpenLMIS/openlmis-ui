@@ -34,6 +34,7 @@ import { type DraftLine, validQuantity } from '@/features/orders/lib/order-draft
 import type { Order } from '@/features/orders/lib/types';
 import { productLabel } from '@/features/reference-data/lib/products';
 import { useCardLayout } from '@/hooks/use-card-view';
+import { useRemovalFocus } from '@/hooks/use-removal-focus';
 import { orEmpty } from '@/lib/empty-value';
 import { packsToShip, type QuantityUnit } from '@/lib/quantity';
 import { toWholeNumber } from '@/lib/whole-number';
@@ -87,6 +88,10 @@ export function OrderLines({
     orderableIds: lines.map((line) => line.product.id),
   };
   const stock = useQuery(orderStockOnHandOptions(filter));
+  const focus = useRemovalFocus(
+    lines.map((line) => line.key),
+    () => document.getElementById('order-product'),
+  );
   const row = (line: DraftLine, index: number) => (
     <OrderLine
       key={line.key}
@@ -96,7 +101,10 @@ export function OrderLines({
       unit={unit}
       disabled={disabled}
       quantity={quantity}
-      onRemove={onRemove}
+      onRemove={(key) => {
+        focus.removing(key);
+        onRemove(key);
+      }}
       stock={
         stock.data?.find((item) => item.orderable.id === line.product.id)?.stockOnHand ??
         cachedOrderBalance(client, filter, line.product.id)
@@ -105,7 +113,12 @@ export function OrderLines({
     />
   );
   return (
-    <div ref={measure}>
+    <div
+      ref={(element) => {
+        measure(element);
+        focus.region.current = element;
+      }}
+    >
       {stock.isError && <OrderStockError error={stock.error} reset={() => stock.refetch()} />}
       {cards ? (
         <CardList empty={!lines.length && t('orders.create.empty')}>{lines.map(row)}</CardList>
@@ -188,19 +201,21 @@ const OrderLine = memo(function OrderLine({
     <CardListItem tone={!validQuantity(line.quantity) ? 'invalid' : undefined}>
       <CardBand>
         <span className="min-w-0 break-words">{productName(line)}</span>
-        <CardActions
-          label={t('orders.edit.actions')}
-          actions={[
-            {
-              id: 'remove',
-              icon: <Trash2Icon />,
-              label: t('orders.edit.remove-line', { product: productName(line) }),
-              destructive: true,
-              disabled,
-              onSelect: () => onRemove(line.key),
-            },
-          ]}
-        />
+        <div data-removal-control>
+          <CardActions
+            label={t('orders.edit.actions')}
+            actions={[
+              {
+                id: 'remove',
+                icon: <Trash2Icon />,
+                label: t('orders.edit.remove-line', { product: productName(line) }),
+                destructive: true,
+                disabled,
+                onSelect: () => onRemove(line.key),
+              },
+            ]}
+          />
+        </div>
       </CardBand>
       <CardRows>
         {[
@@ -230,6 +245,7 @@ const OrderLine = memo(function OrderLine({
       <TableCell>{qty}</TableCell>
       <TableCell>
         <Button
+          data-removal-control
           variant="ghost"
           size="icon-sm"
           aria-label={t('orders.edit.remove-line', { product: productName(line) })}

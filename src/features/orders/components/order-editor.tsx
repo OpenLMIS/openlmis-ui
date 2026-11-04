@@ -265,7 +265,18 @@ export function OrderEditor({
             }}
           >
             <Tabs value={active?.id ?? ''} onValueChange={(value) => onTab(String(value))}>
-              <OrderTabs entries={entries} dirty={dirty} invalid={invalid} />
+              <OrderTabs
+                entries={entries}
+                dirty={dirty}
+                invalid={(id) =>
+                  invalid(id) &&
+                  (creatingInvalid ||
+                    dirty(id) ||
+                    !!initial[id]?.length ||
+                    !!entries.find((entry) => entry.id === id)?.problem ||
+                    !!problems[id])
+                }
+              />
               <TabsContent value={active?.id ?? ''}>
                 <div className="flex flex-col gap-4">
                   {problem ? (
