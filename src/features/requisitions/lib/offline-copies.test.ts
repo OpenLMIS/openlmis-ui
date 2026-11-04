@@ -10,6 +10,7 @@ import {
   readCopy,
   removalDecision,
   removeCopy,
+  retireCopy,
 } from './offline-copies';
 import type { SingleReferences } from './offline-single';
 
@@ -336,4 +337,12 @@ it('keeps confirmed status when an older clean capture finishes later, but accep
     summary: { status: 'APPROVED' },
     batch: { confirmedApproval: { status: 'APPROVED' } },
   });
+});
+
+it('retires both representations after an action and prevents an old capture restoring them', async () => {
+  const lease = await beginCopy('r');
+  await commitCopy(lease, ready(lease));
+  await retireCopy(lease);
+  expect(await readCopy('r')).toBeUndefined();
+  await expect(commitCopy(lease, ready(lease))).rejects.toThrow();
 });

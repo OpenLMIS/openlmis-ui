@@ -113,7 +113,7 @@ import {
   prepareRequisitionAccess,
   requisitionNodesOptions,
 } from '@/features/requisitions/lib/offline-access';
-import { attachCopyLease, beginCopy } from '@/features/requisitions/lib/offline-copies';
+import { attachCopyLease, beginCopy, retireCopy } from '@/features/requisitions/lib/offline-copies';
 import {
   captureSingle,
   hydrateSingle,
@@ -741,6 +741,23 @@ function RequisitionBody({
         toast.error(t('requisitions.edit.error-title'), {
           description: t('requisitions.edit.clear-error'),
         });
+      }
+      assertSessionScope(scope);
+      if (isSecureOrigin) {
+        try {
+          await retireCopy(await beginCopy(record.id));
+          assertSessionScope(scope);
+          if (kind !== 'delete' && kind !== 'skip') {
+            const fresh = await fetchRequisition(record.id);
+            assertSessionScope(scope);
+            await captureSingle(queryClient, await beginCopy(record.id), fresh, 'read');
+          }
+        } catch {
+          assertSessionScope(scope);
+          toast.error(t('requisitions.edit.error-title'), {
+            description: t('requisitions.edit.clear-error'),
+          });
+        }
       }
       assertSessionScope(scope);
       await Promise.all([
