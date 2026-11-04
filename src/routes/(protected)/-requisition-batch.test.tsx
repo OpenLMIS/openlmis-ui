@@ -8,7 +8,7 @@ import {
   type HistoryState,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -829,7 +829,31 @@ it('shows the saved batch response before its device copy finishes', async () =>
     })),
   }));
   vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: saved });
-  capture.mockImplementation(() => new Promise(() => {}));
+  const copy = Promise.withResolvers<void>();
+  capture.mockImplementation(() => copy.promise);
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
   await waitFor(() => expect(inputs[0]).toHaveValue('88'));
+  await act(async () => copy.resolve());
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.sync' })).toBeEnabled(),
+  );
+});
+
+it('sends one approval when the confirmation is double clicked', async () => {
+  security.secure = false;
+  const response = Promise.withResolvers<Awaited<ReturnType<typeof approveBatchRequisitions>>>();
+  vi.mocked(approveBatchRequisitions).mockReturnValue(response.promise);
+  const { queryClient } = renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  const confirm = await screen.findByRole('button', { name: 'requisitions.batch.confirm' });
+  fireEvent.click(confirm);
+  fireEvent.click(confirm);
+  await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledOnce());
+  expect(saveBatchRequisitions).toHaveBeenCalledOnce();
+  await act(async () => response.resolve({ requisitionDtos: records }));
+  await screen.findByText('Approval List');
+  expect(approveBatchRequisitions).toHaveBeenCalledOnce();
+  queryClient.clear();
 });
