@@ -85,10 +85,14 @@ export function completeSingle(record: RequisitionRecord, refs: SingleReferences
   const matches = (
     identities: readonly { id: string; versionNumber: number }[],
     records: readonly { id: string; meta?: { versionNumber?: number } }[],
-  ) =>
-    identities.every((identity) =>
-      records.some((r) => r.id === identity.id && r.meta?.versionNumber === identity.versionNumber),
+  ) => {
+    const available = new Set(
+      records.map((record) => `${record.id}:${record.meta?.versionNumber}`),
     );
+    return identities.every((identity) =>
+      available.has(`${identity.id}:${identity.versionNumber}`),
+    );
+  };
   return (
     matches(
       [
@@ -319,6 +323,12 @@ export async function retireCopy(lease: CopyLease) {
   await db.transaction('rw', tables, async () => {
     await assertCopyLease(lease);
     const copies = db.table<RequisitionCopy, string>(LOCAL_TABLES.requisitionCopies);
+    const retired = await readCopy(lease.id);
+    const label = retired?.batch
+      ? `${retired.batch.record.facilityName} - ${retired.batch.record.periodName}`
+      : retired
+        ? `${retired.summary.facility.name ?? retired.summary.facility.code ?? retired.summary.facility.id} - ${retired.summary.processingPeriod.name ?? retired.summary.processingPeriod.id}`
+        : undefined;
     for (const copy of await copies.where('batch.requestedIds').equals(lease.id).toArray()) {
       if (copy.id === lease.id || !copy.batch?.requestedIds.includes(lease.id)) continue;
       await copies.put({
@@ -330,6 +340,7 @@ export async function retireCopy(lease: CopyLease) {
             ...copy.batch.errors.filter((error) => error.requisitionId !== lease.id),
             {
               requisitionId: lease.id,
+              label,
               errorMessage: { messageKey: 'requisitions.batch.no-longer-awaiting' },
             },
           ],

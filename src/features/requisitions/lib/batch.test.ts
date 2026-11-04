@@ -126,3 +126,12 @@ it('retains translated failure keys until rendering', () => {
   ).toBe(key);
   translate.mockRestore();
 });
+
+it('keeps a refused column total while excluding it from all-facility totals', () => {
+  const available = arv.requisitionDtos[0];
+  const refused = { ...available, id: 'refused', approvalAvailable: false };
+  const totals = batchTotals([available, refused]);
+  const expected = batchTotals([available]).cost;
+  expect(totals.perRecord.get('refused')).toBeCloseTo(expected);
+  expect(totals.cost).toBeCloseTo(expected);
+});
