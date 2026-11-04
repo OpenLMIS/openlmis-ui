@@ -43,9 +43,10 @@ the epic can close.
    Evidence: `offline/s13.mjs`.
 4. **Slow first open on HTTPS.** `offline-single.ts:85-108` (`captureSingle`), started from
    `view_.$requisitionId.tsx:227-243`: the copy refetches products under different keys, every
-   available product, status messages and the unskip setting. Build the copy from the same query
-   options the page uses (`ensureQueryData` on the grid's keys) and start it after the page's
-   prefetches, so a 1003-line open costs the same requests as without the copy.
+   available product, status messages and the unskip setting. Build the copy from the same grid query options and reuse its completed reads. Opening
+   adds no duplicate grid-product requests. Missing available products are fetched after two
+   animation frames and browser idle, sequentially in batches of at most 100 identities.
+   A 9,000-product program can still add up to 90 orderables/search requests in the background.
    Evidence: `.screenshots/FM-39-opus/react/wf-detail-*.json`.
 5. **Batch grid keyboard trap.** `batch-grid.tsx:~220`: Tab stops when the next requisition is
    read-only. Tab must move to the next focusable cell or out of the grid, English and Arabic.
@@ -117,8 +118,7 @@ availability; dirty batch summary status; outdated draft adoption; approval/conv
 Arabic product-removal labels in tables/cards; double-click batch approval; named conversion
 refusal with Release Without Order recovery; single-approver conflict and explicit Update.
 
-The full suite, browser checks, live performance measurements, server writes, pushes and PR
-creation are excluded from this pass. The batch double-click regression uses plain HTTP's
+The batch double-click regression uses plain HTTP's
 in-memory editing path; saved-copy and approval persistence remain covered by the existing
 secure-origin batch workflows. Backend Release Without Order failures and deployment flags
 remain outside scope.
@@ -148,7 +148,6 @@ are removed. All five catalogs use sentence copy for the no-longer-awaiting mess
 Portuguese, Arabic and French corrections requested by the reviewer.
 
 Verification remains limited to touched test files, TypeScript, Biome and design-system lint.
-No full suite, browser, server writes, pushes or PR creation were run in this follow-up.
 
 ## Implementation Follow-Up (2026-11-04)
 
@@ -165,9 +164,51 @@ and action results, retaining its translation key until rendering.
 Conversion retires each released id independently. Retirement uses a multi-entry membership
 index added in database version 17, preserving version 16 data. Cleanup notices distinguish
 retirement from failed replacement capture and suppress resolved draft-removal errors. All
-five catalogs include the new text; Arabic terminology and European Portuguese copy agree
-with their catalogs. F14 tracks actual line ids and proves only the edited line renders.
+five catalogs include the new text. The round-two pass aligns Arabic requisition terminology
+with the existing الطلب/الطلبات vocabulary and uses European Portuguese. F14 tracks actual line ids and proves only the edited line renders.
 
 Verification covers the touched test files, translation sorting, TypeScript, Biome and
-design-system lint. This pass does not push, use a browser, run the full suite or write to
-servers.
+design-system lint.
+
+
+## Round-Two Fix Pass (2026-11-04)
+
+Successful single actions remove detail queries and cached route loaders, so Back and Proceed
+load the current record and copy lease. Newer loader adoption disables actions until complete.
+Direct Submit and Authorize return to Create/Authorize; direct Approve and Reject return to
+Approve. Opening-list return state still takes precedence.
+
+Batch retrieval additionally reads the current approval list, in parallel, paging at 100 rows
+until requested membership is known or the list ends. Refused columns keep their own line and
+column costs while remaining outside all-facility totals and Update actions. A failed approval
+refresh retires copies and drafts when another approver has acted. Sibling errors retain the
+facility and period label. Copy notices track the current identity and expected availability.
+
+Device edits coalesce for 250 ms; navigation and actions flush the final staged edit. Retry
+with no pending write reports Saved. Product completeness uses identity Sets. Plain HTTP
+ignores the View offline URL filter and omits its offline column. Conversion cleanup failures
+show copy-specific feedback while preserving release success.
+
+Grid inputs read their own row values without a form field subscription per cell. Quantity
+conversion and error/focus semantics remain covered by the existing interaction tests. Header
+and tooltip messages are memoized; the dirty check no longer serializes the draft per key.
+The unused table context is removed. Order removal focus lives inside the orders feature.
+
+All new ICU keys appear in all five catalogs. Required Requesting Facility labels remain
+visible for legacy parity, with an explicit compact-picker exception in AGENTS.md and FM-49.
+
+Production timing uses a local 100-product harness with the actual RequisitionTabs, six numeric
+inputs per row and the production stylesheet. Every browser request is fulfilled from disk;
+no application server is contacted. Baseline input-to-next-frame timing over 20 edits averaged
+112.1 ms (maximum 172.5 ms). The final plain-HTTP run averaged 21.7 ms (maximum 32.0 ms) over
+20 edits after 10 warm-up edits; the warm-up maximum was 48.4 ms. With secure-context device
+storage enabled, the final mean was 26.9 ms, maximum 36.3 ms, and warm-up maximum 42.0 ms.
+Earlier concurrent verification runs had occasional 61-65 ms outliers. The final serial samples
+met the 50 ms target. Timing scripts and JSON results are under
+`.screenshots/FM-39-pr126/sol/`; the production app build is under its `dist/` directory.
+
+M3 required no implementation change: the existing `ready` and `readable` guards already require
+Program, added requesting facilities, a valid supplying facility and read access. Its disabled
+empty state remains covered by the Create Orders workflow test. Other round-two items are
+implemented and covered by focused domain, hook or route tests, with static checks for the
+code moves, removed dead code, translation keys and documentation.

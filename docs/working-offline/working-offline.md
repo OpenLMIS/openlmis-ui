@@ -53,9 +53,13 @@ View's Offline Only filter searches saved copies. Disconnection also uses saved 
 changing your chosen filter. Facility, program, status, initiated dates and sorting apply before
 paging. Approve keeps its Program filter: select a program to see its saved approvals offline.
 The saved-time notice describes a snapshot; status and approval rights may have changed since
-it was saved. Saving a batch verifies that every record is currently in your approval list.
+it was saved. Saving a batch checks which records are still in your approval list. Eligible
+records are saved even if another record is no longer awaiting your approval. Those columns
+stay read-only and are excluded from the total for all facilities.
 If approval access is refused, the data and edits stay on this device, but batch reopening needs
 a new online verification. Removing a saved approval grant also requires online verification.
+Submit, Authorize, Approve and Reject refresh or remove saved copies to match the new server
+state. Delete, Skip, Convert To Order and Release Without Order remove the affected copies.
 Confirmed approvals update the saved status; completed approvals reopen with read-only quantities.
 
 Reopen a saved requisition to edit its lines, patients or comments. Eligible Add Products choices
