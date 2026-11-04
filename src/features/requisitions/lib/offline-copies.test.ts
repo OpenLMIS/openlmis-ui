@@ -342,7 +342,16 @@ it('keeps confirmed status when an older clean capture finishes later, but accep
 it('retires both representations after an action and prevents an old capture restoring them', async () => {
   const lease = await beginCopy('r');
   await commitCopy(lease, ready(lease));
+  for (const name of [LOCAL_TABLES.requisitionDrafts, LOCAL_TABLES.requisitionBatchDrafts]) {
+    await getLocalDb()
+      .table(name)
+      .bulkPut([{ draftId: 'r' }, { draftId: 'other' }]);
+  }
   await retireCopy(lease);
+  for (const name of [LOCAL_TABLES.requisitionDrafts, LOCAL_TABLES.requisitionBatchDrafts]) {
+    expect(await getLocalDb().table(name).get('r')).toBeUndefined();
+    expect(await getLocalDb().table(name).get('other')).toBeDefined();
+  }
   expect(await readCopy('r')).toBeUndefined();
   await expect(commitCopy(lease, ready(lease))).rejects.toThrow();
 });

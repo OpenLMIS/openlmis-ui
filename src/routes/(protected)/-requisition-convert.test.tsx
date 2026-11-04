@@ -652,3 +652,22 @@ it('allows release of a reselected unresolved row with only the normal release c
   expect(screen.queryByText('requisitions.convert.retry-confirm')).not.toBeInTheDocument();
   queryClient.clear();
 });
+
+it('reports successful release even when local copy retirement fails', async () => {
+  const { toast } = await import('sonner');
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  vi.spyOn(copies, 'retireCopy').mockRejectedValueOnce(new Error('Storage unavailable'));
+  rows();
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action(false);
+  await confirm();
+  await waitFor(() =>
+    expect(toast.success).toHaveBeenCalledWith(
+      'requisitions.convert.release-success',
+      expect.anything(),
+    ),
+  );
+  expect(screen.queryByText('requisitions.convert.release-unknown')).not.toBeInTheDocument();
+  queryClient.clear();
+});
