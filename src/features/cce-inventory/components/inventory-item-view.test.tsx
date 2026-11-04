@@ -145,6 +145,23 @@ describe('InventoryItemView', () => {
       referenceName: 'Fridge 3',
       functionalStatus: 'FUNCTIONING',
     });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.inventoryItems.all });
+    expect(invalidate).toHaveBeenCalledWith(
+      { queryKey: queryKeys.inventoryItems.all },
+      { throwOnError: true },
+    );
+  });
+
+  it('stays in edit with the save error when the refresh after the save fails', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchInventoryItem)
+      .mockResolvedValueOnce(FRIDGE)
+      .mockResolvedValueOnce(FRIDGE)
+      .mockRejectedValueOnce(new Error('offline'));
+    const { onEditing } = renderView({ editing: true });
+
+    await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.save' }));
+
+    expect(await screen.findByText('cce-inventory.form.save-error')).toBeInTheDocument();
+    expect(onEditing).not.toHaveBeenCalled();
   });
 });

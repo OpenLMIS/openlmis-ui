@@ -290,7 +290,10 @@ function EditItem({ item, header, onEditing, onCloseCancelled }: ItemProps) {
     mutationKey: SAVE_KEY,
     mutationFn: async (details: ValidInventoryItemDetails) => {
       await updateInventoryItem(toInventoryItemUpdate(await fetchInventoryItem(item.id), details));
-      await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all });
+      await queryClient.invalidateQueries(
+        { queryKey: queryKeys.inventoryItems.all },
+        { throwOnError: true },
+      );
     },
     onSuccess: (_, details) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });

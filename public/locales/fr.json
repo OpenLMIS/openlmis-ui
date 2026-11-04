@@ -53,7 +53,7 @@
   "cce-inventory.details.edit": "Modifier",
   "cce-inventory.details.edit-description": "Corrigez les détails de cet équipement.",
   "cce-inventory.details.edit-title": "Modifier les détails de l’équipement",
-  "cce-inventory.details.liters": "{volume, number} litres",
+  "cce-inventory.details.liters": "{volume, plural, one {# litre} other {# litres}}",
   "cce-inventory.details.load-error-title": "Impossible de charger l’équipement",
   "cce-inventory.details.net-volume": "Volume net",
   "cce-inventory.details.not-found": "Cet équipement n’existe plus.",

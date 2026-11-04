@@ -53,7 +53,7 @@
   "cce-inventory.details.edit": "تحرير",
   "cce-inventory.details.edit-description": "صحّح تفاصيل هذه المعدات.",
   "cce-inventory.details.edit-title": "تحرير تفاصيل المعدات",
-  "cce-inventory.details.liters": "{volume, number} لترات",
+  "cce-inventory.details.liters": "{volume, plural, zero {# لتر} one {لتر واحد} two {لتران} few {# لترات} many {# لترًا} other {# لتر}}",
   "cce-inventory.details.load-error-title": "تعذّر تحميل المعدات",
   "cce-inventory.details.net-volume": "الحجم الصافي",
   "cce-inventory.details.not-found": "هذه المعدات لم تعد موجودة.",

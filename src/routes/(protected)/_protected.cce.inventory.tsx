@@ -94,11 +94,7 @@ export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
     if ((search.item === 'new' || search.edit) && editableGrants(permissions).length === 0) {
       throw redirect({
         to: '/cce/inventory',
-        search: {
-          ...search,
-          item: search.item === 'new' ? undefined : search.item,
-          edit: undefined,
-        },
+        search: { ...search, edit: undefined, ...(search.item === 'new' && { item: undefined }) },
         replace: true,
       });
     }
