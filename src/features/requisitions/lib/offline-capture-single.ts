@@ -16,6 +16,7 @@ import {
 import { type CopyLease, commitCopy } from '@/features/requisitions/lib/offline-copies';
 import { singleComplete, singleSummary } from '@/features/requisitions/lib/offline-single';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import { BY_IDS_BATCH } from '@/lib/fetch-by-ids';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { assertSessionScope } from '@/lib/session-scope';
 
@@ -44,16 +45,32 @@ export async function captureSingle(
         : Promise.resolve(undefined),
     ]);
   assertSessionScope(lease.session);
-  const missing = (record.availableProducts ?? []).filter(
-    (identity) =>
-      !lineProducts.some(
-        (product) =>
-          product.id === identity.id && product.meta?.versionNumber === identity.versionNumber,
-      ),
+  const known = new Set(
+    lineProducts.map((product) => `${product.id}:${product.meta?.versionNumber}`),
   );
-  const availableProducts = missing.length
-    ? await client.ensureQueryData(orderablesByIdentitiesOptions(missing))
-    : [];
+  const missing = (record.availableProducts ?? []).filter(
+    (identity) => !known.has(`${identity.id}:${identity.versionNumber}`),
+  );
+  const availableProducts: typeof lineProducts = [];
+  if (missing.length) {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (typeof requestIdleCallback === 'function') requestIdleCallback(() => resolve());
+          else setTimeout(resolve, 32);
+        }),
+      );
+    });
+    assertSessionScope(lease.session);
+    for (let start = 0; start < missing.length; start += BY_IDS_BATCH) {
+      availableProducts.push(
+        ...(await client.ensureQueryData(
+          orderablesByIdentitiesOptions(missing.slice(start, start + BY_IDS_BATCH)),
+        )),
+      );
+      assertSessionScope(lease.session);
+    }
+  }
   const products = [
     ...new Map(
       [...lineProducts, ...availableProducts].map((p) => [`${p.id}:${p.meta?.versionNumber}`, p]),
