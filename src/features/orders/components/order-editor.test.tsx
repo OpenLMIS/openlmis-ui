@@ -10,7 +10,7 @@ import {
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
-import { useState } from 'react';
+import { type ComponentType, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { deleteOrders, fetchOrder, saveOrder, sendOrder } from '@/features/orders/api/api';
@@ -404,4 +404,18 @@ it('focuses the next line removal control after deleting a line', async () => {
   const { user } = setup([order]);
   await user.click(screen.getAllByRole('button', { name: 'orders.edit.remove-line' })[0]);
   expect(screen.getByRole('button', { name: 'orders.edit.remove-line' })).toHaveFocus();
+});
+
+it('keeps loading footer action treatments identical to the loaded editor', () => {
+  const Pending = Route.options.pendingComponent as ComponentType;
+  const pending = render(<Pending />);
+  const labels = ['cancel', 'delete-batch', 'save-draft', 'create'];
+  const treatments = labels.map(
+    (label) => screen.getByRole('button', { name: `orders.edit.${label}` }).className,
+  );
+  pending.unmount();
+  setup([creatingOrder('a')]);
+  expect(
+    labels.map((label) => screen.getByRole('button', { name: `orders.edit.${label}` }).className),
+  ).toEqual(treatments);
 });
