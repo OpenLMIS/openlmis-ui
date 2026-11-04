@@ -796,3 +796,19 @@ it.each(['missing', 'timeout', 'refused'] as const)(
     else expect(draft?.unresolvedApproval).toEqual({ attemptedAt: expect.any(String) });
   },
 );
+
+it.each(['ltr', 'rtl'])('tabs past a read-only requisition in %s', async (direction) => {
+  document.documentElement.dir = direction;
+  const batch = generateBatch(3, 2);
+  batch[1].status = 'APPROVED';
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: batch });
+  renderRoute(batch.map((r) => r.id).join(','));
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  act(() => inputs[0].focus());
+  await userEvent.tab();
+  expect(inputs[2]).toHaveFocus();
+  await userEvent.tab({ shift: true });
+  expect(inputs[0]).toHaveFocus();
+  document.documentElement.dir = 'ltr';
+});
