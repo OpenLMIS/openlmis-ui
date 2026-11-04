@@ -61,7 +61,7 @@ export const PatientEditRow = memo(function PatientEditRow({
       <Checkbox
         checked={row.isSkipped}
         disabled={pending || (!row.isSkipped && patientRowHasValues(row))}
-        aria-label={`${t('requisitions.patients.skip')}: ${label}`}
+        aria-label={t('requisitions.patients.skip-label', { row: label })}
         onCheckedChange={(skipped) => editor.setPatientSkip(disease, row.key, skipped)}
       />
     </div>

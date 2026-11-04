@@ -512,7 +512,7 @@ function OrderFields({
       >
         {(field) => (
           <field.QuantityField
-            label={`${t('orders.edit.quantity')} ${productName(line)}`}
+            label={t('orders.edit.quantity-label', { product: productName(line) })}
             layout="inline"
             hideErrors
             required
