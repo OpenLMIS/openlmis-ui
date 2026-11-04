@@ -176,3 +176,11 @@ it('explains an empty device list without clearing its required program', async 
   expect(fetchApprovalList).not.toHaveBeenCalled();
   queryClient.clear();
 });
+
+it('describes a failed approve list without referring to one facility', async () => {
+  vi.mocked(fetchApprovalList).mockRejectedValue(new Error('Service failed'));
+  const { queryClient } = renderRoute('/requisitions/approve');
+  await screen.findByText('requisitions.approve.error-description');
+  expect(screen.queryByText('requisitions.view.error-description')).not.toBeInTheDocument();
+  queryClient.clear();
+});
