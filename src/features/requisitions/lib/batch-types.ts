@@ -23,6 +23,7 @@ export type BatchRequisition = {
   requisitionLineItems: BatchLine[];
 };
 type BatchError = {
+  label?: string;
   requisitionId: string;
   errorMessage?: { message?: string; messageKey?: string } | null;
   fieldErrors?: Record<string, { message?: string; messageKey?: string }> | null;

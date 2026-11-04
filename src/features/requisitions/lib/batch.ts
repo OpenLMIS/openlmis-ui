@@ -56,10 +56,6 @@ export function batchTotals(
   let cost = 0;
   let quantity = 0;
   for (const record of records) {
-    if (!batchApprovable(record)) {
-      perRecord.set(record.id, 0);
-      continue;
-    }
     let total = 0;
     for (const line of record.requisitionLineItems) {
       const text = batchText(line, quantities[record.id]);
@@ -67,10 +63,10 @@ export function batchTotals(
       const q = Number.isFinite(value) ? value : 0;
       const c = batchCost(line, text);
       total += c;
-      quantity += q;
+      if (batchApprovable(record)) quantity += q;
     }
     perRecord.set(record.id, total);
-    cost += total;
+    if (batchApprovable(record)) cost += total;
   }
   return { cost, quantity, perRecord };
 }

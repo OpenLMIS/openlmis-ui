@@ -2,6 +2,7 @@ import { TriangleAlertIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useBatch, useBatchVersion } from '@/features/requisitions/components/batch-context';
 import { batchApprovable, lineInvalid } from '@/features/requisitions/lib/batch';
+import { batchReasonText } from '@/features/requisitions/lib/batch-reason';
 import type { BatchRequisition } from '@/features/requisitions/lib/batch-types';
 
 export function BatchRecordStatus({ record }: { record: BatchRequisition }) {
@@ -23,9 +24,7 @@ export function BatchRecordStatus({ record }: { record: BatchRequisition }) {
   return (
     <span className="flex items-center gap-1 text-destructive text-xs">
       <TriangleAlertIcon className="size-4 shrink-0" />
-      {reason === 'requisitions.batch.no-longer-awaiting'
-        ? t(reason)
-        : reason || t('requisitions.batch.invalid-requisition')}
+      {reason ? batchReasonText(reason, t) : t('requisitions.batch.invalid-requisition')}
     </span>
   );
 }

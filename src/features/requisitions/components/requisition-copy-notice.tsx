@@ -17,6 +17,7 @@ export function RequisitionCopyNotice({
   failure,
   local = false,
   list = false,
+  expected = true,
 }: {
   id?: string;
   ids?: readonly string[];
@@ -25,12 +26,14 @@ export function RequisitionCopyNotice({
   failure?: unknown;
   local?: boolean;
   list?: boolean;
+  expected?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [error, setError] = useState<unknown>();
   const [pending, setPending] = useState(!!result);
-  const everSaved = useRef(false);
+  const identity = `${representation}:${id ?? ids?.join(',') ?? 'all'}`;
+  const savedIdentity = useRef<string | undefined>(undefined);
   useEffect(() => {
     let active = true;
     setError(undefined);
@@ -51,14 +54,15 @@ export function RequisitionCopyNotice({
     id ? copy.id === id : ids ? ids.includes(copy.id) : true,
   );
   const saved = candidates?.toSorted((a, b) => a.fetchedAt - b.fetchedAt)[0];
+  if (!expected) return null;
   if (!isSecureOrigin)
     return list ? (
       <p role="note" className="text-muted-foreground text-sm">
         {t('requisitions.offline.insecure-description')}
       </p>
     ) : null;
-  if (saved) everSaved.current = true;
-  if (id && copies && !saved && everSaved.current)
+  if (saved) savedIdentity.current = identity;
+  if (id && copies && !saved && savedIdentity.current === identity)
     return (
       <Alert variant="warning">
         <AlertTitle>{t('requisitions.offline.removed-title')}</AlertTitle>

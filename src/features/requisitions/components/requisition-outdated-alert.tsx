@@ -13,8 +13,9 @@ export function RequisitionOutdatedAlert({
   return (
     <Alert variant="warning">
       <AlertTitle>
-        {label ? `${label}: ` : ''}
-        {t('requisitions.edit.outdated-title')}
+        {label
+          ? t('requisitions.edit.outdated-labelled-title', { label })
+          : t('requisitions.edit.outdated-title')}
       </AlertTitle>
       <AlertDescription>{t('requisitions.edit.outdated-description')}</AlertDescription>
       <AlertAction>{children}</AlertAction>

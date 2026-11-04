@@ -11,6 +11,8 @@ import {
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
+import { createInstance } from 'i18next';
+import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
@@ -25,8 +27,24 @@ import * as batchMarkers from '@/features/requisitions/lib/batch-session-markers
 import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
 import * as savedBatches from '@/features/requisitions/lib/offline-batch';
 import { getLocalDb } from '@/integrations/local-db';
+import { IsolatingICU } from '@/lib/isolate-values';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve_.batch';
 import { generateBatch } from '@/test-utils/batch-fixtures';
+import en from '../../../public/locales/en.json';
+
+const labels = createInstance();
+await labels.use(IsolatingICU).init({
+  lng: 'en',
+  keySeparator: false,
+  nsSeparator: false,
+  resources: {
+    en: {
+      translation: {
+        'requisitions.batch.quantity-label': en['requisitions.batch.quantity-label'],
+      },
+    },
+  },
+});
 
 const security = vi.hoisted(() => ({ secure: true }));
 vi.mock('@/lib/secure-context', () => ({
@@ -91,7 +109,9 @@ function renderRoute(ids = records.map((r) => r.id).join(','), state?: HistorySt
   } as never) as AnyRouter;
   render(
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <I18nextProvider i18n={labels}>
+        <RouterProvider router={router} />
+      </I18nextProvider>
     </QueryClientProvider>,
   );
   return { router, queryClient };
@@ -948,5 +968,75 @@ it('accepts an old saved approval flag after fresh access and membership checks'
   await userEvent.click(sync);
   await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
   expect(screen.queryByText('requisitions.batch.review-refreshed')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it.each(['request', 'record'] as const)(
+  'retires saved copies and draft when a failed approval reveals another approver acted (%s)',
+  async (failure) => {
+    await publishBatchAccess();
+    const { readCopy } = await import('@/features/requisitions/lib/offline-copies');
+    const id = records[0].id;
+    const { queryClient } = renderRoute(id);
+    const input = (await screen.findAllByRole('textbox'))[0];
+    await waitFor(() => expect(input).toBeEnabled());
+    await waitFor(async () => expect(await readCopy(id)).toBeDefined());
+    vi.mocked(approveBatchRequisitions).mockImplementation(async () => {
+      vi.mocked(fetchBatchRequisitions).mockResolvedValue({
+        requisitionDtos: [{ ...records[0], status: 'APPROVED', modifiedDate: 'changed' }],
+      });
+      if (failure === 'record')
+        return {
+          requisitionErrors: [
+            {
+              requisitionId: id,
+              errorMessage: { messageKey: 'requisition.error.approve.requisitionMustBeAuthorized' },
+            },
+          ],
+        };
+      throw new AxiosError('Already approved', '409', undefined, undefined, {
+        status: 409,
+        data: {},
+      } as never);
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'requisitions.batch.confirm' }),
+    );
+    await waitFor(async () => expect(await readCopy(id)).toBeUndefined());
+    expect(await getLocalDb().table('requisitionBatchDrafts').get(id)).toBeUndefined();
+    expect(screen.queryByText('requisitions.offline.removed-title')).not.toBeInTheDocument();
+    queryClient.clear();
+  },
+);
+
+it('does not offer Update for a draft no longer awaiting approval', async () => {
+  const hooks = await import('@/features/requisitions/hooks/use-batch-drafts');
+  const useDrafts = hooks.useBatchDrafts;
+  vi.spyOn(hooks, 'useBatchDrafts').mockImplementation((records) => ({
+    ...useDrafts(records),
+    outdated: () => true,
+  }));
+  const id = records[0].id;
+  await getLocalDb()
+    .table('requisitionBatchDrafts')
+    .put({
+      draftId: id,
+      userId: useLoginData.getState().referenceDataUserId,
+      formatVersion: 1,
+      revision: 1,
+      baselineModifiedDate: 'old',
+      baselineStatus: 'AUTHORIZED',
+      approvedQuantities: { [records[0].requisitionLineItems[0].id]: '12' },
+    });
+  vi.mocked(fetchApprovalList).mockResolvedValue({ content: [], totalPages: 1 } as never);
+  const { queryClient } = renderRoute(id);
+  await screen.findAllByRole('textbox');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.revert' })).toBeEnabled(),
+  );
+  expect(
+    screen.queryByRole('button', { name: 'requisitions.edit.update' }),
+  ).not.toBeInTheDocument();
   queryClient.clear();
 });
