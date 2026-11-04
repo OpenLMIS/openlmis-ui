@@ -214,6 +214,7 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange }: Pr
   return (
     <RequisitionCopiesContext value={copies}>
       <RequisitionCopyNotice
+        list
         local={!!deferred.offline || isDeviceAccess(page)}
         ids={page.content.map((record) => record.id)}
       />

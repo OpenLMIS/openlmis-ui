@@ -1845,7 +1845,7 @@
   "requisitions.batch.memory": "Changes are not saved on this device",
   "requisitions.batch.missing": "The server did not return this requisition. Check the approval list.",
   "requisitions.batch.name": "Name",
-  "requisitions.batch.no-longer-awaiting": "This Requisition Is No Longer Awaiting Approval.",
+  "requisitions.batch.no-longer-awaiting": "This requisition is no longer awaiting approval.",
   "requisitions.batch.possibly-approved": "This requisition may have been approved; check the approval list.",
   "requisitions.batch.product": "Product",
   "requisitions.batch.quantity": "Quantity",

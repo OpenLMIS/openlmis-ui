@@ -16,7 +16,7 @@ it('hides the unavailable Offline filter on HTTP and explains saved-copy availab
   render(
     <QueryClientProvider client={new QueryClient()}>
       <RequisitionsToolbar search={{}} onFilterChange={vi.fn()} />
-      <RequisitionCopyNotice />
+      <RequisitionCopyNotice list />
     </QueryClientProvider>,
   );
   await userEvent.click(screen.getByRole('button', { name: /Filters/ }));
@@ -25,3 +25,11 @@ it('hides the unavailable Offline filter on HTTP and explains saved-copy availab
   ).not.toBeInTheDocument();
   expect(screen.getByText('requisitions.offline.insecure-description')).toBeInTheDocument();
 });
+
+it.each([{ id: 'r' }, { ids: ['r'], representation: 'batch' as const }])(
+  'keeps the HTTP copy note on lists only: %s',
+  (props) => {
+    render(<RequisitionCopyNotice {...props} />);
+    expect(screen.queryByText('requisitions.offline.insecure-description')).not.toBeInTheDocument();
+  },
+);
