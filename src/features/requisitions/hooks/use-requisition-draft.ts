@@ -123,8 +123,7 @@ export function useRequisitionDraft(
           stored = undefined;
         }
         outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;
-        if (active && stored && !outdated)
-          adopt.current?.(rebaseRequisitionDraft(baseline, stored.draft));
+        if (active && stored) adopt.current?.(rebaseRequisitionDraft(baseline, stored.draft));
         initialized = true;
         status = { status: 'saved' };
         publish();
@@ -281,7 +280,7 @@ export function useRequisitionDraft(
           expected = stored;
           pendingBase = undefined;
           outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;
-          if (!outdated) adopt.current?.(stored?.draft ?? buildRequisitionDraft(baseline));
+          adopt.current?.(stored?.draft ?? buildRequisitionDraft(baseline));
           writer.reset();
         } catch (error) {
           writer.fail(error, true);
