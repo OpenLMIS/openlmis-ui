@@ -633,8 +633,10 @@ it('refetches after a saved PUT loses its GET before sending the next PUT', asyn
   );
   queryClient.clear();
 });
-it('deletes only after confirmation and toasts before returning to the list', async () => {
+it('deletes only after confirmation, removes the saved copy and toasts before returning', async () => {
   const { router, queryClient } = await openEditor();
+  const copies = getLocalDb().table('requisitionCopies');
+  await copies.put({ id: 'r', userId: 'u' });
   const success = vi.spyOn(toast, 'success');
   const navigate = vi.spyOn(router, 'navigate');
   const remove = vi.spyOn(client, 'delete').mockImplementation(async () => {
@@ -647,6 +649,7 @@ it('deletes only after confirmation and toasts before returning to the list', as
   fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.actions.delete' }));
   await screen.findByText('Opening List');
   expect(remove).toHaveBeenCalledWith('/requisitions/r');
+  expect(await copies.get('r')).toBeUndefined();
   expect(success).toHaveBeenCalledWith('requisitions.edit.success.delete', {
     description: 'requisitions.edit.success.delete-description',
   });
@@ -1894,7 +1897,7 @@ it.each(['overflowing', 'unreadable'] as const)(
 );
 
 it.each([false, true])(
-  'adopts a refreshed loader record while preserving edits: %s',
+  'shows a refreshed reopened record, or keeps local edits as outdated (edited: %s)',
   async (edited) => {
     const { base, router, queryClient } = await openEditor();
     const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });

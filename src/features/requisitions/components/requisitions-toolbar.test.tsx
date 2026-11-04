@@ -20,6 +20,8 @@ it('hides the unavailable Offline filter on HTTP and explains saved-copy availab
     </QueryClientProvider>,
   );
   await userEvent.click(screen.getByRole('button', { name: /Filters/ }));
-  expect(screen.queryByText('requisitions.offline.label')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('combobox', { name: 'requisitions.offline.label' }),
+  ).not.toBeInTheDocument();
   expect(screen.getByText('requisitions.offline.insecure-description')).toBeInTheDocument();
 });

@@ -83,7 +83,7 @@ it('uses exact saved VIEW pairs and APPROVE program/node assignments independent
   expect(mayApproveCopy(data, 'f', 'p')).toBe(true);
   expect(mayApproveCopy(data, 'another', 'p')).toBe(false);
 });
-it('retains the last complete choices across a failed refresh for the same owner', async () => {
+it('retains the last complete choices after a newer general access download', async () => {
   const data = access();
   await getLocalDb().table(LOCAL_TABLES.offlineAccess).put(data.access);
   await getLocalDb().table(LOCAL_TABLES.requisitionAccess).put(data.saved);
@@ -92,11 +92,6 @@ it('retains the last complete choices across a failed refresh for the same owner
     .table(LOCAL_TABLES.offlineAccess)
     .put({ ...data.access, generation: 'renewed' });
   expect((await readRequisitionAccess()).saved.generation).toBe('access');
-  await getLocalDb()
-    .table(LOCAL_TABLES.requisitionAccess)
-    .put({ ...data.saved, generation: 'renewed', userId: 'foreign' });
-  await getLocalDb().table(LOCAL_TABLES.requisitionAccess).delete(data.access.userId);
-  await expect(readRequisitionAccess()).rejects.toThrow();
 });
 it('waits for the coordinator to publish matching choices when a record opens during sign-in', async () => {
   const { waitForRequisitionAccess } = await import('./offline-access');

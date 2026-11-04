@@ -797,21 +797,25 @@ it.each(['missing', 'timeout', 'refused'] as const)(
   },
 );
 
-it.each(['ltr', 'rtl'])('tabs past a read-only requisition in %s', async (direction) => {
-  document.documentElement.dir = direction;
-  const batch = generateBatch(3, 2);
-  batch[1].status = 'APPROVED';
-  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: batch });
-  renderRoute(batch.map((r) => r.id).join(','));
-  const inputs = await screen.findAllByRole('textbox');
-  await waitFor(() => expect(inputs[0]).toBeEnabled());
-  act(() => inputs[0].focus());
-  await userEvent.tab();
-  expect(inputs[2]).toHaveFocus();
-  await userEvent.tab({ shift: true });
-  expect(inputs[0]).toHaveFocus();
-  document.documentElement.dir = 'ltr';
-});
+it.each(['ltr', 'rtl'])(
+  'labels and tabs past a requisition no longer awaiting approval in %s',
+  async (direction) => {
+    document.documentElement.dir = direction;
+    const batch = generateBatch(3, 2);
+    batch[1].status = 'APPROVED';
+    vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: batch });
+    renderRoute(batch.map((r) => r.id).join(','));
+    const inputs = await screen.findAllByRole('textbox');
+    await waitFor(() => expect(inputs[0]).toBeEnabled());
+    expect(screen.getByText('requisitions.batch.no-longer-awaiting')).toBeInTheDocument();
+    act(() => inputs[0].focus());
+    await userEvent.tab();
+    expect(inputs[2]).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(inputs[0]).toHaveFocus();
+    document.documentElement.dir = 'ltr';
+  },
+);
 
 it('shows the saved batch response before its device copy finishes', async () => {
   const capture = vi.spyOn(savedBatches, 'captureBatch').mockResolvedValueOnce(undefined);
