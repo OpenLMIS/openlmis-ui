@@ -55,6 +55,7 @@ vi.mock('@/features/cce-inventory/api/api', () => ({
     { id: 'c1', type: 'Solar fridge', manufacturer: 'Sun', model: 'S1', energySource: 'SOLAR' },
   ]),
   createInventoryItem: vi.fn(),
+  fetchInventoryItem: vi.fn(() => new Promise(() => {})),
 }));
 vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
 vi.mock('@/hooks/use-back-to-legacy', async (importOriginal) => ({
@@ -283,9 +284,7 @@ describe('CCE inventory page', () => {
     await user.click(
       within(await itemOf('Fridge #11')).getByRole('button', { name: /cce-inventory.view/ }),
     );
-    expect(openLegacy).toHaveBeenLastCalledWith(
-      `#!/cce/inventory/${FRIDGE}/details?page=0&size=10&facility=${BALAKA}&program=${EPI}&supervised=true`,
-    );
+    expect(router.state.location.search).toHaveProperty('item', FRIDGE);
   });
 
   it('lists the equipment with the legacy columns and asks as legacy does', async () => {
@@ -453,10 +452,6 @@ describe('CCE inventory page', () => {
       expect(openLegacy).toHaveBeenLastCalledWith(
         `#!/cce/inventory/${FRIDGE}/statusUpdate?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
       );
-      await user.click(within(fridge).getByRole('button', { name: /cce-inventory.view/ }));
-      expect(openLegacy).toHaveBeenLastCalledWith(
-        `#!/cce/inventory/${FRIDGE}/details?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
-      );
       await user.click(screen.getByRole('button', { name: 'cce-inventory.add' }));
       expect(await screen.findByRole('dialog', { name: 'cce-inventory.form.title' })).toBeVisible();
       expect(router.state.location.search).toEqual({
@@ -495,6 +490,15 @@ describe('CCE inventory page', () => {
     await itemOf('Fridge #11');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
+  });
+
+  it('keeps the details but drops edit from a link for a user who cannot edit', async () => {
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([VIEW]);
+    const { router } = renderRoute(appliedPath(`&item=${FRIDGE}&edit=true`));
+
+    await itemOf('Fridge #11');
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('edit'));
+    expect(router.state.location.search).toHaveProperty('item', FRIDGE);
   });
 
   it('closes Add Equipment onto the list of the saved pair after Save', async () => {

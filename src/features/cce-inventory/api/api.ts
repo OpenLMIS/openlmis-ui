@@ -3,6 +3,8 @@ import type {
   InventoryAlert,
   InventoryItem,
   InventoryItemBody,
+  InventoryItemRecord,
+  InventoryItemUpdate,
   InventoryQuery,
 } from '@/features/cce-inventory/lib/types';
 import { client } from '@/integrations/axios';
@@ -34,6 +36,17 @@ export async function fetchCatalogItems() {
 
 export async function createInventoryItem(body: InventoryItemBody) {
   await client.post('/inventoryItems', body);
+}
+
+export async function fetchInventoryItem(id: string) {
+  const { data } = await client.get<InventoryItemRecord>(`/inventoryItems/${id}`, {
+    params: { expand: 'lastModifier' },
+  });
+  return data;
+}
+
+export async function updateInventoryItem(item: InventoryItemUpdate) {
+  await client.put(`/inventoryItems/${item.id}`, item);
 }
 
 export function exportInventoryItems(facilityId: string, programId: string) {

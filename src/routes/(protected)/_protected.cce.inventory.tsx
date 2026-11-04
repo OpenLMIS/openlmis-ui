@@ -37,6 +37,7 @@ import {
   InventoryItemDialog,
   type SavedInventoryItem,
 } from '@/features/cce-inventory/components/inventory-item-dialog';
+import { InventoryItemView } from '@/features/cce-inventory/components/inventory-item-view';
 import {
   INVENTORY_HIDEABLE_COLUMNS,
   INVENTORY_SORT_COLUMNS,
@@ -51,9 +52,11 @@ import {
   type InventorySearch,
   inventorySavedSearch,
   inventorySearchSchema,
+  legacyInventoryHash,
   toInventoryQuery,
 } from '@/features/cce-inventory/lib/search';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
+import { legacyAvailable, openLegacy } from '@/hooks/use-back-to-legacy';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -88,10 +91,14 @@ export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
-    if (search.item === 'new' && editableGrants(permissions).length === 0) {
+    if ((search.item === 'new' || search.edit) && editableGrants(permissions).length === 0) {
       throw redirect({
         to: '/cce/inventory',
-        search: { ...search, ...CLOSED_INVENTORY_DIALOGS },
+        search: {
+          ...search,
+          item: search.item === 'new' ? undefined : search.item,
+          edit: undefined,
+        },
         replace: true,
       });
     }
@@ -289,6 +296,26 @@ function InventoryContent({ userId }: { userId: string }) {
           onSaved={onSaved}
           open={search.item === 'new'}
           userId={userId}
+        />
+        <InventoryItemView
+          editing={search.edit === true}
+          grants={editable}
+          itemId={search.item === 'new' ? undefined : search.item}
+          onClose={closeDialog}
+          onDetails={() => updateSearch({ edit: undefined }, true)}
+          onEdit={() => updateSearch({ edit: true }, true)}
+          onStatusUpdate={
+            legacyAvailable()
+              ? (item) =>
+                  openLegacy(
+                    legacyInventoryHash(`${item.id}/statusUpdate`, search, {
+                      mode: search.mode ?? 'supervised',
+                      facilityId: item.facility.id,
+                      programId: item.program.id,
+                    }),
+                  )
+              : undefined
+          }
         />
       </WorkspaceContent>
     </Workspace>

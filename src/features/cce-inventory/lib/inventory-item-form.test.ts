@@ -4,10 +4,12 @@ import {
   type InventoryItemDetails,
   inventoryItemDetailsSchema,
   inventoryItemSchema,
+  toEditValues,
   toInventoryItemBody,
+  toInventoryItemUpdate,
   type ValidInventoryItemDetails,
 } from '@/features/cce-inventory/lib/inventory-item-form';
-import type { CatalogItem } from '@/features/cce-inventory/lib/types';
+import type { CatalogItem, InventoryItemRecord } from '@/features/cce-inventory/lib/types';
 import type { EquipmentStatus } from '@/lib/cce-equipment-status';
 
 const catalogItem: CatalogItem = {
@@ -149,6 +151,52 @@ describe('toInventoryItemBody', () => {
       additionalNotes: 'Spare key',
       reasonNotWorkingOrNotInUse: 'DEAD',
       decommissionDate: '2026-10-01',
+    });
+  });
+});
+
+describe('editing a saved item', () => {
+  const record: InventoryItemRecord = {
+    id: 'i1',
+    facility: { id: 'f1' },
+    program: { id: 'p1' },
+    catalogItem,
+    referenceName: 'Fridge 2',
+    utilization: 'ACTIVE',
+    yearOfInstallation: 2019,
+    yearOfWarrantyExpiry: 2030,
+    source: 'Ministry',
+    voltageStabilizer: 'YES',
+    voltageRegulator: 'NO',
+    backupGenerator: 'UNKNOWN',
+    manualTemperatureGauge: 'BUILD_IN',
+    remoteTemperatureMonitor: 'PAIRED',
+    remoteTemperatureMonitorId: 'rtm-1',
+    functionalStatus: 'UNSERVICEABLE',
+    reasonNotWorkingOrNotInUse: 'DEAD',
+    decommissionDate: '2026-10-01',
+  };
+
+  it('fills the form with the saved values as text', () => {
+    expect(toEditValues(record).details).toMatchObject({
+      equipmentTrackingId: '',
+      yearOfInstallation: '2019',
+      yearOfWarrantyExpiry: '2030',
+      source: 'Ministry',
+      additionalNotes: '',
+    });
+  });
+
+  it('keeps the status, its reason and date and the monitor of the fresh record', () => {
+    const edited = { ...filled, source: '', yearOfWarrantyExpiry: '' };
+
+    expect(toInventoryItemUpdate(record, edited)).toEqual({
+      ...toInventoryItemBody(edited, { facilityId: 'f1', programId: 'p1' }, catalogItem),
+      id: 'i1',
+      functionalStatus: 'UNSERVICEABLE',
+      reasonNotWorkingOrNotInUse: 'DEAD',
+      decommissionDate: '2026-10-01',
+      remoteTemperatureMonitorId: 'rtm-1',
     });
   });
 });

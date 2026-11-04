@@ -31,12 +31,16 @@ export const INVENTORY_PAGE_SIZE = 10;
 export const inventorySearchSchema = tableSearchSchema(INVENTORY_SORT_FIELDS).extend({
   ...facilityProgramSearchSchema.shape,
   functionalStatus: z.enum(EQUIPMENT_STATUSES).optional().catch(undefined),
-  item: z.literal('new').optional().catch(undefined),
+  item: z.string().min(1).optional().catch(undefined),
+  edit: z.literal(true).optional().catch(undefined),
 });
 
 export type InventorySearch = z.infer<typeof inventorySearchSchema>;
 
-export const CLOSED_INVENTORY_DIALOGS = { item: undefined } satisfies Partial<InventorySearch>;
+export const CLOSED_INVENTORY_DIALOGS = {
+  item: undefined,
+  edit: undefined,
+} satisfies Partial<InventorySearch>;
 
 export const CLEARED_INVENTORY_FILTERS = {
   functionalStatus: undefined,
@@ -93,7 +97,7 @@ export function inventorySavedSearch(
   { mode, programId, facilityId }: CompleteSelection,
   savedStatus: EquipmentStatus,
 ): InventorySearch {
-  const { page, functionalStatus, item, ...kept } = listSearch;
+  const { page, functionalStatus, item, edit, ...kept } = listSearch;
   return {
     ...kept,
     mode,

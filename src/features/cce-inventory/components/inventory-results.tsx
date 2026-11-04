@@ -31,6 +31,7 @@ import {
 import { activeAlertsByDevice } from '@/features/cce-inventory/lib/alerts';
 import {
   CLEARED_INVENTORY_FILTERS,
+  CLOSED_INVENTORY_DIALOGS,
   hasInventoryFilters,
   INVENTORY_PAGE_SIZE,
   INVENTORY_SORT,
@@ -44,6 +45,7 @@ import type { InventoryItem } from '@/features/cce-inventory/lib/types';
 import { legacyAvailable, openLegacy } from '@/hooks/use-back-to-legacy';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import type { CompleteSelection } from '@/lib/facility-program-selection';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 import { fullName } from '@/lib/text';
@@ -231,15 +233,24 @@ function useRowActions(
   { mode, facilityId, programId }: CompleteSelection,
   canEdit: boolean,
 ) {
-  return useMemo<InventoryRowActions | undefined>(() => {
-    if (!legacyAvailable()) return undefined;
-    const open = (path: string) =>
-      openLegacy(legacyInventoryHash(path, search, { mode, facilityId, programId }));
-    return {
-      details: (item) => open(`${item.id}/details`),
-      statusUpdate: canEdit ? (item) => open(`${item.id}/statusUpdate`) : undefined,
-    };
-  }, [search, mode, facilityId, programId, canEdit]);
+  const { openDialog } = useSearchNavigation<InventorySearch>(CLOSED_INVENTORY_DIALOGS);
+  return useMemo<InventoryRowActions>(
+    () => ({
+      details: (item) => openDialog({ item: item.id }),
+      statusUpdate:
+        canEdit && legacyAvailable()
+          ? (item) =>
+              openLegacy(
+                legacyInventoryHash(`${item.id}/statusUpdate`, search, {
+                  mode,
+                  facilityId,
+                  programId,
+                }),
+              )
+          : undefined,
+    }),
+    [openDialog, search, mode, facilityId, programId, canEdit],
+  );
 }
 
 export function InventoryResults({
@@ -338,7 +349,7 @@ export function InventoryResultsSkeleton({
     search,
     columns,
     onSearchChange: noop,
-    withActions: legacyAvailable(),
+    withActions: true,
     facilityName: '',
     language: '',
     timeZone: undefined,

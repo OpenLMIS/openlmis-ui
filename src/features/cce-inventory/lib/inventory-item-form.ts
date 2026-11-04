@@ -4,6 +4,8 @@ import type {
   CatalogItem,
   EnergySource,
   InventoryItemBody,
+  InventoryItemRecord,
+  InventoryItemUpdate,
   PowerStatus,
   TemperatureGauge,
   TemperatureMonitor,
@@ -208,5 +210,54 @@ export function toInventoryItemBody(
     functionalStatus: details.functionalStatus,
     ...(reasonNotWorkingOrNotInUse && { reasonNotWorkingOrNotInUse }),
     ...(decommissionDate && { decommissionDate }),
+  };
+}
+
+const KEPT_STATUS = {
+  functionalStatus: 'FUNCTIONING',
+  reasonNotWorkingOrNotInUse: '',
+  decommissionDate: '',
+} satisfies Partial<InventoryItemDetails>;
+
+export function toEditValues(record: InventoryItemRecord): InventoryItemValues {
+  return {
+    pair: { mode: 'supervised', programId: record.program.id, facilityId: record.facility.id },
+    equipmentType: record.catalogItem.type,
+    catalogItemId: record.catalogItem.id,
+    details: {
+      equipmentTrackingId: record.equipmentTrackingId ?? '',
+      referenceName: record.referenceName,
+      utilization: record.utilization,
+      yearOfInstallation: String(record.yearOfInstallation),
+      source: record.source ?? '',
+      yearOfWarrantyExpiry: record.yearOfWarrantyExpiry?.toString() ?? '',
+      voltageStabilizer: record.voltageStabilizer,
+      voltageRegulator: record.voltageRegulator,
+      backupGenerator: record.backupGenerator,
+      manualTemperatureGauge: record.manualTemperatureGauge,
+      remoteTemperatureMonitor: record.remoteTemperatureMonitor,
+      additionalNotes: record.additionalNotes ?? '',
+      ...KEPT_STATUS,
+    },
+  };
+}
+
+export function toInventoryItemUpdate(
+  record: InventoryItemRecord,
+  details: ValidInventoryItemDetails,
+): InventoryItemUpdate {
+  const { functionalStatus, reasonNotWorkingOrNotInUse, decommissionDate } = record;
+  const { remoteTemperatureMonitorId } = record;
+  return {
+    ...toInventoryItemBody(
+      details,
+      { facilityId: record.facility.id, programId: record.program.id },
+      record.catalogItem,
+    ),
+    id: record.id,
+    functionalStatus,
+    ...(reasonNotWorkingOrNotInUse && { reasonNotWorkingOrNotInUse }),
+    ...(decommissionDate && { decommissionDate }),
+    ...(remoteTemperatureMonitorId && { remoteTemperatureMonitorId }),
   };
 }
