@@ -1893,6 +1893,7 @@
   "requisitions.offline.empty-title": "Sem requisições guardadas",
   "requisitions.offline.failed-description": "Não foi possível guardar a cópia offline completa. Ligue-se e tente novamente. As cópias anteriores e o trabalho não sincronizado são mantidos.",
   "requisitions.offline.failed-title": "Cópia não guardada",
+  "requisitions.offline.insecure-description": "As cópias offline exigem uma conexão HTTPS segura. Abra este servidor por HTTPS para salvar requisições neste dispositivo.",
   "requisitions.offline.label": "Offline",
   "requisitions.offline.only": "Apenas offline",
   "requisitions.offline.remove": "Remover deste dispositivo",

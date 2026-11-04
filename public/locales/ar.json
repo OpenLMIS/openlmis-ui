@@ -1893,6 +1893,7 @@
   "requisitions.offline.empty-title": "لا توجد طلبات محفوظة",
   "requisitions.offline.failed-description": "تعذر حفظ النسخة الكاملة للاستخدام دون اتصال. اتصل وحاول مجدداً. تم الاحتفاظ بالنسخ السابقة والعمل غير المتزامن.",
   "requisitions.offline.failed-title": "لم تُحفظ النسخة",
+  "requisitions.offline.insecure-description": "تتطلب النسخ المتاحة دون اتصال اتصال HTTPS آمنًا. افتح هذا الخادم عبر HTTPS لحفظ طلبات التوريد على هذا الجهاز.",
   "requisitions.offline.label": "غير متصل",
   "requisitions.offline.only": "المحفوظة على الجهاز فقط",
   "requisitions.offline.remove": "إزالة من هذا الجهاز",

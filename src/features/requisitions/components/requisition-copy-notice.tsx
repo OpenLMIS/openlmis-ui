@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useOfflineCopies } from '@/features/requisitions/hooks/use-offline-copies';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { useOnline } from '@/lib/online';
+import { isSecureOrigin } from '@/lib/secure-context';
 
 export function RequisitionCopyNotice({
   id,
@@ -48,6 +49,12 @@ export function RequisitionCopyNotice({
     id ? copy.id === id : ids ? ids.includes(copy.id) : true,
   );
   const saved = candidates?.toSorted((a, b) => a.fetchedAt - b.fetchedAt)[0];
+  if (!isSecureOrigin)
+    return (
+      <p role="note" className="text-muted-foreground text-sm">
+        {t('requisitions.offline.insecure-description')}
+      </p>
+    );
   if (saved) everSaved.current = true;
   if (id && copies && !saved && everSaved.current)
     return (
