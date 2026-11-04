@@ -62,7 +62,13 @@ function setup(
         size: 50,
       }).queryKey,
       {
-        content: [{ id: 'approved', orderable: order.orderLineItems[0].orderable }],
+        content: [
+          {
+            id: 'approved',
+            orderable: (order.orderLineItems[0] ?? creatingOrder(order.id).orderLineItems[0])
+              .orderable,
+          },
+        ],
         totalElements: 1,
         totalPages: 1,
         number: 0,
@@ -371,4 +377,31 @@ it('deletes only readable Creating orders in a batch with known problem entries'
     expect(onBatchChange).toHaveBeenCalledWith(problems.map((entry) => entry.id)),
   );
   expect(deleteOrders).toHaveBeenCalledWith(['a', 'b']);
+});
+
+it('returns focus to the product picker after removing the final line', async () => {
+  const { user } = setup([creatingOrder('a')]);
+  await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
+  expect(screen.getByRole('combobox', { name: 'orders.edit.select-product' })).toHaveFocus();
+});
+
+it('does not mark a new empty order invalid until Create is attempted', async () => {
+  const { user } = setup([{ ...creatingOrder('a'), orderLineItems: [] }]);
+  expect(screen.getByRole('tab', { name: /Facility a/ })).not.toHaveTextContent(
+    'orders.edit.invalid',
+  );
+  await user.click(screen.getByRole('button', { name: 'orders.edit.create' }));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent(
+    'orders.edit.create-invalid-description',
+  );
+  await user.click(screen.getByRole('button', { name: 'dialog.close' }));
+  expect(screen.getByRole('tab', { name: /Facility a/ })).toHaveTextContent('orders.edit.invalid');
+});
+
+it('focuses the next line removal control after deleting a line', async () => {
+  const order = creatingOrder('a');
+  order.orderLineItems.push({ ...order.orderLineItems[0], id: 'second' });
+  const { user } = setup([order]);
+  await user.click(screen.getAllByRole('button', { name: 'orders.edit.remove-line' })[0]);
+  expect(screen.getByRole('button', { name: 'orders.edit.remove-line' })).toHaveFocus();
 });

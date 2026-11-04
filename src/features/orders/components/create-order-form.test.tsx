@@ -81,3 +81,14 @@ describe('create order workflow', () => {
     expect(createOrder).not.toHaveBeenCalled();
   });
 });
+
+it('keeps focus on the next removal control, then returns to the facility picker', async () => {
+  const { user } = setup();
+  await add(user, 'Alpha');
+  await add(user, 'Beta');
+  const remove = () => screen.getAllByRole('button', { name: 'orders.create.remove-facility' });
+  await user.click(remove()[0]);
+  expect(remove()[0]).toHaveFocus();
+  await user.click(remove()[0]);
+  expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toHaveFocus();
+});
