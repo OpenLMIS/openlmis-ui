@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { type InventorySearch, inventorySavedSearch } from '@/features/cce-inventory/lib/search';
+import {
+  type InventorySearch,
+  inventorySavedSearch,
+  inventorySearchSchema,
+} from '@/features/cce-inventory/lib/search';
 import type { CompleteSelection } from '@/lib/facility-program-selection';
 
 const listSearch: InventorySearch = {
@@ -32,5 +36,16 @@ describe('inventorySavedSearch', () => {
     expect(inventorySavedSearch(listSearch, home, 'AWAITING_REPAIR')).not.toHaveProperty(
       'functionalStatus',
     );
+  });
+});
+
+describe('inventorySearchSchema', () => {
+  it('opens only Add or an item id from a link, never another path', () => {
+    const item = (value: string) => inventorySearchSchema.parse({ item: value }).item;
+    expect(item('new')).toBe('new');
+    expect(item('55bd67f1-cc2e-4bbe-8c47-679b5a8dc547')).toBe(
+      '55bd67f1-cc2e-4bbe-8c47-679b5a8dc547',
+    );
+    expect(item('../facilities/x')).toBeUndefined();
   });
 });

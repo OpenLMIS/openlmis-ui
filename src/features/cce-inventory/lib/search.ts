@@ -31,7 +31,10 @@ export const INVENTORY_PAGE_SIZE = 10;
 export const inventorySearchSchema = tableSearchSchema(INVENTORY_SORT_FIELDS).extend({
   ...facilityProgramSearchSchema.shape,
   functionalStatus: z.enum(EQUIPMENT_STATUSES).optional().catch(undefined),
-  item: z.string().min(1).optional().catch(undefined),
+  item: z
+    .union([z.literal('new'), z.guid()])
+    .optional()
+    .catch(undefined),
   edit: z.literal(true).optional().catch(undefined),
 });
 
