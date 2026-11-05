@@ -211,6 +211,7 @@ export const requisitionAccessProvider = defineDownloadProvider({
       queryClient,
       access.userId,
       config,
+      true,
     );
     check();
     return {

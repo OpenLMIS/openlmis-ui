@@ -106,3 +106,17 @@ it('cancels every status request when the dashboard query is cancelled', async (
   expect(signals.every((signal) => signal?.aborted)).toBe(true);
   cache.clear();
 });
+
+it('sends dashboard approval counts through the background gate with cancellation', async () => {
+  const { QueryClient } = await import('@tanstack/react-query');
+  const { approvalsOptions } = await import('@/features/home/api/queries');
+  get.mockResolvedValueOnce(page(1));
+  const cache = new QueryClient();
+  await cache.fetchQuery(approvalsOptions());
+  expect(get.mock.calls[0]?.[1]).toMatchObject({
+    backgroundDownload: true,
+    downloadProvider: 'home',
+    signal: expect.any(AbortSignal),
+  });
+  cache.clear();
+});

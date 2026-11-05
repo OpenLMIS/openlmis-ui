@@ -3,8 +3,11 @@ import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
+import * as references from '@/features/reference-data/api/api';
+import { userProgramsOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import { stockEventDownloadProviders } from '@/features/stock-events/lib/download-providers';
 import { whenLeaveAllowed } from '@/hooks/use-leave-guard';
+import { queryClient } from '@/integrations/tanstack-query';
 import { reloadOnce } from '@/lib/chunk-load';
 import { deviceAccessReaders, startDeviceWorkServices } from '@/routes/-device-work-provider';
 
@@ -89,4 +92,19 @@ it('fails download and upload access timeouts after their first attempt', async 
     failure,
   );
   expect(fetchPermissionStrings).toHaveBeenCalledTimes(1);
+});
+
+it('refreshes download access from the server instead of the session cache', async () => {
+  queryClient.setQueryData(userRecordOptions('user').queryKey, { id: 'saved' } as never);
+  queryClient.setQueryData(userProgramsOptions('user').queryKey, [{ id: 'saved' }] as never);
+  const user = vi
+    .spyOn(references, 'fetchUserRecord')
+    .mockRejectedValueOnce(new Error('unreachable'));
+  const programs = vi.spyOn(references, 'fetchUserPrograms').mockResolvedValueOnce([]);
+  const readers = deviceAccessReaders({ backgroundDownload: true }, () => {});
+  await expect(readers.user('user')).rejects.toThrow('unreachable');
+  await expect(readers.programs('user')).resolves.toEqual([]);
+  expect(user).toHaveBeenCalledExactlyOnceWith('user', { backgroundDownload: true });
+  expect(programs).toHaveBeenCalledOnce();
+  queryClient.clear();
 });

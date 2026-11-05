@@ -1089,3 +1089,21 @@ it('sends Sync while the opening offline capture is pending', async () => {
     await act(async () => copy.resolve());
   }
 });
+
+it('renders batch rows while membership is pending and enables approval only after verification', async () => {
+  let finish!: (result: never) => void;
+  vi.mocked(fetchApprovalList).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await screen.findByRole('table', { name: 'requisitions.batch.title' });
+  expect(approve).toBeDisabled();
+  await act(async () =>
+    finish({ content: records.map((r) => ({ id: r.id })), totalPages: 1 } as never),
+  );
+  await waitFor(() => expect(approve).toBeEnabled());
+});

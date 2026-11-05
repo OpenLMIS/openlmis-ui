@@ -1,5 +1,6 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
+import { fetchUserPrograms, fetchUserRecord } from '@/features/reference-data/api/api';
 import {
   minimalFacilitiesOptions,
   programsOptions,
@@ -9,6 +10,7 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { RIGHTS } from '@/lib/rights';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { supervisoryNodesWithRight } from '@/lib/supervisory-nodes';
@@ -17,14 +19,30 @@ export async function requisitionReferences(
   client: QueryClient,
   userId: string,
   config?: AxiosRequestConfig,
+  fresh = false,
 ) {
+  if (fresh)
+    client = new QueryClient({
+      defaultOptions: { queries: { retry: false, networkMode: 'always' } },
+    });
   const scope = getSessionScope();
   const [user, roles, facilities, programs, userPrograms] = await Promise.all([
-    client.fetchQuery(userRecordOptions(userId, config)),
+    client.fetchQuery(
+      fresh
+        ? { ...userRecordOptions(userId, config), queryFn: () => fetchUserRecord(userId, config) }
+        : userRecordOptions(userId, config),
+    ),
     client.fetchQuery(rolesOptions(config)),
     client.fetchQuery(minimalFacilitiesOptions(config)),
     client.fetchQuery(programsOptions(config)),
-    client.fetchQuery(userProgramsOptions(userId, config)),
+    client.fetchQuery(
+      fresh
+        ? {
+            ...userProgramsOptions(userId, config),
+            queryFn: () => fetchUserPrograms(userId, config),
+          }
+        : userProgramsOptions(userId, config),
+    ),
   ]);
   assertSessionScope(scope);
   const sets = [
@@ -45,7 +63,7 @@ export async function requisitionReferences(
   assertSessionScope(scope);
   const allNodes = [...new Map([...nodes, ...partners].map((node) => [node.id, node])).values()];
   if ([...sets.flat(), ...partnerIds].some((id) => !allNodes.some((node) => node.id === id)))
-    throw new Error('Missing supervisory node');
+    throw new LocalDataUnavailableError();
   const groupIds = [
     ...new Set(
       allNodes.flatMap((node) => (node.requisitionGroup ? [node.requisitionGroup.id] : [])),

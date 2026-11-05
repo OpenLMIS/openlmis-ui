@@ -76,6 +76,11 @@ export function RequisitionSearchPicker({
             <field.ComboboxField
               clearLabel={t('facility-program.clear-facility')}
               emptyMessage={t('requisitions.view.no-facilities')}
+              description={
+                options.length > 50
+                  ? t('lots.search-hint', { shown: 50, count: options.length })
+                  : undefined
+              }
               items={options.map((facility) => ({
                 value: facility.id,
                 label: recordLabel(facility),

@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import * as api from '@/features/reference-data/api/api';
 import {
@@ -9,7 +10,11 @@ import {
   supervisoryNodesByIdsOptions,
 } from '@/features/reference-data/api/queries';
 import { requisitionReferences } from '@/features/reference-data/api/requisition-reference';
+import { preloadRequisitionReferences, warmRequisitionChunks } from '@/routes/-requisition-preload';
 
+vi.mock('@/features/auth/api/api', () => ({
+  fetchPermissionStrings: vi.fn(async () => ['REQUISITION_VIEW']),
+}));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchUserRecord: vi.fn(async () => ({
     id: 'u',
@@ -90,7 +95,108 @@ it('shares a pending node superset with program-specific approval lookups', asyn
   await expect(subset).resolves.toEqual([{ id: 'n', requisitionGroup: { id: 'g' } }]);
   await all;
   expect(api.fetchSupervisoryNodesByIds).toHaveBeenCalledTimes(1);
-  await client.fetchQuery({ ...supervisoryNodesByIdsOptions(['n']), staleTime: 0 });
+  await client.fetchQuery({
+    ...supervisoryNodesByIdsOptions(['n'], undefined, true),
+    staleTime: 0,
+  });
   expect(api.fetchSupervisoryNodesByIds).toHaveBeenCalledTimes(2);
   client.clear();
+});
+
+it('forces download references to the server despite a populated session cache', async () => {
+  const client = new QueryClient();
+  await requisitionReferences(client, 'u');
+  await requisitionReferences(client, 'u', { backgroundDownload: true }, true);
+  expect(api.fetchUserRecord).toHaveBeenCalledTimes(2);
+  expect(api.fetchUserPrograms).toHaveBeenCalledTimes(2);
+  expect(api.fetchRoles).toHaveBeenCalledTimes(2);
+  expect(api.fetchRequisitionGroup).toHaveBeenCalledTimes(2);
+  client.clear();
+});
+it('classifies missing nodes as unavailable local data', async () => {
+  vi.mocked(api.fetchSupervisoryNodesByIds).mockResolvedValueOnce([]);
+  const client = new QueryClient();
+  await expect(requisitionReferences(client, 'u')).rejects.toMatchObject({
+    name: 'LocalDataUnavailableError',
+  });
+  client.clear();
+});
+it('does not join a background node superset from a page', async () => {
+  const client = new QueryClient();
+  let finish!: (nodes: never[]) => void;
+  vi.mocked(api.fetchSupervisoryNodesByIds).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const download = client.fetchQuery(
+    supervisoryNodesByIdsOptions(['n', 'other'], { backgroundDownload: true }),
+  );
+  await expect(client.fetchQuery(supervisoryNodesByIdsOptions(['n']))).resolves.toHaveLength(1);
+  expect(api.fetchSupervisoryNodesByIds).toHaveBeenCalledTimes(2);
+  finish([]);
+  await download;
+  client.clear();
+});
+
+it('preloads with foreground config and leaves sibling requests alive on failure', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  vi.mocked(api.fetchRoles).mockRejectedValueOnce(new Error('Refused'));
+  await expect(preloadRequisitionReferences(client, 'u')).rejects.toThrow('Refused');
+  await client.fetchQuery(minimalFacilitiesOptions());
+  expect(api.fetchMinimalFacilities).toHaveBeenCalledTimes(1);
+  expect(api.fetchMinimalFacilities).toHaveBeenCalledWith(undefined);
+  expect(api.fetchUserRecord).toHaveBeenCalledWith('u', undefined);
+  client.clear();
+});
+it('does not preload requisition lookups for an unrelated user', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValueOnce([]);
+  vi.mocked(api.fetchUserRecord).mockResolvedValueOnce({ id: 'u', roleAssignments: [] } as never);
+  const client = new QueryClient();
+  await preloadRequisitionReferences(client, 'u');
+  expect(api.fetchRoles).not.toHaveBeenCalled();
+  client.clear();
+});
+
+it('refuses a forced download when a cached user exists but its server read fails', async () => {
+  const client = new QueryClient();
+  await requisitionReferences(client, 'u');
+  vi.mocked(api.fetchUserRecord).mockRejectedValueOnce(new Error('unreachable'));
+  await expect(
+    requisitionReferences(client, 'u', { backgroundDownload: true }, true),
+  ).rejects.toThrow('unreachable');
+  client.clear();
+});
+
+it('warms only requisition chunks at idle and cancels scheduling on teardown', () => {
+  let callback!: () => void;
+  const cancel = vi.fn();
+  vi.stubGlobal('requestIdleCallback', (task: () => void) => {
+    callback = task;
+    return 7;
+  });
+  vi.stubGlobal('cancelIdleCallback', cancel);
+  const loadRouteChunk = vi.fn();
+  const router = {
+    routesById: {
+      home: { id: '/home' },
+      view: { id: '/requisitions/view' },
+      orders: { id: '/requisitions/create-orders' },
+    },
+    loadRouteChunk,
+  };
+  try {
+    const stop = warmRequisitionChunks(router as never);
+    expect(loadRouteChunk).not.toHaveBeenCalled();
+    callback();
+    expect(loadRouteChunk).toHaveBeenCalledTimes(2);
+    stop();
+    expect(cancel).toHaveBeenCalledWith(7);
+    useLoginData.setState({ referenceDataUserId: 'other' });
+    callback();
+    expect(loadRouteChunk).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

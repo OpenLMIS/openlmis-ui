@@ -138,17 +138,20 @@ export const supervisoryNodesOptions = () =>
     staleTime: LOOKUP_STALE_TIME,
   });
 
-export const supervisoryNodesByIdsOptions = (ids: readonly string[], config?: AxiosRequestConfig) =>
+export const supervisoryNodesByIdsOptions = (
+  ids: readonly string[],
+  config?: AxiosRequestConfig,
+  fresh = false,
+) =>
   queryOptions({
     ...(config?.backgroundDownload && { retry: false }),
     queryKey: [...queryKeys.supervisoryNodes.all, 'byIds', [...new Set(ids)].sort()] as const,
+    meta: { backgroundDownload: !!config?.backgroundDownload },
     queryFn: async ({
       client,
-      queryKey,
     }): Promise<Awaited<ReturnType<typeof fetchSupervisoryNodesByIds>>> => {
       if (!ids.length) return [];
-      const current = client.getQueryCache().find({ queryKey, exact: true });
-      if ((current?.options as { staleTime?: number })?.staleTime !== 0) {
+      if (!fresh) {
         const covering = client
           .getQueryCache()
           .findAll({ queryKey: [...queryKeys.supervisoryNodes.all, 'byIds'] })
@@ -159,19 +162,19 @@ export const supervisoryNodesByIdsOptions = (ids: readonly string[], config?: Ax
               knownIds.length > ids.length &&
               ids.every((id) => knownIds.includes(id)) &&
               !query.state.isInvalidated &&
-              (query.state.data || query.promise)
+              (query.state.data || (query.promise && !query.options.meta?.backgroundDownload))
             );
           });
         if (covering) {
-          const nodes = (
-            covering.promise ? await covering.promise : covering.state.data
-          ) as Awaited<ReturnType<typeof fetchSupervisoryNodesByIds>>;
+          const nodes = (covering.state.data ?? (await covering.promise)) as Awaited<
+            ReturnType<typeof fetchSupervisoryNodesByIds>
+          >;
           return nodes.filter((node) => ids.includes(node.id));
         }
       }
       return fetchSupervisoryNodesByIds([...new Set(ids)].sort(), config);
     },
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: fresh ? 0 : Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
   });
 

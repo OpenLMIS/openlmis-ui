@@ -364,3 +364,64 @@ a harness coverage limit; offline worker behavior was not re-tested. No changes 
 - `1c8c1a53` fix: FM-39 clarify initiation and offline copy recovery
 - `4861b8c3` fix: FM-39 preserve accessible positions in large grids
 - `8693e206` test: FM-39 verify unchanged approval recovery feedback
+
+
+## Performance round 2
+
+- P1: Sign-in references use normal priority, timeout, retry and session handling. Eligibility
+  matches the access download (view/approve permissions or supervisory assignments). A failed
+  reference leaves sibling reads alive. Page caches remain shared across normal opens.
+- P2: Home reads use the two-slot background gate with cancellation signals. Router navigation
+  start cancels them before destination loaders settle. The existing onLeave cleanup remains.
+- P3: Batch retrieval and membership start in parallel. Rows render when retrieval finishes,
+  including direct links; Approve remains disabled until current-opening membership succeeds.
+  List history summaries cannot substitute for the server's quantities. Copy capture still awaits
+  verified membership. A successful Sync can complete a failed opening verification.
+- P4: Preserve the deliberate omission of unfinished=true. FM-40 Decisions and API mapping document
+  that this GET option deletes drafts before their support start date. It is not a safe read-only
+  performance optimization. Existing initiate request coverage protects its omission.
+- P5: Download user/program reads bypass the session cache and offline fallback. All requisition
+  download references use a fresh isolated cache, including roles, nodes and groups. Background
+  timeout attempts remain one, preserving fail-fast guarantees rather than reintroducing retries.
+- P6: Missing supervisory nodes raise LocalDataUnavailableError.
+- P7: Node subset reads reuse completed data or foreground work only. Forced authorization reads
+  explicitly bypass the covering cache; download caches are isolated from page caches.
+- P8: Facility picker retains its 50-result cap with the translated shown/total search hint.
+- P9: Protected layout warms requisition route chunks at idle after sign-in. It runs no loaders
+  or API prefetches and cancels idle scheduling on teardown or identity change.
+
+Focused regression checks cover request config, sibling failure isolation, preload eligibility,
+Home cancellation before loader completion, batch rendering before verification, forced fresh
+references, unreachable fresh reads, missing-node classification and background node isolation.
+
+Local replay: `pnpm build`, then `node scripts/fm39-performance.mjs`. The replay fulfills production
+assets and every API request inside Playwright at an invalid origin. It never starts an HTTP
+server, reaches a deployment, or sends a server write. It reuses offline requisition fixtures and
+median service latencies from `.screenshots/FM-39-perf/timing.json`. The baseline is the preserved
+production build in that evidence directory. Results go to `mock-round2.json`. Fixture sizes,
+network connection scheduling and synthetic sign-in differ from live evidence; these measurements
+cannot prove the user's requirement that every step beats legacy in all three states.
+
+
+Local replay results in milliseconds (one sample, before -> after):
+
+| Step | Early sequence | Settled sequence | Warm |
+| --- | ---: | ---: | ---: |
+| view-picker | 1401 -> 863 | 80 -> 77 | 73 -> 132 |
+| initiate-picker | 79 -> 71 | 84 -> 59 | 89 -> 104 |
+| initiate-search | 875 -> 888 | 871 -> 838 | 52 -> 65 |
+| approve-list | 2868 -> 2901 | 2847 -> 2881 | 97 -> 72 |
+| batch-open | 2894 -> 929 | 2881 -> 859 | 3301 -> 133 |
+| convert-list | 29 -> 84 | 39 -> 94 | 145 -> 98 |
+| orders-options | 109 -> 64 | 111 -> 65 | 75 -> 105 |
+
+The replay's early/settled steps run sequentially, so later pickers benefit from references
+loaded by earlier steps. Warm opens revisit routes with cache present. Convert uses an empty
+fixture, rather than the live approval workload. The live legacy numbers in the review remain
+the acceptance targets; this replay does not replace them. The View early and batch results
+still exceed the corresponding live legacy targets, and several small warm samples regress.
+Acceptance of universal legacy parity remains unverified and must not be reported as passed.
+
+Validation: 76 focused tests across six touched suites passed, plus 11 reference tests after
+adding idle chunk/session coverage. Typecheck, Biome, design-system lint and the production
+build passed before handoff. No full suite, server browser session, server write or push.

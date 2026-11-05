@@ -116,27 +116,34 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
     await requireRight(queryClient, RIGHTS.requisitionApprove);
     const leases = isSecureOrigin ? await Promise.all(ids.map(beginCopy)) : [];
     let copyResult: Promise<unknown> | undefined;
-    let membership: BatchMembership | undefined;
+    let membership: Promise<BatchMembership> | undefined;
     const loaded = await onlineOrDevice(
       async () => {
-        const [rawResponse, currency, found] = await Promise.all([
-          queryClient.fetchQuery(batchRequisitionsOptions(ids)),
+        const batch = queryClient.fetchQuery(batchRequisitionsOptions(ids));
+        membership = fetchBatchMembership(ids, scope, program).catch((error: unknown) => ({
+          error,
+        }));
+        const [response, currency] = await Promise.all([
+          batch,
           queryClient.ensureQueryData(currencySettingsOptions()),
-          fetchBatchMembership(ids, scope, program),
         ]);
         assertSessionScope(scope);
-        membership = found;
-        const response = verifyBatchMembership(rawResponse, found);
         if (isSecureOrigin) {
-          copyResult = captureBatch(leases, response, currency, 'wait', found).then(
-            () => undefined,
-            (error: unknown) => error,
-          );
+          copyResult = membership
+            .then((found) => {
+              assertSessionScope(scope);
+              return captureBatch(leases, response, currency, 'wait', found);
+            })
+            .then(
+              () => undefined,
+              (error: unknown) => error,
+            );
         }
         return { response, currency, fetchedAt: undefined as number | undefined };
       },
       () => readBatch(ids),
     );
+    if (loaded.fetchedAt !== undefined) membership = undefined;
     const fresh = isOnline() && loaded.fetchedAt === undefined;
     const recovered = fresh
       ? await recoverBatchApprovals(ids, loaded.response)
@@ -264,14 +271,30 @@ function BatchPage() {
   const [response, setResponse] = useState(loaded.response);
   const [copyFailure, setCopyFailure] = useState<unknown>();
   const accessEpoch = useRef(loaded.accessEpoch);
-  const membership = useRef(loaded.membership);
+  const membership = useRef<BatchMembership | undefined>(undefined);
+  const [verifiedOpening, setVerifiedOpening] = useState<typeof loaded>();
   const opening = useRef(loaded);
   if (opening.current !== loaded) {
     opening.current = loaded;
     setCopyFailure(undefined);
-    membership.current = loaded.membership;
+    membership.current = undefined;
     setResponse(loaded.response);
   }
+  useEffect(() => {
+    let active = true;
+    if (!loaded.membership) return;
+    const scope = getSessionScope();
+    void loaded.membership.then((found) => {
+      if (!active || scope !== getSessionScope()) return;
+      membership.current = found;
+      setResponse((current) => orderBatch(verifyBatchMembership(current, found), loaded.ids));
+      if (!('error' in found)) setVerifiedOpening(loaded);
+    });
+    return () => {
+      active = false;
+    };
+  }, [loaded]);
+  const membershipVerified = !loaded.membership || verifiedOpening === loaded;
   const records = response.requisitionDtos;
   const drafts = useBatchDrafts(records);
   const meta = useSyncExternalStore(
@@ -331,6 +354,7 @@ function BatchPage() {
     ]);
     assertSessionScope(scope);
     membership.current = found;
+    if (!('error' in found)) setVerifiedOpening(loaded);
     return orderBatch(verifyBatchMembership(result, found), ids);
   };
   const retireUnavailable = async (fresh: BatchResponse) => {
@@ -705,6 +729,7 @@ function BatchPage() {
     loaded.ids.filter((id) => !loaded.removed.has(id)),
   ).failed;
   const approve = () => {
+    if (!membershipVerified) return;
     const first = records.flatMap((record) =>
       record.requisitionLineItems
         .filter((line) => lineInvalid(line, drafts.text(record.id, line)))
@@ -859,6 +884,7 @@ function BatchPage() {
             size="lg"
             disabled={
               pending ||
+              !membershipVerified ||
               !online ||
               !records.some(batchApprovable) ||
               !!unresolved.length ||

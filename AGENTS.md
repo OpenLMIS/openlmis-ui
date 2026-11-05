@@ -129,10 +129,14 @@ plus the zone filter (`toZoneOption`) and program filter (`toProgramFilter`) hel
 their list uses a lookup's endpoint, reuse that query and widen its type, as Roles and
 Reasons do.
 
+- Sign-in requisition preloads use normal foreground request handling, gated by the download's
+  requisition rights or supervision eligibility. Failed reads never abort sibling page lookups.
+  Warm requisition route chunks at browser idle without running their loaders.
+- Cancel Home queries on navigation start; dashboard reads use the shared background gate.
 - Requisition pages and background access downloads share reference-data query options through
   `requisitionReferences`. Roles, minimal facilities, programs, user records/programs, nodes and
-  groups stay fresh for the session; administrative saves still invalidate their keys. Background
-  sign-in preloading fills the same cache, including on insecure origins. Keep exact grants and
+  groups stay fresh for the session; administrative saves still invalidate their keys. Foreground
+  sign-in preloading fills the page cache, including on insecure origins. Keep exact grants and
   fresh upload authorization separate from cached picker references.
 - Requisition lookups include requisition groups, processing periods, a program, currency settings
   and products and approved products by id and version.
@@ -1058,6 +1062,16 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   time zone and per-database download schedule are intentional localStorage metadata.
 
 ### Data, session and identity
+
+- Download access refreshes read user/program assignments directly from the server, without device
+  fallback. Requisition download references use an isolated fresh query cache so neither session
+  freshness nor a pending page request can substitute an older grant generation. Keep background
+  fail-fast handling, two transport slots, foreground priority and provider fairness.
+- Node subset reuse prefers completed data; pages never await a background superset. Forced node
+  authorization refreshes explicitly bypass covering caches.
+- Batch routes render retrieved rows while membership verifies. Approve stays disabled until the
+  current opening is verified; direct links follow the same rule. Only verified membership may
+  produce a complete offline approval copy.
 
 - `getLocalDb()` opens one database per deployment/user. Close on identity change without
   deleting records. Use `LOCAL_TABLES` and `localTable`; use `local-records.ts` for owned records.

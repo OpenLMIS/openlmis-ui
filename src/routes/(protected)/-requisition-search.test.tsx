@@ -364,3 +364,22 @@ it('applies the drafted facility together with its program chosen in Filters', a
   );
   queryClient.clear();
 });
+
+it('explains the facility cap and can find facilities beyond the first fifty', async () => {
+  const facilities = Array.from({ length: 55 }, (_, index) => ({
+    id: `f${index}`,
+    name: `Clinic ${index}`,
+    code: `C${index}`,
+  }));
+  vi.mocked(fetchMinimalFacilities).mockResolvedValueOnce(facilities as never);
+  vi.mocked(fetchPermissionStrings).mockResolvedValueOnce(
+    facilities.map(({ id }) => `REQUISITION_VIEW|${id}|p`),
+  );
+  renderRoute('/requisitions/view');
+  await screen.findByText('lots.search-hint');
+  const input = await screen.findByRole('combobox', { name: /facility-program.facility/ });
+  await userEvent.click(input);
+  expect(screen.getAllByRole('option')).toHaveLength(50);
+  await userEvent.type(input, 'Clinic 54');
+  expect(await screen.findByRole('option', { name: /Clinic 54/ })).toBeInTheDocument();
+});

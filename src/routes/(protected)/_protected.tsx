@@ -7,13 +7,13 @@ import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { OfflineNotice } from '@/components/app-shell/offline-notice';
 import { PageVisibility } from '@/components/shared/page-visibility';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { requisitionReferences } from '@/features/reference-data/api/requisition-reference';
 import { queryClient } from '@/integrations/tanstack-query';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { canRetainPageOffline, isOfflineCapable } from '@/lib/offline-pages';
 import { isOnline, seedOnline, useOnline } from '@/lib/online';
 import { loginSearch } from '@/lib/redirect';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
+import { preloadRequisitionReferences, warmRequisitionChunks } from '@/routes/-requisition-preload';
 
 export const Route = createFileRoute('/(protected)/_protected')({
   beforeLoad: ({ location, context }) => {
@@ -42,14 +42,7 @@ function ProtectedLayout() {
   const userId = useLoginData((state) => state.referenceDataUserId);
   useEffect(() => {
     if (!userId || !online) return;
-    const controller = new AbortController();
-    void requisitionReferences(queryClient, userId, {
-      backgroundRead: true,
-      backgroundDownload: true,
-      downloadProvider: 'requisition-access',
-      signal: controller.signal,
-    }).catch(() => controller.abort());
-    return () => controller.abort();
+    void preloadRequisitionReferences(queryClient, userId).catch(() => {});
   }, [userId, online]);
   const { pathname } = useLocation();
   const available = online || canRetainPageOffline(pathname);
@@ -57,6 +50,10 @@ function ProtectedLayout() {
   const context = Route.useRouteContext();
   const [loadedScope, setLoadedScope] = useState(context.sessionScope);
   const router = useRouter();
+  useEffect(() => {
+    if (!userId || !online) return;
+    return warmRequisitionChunks(router);
+  }, [router, userId, online]);
   const contentRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
