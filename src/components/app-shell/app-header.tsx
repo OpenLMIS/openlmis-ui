@@ -1,4 +1,5 @@
 import { UserRoundIcon } from 'lucide-react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CommandPalette } from '@/components/app-shell/command-palette';
 import { CustomTrigger } from '@/components/app-shell/custom-trigger';
@@ -6,7 +7,7 @@ import { NavUser } from '@/components/app-shell/nav-user';
 import { OfflineDot, StatusAnnouncer } from '@/components/app-shell/sidebar-notices';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-export function AppHeader() {
+export const AppHeader = memo(function AppHeader() {
   const { t } = useTranslation();
 
   return (
@@ -36,4 +37,4 @@ export function AppHeader() {
       </div>
     </header>
   );
-}
+});

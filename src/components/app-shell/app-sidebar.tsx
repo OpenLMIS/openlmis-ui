@@ -1,6 +1,6 @@
 import { Link, useLocation } from '@tanstack/react-router';
 import { ChevronRightIcon, WifiOffIcon } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackToLegacyButton } from '@/components/app-shell/back-to-legacy-button';
 import { CustomTrigger } from '@/components/app-shell/custom-trigger';
@@ -45,32 +45,15 @@ import { useAppName, useShowAppName } from '@/lib/app-configuration';
 import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
-export function AppSidebar() {
-  const { t } = useTranslation();
-  const pathname = useLocation({ select: (location) => location.pathname });
+export const AppSidebar = memo(function AppSidebar() {
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
   const railTooltipSide = !isMobile && state === 'collapsed' ? 'inline-end' : 'top';
-  const navGroups = useNavGroups();
-  const accountLinks = useAccountLinks();
-  const sidebarGroups = navGroups.map((group) => ({
-    ...group,
-    items: group.items.flatMap((item) =>
-      !isNavParent(item) &&
-      (item.to === '/offline-events' ||
-        (item.to === '/home' &&
-          !group.items.some((entry) => !isNavParent(entry) && entry.to === '/offline-events')))
-        ? [item, ...accountLinks]
-        : [item],
-    ),
-  }));
   const appName = useAppName();
   const showAppName = useShowAppName();
 
   // The rail only has room for a smaller mark; the mobile sheet is always full width.
   const isCollapsed = !isMobile && state === 'collapsed';
-
-  const { openParent, setOpenParent } = useOpenNavParent(pathname);
 
   const closeMobileSidebar = () => {
     if (isMobile) setOpenMobile(false);
@@ -105,28 +88,7 @@ export function AppSidebar() {
         <CustomTrigger place="sidebar" />
       </SidebarHeader>
 
-      <SidebarContent>
-        {sidebarGroups.map((group) => (
-          <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
-            {group.labelKey && <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => (
-                  <NavMenuItem
-                    isCollapsed={isCollapsed}
-                    item={item}
-                    key={item.titleKey}
-                    onNavigate={closeMobileSidebar}
-                    onOpenChange={(open) => setOpenParent(open ? item.titleKey : null)}
-                    open={openParent === item.titleKey}
-                    pathname={pathname}
-                  />
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
-      </SidebarContent>
+      <SidebarNavigation isCollapsed={isCollapsed} onNavigate={closeMobileSidebar} />
 
       <SidebarFooter>
         <div className="max-h-64 scroll-py-2 overflow-y-auto overscroll-contain pb-2">
@@ -143,12 +105,61 @@ export function AppSidebar() {
       </SidebarFooter>
     </Sidebar>
   );
-}
+});
 
 const findActiveParent = (pathname: string) => {
   const trail = getNavTrail(pathname);
   return trail.length > 1 ? (trail[0]?.titleKey ?? null) : null;
 };
+
+function SidebarNavigation({
+  isCollapsed,
+  onNavigate,
+}: {
+  isCollapsed: boolean;
+  onNavigate: () => void;
+}) {
+  const { t } = useTranslation();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const navGroups = useNavGroups();
+  const accountLinks = useAccountLinks();
+  const sidebarGroups = navGroups.map((group) => ({
+    ...group,
+    items: group.items.flatMap((item) =>
+      !isNavParent(item) &&
+      (item.to === '/offline-events' ||
+        (item.to === '/home' &&
+          !group.items.some((entry) => !isNavParent(entry) && entry.to === '/offline-events')))
+        ? [item, ...accountLinks]
+        : [item],
+    ),
+  }));
+  const { openParent, setOpenParent } = useOpenNavParent(pathname);
+  return (
+    <SidebarContent>
+      {sidebarGroups.map((group) => (
+        <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
+          {group.labelKey && <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {group.items.map((item) => (
+                <NavMenuItem
+                  isCollapsed={isCollapsed}
+                  item={item}
+                  key={item.titleKey}
+                  onNavigate={onNavigate}
+                  onOpenChange={(open) => setOpenParent(open ? item.titleKey : null)}
+                  open={openParent === item.titleKey}
+                  pathname={pathname}
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
+    </SidebarContent>
+  );
+}
 
 // Accordion: opening one parent closes the rest, and navigating opens the new one.
 function useOpenNavParent(pathname: string) {

@@ -893,3 +893,35 @@ isolated Playwright harness as the timing pass. No full test suite and no push.
 Tests first reproduced lost removals, false adjustment conflicts, the stale conflict dialog,
 recovery typing and masked Approve success. Focused tests also cover single reconciliation,
 stored legacy header bases and resetting the server failure on retry.
+
+### Create Orders Rendering Follow-Up (FM-49, 2026-11-05)
+
+Production CPU samples and click timestamps isolate the remaining delay to navigation/page
+mounting, before Program is clicked. The measured opening performs no API requests.
+
+Move the sidebar's location subscription, rights-filtered navigation and accordion state into
+its navigation subtree, and memoize the header and sidebar around their own subscriptions.
+Route changes and section expansion no longer rerender the logo,
+appearance/language controls and other footer actions. Disabled Create Orders fields render
+an inactive input with the same label, selected value and dropdown affordance, mounting the
+combobox only when it becomes usable. Enabled picker behavior is unchanged.
+
+No full suite, push or server data writes were used. The production preview has an independent API mutation guard; only OAuth
+and read-only searches are permitted as non-GET requests.
+
+Evidence: `.screenshots/FM-39-m/orders-before-three.json` contains the production baseline,
+and `orders-memo-final.json` contains the retained implementation's alternating new/legacy
+runs with CPU profiles, click offsets and request waterfalls. Focused order/sidebar tests, TypeScript,
+Biome, design-system lint and production builds pass.
+
+Retained production round: before 208/214/175 ms (median 208), after 145/204/159 ms
+(median 159), matched legacy 129/168/164 ms (median 164). Every opening had zero API
+requests. These samples meet the median comparison in that round, but do not establish
+consistent parity with the earlier 138 ms legacy reference. Later discarded experiments
+were slower; do not describe the performance target as consistently achieved. The final
+production rebuild matches all 27 JavaScript assets sampled in the retained CPU profiles.
+
+Arabic production smoke checks pass at 1440 and 390 px with fully intercepted fixture APIs:
+readable product/column labels, a described dialog, one radio group per field, no phone
+horizontal overflow, and automatic resolution with GET's fresh ETag. Evidence:
+`rtl-merge.json`, `merge-1440-ar.png` and `merge-390-ar.png` in the same evidence directory.
