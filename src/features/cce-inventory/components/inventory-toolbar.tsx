@@ -5,7 +5,6 @@ import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSelectFilter } from '@/components/data-table/data-table-filters';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   CLEARED_INVENTORY_FILTERS,
   hasInventoryFilters,
@@ -21,6 +20,7 @@ type InventoryToolbarProps = {
   exporting?: boolean;
   onExport?: () => void;
   onAdd?: () => void;
+  adding?: boolean;
 };
 
 export function InventoryToolbar({
@@ -31,6 +31,7 @@ export function InventoryToolbar({
   exporting = false,
   onExport,
   onAdd,
+  adding = onAdd !== undefined,
 }: InventoryToolbarProps) {
   const { t } = useTranslation();
   const statusOptions = EQUIPMENT_STATUSES.map((status) => ({
@@ -39,7 +40,24 @@ export function InventoryToolbar({
   }));
   return (
     <DataTableToolbar>
-      <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
+      <div className="order-2 w-full @2xl/main:order-none @2xl/main:w-auto">
+        <Button
+          disabled={disabled || !onExport || exporting}
+          focusableWhenDisabled={exporting}
+          onClick={onExport}
+          size="lg"
+          variant="outline"
+          width="full"
+        >
+          {exporting ? (
+            <Loader2Icon className="animate-spin" data-icon="inline-start" />
+          ) : (
+            <DownloadIcon data-icon="inline-start" />
+          )}
+          {t('cce-inventory.export')}
+        </Button>
+      </div>
+      <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
           activeCount={Number(hasInventoryFilters(search))}
           disabled={disabled}
@@ -60,32 +78,13 @@ export function InventoryToolbar({
         </DataTableFilters>
       </div>
       {view}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              disabled={disabled || !onExport || exporting}
-              focusableWhenDisabled={exporting}
-              onClick={onExport}
-              size="lg"
-              variant="outline"
-            />
-          }
-        >
-          {exporting ? (
-            <Loader2Icon className="animate-spin" data-icon="inline-start" />
-          ) : (
-            <DownloadIcon data-icon="inline-start" />
-          )}
-          {t('cce-inventory.export')}
-        </TooltipTrigger>
-        <TooltipContent>{t('cce-inventory.export-hint')}</TooltipContent>
-      </Tooltip>
-      {onAdd && (
-        <Button disabled={disabled} onClick={onAdd} size="lg">
-          <PlusIcon data-icon="inline-start" />
-          {t('cce-inventory.add')}
-        </Button>
+      {adding && (
+        <div className="order-3 w-full @2xl/main:order-none @2xl/main:ms-auto @2xl/main:w-auto">
+          <Button disabled={disabled || !onAdd} onClick={onAdd} size="lg" width="full">
+            <PlusIcon data-icon="inline-start" />
+            {t('cce-inventory.add')}
+          </Button>
+        </div>
       )}
     </DataTableToolbar>
   );

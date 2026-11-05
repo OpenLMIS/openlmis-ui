@@ -7,9 +7,9 @@ import { ErrorAlert, RetryButton, serverMessage } from '@/components/display/dia
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { formatTimestamp } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
+import { SettingsRowFrame } from '@/components/form/settings-list';
 import {
   FormDialogBody,
-  FormDialogDescription,
   FormDialogFooter,
   FormDialogForm,
   FormDialogHeader,
@@ -129,12 +129,12 @@ function ActionForm({
     <FormDialogForm onSubmit={onSubmit}>
       <FormDialogHeader>
         <FormDialogTitle>{title}</FormDialogTitle>
-        <FormDialogDescription>
-          <bdi>{name}</bdi>
-        </FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
-        <div className="@container/item flex flex-col gap-8" inert={pending}>
+        <div className="flex flex-col gap-6" inert={pending}>
+          <h3 className="font-medium text-base">
+            <bdi>{name}</bdi>
+          </h3>
           {error !== null && (
             <ErrorAlert
               description={serverMessage(error) ?? t('cce-inventory.form.save-error')}
@@ -194,6 +194,7 @@ export function StatusItem({
   const dirty = useStore(form.store, (state) => !state.isDefaultValue);
   const guard = useItemDialogGuard({ dirty, pending: mutation.isPending, allowLeave });
   const shownStatus = useRef(status);
+  const alerts = useItemAlerts(item, userId);
 
   return (
     <>
@@ -220,8 +221,10 @@ export function StatusItem({
               </Badge>,
             ],
           ]}
-        />
-        <ItemAlerts item={item} userId={userId} />
+        >
+          {alerts.row}
+        </ReadOnlySection>
+        {alerts.error}
         <Section legend={t('cce-inventory.status.update-section')}>
           <form.AppField
             listeners={{
@@ -285,7 +288,7 @@ export function StatusItem({
   );
 }
 
-function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: string }) {
+function useItemAlerts(item: InventoryItemRecord, userId: string) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
   const { data: alerts = [], isError, refetch } = useQuery(inventoryAlertsOptions([item.id]));
@@ -324,59 +327,72 @@ function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: strin
     refusedDescription: t('cce-inventory.status.history-refused'),
   });
   if (isError && alerts.length === 0) {
-    return (
-      <ErrorAlert
-        action={<RetryButton onClick={() => void refetch()} />}
-        description={t('cce-inventory.status.alerts-error')}
-        title={t('cce-inventory.status.alerts-error-title')}
-      />
-    );
+    return {
+      error: (
+        <ErrorAlert
+          action={<RetryButton onClick={() => void refetch()} />}
+          description={t('cce-inventory.status.alerts-error')}
+          title={t('cce-inventory.status.alerts-error-title')}
+        />
+      ),
+    };
   }
-  if (alerts.length === 0) return null;
+  if (alerts.length === 0) return {};
   const active = activeAlertsByDevice(alerts).get(item.id) ?? [];
 
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-medium text-base">{t('cce-inventory.alerts-title')}</h3>
-        <Button
-          disabled={history.isPending || history.offline}
-          focusableWhenDisabled={history.isPending}
-          onClick={history.print}
-          ref={historyButton}
-          variant="outline"
-        >
-          {t('cce-inventory.status.view-history')}
-        </Button>
-      </div>
-      {active.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{t('cce-inventory.status.no-alerts')}</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {active.map((alert) => {
-            const time = formatTimestamp(alert.start_ts, i18n.language, { time: true, timeZone });
-            return (
-              <li className="flex items-start justify-between gap-3 text-sm" key={alert.alert_id}>
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-muted-foreground text-xs">{time}</span>
-                  <span dir="auto">{alertText(alert, i18n.language)}</span>
-                </div>
-                <Button
-                  aria-label={t('cce-inventory.status.dismiss-label', { time })}
-                  disabled={dismiss.isPending}
-                  focusableWhenDisabled
-                  onClick={() => dismiss.mutate(alert)}
-                  variant="outline"
-                >
-                  {t('cce-inventory.status.dismiss')}
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
-  );
+  return {
+    row: (
+      <SettingsRowFrame
+        description={
+          <div className="pt-1">
+            <Button
+              disabled={history.isPending || history.offline}
+              focusableWhenDisabled={history.isPending}
+              onClick={history.print}
+              ref={historyButton}
+              size="sm"
+              variant="outline"
+            >
+              {t('cce-inventory.status.view-history')}
+            </Button>
+          </div>
+        }
+        label={<span className="text-sm">{t('cce-inventory.alerts-title')}</span>}
+        value="wide"
+      >
+        {active.length === 0 ? (
+          <p className="text-end font-medium text-sm">{t('cce-inventory.status.no-alerts')}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {active.map((alert) => {
+              const time = formatTimestamp(alert.start_ts, i18n.language, {
+                time: true,
+                timeZone,
+              });
+              return (
+                <li className="flex items-start justify-between gap-3 text-sm" key={alert.alert_id}>
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-muted-foreground text-xs">{time}</span>
+                    <span dir="auto">{alertText(alert, i18n.language)}</span>
+                  </div>
+                  <Button
+                    aria-label={t('cce-inventory.status.dismiss-label', { time })}
+                    disabled={dismiss.isPending}
+                    focusableWhenDisabled
+                    onClick={() => dismiss.mutate(alert)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    {t('cce-inventory.status.dismiss')}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SettingsRowFrame>
+    ),
+  };
 }
 
 export function TransferItem({

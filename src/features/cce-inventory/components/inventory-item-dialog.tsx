@@ -98,7 +98,7 @@ export function InventoryItemDialog({
       onOpenChange={(next) => {
         if (!next && !pending) requestClose();
       }}
-      size="2xl"
+      size="table"
     >
       {shown && (
         <QueryBoundary
@@ -240,11 +240,7 @@ function AddEquipmentForm({
       <FormDialogForm onSubmit={submit}>
         <AddEquipmentHeader step={step} stepRef={stepHeading} />
         <FormDialogBody>
-          <div
-            className="@container/item flex flex-col gap-8"
-            inert={mutation.isPending}
-            ref={fields}
-          >
+          <div className="flex flex-col gap-6" inert={mutation.isPending} ref={fields}>
             {step === 'equipment' ? (
               <Section legend={t('cce-inventory.form.equipment')}>
                 <PairFields form={form} options={options} />
@@ -337,11 +333,9 @@ function AddEquipmentSkeleton() {
     <>
       <AddEquipmentHeader step="equipment" />
       <FormDialogBody>
-        <div aria-busy className="@container/item">
+        <div aria-busy>
           <Section legend={t('cce-inventory.form.equipment')}>
-            <div className="@3xl/item:col-span-2">
-              <FieldSkeleton label={t('facility-program.mode')} />
-            </div>
+            <FieldSkeleton label={t('facility-program.mode')} />
             {SKELETON_FIELDS.map((label) => (
               <FieldSkeleton key={label} label={t(label)} required />
             ))}

@@ -113,31 +113,29 @@ export function PairFields({ form, options }: FormProps & { options: FacilityPro
 
   return (
     <>
-      <div className="@3xl/item:col-span-2">
-        <form.AppField
-          listeners={{ onChange: ({ value }) => apply(changeMode(value, options)) }}
-          name="pair.mode"
-        >
-          {(field) => (
-            <field.RadioGroupField
-              label={t('facility-program.mode')}
-              options={[
-                {
-                  value: 'my',
-                  label: t('facility-program.my-facility'),
-                  disabled: !options.home || options.myPrograms.length === 0,
-                },
-                {
-                  value: 'supervised',
-                  label: t('facility-program.supervised-facility'),
-                  disabled: options.supervisedPrograms.length === 0,
-                },
-              ]}
-              variant="segmented"
-            />
-          )}
-        </form.AppField>
-      </div>
+      <form.AppField
+        listeners={{ onChange: ({ value }) => apply(changeMode(value, options)) }}
+        name="pair.mode"
+      >
+        {(field) => (
+          <field.RadioGroupField
+            label={t('facility-program.mode')}
+            options={[
+              {
+                value: 'my',
+                label: t('facility-program.my-facility'),
+                disabled: !options.home || options.myPrograms.length === 0,
+              },
+              {
+                value: 'supervised',
+                label: t('facility-program.supervised-facility'),
+                disabled: options.supervisedPrograms.length === 0,
+              },
+            ]}
+            variant="segmented"
+          />
+        )}
+      </form.AppField>
       {mode === 'my' ? facilityField : programField}
       {mode === 'my' ? programField : facilityField}
     </>

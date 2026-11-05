@@ -6,7 +6,7 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
-import { useRef } from 'react';
+import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -14,6 +14,7 @@ import {
   DialogLoadError,
   DialogNotFound,
   ErrorAlert,
+  FieldSkeleton,
   SkeletonLine,
   serverMessage,
 } from '@/components/display/dialog-parts';
@@ -33,6 +34,7 @@ import {
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { fetchInventoryItem, updateInventoryItem } from '@/features/cce-inventory/api/api';
 import { inventoryAlertsOptions, inventoryItemOptions } from '@/features/cce-inventory/api/queries';
 import {
@@ -48,6 +50,7 @@ import {
   POWER_KEYS,
   type ReadOnlyRow,
   ReadOnlySection,
+  Section,
   UTILIZATION_KEYS,
 } from '@/features/cce-inventory/components/inventory-item-sections';
 import { useCloseOnce } from '@/features/cce-inventory/components/use-close-once';
@@ -76,6 +79,7 @@ export type ItemAction = NonNullable<InventorySearch['action']>;
 type InventoryItemViewProps = {
   itemId: string | undefined;
   action: ItemAction | undefined;
+  stacked: boolean;
   userId: string;
   grants: readonly ProgramGrant[];
   transferGrants: readonly ProgramGrant[];
@@ -94,7 +98,7 @@ export function InventoryItemView({ itemId, onClose, ...content }: InventoryItem
       onOpenChange={(next) => {
         if (!next && !pending) requestClose();
       }}
-      size="2xl"
+      size="table"
     >
       {shown && (
         <ItemBoundary
@@ -135,7 +139,12 @@ function ItemBoundary(props: ItemContentProps) {
           />
         )
       }
-      pendingFallback={<ViewSkeleton action={props.action} />}
+      pendingFallback={
+        <ViewSkeleton
+          action={props.stacked ? undefined : props.action}
+          editing={props.grants.length > 0}
+        />
+      }
       resetKey={props.id}
     >
       <ItemContent
@@ -164,6 +173,7 @@ function ItemContent({
   id,
   opening,
   action,
+  stacked,
   userId,
   grants,
   transferGrants,
@@ -176,33 +186,124 @@ function ItemContent({
   const [{ data: facility }, { data: program }] = useSuspenseQueries({
     queries: [facilityOptions(item.facility.id), programLookupOptions(item.program.id)],
   });
+  const returnFocus: Record<ItemAction, RefObject<HTMLButtonElement | null>> = {
+    edit: useRef<HTMLButtonElement>(null),
+    status: useRef<HTMLButtonElement>(null),
+    transfer: useRef<HTMLButtonElement>(null),
+  };
   const canEdit = grantsPair(grants, item);
   const canTransfer = grantsPair(transferGrants, item);
+  const allowed = action === 'transfer' ? canTransfer : action !== undefined && canEdit;
+  const shownAction = allowed ? action : undefined;
   const header: ReadOnlyRow[] = [
     ['cce-inventory.details.district', facility.geographicZone.name],
     ['facility-program.facility', facility.name],
     ['facility-program.program', program.name],
     ['cce-inventory.form.equipment-type', item.catalogItem.type],
   ];
-  const actionProps = { item, userId, onDone, onCloseCancelled, onBack: () => onAction(undefined) };
-  if (action === 'edit' && canEdit) return <EditItem {...actionProps} header={header} />;
-  if (action === 'status' && canEdit) {
-    return alertsLoading ? (
-      <ViewSkeleton action="status" />
-    ) : (
-      <StatusItem {...actionProps} facilityName={facility.name} />
+  const content = {
+    item,
+    userId,
+    header,
+    facilityName: facility.name,
+    transferGrants,
+    alertsLoading,
+  };
+  if (shownAction && !stacked) {
+    return (
+      <ActionContent
+        {...content}
+        action={shownAction}
+        onBack={shownAction === 'status' ? onDone : () => onAction(undefined)}
+        onCloseCancelled={onCloseCancelled}
+        onDone={onDone}
+      />
     );
   }
-  if (action === 'transfer' && canTransfer)
-    return <TransferItem {...actionProps} grants={transferGrants} />;
   return (
-    <ItemDetails
-      canEdit={canEdit}
-      canTransfer={canTransfer}
-      header={header}
-      item={item}
-      onAction={onAction}
-    />
+    <>
+      <ItemDetails
+        canEdit={canEdit}
+        canTransfer={canTransfer}
+        header={header}
+        item={item}
+        onAction={onAction}
+        returnFocus={returnFocus}
+      />
+      <StackedAction
+        {...content}
+        action={stacked ? shownAction : undefined}
+        onBack={() => onAction(undefined)}
+        onDone={onDone}
+        returnFocus={returnFocus}
+      />
+    </>
+  );
+}
+
+type ActionContentProps = {
+  action: ItemAction;
+  item: InventoryItemRecord;
+  userId: string;
+  header: ReadOnlyRow[];
+  facilityName: string | null;
+  transferGrants: readonly ProgramGrant[];
+  alertsLoading: boolean;
+  onBack: () => void;
+  onDone: () => void;
+  onCloseCancelled: () => void;
+};
+
+function ActionContent({
+  action,
+  header,
+  facilityName,
+  transferGrants,
+  alertsLoading,
+  ...props
+}: ActionContentProps) {
+  if (action === 'edit') return <EditItem {...props} header={header} />;
+  if (action === 'transfer') return <TransferItem {...props} grants={transferGrants} />;
+  return alertsLoading ? (
+    <ViewSkeleton action="status" editing />
+  ) : (
+    <StatusItem {...props} facilityName={facilityName} />
+  );
+}
+
+function StackedAction({
+  action,
+  onBack,
+  onDone,
+  returnFocus,
+  ...content
+}: Omit<ActionContentProps, 'action' | 'onCloseCancelled'> & {
+  action: ItemAction | undefined;
+  returnFocus: Record<ItemAction, RefObject<HTMLButtonElement | null>>;
+}) {
+  const pending = useIsMutating({ mutationKey: SAVE_KEY }) > 0;
+  const { shown, dialogProps } = useDialogTarget(action, onBack);
+  const { opening, requestClose, cancelClose } = useCloseOnce(action !== undefined, onBack);
+  return (
+    <FormDialog
+      {...dialogProps(pending)}
+      finalFocus={shown ? returnFocus[shown] : undefined}
+      onOpenChange={(next) => {
+        if (!next && !pending) requestClose();
+      }}
+      size="table"
+    >
+      {shown && (
+        <ActionContent
+          {...content}
+          action={shown}
+          key={opening}
+          onBack={requestClose}
+          onCloseCancelled={cancelClose}
+          onDone={shown === 'transfer' ? onDone : requestClose}
+        />
+      )}
+    </FormDialog>
   );
 }
 
@@ -215,12 +316,14 @@ function ItemDetails({
   canEdit,
   canTransfer,
   onAction,
+  returnFocus,
 }: {
   item: InventoryItemRecord;
   header: ReadOnlyRow[];
   canEdit: boolean;
   canTransfer: boolean;
   onAction: (action: ItemAction) => void;
+  returnFocus: Record<ItemAction, RefObject<HTMLButtonElement | null>>;
 }) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
@@ -235,19 +338,22 @@ function ItemDetails({
   return (
     <>
       <FormDialogHeader>
-        <FormDialogTitle>
-          <bdi>{item.referenceName}</bdi>
-        </FormDialogTitle>
+        <FormDialogTitle>{t('cce-inventory.details.title')}</FormDialogTitle>
         <FormDialogDescription>{t('cce-inventory.details.description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>
         <div className="flex flex-col gap-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 flex-col items-start gap-1 text-sm">
-              <Badge variant={tone}>
-                <Icon data-icon="inline-start" />
-                {t(labelKey)}
-              </Badge>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <Badge variant={tone}>
+                  <Icon data-icon="inline-start" />
+                  {t(labelKey)}
+                </Badge>
+                <h3 className="min-w-0 font-medium text-base">
+                  <bdi>{item.referenceName}</bdi>
+                </h3>
+              </div>
               {reason && <span>{t(EQUIPMENT_REASON_KEYS[reason])}</span>}
               {item.decommissionDate && (
                 <span>
@@ -264,12 +370,20 @@ function ItemDetails({
             </div>
             <div className="flex flex-wrap gap-2">
               {canEdit && (
-                <Button onClick={() => onAction('status')} variant="outline">
+                <Button
+                  onClick={() => onAction('status')}
+                  ref={returnFocus.status}
+                  variant="outline"
+                >
                   {t('cce-inventory.details.update-status')}
                 </Button>
               )}
               {canTransfer && (
-                <Button onClick={() => onAction('transfer')} variant="outline">
+                <Button
+                  onClick={() => onAction('transfer')}
+                  ref={returnFocus.transfer}
+                  variant="outline"
+                >
                   {t('cce-inventory.transfer.open')}
                 </Button>
               )}
@@ -326,7 +440,7 @@ function ItemDetails({
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
         {canEdit && (
-          <Button autoFocus onClick={() => onAction('edit')}>
+          <Button autoFocus onClick={() => onAction('edit')} ref={returnFocus.edit}>
             {t('cce-inventory.details.edit')}
           </Button>
         )}
@@ -391,7 +505,7 @@ function EditItem({
           </FormDialogDescription>
         </FormDialogHeader>
         <FormDialogBody>
-          <div className="@container/item flex flex-col gap-8" inert={save.isPending} ref={fields}>
+          <div className="flex flex-col gap-6" inert={save.isPending} ref={fields}>
             {save.isError && (
               <ErrorAlert
                 description={serverMessage(save.error) ?? t('cce-inventory.form.save-error')}
@@ -432,28 +546,69 @@ const ACTION_TITLES: Record<ItemAction, ParseKeys> = {
   transfer: 'cce-inventory.transfer.title',
 };
 
-function ViewSkeleton({ action }: { action: ItemAction | undefined }) {
+function ViewSkeleton({ action, editing }: { action: ItemAction | undefined; editing: boolean }) {
   const { t } = useTranslation();
+  const rows = (labels: readonly ParseKeys[]): ReadOnlyRow[] =>
+    labels.map((label) => [label, <SkeletonLine key={label} width="short" />]);
   return (
     <>
       <FormDialogHeader>
         <FormDialogTitle>
           {t(action ? ACTION_TITLES[action] : 'cce-inventory.details.title')}
         </FormDialogTitle>
-        <FormDialogDescription>{t('cce-inventory.details.description')}</FormDialogDescription>
+        {(action === undefined || action === 'edit') && (
+          <FormDialogDescription>
+            {t(
+              action
+                ? 'cce-inventory.details.edit-description'
+                : 'cce-inventory.details.description',
+            )}
+          </FormDialogDescription>
+        )}
       </FormDialogHeader>
       <FormDialogBody>
-        <div aria-busy>
-          <ReadOnlySection
-            rows={HEADER_SKELETON.map((label) => [
-              label,
-              <SkeletonLine key={label} width="short" />,
-            ])}
-          />
+        <div aria-busy className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1">
+            <SkeletonLine width="medium" />
+            {action === undefined && <SkeletonLine width="short" />}
+          </div>
+          {action === undefined ? (
+            <>
+              <ReadOnlySection rows={rows(HEADER_SKELETON)} />
+              <ReadOnlySection
+                legend={t('cce-inventory.form.identification')}
+                rows={rows(IDENTIFICATION_SKELETON)}
+              />
+              <ReadOnlySection
+                legend={t('cce-inventory.form.history')}
+                rows={rows(HISTORY_SKELETON)}
+              />
+              <ReadOnlySection
+                legend={t('cce-inventory.form.installation')}
+                rows={rows(INSTALLATION_SKELETON)}
+              />
+            </>
+          ) : (
+            <>
+              {ACTION_SKELETON[action].length > 0 && (
+                <ReadOnlySection rows={rows(ACTION_SKELETON[action])} />
+              )}
+              <Section legend={t(ACTION_SECTION[action])}>
+                {ACTION_FIELDS[action].map((label) => (
+                  <FieldSkeleton key={label} label={t(label)} required />
+                ))}
+              </Section>
+            </>
+          )}
         </div>
       </FormDialogBody>
       <FormDialogFooter>
-        <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
+        <FormDialogCancel>{t(action ? 'dialog.cancel' : 'dialog.close')}</FormDialogCancel>
+        {editing && (
+          <div className="h-8 w-24">
+            <Skeleton fill />
+          </div>
+        )}
       </FormDialogFooter>
     </>
   );
@@ -466,3 +621,47 @@ const HEADER_SKELETON: readonly ParseKeys[] = [
   'cce-inventory.form.equipment-type',
   'cce-inventory.details.net-volume',
 ];
+
+const IDENTIFICATION_SKELETON: readonly ParseKeys[] = [
+  'cce-inventory.make-model',
+  'cce-inventory.form.serial-number',
+];
+
+const HISTORY_SKELETON: readonly ParseKeys[] = [
+  'cce-inventory.form.utilization',
+  'cce-inventory.form.year-of-installation',
+];
+
+const INSTALLATION_SKELETON: readonly ParseKeys[] = [
+  'cce-inventory.form.voltage-stabilizer',
+  'cce-inventory.form.backup-generator',
+  'cce-inventory.form.voltage-regulator',
+  'cce-inventory.form.manual-temperature-gauge',
+  'cce-inventory.form.remote-temperature-monitor',
+];
+
+const ACTION_SKELETON: Record<ItemAction, readonly ParseKeys[]> = {
+  edit: [...HEADER_SKELETON.slice(0, 4), 'cce-inventory.make-model'],
+  status: [
+    'facility-program.facility',
+    'cce-inventory.form.equipment-type',
+    'cce-inventory.status.current',
+  ],
+  transfer: [],
+};
+
+const ACTION_SECTION: Record<ItemAction, ParseKeys> = {
+  edit: 'cce-inventory.form.identification',
+  status: 'cce-inventory.status.update-section',
+  transfer: 'cce-inventory.form.equipment',
+};
+
+const ACTION_FIELDS: Record<ItemAction, readonly ParseKeys[]> = {
+  edit: ['cce-inventory.form.serial-number', 'cce-inventory.reference-name'],
+  status: ['cce-inventory.form.functional-status'],
+  transfer: [
+    'facility-program.program',
+    'facility-program.facility',
+    'cce-inventory.form.year-of-installation',
+  ],
+};

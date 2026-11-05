@@ -66,7 +66,6 @@
   "cce-inventory.export": "Export CSV",
   "cce-inventory.export-error": "The file could not be exported. Please try again.",
   "cce-inventory.export-error-title": "Export Failed",
-  "cce-inventory.export-hint": "Downloads every item at this facility for this program.",
   "cce-inventory.facility": "Facility",
   "cce-inventory.form.active": "Active",
   "cce-inventory.form.additional-notes": "Additional Notes",

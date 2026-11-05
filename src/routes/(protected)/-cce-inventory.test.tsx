@@ -336,20 +336,18 @@ describe('CCE inventory page', () => {
     );
   });
 
-  it('shows an active alert bell that opens the alerts, and a past-only bell', async () => {
-    const user = userEvent.setup();
+  it('marks active and past-only alerts with a bell that is not a control, as legacy', async () => {
     renderRoute(appliedPath());
 
     const fridge = await itemOf('Fridge #11');
-    await user.click(
-      await within(fridge).findByRole('button', { name: /cce-inventory.alerts-active/ }),
-    );
-    expect(await screen.findByText(ALERT_TEXT)).toBeInTheDocument();
-    const freezer = await itemOf('Fridge #17');
-    expect(within(freezer).getByLabelText('cce-inventory.alerts-past')).toBeInTheDocument();
     expect(
-      within(freezer).queryByRole('button', { name: /cce-inventory.alerts-active/ }),
-    ).not.toBeInTheDocument();
+      await within(fridge).findByRole('img', { name: /cce-inventory.alerts-active/ }),
+    ).toBeInTheDocument();
+    expect(within(fridge).queryByRole('button', { name: /cce-inventory.alerts/ })).toBeNull();
+    const freezer = await itemOf('Fridge #17');
+    expect(
+      within(freezer).getByRole('img', { name: 'cce-inventory.alerts-past' }),
+    ).toBeInTheDocument();
     const coldBox = await itemOf('Fridge #2');
     expect(within(coldBox).queryByLabelText(/cce-inventory.alerts/)).not.toBeInTheDocument();
   });
@@ -453,7 +451,7 @@ describe('CCE inventory page', () => {
       const fridge = await itemOf('Fridge #11');
       await user.click(within(fridge).getByRole('button', { name: /cce-inventory.update-status/ }));
       expect(router.state.location.search).toMatchObject({ item: FRIDGE, action: 'status' });
-      await user.click(await screen.findByRole('button', { name: 'dialog.close' }));
+      await user.click(await screen.findByRole('button', { name: 'dialog.cancel' }));
       await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
       await user.click(screen.getByRole('button', { name: 'cce-inventory.add' }));
       expect(await screen.findByRole('dialog', { name: 'cce-inventory.form.title' })).toBeVisible();

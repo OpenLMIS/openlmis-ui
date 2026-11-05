@@ -157,7 +157,7 @@ function useInventoryColumns({ facilityName, language, timeZone }: CellContext) 
           header: ({ column }) => <DataTableColumnHeader column={column} title={t(labelKey)} />,
           cell: ({ row: { original: item }, getValue }) =>
             id === 'functionalStatus' ? (
-              <FunctionalStatusCell item={item} timeZone={timeZone} />
+              <FunctionalStatusCell item={item} />
             ) : getValue() ? (
               <CellText overflow="clamp">{getValue()}</CellText>
             ) : null,

@@ -66,7 +66,6 @@
   "cce-inventory.export": "Exporter en CSV",
   "cce-inventory.export-error": "Le fichier n’a pas pu être exporté. Veuillez réessayer.",
   "cce-inventory.export-error-title": "Échec de l’export",
-  "cce-inventory.export-hint": "Télécharge tous les équipements de cet établissement pour ce programme.",
   "cce-inventory.facility": "Établissement",
   "cce-inventory.form.active": "Actif",
   "cce-inventory.form.additional-notes": "Remarques supplémentaires",

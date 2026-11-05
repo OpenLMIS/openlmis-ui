@@ -66,7 +66,6 @@
   "cce-inventory.export": "Exportar CSV",
   "cce-inventory.export-error": "Não foi possível exportar o ficheiro. Tente novamente.",
   "cce-inventory.export-error-title": "Falha na Exportação",
-  "cce-inventory.export-hint": "Transfere todo o equipamento desta instalação para este programa.",
   "cce-inventory.facility": "Instalação",
   "cce-inventory.form.active": "Ativo",
   "cce-inventory.form.additional-notes": "Notas Adicionais",

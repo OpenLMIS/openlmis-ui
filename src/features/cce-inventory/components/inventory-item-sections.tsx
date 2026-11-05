@@ -1,9 +1,10 @@
 import { useStore } from '@tanstack/react-form';
 import type { ParseKeys } from 'i18next';
-import { type ReactNode, useRef } from 'react';
+import { type ReactNode, useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
-import { FieldLegend, FieldSet } from '@/components/ui/field';
+import { FieldSet } from '@/components/ui/field';
+import { Separator } from '@/components/ui/separator';
 import type { InventoryItemFormApi } from '@/features/cce-inventory/components/use-inventory-item-form';
 import { makeModelLabel } from '@/features/cce-inventory/lib/catalog';
 import {
@@ -64,11 +65,25 @@ const POWER_LABELS: Record<PowerField, ParseKeys> = {
   'details.backupGenerator': 'cce-inventory.form.backup-generator',
 };
 
-export function Section({ legend, children }: { legend: string; children: ReactNode }) {
+function SectionHeading({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <FieldSet>
-      <FieldLegend>{legend}</FieldLegend>
-      <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/item:grid-cols-2">{children}</div>
+    <div className="flex items-center gap-3">
+      <h3 className="shrink-0 font-medium text-sm" id={id}>
+        {children}
+      </h3>
+      <div className="min-w-0 flex-1">
+        <Separator />
+      </div>
+    </div>
+  );
+}
+
+export function Section({ legend, children }: { legend: string; children: ReactNode }) {
+  const id = useId();
+  return (
+    <FieldSet aria-labelledby={id}>
+      <SectionHeading id={id}>{legend}</SectionHeading>
+      <div className="flex flex-col gap-5">{children}</div>
     </FieldSet>
   );
 }
@@ -101,17 +116,27 @@ export function ChosenEquipment({
 
 export type ReadOnlyRow = [ParseKeys, ReactNode];
 
-export function ReadOnlySection({ legend, rows }: { legend?: string; rows: ReadOnlyRow[] }) {
+export function ReadOnlySection({
+  legend,
+  rows,
+  children,
+}: {
+  legend?: string;
+  rows: ReadOnlyRow[];
+  children?: ReactNode;
+}) {
   const { t } = useTranslation();
+  const id = useId();
   return (
-    <section className="flex flex-col gap-3">
-      {legend && <h3 className="font-medium text-base">{legend}</h3>}
-      <SettingsList>
+    <section aria-labelledby={legend ? id : undefined} className="flex flex-col gap-2">
+      {legend && <SectionHeading id={id}>{legend}</SectionHeading>}
+      <SettingsList density="compact">
         {rows.map(([label, value]) => (
           <SettingsItem key={label} label={t(label)}>
             <bdi>{orEmpty(value)}</bdi>
           </SettingsItem>
         ))}
+        {children}
       </SettingsList>
     </section>
   );

@@ -66,7 +66,6 @@
   "cce-inventory.export": "تصدير CSV",
   "cce-inventory.export-error": "تعذّر تصدير الملف. يُرجى المحاولة مرة أخرى.",
   "cce-inventory.export-error-title": "تعذّر التصدير",
-  "cce-inventory.export-hint": "ينزّل كل المعدات في هذه المنشأة لهذا البرنامج.",
   "cce-inventory.facility": "المرفق",
   "cce-inventory.form.active": "نشط",
   "cce-inventory.form.additional-notes": "ملاحظات إضافية",

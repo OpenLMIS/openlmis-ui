@@ -1,7 +1,7 @@
-import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { ClipboardListIcon, RefrigeratorIcon, ShieldAlertIcon } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ListError } from '@/components/app-shell/list-error';
@@ -176,9 +176,11 @@ function ColumnsMenu({
 function InventoryListSkeleton({
   search,
   columnView,
+  adding,
 }: {
   search: InventorySearch;
   columnView: ColumnView;
+  adding: boolean;
 }) {
   return (
     <div aria-busy className="flex flex-col gap-4">
@@ -189,6 +191,7 @@ function InventoryListSkeleton({
       </div>
       <fieldset className="min-w-0" disabled>
         <InventoryToolbar
+          adding={adding}
           disabled
           onFilterChange={noop}
           search={search}
@@ -207,15 +210,29 @@ function InventoryListSkeleton({
 function InventoryPageSkeleton({
   search,
   columnView,
+  permissions,
 }: {
   search: InventorySearch;
   columnView: ColumnView;
+  permissions: Permissions | undefined;
 }) {
   return (
     <>
       <FacilityProgramSelectorSkeleton />
       {isCompleteSelection(search) && (
-        <InventoryListSkeleton columnView={columnView} search={search} />
+        <InventoryListSkeleton
+          adding={
+            permissions !== undefined &&
+            hasProgramGrant(
+              permissions,
+              RIGHTS.cceInventoryEdit,
+              search.facilityId,
+              search.programId,
+            )
+          }
+          columnView={columnView}
+          search={search}
+        />
       )}
     </>
   );
@@ -224,12 +241,21 @@ function InventoryPageSkeleton({
 function InventoryPending() {
   const search = Route.useSearch();
   const { measure, columnView } = useColumnView();
+  const userId = useLoginData((state) => state.referenceDataUserId);
+  const { data: permissions } = useQuery({
+    ...permissionsOptions(userId ?? ''),
+    enabled: !!userId,
+  });
   return (
     <Workspace>
       <InventoryHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-          <InventoryPageSkeleton columnView={columnView} search={search} />
+          <InventoryPageSkeleton
+            columnView={columnView}
+            permissions={permissions}
+            search={search}
+          />
         </div>
       </WorkspaceContent>
     </Workspace>
@@ -245,8 +271,22 @@ function InventoryContent({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { updateSearch, closeDialog } =
+  const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<InventorySearch>(CLOSED_INVENTORY_DIALOGS);
+  const [stackedOn, setStackedOn] = useState<string>();
+  if (search.item === undefined && stackedOn !== undefined) setStackedOn(undefined);
+  const stacked = search.action !== undefined && stackedOn === search.item;
+  const onItemAction = (action: InventorySearch['action']) => {
+    if (action) {
+      setStackedOn(search.item);
+      openDialog({ item: search.item, action });
+    } else if (stacked) closeDialog();
+    else updateSearch({ action: undefined }, true, { keepState: true });
+  };
+  const closeItem = () => {
+    if (stacked) updateSearch(CLOSED_INVENTORY_DIALOGS, true, { resetScroll: false });
+    else closeDialog();
+  };
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
   const editable = useMemo(() => editableGrants(permissions), [permissions]);
@@ -273,7 +313,13 @@ function InventoryContent({ userId }: { userId: string }) {
                 title={t('facility-program.load-error-title')}
               />
             )}
-            pendingFallback={<InventoryPageSkeleton columnView={columnView} search={search} />}
+            pendingFallback={
+              <InventoryPageSkeleton
+                columnView={columnView}
+                permissions={permissions}
+                search={search}
+              />
+            }
             resetKey={userId}
           >
             <InventoryBody
@@ -298,8 +344,9 @@ function InventoryContent({ userId }: { userId: string }) {
           action={search.action}
           grants={editable}
           itemId={search.item === 'new' ? undefined : search.item}
-          onAction={(action) => updateSearch({ action }, true, { keepState: true })}
-          onClose={closeDialog}
+          onAction={onItemAction}
+          onClose={closeItem}
+          stacked={stacked}
           transferGrants={transferable}
           userId={userId}
         />

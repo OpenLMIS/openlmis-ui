@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -71,10 +71,12 @@ const EDIT: ProgramGrant = { right: 'CCE_INVENTORY_EDIT', facilityId: 'f1', prog
 
 function renderView({
   action,
+  stacked = false,
   grants = [EDIT],
   transferGrants = [],
 }: {
   action?: ItemAction;
+  stacked?: boolean;
   grants?: ProgramGrant[];
   transferGrants?: ProgramGrant[];
 } = {}) {
@@ -89,6 +91,7 @@ function renderView({
       itemId="i1"
       onAction={onAction}
       onClose={onClose}
+      stacked={stacked}
       transferGrants={transferGrants}
       userId="u1"
     />,
@@ -243,6 +246,52 @@ describe('InventoryItemView', () => {
     },
   );
 
+  it('stacks Edit and Update Status over the details and steps back to them on Cancel', async () => {
+    const user = userEvent.setup();
+    const { onAction, onClose } = renderView({ action: 'edit', stacked: true });
+
+    const edit = await screen.findByRole('dialog', { name: 'cce-inventory.details.edit-title' });
+    expect(
+      screen.getByRole('dialog', { hidden: true, name: 'cce-inventory.details.title' }),
+    ).toBeInTheDocument();
+    await user.click(within(edit).getByRole('button', { name: 'dialog.cancel' }));
+
+    await waitFor(() => expect(onAction).toHaveBeenCalledWith(undefined));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('closes a status update opened from the list on Cancel, without the details behind it', async () => {
+    const user = userEvent.setup();
+    const { onAction, onClose } = renderView({ action: 'status' });
+
+    const status = await screen.findByRole('dialog', { name: 'cce-inventory.form.status' });
+    await within(status).findByRole('combobox', { name: /cce-inventory.form.functional-status/ });
+    expect(
+      screen.queryByRole('dialog', { hidden: true, name: 'cce-inventory.details.title' }),
+    ).toBeNull();
+    await user.click(within(status).getByRole('button', { name: 'dialog.cancel' }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it('returns to the details after a status update opened from them', async () => {
+    const user = userEvent.setup();
+    const { onAction, onClose } = renderView({ action: 'status', stacked: true });
+
+    const status = await screen.findByRole('dialog', { name: 'cce-inventory.form.status' });
+    await user.click(
+      within(status).getByRole('combobox', { name: /cce-inventory.form.functional-status/ }),
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'cce-equipment.status.functioning' }),
+    );
+    await user.click(within(status).getByRole('button', { name: 'cce-inventory.status.update' }));
+
+    await waitFor(() => expect(onAction).toHaveBeenCalledWith(undefined));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('opens the details instead of the status form for a user who cannot edit the item', async () => {
     renderView({ action: 'status', grants: [{ ...EDIT, facilityId: 'f2' }] });
 
@@ -286,6 +335,7 @@ describe('InventoryItemView', () => {
       'facility-program.facility',
       'cce-inventory.form.equipment-type',
       'cce-inventory.status.current',
+      'cce-inventory.alerts-title',
     ]);
     await user.click(
       screen.getByRole('combobox', { name: /cce-inventory.form.functional-status/ }),
