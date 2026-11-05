@@ -660,3 +660,26 @@ it('exposes the complete product name when a table cell is clamped', () => {
   render(<Harness />);
   expect(screen.getByText('Medicine 0')).toHaveAttribute('title', 'Medicine 0');
 });
+
+it('keeps column widths stable across quantity keystrokes and fits formatted cost', async () => {
+  const context = { font: '', measureText: (text: string) => ({ width: text.length * 8 }) };
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as never);
+  const value = {
+    ...requisition,
+    template: {
+      ...requisition.template,
+      columnsMap: {
+        ...requisition.template.columnsMap,
+        requestedQuantity: column('requestedQuantity', 3),
+      },
+    },
+  };
+  render(<Harness value={value} editable />);
+  const widths = () =>
+    [...screen.getByRole('table').querySelectorAll('col')].map((col) => col.getAttribute('style'));
+  const before = widths();
+  const input = screen.getAllByRole('textbox')[0];
+  await userEvent.clear(input);
+  await userEvent.type(input, '123456789');
+  expect(widths()).toEqual(before);
+});

@@ -1052,6 +1052,9 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   download Web Lock. Foreground reads never persist partial generations. Recheck shared schedule
   deadlines under that lock; keep upload locks separate and retain complete older bundles.
 - Upload access reads bypass the download lock without publishing, reusing current-epoch access.
+- Pause new background reads during route loading and for 1.8 seconds after navigation settles.
+  Start home-stock datasets after lighter dataset workers finish; keep complete generations and
+  visible failures. Foreground requests bypass this gate.
 - All background dataset, access and time-zone HTTP reads share a two-request transport limit,
   admitting queued reads from the provider with the fewest held slots and rotating among ties.
   Reads stay FIFO within each provider; freed slots drain after failed tasks can abort siblings.
@@ -1075,11 +1078,17 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   fail-fast handling, two transport slots, foreground priority and provider fairness.
 - Node subset reuse prefers completed data; pages never await a background superset. Forced node
   authorization refreshes explicitly bypass covering caches.
-- Batch routes render retrieved rows while membership verifies. Approve stays disabled until the
-  current opening is verified. Recent complete approval-list cache entries for the same program
-  can verify list openings immediately; direct links await verification. Recheck before approval,
-  show retry on failure, and ignore opening results superseded by Sync. Only verified membership may
-  produce a complete offline approval copy.
+- Batch routes render retrieved rows while membership verifies. Rows picked on the approval list
+  or its recent matching cache verify list openings immediately. Opening membership reads only
+  govern offline capture for these openings; approveAll reports rows no longer approvable.
+  Direct links verify before approval. Ignore opening results superseded by Sync, preserve record
+  identity when availability is unchanged, and discard route cache on exit to preserve warm typing.
+- Batch Sync uses the saveAll response and retains failed rows and reasons. Refresh membership
+  afterwards without delaying success feedback. Remove confirmed approvals from every cached
+  approval list before returning, then invalidate. Single Approve uses the save response and ETag.
+- Grid widths use baseline formatted values and uppercase header fonts, independent of typing.
+  Reserve ten quantity digits and let larger input text scroll internally. Virtual card spacers
+  use list padding and item margins, never extra list items; expose item positions and total size.
 
 - `getLocalDb()` opens one database per deployment/user. Close on identity change without
   deleting records. Use `LOCAL_TABLES` and `localTable`; use `local-records.ts` for owned records.

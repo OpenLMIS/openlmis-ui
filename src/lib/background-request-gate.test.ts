@@ -1,6 +1,6 @@
 import { waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { withRequestPriority } from './background-request-gate';
+import { setBackgroundRouteLoading, withRequestPriority } from './background-request-gate';
 
 it('reserves a transport slot for another waiting provider', async () => {
   const foreground = Promise.withResolvers<void>();
@@ -188,4 +188,19 @@ it('removes aborted waiters and retains running slots until their reads settle',
   await vi.runAllTimersAsync();
   await final;
   expect(next).toHaveBeenCalledTimes(2);
+});
+
+it('pauses new download reads through navigation and its quiet window', async () => {
+  vi.useFakeTimers();
+  setBackgroundRouteLoading(true);
+  const send = vi.fn(async () => {});
+  const read = withRequestPriority(true, undefined, send);
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(send).not.toHaveBeenCalled();
+  setBackgroundRouteLoading(false);
+  await vi.advanceTimersByTimeAsync(1799);
+  expect(send).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
+  await read;
+  expect(send).toHaveBeenCalledOnce();
 });

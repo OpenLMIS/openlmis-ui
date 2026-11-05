@@ -83,10 +83,16 @@ export function verifyBatchMembership(
   const { remaining } = membership;
   return {
     ...response,
-    requisitionDtos: (response.requisitionDtos ?? []).map((record) => ({
-      ...record,
-      approvalAvailable: !remaining.has(record.id),
-    })),
+    requisitionDtos: (response.requisitionDtos ?? []).some((record) =>
+      remaining.has(record.id)
+        ? record.approvalAvailable !== false
+        : record.approvalAvailable === false,
+    )
+      ? (response.requisitionDtos ?? []).map((record) => ({
+          ...record,
+          approvalAvailable: !remaining.has(record.id),
+        }))
+      : (response.requisitionDtos ?? []),
   };
 }
 export async function captureBatch(

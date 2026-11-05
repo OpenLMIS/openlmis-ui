@@ -54,6 +54,7 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useFlag } from '@/lib/feature-flags';
 import { useOnline } from '@/lib/online';
 import { RIGHTS } from '@/lib/rights';
+import { getSessionScope } from '@/lib/session-scope';
 import { searchSort } from '@/lib/table-search';
 
 const NOTHING_PICKED: ApprovalSelection = new Map();
@@ -155,6 +156,7 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
         },
         state: {
           ...returnState({ to: '/requisitions/approve', search }),
+          requisitionBatchSession: getSessionScope(),
           requisitionBatchRecords: [...picked.values()].flatMap((value) =>
             value.record ? [value.record] : [],
           ),

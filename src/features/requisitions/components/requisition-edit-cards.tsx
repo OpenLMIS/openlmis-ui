@@ -102,7 +102,14 @@ export function RequisitionEditCards({
   const items = virtual
     ? virtualizer.getVirtualItems()
     : rows.map((_, index) => ({ index, start: 0, end: 0, key: rows[index].id }));
-  let previousEnd = virtualizer.options.scrollMargin ?? 0;
+  const margin = virtualizer.options.scrollMargin ?? 0;
+  const padding = virtual
+    ? {
+        start: 0,
+        end: Math.max(0, virtualizer.getTotalSize() - (items.at(-1)?.end ?? margin) + margin),
+      }
+    : undefined;
+  let previousEnd = margin - 16;
   return (
     <div
       onFocusCapture={(event) => {
@@ -111,6 +118,7 @@ export function RequisitionEditCards({
       }}
     >
       <CardList
+        padding={padding}
         empty={!rows.length && empty}
         footer={footer}
         listRef={(element) => {
@@ -121,19 +129,18 @@ export function RequisitionEditCards({
       >
         {items.map((item) => {
           const row = rows[item.index];
-          const gap = virtual ? item.start - previousEnd : 0;
+          const gap = virtual ? Math.max(0, item.start - previousEnd - 16) : 0;
           previousEnd = item.end;
           return (
             <Fragment key={row.id}>
-              {gap > 16 && (
-                <li
-                  aria-hidden
-                  className="h-(--card-gap)"
-                  style={{ '--card-gap': `${gap - 16}px` } as CSSProperties}
-                />
-              )}
               {row.category !== undefined ? (
-                <li key={row.id}>
+                <li
+                  key={row.id}
+                  className="mt-(--card-gap)"
+                  style={{ '--card-gap': `${gap}px` } as CSSProperties}
+                  aria-posinset={item.index + 1}
+                  aria-setsize={rows.length}
+                >
                   <h2 className="px-1 pt-2 font-semibold text-base">
                     <bdi>{row.category}</bdi>
                   </h2>
@@ -142,6 +149,9 @@ export function RequisitionEditCards({
                 row.model && (
                   <RequisitionEditCard
                     key={row.id}
+                    virtual={
+                      virtual ? { gap, position: item.index + 1, size: rows.length } : undefined
+                    }
                     rowIndex={virtual ? item.index : undefined}
                     measure={virtual ? virtualizer.measureElement : undefined}
                     model={row.model}
@@ -159,17 +169,6 @@ export function RequisitionEditCards({
             </Fragment>
           );
         })}
-        {virtual && (
-          <li
-            aria-hidden
-            className="h-(--card-gap)"
-            style={
-              {
-                '--card-gap': `${Math.max(0, virtualizer.getTotalSize() - previousEnd + (virtualizer.options.scrollMargin ?? 0) - 16)}px`,
-              } as CSSProperties
-            }
-          />
-        )}
       </CardList>
     </div>
   );
@@ -177,6 +176,7 @@ export function RequisitionEditCards({
 
 const RequisitionEditCard = memo(function RequisitionEditCard({
   rowIndex,
+  virtual,
   measure,
   model,
   columns,
@@ -188,6 +188,7 @@ const RequisitionEditCard = memo(function RequisitionEditCard({
   pending,
   unit,
 }: {
+  virtual?: { gap: number; position: number; size: number };
   rowIndex?: number;
   measure?: (element: HTMLLIElement | null) => void;
   model: NonNullable<GridRow['model']>;
@@ -203,6 +204,7 @@ const RequisitionEditCard = memo(function RequisitionEditCard({
   const { t } = useTranslation();
   return (
     <CardListItem
+      virtual={virtual}
       itemRef={
         measure
           ? (element) => {

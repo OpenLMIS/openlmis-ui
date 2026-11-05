@@ -1376,7 +1376,7 @@ it.each(['timeout', 'gateway', 'non-json'] as const)(
   },
 );
 
-it('shares the transport budget across parallel dataset readers', async () => {
+it('starts home stock after lighter datasets while retaining the transport budget', async () => {
   localStorage.setItem('openlmis-ui.time-zone', 'UTC');
   const held = Promise.withResolvers<void>();
   let active = 0;
@@ -1413,7 +1413,7 @@ it('shares the transport budget across parallel dataset readers', async () => {
     ],
   });
   try {
-    await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(download).toHaveBeenCalledOnce());
     await waitFor(() => expect(active).toBe(2));
     expect(peak).toBe(2);
   } finally {

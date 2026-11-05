@@ -1,5 +1,17 @@
 import { CanceledError, type GenericAbortSignal } from 'axios';
 
+let routeLoading = false;
+let quietUntil = 0;
+let quietTimer: ReturnType<typeof setTimeout> | undefined;
+export function setBackgroundRouteLoading(loading: boolean) {
+  routeLoading = loading;
+  clearTimeout(quietTimer);
+  if (!loading) {
+    quietUntil = Date.now() + 1800;
+    quietTimer = setTimeout(drain, 1800);
+  }
+}
+
 let foreground = 0;
 let background = 0;
 const waiting = new Map<string, Set<() => void>>();
@@ -7,7 +19,7 @@ let drainScheduled = false;
 const providers = new Map<string, number>();
 
 const drain = () => {
-  if (drainScheduled) return;
+  if (drainScheduled || routeLoading || Date.now() < quietUntil) return;
   while (!foreground && background < 2 && waiting.size) {
     let selected: string | undefined;
     let fewest = Infinity;

@@ -100,6 +100,7 @@ import {
 import { RequisitionTabs } from '@/features/requisitions/components/requisition-tabs';
 import { StockCountDateDialog } from '@/features/requisitions/components/stock-count-date-dialog';
 import { useRequisitionForm } from '@/features/requisitions/hooks/use-requisition-form';
+import { removeApprovedFromLists } from '@/features/requisitions/lib/approval-cache';
 import { isApprovalKind, requisitionCapabilities } from '@/features/requisitions/lib/capabilities';
 import {
   applyRequisitionDraft,
@@ -514,9 +515,9 @@ function RequisitionBody({
     if (!keepKey) attempt.key = randomId();
     return fresh;
   };
-  const refreshSaved = async () => {
+  const refreshSaved = async (response?: RequisitionRecord) => {
     const scope = getSessionScope();
-    const saved = await fetchRequisition(record.id);
+    const saved = response ?? (await fetchRequisition(record.id));
     assertSessionScope(scope);
     const next = rebaseRequisitionDraft(saved, latest.current.editor.form.state.values.draft);
     editor.form.setFieldValue('draft', next);
@@ -547,7 +548,7 @@ function RequisitionBody({
     }
     return saved;
   };
-  const sync = async () => {
+  const sync = async (useSaveResponse = false) => {
     const scope = getSessionScope();
     await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
@@ -607,13 +608,13 @@ function RequisitionBody({
         throw new PatientsPayloadError();
       }
     }
-    await saveRequisition(
+    const response = await saveRequisition(
       sent,
       latest.current.editor.draft.addedLines.map((line) => line.id),
     );
     assertSessionScope(scope);
     refreshPending.current = true;
-    return refreshSaved();
+    return refreshSaved(useSaveResponse ? response : undefined);
   };
   const mutation = useSessionMutation({
     retry: false,
@@ -713,7 +714,7 @@ function RequisitionBody({
         kind === 'authorize' ||
         isApprovalKind(kind)
       ) {
-        saved = await sync();
+        saved = await sync(kind === 'approve');
         assertSessionScope(scope);
       }
       requireOnline();
@@ -805,6 +806,7 @@ function RequisitionBody({
         });
       queryClient.removeQueries({ queryKey: requisitionOptions(record.id).queryKey });
       queryClient.removeQueries({ queryKey: requisitionStatusMessagesOptions(record.id).queryKey });
+      if (kind === 'approve') removeApprovedFromLists(queryClient, [record.id]);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),

@@ -2330,3 +2330,17 @@ it('uses neutral discard wording when device drafts are unavailable', async () =
   fireEvent.click(within(dialog).getByRole('button', { name: 'discard-changes.keep-editing' }));
   queryClient.clear();
 });
+
+it('approves using the saved record and ETag without a second GET', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"saved"' } });
+  const reads = vi.mocked(fetchRequisition).mock.calls.length;
+  const post = vi.spyOn(client, 'post').mockImplementation(async () => {
+    expect(fetchRequisition).toHaveBeenCalledTimes(reads);
+    return { data: {} };
+  });
+  await confirmApproval();
+  await screen.findByText('Approval List');
+  expect(post).toHaveBeenCalledOnce();
+  queryClient.clear();
+});

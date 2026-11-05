@@ -74,58 +74,60 @@ function ConvertLayout({ pending = false }: { pending?: boolean }) {
     <ConvertTableSkeleton cards={view.cards} columns={view.columnView.visibility} search={search} />
   );
   return (
-    <Workspace>
-      <WorkspaceHeader>
-        <WorkspaceHeading>
-          <WorkspaceIcon>
-            <ClipboardListIcon />
-          </WorkspaceIcon>
-          <WorkspaceTitle>{t('requisitions.convert.title')}</WorkspaceTitle>
-          <WorkspaceDescription>{t('requisitions.convert.description')}</WorkspaceDescription>
-        </WorkspaceHeading>
-      </WorkspaceHeader>
-      <WorkspaceContent>
-        <div className="flex flex-col gap-4" ref={view.measure}>
-          <ConvertToolbar
-            search={search}
-            onFilterChange={updateSearch}
-            disabled={pending || actions.pending}
-            view={
-              <DataTableViewOptions
-                size="lg"
-                disabled={pending || actions.pending}
-                layout={view.layout}
-                columns={CONVERT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
-                  id,
-                  label: t(labelKey),
-                }))}
-                visibility={view.columnView.visibility}
-                onReset={view.columnView.onReset}
-                onVisibilityChange={view.columnView.onVisibilityChange}
-              />
-            }
-          />
-          {pending ? (
-            skeleton
-          ) : (
-            <QueryBoundary
-              resetKey={JSON.stringify(search)}
-              pendingFallback={skeleton}
-              errorComponent={ConvertError}
-            >
-              <ConvertTable
-                cards={view.cards}
-                search={search}
-                columns={view.columnView.visibility}
-                onSearchChange={updateSearch}
-                {...actions.table}
-              />
-            </QueryBoundary>
-          )}
-          {!pending && actions.controls}
-          {actions.dialogs}
-        </div>
-      </WorkspaceContent>
-    </Workspace>
+    <>
+      <Workspace>
+        <WorkspaceHeader>
+          <WorkspaceHeading>
+            <WorkspaceIcon>
+              <ClipboardListIcon />
+            </WorkspaceIcon>
+            <WorkspaceTitle>{t('requisitions.convert.title')}</WorkspaceTitle>
+            <WorkspaceDescription>{t('requisitions.convert.description')}</WorkspaceDescription>
+          </WorkspaceHeading>
+        </WorkspaceHeader>
+        <WorkspaceContent>
+          <div className="flex flex-col gap-4" ref={view.measure}>
+            <ConvertToolbar
+              search={search}
+              onFilterChange={updateSearch}
+              disabled={pending || actions.pending}
+              view={
+                <DataTableViewOptions
+                  size="lg"
+                  disabled={pending || actions.pending}
+                  layout={view.layout}
+                  columns={CONVERT_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
+                    id,
+                    label: t(labelKey),
+                  }))}
+                  visibility={view.columnView.visibility}
+                  onReset={view.columnView.onReset}
+                  onVisibilityChange={view.columnView.onVisibilityChange}
+                />
+              }
+            />
+            {pending ? (
+              skeleton
+            ) : (
+              <QueryBoundary
+                resetKey={JSON.stringify(search)}
+                pendingFallback={skeleton}
+                errorComponent={ConvertError}
+              >
+                <ConvertTable
+                  cards={view.cards}
+                  search={search}
+                  columns={view.columnView.visibility}
+                  onSearchChange={updateSearch}
+                  {...actions.table}
+                />
+              </QueryBoundary>
+            )}
+            {actions.dialogs}
+          </div>
+        </WorkspaceContent>
+      </Workspace>
+      {!pending && actions.controls}
+    </>
   );
 }

@@ -562,3 +562,28 @@ and event/animation-frame measurement. This demonstrates the requested sub-50 ms
 on the large fixture; it does not override the slower navigation medians above.
 Final screenshots use the `pinned-batch-*` prefix; all four layouts retain fixed widths and
 pinned totals, including 1024px, with the Total row reachable at the end of page scroll.
+
+## K10, K11 And Approval Performance Follow-Up (2026-11-05)
+
+- K10: Size columns from baseline models, formatted costs and uppercase header fonts. Reserve ten
+  quantity digits, keep widths unchanged while typing and permit input text to scroll internally.
+- K11: Replace virtual spacer list items with padding and item margins; retain virtual positions.
+- AP1: Accept selected approval-list rows immediately, with membership retained for offline capture.
+- AP2: Use saveAll records directly; retain failed records/reasons and refresh membership afterwards.
+- AP3: Read all batch sizes before CSS writes and skip unchanged variables.
+- AP4: Cache sorted product models between keystrokes and recalculate changed lines. The full draft
+  subscription remains; timing results must establish whether additional subscription work is needed.
+- AP5: Drop route cache on exit and preserve unchanged membership identities during warm editing.
+- AP6: Remove confirmed ids from all cached approval pages before returning to the list.
+- AP7: Single Approve uses the save response and ETag without the intervening GET.
+- C7: Convert uses the selection footer; no-selection dialogs and keys are removed.
+- E-1: Pause new background requests during navigation and its 1.8-second quiet window. Heavy
+  home-stock datasets start after lighter workers; transport limits and complete generations remain.
+- E-2: The earlier Convert waterfall starts its own list GET at 48 ms and finishes near 939 ms;
+  the 5012 ms observation includes later reference/download work. Route/reference reads were already
+  parallel. The download gate addresses that contention without adding another list dependency.
+- E-3: Already implemented: Create Orders reads cached facilities with useQuery, cached user programs
+  render immediately, and idle requisition chunk warming includes Create Orders. No duplicate preload.
+
+Production build, navigation/Approve timings, blocked writes and individual samples are stored in
+`.screenshots/FM-39-r4/`. Timing results below distinguish remaining slower steps explicitly.

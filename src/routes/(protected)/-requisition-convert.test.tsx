@@ -387,25 +387,24 @@ it('checks every submitted status and clears all ticks after a 502', async () =>
   expect(boxes[2]).not.toBeChecked();
   queryClient.clear();
 });
-it.each([true, false])(
-  'validates empty selection for action %s without a request',
-  async (createOrder) => {
-    rows();
-    const { queryClient } = renderRoute('/requisitions/convert');
-    await screen.findAllByText('March');
-    await action(createOrder);
-    await screen.findByText(
-      createOrder
-        ? 'requisitions.convert.select-none-convert'
-        : 'requisitions.convert.select-none-release',
-    );
-    expect(
-      screen.getByRole('heading', { name: 'requisitions.convert.select-none' }),
-    ).toBeInTheDocument();
-    expect(releaseRequisitions).not.toHaveBeenCalled();
-    queryClient.clear();
-  },
-);
+it('shows release actions only in the selection footer', async () => {
+  rows();
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await screen.findAllByText('March');
+  expect(
+    screen.queryByRole('button', { name: /^requisitions.convert.convert/ }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: /^requisitions.convert.convert/ }),
+  ).not.toBeInTheDocument();
+  await selectRow();
+  expect(
+    screen
+      .getByRole('button', { name: /^requisitions.convert.convert/ })
+      .closest('[data-slot="selection-footer"]'),
+  ).toBeInTheDocument();
+  queryClient.clear();
+});
 
 it('closes confirmation on a filter change while retaining the selected requisition', async () => {
   rows();

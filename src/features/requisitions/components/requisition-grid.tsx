@@ -445,23 +445,38 @@ export function RequisitionGridView({
     () => columns.filter((column) => visibleKey.split('|').includes(column.name)),
     [columns, visibleKey],
   );
+  const widthModels = useRef({ record, models });
+  if (widthModels.current.record !== record) widthModels.current = { record, models };
+  const baselineModels = widthModels.current.models;
   const sizing = useMemo(
     () =>
       rowColumns.map((column) => ({
         label: column.label,
         min: column.kind === 'skip' ? 56 : column.name === 'orderable.fullProductName' ? 240 : 112,
-        max: column.kind === 'skip' ? 80 : column.name === 'orderable.fullProductName' ? 384 : 240,
-        values: models.map((model) =>
+        max:
+          column.kind === 'skip'
+            ? 80
+            : column.name === 'orderable.fullProductName'
+              ? 384
+              : Number.POSITIVE_INFINITY,
+        values: baselineModels.map((model) =>
           String(
             column.name === 'orderable.fullProductName'
               ? (model.product?.fullProductName ?? '')
               : column.name === 'orderable.productCode'
                 ? (model.product?.productCode ?? '')
-                : (model.line[column.name as keyof RequisitionLineItem] ?? ''),
+                : column.kind === 'currency'
+                  ? (formatCurrency(
+                      model.line[column.name as keyof RequisitionLineItem] as number,
+                      currency,
+                    ) ?? '')
+                  : column.kind === 'quantity' || column.kind === 'count'
+                    ? '0000000000'
+                    : (model.line[column.name as keyof RequisitionLineItem] ?? ''),
           ),
         ),
       })),
-    [rowColumns, models],
+    [rowColumns, baselineModels, currency],
   );
   const widths = useGridWidths(region, sizing, !view.cards);
   const leadingPinned = visible.findIndex((column) => !pinnedColumns.has(column.id));

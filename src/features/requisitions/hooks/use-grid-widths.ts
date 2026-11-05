@@ -12,7 +12,9 @@ export function useGridWidths(
     const element = frame.current;
     const context = document.createElement('canvas').getContext('2d');
     if (!element || !context) return;
-    context.font = getComputedStyle(element).font || '14px sans-serif';
+    const header = element.querySelector('th');
+    const style = getComputedStyle(header ?? element);
+    context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
     const measure = (text: string) => {
       const key = `${context.font}:${text}`;
       let width = cache.current.get(key);
@@ -23,7 +25,13 @@ export function useGridWidths(
       return width;
     };
     const next = columns.map(({ label, values, min = 96, max = 384 }) => {
-      const header = Math.max(...label.split(/\s+/).map((word) => measure(word))) + 40;
+      const header =
+        Math.max(
+          ...label
+            .toLocaleUpperCase()
+            .split(/\s+/)
+            .map((word) => measure(word)),
+        ) + 40;
       const value = Math.max(0, ...values.map((value) => measure(value))) + 24;
       return Math.ceil(Math.min(max, Math.max(min, header, value)));
     });

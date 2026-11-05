@@ -149,7 +149,11 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
         min: 240,
       },
       ...records.flatMap(() => [
-        { label: t('requisitions.batch.approved-quantity'), values: quantities, min: 112 },
+        {
+          label: t('requisitions.batch.approved-quantity'),
+          values: [...quantities, '0000000000'],
+          min: 112,
+        },
         { label: t('requisitions.batch.cost'), values: costs },
       ]),
       { label: t('requisitions.batch.quantity'), values: quantities },
@@ -171,7 +175,6 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
     const measure = () => {
       const footerHeight =
         frame.current?.querySelector('tfoot')?.getBoundingClientRect().height ?? 48;
-      frame.current?.style.setProperty('--table-footer-height', `${footerHeight}px`);
       const height = header.current?.getBoundingClientRect().height ?? 128;
       setHeaderHeight(height);
       setScrollMargin((frame.current?.getBoundingClientRect().top ?? 0) + window.scrollY + height);
@@ -179,10 +182,6 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
       const nameWidth = name.current?.getBoundingClientRect().width ?? 0;
       const costWidth = cost.current?.getBoundingClientRect().width ?? 0;
       const quantityWidth = quantity.current?.getBoundingClientRect().width ?? 0;
-      frame.current?.style.setProperty('--batch-code-width', `${codeWidth}px`);
-      frame.current?.style.setProperty('--batch-name-width', `${nameWidth}px`);
-      frame.current?.style.setProperty('--batch-cost-width', `${costWidth}px`);
-      frame.current?.style.setProperty('--batch-quantity-width', `${quantityWidth}px`);
       const end =
         codeWidth +
           nameWidth +
@@ -190,6 +189,18 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
           quantityWidth +
           (firstGroup.current?.getBoundingClientRect().width ?? 0) / 2 <
         (frame.current?.getBoundingClientRect().width ?? 0);
+      const properties = {
+        '--table-footer-height': footerHeight,
+        '--batch-code-width': codeWidth,
+        '--batch-name-width': nameWidth,
+        '--batch-cost-width': costWidth,
+        '--batch-quantity-width': quantityWidth,
+      };
+      for (const [key, value] of Object.entries(properties)) {
+        const next = `${value}px`;
+        if (frame.current?.style.getPropertyValue(key) !== next)
+          frame.current?.style.setProperty(key, next);
+      }
       frame.current?.toggleAttribute('data-pin-end', end);
     };
     const positionHeader = () => {

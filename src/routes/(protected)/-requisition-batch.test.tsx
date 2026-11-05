@@ -89,6 +89,8 @@ function renderRoute(ids = records.map((r) => r.id).join(','), state?: HistorySt
     loader: Route.options.loader as never,
     component: Route.options.component as never,
     pendingComponent: Route.options.pendingComponent as never,
+    gcTime: Route.options.gcTime,
+    staleTime: Route.options.staleTime,
   } as never);
   const list = createRoute({
     getParentRoute: () => layout,
@@ -296,8 +298,10 @@ it('never approves a failed save and keeps its reason alongside approval failure
   await waitFor(() =>
     expect(router.state.location.search).toMatchObject({ ids: records.map((r) => r.id).join(',') }),
   );
-  expect(screen.getByRole('alertdialog').textContent).toMatch(
-    /No facility permission[\s\S]*Modified elsewhere/,
+  await waitFor(() =>
+    expect(screen.getByRole('alertdialog').textContent).toMatch(
+      /No facility permission[\s\S]*Modified elsewhere/,
+    ),
   );
   await screen.findAllByText(/No facility permission/);
   expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]);
@@ -456,15 +460,13 @@ it('refreshes after a failed Sync and names only affected records for review', a
   expect(description).toContain(records[0].periodName);
   expect(description).not.toContain(records[1].periodName);
 });
-it('keeps a refusal reason after the Sync refetch', async () => {
-  vi.mocked(fetchBatchRequisitions)
-    .mockResolvedValueOnce({ requisitionDtos: records })
-    .mockResolvedValue({
-      requisitionDtos: [records[0]],
-      requisitionErrors: [
-        { requisitionId: records[1].id, errorMessage: { message: 'Access revoked' } },
-      ],
-    });
+it('keeps a refusal reason from the Sync response', async () => {
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [records[0]],
+    requisitionErrors: [
+      { requisitionId: records[1].id, errorMessage: { message: 'Access revoked' } },
+    ],
+  });
   renderRoute();
   const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
   await waitFor(() => expect(sync).toBeEnabled());
@@ -545,7 +547,7 @@ it('shows missing product placeholders, invalid markers and save failure reasons
   expect(screen.getAllByText('requisitions.batch.invalid-requisition').length).toBeGreaterThan(0);
   await userEvent.type(inputs[1], '12');
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
-  await screen.findAllByText(/Card save refused/);
+  await screen.findByRole('button', { name: 'dialog.close' });
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
   expect(screen.getAllByText('Card save refused').length).toBeGreaterThan(0);
 });
@@ -897,7 +899,7 @@ it('shows the saved batch response before its device copy finishes', async () =>
       approvedQuantity: 88,
     })),
   }));
-  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: saved });
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({ requisitionDtos: saved });
   const copy = Promise.withResolvers<void>();
   capture.mockImplementation(() => copy.promise);
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
@@ -1130,4 +1132,45 @@ it('keeps Sync membership when the opening read finishes later', async () => {
   await act(async () => opening.resolve({ content: [], totalPages: 1 } as never));
   expect(approve).toBeEnabled();
   expect(screen.queryByText('requisitions.batch.no-longer-awaiting')).not.toBeInTheDocument();
+});
+
+it('uses the saveAll response for Sync without retrieving the batch again', async () => {
+  security.secure = false;
+  renderRoute();
+  const input = (await screen.findAllByRole('textbox'))[0];
+  await waitFor(() => expect(input).toBeEnabled());
+  await userEvent.clear(input);
+  await userEvent.type(input, '123');
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.sync' })).toBeEnabled(),
+  );
+  expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
+});
+
+it('keeps focus and every keystroke when reopening a warm batch', async () => {
+  security.secure = false;
+  const { router } = renderRoute();
+  await screen.findAllByRole('textbox');
+  await act(() => router.navigate({ to: '/requisitions/approve' }));
+  await screen.findByText('Approval List');
+  const opening = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
+  vi.mocked(fetchApprovalList).mockReturnValueOnce(opening.promise);
+  await act(() =>
+    router.navigate({
+      to: '/requisitions/approve/batch',
+      search: { ids: records.map((r) => r.id).join(',') },
+    }),
+  );
+  const input = (await screen.findAllByRole('textbox'))[0];
+  await waitFor(() => expect(input).toBeEnabled());
+  await userEvent.clear(input);
+  await userEvent.type(input, '987');
+  await act(() =>
+    opening.resolve({ content: records.map((r) => ({ id: r.id })), totalPages: 1 } as never),
+  );
+  await userEvent.type(input, '6543', { skipClick: true });
+  expect(input).toHaveFocus();
+  expect(input).toHaveValue('9876543');
 });

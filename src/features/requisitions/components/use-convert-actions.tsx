@@ -2,7 +2,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { DataTableSelectionBar } from '@/components/data-table/data-table-selection';
+import {
+  DataTableSelectionBar,
+  SelectionBarLabel,
+} from '@/components/data-table/data-table-selection';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import {
@@ -39,7 +42,6 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { settleFew } from '@/lib/settle-few';
 
 type Problem =
-  | { kind: 'none'; createOrder: boolean }
   | { kind: 'depot' }
   | { kind: 'server'; message?: string }
   | { kind: 'uncertain' }
@@ -166,7 +168,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
   const request = (createOrder: boolean) => {
     if (sending.current || mutation.isPending) return;
     const error = convertSelectionError(picked, depots);
-    if (error === 'none') setProblem({ kind: 'none', createOrder }, filter);
+    if (error === 'none') return;
     else if (error === 'depot') {
       setInvalid(true);
       setProblem({ kind: 'depot' }, filter);
@@ -197,63 +199,45 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
         listRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? null;
     setProblem(null, filter);
   };
-  const actionButton = (createOrder: boolean, selection: boolean) => (
+  const actionButton = (createOrder: boolean) => (
     <Button
-      size={selection ? 'sm' : 'lg'}
+      size="lg"
       variant={createOrder ? 'default' : 'outline'}
       disabled={mutation.isPending}
       onClick={() => request(createOrder)}
     >
-      {t(
-        selection
-          ? createOrder
-            ? 'requisitions.convert.convert-short'
-            : 'requisitions.convert.release-short'
-          : createOrder
-            ? 'requisitions.convert.convert'
-            : 'requisitions.convert.release',
-      )}
+      <SelectionBarLabel
+        full={t(createOrder ? 'requisitions.convert.convert' : 'requisitions.convert.release')}
+        short={t(
+          createOrder ? 'requisitions.convert.convert-short' : 'requisitions.convert.release-short',
+        )}
+      />
     </Button>
   );
   const controls = (
-    <>
-      {hasRows && !picked.size && (
-        <div className="flex flex-wrap justify-between gap-2">
-          {actionButton(false, false)}
-          {actionButton(true, false)}
-        </div>
+    <DataTableSelectionBar
+      placement="footer"
+      count={picked.size}
+      onClear={() => {
+        if (!sending.current) {
+          setPicked(new Map());
+          setInvalid(false);
+          focusList();
+        }
+      }}
+    >
+      {hasRows && (
+        <>
+          {actionButton(false)}
+          {actionButton(true)}
+        </>
       )}
-      <DataTableSelectionBar
-        count={picked.size}
-        onClear={() => {
-          if (!sending.current) {
-            setPicked(new Map());
-            setInvalid(false);
-            focusList();
-          }
-        }}
-      >
-        {hasRows && (
-          <>
-            {actionButton(false, true)}
-            {actionButton(true, true)}
-          </>
-        )}
-      </DataTableSelectionBar>
-    </>
+    </DataTableSelectionBar>
   );
   const messages = {
     depot: {
       title: t('requisitions.convert.no-depot'),
       description: t('requisitions.convert.no-depot-description'),
-    },
-    none: {
-      title: t('requisitions.convert.select-none'),
-      description: t(
-        problem?.kind === 'none' && problem.createOrder
-          ? 'requisitions.convert.select-none-convert'
-          : 'requisitions.convert.select-none-release',
-      ),
     },
     'release-unknown': {
       title: t('requisitions.convert.release-unknown'),

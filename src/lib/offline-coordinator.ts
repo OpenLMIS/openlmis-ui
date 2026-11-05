@@ -375,11 +375,15 @@ export function startOfflineCoordinator(dependencies: Dependencies) {
             }
           }
         };
-        await Promise.all(
-          [...new Set(queue.map((work) => work.provider))].map((provider) =>
-            worker(queue.filter((work) => work.provider === provider)),
-          ),
-        );
+        const queuedProviders = [...new Set(queue.map((work) => work.provider))];
+        for (const heavy of [false, true]) {
+          await Promise.all(
+            queuedProviders
+              .filter((provider) => (provider.id === 'home-stock') === heavy)
+              .map((provider) => worker(queue.filter((work) => work.provider === provider))),
+          );
+          check();
+        }
         await preparedTimeZone;
         if (timeZoneError) throw timeZoneError;
         check();

@@ -114,6 +114,24 @@ function RequisitionTabsView({
     [record],
   );
   const cache = useRef(new Map<string, LineCacheEntry>());
+  const baseModels = useMemo(
+    () =>
+      buildLines(
+        draft?.addedLines.length
+          ? {
+              ...record,
+              requisitionLineItems: [...record.requisitionLineItems, ...draft.addedLines],
+            }
+          : record,
+        products,
+        approvedProducts,
+      ),
+    [record, products, approvedProducts, draft?.addedLines],
+  );
+  const currentLines = useMemo(
+    () => new Map(current.requisitionLineItems.map((line) => [line.id, line])),
+    [current],
+  );
   const { models, totals, errors } = useMemo(() => {
     if (
       cacheContext.current.record !== record ||
@@ -132,7 +150,8 @@ function RequisitionTabsView({
       };
     }
     const next = new Map<string, LineCacheEntry>();
-    const models = buildLines(current, products, approvedProducts).map((model) => {
+    const models = baseModels.map((base) => {
+      const model = { ...base, line: currentLines.get(base.line.id) ?? base.line };
       const source = sources.get(model.line.id);
       const changes = draft?.lines[model.line.id];
       const patientTotal =
@@ -197,10 +216,10 @@ function RequisitionTabsView({
     return { models, totals: calculateTotals(models), errors };
   }, [
     record,
+    baseModels,
+    currentLines,
     sources,
     current,
-    products,
-    approvedProducts,
     period.durationInMonths,
     editing?.editable,
     editing?.editableColumns,

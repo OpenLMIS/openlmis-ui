@@ -57,6 +57,7 @@ import {
 } from '@/features/requisitions/components/requisition-copy-notice';
 import { RequisitionOutdatedAlert } from '@/features/requisitions/components/requisition-outdated-alert';
 import { type BatchDrafts, useBatchDrafts } from '@/features/requisitions/hooks/use-batch-drafts';
+import { removeApprovedFromLists } from '@/features/requisitions/lib/approval-cache';
 import {
   batchApprovable,
   batchIds,
@@ -111,6 +112,8 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   validateSearch: z.object({ ids: z.string().catch(''), program: z.string().optional() }),
   loaderDeps: ({ search }) => ({ ids: batchIds(search.ids), program: search.program }),
   preload: false,
+  gcTime: 0,
+  staleTime: Infinity,
   loader: async ({ location, context: { queryClient }, deps: { ids, program } }) => {
     const scope = getSessionScope();
     await prepareRequisitionAccess(queryClient);
@@ -118,9 +121,17 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
     const leases = isSecureOrigin ? await Promise.all(ids.map(beginCopy)) : [];
     let copyResult: Promise<unknown> | undefined;
     let membership: Promise<BatchMembership> | undefined;
-    const cachedMembership = location?.state.requisitionBatchRecords?.length
-      ? cachedBatchMembership(queryClient, ids, program)
-      : undefined;
+    const selected =
+      location?.state.requisitionBatchSession === scope
+        ? (location.state.requisitionBatchRecords ?? [])
+        : [];
+    const picked = selected.filter(
+      (row) => ids.includes(row.id) && (!program || row.program.id === program),
+    );
+    const cachedMembership =
+      picked.length === ids.length && ids.length
+        ? { found: picked, remaining: new Set<string>() }
+        : cachedBatchMembership(queryClient, ids, program);
     const loaded = await onlineOrDevice(
       async () => {
         const batch = queryClient.fetchQuery(batchRequisitionsOptions(ids));
@@ -294,6 +305,7 @@ function BatchPage() {
     const revision = membershipRevision.current;
     void loaded.membership.then((found) => {
       if (!active || scope !== getSessionScope() || revision !== membershipRevision.current) return;
+      if (loaded.cachedMembership) return;
       setMembershipFailure('error' in found);
       membership.current = found;
       setResponse((current) => orderBatch(verifyBatchMembership(current, found), loaded.ids));
@@ -510,7 +522,7 @@ function BatchPage() {
         report(new Map(affected.map((id) => [id, 'requisitions.batch.review-refreshed'])));
         return;
       }
-      if (kind === 'approve') {
+      if (kind === 'approve' && !loaded.cachedMembership) {
         membershipRevision.current++;
         const found = await fetchBatchMembership(ids, scope, search.program);
         assertSessionScope(scope);
@@ -571,8 +583,17 @@ function BatchPage() {
       for (const [id, reason] of save.failed)
         failures.set(id, reason || 'requisitions.batch.save-failed');
       needsRefresh.current = eligible.map((r) => r.id);
-      const fresh =
-        kind === 'sync' || failures.size ? await refresh() : orderBatch(saveResponse, ids);
+      membershipRevision.current++;
+      const fresh = orderBatch(
+        {
+          ...saveResponse,
+          requisitionDtos: records.map(
+            (record) =>
+              saveResponse.requisitionDtos?.find((saved) => saved.id === record.id) ?? record,
+          ),
+        },
+        ids,
+      );
       assertSessionScope(scope);
       setResponse(fresh);
       await drafts.clear(save.succeeded, fresh.requisitionDtos, false);
@@ -596,6 +617,15 @@ function BatchPage() {
       }
       needsRefresh.current = [];
       if (kind === 'sync') {
+        const revision = membershipRevision.current;
+        void fetchBatchMembership(ids, scope, search.program)
+          .then((found) => {
+            if (scope !== getSessionScope() || revision !== membershipRevision.current) return;
+            membership.current = found;
+            setMembershipFailure('error' in found);
+            if (!('error' in found)) setVerifiedOpening(loaded);
+          })
+          .catch(() => {});
         report(failures);
         if (save.succeeded.length)
           toast.success(t('requisitions.batch.synced', { count: save.succeeded.length }), {
@@ -693,6 +723,7 @@ function BatchPage() {
           await drafts.mark(resolvedApprovals, false);
         }
       }
+      removeApprovedFromLists(queryClient, approved);
       await drafts.clear(approved, [], false);
       void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all });
