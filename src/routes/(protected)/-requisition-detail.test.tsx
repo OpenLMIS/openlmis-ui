@@ -2045,7 +2045,7 @@ it.each(['submit', 'approve'] as const)('updates the saved single copy after %s'
   if (kind === 'submit') await confirmAction();
   else await confirmApproval();
   await screen.findByText(kind === 'submit' ? 'Opening List' : 'Approval List');
-  expect((await readSingle('r')).single.record.status).toBe(status);
+  await waitFor(async () => expect((await readSingle('r')).single.record.status).toBe(status));
   queryClient.clear();
 });
 
@@ -2244,5 +2244,24 @@ it('starts known period, program and currency reads while the fresh requisition 
   });
   await act(async () => finish(patientRecord()));
   await screen.findByRole('tab', { name: 'requisitions.requisition.patients', selected: true });
+  queryClient.clear();
+});
+
+it('finishes Sync and Submit while complete copy capture is still pending', async () => {
+  const capture = await import('@/features/requisitions/lib/offline-capture-single');
+  const saveCopy = vi.spyOn(capture, 'captureSingle').mockResolvedValue({} as never);
+  const { base, queryClient } = await openEditor(false, true);
+  await waitFor(() => expect(saveCopy).toHaveBeenCalledOnce());
+  saveCopy.mockImplementation(() => new Promise(() => {}));
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(saveCopy).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' })).toBeEnabled(),
+  );
+  await confirmAction();
+  await screen.findByText('Opening List');
+  expect(post).toHaveBeenCalledOnce();
   queryClient.clear();
 });

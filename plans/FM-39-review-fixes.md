@@ -259,3 +259,11 @@ Evidence: view-timing/new-blocked.json and legacy-idle60.json in the sibling fm3
 worktree. These changes remove measured waterfalls and duplicate reads. Unit and interaction
 checks verify ordering and request counts; no new server/browser timings were collected, so the
 legacy latency ceiling still needs measurement in the parent review.
+
+## Screen Review Fix Pass (2026-11-05)
+
+- E1: Sync and the save before Submit, Authorize, Approve, Reject and Print start complete-copy
+  capture without waiting for it. The server baseline and draft flush still finish first.
+  Terminal actions retire stale copies before returning; replacement capture runs independently.
+  Capture failures remain visible and callbacks check the captured session before publishing.
+  Regression: a pending capture cannot keep Sync locked or prevent Submit from returning.

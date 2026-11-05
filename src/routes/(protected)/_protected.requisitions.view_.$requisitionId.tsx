@@ -404,10 +404,12 @@ function RequisitionBody({
   const [record, setRecord] = useState(data.record);
   const [loaderOutdated, setLoaderOutdated] = useState(false);
   const [copyFailure, setCopyFailure] = useState<unknown>();
+  const [copyResult, setCopyResult] = useState(data.copyResult);
   const copyOpening = useRef(data.copyResult);
   if (copyOpening.current !== data.copyResult) {
     copyOpening.current = data.copyResult;
     setCopyFailure(undefined);
+    setCopyResult(data.copyResult);
   }
   const accessEpoch = useRef(data.accessEpoch);
   const currentData = { ...data, record };
@@ -516,14 +518,17 @@ function RequisitionBody({
     assertSessionScope(scope);
     if (isSecureOrigin) {
       const lease = await beginCopy(saved.id);
-      try {
-        await captureSingle(queryClient, lease, saved, 'read');
-        setCopyFailure(null);
-      } catch (error) {
-        assertSessionScope(scope);
-        setCopyFailure(error);
-      }
       attachCopyLease(saved, lease);
+      const result = captureSingle(queryClient, lease, saved, 'read').then(
+        () => {
+          if (scope === getSessionScope()) setCopyFailure(null);
+        },
+        (error: unknown) => {
+          if (scope === getSessionScope()) setCopyFailure(error);
+          return error;
+        },
+      );
+      setCopyResult(result);
     }
     return saved;
   };
@@ -766,13 +771,6 @@ function RequisitionBody({
           await retireCopy(await beginCopy(record.id));
           assertSessionScope(scope);
           retired = true;
-          if (kind !== 'delete' && kind !== 'skip') {
-            const fresh = await fetchRequisition(record.id);
-            assertSessionScope(scope);
-            await captureSingle(queryClient, await beginCopy(record.id), fresh, 'read', {
-              freshMessages: true,
-            });
-          }
         } catch (error) {
           assertSessionScope(scope);
           if (!(error instanceof LocalDataUnavailableError))
@@ -797,6 +795,19 @@ function RequisitionBody({
         queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),
       ]);
       assertSessionScope(scope);
+      if (isSecureOrigin && retired && kind !== 'delete' && kind !== 'skip') {
+        void (async () => {
+          const fresh = await fetchRequisition(record.id);
+          assertSessionScope(scope);
+          const lease = await beginCopy(record.id);
+          await captureSingle(queryClient, lease, fresh, 'read', { freshMessages: true });
+        })().catch((error: unknown) => {
+          if (scope !== getSessionScope() || error instanceof LocalDataUnavailableError) return;
+          toast.error(t('requisitions.offline.failed-title'), {
+            description: t('requisitions.offline.refresh-failed-description'),
+          });
+        });
+      }
       toast.success(
         t(
           `requisitions.edit.success.${kind === 'submitAndAuthorize' ? 'submit-and-authorize' : kind}`,
@@ -1052,7 +1063,7 @@ function RequisitionBody({
             representation="single"
             local={isDeviceAccess(record)}
             id={record.id}
-            result={data.copyResult}
+            result={copyResult}
             failure={copyFailure}
           />
           {serverStatus && (
