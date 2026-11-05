@@ -188,7 +188,7 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
           nameWidth +
           costWidth +
           quantityWidth +
-          (firstGroup.current?.getBoundingClientRect().width ?? 0) <
+          (firstGroup.current?.getBoundingClientRect().width ?? 0) / 2 <
         (frame.current?.getBoundingClientRect().width ?? 0);
       frame.current?.toggleAttribute('data-pin-end', end);
     };

@@ -522,3 +522,43 @@ Safety limitation: the supplied legacy initiation harness sent one successful GE
 we cannot establish whether any draft was affected. The adapted harness removes this flag before
 forwarding GETs. Final target timings cover View picker/search, batch, Convert and Create Orders;
 they omit initiation and record-opening steps outside the requested performance targets.
+
+### Final Live Timing
+
+The 48 target contexts completed without harness errors. Values below are medians of three
+runs in milliseconds. Every slower median is marked, with no tolerance threshold.
+| Step | State | New (ms) | Legacy (ms) | Result |
+|---|---|---:|---:|---|
+| View Picker | cold-early | 214 | 119 | SLOWER |
+| View Picker | cold-settled | 104 | 131 | Faster |
+| View Picker | warm | 44 | 88 | Faster |
+| View Search | cold-early | 1011 | 1018 | Faster |
+| View Search | cold-settled | 546 | 626 | Faster |
+| View Search | warm | 37 | 594 | Faster |
+| Approve List | cold-early | 3768 | 3032 | SLOWER |
+| Approve List | cold-settled | 2558 | 2715 | Faster |
+| Approve List | warm | 61 | 2837 | Faster |
+| Batch First Value | cold-early | 1631 | 1028 | SLOWER |
+| Batch First Value | cold-settled | 608 | 788 | Faster |
+| Batch First Value | warm | 90 | 582 | Faster |
+| Batch Approve Clickable | cold-early | 1887 | 1254 | SLOWER |
+| Batch Approve Clickable | cold-settled | 864 | 1055 | Faster |
+| Batch Approve Clickable | warm | 353 | 843 | Faster |
+| Convert List | cold-early | 5012 | 1205 | SLOWER |
+| Convert List | cold-settled | 711 | 918 | Faster |
+| Convert List | warm | 68 | 1690 | Faster |
+| Create Orders Options | cold-early | 256 | 105 | SLOWER |
+| Create Orders Options | cold-settled | 160 | 130 | SLOWER |
+| Create Orders Options | warm | 96 | 144 | Faster |
+
+Home completed in 4309, 4032 and 4973 ms (median 4309 ms), improving the reported 32-41 seconds
+but remaining above the 3-4 second target. The performance gate is not satisfied: early steps
+and settled Create Orders remain slower than legacy. Complete waterfalls, stubs, individual
+runs and long tasks are in `timing.json`; no unsuccessful run is counted as a passing sample.
+
+The 10 x 200 fixture recorded 30 input-to-next-frame samples: new UI p90 18.3 ms (18 mounted
+rows), legacy p90 3333.6 ms (200 rows and 2000 inputs). Both used the same generated batch data
+and event/animation-frame measurement. This demonstrates the requested sub-50 ms typing target
+on the large fixture; it does not override the slower navigation medians above.
+Final screenshots use the `pinned-batch-*` prefix; all four layouts retain fixed widths and
+pinned totals, including 1024px, with the Total row reachable at the end of page scroll.

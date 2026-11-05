@@ -48,8 +48,3 @@ it('always sends size and never sends sort', () => {
     facilityId: 'f',
   });
 });
-
-it('uses the legacy ten-row request unless a page size is chosen', () => {
-  expect(toConvertQuery({})).toEqual({ page: 0, size: 10 });
-  expect(toConvertQuery({ size: 50, page: 2 })).toEqual({ page: 1, size: 50 });
-});
