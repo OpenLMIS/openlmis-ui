@@ -267,3 +267,100 @@ legacy latency ceiling still needs measurement in the parent review.
   Terminal actions retire stale copies before returning; replacement capture runs independently.
   Capture failures remain visible and callbacks check the captured session before publishing.
   Regression: a pending capture cannot keep Sync locked or prevent Submit from returning.
+
+### Screen Review Item Ledger
+
+Tests below are focused existing suites plus the added regressions, never the full suite.
+
+- E1: Server actions no longer await complete copies; pending-capture Sync/Submit regression and saved-copy lifecycle tests.
+- E2: Already fixed by card polish: RequisitionInput and shared hidden-field text wrap sr-only labels; local English/Arabic 390px screenshots have no page overflow.
+- E3: Cache column compilation, reuse calculated lines during validation, use explicit checkbox labels, and render visible rows on large pages; template, tabs, validation and offscreen-focus regressions plus production timing.
+- E4: Direct Delete and Skip return to Create/Authorize; direct-Delete return regression and existing workflow tests.
+- E5: Neutral discard wording without device drafts, including insecure batch pages; unavailable-device leave regression.
+- A1: Adjustment cells and dialogs use editable columns, including Patients products; approver read-only dialog regression and capability/grid tests.
+- A2: Direct rejection-reason links check the template flag; direct-link regression.
+- A3: Exhausted reason categories disappear and return with removed selections; rejection-category regression.
+- A4: Unreadable patient copy names the requisition and recovery action; empty comments are hidden without comment rights; comments regression.
+- B1: Batch writes have timeout 0; request-config regression.
+- B2: Batch-only row names include program, facility and period; shared row-link construction and approval-list coverage.
+- B3: Missing approval program returns an empty local page and asks the user to choose a program; local-search regression.
+- B4: Empty results hide selection actions; empty-list regression.
+- B5: Remove duplicate access preparation; approval-loader tests.
+- B6: Error titles count displayed rows and known ids become labels; missing/refused and partial-failure batch tests.
+- B7: Uncertain alerts use shared flowing actions below the text; design-system lint and batch workflow tests.
+- B8: Approve Anyway is unavailable offline with a reachable explanation; offline-marker regression.
+- B9: Check Again announces unchanged uncertainty; lost-approval reconciliation feedback regression.
+- C1: Definite Convert/Release failures clear selection and refetch, substituting selected labels for ids; refused-selection regression.
+- C2: Program chosen for a drafted facility stays in draft until Search applies the pair; drafted facility/program interaction regression.
+- C3: Focus returns to the list before refresh and after closing errors; refused-selection focus regression and existing successful/uncertain workflow tests.
+- C4: Confirmation retains its last Convert/Release kind while closing; confirmation and retry workflows.
+- C5: Already fixed by 7d3d8428: direct View search runs once, facility picker pages/searches 50; existing direct-entry search regression.
+- C6: Arabic initiation-date labels and View requisition terminology are corrected; Orders consistently use orders terminology; catalog parity/type checking.
+- O1: Not reproduced: a deferred, fresh supplier query after first-row removal preserves focus on b4c93bb8 too. Keep the regression, omit an unnecessary columns refactor.
+- O2: Existing memoized OrderLine retained; local production harness measures 100-line typing at about 14-15ms. Supplied evidence has no numeric legacy order-typing baseline, so fresh legacy parity is not claimed.
+- O3: Confirmed summary closure targets a focusable h1; order workflow tests.
+- O4: Add focuses the new quantity input; Add/remove interaction regression.
+- O5: Unavailable tabs use Order and a short code; surviving-draft navigation tests.
+- O6: Summary Product displays the name; the separate code column retains the code; summary content assertions.
+- F1: Insecure approval lists omit Offline; shared column policy and approval tests.
+- F2: Offline copy wording describes stock plus requisitions and does not tell connected users to connect; all five catalogs updated.
+- H1: Create/Authorize reused-key recovery asks for Search rather than an absent Update; failure-message regression.
+- H2: Remove the impossible direct-offline test scenario from FM-40. Keep requireOnline because a mounted page can disconnect before Proceed.
+- U1: Header/mobile copy badges replace the saving note, keep failure Retry, and hide on insecure origins; pending/failure badge regression and local screenshots.
+- U2: Larger adjustment totals, semibold values and hidden Actions label with centred trash controls; adjustment dialog tests. Equivalent Stock reasons totals, header and trash alignment match.
+- U3: Plain Skip label names All / This Page / None; existing single-write bulk regression and production timings below.
+- U4: Bounded, two-line product/treatment labels and centred tight Skip columns, including batch grids; grid/Patients tests and local English/Arabic screenshots.
+
+### Production Timing And Evidence
+
+`pnpm vite build --outDir .screenshots/FM-39-fix/dist`, headless Chrome, 1003-line Essential
+Meds template, 100-line order fixture. Every request is fulfilled from local files or API fixtures;
+no server is contacted. Copy-only orderable batches have a fixed 500ms delay. No HTTP mutation
+escapes the harness. Scripts, JSON timings and screenshots are under `.screenshots/FM-39-fix/`.
+
+Comparison: `before-complete.json` against `verified.json`. Typing reports median of 12 inputs
+and includes cold samples in the raw files. Legacy reference timings come from the supplied review,
+not a fresh server run.
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Save/Sync including copy-only reads | 6482ms | 242ms |
+| Typing, 10 rows | 15.30ms median | 15.55ms median |
+| Typing, 100 rows | 32.25ms median | 15.00ms median |
+| First input, 100 rows | 110.5ms | 34.5ms |
+| Submit validation, 100 rows | 41.9ms | 29.2ms |
+| Skip All, 100 rows | 229.4ms | 47.4ms |
+| Skip None, 100 rows | 260.0ms | 68.2ms |
+| Skip This Page, 100 rows | 236.2ms | 39.0ms |
+| Order typing, 100 lines | 14.89ms mean | 14.20ms mean |
+
+Both 10-row typing medians are below the review's approximately 17ms legacy reference; the
+0.25ms difference between these local runs is measurement variation. All three 100-row Skip
+actions meet the under-100ms target. The 500ms mock delay isolates copy starvation, not real
+server latency. Single Sync/Submit regressions also prove actions finish while capture never resolves.
+
+Visual fixtures cover long RHZE names at 1440/1024/390 in English/Arabic and monthly patient grids
+at 1440/1024 in both languages. The page never exceeds the viewport; tables keep their own overflow.
+Service workers are blocked in the harness, so its existing worker-registration `waiting` error is
+a harness coverage limit; offline worker behavior was not re-tested. No changes to .offline/preview-dist.
+
+### Final Verification
+
+- 320 tests across 21 touched suites passed across the final focused runs and rechecks.
+- `pnpm tsc --noEmit`, `pnpm check` and `pnpm lint:ds` passed with zero findings.
+- All five catalog key sets match; messages are sorted and Arabic order terminology is consistent.
+- No full suite, push, deployment, live-server browser session or server write. The worktree's
+  `.offline/preview-dist` was not changed.
+
+### Implementation Commits
+
+- `293e0094` fix: FM-39 continue server actions during offline copy capture
+- `b569eb59` perf: FM-39 reuse compiled requisition columns
+- `dea46565` perf: FM-39 keep requisition editors responsive and copies independent
+- `58fe082d` fix: FM-39 align adjustment totals and requisition controls
+- `5bff9ae7` fix: FM-39 improve batch approval recovery and offline actions
+- `37572fe6` fix: FM-39 preserve conversion selection recovery and focus
+- `83271b82` fix: FM-39 preserve order editor focus and readable summaries
+- `1c8c1a53` fix: FM-39 clarify initiation and offline copy recovery
+- `4861b8c3` fix: FM-39 preserve accessible positions in large grids
+- `8693e206` test: FM-39 verify unchanged approval recovery feedback
