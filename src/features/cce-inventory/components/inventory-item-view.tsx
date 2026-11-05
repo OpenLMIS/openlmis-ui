@@ -1,5 +1,10 @@
 import { useStore } from '@tanstack/react-form';
-import { useIsMutating, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  useIsMutating,
+  useQuery,
+  useSuspenseQueries,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,7 +34,7 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { fetchInventoryItem, updateInventoryItem } from '@/features/cce-inventory/api/api';
-import { inventoryItemOptions } from '@/features/cce-inventory/api/queries';
+import { inventoryAlertsOptions, inventoryItemOptions } from '@/features/cce-inventory/api/queries';
 import {
   SAVE_KEY,
   StatusItem,
@@ -107,6 +112,10 @@ export function InventoryItemView({ itemId, onClose, ...content }: InventoryItem
 function ItemBoundary(props: ItemContentProps) {
   const { t } = useTranslation();
   const opening = useOpening();
+  const alerts = useQuery({
+    ...inventoryAlertsOptions([props.id]),
+    enabled: props.action === 'status',
+  });
   return (
     <QueryBoundary
       errorComponent={({ error, reset }) =>
@@ -129,7 +138,13 @@ function ItemBoundary(props: ItemContentProps) {
       pendingFallback={<ViewSkeleton action={props.action} />}
       resetKey={props.id}
     >
-      <ItemContent {...props} opening={opening} />
+      <ItemContent
+        {...props}
+        alertsLoading={
+          alerts.isPending && alerts.failureCount === 0 && alerts.errorUpdateCount === 0
+        }
+        opening={opening}
+      />
     </QueryBoundary>
   );
 }
@@ -155,7 +170,8 @@ function ItemContent({
   onAction,
   onDone,
   onCloseCancelled,
-}: ItemContentProps & { opening: number }) {
+  alertsLoading,
+}: ItemContentProps & { opening: number; alertsLoading: boolean }) {
   const { data: item } = useSuspenseQuery(inventoryItemOptions(id, opening));
   const [{ data: facility }, { data: program }] = useSuspenseQueries({
     queries: [facilityOptions(item.facility.id), programLookupOptions(item.program.id)],
@@ -170,8 +186,13 @@ function ItemContent({
   ];
   const actionProps = { item, userId, onDone, onCloseCancelled, onBack: () => onAction(undefined) };
   if (action === 'edit' && canEdit) return <EditItem {...actionProps} header={header} />;
-  if (action === 'status' && canEdit)
-    return <StatusItem {...actionProps} facilityName={facility.name} />;
+  if (action === 'status' && canEdit) {
+    return alertsLoading ? (
+      <ViewSkeleton action="status" />
+    ) : (
+      <StatusItem {...actionProps} facilityName={facility.name} />
+    );
+  }
   if (action === 'transfer' && canTransfer)
     return <TransferItem {...actionProps} grants={transferGrants} />;
   return (
@@ -318,11 +339,13 @@ function EditItem({
   item,
   header,
   onBack,
+  onDone,
   onCloseCancelled,
 }: {
   item: InventoryItemRecord;
   header: ReadOnlyRow[];
   onBack: () => void;
+  onDone: () => void;
   onCloseCancelled: () => void;
 }) {
   const { t } = useTranslation();
@@ -334,11 +357,12 @@ function EditItem({
   } = useItemSave(
     async (details: ValidInventoryItemDetails) =>
       updateInventoryItem(toInventoryItemUpdate(await fetchInventoryItem(item.id), details)),
-    (details) => {
+    (details, fresh) => {
       toast.success(t('cce-inventory.details.saved-title'), {
         description: t('cce-inventory.details.saved', { name: details.referenceName.trim() }),
       });
-      onBack();
+      if (fresh) onBack();
+      else onDone();
     },
   );
 

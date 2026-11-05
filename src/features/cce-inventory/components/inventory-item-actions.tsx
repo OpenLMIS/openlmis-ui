@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert, RetryButton, serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { formatTimestamp } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
@@ -43,7 +43,7 @@ import {
   toStatusUpdate,
   transferSchema,
 } from '@/features/cce-inventory/lib/inventory-item-form';
-import type { InventoryItemRecord } from '@/features/cce-inventory/lib/types';
+import type { InventoryAlert, InventoryItemRecord } from '@/features/cce-inventory/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -74,7 +74,7 @@ const listsOnly = ({ queryKey }: { queryKey: readonly unknown[] }) => queryKey[1
 
 export function useItemSave<TValues>(
   save: (values: TValues) => Promise<void>,
-  onSaved: (values: TValues) => void,
+  onSaved: (values: TValues, fresh: boolean) => void,
   refreshed = notAlerts,
 ) {
   const queryClient = useQueryClient();
@@ -83,15 +83,20 @@ export function useItemSave<TValues>(
     mutationKey: SAVE_KEY,
     mutationFn: async (values: TValues) => {
       await save(values);
-      await queryClient.invalidateQueries(
-        { queryKey: queryKeys.inventoryItems.all, predicate: refreshed },
-        { throwOnError: true },
-      );
+      return queryClient
+        .invalidateQueries(
+          { queryKey: queryKeys.inventoryItems.all, predicate: refreshed },
+          { throwOnError: true },
+        )
+        .then(
+          () => true,
+          () => false,
+        );
     },
-    onSuccess: (_, values) => {
+    onSuccess: (fresh, values) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
       leaving.current = true;
-      onSaved(values);
+      onSaved(values, fresh);
     },
   });
   const allowLeave = useCallback(() => leaving.current, []);
@@ -283,14 +288,21 @@ export function StatusItem({
 function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: string }) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
-  const { data: alerts = [] } = useQuery(inventoryAlertsOptions([item.id]));
+  const { data: alerts = [], isError, refetch } = useQuery(inventoryAlertsOptions([item.id]));
   const queryClient = useQueryClient();
   const historyButton = useRef<HTMLButtonElement>(null);
   const dismiss = useSessionMutation({
     mutationFn: dismissAlert,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all });
+    onSuccess: async (_, dismissed) => {
+      queryClient.setQueriesData<InventoryAlert[]>(
+        { queryKey: [...queryKeys.inventoryItems.all, 'alerts'] },
+        (list) =>
+          list?.map((alert) =>
+            alert.alert_id === dismissed.alert_id ? { ...alert, dismissed: true } : alert,
+          ),
+      );
       historyButton.current?.focus();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all });
     },
     onError: () =>
       toast.error(t('cce-inventory.status.dismiss-error-title'), {
@@ -311,6 +323,15 @@ function ItemAlerts({ item, userId }: { item: InventoryItemRecord; userId: strin
     errorDescription: t('cce-inventory.status.history-error'),
     refusedDescription: t('cce-inventory.status.history-refused'),
   });
+  if (isError && alerts.length === 0) {
+    return (
+      <ErrorAlert
+        action={<RetryButton onClick={() => void refetch()} />}
+        description={t('cce-inventory.status.alerts-error')}
+        title={t('cce-inventory.status.alerts-error-title')}
+      />
+    );
+  }
   if (alerts.length === 0) return null;
   const active = activeAlertsByDevice(alerts).get(item.id) ?? [];
 

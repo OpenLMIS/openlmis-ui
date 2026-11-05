@@ -138,6 +138,8 @@
   "cce-inventory.refused-description": "Não pode ver o equipamento desta instalação e deste programa.",
   "cce-inventory.refused-title": "Sem Acesso a Este Inventário",
   "cce-inventory.serial-no": "N.º de Série",
+  "cce-inventory.status.alerts-error": "Não foi possível carregar os alertas RTM. Tente novamente.",
+  "cce-inventory.status.alerts-error-title": "Não Foi Possível Carregar os Alertas",
   "cce-inventory.status.current": "Estado Atual",
   "cce-inventory.status.discard": "O novo estado não foi guardado. Descartá-lo?",
   "cce-inventory.status.dismiss": "Dispensar",

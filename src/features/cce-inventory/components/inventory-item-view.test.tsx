@@ -112,7 +112,7 @@ const ALERT: InventoryAlert = {
 };
 
 beforeEach(() => {
-  vi.mocked(fetchInventoryAlerts).mockResolvedValue([ALERT]);
+  vi.mocked(fetchInventoryAlerts).mockReset().mockResolvedValue([ALERT]);
   vi.mocked(dismissAlert).mockResolvedValue();
   vi.mocked(transferInventoryItem).mockResolvedValue();
   vi.mocked(fetchUserRecord).mockResolvedValue({
@@ -131,7 +131,7 @@ beforeEach(() => {
     { id: 'f1', code: 'HC01', name: 'Comfort Health Clinic', active: true },
     { id: 'f2', code: 'HC02', name: 'Nandumbo Health Center', active: true },
   ]);
-  vi.mocked(fetchInventoryItem).mockResolvedValue(FRIDGE);
+  vi.mocked(fetchInventoryItem).mockReset().mockResolvedValue(FRIDGE);
   vi.mocked(updateInventoryItem).mockResolvedValue();
   vi.mocked(fetchFacility).mockResolvedValue({
     id: 'f1',
@@ -212,22 +212,69 @@ describe('InventoryItemView', () => {
     );
   });
 
-  it('stays in edit with the save error when the refresh after the save fails', async () => {
+  it.each(['edit', 'status'] as const)(
+    'closes after a saved %s whose refresh fails, without a save error to retry',
+    async (action) => {
+      const user = userEvent.setup();
+      vi.mocked(fetchInventoryItem)
+        .mockResolvedValueOnce(FRIDGE)
+        .mockResolvedValueOnce(FRIDGE)
+        .mockRejectedValueOnce(new Error('offline'));
+      const { onClose, onAction } = renderView({ action });
+
+      if (action === 'status') {
+        await user.click(
+          await screen.findByRole('combobox', { name: /cce-inventory.form.functional-status/ }),
+        );
+        await user.click(
+          await screen.findByRole('option', { name: 'cce-equipment.status.functioning' }),
+        );
+      }
+      await user.click(
+        await screen.findByRole('button', {
+          name: action === 'edit' ? 'cce-inventory.form.save' : 'cce-inventory.status.update',
+        }),
+      );
+
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(onAction).not.toHaveBeenCalled();
+      expect(screen.queryByText('cce-inventory.form.save-error')).toBeNull();
+      expect(updateInventoryItem).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('opens the details instead of the status form for a user who cannot edit the item', async () => {
+    renderView({ action: 'status', grants: [{ ...EDIT, facilityId: 'f2' }] });
+
+    expect(await screen.findByRole('heading', { name: 'Fridge 2' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('combobox', { name: /cce-inventory.form.functional-status/ }),
+    ).toBeNull();
+  });
+
+  it('removes a dismissed alert even when the alerts cannot refresh', async () => {
     const user = userEvent.setup();
+    vi.mocked(fetchInventoryAlerts)
+      .mockResolvedValueOnce([ALERT])
+      .mockResolvedValueOnce([ALERT])
+      .mockRejectedValue(new Error('offline'));
+    renderView({ action: 'status' });
+
+    await user.click(
+      await screen.findByRole('button', { name: /cce-inventory.status.dismiss-label/ }),
+    );
+
+    expect(await screen.findByText('cce-inventory.status.no-alerts')).toBeInTheDocument();
+    expect(screen.queryByText('Too warm')).toBeNull();
+  });
+
+  it('dismisses an alert, then updates the status of a fresh copy once the reason is chosen', async () => {
+    const user = userEvent.setup();
+    const fresh: InventoryItemRecord = { ...FRIDGE, equipmentTrackingId: 'SN-9' };
     vi.mocked(fetchInventoryItem)
       .mockResolvedValueOnce(FRIDGE)
       .mockResolvedValueOnce(FRIDGE)
-      .mockRejectedValueOnce(new Error('offline'));
-    const { onAction } = renderView({ action: 'edit' });
-
-    await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.save' }));
-
-    expect(await screen.findByText('cce-inventory.form.save-error')).toBeInTheDocument();
-    expect(onAction).not.toHaveBeenCalled();
-  });
-
-  it('dismisses an alert, then updates the status once the reason is chosen, and closes', async () => {
-    const user = userEvent.setup();
+      .mockResolvedValueOnce(fresh);
     const { onClose } = renderView({ action: 'status' });
     const choose = async (field: RegExp, option: string) => {
       await user.click(screen.getByRole('combobox', { name: field }));
@@ -248,6 +295,9 @@ describe('InventoryItemView', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(vi.mocked(updateInventoryItem).mock.calls[0]?.[0]).toMatchObject({
       id: 'i1',
+      equipmentTrackingId: 'SN-9',
+      yearOfInstallation: 2019,
+      remoteTemperatureMonitor: 'NO_RTM',
       functionalStatus: 'AWAITING_REPAIR',
       reasonNotWorkingOrNotInUse: 'DEAD',
     });
@@ -264,6 +314,7 @@ describe('InventoryItemView', () => {
     await user.click(
       await screen.findByRole('option', { name: 'cce-equipment.status.functioning' }),
     );
+    expect(screen.getByText('cce-inventory.status.alerts-error-title')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'cce-inventory.status.update' }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());

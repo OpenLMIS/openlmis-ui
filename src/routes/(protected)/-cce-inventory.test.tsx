@@ -25,11 +25,18 @@ import {
   createInventoryItem,
   exportInventoryItems,
   fetchInventoryAlerts,
+  fetchInventoryItem,
   fetchInventoryItems,
 } from '@/features/cce-inventory/api/api';
-import type { InventoryAlert, InventoryItem } from '@/features/cce-inventory/lib/types';
+import type {
+  InventoryAlert,
+  InventoryItem,
+  InventoryItemRecord,
+} from '@/features/cce-inventory/lib/types';
 import {
+  fetchFacility,
   fetchMinimalFacilities,
+  fetchProgramLookup,
   fetchUserPrograms,
   fetchUserRecord,
 } from '@/features/reference-data/api/api';
@@ -45,6 +52,8 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),
   fetchMinimalFacilities: vi.fn(),
+  fetchFacility: vi.fn(),
+  fetchProgramLookup: vi.fn(),
 }));
 vi.mock('@/features/cce-inventory/api/api', () => ({
   fetchInventoryItems: vi.fn(),
@@ -497,6 +506,69 @@ describe('CCE inventory page', () => {
       expect(router.state.location.search).toHaveProperty('item', FRIDGE);
     },
   );
+
+  it('drops transfer from a link for an editor of the item without the transfer right', async () => {
+    const { router } = renderRoute(appliedPath(`&item=${FRIDGE}&action=transfer`));
+
+    await itemOf('Fridge #11');
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('action'));
+  });
+
+  it('opens Transfer over the list for the transfer right, with fields apart from the picker', async () => {
+    const record: InventoryItemRecord = {
+      id: FRIDGE,
+      facility: { id: HOME },
+      program: { id: EPI },
+      catalogItem: {
+        id: 'c1',
+        type: 'IRL',
+        manufacturer: 'Haier',
+        model: 'HBC-70',
+        energySource: 'ELECTRIC',
+      },
+      referenceName: 'Fridge #11',
+      utilization: 'ACTIVE',
+      yearOfInstallation: 2017,
+      voltageStabilizer: 'YES',
+      voltageRegulator: 'NO',
+      backupGenerator: 'NO',
+      manualTemperatureGauge: 'BUILD_IN',
+      remoteTemperatureMonitor: 'NO_RTM',
+      functionalStatus: 'FUNCTIONING',
+    };
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([
+      VIEW,
+      `CCE_INVENTORY_TRANSFER|${HOME}|${EPI}`,
+    ]);
+    vi.mocked(fetchInventoryItem).mockResolvedValue(record);
+    vi.mocked(fetchFacility).mockResolvedValue({
+      id: HOME,
+      code: 'HC01',
+      name: 'Comfort Health Clinic',
+      active: true,
+      enabled: true,
+      type: { id: 't1', code: 'HC', name: 'Health Center' },
+      geographicZone: { id: 'z1', code: 'Z1', name: 'Cuamba', level: { name: 'District' } },
+    });
+    vi.mocked(fetchProgramLookup).mockResolvedValue({
+      id: EPI,
+      code: 'PRG004',
+      name: 'EPI',
+      active: true,
+    });
+    const { router } = renderRoute(appliedPath(`&item=${FRIDGE}&action=transfer`));
+
+    const dialog = await screen.findByRole('dialog', { name: 'cce-inventory.transfer.title' });
+    expect(
+      await within(dialog).findByRole('combobox', { name: /facility-program.program/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('combobox', { name: /facility-program.facility/ }),
+    ).toBeInTheDocument();
+    const ids = [...document.querySelectorAll('[id]')].map(({ id }) => id);
+    expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+    expect(router.state.location.search).toHaveProperty('action', 'transfer');
+  });
 
   it('closes Add Equipment onto the list of the saved pair after Save', async () => {
     const user = userEvent.setup();

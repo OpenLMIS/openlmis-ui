@@ -138,6 +138,8 @@
   "cce-inventory.refused-description": "Vous ne pouvez pas voir les équipements de cet établissement et de ce programme.",
   "cce-inventory.refused-title": "Aucun accès à cet inventaire",
   "cce-inventory.serial-no": "N° de série",
+  "cce-inventory.status.alerts-error": "Les alertes RTM n’ont pas pu être chargées. Veuillez réessayer.",
+  "cce-inventory.status.alerts-error-title": "Impossible de charger les alertes",
   "cce-inventory.status.current": "État actuel",
   "cce-inventory.status.discard": "Le nouvel état n’a pas été enregistré. L’abandonner ?",
   "cce-inventory.status.dismiss": "Ignorer",

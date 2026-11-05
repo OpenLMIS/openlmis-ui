@@ -138,6 +138,8 @@
   "cce-inventory.refused-description": "You can't view the equipment of this facility and program.",
   "cce-inventory.refused-title": "No Access To This Inventory",
   "cce-inventory.serial-no": "Serial No.",
+  "cce-inventory.status.alerts-error": "The RTM alerts could not be loaded. Please try again.",
+  "cce-inventory.status.alerts-error-title": "Could Not Load Alerts",
   "cce-inventory.status.current": "Current Status",
   "cce-inventory.status.discard": "The new status has not been saved. Discard it?",
   "cce-inventory.status.dismiss": "Dismiss",

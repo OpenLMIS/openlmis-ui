@@ -138,6 +138,8 @@
   "cce-inventory.refused-description": "لا يمكنك عرض معدات هذه المنشأة وهذا البرنامج.",
   "cce-inventory.refused-title": "لا يمكنك الوصول إلى هذا المخزون",
   "cce-inventory.serial-no": "الرقم التسلسلي",
+  "cce-inventory.status.alerts-error": "تعذر تحميل تنبيهات مراقبة درجة الحرارة عن بُعد. يرجى المحاولة مرة أخرى.",
+  "cce-inventory.status.alerts-error-title": "تعذر تحميل التنبيهات",
   "cce-inventory.status.current": "الحالة الحالية",
   "cce-inventory.status.discard": "لم يتم حفظ الحالة الجديدة. هل تريد تجاهلها؟",
   "cce-inventory.status.dismiss": "تجاهل",
