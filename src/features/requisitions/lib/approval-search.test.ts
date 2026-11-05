@@ -1,10 +1,9 @@
 import { expect, it } from 'vitest';
-import { approvalSelectionError } from '@/features/requisitions/lib/approval-search';
+import { approvalProgramsMixed } from '@/features/requisitions/lib/approval-search';
 
-it('checks every selected program across pages and refuses an empty selection', () => {
-  expect(approvalSelectionError([])).toBe('none');
-  expect(approvalSelectionError([{ programId: 'a' }, { programId: 'a' }])).toBeUndefined();
-  expect(approvalSelectionError([{ programId: 'a' }, { programId: 'b' }])).toBe('mixed');
+it('checks every selected program across pages', () => {
+  expect(approvalProgramsMixed([{ programId: 'a' }, { programId: 'a' }])).toBe(false);
+  expect(approvalProgramsMixed([{ programId: 'a' }, { programId: 'b' }])).toBe(true);
 });
 
 it('hands off selected ids in global list order rather than tick order', async () => {

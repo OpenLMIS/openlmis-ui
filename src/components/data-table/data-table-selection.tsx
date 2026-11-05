@@ -82,37 +82,68 @@ type DataTableSelectionBarProps = {
   count: number;
   onClear: () => void;
   children: ReactNode;
+  placement?: 'float' | 'footer';
 };
 
-export function DataTableSelectionBar({ count, onClear, children }: DataTableSelectionBarProps) {
+export function DataTableSelectionBar({
+  count,
+  onClear,
+  children,
+  placement = 'float',
+}: DataTableSelectionBarProps) {
   const labels = useDataTableLabels();
+  const footer = placement === 'footer';
+  const status = (
+    <span className="sr-only" role="status">
+      {count > 0 ? labels.selectedCount(count) : ''}
+    </span>
+  );
+  const content = (
+    <>
+      <span aria-hidden className="min-w-0 truncate font-medium text-sm">
+        {labels.selectedCount(count)}
+      </span>
+      <div className="ms-auto flex shrink-0 gap-2">
+        <Button
+          aria-label={labels.clearSelection}
+          onClick={onClear}
+          size={footer ? 'lg' : 'sm'}
+          variant="outline"
+        >
+          <XIcon data-icon="inline-start" />
+          <SelectionBarLabel full={labels.clearSelection} short={labels.clear} />
+        </Button>
+        {children}
+      </div>
+    </>
+  );
+
+  if (footer) {
+    return (
+      <>
+        {count > 0 && (
+          <div
+            className="sticky bottom-0 z-10 border-t bg-muted/80 backdrop-blur-sm"
+            data-slot="selection-footer"
+          >
+            <div className="@container/selection mx-auto flex w-full max-w-6xl items-center gap-2 px-4 py-3 lg:px-6">
+              {content}
+            </div>
+          </div>
+        )}
+        {status}
+      </>
+    );
+  }
 
   return (
     <div className="@container/selection sticky bottom-2 z-10 -mb-2 lg:-mb-4">
       {count > 0 && (
         <div className="mx-auto w-full max-w-lg rounded-xl border border-info/30 bg-card shadow-lg">
-          <div className="flex items-center gap-2 rounded-xl bg-info/10 p-2 ps-4">
-            <span aria-hidden className="min-w-0 truncate font-medium text-sm">
-              {labels.selectedCount(count)}
-            </span>
-            <div className="ms-auto flex shrink-0 gap-2">
-              <Button
-                aria-label={labels.clearSelection}
-                onClick={onClear}
-                size="sm"
-                variant="outline"
-              >
-                <XIcon data-icon="inline-start" />
-                <SelectionBarLabel full={labels.clearSelection} short={labels.clear} />
-              </Button>
-              {children}
-            </div>
-          </div>
+          <div className="flex items-center gap-2 rounded-xl bg-info/10 p-2 ps-4">{content}</div>
         </div>
       )}
-      <span className="sr-only" role="status">
-        {count > 0 ? labels.selectedCount(count) : ''}
-      </span>
+      {status}
     </div>
   );
 }

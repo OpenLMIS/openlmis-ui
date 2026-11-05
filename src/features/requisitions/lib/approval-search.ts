@@ -21,10 +21,8 @@ export type ApprovalSelection = ReadonlyMap<
   string,
   { programId: string; label: string; rowIndex: number; record?: ApprovalListRow }
 >;
-export function approvalSelectionError(selected: readonly { programId: string }[]) {
-  if (!selected.length) return 'none';
-  if (new Set(selected.map(({ programId }) => programId)).size !== 1) return 'mixed';
-}
+export const approvalProgramsMixed = (selected: readonly { programId: string }[]) =>
+  new Set(selected.map(({ programId }) => programId)).size > 1;
 export const approvalScope = (search: ApprovalSearch, online = true) =>
   JSON.stringify([search.program, search.offline || !online || undefined, search.sort, search.dir]);
 

@@ -19,6 +19,7 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { selectionColumn } from '@/components/data-table/data-table-selection';
 import { Button } from '@/components/ui/button';
 import { approvalListOptions } from '@/features/requisitions/api/queries';
+import { LabelledButtonGroup } from '@/features/requisitions/components/labelled-button-group';
 import { OfflineMarker } from '@/features/requisitions/components/offline-marker';
 import { RequisitionCopyNotice } from '@/features/requisitions/components/requisition-copy-notice';
 import {
@@ -71,7 +72,6 @@ type Props = {
   search: ApprovalSearch;
   batch?: boolean;
   picked?: ApprovalSelection;
-  onHasRows?: (value: boolean) => void;
   onSelection?: (next: ApprovalSelection, scope: string) => void;
   columns: ColumnVisibilityState;
   onSearchChange: SearchChange<ApprovalSearch>;
@@ -213,14 +213,12 @@ export function ApprovalTable({
   batch,
   picked,
   onSelection,
-  onHasRows,
 }: Props) {
   const { t } = useTranslation();
   const copies = useOfflineCopies();
   const deferred = useDeferredValue(search);
   const online = useOnline();
   const { data: page } = useSuspenseQuery(approvalListOptions(deferred, online));
-  useEffect(() => onHasRows?.(page.content.length > 0), [page, onHasRows]);
   const stale = deferred !== search;
   const { table, pageStart } = useResultsTable({
     cards,
@@ -288,6 +286,13 @@ export function ApprovalTable({
         local={!!deferred.offline || isDeviceAccess(page)}
         ids={page.content.map((record) => record.id)}
       />
+      {batch && page.content.length > 0 && (
+        <SelectButtons
+          disabled={stale}
+          onAll={() => table.toggleAllPageRowsSelected(true)}
+          onNone={() => table.resetRowSelection(true)}
+        />
+      )}
       <RequisitionListTable
         cards={cards}
         table={table}
@@ -297,6 +302,30 @@ export function ApprovalTable({
         listRef={pageStart.ref}
       />
     </RequisitionCopiesContext>
+  );
+}
+
+function SelectButtons({
+  disabled,
+  onAll = noop,
+  onNone = noop,
+}: {
+  disabled: boolean;
+  onAll?: () => void;
+  onNone?: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex">
+      <LabelledButtonGroup label={t('requisitions.approve.select')}>
+        <Button disabled={disabled} size="lg" variant="outline" onClick={onAll}>
+          {t('requisitions.approve.select-all')}
+        </Button>
+        <Button disabled={disabled} size="lg" variant="outline" onClick={onNone}>
+          {t('requisitions.approve.select-none')}
+        </Button>
+      </LabelledButtonGroup>
+    </div>
   );
 }
 
@@ -317,5 +346,10 @@ export function ApprovalTableSkeleton({
     batch,
   });
   const rowCount = toPaginationState(search, 20).pageSize;
-  return <RequisitionListSkeleton cards={cards} rowCount={rowCount} table={table} />;
+  return (
+    <>
+      {batch && <SelectButtons disabled />}
+      <RequisitionListSkeleton cards={cards} rowCount={rowCount} table={table} />
+    </>
+  );
 }

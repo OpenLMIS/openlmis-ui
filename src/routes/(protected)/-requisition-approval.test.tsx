@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -184,5 +184,54 @@ it('hides View Selected Requisitions when the approval list is empty', async () 
   expect(
     screen.queryByRole('button', { name: 'requisitions.approve.view-selected' }),
   ).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('ticks the page with Select All, clears it with None and sorts oldest first', async () => {
+  vi.mocked(useFlag).mockReturnValue(true);
+  const row = (id: string) => ({
+    id,
+    program: { id: 'a', name: 'Family Planning' },
+    facility: { code: 'HC01', name: 'Comfort' },
+    processingPeriod: { name: id },
+    status: 'AUTHORIZED' as const,
+    emergency: false,
+  });
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: [row('March'), row('April')],
+    number: 0,
+    size: 20,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  const { router, queryClient } = renderRoute('/requisitions/approve');
+  await screen.findAllByText('March');
+  const select = screen.getByRole('group', { name: 'requisitions.approve.select' });
+  await userEvent.click(
+    within(select).getByRole('button', { name: 'requisitions.approve.select-all' }),
+  );
+  expect(screen.getAllByRole('checkbox', { checked: true })).toHaveLength(3);
+  expect(
+    screen.getByRole('button', { name: /requisitions\.approve\.view-selected/ }),
+  ).toBeInTheDocument();
+  await userEvent.click(
+    within(select).getByRole('button', { name: 'requisitions.approve.select-none' }),
+  );
+  expect(screen.queryAllByRole('checkbox', { checked: true })).toHaveLength(0);
+  expect(
+    screen.queryByRole('button', { name: /requisitions\.approve\.view-selected/ }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('combobox', { name: 'data-table.sort-by' }));
+  await userEvent.click(
+    await screen.findByRole('option', { name: 'requisitions.approve.sort-oldest' }),
+  );
+  await waitFor(() =>
+    expect(fetchApprovalList).toHaveBeenLastCalledWith({
+      page: 0,
+      size: 20,
+      sort: ['emergency,desc', 'authorizedDate,asc'],
+    }),
+  );
+  expect(router.state.location.search).toMatchObject({ sort: 'authorizedDate', dir: 'asc' });
   queryClient.clear();
 });

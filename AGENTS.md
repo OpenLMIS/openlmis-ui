@@ -600,6 +600,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 **Selection and reports:**
 
 - Convert To Order keeps ticks across filter changes, as legacy; filters close only its dialogs.
+- Approve Requisitions offers Select All / None through `LabelledButtonGroup`, shared with the
+  editor's Skip control, plus the header checkbox and a toolbar Newest/Oldest Authorized select.
 
 - Use `selectionColumn()` (`src/components/data-table/data-table-selection.tsx`); the header
   picks the page. Preserve selection across pages by id and name for confirmations.
@@ -608,7 +610,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   distinguishing row detail.
 - Render `DataTableSelectionBar` after the table with count, Clear and actions: one line, info
   tint, outline Clear; actions label through `SelectionBarLabel` with `full` and `short` text so
-  the bar stays on one line on phones. Selection
+  the bar stays on one line on phones. `placement="footer"` renders it after `Workspace` instead:
+  a muted sticky band aligned with the default page width, shown only while rows are selected,
+  with `lg` buttons and a default-variant main action, as on Approve Requisitions. Selection
   stays out of the URL. Bulk delete awaits every request, reports failures and focuses the
   list after rows/bar disappear; see Valid Destinations.
 - PDF actions use `usePrintReport` (`src/hooks/use-print-report.ts`) for permission checks,
