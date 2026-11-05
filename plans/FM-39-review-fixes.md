@@ -592,3 +592,134 @@ Production build, navigation/Approve timings, blocked writes and individual samp
 The early waterfall also exposed foreground node/group reads triggered by sign-in warming. Limit
 that warm-up to the five picker references; node/group reads now belong to their actual page or
 the gated background download. A regression test fails when warm-up starts those extra reads.
+
+## R4 Production Validation (2026-11-05)
+
+The performance gate remains unsatisfied. Early View, Approve, Convert and Create Orders still
+have slower steps; warm batch opening also varies between the navigation and approval harnesses.
+Single-record and batch typing medians remain above legacy. No failing comparison is counted as
+passing. The full result table below marks every strictly slower measurement without a tolerance.
+
+Navigation/action comparisons use one live sample per phase. Typing reports median and maximum
+from seven keystrokes. The 25-row page contains 24 editable lines in the live record. Navigation
+uses build c51649f6; batch navigation and the final Approve run use fcd5eec0. The intervening
+change only assigns background priority to offline batch membership reads. Raw requests, timings,
+blocked writes and screenshots are under `.screenshots/FM-39-r4/`.
+
+Every non-GET API call was intercepted on both origins, except token authentication and read-only
+searches. Period requests strip unfinished before transport. No server records were changed.
+Production preview used port 5387 and was stopped by its recorded Vite PID.
+
+Warm reopen retained all 25 digits and focus while delayed membership completed. The 10 x 200
+fixture recorded 30 samples: React median 18 ms, p90 24.3 ms, max 44.6 ms; legacy median 1357.1 ms,
+p90 3135.7 ms, max 5441 ms. Phone Skip on 99 rows took 7.9-25.6 ms, with no spacer list items.
+Batch widths remained stable at 1440 and 1024 in English and Arabic. Home completed in 3827,
+4384 and 4205 ms, median 4205 ms, above the 3-4 second target.
+
+Touched tests passed. Typecheck, Biome and design-system lint passed. No full suite or push ran.
+
+| Area | Step | Phase | New (ms) | Legacy (ms) | Result |
+|---|---|---|---:|---:|---|
+| Navigation | Sign-In (view) | early | 1017 | 10965 | Faster/Equal |
+| Navigation | view-nav | cold-early | 130 | 120 | SLOWER |
+| Navigation | view-search | cold-early | 1508 | 610 | SLOWER |
+| Navigation | view-open | cold-early | 1576 | 28147 | Faster/Equal |
+| Navigation | Sign-In (view) | settled | 1038 | 11100 | Faster/Equal |
+| Navigation | view-nav | cold-settled | 101 | 265 | Faster/Equal |
+| Navigation | view-search | cold-settled | 708 | 961 | Faster/Equal |
+| Navigation | view-open | cold-settled | 1250 | 37060 | Faster/Equal |
+| Navigation | view-nav | warm | 37 | 105 | Faster/Equal |
+| Navigation | view-search | warm | 51 | 610 | Faster/Equal |
+| Navigation | view-open | warm | 1246 | 1358 | Faster/Equal |
+| Navigation | Sign-In (initiate) | early | 1030 | 15591 | Faster/Equal |
+| Navigation | init-nav | cold-early | 414 | 696 | Faster/Equal |
+| Navigation | init-search | cold-early | 322 | 327 | Faster/Equal |
+| Navigation | Sign-In (initiate) | settled | 994 | 9923 | Faster/Equal |
+| Navigation | init-nav | cold-settled | 105 | 406 | Faster/Equal |
+| Navigation | init-search | cold-settled | 334 | 339 | Faster/Equal |
+| Navigation | init-nav | warm | 33 | 482 | Faster/Equal |
+| Navigation | init-search | warm | 34 | 589 | Faster/Equal |
+| Navigation | Sign-In (approve) | early | 984 | 10098 | Faster/Equal |
+| Navigation | approve-nav | cold-early | 3356 | 2681 | SLOWER |
+| Navigation | approve-batch | cold-early | 1577 | 607 | SLOWER |
+| Navigation | approve-enabled | cold-early | 1832 | 836 | SLOWER |
+| Navigation | Sign-In (approve) | settled | 999 | 10751 | Faster/Equal |
+| Navigation | approve-nav | cold-settled | 2418 | 2813 | Faster/Equal |
+| Navigation | approve-batch | cold-settled | 450 | 701 | Faster/Equal |
+| Navigation | approve-enabled | cold-settled | 705 | 961 | Faster/Equal |
+| Navigation | approve-nav | warm | 67 | 2634 | Faster/Equal |
+| Navigation | approve-batch | warm | 2326 | 669 | SLOWER |
+| Navigation | approve-enabled | warm | 2584 | 935 | SLOWER |
+| Navigation | Sign-In (convert) | early | 1110 | 14429 | Faster/Equal |
+| Navigation | convert-nav | cold-early | 4001 | 1068 | SLOWER |
+| Navigation | Sign-In (convert) | settled | 1037 | 10521 | Faster/Equal |
+| Navigation | convert-nav | cold-settled | 754 | 720 | SLOWER |
+| Navigation | convert-nav | warm | 63 | 650 | Faster/Equal |
+| Navigation | Sign-In (orders) | early | 1066 | 10364 | Faster/Equal |
+| Navigation | orders-nav | cold-early | 212 | 103 | SLOWER |
+| Navigation | Sign-In (orders) | settled | 1146 | 11745 | Faster/Equal |
+| Navigation | orders-nav | cold-settled | 182 | 142 | SLOWER |
+| Navigation | orders-nav | warm | 95 | 155 | Faster/Equal |
+| Navigation | view-option | cold-early | 460 | Unavailable | Unavailable |
+| Navigation | view-option | cold-settled | 383 | Unavailable | Unavailable |
+| Navigation | view-option | warm | 348 | Unavailable | Unavailable |
+| Approve | Sign-In | early | 1070 | 10872 | Faster/Equal |
+| Approve | list | cold-early | 3609 | 3039 | SLOWER |
+| Approve | filter | cold-early | 3134 | 2934 | SLOWER |
+| Approve | sort | cold-early | 2726 | 2717 | SLOWER |
+| Approve | open | cold-early | 1363 | 13551 | Faster/Equal |
+| Approve | open (approve-enabled) | cold-early | 1366 | 13554 | Faster/Equal |
+| Approve | type-10 | cold-early | 25 | 6 | SLOWER |
+| Approve | type-10 (Max) | cold-early | 30 | 33 | Faster/Equal |
+| Approve | type-25 | cold-early | 16 | 9 | SLOWER |
+| Approve | type-25 (Max) | cold-early | 28 | 38 | Faster/Equal |
+| Approve | sync | cold-early | 1333 | 9346 | Faster/Equal |
+| Approve | reject-dialog | cold-early | 22 | 48 | Faster/Equal |
+| Approve | approve-dialog | cold-early | 35 | 44 | Faster/Equal |
+| Approve | approve | cold-early | 2123 | 4901 | Faster/Equal |
+| Approve | batch-open | cold-early | 501 | 571 | Faster/Equal |
+| Approve | batch-open (approve-enabled) | cold-early | 503 | 575 | Faster/Equal |
+| Approve | batch-type | cold-early | 17 | 7 | SLOWER |
+| Approve | batch-type (Max) | cold-early | 24 | 18 | SLOWER |
+| Approve | batch-sync | cold-early | 1581 | 1812 | Faster/Equal |
+| Approve | batch-approve | cold-early | 3660 | 6156 | Faster/Equal |
+| Approve | Sign-In | settled | 624 | 13222 | Faster/Equal |
+| Approve | list | cold-settled | 2635 | 2987 | Faster/Equal |
+| Approve | filter | cold-settled | 2483 | 2585 | Faster/Equal |
+| Approve | sort | cold-settled | 2612 | 2453 | SLOWER |
+| Approve | open | cold-settled | 961 | 12323 | Faster/Equal |
+| Approve | open (approve-enabled) | cold-settled | 965 | 12325 | Faster/Equal |
+| Approve | type-10 | cold-settled | 25 | 7 | SLOWER |
+| Approve | type-10 (Max) | cold-settled | 34 | 18 | SLOWER |
+| Approve | type-25 | cold-settled | 19 | 10 | SLOWER |
+| Approve | type-25 (Max) | cold-settled | 25 | 33 | Faster/Equal |
+| Approve | sync | cold-settled | 1332 | 6376 | Faster/Equal |
+| Approve | reject-dialog | cold-settled | 15 | 49 | Faster/Equal |
+| Approve | approve-dialog | cold-settled | 33 | 41 | Faster/Equal |
+| Approve | approve | cold-settled | 2130 | 4555 | Faster/Equal |
+| Approve | batch-open | cold-settled | 513 | 567 | Faster/Equal |
+| Approve | batch-open (approve-enabled) | cold-settled | 517 | 569 | Faster/Equal |
+| Approve | batch-type | cold-settled | 19 | 6 | SLOWER |
+| Approve | batch-type (Max) | cold-settled | 22 | 15 | SLOWER |
+| Approve | batch-sync | cold-settled | 1581 | 2038 | Faster/Equal |
+| Approve | batch-approve | cold-settled | 3719 | 6248 | Faster/Equal |
+| Approve | list | warm | 54 | 2364 | Faster/Equal |
+| Approve | filter | warm | 203 | 3287 | Faster/Equal |
+| Approve | sort | warm | 47 | 2990 | Faster/Equal |
+| Approve | open | warm | 1684 | 6968 | Faster/Equal |
+| Approve | open (approve-enabled) | warm | 1686 | 6970 | Faster/Equal |
+| Approve | type-10 | warm | 15 | 6 | SLOWER |
+| Approve | type-10 (Max) | warm | 26 | 22 | SLOWER |
+| Approve | type-25 | warm | 22 | 7 | SLOWER |
+| Approve | type-25 (Max) | warm | 24 | 41 | Faster/Equal |
+| Approve | sync | warm | 1317 | 7147 | Faster/Equal |
+| Approve | reject-dialog | warm | 12 | 46 | Faster/Equal |
+| Approve | approve-dialog | warm | 34 | 41 | Faster/Equal |
+| Approve | approve | warm | 2125 | 4648 | Faster/Equal |
+| Approve | batch-open | warm | 473 | 530 | Faster/Equal |
+| Approve | batch-open (approve-enabled) | warm | 476 | 533 | Faster/Equal |
+| Approve | batch-type | warm | 20 | 12 | SLOWER |
+| Approve | batch-type (Max) | warm | 23 | 19 | SLOWER |
+| Approve | batch-sync | warm | 1601 | 1832 | Faster/Equal |
+| Approve | batch-approve | warm | 3696 | 6119 | Faster/Equal |
+
