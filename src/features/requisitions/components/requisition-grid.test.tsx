@@ -643,4 +643,5 @@ it('reveals an offscreen line when validation requests focus in a large page', a
     }),
   );
   expect(document.querySelector(selector)).not.toBeNull();
+  expect(document.querySelector(selector)?.closest('tr')).toHaveAttribute('aria-rowindex', '102');
 });

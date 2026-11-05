@@ -540,7 +540,9 @@ export function RequisitionGridView({
             layout="auto"
             tabIndex={-1}
             aria-label={t('requisitions.requisition.products')}
-            aria-rowcount={data.length + 1}
+            aria-rowcount={
+              data.length + 1 + Number(rowColumns.some((column) => column.name === 'totalCost'))
+            }
             onFocusCapture={(event) => {
               const row = (event.target as HTMLElement).closest<HTMLElement>('tr[data-index]');
               if (row) setFocusedRow(Number(row.dataset.index));
@@ -573,6 +575,7 @@ export function RequisitionGridView({
                       {row.original.category !== undefined ? (
                         <TableRow
                           data-index={item.index}
+                          aria-rowindex={item.index + 2}
                           ref={virtual ? virtualizer.measureElement : undefined}
                           pinned
                           surface="primary"
@@ -736,6 +739,7 @@ const RequisitionProductRow = memo(function RequisitionProductRow({
   return (
     <TableRow
       data-index={rowIndex}
+      aria-rowindex={rowIndex === undefined ? undefined : rowIndex + 2}
       ref={measure}
       pinned
       data-invalid={!!errors || undefined}
