@@ -984,3 +984,5 @@ checks: `pnpm sort-messages`, `pnpm tsc --noEmit`, `pnpm check`, and `pnpm lint:
 - Missing filter data uses a compact note when saved requisitions are available. Membership timeout settles into failed verification with Retry, a disabled Approve label and friendly wording. Offline batch Sync and Approve explain their connection requirement.
 
 Verification: the focused single/batch/approval/offline regression pass passed 174 tests in five files. The focused saved-list, cold-start, accepted-draft and history pass passed 66 tests in five files. The history dialog's user-name reads only start while the dialog is open.
+
+Final focused verification passed 115 tests across the six changed test files. Both retained-cache eviction tests fail with the previous query functions and pass with the device fallback. The compact missing-filter note keeps reconnect recovery, and a comment-free history entry resolves its author from the backend user id.

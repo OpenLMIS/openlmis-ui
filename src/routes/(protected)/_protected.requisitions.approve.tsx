@@ -4,6 +4,7 @@ import { ClipboardCheckIcon, InfoIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DataTableSelectionBar,
@@ -95,6 +96,7 @@ function ApprovalHeader() {
 function ApprovalError(props: ErrorComponentProps) {
   const { t } = useTranslation();
   const copies = useOfflineCopies();
+  useOfflineFailure(props.error, props.reset);
   if (props.error instanceof LocalDataUnavailableError && copies?.length)
     return (
       <p role="note" className="text-muted-foreground text-sm">

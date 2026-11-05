@@ -15,6 +15,11 @@ import type {
 } from '@/features/requisitions/lib/types';
 import { IsolatingICU } from '@/lib/isolate-values';
 
+vi.mock('@/features/reference-data/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/reference-data/api/api')>()),
+  fetchUserRecord: vi.fn(async () => ({ id: 'author', firstName: 'Jane', lastName: 'Doe' })),
+}));
+
 const i18n = createInstance();
 beforeAll(() =>
   i18n.use(IsolatingICU).init({
@@ -109,7 +114,7 @@ it('lists the latest rejected record’s backend rejectionDtos', async () => {
   expect(within(dialog).queryByText('Old reason')).not.toBeInTheDocument();
   expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
   expect(within(dialog).getByText('Rejected')).toBeInTheDocument();
-  expect(within(dialog).getByText('Jane Doe')).toBeInTheDocument();
+  expect(await within(dialog).findByText('Jane Doe')).toBeInTheDocument();
   expect(within(dialog).getByText(/^Oct 27, 2026/)).toBeInTheDocument();
 });
 
@@ -141,10 +146,13 @@ it('hides empty comments for viewers without comment rights', () => {
 });
 
 it('lists status changes with dates and authors even without comments', async () => {
-  renderComments([{ ...rejection, rejectionDtos: [] }], []);
+  renderComments(
+    [{ ...rejection, statusMessageDto: null, authorId: 'author', rejectionDtos: [] }],
+    [],
+  );
   await userEvent.click(screen.getByRole('button', { name: 'View History' }));
   const dialog = await screen.findByRole('dialog');
   expect(within(dialog).getByText('Rejected')).toBeInTheDocument();
-  expect(within(dialog).getByText('Jane Doe')).toBeInTheDocument();
+  expect(await within(dialog).findByText('Jane Doe')).toBeInTheDocument();
   expect(within(dialog).getByText(/^Oct 27, 2026/)).toBeInTheDocument();
 });
