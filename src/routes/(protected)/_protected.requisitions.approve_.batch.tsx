@@ -94,6 +94,7 @@ import {
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import i18n from '@/integrations/i18n';
 import { queryKeys } from '@/lib/key-factory';
 import { onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
@@ -608,20 +609,20 @@ function BatchPage() {
       assertSessionScope(scope);
       if (isSecureOrigin && save.succeeded.length) {
         const leases = loaded.copyLeases.filter((lease) => save.succeeded.includes(lease.id));
-        try {
-          await captureBatch(
-            leases,
-            orderBatch(fresh, save.succeeded),
-            loaded.currency,
-            'read',
-            membership.current,
-          );
-          assertSessionScope(scope);
-          setCopyFailure(null);
-        } catch (error) {
-          assertSessionScope(scope);
-          setCopyFailure(error);
-        }
+        void captureBatch(
+          leases,
+          orderBatch(fresh, save.succeeded),
+          loaded.currency,
+          'read',
+          membership.current,
+        ).then(
+          () => {
+            if (scope === getSessionScope()) setCopyFailure(null);
+          },
+          (error: unknown) => {
+            if (scope === getSessionScope()) setCopyFailure(error);
+          },
+        );
       }
       needsRefresh.current = [];
       if (kind === 'sync') {
@@ -966,6 +967,7 @@ function BatchPage() {
             size="lg"
             variant="outline"
             disabled={pending || !online || !records.some(batchApprovable) || !drafts.ready()}
+            aria-description={!online ? t('offline.action-description') : undefined}
             onClick={() => run('sync')}
           >
             {t('requisitions.batch.sync')}
@@ -980,9 +982,14 @@ function BatchPage() {
               !!unresolved.length ||
               !drafts.ready()
             }
+            aria-description={!online ? t('offline.action-description') : undefined}
             onClick={approve}
           >
-            {t(membershipVerified ? 'requisitions.batch.approve' : 'requisitions.batch.verifying')}
+            {t(
+              membershipVerified || membershipFailure
+                ? 'requisitions.batch.approve'
+                : 'requisitions.batch.verifying',
+            )}
           </Button>
         </div>
       </WorkspaceFooter>
@@ -1066,5 +1073,7 @@ function BatchPage() {
   );
 }
 function errorMessage(error: unknown) {
+  if (isAxiosError(error) && error.code === 'ECONNABORTED')
+    return i18n.t('requisitions.batch.verification-failed');
   return serverMessage(error) ?? (error instanceof Error ? error.message : String(error));
 }

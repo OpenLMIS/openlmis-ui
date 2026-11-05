@@ -13,10 +13,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { fetchPrograms } from '@/features/reference-data/api/api';
 import { fetchApprovalList } from '@/features/requisitions/api/api';
 import { readCopies } from '@/features/requisitions/lib/offline-copies';
 import * as offlineSearch from '@/features/requisitions/lib/offline-search';
 import { useFlag } from '@/lib/feature-flags';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve';
 
 vi.mock('@/lib/feature-flags', () => ({ useFlag: vi.fn(() => false) }));
@@ -291,4 +293,63 @@ it('keeps fetched approval rows on disconnect until an offline filter change', a
   expect(screen.getByText('Saved Copy')).toBeVisible();
   expect(local).toHaveBeenCalled();
   queryClient.clear();
+});
+
+it('falls back to local approvals after retained pages are evicted offline', async () => {
+  const program = '11111111-1111-4111-8111-111111111111';
+  const rows = [
+    {
+      id: 'saved',
+      emergency: false,
+      status: 'AUTHORIZED' as const,
+      program: { id: program, name: 'Family Planning' },
+      facility: { id: 'f', name: 'Comfort' },
+      processingPeriod: { id: 'period', name: 'Saved Period' },
+    },
+  ];
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: rows,
+    number: 0,
+    size: 10,
+    totalElements: 1,
+    totalPages: 1,
+  });
+  const local = vi
+    .spyOn(offlineSearch, 'localApprovals')
+    .mockResolvedValue({ content: rows, number: 0, size: 10, totalElements: 1, totalPages: 1 });
+  const { queryClient } = renderRoute(`/requisitions/approve?program=${program}`);
+  await screen.findByText('Saved Period');
+  await act(() => onlineManager.setOnline(false));
+  await act(() => queryClient.resetQueries({ queryKey: ['requisitions', 'approval'] }));
+  await waitFor(() => expect(local).toHaveBeenCalled());
+  expect(screen.getByText('Saved Period')).toBeVisible();
+  queryClient.clear();
+});
+
+it('shows a compact filter note when the saved list is usable', async () => {
+  const program = '11111111-1111-4111-8111-111111111111';
+  vi.mocked(fetchPrograms).mockRejectedValue(new LocalDataUnavailableError());
+  vi.mocked(readCopies).mockResolvedValue([{ id: 'saved', fetchedAt: 1 } as never]);
+  vi.spyOn(offlineSearch, 'localApprovals').mockResolvedValue({
+    content: [
+      {
+        id: 'saved',
+        emergency: false,
+        status: 'AUTHORIZED',
+        program: { id: program },
+        facility: { id: 'f' },
+        processingPeriod: { id: 'period', name: 'Usable Copy' },
+      },
+    ],
+    number: 0,
+    size: 10,
+    totalElements: 1,
+    totalPages: 1,
+  });
+  const { queryClient } = renderRoute(`/requisitions/approve?program=${program}&offline=true`);
+  expect(await screen.findByText('Usable Copy')).toBeVisible();
+  expect(await screen.findByText('requisitions.offline.filter-choices-missing')).toBeVisible();
+  expect(screen.queryByText('offline.not-downloaded-title')).not.toBeInTheDocument();
+  queryClient.clear();
+  vi.mocked(fetchPrograms).mockResolvedValue([{ id: program, name: 'Family Planning' }] as never);
 });

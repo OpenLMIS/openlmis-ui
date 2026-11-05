@@ -226,7 +226,9 @@ export function ApprovalTable({
     ...options,
     ...(retained && {
       staleTime: Infinity,
-      queryFn: () => client.ensureQueryData(options),
+      queryFn: () =>
+        client.getQueryData(options.queryKey) ??
+        client.fetchQuery(approvalListOptions(deferred, false)),
     }),
   });
   const stale = deferred !== search;

@@ -2050,6 +2050,7 @@
   "requisitions.offline.failed-description": "La copie complète hors connexion n’a pas pu être enregistrée. Réessayez. Les copies précédentes et le travail non synchronisé sont conservés.",
   "requisitions.offline.failed-label": "Copie Hors Connexion Non Enregistrée",
   "requisitions.offline.failed-title": "Copie non enregistrée",
+  "requisitions.offline.filter-choices-missing": "Connectez-vous pour télécharger les autres choix de filtre. Les réquisitions enregistrées sont disponibles ci-dessous.",
   "requisitions.offline.insecure-description": "Les copies hors ligne nécessitent une connexion HTTPS sécurisée. Ouvrez ce serveur en HTTPS pour enregistrer les réquisitions sur cet appareil.",
   "requisitions.offline.label": "Hors ligne",
   "requisitions.offline.online-results": "<strong>Vous êtes hors connexion.</strong> Ces résultats ont été chargés en ligne le <strong>{time}</strong> et peuvent être obsolètes. Relancez la recherche pour afficher les copies enregistrées sur cet appareil.",

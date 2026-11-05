@@ -226,9 +226,12 @@ function ComboboxVirtualList<Item>({
     initialRect: { width: 0, height: 248 },
     initialOffset: Math.max(0, selectedIndex) * 36,
   })
+  const previousSelection = React.useRef<unknown>(Symbol())
   React.useLayoutEffect(() => {
+    if (previousSelection.current === context?.selected) return
+    previousSelection.current = context?.selected
     virtualizer.scrollToIndex(Math.max(0, selectedIndex), { align: "auto" })
-  }, [items, selectedIndex, virtualizer])
+  }, [context?.selected, selectedIndex, virtualizer])
   React.useLayoutEffect(() => {
     if (!context) return
     context.scrollTo.current = (item) => {

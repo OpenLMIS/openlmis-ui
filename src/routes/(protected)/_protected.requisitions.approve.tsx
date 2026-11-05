@@ -38,6 +38,7 @@ import {
   ApprovalTableSkeleton,
 } from '@/features/requisitions/components/approval-table';
 import { ApprovalToolbar } from '@/features/requisitions/components/approval-toolbar';
+import { useOfflineCopies } from '@/features/requisitions/hooks/use-offline-copies';
 import {
   APPROVAL_SORT,
   type ApprovalSearch,
@@ -52,6 +53,7 @@ import { returnState } from '@/features/requisitions/lib/requisition-return';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useFlag } from '@/lib/feature-flags';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { useOnline } from '@/lib/online';
 import { RIGHTS } from '@/lib/rights';
 import { getSessionScope } from '@/lib/session-scope';
@@ -92,6 +94,13 @@ function ApprovalHeader() {
 }
 function ApprovalError(props: ErrorComponentProps) {
   const { t } = useTranslation();
+  const copies = useOfflineCopies();
+  if (props.error instanceof LocalDataUnavailableError && copies?.length)
+    return (
+      <p role="note" className="text-muted-foreground text-sm">
+        {t('requisitions.offline.filter-choices-missing')}
+      </p>
+    );
   return (
     <ListError
       {...props}

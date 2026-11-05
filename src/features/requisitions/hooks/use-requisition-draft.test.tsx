@@ -506,3 +506,30 @@ it('uses legacy stored header bases when changed-field bases are absent', async 
     datePhysicalStockCountCompleted: null,
   });
 });
+
+it('recognizes accepted edits on an immediate reload before the baseline write finishes', async () => {
+  const original = {
+    ...base,
+    requisitionLineItems: [line({ beginningBalance: 1 })],
+  } as RequisitionRecord;
+  const draft = buildRequisitionDraft(original);
+  draft.lines.line = { beginningBalance: '42' };
+  await getLocalDb().table('requisitionDrafts').put({
+    draftId: 'r',
+    userId: useLoginData.getState().referenceDataUserId,
+    formatVersion: 1,
+    revision: 1,
+    draft,
+    modifiedDate: original.modifiedDate,
+    eTag: original.eTag,
+  });
+  const accepted = {
+    ...original,
+    modifiedDate: '2026-11-05T12:00:00Z',
+    requisitionLineItems: [line({ beginningBalance: 42 })],
+  } as RequisitionRecord;
+  const hook = renderHook(() => useRequisitionDraft(accepted));
+  await waitFor(() => expect(hook.result.current.status.status).toBe('saved'));
+  expect(hook.result.current.outdated).toBe(false);
+  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
+});

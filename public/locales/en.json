@@ -2050,6 +2050,7 @@
   "requisitions.offline.failed-description": "The complete offline copy could not be saved. Try again. Earlier copies and unsynced work are kept.",
   "requisitions.offline.failed-label": "Offline Copy Not Saved",
   "requisitions.offline.failed-title": "Copy Not Saved",
+  "requisitions.offline.filter-choices-missing": "Connect to download the remaining filter choices. Saved requisitions are available below.",
   "requisitions.offline.insecure-description": "Offline copies require a secure HTTPS connection. Open this server over HTTPS to save requisitions on this device.",
   "requisitions.offline.label": "Offline",
   "requisitions.offline.online-results": "<strong>You're offline.</strong> These results were loaded online at <strong>{time}</strong> and may be out of date. Search again to show copies saved on this device.",

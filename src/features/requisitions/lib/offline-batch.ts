@@ -82,7 +82,8 @@ export async function fetchBatchMembership(
     return await findBatchSummaries(ids, session, program, background);
   } catch (error) {
     assertSessionScope(session);
-    if (isAccessFallbackError(error)) throw error;
+    if (isAccessFallbackError(error) && !(isAxiosError(error) && error.code === 'ECONNABORTED'))
+      throw error;
     return { error };
   }
 }

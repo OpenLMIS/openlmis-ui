@@ -1,10 +1,4 @@
-import {
-  useQueries,
-  useQuery,
-  useQueryClient,
-  useSuspenseQueries,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { CalendarX2Icon, ClipboardListIcon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
@@ -49,7 +43,9 @@ import {
   RequisitionsTableSkeleton,
 } from '@/features/requisitions/components/requisitions-table';
 import { RequisitionsToolbar } from '@/features/requisitions/components/requisitions-toolbar';
+import { useOfflineCopies } from '@/features/requisitions/hooks/use-offline-copies';
 import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
+import { readCopies } from '@/features/requisitions/lib/offline-copies';
 import {
   groupIdsOf,
   invalidDateRange,
@@ -64,7 +60,7 @@ import {
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { queryKeys } from '@/lib/key-factory';
-import { isOnline } from '@/lib/online';
+import { isOnline, useOnline } from '@/lib/online';
 import { programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 import { isSecureOrigin } from '@/lib/secure-context';
@@ -83,6 +79,8 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view'
   },
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
+    if (!isOnline() && (await readCopies()).length)
+      return { userId: useLoginData.getState().referenceDataUserId };
     await prepareRequisitionAccess(queryClient);
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
@@ -270,23 +268,43 @@ function RequisitionsPage() {
 }
 
 function useSearchFacilities(userId: string) {
-  const [facilities, userPrograms] = useSuspenseQueries({
-    queries: [minimalFacilitiesOptions(), userProgramsOptions(userId)],
+  const online = useOnline();
+  const copies = useOfflineCopies();
+  const [facilities, userPrograms] = useQueries({
+    queries: [
+      { ...minimalFacilitiesOptions(), enabled: online, throwOnError: online },
+      { ...userProgramsOptions(userId), enabled: online, throwOnError: online },
+    ],
   });
-  const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
-  const { data: user } = useQuery({ ...userRecordOptions(userId), throwOnError: true });
-  const { data: roles } = useQuery({ ...rolesOptions(), throwOnError: true });
-  const grants = useMemo(() => programGrants(permissions, RIGHTS.requisitionView), [permissions]);
-  const missingPrograms = grants.some(
-    ({ programId }) => !userPrograms.data.some(({ id }) => id === programId),
+  const { data: permissions } = useQuery({
+    ...permissionsOptions(userId),
+    enabled: online,
+    throwOnError: online,
+  });
+  const { data: user } = useQuery({
+    ...userRecordOptions(userId),
+    enabled: online,
+    throwOnError: online,
+  });
+  const { data: roles } = useQuery({ ...rolesOptions(), enabled: online, throwOnError: online });
+  const grants = useMemo(
+    () => (permissions ? programGrants(permissions, RIGHTS.requisitionView) : []),
+    [permissions],
   );
-  const fallback = useSuspenseQueries({
-    queries: [...(missingPrograms ? [programsOptions()] : [])],
+  const missingPrograms = grants.some(
+    ({ programId }) => !userPrograms.data?.some(({ id }) => id === programId),
+  );
+  const fallback = useQueries({
+    queries: [
+      ...(missingPrograms ? [{ ...programsOptions(), enabled: online, throwOnError: online }] : []),
+    ],
   });
   const nodeIds = user && roles ? requisitionViewNodes(user, roles) : [];
   const nodes = useQueries({
     queries: [
-      ...(nodeIds.length ? [{ ...supervisoryNodesByIdsOptions(nodeIds), throwOnError: true }] : []),
+      ...(nodeIds.length
+        ? [{ ...supervisoryNodesByIdsOptions(nodeIds), enabled: online, throwOnError: online }]
+        : []),
     ],
   });
   const viewerNodes = nodes.flatMap(({ data }) => data ?? []);
@@ -294,30 +312,60 @@ function useSearchFacilities(userId: string) {
   const partners = useQueries({
     queries: [
       ...(partnerIds.length
-        ? [{ ...supervisoryNodesByIdsOptions(partnerIds), throwOnError: true }]
+        ? [{ ...supervisoryNodesByIdsOptions(partnerIds), enabled: online, throwOnError: online }]
         : []),
     ],
   });
   const groupIds = groupIdsOf(partners.flatMap(({ data }) => data ?? []));
   const groups = useQueries({
-    queries: groupIds.map((id) => ({ ...requisitionGroupOptions(id), throwOnError: true })),
+    queries: groupIds.map((id) => ({
+      ...requisitionGroupOptions(id),
+      enabled: online,
+      throwOnError: online,
+    })),
     combine: combineGroups,
   });
   const fallbackPrograms = fallback[0]?.data;
   const options = useMemo(() => {
     const programsById = new Map(
-      [...(fallbackPrograms ?? []), ...userPrograms.data].map((program) => [program.id, program]),
+      [...(fallbackPrograms ?? []), ...(userPrograms.data ?? [])].map((program) => [
+        program.id,
+        program,
+      ]),
     );
-    return searchFacilityOptions(grants, facilities.data, [...programsById.values()], groups);
+    return searchFacilityOptions(grants, facilities.data ?? [], [...programsById.values()], groups);
   }, [grants, facilities.data, userPrograms.data, fallbackPrograms, groups]);
+  const savedOptions: SearchFacility[] = [];
+  for (const copy of copies ?? []) {
+    const summary = copy.summary ?? copy.single?.record;
+    if (!summary) continue;
+    let facility = savedOptions.find(({ id }) => id === summary.facility.id);
+    if (!facility) {
+      facility = {
+        id: summary.facility.id,
+        name: summary.facility.name ?? null,
+        code: summary.facility.code ?? '',
+        programs: [],
+      };
+      savedOptions.push(facility);
+    }
+    if (!facility.programs.some(({ id }) => id === summary.program.id))
+      facility.programs.push({ id: summary.program.id, name: summary.program.name ?? null });
+  }
   return {
-    options,
-    pending:
-      !user ||
-      !roles ||
-      nodes.some((result) => result.isPending) ||
-      partners.some((result) => result.isPending) ||
-      groups.length < groupIds.length,
+    options: online
+      ? options
+      : [...options, ...savedOptions.filter((saved) => !options.some(({ id }) => id === saved.id))],
+    pending: !online
+      ? !copies
+      : !facilities.data ||
+        !userPrograms.data ||
+        !permissions ||
+        !user ||
+        !roles ||
+        nodes.some((result) => result.isPending) ||
+        partners.some((result) => result.isPending) ||
+        groups.length < groupIds.length,
   };
 }
 

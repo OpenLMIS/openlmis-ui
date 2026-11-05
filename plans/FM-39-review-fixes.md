@@ -971,3 +971,14 @@ with 1,006 facilities: 32.8-151.4 ms opening, 12.5-29.5 ms typing, and at most t
 options. Its selected facility was marked and visible on every opening. Focused verification
 passes 67 tests across the View/Approve routes, shared form fields and Create Orders. Final
 checks: `pnpm sort-messages`, `pnpm tsc --noEmit`, `pnpm check`, and `pnpm lint:ds`.
+
+### Screen QA Follow-Up
+
+- Restore a separate saved-batch action beside View on offline rows, with the complete row identity; keep single-copy and batch-copy readiness independent.
+- Scroll a virtual facility list to its selected item only on opening or selection change, preserving manual scrolling while filtered items refresh.
+- Retained online lists read device results if their online cache is evicted during a disconnection.
+- Submit, Authorize and Approve invalidate list data without awaiting refetches before returning. Batch saves publish their accepted DTOs without awaiting copy capture.
+- An immediate reload recognizes edits already accepted by the server and removes the matching device draft without an outdated warning. Different pending values still require conflict recovery.
+- History includes status changes without comments, resolves author names where available and avoids duplicating a linked status message.
+- Cold offline View builds facility/program choices and results from complete owned copies when the separate access download is missing. Existing downloaded access continues to restrict local searches where available.
+- Missing filter data uses a compact note when saved requisitions are available. Membership timeout settles into failed verification with Retry, a disabled Approve label and friendly wording. Offline batch Sync and Approve explain their connection requirement.

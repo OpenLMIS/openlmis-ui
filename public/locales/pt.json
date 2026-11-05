@@ -2050,6 +2050,7 @@
   "requisitions.offline.failed-description": "Não foi possível guardar a cópia completa offline. Tente novamente. As cópias anteriores e o trabalho não sincronizado são mantidos.",
   "requisitions.offline.failed-label": "Cópia Offline Não Guardada",
   "requisitions.offline.failed-title": "Cópia não guardada",
+  "requisitions.offline.filter-choices-missing": "Ligue-se para transferir as restantes opções de filtro. As requisições guardadas estão disponíveis abaixo.",
   "requisitions.offline.insecure-description": "As cópias offline exigem uma ligação HTTPS segura. Abra este servidor por HTTPS para guardar requisições neste dispositivo.",
   "requisitions.offline.label": "Offline",
   "requisitions.offline.online-results": "<strong>Está offline.</strong> Estes resultados foram carregados online em <strong>{time}</strong> e podem estar desatualizados. Pesquise novamente para mostrar as cópias guardadas neste dispositivo.",

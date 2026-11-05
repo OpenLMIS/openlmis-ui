@@ -1,4 +1,17 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import { readCopies } from '@/features/requisitions/lib/offline-copies';
+import { localRequisitions } from '@/features/requisitions/lib/offline-search';
+import { LocalDataUnavailableError } from '@/lib/local-data';
+
+vi.mock('@/features/requisitions/lib/offline-copies', () => ({ readCopies: vi.fn() }));
+vi.mock('@/features/requisitions/lib/offline-access', () => ({
+  readRequisitionAccess: vi.fn(async () => {
+    throw new LocalDataUnavailableError();
+  }),
+  mayViewCopy: vi.fn(),
+  mayApproveSavedCopy: vi.fn(),
+}));
+
 import type { RequisitionCopy } from '@/features/requisitions/lib/offline-copies';
 import { localPage, searchCopies } from '@/features/requisitions/lib/offline-search';
 import type { RequisitionsQuery } from '@/features/requisitions/lib/types';
@@ -71,4 +84,12 @@ it('sorts whole-second and fractional timestamps by time rather than their text'
 it('returns an empty page without reading saved access until an approval program is chosen', async () => {
   const { localApprovals } = await import('./offline-search');
   expect(await localApprovals({})).toMatchObject({ content: [], totalElements: 0 });
+});
+
+it('lists complete owned copies without the separate access download', async () => {
+  vi.mocked(readCopies).mockResolvedValue([copy('saved', '2026-11-03T10:00:00Z')]);
+  expect(await localRequisitions(query, 'UTC')).toMatchObject({
+    content: [expect.objectContaining({ id: 'saved' })],
+    totalElements: 1,
+  });
 });

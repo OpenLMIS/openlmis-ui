@@ -67,11 +67,13 @@ function renderComments(
   const onRejection = vi.fn();
   function Comments() {
     const [open, setOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
     return (
       <RequisitionComments
         record={record}
         rejection={open}
-        onHistory={vi.fn()}
+        history={historyOpen}
+        onHistory={() => setHistoryOpen(true)}
         onRejection={() => {
           onRejection();
           setOpen(true);
@@ -111,7 +113,7 @@ it('lists the latest rejected record’s backend rejectionDtos', async () => {
   expect(within(dialog).getByText(/^Oct 27, 2026/)).toBeInTheDocument();
 });
 
-it('hides history and rejection actions when there are no messages or latest reasons', () => {
+it('keeps history available without comments or latest rejection reasons', () => {
   renderComments(
     [
       { ...rejection, createdDate: '2026-10-26T10:00:00Z' },
@@ -119,7 +121,7 @@ it('hides history and rejection actions when there are no messages or latest rea
     ],
     [],
   );
-  expect(screen.queryByRole('button', { name: 'View History' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'View History' })).toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: 'View Rejection Reason(s)' }),
   ).not.toBeInTheDocument();
@@ -136,4 +138,13 @@ it('hides empty comments for viewers without comment rights', () => {
   renderComments([], []);
   expect(screen.queryByText('No Comments')).not.toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Comments' })).not.toBeInTheDocument();
+});
+
+it('lists status changes with dates and authors even without comments', async () => {
+  renderComments([{ ...rejection, rejectionDtos: [] }], []);
+  await userEvent.click(screen.getByRole('button', { name: 'View History' }));
+  const dialog = await screen.findByRole('dialog');
+  expect(within(dialog).getByText('Rejected')).toBeInTheDocument();
+  expect(within(dialog).getByText('Jane Doe')).toBeInTheDocument();
+  expect(within(dialog).getByText(/^Oct 27, 2026/)).toBeInTheDocument();
 });

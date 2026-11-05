@@ -52,10 +52,27 @@ export function RequisitionComments({
   const commenting = !!editor || canComment;
   const { data } = useSuspenseQuery(requisitionStatusMessagesOptions(record.id));
   const messages = data.toSorted((a, b) => b.createdDate.localeCompare(a.createdDate));
+  const changes = (record.statusHistory ?? []).map((change) => ({
+    authorId: change.authorId,
+    ...change.statusMessageDto,
+    status: change.status,
+    createdDate: change.createdDate,
+  }));
+  const historyMessages = [
+    ...changes,
+    ...messages.filter(
+      (message) =>
+        !changes.some(
+          (change) =>
+            (!!change.id && change.id === message.id) ||
+            (change.status === message.status && change.createdDate === message.createdDate),
+        ),
+    ),
+  ].toSorted((a, b) => b.createdDate.localeCompare(a.createdDate));
   const latest = messages[0];
   const rejected = latestRejection(record);
   const hasRejections = record.status === 'REJECTED' && !!rejected?.rejectionDtos?.length;
-  if (!commenting && !latest && !hasRejections) return null;
+  if (!commenting && !latest && !hasRejections && !historyMessages.length) return null;
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3" ref={sectionRef}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -65,7 +82,7 @@ export function RequisitionComments({
         <div className="min-w-8 flex-1">
           <Separator />
         </div>
-        {messages.length > 0 && (
+        {historyMessages.length > 0 && (
           <Button variant="outline" size="lg" onClick={onHistory}>
             {t('requisitions.requisition.view-history')}
           </Button>
@@ -122,7 +139,7 @@ export function RequisitionComments({
           }
         />
       )}
-      <RequisitionHistoryDialog messages={messages} open={!!history} onClose={onClose} />
+      <RequisitionHistoryDialog messages={historyMessages} open={!!history} onClose={onClose} />
       {hasRejections && (
         <RejectionReasonsDialog rejection={rejected} open={!!rejection} onClose={onClose} />
       )}

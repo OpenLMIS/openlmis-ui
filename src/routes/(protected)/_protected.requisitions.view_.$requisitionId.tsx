@@ -876,10 +876,8 @@ function RequisitionBody({
       queryClient.removeQueries({ queryKey: requisitionOptions(record.id).queryKey });
       queryClient.removeQueries({ queryKey: requisitionStatusMessagesOptions(record.id).queryKey });
       if (kind === 'approve') removeApprovedFromLists(queryClient, [record.id]);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),
-      ]);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
       assertSessionScope(scope);
       if (isSecureOrigin && retired && kind !== 'delete' && kind !== 'skip') {
         void (async () => {

@@ -127,9 +127,8 @@ export function useRequisitionDraft(
           db &&
           table &&
           (!hasUnsyncedRequisitionDraft(stored) ||
-            (stored.modifiedDate === baseline.modifiedDate &&
-              JSON.stringify(rebaseRequisitionDraft(baseline, stored.draft)) ===
-                JSON.stringify(buildRequisitionDraft(baseline))))
+            JSON.stringify(rebaseRequisitionDraft(baseline, stored.draft)) ===
+              JSON.stringify(buildRequisitionDraft(baseline)))
         ) {
           await removeStored();
           expected = undefined;

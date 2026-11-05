@@ -1194,3 +1194,21 @@ it('retrieves a trusted list opening before starting its offline membership scan
     downloadProvider: 'requisition-copy',
   });
 });
+
+it('settles a timed out membership read and allows retry without technical text', async () => {
+  vi.mocked(fetchApprovalList).mockRejectedValueOnce(
+    new AxiosError('timeout of 60000ms exceeded', 'ECONNABORTED'),
+  );
+  const { queryClient } = renderRoute();
+  await screen.findByText('requisitions.batch.verification-failed');
+  expect(
+    screen.queryByRole('button', { name: 'requisitions.batch.verifying' }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeDisabled();
+  expect(screen.queryByText(/60000ms/)).not.toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('button', { name: 'error.try-again' })[0]);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeEnabled(),
+  );
+  queryClient.clear();
+});

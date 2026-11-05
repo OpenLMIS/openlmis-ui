@@ -187,7 +187,11 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange, refr
     ...options,
     ...(retained && {
       staleTime: Infinity,
-      queryFn: () => client.ensureQueryData(options),
+      queryFn: () =>
+        client.getQueryData(options.queryKey) ??
+        client.fetchQuery(
+          requisitionSearchOptions(toRequisitionQuery(deferred), false, true, timeZone),
+        ),
     }),
   });
   const stale = deferred !== search;

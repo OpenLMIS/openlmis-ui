@@ -2050,6 +2050,7 @@
   "requisitions.offline.failed-description": "تعذّر حفظ النسخة الكاملة للعمل دون اتصال. حاول مجددًا. تُحفظ النسخ السابقة والعمل غير المتزامن.",
   "requisitions.offline.failed-label": "لم تُحفظ النسخة دون اتصال",
   "requisitions.offline.failed-title": "لم تُحفظ النسخة",
+  "requisitions.offline.filter-choices-missing": "اتصل لتنزيل بقية خيارات التصفية. الطلبات المحفوظة متاحة أدناه.",
   "requisitions.offline.insecure-description": "تتطلب النسخ المتاحة دون اتصال اتصالاً آمنًا عبر HTTPS. افتح هذا الخادم عبر HTTPS لحفظ الطلبات على هذا الجهاز.",
   "requisitions.offline.label": "غير متصل",
   "requisitions.offline.online-results": "<strong>أنت غير متصل بالإنترنت.</strong> تم تحميل هذه النتائج عبر الإنترنت في <strong>{time}</strong> وقد تكون قديمة. ابحث مجددًا لعرض النسخ المحفوظة على هذا الجهاز.",

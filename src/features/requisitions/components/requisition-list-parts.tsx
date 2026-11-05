@@ -131,31 +131,43 @@ export function ViewRequisition({
   const cards = useInCards();
   const online = useOnline();
   const copy = use(RequisitionCopiesContext)?.find((copy) => copy.id === record.id);
-  const batch = !online && !copy?.single && !!copy?.batch;
-  const unavailable = !online && !copy?.single && !copy?.batch;
+  const rowDisabled = disabled;
+  const unavailable = !online && !copy?.single;
   disabled ||= unavailable;
-  const label = t(batch ? 'requisitions.batch.title' : 'requisitions.view.action');
+  const label = t('requisitions.view.action');
   const name = t('requisitions.view.action-name', {
     program: record.program?.name ?? '',
-    period:
-      includeFacility || batch
-        ? [record.processingPeriod?.name, record.facility?.code, record.facility?.name]
-            .filter(Boolean)
-            .join(' - ')
-        : (record.processingPeriod?.name ?? ''),
+    period: includeFacility
+      ? [record.processingPeriod?.name, record.facility?.code, record.facility?.name]
+          .filter(Boolean)
+          .join(' - ')
+      : (record.processingPeriod?.name ?? ''),
   });
-  const link = batch ? (
-    <Link
-      aria-label={name}
-      to="/requisitions/approve/batch"
-      search={{ ids: record.id, program: record.program?.id }}
-      state={
-        'state' in linkProps
-          ? linkProps.state
-          : returnState({ to: '/requisitions/view', search: linkProps.search })
-      }
-    />
-  ) : (
+  const batchAction: CardAction[] =
+    !online && copy?.batch
+      ? [
+          {
+            id: 'batch',
+            icon: <ClipboardCheckIcon />,
+            label: t('requisitions.batch.title'),
+            name: `${t('requisitions.batch.title')}: ${requisitionRowLabel(record, t('requisitions.columns.emergency'))}`,
+            disabled: rowDisabled,
+            link: (
+              <Link
+                to="/requisitions/approve/batch"
+                search={{ ids: record.id, program: record.program?.id }}
+                state={
+                  'state' in linkProps
+                    ? linkProps.state
+                    : returnState({ to: '/requisitions/view', search: linkProps.search })
+                }
+              />
+            ),
+          },
+        ]
+      : [];
+  actions = [...batchAction, ...actions];
+  const link = (
     <Link
       aria-label={name}
       to="/requisitions/view/$requisitionId"
@@ -172,7 +184,7 @@ export function ViewRequisition({
         actions={[
           {
             id: 'view',
-            icon: batch ? <ClipboardCheckIcon /> : <EyeIcon />,
+            icon: <EyeIcon />,
             label: unavailable ? t('offline.unavailable-title') : label,
             name,
             focusableWhenDisabled: unavailable,

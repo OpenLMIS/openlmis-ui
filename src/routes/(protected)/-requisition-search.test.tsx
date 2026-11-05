@@ -431,7 +431,11 @@ const onlineRows = ['Online Only', 'Saved Copy'].map((name, index) => ({
   processingPeriod: { id: name, name },
 }));
 function savedCopy() {
-  return { id: 'r1', fetchedAt: 1700000000000, single: { record: onlineRows[1] } } as never;
+  return {
+    id: 'r1',
+    fetchedAt: 1700000000000,
+    single: { record: onlineRows[1] },
+  } as unknown as import('@/features/requisitions/lib/offline-copies').RequisitionCopy;
 }
 
 it('keeps online results on disconnect until Search requests saved copies', async () => {
@@ -492,5 +496,70 @@ it.each([1200, 390])('shows View and separate removal actions at width %i', asyn
   );
   await userEvent.click(screen.getByRole('button', { name: 'dialog.cancel' }));
   await waitFor(() => expect(remove).toHaveFocus());
+  queryClient.clear();
+});
+
+it('keeps a separate saved batch action next to View offline', async () => {
+  vi.mocked(readCopies).mockResolvedValue([
+    { ...savedCopy(), batch: { record: onlineRows[1] } } as never,
+  ]);
+  vi.mocked(searchRequisitions).mockResolvedValue({
+    content: onlineRows,
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  const { queryClient } = renderRoute('/requisitions/view?facility=f');
+  await screen.findByText('Saved Copy');
+  await act(() => onlineManager.setOnline(false));
+  const batch = await screen.findByRole('button', { name: /^requisitions.batch.title:/ });
+  expect(batch).toHaveAttribute('href', expect.stringContaining('/requisitions/approve/batch'));
+  expect(screen.getAllByRole('button', { name: 'requisitions.view.action-name' })).toHaveLength(2);
+  queryClient.clear();
+});
+
+it('falls back to saved search after retained results are evicted offline', async () => {
+  vi.mocked(readCopies).mockResolvedValue([savedCopy()]);
+  vi.mocked(searchRequisitions).mockResolvedValue({
+    content: onlineRows,
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  vi.mocked(localRequisitions).mockResolvedValue({
+    content: [onlineRows[1]],
+    number: 0,
+    size: 10,
+    totalElements: 1,
+    totalPages: 1,
+  });
+  const { queryClient } = renderRoute('/requisitions/view?facility=f');
+  await screen.findByText('Online Only');
+  await act(() => onlineManager.setOnline(false));
+  await act(() => queryClient.resetQueries({ queryKey: ['requisitions', 'list'] }));
+  await waitFor(() => expect(localRequisitions).toHaveBeenCalled());
+  expect(screen.getByText('Saved Copy')).toBeVisible();
+  queryClient.clear();
+});
+
+it('cold starts saved View results without downloaded picker references', async () => {
+  const saved = { ...savedCopy(), summary: onlineRows[1] };
+  vi.mocked(readCopies).mockResolvedValue([saved]);
+  vi.mocked(fetchMinimalFacilities).mockRejectedValueOnce(new Error('No facilities downloaded'));
+  vi.mocked(fetchUserPrograms).mockRejectedValueOnce(new Error('No programs downloaded'));
+  vi.mocked(localRequisitions).mockResolvedValue({
+    content: [onlineRows[1]],
+    number: 0,
+    size: 10,
+    totalElements: 1,
+    totalPages: 1,
+  });
+  await act(() => onlineManager.setOnline(false));
+  const { queryClient } = renderRoute('/requisitions/view?facility=f&program=p&offline=true');
+  expect(await screen.findByText('Saved Copy')).toBeVisible();
+  expect(searchRequisitions).not.toHaveBeenCalled();
+  expect(fetchMinimalFacilities).not.toHaveBeenCalled();
   queryClient.clear();
 });
