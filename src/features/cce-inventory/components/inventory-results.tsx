@@ -31,19 +31,19 @@ import {
 import { activeAlertsByDevice } from '@/features/cce-inventory/lib/alerts';
 import {
   CLEARED_INVENTORY_FILTERS,
+  CLOSED_INVENTORY_DIALOGS,
   hasInventoryFilters,
   INVENTORY_PAGE_SIZE,
   INVENTORY_SORT,
   type InventorySearch,
   type InventorySortField,
   isInventorySortField,
-  legacyInventoryHash,
   toInventoryQuery,
 } from '@/features/cce-inventory/lib/search';
 import type { InventoryItem } from '@/features/cce-inventory/lib/types';
-import { legacyAvailable, openLegacy } from '@/hooks/use-back-to-legacy';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import type { CompleteSelection } from '@/lib/facility-program-selection';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 import { fullName } from '@/lib/text';
@@ -144,12 +144,7 @@ function ViewItem({ item }: { item: InventoryItem }) {
   );
 }
 
-function useInventoryColumns({
-  facilityName,
-  language,
-  timeZone,
-  withActions,
-}: CellContext & { withActions: boolean }) {
+function useInventoryColumns({ facilityName, language, timeZone }: CellContext) {
   const { t } = useTranslation();
   return useMemo(() => {
     const cellContext = { facilityName, language, timeZone };
@@ -168,20 +163,14 @@ function useInventoryColumns({
             ) : null,
         }),
       ),
-      ...(withActions
-        ? [
-            helper.display({
-              id: 'actions',
-              meta: { label: t('cce-inventory.actions'), skeleton: 'control' },
-              header: () => (
-                <DataTableHeaderLabel>{t('cce-inventory.actions')}</DataTableHeaderLabel>
-              ),
-              cell: ({ row }) => <ViewItem item={row.original} />,
-            }),
-          ]
-        : []),
+      helper.display({
+        id: 'actions',
+        meta: { label: t('cce-inventory.actions'), skeleton: 'control' },
+        header: () => <DataTableHeaderLabel>{t('cce-inventory.actions')}</DataTableHeaderLabel>,
+        cell: ({ row }) => <ViewItem item={row.original} />,
+      }),
     ]);
-  }, [t, facilityName, language, timeZone, withActions]);
+  }, [t, facilityName, language, timeZone]);
 }
 
 type ResultsProps = {
@@ -203,7 +192,7 @@ function useInventoryTable({
   onSearchChange,
   ...columnsOptions
 }: Pick<ResultsProps, 'cards' | 'search' | 'columns' | 'onSearchChange'> &
-  CellContext & { withActions: boolean; data: InventoryItem[]; rowCount: number }) {
+  CellContext & { data: InventoryItem[]; rowCount: number }) {
   const columnDefs = useInventoryColumns(columnsOptions);
   const { pageStart, searchState } = usePagedTableSearch({
     cards,
@@ -226,20 +215,15 @@ function useInventoryTable({
   return { table, pageStart };
 }
 
-function useRowActions(
-  search: InventorySearch,
-  { mode, facilityId, programId }: CompleteSelection,
-  canEdit: boolean,
-) {
-  return useMemo<InventoryRowActions | undefined>(() => {
-    if (!legacyAvailable()) return undefined;
-    const open = (path: string) =>
-      openLegacy(legacyInventoryHash(path, search, { mode, facilityId, programId }));
-    return {
-      details: (item) => open(`${item.id}/details`),
-      statusUpdate: canEdit ? (item) => open(`${item.id}/statusUpdate`) : undefined,
-    };
-  }, [search, mode, facilityId, programId, canEdit]);
+function useRowActions(canEdit: boolean) {
+  const { openDialog } = useSearchNavigation<InventorySearch>(CLOSED_INVENTORY_DIALOGS);
+  return useMemo<InventoryRowActions>(
+    () => ({
+      details: (item) => openDialog({ item: item.id }),
+      statusUpdate: canEdit ? (item) => openDialog({ item: item.id, action: 'status' }) : undefined,
+    }),
+    [openDialog, canEdit],
+  );
 }
 
 export function InventoryResults({
@@ -257,7 +241,7 @@ export function InventoryResults({
   const { data: page } = useSuspenseQuery(inventoryItemsOptions(query));
   const ids = useMemo(() => page.content.map((item) => item.id), [page.content]);
   const { data: alertList } = useQuery(inventoryAlertsOptions(ids));
-  const actions = useRowActions(deferredSearch, selection, canEdit);
+  const actions = useRowActions(canEdit);
   const stale = hashKey([toInventoryQuery(search, selection)]) !== hashKey([query]);
   const rows = useMemo(
     () => ({ activeAlerts: activeAlertsByDevice(alertList ?? []), actions, stale }),
@@ -270,7 +254,6 @@ export function InventoryResults({
     search: deferredSearch,
     columns,
     onSearchChange,
-    withActions: actions !== undefined,
     facilityName,
     language: i18n.language,
     timeZone: useDeploymentTimeZone(),
@@ -338,7 +321,6 @@ export function InventoryResultsSkeleton({
     search,
     columns,
     onSearchChange: noop,
-    withActions: legacyAvailable(),
     facilityName: '',
     language: '',
     timeZone: undefined,

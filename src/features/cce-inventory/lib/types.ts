@@ -38,6 +38,7 @@ export type CatalogItem = {
   model: string;
   manufacturer: string;
   energySource: EnergySource;
+  netVolume?: number;
 };
 
 export type Utilization = 'ACTIVE' | 'NOT_IN_USE' | 'IN_STORE_FOR_ALLOCATION';
@@ -67,4 +68,15 @@ export type InventoryItemBody = {
   functionalStatus: EquipmentStatus;
   reasonNotWorkingOrNotInUse?: EquipmentReason;
   decommissionDate?: string;
+};
+
+export type InventoryItemUpdate = InventoryItemBody & {
+  id: string;
+  remoteTemperatureMonitorId?: string;
+};
+
+export type InventoryItemRecord = Omit<InventoryItemUpdate, 'equipmentTrackingId'> & {
+  equipmentTrackingId?: string;
+  modifiedDate?: string;
+  lastModifier?: { firstName?: string; lastName?: string };
 };

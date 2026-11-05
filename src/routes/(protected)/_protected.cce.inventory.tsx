@@ -37,6 +37,7 @@ import {
   InventoryItemDialog,
   type SavedInventoryItem,
 } from '@/features/cce-inventory/components/inventory-item-dialog';
+import { InventoryItemView } from '@/features/cce-inventory/components/inventory-item-view';
 import {
   INVENTORY_HIDEABLE_COLUMNS,
   INVENTORY_SORT_COLUMNS,
@@ -44,7 +45,7 @@ import {
   InventoryResultsSkeleton,
 } from '@/features/cce-inventory/components/inventory-results';
 import { InventoryToolbar } from '@/features/cce-inventory/components/inventory-toolbar';
-import { editableGrants } from '@/features/cce-inventory/lib/grants';
+import { editableGrants, transferableGrants } from '@/features/cce-inventory/lib/grants';
 import {
   CLOSED_INVENTORY_DIALOGS,
   INVENTORY_SORT,
@@ -88,10 +89,12 @@ export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
-    if (search.item === 'new' && editableGrants(permissions).length === 0) {
+    const allowed =
+      search.action === 'transfer' && search.item !== 'new' ? transferableGrants : editableGrants;
+    if ((search.item === 'new' || search.action) && allowed(permissions).length === 0) {
       throw redirect({
         to: '/cce/inventory',
-        search: { ...search, ...CLOSED_INVENTORY_DIALOGS },
+        search: { ...search, action: undefined, ...(search.item === 'new' && { item: undefined }) },
         replace: true,
       });
     }
@@ -247,6 +250,7 @@ function InventoryContent({ userId }: { userId: string }) {
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
   const editable = useMemo(() => editableGrants(permissions), [permissions]);
+  const transferable = useMemo(() => transferableGrants(permissions), [permissions]);
   const { measure: measureContent, columnView } = useColumnView();
   const onSaved = ({ selection, status, name }: SavedInventoryItem) => {
     toast.success(t('cce-inventory.form.saved-title'), {
@@ -288,6 +292,15 @@ function InventoryContent({ userId }: { userId: string }) {
           onClose={closeDialog}
           onSaved={onSaved}
           open={search.item === 'new'}
+          userId={userId}
+        />
+        <InventoryItemView
+          action={search.action}
+          grants={editable}
+          itemId={search.item === 'new' ? undefined : search.item}
+          onAction={(action) => updateSearch({ action }, true, { keepState: true })}
+          onClose={closeDialog}
+          transferGrants={transferable}
           userId={userId}
         />
       </WorkspaceContent>

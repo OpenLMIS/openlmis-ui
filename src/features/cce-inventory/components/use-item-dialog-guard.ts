@@ -2,7 +2,8 @@ import { useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useState } from 'react';
 import { isUnloadAllowed, type LeaveIntent, useLeaveGuard } from '@/hooks/use-leave-guard';
 
-const itemOf = (search: object) => ('item' in search ? search.item : undefined);
+const dialogOf = (search: object) =>
+  `${'item' in search ? search.item : ''}:${'action' in search ? search.action : ''}`;
 
 export function useItemDialogGuard({
   dirty,
@@ -18,7 +19,7 @@ export function useItemDialogGuard({
     shouldBlockFn: ({ current, next }) =>
       guarded() &&
       next.pathname !== '/login' &&
-      (current.pathname !== next.pathname || itemOf(current.search) !== itemOf(next.search)),
+      (current.pathname !== next.pathname || dialogOf(current.search) !== dialogOf(next.search)),
     enableBeforeUnload: () => guarded() && !isUnloadAllowed(),
     withResolver: true,
   });

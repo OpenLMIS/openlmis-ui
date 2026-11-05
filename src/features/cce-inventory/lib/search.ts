@@ -31,12 +31,19 @@ export const INVENTORY_PAGE_SIZE = 10;
 export const inventorySearchSchema = tableSearchSchema(INVENTORY_SORT_FIELDS).extend({
   ...facilityProgramSearchSchema.shape,
   functionalStatus: z.enum(EQUIPMENT_STATUSES).optional().catch(undefined),
-  item: z.literal('new').optional().catch(undefined),
+  item: z
+    .union([z.literal('new'), z.guid()])
+    .optional()
+    .catch(undefined),
+  action: z.enum(['edit', 'status', 'transfer']).optional().catch(undefined),
 });
 
 export type InventorySearch = z.infer<typeof inventorySearchSchema>;
 
-export const CLOSED_INVENTORY_DIALOGS = { item: undefined } satisfies Partial<InventorySearch>;
+export const CLOSED_INVENTORY_DIALOGS = {
+  item: undefined,
+  action: undefined,
+} satisfies Partial<InventorySearch>;
 
 export const CLEARED_INVENTORY_FILTERS = {
   functionalStatus: undefined,
@@ -71,29 +78,12 @@ export function toInventoryQuery(
   };
 }
 
-export function legacyInventoryHash(
-  path: string,
-  search: InventorySearch,
-  { facilityId, programId, mode }: CompleteSelection,
-) {
-  const { pageIndex, pageSize } = toPaginationState(search, INVENTORY_PAGE_SIZE);
-  const params = new URLSearchParams({
-    page: String(pageIndex),
-    size: String(pageSize),
-    facility: facilityId,
-    program: programId,
-    supervised: String(mode === 'supervised'),
-    ...(search.functionalStatus && { functionalStatus: search.functionalStatus }),
-  });
-  return `#!/cce/inventory/${path}?${params}`;
-}
-
 export function inventorySavedSearch(
   listSearch: InventorySearch,
   { mode, programId, facilityId }: CompleteSelection,
   savedStatus: EquipmentStatus,
 ): InventorySearch {
-  const { page, functionalStatus, item, ...kept } = listSearch;
+  const { page, functionalStatus, item, action, ...kept } = listSearch;
   return {
     ...kept,
     mode,

@@ -30,28 +30,29 @@ import {
   EQUIPMENT_STATUS,
   EQUIPMENT_STATUSES,
 } from '@/lib/cce-equipment-status';
+import { orEmpty } from '@/lib/empty-value';
 import { type FacilityProgramOptions, recordLabel } from '@/lib/facility-program-selection';
 
-const UTILIZATION_KEYS: Record<Utilization, ParseKeys> = {
+export const UTILIZATION_KEYS: Record<Utilization, ParseKeys> = {
   ACTIVE: 'cce-inventory.form.active',
   NOT_IN_USE: 'cce-inventory.form.not-in-use',
   IN_STORE_FOR_ALLOCATION: 'cce-inventory.form.in-store-for-allocation',
 };
 
-const POWER_KEYS: Record<PowerStatus, ParseKeys> = {
+export const POWER_KEYS: Record<PowerStatus, ParseKeys> = {
   YES: 'cce-inventory.form.yes',
   NO: 'cce-inventory.form.no',
   UNKNOWN: 'cce-inventory.form.unknown',
   NOT_APPLICABLE: 'cce-inventory.form.not-applicable',
 };
 
-const GAUGE_KEYS: Record<TemperatureGauge, ParseKeys> = {
+export const GAUGE_KEYS: Record<TemperatureGauge, ParseKeys> = {
   BUILD_IN: 'cce-inventory.form.built-in',
   PAIRED: 'cce-inventory.form.paired',
   NO_GAUGE: 'cce-inventory.form.no-gauge',
 };
 
-const MONITOR_KEYS: Record<TemperatureMonitor, ParseKeys> = {
+export const MONITOR_KEYS: Record<TemperatureMonitor, ParseKeys> = {
   BUILD_IN: 'cce-inventory.form.built-in',
   PAIRED: 'cce-inventory.form.paired',
   NO_RTM: 'cce-inventory.form.no-rtm',
@@ -95,13 +96,20 @@ export function ChosenEquipment({
     ['cce-inventory.form.equipment-type', equipmentType ?? ''],
     ['cce-inventory.make-model', model ? makeModelLabel(model) : ''],
   ];
+  return <ReadOnlySection legend={t('cce-inventory.form.equipment')} rows={rows} />;
+}
+
+export type ReadOnlyRow = [ParseKeys, ReactNode];
+
+export function ReadOnlySection({ legend, rows }: { legend?: string; rows: ReadOnlyRow[] }) {
+  const { t } = useTranslation();
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="font-medium text-base">{t('cce-inventory.form.equipment')}</h3>
+      {legend && <h3 className="font-medium text-base">{legend}</h3>}
       <SettingsList>
         {rows.map(([label, value]) => (
           <SettingsItem key={label} label={t(label)}>
-            <bdi>{value}</bdi>
+            <bdi>{orEmpty(value)}</bdi>
           </SettingsItem>
         ))}
       </SettingsList>
@@ -109,14 +117,18 @@ export function ChosenEquipment({
   );
 }
 
-export function DetailsFields({ form, catalog }: CatalogFormProps) {
+export function DetailsFields({
+  form,
+  catalog,
+  children,
+}: CatalogFormProps & { children?: ReactNode }) {
   const { t } = useTranslation();
   return (
     <>
       <IdentificationSection form={form} />
       <HistorySection form={form} />
       <InstallationSection catalog={catalog} form={form} />
-      <StatusSection form={form} />
+      {children}
       <form.AppField name="details.additionalNotes">
         {(field) => (
           <field.TextareaField dir="auto" label={t('cce-inventory.form.additional-notes')} />
@@ -237,7 +249,7 @@ function InstallationSection({ form, catalog }: CatalogFormProps) {
   );
 }
 
-function StatusSection({ form }: FormProps) {
+export function StatusSection({ form }: FormProps) {
   const { t } = useTranslation();
   const status = useStore(form.store, (state) => state.values.details.functionalStatus);
   const shownStatus = useRef(status);

@@ -31,9 +31,11 @@ import {
   ChosenEquipment,
   DetailsFields,
   Section,
+  StatusSection,
 } from '@/features/cce-inventory/components/inventory-item-sections';
 import { ModelFields } from '@/features/cce-inventory/components/inventory-model-fields';
 import { PairFields } from '@/features/cce-inventory/components/inventory-pair-fields';
+import { useCloseOnce } from '@/features/cce-inventory/components/use-close-once';
 import { useInventoryItemForm } from '@/features/cce-inventory/components/use-inventory-item-form';
 import { useItemDialogGuard } from '@/features/cce-inventory/components/use-item-dialog-guard';
 import { equipmentTypes, soleItem, soleModelId } from '@/features/cce-inventory/lib/catalog';
@@ -88,13 +90,7 @@ export function InventoryItemDialog({
   const { t } = useTranslation();
   const { shown, dialogProps } = useDialogTarget(open ? userId : undefined, onClose);
   const pending = useIsMutating({ mutationKey: ADD_KEY }) > 0;
-  const openingKey = useOpeningKey(open);
-  const closedOpening = useRef<number | null>(null);
-  const requestClose = () => {
-    if (closedOpening.current === openingKey) return;
-    closedOpening.current = openingKey;
-    onClose();
-  };
+  const { opening, requestClose, cancelClose } = useCloseOnce(open, onClose);
 
   return (
     <FormDialog
@@ -120,10 +116,8 @@ export function InventoryItemDialog({
           <AddEquipmentForm
             grants={grants}
             initial={initial}
-            key={openingKey}
-            onCloseCancelled={() => {
-              closedOpening.current = null;
-            }}
+            key={opening}
+            onCloseCancelled={cancelClose}
             onSaved={onSaved}
             userId={shown}
           />
@@ -131,14 +125,6 @@ export function InventoryItemDialog({
       )}
     </FormDialog>
   );
-}
-
-function useOpeningKey(open: boolean) {
-  const [opening, setOpening] = useState({ open, key: 0 });
-  if (opening.open === open) return opening.key;
-  const next = { open, key: open ? opening.key + 1 : opening.key };
-  setOpening(next);
-  return next.key;
 }
 
 function offers(mode: SelectionMode, options: FacilityProgramOptions) {
@@ -275,7 +261,9 @@ function AddEquipmentForm({
                   />
                 )}
                 <ChosenEquipment catalog={catalog} form={form} options={options} />
-                <DetailsFields catalog={catalog} form={form} />
+                <DetailsFields catalog={catalog} form={form}>
+                  <StatusSection form={form} />
+                </DetailsFields>
               </>
             )}
           </div>

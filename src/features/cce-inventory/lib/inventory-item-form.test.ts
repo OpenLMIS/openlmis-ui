@@ -4,10 +4,14 @@ import {
   type InventoryItemDetails,
   inventoryItemDetailsSchema,
   inventoryItemSchema,
+  statusSchema,
+  toEditValues,
   toInventoryItemBody,
+  toInventoryItemUpdate,
+  toStatusUpdate,
   type ValidInventoryItemDetails,
 } from '@/features/cce-inventory/lib/inventory-item-form';
-import type { CatalogItem } from '@/features/cce-inventory/lib/types';
+import type { CatalogItem, InventoryItemRecord } from '@/features/cce-inventory/lib/types';
 import type { EquipmentStatus } from '@/lib/cce-equipment-status';
 
 const catalogItem: CatalogItem = {
@@ -150,5 +154,73 @@ describe('toInventoryItemBody', () => {
       reasonNotWorkingOrNotInUse: 'DEAD',
       decommissionDate: '2026-10-01',
     });
+  });
+});
+
+describe('editing a saved item', () => {
+  const record: InventoryItemRecord = {
+    id: 'i1',
+    facility: { id: 'f1' },
+    program: { id: 'p1' },
+    catalogItem,
+    equipmentTrackingId: 'SN-1',
+    referenceName: 'Fridge 2',
+    utilization: 'ACTIVE',
+    yearOfInstallation: 2019,
+    yearOfWarrantyExpiry: 2030,
+    source: 'Ministry',
+    voltageStabilizer: 'YES',
+    voltageRegulator: 'NO',
+    backupGenerator: 'UNKNOWN',
+    manualTemperatureGauge: 'BUILD_IN',
+    remoteTemperatureMonitor: 'PAIRED',
+    remoteTemperatureMonitorId: 'rtm-1',
+    additionalNotes: 'Spare key',
+    functionalStatus: 'UNSERVICEABLE',
+    reasonNotWorkingOrNotInUse: 'DEAD',
+    decommissionDate: '2026-10-01',
+  };
+
+  it('saves an unedited item back as it was read', () => {
+    const { details } = inventoryItemSchema.parse(toEditValues(record));
+
+    expect(toInventoryItemUpdate(record, details)).toEqual(record);
+  });
+
+  it('sends only the reason and date the new status uses', () => {
+    const update = (functionalStatus: EquipmentStatus) =>
+      toStatusUpdate(
+        record,
+        statusSchema.parse({
+          functionalStatus,
+          reasonNotWorkingOrNotInUse: 'DEAD',
+          decommissionDate: '2026-11-01',
+        }),
+      );
+
+    expect(update('FUNCTIONING')).toMatchObject({
+      functionalStatus: 'FUNCTIONING',
+      reasonNotWorkingOrNotInUse: undefined,
+      decommissionDate: undefined,
+    });
+    expect(update('AWAITING_REPAIR')).toMatchObject({
+      reasonNotWorkingOrNotInUse: 'DEAD',
+      decommissionDate: undefined,
+    });
+    expect(update('UNSERVICEABLE')).toMatchObject({ decommissionDate: '2026-11-01' });
+  });
+
+  it('shows and saves not applicable power for solar equipment only, as legacy', () => {
+    const solar: InventoryItemRecord = {
+      ...record,
+      catalogItem: { ...catalogItem, energySource: 'SOLAR' },
+    };
+    const notApplicable: InventoryItemRecord = {
+      ...record,
+      catalogItem: { ...catalogItem, energySource: 'NOT_APPLICABLE' },
+    };
+
+    expect(toEditValues(solar).details.voltageStabilizer).toBe('NOT_APPLICABLE');
+    expect(toEditValues(notApplicable).details.voltageStabilizer).toBe('YES');
   });
 });
