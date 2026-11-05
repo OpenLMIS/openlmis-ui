@@ -495,3 +495,7 @@ Validation: 201 tests pass in the eight affected component/route/capability test
 final status-row adjustment also passes all seven requisition-tabs tests. `pnpm tsc --noEmit`,
 `pnpm check` and `pnpm lint:ds` are clean. `pnpm sort-messages` reports all catalogs sorted;
 existing translations are retained and their key sets match English. No full suite or push.
+
+Final divider inspection also checks the unpinned narrow layout. End-cell rules retain their
+normal divider there; pinned divider pseudo-elements overlap the preceding border at its
+existing pixel. The focused batch route's 44 tests and all three final static checks pass.

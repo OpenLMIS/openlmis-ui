@@ -33,7 +33,7 @@ function Table({
           density === "compact" && "[&_td]:px-1.5 [&_th]:px-1.5",
           layout === "fixed" && "table-fixed [&_td]:truncate",
           scroll === "both" &&
-            "border-separate border-spacing-0 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_thead_tr]:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))] [&_thead_th]:shadow-[inset_0_-1px_0_var(--color-border)] [&_tbody_tr:not(:last-child)>*]:shadow-[inset_0_-1px_0_var(--color-border)] [&_tfoot_tr:first-child>*]:shadow-[0_-1px_0_var(--color-border)] [&_th:has(+[data-sticky=end])]:border-e-0! [&_td:has(+[data-sticky=end])]:border-e-0!",
+            "border-separate border-spacing-0 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_thead_tr]:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))] [&_thead_th]:shadow-[inset_0_-1px_0_var(--color-border)] [&_tbody_tr:not(:last-child)>*]:shadow-[inset_0_-1px_0_var(--color-border)] [&_tfoot_tr:first-child>*]:shadow-[0_-1px_0_var(--color-border)]",
           className
         )}
         {...props}
@@ -117,7 +117,7 @@ const stickyClasses = (sticky: boolean | "end") =>
   sticky &&
   cn(
     "sticky bg-inherit after:pointer-events-none after:absolute after:inset-y-0 after:w-px after:bg-border",
-    sticky === "end" ? "border-s-0! border-e-0! after:start-0" : "border-e-0! after:end-0"
+    sticky === "end" ? "border-s-0! after:-start-px" : "border-e-0! after:end-0"
   )
 
 function TableHead({
