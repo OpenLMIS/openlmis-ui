@@ -2047,7 +2047,7 @@
   "requisitions.offline.insecure-description": "Offline copies require a secure HTTPS connection. Open this server over HTTPS to save requisitions on this device.",
   "requisitions.offline.label": "Offline",
   "requisitions.offline.only": "Offline Only",
-  "requisitions.offline.refresh-failed-description": "The requisition was processed and its earlier device copy was removed, but the updated offline copy could not be saved. Connect and reopen the requisition to try again.",
+  "requisitions.offline.refresh-failed-description": "The requisition was processed and its earlier device copy was removed, but the updated offline copy could not be saved. Reopen the requisition to try again.",
   "requisitions.offline.remove": "Remove From This Device",
   "requisitions.offline.remove-description": "Remove this saved copy? The server requisition will remain.",
   "requisitions.offline.removed-description": "This copy was removed in another view. Reload before editing again.",

@@ -26,3 +26,13 @@ it('recognizes reused keys only by the exact server message key', () => {
     kind: 'conflict',
   });
 });
+
+it('gives Create Authorize its own reused-key recovery without an absent Update action', async () => {
+  const { initiateFailureMessage } = await import('./initiate-failure');
+  expect(
+    initiateFailureMessage(
+      httpError(409, { messageKey: 'requisition.error.validation.idempotencyKey.alreadyUsed' }),
+      (key) => key,
+    ),
+  ).toBe('requisitions.initiate.error.key-used');
+});

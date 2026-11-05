@@ -2047,7 +2047,7 @@
   "requisitions.offline.insecure-description": "تتطلب النسخ المتاحة دون اتصال اتصالاً آمنًا عبر HTTPS. افتح هذا الخادم عبر HTTPS لحفظ الطلبات على هذا الجهاز.",
   "requisitions.offline.label": "غير متصل",
   "requisitions.offline.only": "المحفوظة على الجهاز فقط",
-  "requisitions.offline.refresh-failed-description": "تمت معالجة الطلب وإزالة نسخته السابقة من الجهاز، ولكن تعذر حفظ النسخة المحدثة للاستخدام دون اتصال. اتصل وأعد فتح الطلب للمحاولة مجددًا.",
+  "requisitions.offline.refresh-failed-description": "تمت معالجة الطلب وإزالة نسخته السابقة من الجهاز، لكن تعذّر حفظ النسخة المحدّثة دون اتصال. أعد فتح الطلب للمحاولة مجددًا.",
   "requisitions.offline.remove": "إزالة من هذا الجهاز",
   "requisitions.offline.remove-description": "هل تريد إزالة هذه النسخة المحفوظة؟ سيبقى الطلب على الخادم.",
   "requisitions.offline.removed-description": "تمت إزالة هذه النسخة في عرض آخر. أعد التحميل قبل التعديل مجدداً.",

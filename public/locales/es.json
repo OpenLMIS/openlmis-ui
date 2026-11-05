@@ -2047,7 +2047,7 @@
   "requisitions.offline.insecure-description": "Las copias sin conexión requieren una conexión HTTPS segura. Abra este servidor mediante HTTPS para guardar requisiciones en este dispositivo.",
   "requisitions.offline.label": "Sin conexión",
   "requisitions.offline.only": "Solo sin conexión",
-  "requisitions.offline.refresh-failed-description": "La requisición se ha procesado y su copia anterior se ha eliminado del dispositivo, pero no se pudo guardar la copia actualizada sin conexión. Conéctese y vuelva a abrir la requisición para intentarlo de nuevo.",
+  "requisitions.offline.refresh-failed-description": "La solicitud se procesó y se eliminó su copia anterior del dispositivo, pero no se pudo guardar la copia actualizada sin conexión. Vuelva a abrir la solicitud para intentarlo de nuevo.",
   "requisitions.offline.remove": "Eliminar de este dispositivo",
   "requisitions.offline.remove-description": "¿Eliminar esta copia guardada? La requisición permanecerá en el servidor.",
   "requisitions.offline.removed-description": "Esta copia se eliminó en otra vista. Recargue antes de volver a editar.",
