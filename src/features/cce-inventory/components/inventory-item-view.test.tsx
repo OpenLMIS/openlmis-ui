@@ -282,6 +282,21 @@ describe('InventoryItemView', () => {
     };
 
     expect(await screen.findByText('Too warm')).toBeInTheDocument();
+    expect(rowLabels()).toEqual([
+      'facility-program.facility',
+      'cce-inventory.form.equipment-type',
+      'cce-inventory.status.current',
+    ]);
+    await user.click(
+      screen.getByRole('combobox', { name: /cce-inventory.form.functional-status/ }),
+    );
+    expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual([
+      'cce-equipment.status.functioning',
+      'cce-equipment.status.needs-attention',
+      'cce-equipment.status.awaiting-repair',
+      'cce-equipment.status.unserviceable',
+    ]);
+    await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: /cce-inventory.status.dismiss-label/ }));
     await waitFor(() => expect(dismissAlert).toHaveBeenCalledWith(ALERT, expect.anything()));
     await choose(/cce-inventory.form.functional-status/, 'cce-equipment.status.unserviceable');
