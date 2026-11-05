@@ -1,6 +1,7 @@
 import { BellIcon, BellRingIcon, SquarePenIcon } from 'lucide-react';
 import { use } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useInCards } from '@/components/display/card-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { InventoryRowsContext } from '@/features/cce-inventory/components/inventory-rows-context';
@@ -10,28 +11,41 @@ import { EQUIPMENT_REASON_KEYS, EQUIPMENT_STATUS } from '@/lib/cce-equipment-sta
 export function FunctionalStatusCell({ item }: { item: InventoryItem }) {
   const { t } = useTranslation();
   const { activeAlerts, actions, stale } = use(InventoryRowsContext);
+  const inCards = useInCards();
   const alerts = activeAlerts.get(item.id);
   const statusUpdate = actions?.statusUpdate;
   const { labelKey, tone, icon: Icon } = EQUIPMENT_STATUS[item.functionalStatus];
   const reason = item.reasonNotWorkingOrNotInUse;
   return (
-    <div className="flex min-w-0 flex-col items-start gap-1">
-      <div className="flex flex-nowrap items-center gap-1">
+    <div
+      className={inCards ? 'flex min-w-0 flex-col items-end gap-1' : 'flex min-w-0 flex-col gap-1'}
+    >
+      <div
+        className={
+          inCards
+            ? 'flex flex-wrap items-center justify-end gap-1'
+            : 'flex flex-nowrap items-center justify-between gap-2'
+        }
+      >
         <Badge variant={tone}>
           <Icon data-icon="inline-start" />
           {t(labelKey)}
         </Badge>
-        {alerts && <AlertBell count={alerts.length} />}
-        {statusUpdate && (
-          <Button
-            aria-label={t('cce-inventory.update-status', { name: item.referenceName })}
-            disabled={stale}
-            onClick={() => statusUpdate(item)}
-            size="icon-xs"
-            variant="ghost"
-          >
-            <SquarePenIcon />
-          </Button>
+        {(alerts || statusUpdate) && (
+          <div className="flex items-center gap-1">
+            {alerts && <AlertBell count={alerts.length} />}
+            {statusUpdate && (
+              <Button
+                aria-label={t('cce-inventory.update-status', { name: item.referenceName })}
+                disabled={stale}
+                onClick={() => statusUpdate(item)}
+                size="icon-xs"
+                variant="ghost"
+              >
+                <SquarePenIcon />
+              </Button>
+            )}
+          </div>
         )}
       </div>
       {reason && (
