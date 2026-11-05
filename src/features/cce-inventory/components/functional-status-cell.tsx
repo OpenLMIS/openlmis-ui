@@ -19,7 +19,7 @@ export function FunctionalStatusCell({
   timeZone: string | undefined;
 }) {
   const { t } = useTranslation();
-  const { activeAlerts, actions } = use(InventoryRowsContext);
+  const { activeAlerts, actions, stale } = use(InventoryRowsContext);
   const alerts = activeAlerts.get(item.id);
   const statusUpdate = actions?.statusUpdate;
   const { labelKey, tone, icon: Icon } = EQUIPMENT_STATUS[item.functionalStatus];
@@ -39,6 +39,7 @@ export function FunctionalStatusCell({
               render={
                 <Button
                   aria-label={updateLabel}
+                  disabled={stale}
                   onClick={() => statusUpdate(item)}
                   size="icon-xs"
                   variant="ghost"

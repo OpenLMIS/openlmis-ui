@@ -80,6 +80,25 @@ const year = (optional: boolean) =>
     { min: { value: 1000, tooSmall: YEAR_RANGE }, max: 9999, optional },
   );
 
+const statusFields = z.object({
+  functionalStatus: choice(EQUIPMENT_STATUSES),
+  reasonNotWorkingOrNotInUse: optionalChoice(EQUIPMENT_REASONS),
+  decommissionDate: z.string(),
+});
+
+function requireStatusDetails(details: z.output<typeof statusFields>, context: z.RefinementCtx) {
+  if (statusUsesReason(details.functionalStatus) && !details.reasonNotWorkingOrNotInUse) {
+    context.addIssue({ code: 'custom', message: REQUIRED, path: ['reasonNotWorkingOrNotInUse'] });
+  }
+  if (statusUsesDecommission(details.functionalStatus) && !details.decommissionDate) {
+    context.addIssue({ code: 'custom', message: REQUIRED, path: ['decommissionDate'] });
+  }
+}
+
+export const statusSchema = statusFields.superRefine(requireStatusDetails, ALONG_WITH_OTHER_ISSUES);
+
+export type StatusValues = z.input<typeof statusSchema>;
+
 export const inventoryItemDetailsSchema = z
   .object({
     equipmentTrackingId: filledText,
@@ -94,18 +113,9 @@ export const inventoryItemDetailsSchema = z
     manualTemperatureGauge: choice(TEMPERATURE_GAUGES),
     remoteTemperatureMonitor: choice(TEMPERATURE_MONITORS),
     additionalNotes: z.string(),
-    functionalStatus: choice(EQUIPMENT_STATUSES),
-    reasonNotWorkingOrNotInUse: optionalChoice(EQUIPMENT_REASONS),
-    decommissionDate: z.string(),
+    ...statusFields.shape,
   })
-  .superRefine((details, context) => {
-    if (statusUsesReason(details.functionalStatus) && !details.reasonNotWorkingOrNotInUse) {
-      context.addIssue({ code: 'custom', message: REQUIRED, path: ['reasonNotWorkingOrNotInUse'] });
-    }
-    if (statusUsesDecommission(details.functionalStatus) && !details.decommissionDate) {
-      context.addIssue({ code: 'custom', message: REQUIRED, path: ['decommissionDate'] });
-    }
-  }, ALONG_WITH_OTHER_ISSUES);
+  .superRefine(requireStatusDetails, ALONG_WITH_OTHER_ISSUES);
 
 export type InventoryItemDetails = z.input<typeof inventoryItemDetailsSchema>;
 
@@ -259,3 +269,34 @@ export function toInventoryItemUpdate(
     ...(remoteTemperatureMonitorId && { remoteTemperatureMonitorId }),
   };
 }
+
+export function toStatusUpdate(
+  record: InventoryItemRecord,
+  { functionalStatus, reasonNotWorkingOrNotInUse, decommissionDate }: z.output<typeof statusSchema>,
+): InventoryItemRecord {
+  const power = (value: PowerStatus) => solarPower(record.catalogItem.energySource, value);
+  return {
+    ...record,
+    voltageStabilizer: power(record.voltageStabilizer),
+    voltageRegulator: power(record.voltageRegulator),
+    backupGenerator: power(record.backupGenerator),
+    functionalStatus,
+    reasonNotWorkingOrNotInUse: statusUsesReason(functionalStatus)
+      ? reasonNotWorkingOrNotInUse || undefined
+      : undefined,
+    decommissionDate: statusUsesDecommission(functionalStatus) ? decommissionDate : undefined,
+  };
+}
+
+export const transferSchema = z.object({
+  target: z.object({
+    programId: picked(PROGRAM_REQUIRED),
+    facilityId: picked(FACILITY_REQUIRED),
+  }),
+  yearOfInstallation: year(false),
+});
+
+export type TransferValues = {
+  target: { programId: string | null; facilityId: string | null };
+  yearOfInstallation: string;
+};

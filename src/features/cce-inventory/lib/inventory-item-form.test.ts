@@ -4,9 +4,11 @@ import {
   type InventoryItemDetails,
   inventoryItemDetailsSchema,
   inventoryItemSchema,
+  statusSchema,
   toEditValues,
   toInventoryItemBody,
   toInventoryItemUpdate,
+  toStatusUpdate,
   type ValidInventoryItemDetails,
 } from '@/features/cce-inventory/lib/inventory-item-form';
 import type { CatalogItem, InventoryItemRecord } from '@/features/cce-inventory/lib/types';
@@ -183,6 +185,29 @@ describe('editing a saved item', () => {
     const { details } = inventoryItemSchema.parse(toEditValues(record));
 
     expect(toInventoryItemUpdate(record, details)).toEqual(record);
+  });
+
+  it('sends only the reason and date the new status uses', () => {
+    const update = (functionalStatus: EquipmentStatus) =>
+      toStatusUpdate(
+        record,
+        statusSchema.parse({
+          functionalStatus,
+          reasonNotWorkingOrNotInUse: 'DEAD',
+          decommissionDate: '2026-11-01',
+        }),
+      );
+
+    expect(update('FUNCTIONING')).toMatchObject({
+      functionalStatus: 'FUNCTIONING',
+      reasonNotWorkingOrNotInUse: undefined,
+      decommissionDate: undefined,
+    });
+    expect(update('AWAITING_REPAIR')).toMatchObject({
+      reasonNotWorkingOrNotInUse: 'DEAD',
+      decommissionDate: undefined,
+    });
+    expect(update('UNSERVICEABLE')).toMatchObject({ decommissionDate: '2026-11-01' });
   });
 
   it('shows and saves not applicable power for solar equipment only, as legacy', () => {

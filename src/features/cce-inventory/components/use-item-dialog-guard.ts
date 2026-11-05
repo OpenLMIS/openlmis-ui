@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { isUnloadAllowed, type LeaveIntent, useLeaveGuard } from '@/hooks/use-leave-guard';
 
 const dialogOf = (search: object) =>
-  `${'item' in search ? search.item : ''}:${'edit' in search ? search.edit : ''}`;
+  `${'item' in search ? search.item : ''}:${'action' in search ? search.action : ''}`;
 
 export function useItemDialogGuard({
   dirty,

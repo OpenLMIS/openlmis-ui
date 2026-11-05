@@ -1,12 +1,12 @@
 import { useStore } from '@tanstack/react-form';
 import {
   useIsMutating,
-  useQueryClient,
+  useQuery,
   useSuspenseQueries,
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
-import { useCallback, useRef } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -34,7 +34,13 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { fetchInventoryItem, updateInventoryItem } from '@/features/cce-inventory/api/api';
-import { inventoryItemOptions } from '@/features/cce-inventory/api/queries';
+import { inventoryAlertsOptions, inventoryItemOptions } from '@/features/cce-inventory/api/queries';
+import {
+  SAVE_KEY,
+  StatusItem,
+  TransferItem,
+  useItemSave,
+} from '@/features/cce-inventory/components/inventory-item-actions';
 import {
   DetailsFields,
   GAUGE_KEYS,
@@ -55,26 +61,26 @@ import {
   toInventoryItemUpdate,
   type ValidInventoryItemDetails,
 } from '@/features/cce-inventory/lib/inventory-item-form';
+import type { InventorySearch } from '@/features/cce-inventory/lib/search';
 import type { InventoryItemRecord, PowerStatus } from '@/features/cce-inventory/lib/types';
 import { facilityOptions, programLookupOptions } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useOpening } from '@/hooks/use-opening';
-import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { EQUIPMENT_REASON_KEYS, EQUIPMENT_STATUS } from '@/lib/cce-equipment-status';
 import { isNotFound, isRefused } from '@/lib/http';
-import { queryKeys } from '@/lib/key-factory';
 import type { ProgramGrant } from '@/lib/permissions';
 import { fullName } from '@/lib/text';
 
-const SAVE_KEY = ['cce-inventory', 'edit'];
+export type ItemAction = NonNullable<InventorySearch['action']>;
 
 type InventoryItemViewProps = {
   itemId: string | undefined;
-  editing: boolean;
+  action: ItemAction | undefined;
+  userId: string;
   grants: readonly ProgramGrant[];
+  transferGrants: readonly ProgramGrant[];
   onClose: () => void;
-  onEditing: (editing: boolean) => void;
-  onStatusUpdate?: (item: InventoryItemRecord) => void;
+  onAction: (action: ItemAction | undefined) => void;
 };
 
 export function InventoryItemView({ itemId, onClose, ...content }: InventoryItemViewProps) {
@@ -91,7 +97,13 @@ export function InventoryItemView({ itemId, onClose, ...content }: InventoryItem
       size="2xl"
     >
       {shown && (
-        <ItemBoundary {...content} id={shown} key={opening} onCloseCancelled={cancelClose} />
+        <ItemBoundary
+          {...content}
+          id={shown}
+          key={opening}
+          onCloseCancelled={cancelClose}
+          onDone={requestClose}
+        />
       )}
     </FormDialog>
   );
@@ -100,6 +112,10 @@ export function InventoryItemView({ itemId, onClose, ...content }: InventoryItem
 function ItemBoundary(props: ItemContentProps) {
   const { t } = useTranslation();
   const opening = useOpening();
+  const alerts = useQuery({
+    ...inventoryAlertsOptions([props.id]),
+    enabled: props.action === 'status',
+  });
   return (
     <QueryBoundary
       errorComponent={({ error, reset }) =>
@@ -119,10 +135,16 @@ function ItemBoundary(props: ItemContentProps) {
           />
         )
       }
-      pendingFallback={<ViewSkeleton />}
+      pendingFallback={<ViewSkeleton action={props.action} />}
       resetKey={props.id}
     >
-      <ItemContent {...props} opening={opening} />
+      <ItemContent
+        {...props}
+        alertsLoading={
+          alerts.isPending && alerts.failureCount === 0 && alerts.errorUpdateCount === 0
+        }
+        opening={opening}
+      />
     </QueryBoundary>
   );
 }
@@ -130,39 +152,59 @@ function ItemBoundary(props: ItemContentProps) {
 type ItemContentProps = Omit<InventoryItemViewProps, 'itemId' | 'onClose'> & {
   id: string;
   onCloseCancelled: () => void;
+  onDone: () => void;
 };
+
+const grantsPair = (grants: readonly ProgramGrant[], item: InventoryItemRecord) =>
+  grants.some(
+    (grant) => grant.facilityId === item.facility.id && grant.programId === item.program.id,
+  );
 
 function ItemContent({
   id,
   opening,
-  editing,
+  action,
+  userId,
   grants,
-  ...actions
-}: ItemContentProps & { opening: number }) {
+  transferGrants,
+  onAction,
+  onDone,
+  onCloseCancelled,
+  alertsLoading,
+}: ItemContentProps & { opening: number; alertsLoading: boolean }) {
   const { data: item } = useSuspenseQuery(inventoryItemOptions(id, opening));
   const [{ data: facility }, { data: program }] = useSuspenseQueries({
     queries: [facilityOptions(item.facility.id), programLookupOptions(item.program.id)],
   });
-  const canEdit = grants.some(
-    (grant) => grant.facilityId === item.facility.id && grant.programId === item.program.id,
-  );
+  const canEdit = grantsPair(grants, item);
+  const canTransfer = grantsPair(transferGrants, item);
   const header: ReadOnlyRow[] = [
     ['cce-inventory.details.district', facility.geographicZone.name],
     ['facility-program.facility', facility.name],
     ['facility-program.program', program.name],
     ['cce-inventory.form.equipment-type', item.catalogItem.type],
   ];
-  return editing && canEdit ? (
-    <EditItem {...actions} header={header} item={item} />
-  ) : (
-    <ItemDetails {...actions} canEdit={canEdit} header={header} item={item} />
+  const actionProps = { item, userId, onDone, onCloseCancelled, onBack: () => onAction(undefined) };
+  if (action === 'edit' && canEdit) return <EditItem {...actionProps} header={header} />;
+  if (action === 'status' && canEdit) {
+    return alertsLoading ? (
+      <ViewSkeleton action="status" />
+    ) : (
+      <StatusItem {...actionProps} facilityName={facility.name} />
+    );
+  }
+  if (action === 'transfer' && canTransfer)
+    return <TransferItem {...actionProps} grants={transferGrants} />;
+  return (
+    <ItemDetails
+      canEdit={canEdit}
+      canTransfer={canTransfer}
+      header={header}
+      item={item}
+      onAction={onAction}
+    />
   );
 }
-
-type ItemProps = Pick<ItemContentProps, 'onEditing' | 'onStatusUpdate' | 'onCloseCancelled'> & {
-  item: InventoryItemRecord;
-  header: ReadOnlyRow[];
-};
 
 const optional = (label: ParseKeys, value: string | number | undefined): ReadOnlyRow[] =>
   value === undefined || value === '' ? [] : [[label, value]];
@@ -171,9 +213,15 @@ function ItemDetails({
   item,
   header,
   canEdit,
-  onEditing,
-  onStatusUpdate,
-}: ItemProps & { canEdit: boolean }) {
+  canTransfer,
+  onAction,
+}: {
+  item: InventoryItemRecord;
+  header: ReadOnlyRow[];
+  canEdit: boolean;
+  canTransfer: boolean;
+  onAction: (action: ItemAction) => void;
+}) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
   const { labelKey, tone, icon: Icon } = EQUIPMENT_STATUS[item.functionalStatus];
@@ -214,11 +262,18 @@ function ItemDetails({
                 </span>
               )}
             </div>
-            {canEdit && onStatusUpdate && (
-              <Button onClick={() => onStatusUpdate(item)} variant="outline">
-                {t('cce-inventory.details.update-status')}
-              </Button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {canEdit && (
+                <Button onClick={() => onAction('status')} variant="outline">
+                  {t('cce-inventory.details.update-status')}
+                </Button>
+              )}
+              {canTransfer && (
+                <Button onClick={() => onAction('transfer')} variant="outline">
+                  {t('cce-inventory.transfer.open')}
+                </Button>
+              )}
+            </div>
           </div>
           <ReadOnlySection
             rows={[
@@ -271,7 +326,7 @@ function ItemDetails({
       <FormDialogFooter>
         <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
         {canEdit && (
-          <Button autoFocus onClick={() => onEditing(true)}>
+          <Button autoFocus onClick={() => onAction('edit')}>
             {t('cce-inventory.details.edit')}
           </Button>
         )}
@@ -280,30 +335,36 @@ function ItemDetails({
   );
 }
 
-function EditItem({ item, header, onEditing, onCloseCancelled }: ItemProps) {
+function EditItem({
+  item,
+  header,
+  onBack,
+  onDone,
+  onCloseCancelled,
+}: {
+  item: InventoryItemRecord;
+  header: ReadOnlyRow[];
+  onBack: () => void;
+  onDone: () => void;
+  onCloseCancelled: () => void;
+}) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const fields = useRef<HTMLDivElement>(null);
-  const leaving = useRef(false);
-
-  const save = useSessionMutation({
-    mutationKey: SAVE_KEY,
-    mutationFn: async (details: ValidInventoryItemDetails) => {
-      await updateInventoryItem(toInventoryItemUpdate(await fetchInventoryItem(item.id), details));
-      await queryClient.invalidateQueries(
-        { queryKey: queryKeys.inventoryItems.all },
-        { throwOnError: true },
-      );
-    },
-    onSuccess: (_, details) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
+  const {
+    mutation: save,
+    leaving,
+    allowLeave,
+  } = useItemSave(
+    async (details: ValidInventoryItemDetails) =>
+      updateInventoryItem(toInventoryItemUpdate(await fetchInventoryItem(item.id), details)),
+    (details, fresh) => {
       toast.success(t('cce-inventory.details.saved-title'), {
         description: t('cce-inventory.details.saved', { name: details.referenceName.trim() }),
       });
-      leaving.current = true;
-      onEditing(false);
+      if (fresh) onBack();
+      else onDone();
     },
-  });
+  );
 
   const form = useInventoryItemForm(
     toEditValues(item),
@@ -314,7 +375,6 @@ function EditItem({ item, header, onEditing, onCloseCancelled }: ItemProps) {
       ),
   );
   const dirty = useStore(form.store, (state) => !state.isDefaultValue);
-  const allowLeave = useCallback(() => leaving.current, []);
   const guard = useItemDialogGuard({ dirty, pending: save.isPending, allowLeave });
 
   return (
@@ -346,12 +406,7 @@ function EditItem({ item, header, onEditing, onCloseCancelled }: ItemProps) {
           </div>
         </FormDialogBody>
         <FormDialogFooter>
-          <Button
-            disabled={save.isPending}
-            onClick={() => onEditing(false)}
-            type="button"
-            variant="outline"
-          >
+          <Button disabled={save.isPending} onClick={onBack} type="button" variant="outline">
             {t('dialog.cancel')}
           </Button>
           <FormDialogSubmit pending={save.isPending}>
@@ -371,12 +426,20 @@ function EditItem({ item, header, onEditing, onCloseCancelled }: ItemProps) {
   );
 }
 
-function ViewSkeleton() {
+const ACTION_TITLES: Record<ItemAction, ParseKeys> = {
+  edit: 'cce-inventory.details.edit-title',
+  status: 'cce-inventory.form.status',
+  transfer: 'cce-inventory.transfer.title',
+};
+
+function ViewSkeleton({ action }: { action: ItemAction | undefined }) {
   const { t } = useTranslation();
   return (
     <>
       <FormDialogHeader>
-        <FormDialogTitle>{t('cce-inventory.details.title')}</FormDialogTitle>
+        <FormDialogTitle>
+          {t(action ? ACTION_TITLES[action] : 'cce-inventory.details.title')}
+        </FormDialogTitle>
         <FormDialogDescription>{t('cce-inventory.details.description')}</FormDialogDescription>
       </FormDialogHeader>
       <FormDialogBody>

@@ -45,18 +45,16 @@ import {
   InventoryResultsSkeleton,
 } from '@/features/cce-inventory/components/inventory-results';
 import { InventoryToolbar } from '@/features/cce-inventory/components/inventory-toolbar';
-import { editableGrants } from '@/features/cce-inventory/lib/grants';
+import { editableGrants, transferableGrants } from '@/features/cce-inventory/lib/grants';
 import {
   CLOSED_INVENTORY_DIALOGS,
   INVENTORY_SORT,
   type InventorySearch,
   inventorySavedSearch,
   inventorySearchSchema,
-  legacyInventoryHash,
   toInventoryQuery,
 } from '@/features/cce-inventory/lib/search';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
-import { legacyAvailable, openLegacy } from '@/hooks/use-back-to-legacy';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -91,10 +89,12 @@ export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
-    if ((search.item === 'new' || search.edit) && editableGrants(permissions).length === 0) {
+    const allowed =
+      search.action === 'transfer' && search.item !== 'new' ? transferableGrants : editableGrants;
+    if ((search.item === 'new' || search.action) && allowed(permissions).length === 0) {
       throw redirect({
         to: '/cce/inventory',
-        search: { ...search, edit: undefined, ...(search.item === 'new' && { item: undefined }) },
+        search: { ...search, action: undefined, ...(search.item === 'new' && { item: undefined }) },
         replace: true,
       });
     }
@@ -250,6 +250,7 @@ function InventoryContent({ userId }: { userId: string }) {
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
   const editable = useMemo(() => editableGrants(permissions), [permissions]);
+  const transferable = useMemo(() => transferableGrants(permissions), [permissions]);
   const { measure: measureContent, columnView } = useColumnView();
   const onSaved = ({ selection, status, name }: SavedInventoryItem) => {
     toast.success(t('cce-inventory.form.saved-title'), {
@@ -294,23 +295,13 @@ function InventoryContent({ userId }: { userId: string }) {
           userId={userId}
         />
         <InventoryItemView
-          editing={search.edit === true}
+          action={search.action}
           grants={editable}
           itemId={search.item === 'new' ? undefined : search.item}
+          onAction={(action) => updateSearch({ action }, true, { keepState: true })}
           onClose={closeDialog}
-          onEditing={(edit) => updateSearch({ edit: edit || undefined }, true, { keepState: true })}
-          onStatusUpdate={
-            legacyAvailable()
-              ? (item) =>
-                  openLegacy(
-                    legacyInventoryHash(`${item.id}/statusUpdate`, search, {
-                      mode: search.mode ?? 'supervised',
-                      facilityId: item.facility.id,
-                      programId: item.program.id,
-                    }),
-                  )
-              : undefined
-          }
+          transferGrants={transferable}
+          userId={userId}
         />
       </WorkspaceContent>
     </Workspace>
