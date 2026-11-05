@@ -29,3 +29,54 @@ export type InventoryQuery = {
   sort?: string[];
   functionalStatus?: EquipmentStatus;
 };
+
+export type EnergySource = 'ELECTRIC' | 'SOLAR' | 'GASOLINE' | 'NOT_APPLICABLE';
+
+export type CatalogItem = {
+  id: string;
+  type: string;
+  model: string;
+  manufacturer: string;
+  energySource: EnergySource;
+  netVolume?: number;
+};
+
+export type Utilization = 'ACTIVE' | 'NOT_IN_USE' | 'IN_STORE_FOR_ALLOCATION';
+
+export type PowerStatus = 'YES' | 'NO' | 'UNKNOWN' | 'NOT_APPLICABLE';
+
+export type TemperatureGauge = 'BUILD_IN' | 'PAIRED' | 'NO_GAUGE';
+
+export type TemperatureMonitor = 'BUILD_IN' | 'PAIRED' | 'NO_RTM';
+
+export type InventoryItemBody = {
+  facility: { id: string };
+  program: { id: string };
+  catalogItem: CatalogItem;
+  equipmentTrackingId: string;
+  referenceName: string;
+  utilization: Utilization;
+  yearOfInstallation: number;
+  yearOfWarrantyExpiry?: number;
+  source?: string;
+  voltageStabilizer: PowerStatus;
+  voltageRegulator: PowerStatus;
+  backupGenerator: PowerStatus;
+  manualTemperatureGauge: TemperatureGauge;
+  remoteTemperatureMonitor: TemperatureMonitor;
+  additionalNotes?: string;
+  functionalStatus: EquipmentStatus;
+  reasonNotWorkingOrNotInUse?: EquipmentReason;
+  decommissionDate?: string;
+};
+
+export type InventoryItemUpdate = InventoryItemBody & {
+  id: string;
+  remoteTemperatureMonitorId?: string;
+};
+
+export type InventoryItemRecord = Omit<InventoryItemUpdate, 'equipmentTrackingId'> & {
+  equipmentTrackingId?: string;
+  modifiedDate?: string;
+  lastModifier?: { firstName?: string; lastName?: string };
+};

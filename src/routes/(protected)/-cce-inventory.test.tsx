@@ -22,17 +22,24 @@ import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  createInventoryItem,
   exportInventoryItems,
   fetchInventoryAlerts,
+  fetchInventoryItem,
   fetchInventoryItems,
 } from '@/features/cce-inventory/api/api';
-import type { InventoryAlert, InventoryItem } from '@/features/cce-inventory/lib/types';
+import type {
+  InventoryAlert,
+  InventoryItem,
+  InventoryItemRecord,
+} from '@/features/cce-inventory/lib/types';
 import {
+  fetchFacility,
   fetchMinimalFacilities,
+  fetchProgramLookup,
   fetchUserPrograms,
   fetchUserRecord,
 } from '@/features/reference-data/api/api';
-import { openLegacy } from '@/hooks/use-back-to-legacy';
 import { downloadFile } from '@/lib/download-file';
 import { Route } from '@/routes/(protected)/_protected.cce.inventory';
 import { expectRouteWarning } from '@/test-utils/expect-route-warning';
@@ -45,18 +52,20 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchUserRecord: vi.fn(),
   fetchUserPrograms: vi.fn(),
   fetchMinimalFacilities: vi.fn(),
+  fetchFacility: vi.fn(),
+  fetchProgramLookup: vi.fn(),
 }));
 vi.mock('@/features/cce-inventory/api/api', () => ({
   fetchInventoryItems: vi.fn(),
   fetchInventoryAlerts: vi.fn(),
   exportInventoryItems: vi.fn(),
+  fetchCatalogItems: vi.fn(async () => [
+    { id: 'c1', type: 'Solar fridge', manufacturer: 'Sun', model: 'S1', energySource: 'SOLAR' },
+  ]),
+  createInventoryItem: vi.fn(),
+  fetchInventoryItem: vi.fn(() => new Promise(() => {})),
 }));
 vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
-vi.mock('@/hooks/use-back-to-legacy', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/hooks/use-back-to-legacy')>()),
-  legacyAvailable: () => true,
-  openLegacy: vi.fn(),
-}));
 
 const USER = 'a337ec45-31a0-4f2b-9b2e-a105c4b669bb';
 const HOME = 'e6799d64-d10d-4011-b8c2-0e4d4a3f65ce';
@@ -278,9 +287,7 @@ describe('CCE inventory page', () => {
     await user.click(
       within(await itemOf('Fridge #11')).getByRole('button', { name: /cce-inventory.view/ }),
     );
-    expect(openLegacy).toHaveBeenLastCalledWith(
-      `#!/cce/inventory/${FRIDGE}/details?page=0&size=10&facility=${BALAKA}&program=${EPI}&supervised=true`,
-    );
+    expect(router.state.location.search).toHaveProperty('item', FRIDGE);
   });
 
   it('lists the equipment with the legacy columns and asks as legacy does', async () => {
@@ -441,23 +448,160 @@ describe('CCE inventory page', () => {
     async (width) => {
       const user = userEvent.setup();
       widthOf(width);
-      renderRoute(appliedPath('&functionalStatus=FUNCTIONING'));
+      const { router } = renderRoute(appliedPath('&functionalStatus=FUNCTIONING'));
 
       const fridge = await itemOf('Fridge #11');
       await user.click(within(fridge).getByRole('button', { name: /cce-inventory.update-status/ }));
-      expect(openLegacy).toHaveBeenLastCalledWith(
-        `#!/cce/inventory/${FRIDGE}/statusUpdate?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
-      );
-      await user.click(within(fridge).getByRole('button', { name: /cce-inventory.view/ }));
-      expect(openLegacy).toHaveBeenLastCalledWith(
-        `#!/cce/inventory/${FRIDGE}/details?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
-      );
+      expect(router.state.location.search).toMatchObject({ item: FRIDGE, action: 'status' });
+      await user.click(await screen.findByRole('button', { name: 'dialog.close' }));
+      await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
       await user.click(screen.getByRole('button', { name: 'cce-inventory.add' }));
-      expect(openLegacy).toHaveBeenLastCalledWith(
-        `#!/cce/inventory/add?page=0&size=10&facility=${HOME}&program=${EPI}&supervised=false&functionalStatus=FUNCTIONING`,
-      );
+      expect(await screen.findByRole('dialog', { name: 'cce-inventory.form.title' })).toBeVisible();
+      expect(router.state.location.search).toEqual({
+        mode: 'my',
+        programId: EPI,
+        facilityId: HOME,
+        functionalStatus: 'FUNCTIONING',
+        item: 'new',
+      });
+      await user.click(await screen.findByRole('button', { name: 'dialog.cancel' }));
+      await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
     },
   );
+
+  it('asks before closing Add Equipment with details typed', async () => {
+    const user = userEvent.setup();
+    const { router } = renderRoute(appliedPath('&item=new'));
+
+    await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.next' }));
+    await user.type(
+      await screen.findByRole('textbox', { name: /cce-inventory.form.serial-number/ }),
+      'SN-1',
+    );
+    await user.keyboard('{Escape}');
+
+    expect(
+      await screen.findByRole('alertdialog', { name: /discard-changes/ }),
+    ).toHaveAccessibleDescription('cce-inventory.form.discard-description');
+    expect(router.state.location.search).toHaveProperty('item', 'new');
+  });
+
+  it('opens no Add Equipment from a link for a user who cannot edit, and drops it', async () => {
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([VIEW]);
+    const { router } = renderRoute(appliedPath('&item=new'));
+
+    await itemOf('Fridge #11');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
+  });
+
+  it.each(['edit', 'status', 'transfer'])(
+    'keeps the details but drops %s from a link for a user without the right',
+    async (action) => {
+      vi.mocked(fetchPermissionStrings).mockResolvedValue([VIEW]);
+      const { router } = renderRoute(appliedPath(`&item=${FRIDGE}&action=${action}`));
+
+      await itemOf('Fridge #11');
+      await waitFor(() => expect(router.state.location.search).not.toHaveProperty('action'));
+      expect(router.state.location.search).toHaveProperty('item', FRIDGE);
+    },
+  );
+
+  it('drops transfer from a link for an editor of the item without the transfer right', async () => {
+    const { router } = renderRoute(appliedPath(`&item=${FRIDGE}&action=transfer`));
+
+    await itemOf('Fridge #11');
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('action'));
+  });
+
+  it('opens Transfer over the list for the transfer right, with fields apart from the picker', async () => {
+    const record: InventoryItemRecord = {
+      id: FRIDGE,
+      facility: { id: HOME },
+      program: { id: EPI },
+      catalogItem: {
+        id: 'c1',
+        type: 'IRL',
+        manufacturer: 'Haier',
+        model: 'HBC-70',
+        energySource: 'ELECTRIC',
+      },
+      referenceName: 'Fridge #11',
+      utilization: 'ACTIVE',
+      yearOfInstallation: 2017,
+      voltageStabilizer: 'YES',
+      voltageRegulator: 'NO',
+      backupGenerator: 'NO',
+      manualTemperatureGauge: 'BUILD_IN',
+      remoteTemperatureMonitor: 'NO_RTM',
+      functionalStatus: 'FUNCTIONING',
+    };
+    vi.mocked(fetchPermissionStrings).mockResolvedValue([
+      VIEW,
+      `CCE_INVENTORY_TRANSFER|${HOME}|${EPI}`,
+    ]);
+    vi.mocked(fetchInventoryItem).mockResolvedValue(record);
+    vi.mocked(fetchFacility).mockResolvedValue({
+      id: HOME,
+      code: 'HC01',
+      name: 'Comfort Health Clinic',
+      active: true,
+      enabled: true,
+      type: { id: 't1', code: 'HC', name: 'Health Center' },
+      geographicZone: { id: 'z1', code: 'Z1', name: 'Cuamba', level: { name: 'District' } },
+    });
+    vi.mocked(fetchProgramLookup).mockResolvedValue({
+      id: EPI,
+      code: 'PRG004',
+      name: 'EPI',
+      active: true,
+    });
+    const { router } = renderRoute(appliedPath(`&item=${FRIDGE}&action=transfer`));
+
+    const dialog = await screen.findByRole('dialog', { name: 'cce-inventory.transfer.title' });
+    expect(
+      await within(dialog).findByRole('combobox', { name: /facility-program.program/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('combobox', { name: /facility-program.facility/ }),
+    ).toBeInTheDocument();
+    const ids = [...document.querySelectorAll('[id]')].map(({ id }) => id);
+    expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+    expect(router.state.location.search).toHaveProperty('action', 'transfer');
+  });
+
+  it('closes Add Equipment onto the list of the saved pair after Save', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createInventoryItem).mockResolvedValue();
+    const { router } = renderRoute(appliedPath('&item=new'));
+    const choose = async (name: RegExp, option: RegExp) => {
+      await user.click(await screen.findByRole('combobox', { name }));
+      await user.click(await screen.findByRole('option', { name: option }));
+    };
+
+    await user.click(await screen.findByRole('button', { name: 'cce-inventory.form.next' }));
+    await user.type(
+      await screen.findByRole('textbox', { name: /cce-inventory.form.serial-number/ }),
+      'SN-1',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /^cce-inventory.reference-name/ }),
+      'Fridge 2',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /cce-inventory.form.year-of-installation/ }),
+      '2019',
+    );
+    await choose(/cce-inventory.form.utilization/, /cce-inventory.form.active/);
+    await choose(/cce-inventory.form.manual-temperature-gauge/, /cce-inventory.form.built-in/);
+    await choose(/cce-inventory.form.remote-temperature-monitor/, /cce-inventory.form.no-rtm/);
+    await choose(/cce-inventory.form.functional-status/, /cce-equipment.status.functioning/);
+    await user.click(screen.getByRole('button', { name: 'cce-inventory.form.save' }));
+
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('item'));
+    expect(createInventoryItem).toHaveBeenCalledTimes(1);
+    expect(router.state.location.search).toEqual({ mode: 'my', programId: EPI, facilityId: HOME });
+  });
 
   it.each([
     ['a view-only user', [VIEW], 1400],

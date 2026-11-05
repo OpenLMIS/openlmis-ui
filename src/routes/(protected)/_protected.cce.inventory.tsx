@@ -1,5 +1,5 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { ClipboardListIcon, RefrigeratorIcon, ShieldAlertIcon } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -32,7 +32,12 @@ import { requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { exportInventoryItems } from '@/features/cce-inventory/api/api';
-import { inventoryItemsOptions } from '@/features/cce-inventory/api/queries';
+import { catalogItemsOptions, inventoryItemsOptions } from '@/features/cce-inventory/api/queries';
+import {
+  InventoryItemDialog,
+  type SavedInventoryItem,
+} from '@/features/cce-inventory/components/inventory-item-dialog';
+import { InventoryItemView } from '@/features/cce-inventory/components/inventory-item-view';
 import {
   INVENTORY_HIDEABLE_COLUMNS,
   INVENTORY_SORT_COLUMNS,
@@ -40,15 +45,16 @@ import {
   InventoryResultsSkeleton,
 } from '@/features/cce-inventory/components/inventory-results';
 import { InventoryToolbar } from '@/features/cce-inventory/components/inventory-toolbar';
+import { editableGrants, transferableGrants } from '@/features/cce-inventory/lib/grants';
 import {
+  CLOSED_INVENTORY_DIALOGS,
   INVENTORY_SORT,
   type InventorySearch,
+  inventorySavedSearch,
   inventorySearchSchema,
-  legacyInventoryHash,
   toInventoryQuery,
 } from '@/features/cce-inventory/lib/search';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
-import { legacyAvailable, openLegacy } from '@/hooks/use-back-to-legacy';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -74,7 +80,6 @@ import { type SearchChange, searchSort } from '@/lib/table-search';
 
 const RIGHT = RIGHTS.cceInventoryView;
 const EXPORT_FILENAME = 'inventory_items.csv';
-const NO_DIALOGS = {} satisfies Partial<InventorySearch>;
 const noop = () => {};
 
 export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
@@ -84,8 +89,18 @@ export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHT);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
+    const allowed =
+      search.action === 'transfer' && search.item !== 'new' ? transferableGrants : editableGrants;
+    if ((search.item === 'new' || search.action) && allowed(permissions).length === 0) {
+      throw redirect({
+        to: '/cce/inventory',
+        search: { ...search, action: undefined, ...(search.item === 'new' && { item: undefined }) },
+        replace: true,
+      });
+    }
     prefetchFacilityProgramOptions(queryClient, userId);
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
+    if (search.item === 'new') queryClient.prefetchQuery(catalogItemsOptions());
     const selection = {
       mode: search.mode,
       programId: search.programId,
@@ -229,10 +244,20 @@ function InventoryPage() {
 function InventoryContent({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const search = Route.useSearch();
-  const { updateSearch } = useSearchNavigation<InventorySearch>(NO_DIALOGS);
+  const navigate = Route.useNavigate();
+  const { updateSearch, closeDialog } =
+    useSearchNavigation<InventorySearch>(CLOSED_INVENTORY_DIALOGS);
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const grants = useMemo(() => programGrants(permissions, RIGHT), [permissions]);
+  const editable = useMemo(() => editableGrants(permissions), [permissions]);
+  const transferable = useMemo(() => transferableGrants(permissions), [permissions]);
   const { measure: measureContent, columnView } = useColumnView();
+  const onSaved = ({ selection, status, name }: SavedInventoryItem) => {
+    toast.success(t('cce-inventory.form.saved-title'), {
+      description: t('cce-inventory.form.saved', { name }),
+    });
+    void navigate({ search: inventorySavedSearch(search, selection, status), replace: true });
+  };
 
   return (
     <Workspace>
@@ -261,6 +286,23 @@ function InventoryContent({ userId }: { userId: string }) {
             />
           </QueryBoundary>
         </div>
+        <InventoryItemDialog
+          grants={editable}
+          initial={search}
+          onClose={closeDialog}
+          onSaved={onSaved}
+          open={search.item === 'new'}
+          userId={userId}
+        />
+        <InventoryItemView
+          action={search.action}
+          grants={editable}
+          itemId={search.item === 'new' ? undefined : search.item}
+          onAction={(action) => updateSearch({ action }, true, { keepState: true })}
+          onClose={closeDialog}
+          transferGrants={transferable}
+          userId={userId}
+        />
       </WorkspaceContent>
     </Workspace>
   );
@@ -399,6 +441,7 @@ function InventoryList({
   onSearchChange,
 }: InventoryListProps) {
   const { t } = useTranslation();
+  const { openDialog } = useSearchNavigation<InventorySearch>(CLOSED_INVENTORY_DIALOGS);
   const query = toInventoryQuery(search, selection);
   const exporting = useSessionMutation({
     mutationFn: () => exportInventoryItems(selection.facilityId, selection.programId),
@@ -408,10 +451,6 @@ function InventoryList({
         description: t('cce-inventory.export-error'),
       }),
   });
-  const onAdd =
-    canEdit && legacyAvailable()
-      ? () => openLegacy(legacyInventoryHash('add', search, selection))
-      : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -420,7 +459,7 @@ function InventoryList({
       </h2>
       <InventoryToolbar
         exporting={exporting.isPending}
-        onAdd={onAdd}
+        onAdd={canEdit ? () => openDialog({ item: 'new' }) : undefined}
         onExport={() => exporting.mutate()}
         onFilterChange={(patch) => onSearchChange(patch, true)}
         search={search}
