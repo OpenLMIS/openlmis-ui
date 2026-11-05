@@ -17,6 +17,10 @@ export function FunctionalStatusCell({ item }: { item: InventoryItem }) {
   return (
     <div className="flex min-w-0 flex-col items-start gap-1">
       <div className="flex flex-nowrap items-center gap-1">
+        <Badge variant={tone}>
+          <Icon data-icon="inline-start" />
+          {t(labelKey)}
+        </Badge>
         {alerts && <AlertBell count={alerts.length} />}
         {statusUpdate && (
           <Button
@@ -29,10 +33,6 @@ export function FunctionalStatusCell({ item }: { item: InventoryItem }) {
             <SquarePenIcon />
           </Button>
         )}
-        <Badge variant={tone}>
-          <Icon data-icon="inline-start" />
-          {t(labelKey)}
-        </Badge>
       </div>
       {reason && (
         <span className="text-muted-foreground text-xs">{t(EQUIPMENT_REASON_KEYS[reason])}</span>
