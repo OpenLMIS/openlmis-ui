@@ -16,7 +16,12 @@ afterEach(() => {
   vi.restoreAllMocks();
   for (const client of clients.splice(0)) client.clear();
 });
-function renderEditor({ adjustments = false, second = false, status = false } = {}) {
+function renderEditor({
+  adjustments = false,
+  second = false,
+  status = false,
+  remove = false,
+} = {}) {
   const value: RequisitionRecord = {
     ...record({
       template: {
@@ -81,6 +86,11 @@ function renderEditor({ adjustments = false, second = false, status = false } = 
     if (status) editor.device.deviceAvailable = true;
     return (
       <>
+        {remove && (
+          <button type="button" onClick={() => editor.removeLine('line')}>
+            Remove Line
+          </button>
+        )}
         {adjustments && (
           <button
             type="button"
@@ -194,4 +204,11 @@ it('keeps draft status outside the small-header copy-badge visibility rule in ca
   renderEditor({ status: true });
   const badge = await screen.findByText(/stock-events.draft-(loading|saved)/);
   expect(badge.closest('[class*="@xl/main:hidden"]')).toBeNull();
+});
+
+it('removes a draft line from the cached sorted models and totals', async () => {
+  renderEditor({ remove: true });
+  await screen.findByText('Product');
+  await userEvent.click(screen.getByRole('button', { name: 'Remove Line' }));
+  expect(screen.queryByText('Product')).not.toBeInTheDocument();
 });

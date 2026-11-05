@@ -150,58 +150,60 @@ function RequisitionTabsView({
       };
     }
     const next = new Map<string, LineCacheEntry>();
-    const models = baseModels.map((base) => {
-      const model = { ...base, line: currentLines.get(base.line.id) ?? base.line };
-      const source = sources.get(model.line.id);
-      const changes = draft?.lines[model.line.id];
-      const patientTotal =
-        record.template.columnsMap.numberOfPatientsOnTreatmentNextMonth?.source === 'CALCULATED'
-          ? patientsForProduct(patientData, model.product?.productCode ?? '')
-          : undefined;
-      const previous = cache.current.get(model.line.id);
-      let entry = previous;
-      if (
-        !entry ||
-        entry.source !== source ||
-        entry.changes !== changes ||
-        entry.patientTotal !== patientTotal ||
-        entry.model.product !== model.product ||
-        entry.model.approvedProduct !== model.approvedProduct
-      ) {
-        const line = calculateLine(model, record, period.durationInMonths ?? 1, patientData);
-        const errors: Record<string, ParseKeys> = editing?.editable
-          ? validateLine(
-              model,
-              current,
-              period.durationInMonths ?? 1,
-              changes,
-              editing.approver ? editing.editableColumns : undefined,
-              patientData,
+    const models = baseModels
+      .filter((base) => currentLines.has(base.line.id))
+      .map((base) => {
+        const model = { ...base, line: currentLines.get(base.line.id) ?? base.line };
+        const source = sources.get(model.line.id);
+        const changes = draft?.lines[model.line.id];
+        const patientTotal =
+          record.template.columnsMap.numberOfPatientsOnTreatmentNextMonth?.source === 'CALCULATED'
+            ? patientsForProduct(patientData, model.product?.productCode ?? '')
+            : undefined;
+        const previous = cache.current.get(model.line.id);
+        let entry = previous;
+        if (
+          !entry ||
+          entry.source !== source ||
+          entry.changes !== changes ||
+          entry.patientTotal !== patientTotal ||
+          entry.model.product !== model.product ||
+          entry.model.approvedProduct !== model.approvedProduct
+        ) {
+          const line = calculateLine(model, record, period.durationInMonths ?? 1, patientData);
+          const errors: Record<string, ParseKeys> = editing?.editable
+            ? validateLine(
+                model,
+                current,
+                period.durationInMonths ?? 1,
+                changes,
+                editing.approver ? editing.editableColumns : undefined,
+                patientData,
+                line,
+              )
+            : {};
+          entry = {
+            source,
+            changes,
+            patientTotal,
+            model: {
+              ...model,
               line,
-            )
-          : {};
-        entry = {
-          source,
-          changes,
-          patientTotal,
-          model: {
-            ...model,
-            line,
-            canSkip: canSkipLine({ ...line, ...changes }, record.template, {
-              tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
-              status: record.status,
-              emergency: record.emergency,
-            }),
-          },
-          errors:
-            previous && JSON.stringify(previous.errors) === JSON.stringify(errors)
-              ? previous.errors
-              : errors,
-        };
-      }
-      next.set(model.line.id, entry);
-      return entry.model;
-    });
+              canSkip: canSkipLine({ ...line, ...changes }, record.template, {
+                tab: model.fullSupply ? 'fullSupply' : 'nonFullSupply',
+                status: record.status,
+                emergency: record.emergency,
+              }),
+            },
+            errors:
+              previous && JSON.stringify(previous.errors) === JSON.stringify(errors)
+                ? previous.errors
+                : errors,
+          };
+        }
+        next.set(model.line.id, entry);
+        return entry.model;
+      });
     cache.current = next;
     const errors = editing?.editable
       ? Object.fromEntries(
