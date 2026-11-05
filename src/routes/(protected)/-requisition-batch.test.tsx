@@ -13,6 +13,7 @@ import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
@@ -221,6 +222,7 @@ it('keeps only partial failures and shows the server reason', async () => {
   await waitFor(() => expect(router.state.location.search).toMatchObject({ ids: records[1].id }));
 });
 it('refetches a lost approval response and blocks a resend after reload', async () => {
+  const warning = vi.spyOn(toast, 'warning');
   vi.mocked(approveBatchRequisitions).mockRejectedValue(
     new AxiosError('Lost response', '500', undefined, undefined, {
       status: 500,
@@ -244,6 +246,13 @@ it('refetches a lost approval response and blocks a resend after reload', async 
   renderRoute();
   await screen.findAllByText('requisitions.batch.uncertain');
   expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeDisabled();
+  warning.mockClear();
+  await userEvent.click(screen.getAllByRole('button', { name: 'requisitions.batch.check' })[0]);
+  await waitFor(() =>
+    expect(warning).toHaveBeenCalledWith('requisitions.batch.status-uncertain', {
+      description: 'requisitions.batch.uncertain',
+    }),
+  );
   await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledOnce());
 });
 
