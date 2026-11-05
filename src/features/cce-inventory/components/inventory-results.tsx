@@ -1,6 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
-import type { ParseKeys } from 'i18next';
+import type { ParseKeys, TFunction } from 'i18next';
 import { EyeIcon, RefrigeratorIcon, SearchXIcon } from 'lucide-react';
 import { use, useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -46,6 +46,7 @@ import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import type { CompleteSelection } from '@/lib/facility-program-selection';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
+import { fullName } from '@/lib/text';
 
 type ColumnId = 'facility' | 'makeModel' | InventorySortField;
 
@@ -86,15 +87,13 @@ type CellContext = {
   timeZone: string | undefined;
 };
 
-function lastUpdated(item: InventoryItem, { language, timeZone }: CellContext) {
-  const modifier = [item.lastModifier?.firstName, item.lastModifier?.lastName]
-    .filter(Boolean)
-    .join(' ');
+function lastUpdated(item: InventoryItem, { language, timeZone }: CellContext, t: TFunction) {
+  const name = item.lastModifier ? fullName(item.lastModifier) : '';
   const date = formatTimestamp(item.modifiedDate, language, { time: 'short', timeZone });
-  return [modifier, date].filter(Boolean).join(' ');
+  return name && date ? t('cce-inventory.last-updated-by', { name, date }) : name || date;
 }
 
-function cellText(id: ColumnId, item: InventoryItem, context: CellContext) {
+function cellText(id: ColumnId, item: InventoryItem, context: CellContext, t: TFunction) {
   switch (id) {
     case 'functionalStatus':
       return item.functionalStatus;
@@ -109,7 +108,7 @@ function cellText(id: ColumnId, item: InventoryItem, context: CellContext) {
     case 'type':
       return item.catalogItem.type;
     case 'modifiedDate':
-      return lastUpdated(item, context);
+      return lastUpdated(item, context, t);
     case 'yearOfInstallation':
       return String(item.yearOfInstallation);
   }
@@ -156,7 +155,7 @@ function useInventoryColumns({
     const cellContext = { facilityName, language, timeZone };
     return helper.columns([
       ...COLUMNS.map(({ id, labelKey }) =>
-        helper.accessor((item) => cellText(id, item, cellContext), {
+        helper.accessor((item) => cellText(id, item, cellContext, t), {
           id,
           enableSorting: isInventorySortField(id),
           meta: { label: t(labelKey) },

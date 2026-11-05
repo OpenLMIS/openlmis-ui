@@ -304,8 +304,7 @@ describe('CCE inventory page', () => {
     expect(cells[3]).toHaveTextContent('Haier HBC-70');
     expect(cells[4]).toHaveTextContent('IRL');
     expect(cells[5]).toHaveTextContent('cce-equipment.status.functioning');
-    expect(cells[6]).toHaveTextContent('Eduardo Magaia');
-    expect(cells[6]).toHaveTextContent('2017');
+    expect(cells[6]).toHaveTextContent('cce-inventory.last-updated-by');
     expect(cells[7]).toHaveTextContent('2017');
 
     const freezer = within(await itemOf('Fridge #17')).getAllByRole('cell');

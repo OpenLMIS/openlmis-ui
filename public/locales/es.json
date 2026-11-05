@@ -55,6 +55,7 @@
   "cce-inventory.facility": "Instalación",
   "cce-inventory.functional-status": "Estado funcional",
   "cce-inventory.last-updated": "Última actualización",
+  "cce-inventory.last-updated-by": "{name} {date}",
   "cce-inventory.load-error": "No se pudo cargar el inventario.",
   "cce-inventory.load-error-title": "No se pudo cargar el inventario",
   "cce-inventory.make-model": "Marca/Modelo",

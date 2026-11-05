@@ -55,6 +55,7 @@
   "cce-inventory.facility": "Facility",
   "cce-inventory.functional-status": "Functional Status",
   "cce-inventory.last-updated": "Last Updated",
+  "cce-inventory.last-updated-by": "{name} {date}",
   "cce-inventory.load-error": "The inventory could not be loaded.",
   "cce-inventory.load-error-title": "Could Not Load Inventory",
   "cce-inventory.make-model": "Make/Model",
