@@ -30,6 +30,7 @@ import {
 } from '@/features/requisitions/components/batch-quantity';
 import { BatchRecordStatus } from '@/features/requisitions/components/batch-record-status';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
+import { useGridWidths } from '@/features/requisitions/hooks/use-grid-widths';
 import { batchApprovable, batchRowTotals, batchTotals } from '@/features/requisitions/lib/batch';
 import type { BatchRequisition, BatchRow } from '@/features/requisitions/lib/batch-types';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
@@ -80,7 +81,10 @@ const ProductRow = memo(function ProductRow({
         {row.product.productCode}
       </TableCell>
       <TableCell sticky stickyOffset="var(--batch-code-width)" rowHeader>
-        <div className="line-clamp-2 w-80 max-w-96 whitespace-normal">
+        <div
+          title={row.product.fullProductName}
+          className="line-clamp-3 max-w-96 whitespace-normal"
+        >
           {row.product.fullProductName}
         </div>
       </TableCell>
@@ -122,8 +126,37 @@ function BatchFooter() {
 }
 export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridHandle> }) {
   const { t } = useTranslation();
-  const { records, rows, drafts } = useBatch();
+  const { records, rows, drafts, currency } = useBatch();
   const frame = useRef<HTMLDivElement>(null);
+  const sizing = useMemo(() => {
+    const quantities = rows.map((row) => String(batchRowTotals(row, {}, records).quantity));
+    const costs = records.flatMap((record) =>
+      record.requisitionLineItems.map(
+        (line) =>
+          formatCurrency((line.approvedQuantity ?? 0) * (line.pricePerPack ?? 0), currency) ?? '',
+      ),
+    );
+    costs.push(formatCurrency(batchTotals(records, {}).cost, currency) ?? '');
+    return [
+      {
+        label: t('requisitions.batch.code'),
+        values: rows.map((r) => r.product.productCode),
+        min: 80,
+      },
+      {
+        label: t('requisitions.batch.name'),
+        values: rows.map((r) => r.product.fullProductName),
+        min: 240,
+      },
+      ...records.flatMap(() => [
+        { label: t('requisitions.batch.approved-quantity'), values: quantities, min: 112 },
+        { label: t('requisitions.batch.cost'), values: costs },
+      ]),
+      { label: t('requisitions.batch.quantity'), values: quantities },
+      { label: t('requisitions.batch.cost'), values: costs },
+    ];
+  }, [rows, records, currency, t]);
+  const widths = useGridWidths(frame, sizing);
   const firstGroup = useRef<HTMLTableCellElement>(null);
   const name = useRef<HTMLTableCellElement>(null);
   const cost = useRef<HTMLTableCellElement>(null);
@@ -135,6 +168,9 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
     const element = code.current;
     if (!element || !records.length) return;
     const measure = () => {
+      const footerHeight =
+        frame.current?.querySelector('tfoot')?.getBoundingClientRect().height ?? 48;
+      frame.current?.style.setProperty('--table-footer-height', `${footerHeight}px`);
       setHeaderHeight(header.current?.getBoundingClientRect().height ?? 128);
       const codeWidth = element.getBoundingClientRect().width;
       const nameWidth = name.current?.getBoundingClientRect().width ?? 0;
@@ -233,10 +269,28 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
     >
       <Table
         scroll="both"
+        layout="fixed"
+        width="columns"
+        style={{ '--table-width': `${widths.reduce((a, b) => a + b, 0)}px` } as CSSProperties}
         density="compact"
         aria-label={t('requisitions.batch.title')}
         aria-rowcount={rows.length + 3}
       >
+        <colgroup>
+          {widths.map((width, index) => (
+            <col
+              key={
+                index < 2
+                  ? ['code', 'name'][index]
+                  : index >= widths.length - 2
+                    ? `total-${index % 2}`
+                    : `${records[Math.floor((index - 2) / 2)].id}-${index % 2}`
+              }
+              className="w-(--column-width)"
+              style={{ '--column-width': `${width}px` } as CSSProperties}
+            />
+          ))}
+        </colgroup>
         <TableHeader ref={header}>
           <TableRow pinned surface="muted">
             <TableHead colSpan={2} sticky>

@@ -134,7 +134,7 @@ function PatientsEditor({
                     <DataTableHeaderLabel>{t('requisitions.patients.skip')}</DataTableHeaderLabel>
                   </div>
                 </TableHead>
-                <TableHead sticky stickyOffset={skipWidth}>
+                <TableHead width="patient" sticky stickyOffset={skipWidth}>
                   <DataTableHeaderLabel>
                     {t('requisitions.patients.month-of-treatment')}
                   </DataTableHeaderLabel>
@@ -277,7 +277,9 @@ function PatientsReadOnly({ patients }: { patients: PatientsData }) {
                 {columns.map((column) => (
                   <TableHead
                     key={column.id}
-                    width={column.id === 'skip' ? 'fit' : undefined}
+                    width={
+                      column.id === 'skip' ? 'fit' : column.id === 'patient' ? 'patient' : undefined
+                    }
                     ref={column.id === 'skip' ? skipRef : undefined}
                     sticky={column.id === 'skip' || column.id === 'patient'}
                     stickyOffset={column.id === 'patient' ? skipWidth : 0}

@@ -488,14 +488,21 @@ function RequisitionBody({
     assertSessionScope(scope);
     if (isSecureOrigin) {
       const lease = await beginCopy(fresh.id);
-      try {
-        await captureSingle(queryClient, lease, fresh, 'read');
-        setCopyFailure(null);
-      } catch (error) {
-        assertSessionScope(scope);
-        setCopyFailure(error);
-      }
+      assertSessionScope(scope);
       attachCopyLease(fresh, lease);
+      const version = ++captureVersion.current;
+      const result = captureSingle(queryClient, lease, fresh, 'read').then(
+        () => {
+          if (scope === getSessionScope() && version === captureVersion.current)
+            setCopyFailure(null);
+        },
+        (error: unknown) => {
+          if (scope === getSessionScope() && version === captureVersion.current)
+            setCopyFailure(error);
+          return error;
+        },
+      );
+      setCopyResult(result);
     }
     setLoaderOutdated(false);
     setRecord(fresh);
@@ -1505,7 +1512,9 @@ function RequisitionHeading({ record }: { record: RequisitionRecord }) {
           facility: facility.name,
           period: period.name,
         })}{' '}
-        <RequisitionCopyBadge />
+        <span className="hidden @xl/main:inline-flex">
+          <RequisitionCopyBadge />
+        </span>
       </WorkspaceDescription>
     </WorkspaceHeading>
   );

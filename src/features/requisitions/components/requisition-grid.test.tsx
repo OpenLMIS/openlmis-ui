@@ -613,35 +613,50 @@ it.each([1000, 390])('interpolates product removal labels in Arabic at width %s'
   expect(screen.getByRole('button', { name: 'إزالة ⁨Medicine 0⁩' })).toBeInTheDocument();
 });
 
-it('reveals an offscreen line when validation requests focus in a large page', async () => {
-  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(48);
-  render(
-    <Harness
-      editable
-      initial={{ detailSize: 100 }}
-      value={{
-        ...requisition,
-        template: {
-          columnsMap: {
-            ...requisition.template.columnsMap,
-            requestedQuantity: column('requestedQuantity', 3, { source: 'USER_INPUT' }),
+it.each([1000, 390])(
+  'reveals an offscreen line when validation requests focus at width %s',
+  async (width) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(48);
+    render(
+      <Harness
+        editable
+        initial={{ detailSize: 100 }}
+        value={{
+          ...requisition,
+          template: {
+            columnsMap: {
+              ...requisition.template.columnsMap,
+              requestedQuantity: column('requestedQuantity', 3, { source: 'USER_INPUT' }),
+            },
           },
-        },
-        requisitionLineItems: Array.from({ length: 100 }, (_, index) => ({
-          ...requisition.requisitionLineItems[0],
-          id: `virtual-${index}`,
-        })),
-      }}
-    />,
-  );
-  const selector = '[name="quantities.virtual-99:requestedQuantity.doses"]';
-  expect(document.querySelector(selector)).toBeNull();
-  fireEvent(
-    document,
-    new CustomEvent('requisition-line-focus', {
-      detail: { requisitionId: requisition.id, lineId: 'virtual-99' },
-    }),
-  );
-  expect(document.querySelector(selector)).not.toBeNull();
-  expect(document.querySelector(selector)?.closest('tr')).toHaveAttribute('aria-rowindex', '102');
+          requisitionLineItems: Array.from({ length: 100 }, (_, index) => ({
+            ...requisition.requisitionLineItems[0],
+            id: `virtual-${index}`,
+          })),
+        }}
+      />,
+    );
+    const selector = '[name="quantities.virtual-99:requestedQuantity.doses"]';
+    expect(document.querySelector(selector)).toBeNull();
+    fireEvent(
+      document,
+      new CustomEvent('requisition-line-focus', {
+        detail: { requisitionId: requisition.id, lineId: 'virtual-99' },
+      }),
+    );
+    expect(document.querySelector(selector)).not.toBeNull();
+    if (width === 1000)
+      expect(document.querySelector(selector)?.closest('tr')).toHaveAttribute(
+        'aria-rowindex',
+        '102',
+      );
+    else
+      expect(document.querySelector(selector)?.closest('li')).toHaveAttribute('data-index', '100');
+  },
+);
+
+it('exposes the complete product name when a table cell is clamped', () => {
+  render(<Harness />);
+  expect(screen.getByText('Medicine 0')).toHaveAttribute('title', 'Medicine 0');
 });

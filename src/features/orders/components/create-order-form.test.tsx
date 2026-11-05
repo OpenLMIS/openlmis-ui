@@ -46,7 +46,7 @@ function setup(readable = true, freshSuppliers = false) {
       </WorkspaceSlots>
     </QueryClientProvider>,
   );
-  return { onCreated, user: userEvent.setup() };
+  return { client, onCreated, user: userEvent.setup() };
 }
 async function add(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' }));
@@ -114,6 +114,7 @@ it('shows the required requesting facility label before a facility is added', as
 });
 
 it('retains removal focus when fresh supplier queries settle after removing the first facility', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
   let refresh = false;
   let finish!: (ids: string[]) => void;
   const original = orderQueries.supplyingFacilitiesOptions;
@@ -129,7 +130,7 @@ it('retains removal focus when fresh supplier queries settle after removing the 
             })
           : Promise.resolve(['2']),
     }));
-  const { user } = setup(true, true);
+  const { user, client } = setup(true, true);
   await add(user, 'Alpha');
   await add(user, 'Beta');
   const remove = () => screen.getAllByRole('button', { name: 'orders.create.remove-facility' });
@@ -138,5 +139,9 @@ it('retains removal focus when fresh supplier queries settle after removing the 
   await waitFor(() => expect(finish).toBeDefined());
   await act(() => finish(['2']));
   await waitFor(() => expect(remove()[0]).toHaveFocus());
+  await act(async () => {
+    client.setQueryData(supplyingFacilitiesOptions('program', ['1']).queryKey, ['2', '0']);
+  });
+  expect(remove()[0]).toHaveFocus();
   spy.mockRestore();
 });

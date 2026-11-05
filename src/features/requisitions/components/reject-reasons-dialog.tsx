@@ -172,7 +172,15 @@ function LoadedRejectReasonsDialog({
             variant="outline"
             onClick={() => {
               const reason = available.find((reason) => reason.id === reasonId);
-              if (reason) setSelected((current) => [...current, reason]);
+              if (reason) {
+                setSelected((current) => [...current, reason]);
+                if (
+                  !available.some(
+                    (item) => item.id !== reason.id && item.rejectionReasonCategory.id === category,
+                  )
+                )
+                  form.setFieldValue('category', '');
+              }
               form.setFieldValue('reason', '');
             }}
           >

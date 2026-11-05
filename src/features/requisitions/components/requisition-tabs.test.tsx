@@ -16,7 +16,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   for (const client of clients.splice(0)) client.clear();
 });
-function renderEditor({ adjustments = false } = {}) {
+function renderEditor({ adjustments = false, second = false, status = false } = {}) {
   const value: RequisitionRecord = {
     ...record({
       template: {
@@ -47,10 +47,19 @@ function renderEditor({ adjustments = false } = {}) {
     facility: { id: 'f' },
     processingPeriod: { id: 'period' },
   };
+  if (second)
+    value.requisitionLineItems = [
+      ...value.requisitionLineItems,
+      {
+        ...value.requisitionLineItems[0],
+        id: 'second',
+        orderable: { id: 'second', versionNumber: 1 },
+      },
+    ];
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   clients.push(client);
   const data = [
-    [product()],
+    [product(), ...(second ? [product({ id: 'second', fullProductName: 'Other Product' })] : [])],
     [],
     { durationInMonths: 1 },
     {
@@ -69,6 +78,7 @@ function renderEditor({ adjustments = false } = {}) {
   });
   function Editor() {
     const editor = useRequisitionForm(value);
+    if (status) editor.device.deviceAvailable = true;
     return (
       <>
         {adjustments && (
@@ -164,4 +174,24 @@ it('reuses the edited line calculation for live validation', async () => {
   calculate.mockClear();
   await userEvent.type(input, '1');
   expect(calculate).toHaveBeenCalledTimes(1);
+});
+
+it('keeps unchanged card rows out of a sibling field update', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(620);
+  const products = await import('@/features/reference-data/lib/products');
+  const label = vi.spyOn(products, 'productLabel');
+  renderEditor({ second: true });
+  const input = await screen.findByRole('textbox', { name: 'totalConsumedQuantity: Product (P1)' });
+  label.mockClear();
+  await userEvent.type(input, '1');
+  expect(
+    label.mock.calls.filter(([product]) => product.fullProductName === 'Other Product'),
+  ).toHaveLength(0);
+});
+
+it('keeps draft status outside the small-header copy-badge visibility rule in cards', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(620);
+  renderEditor({ status: true });
+  const badge = await screen.findByText(/stock-events.draft-(loading|saved)/);
+  expect(badge.closest('[class*="@xl/main:hidden"]')).toBeNull();
 });

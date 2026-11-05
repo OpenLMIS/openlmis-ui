@@ -830,7 +830,7 @@ it('opens the editable adjustments dialog from its grid button', async () => {
   const base: RequisitionRecord = editingRecord();
   base.template.columnsMap = {
     ...base.template.columnsMap,
-    totalLossesAndAdjustments: column('totalLossesAndAdjustments', 2),
+    totalLossesAndAdjustments: column('totalLossesAndAdjustments', 2, { source: 'USER_INPUT' }),
   };
   useLoginData
     .getState()
@@ -1048,7 +1048,9 @@ it('disables conflict Update offline with the footer action explanation', async 
 });
 
 it('confirms Update before discarding a conflicting device draft', async () => {
-  const { base, queryClient } = await openEditor();
+  const capture = await import('@/features/requisitions/lib/offline-capture-single');
+  const saveCopy = vi.spyOn(capture, 'captureSingle').mockResolvedValue({} as never);
+  const { base, queryClient } = await openEditor(false, true);
   const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
   fireEvent.change(input, { target: { value: '42' } });
   vi.spyOn(client, 'put').mockRejectedValue(httpError(409));
@@ -1070,6 +1072,7 @@ it('confirms Update before discarding a conflicting device draft', async () => {
       name: 'requisitions.edit.update',
     }),
   );
+  saveCopy.mockImplementation(() => new Promise(() => {}));
   vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: 'fresh' });
   fireEvent.click(
     within(screen.getByRole('alertdialog')).getByRole('button', {
@@ -1547,11 +1550,23 @@ it('requires a reason before confirming rejection and sends its DTO after saving
   );
   await userEvent.click(await screen.findByRole('option', { name: 'Reason' }));
   await userEvent.click(within(dialog).getByRole('button', { name: 'requisitions.reject.add' }));
+  expect(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.category' }),
+  ).not.toHaveTextContent('Category');
   expect(dialog).toContainElement(document.activeElement as HTMLElement);
   await userEvent.click(within(dialog).getByRole('button', { name: 'requisitions.reject.remove' }));
   expect(
     within(dialog).getByRole('combobox', { name: 'requisitions.reject.category' }),
   ).toHaveFocus();
+  await userEvent.click(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.reason' }),
+  );
+  expect(screen.queryByRole('option', { name: 'Reason' })).not.toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  await userEvent.click(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.category' }),
+  );
+  await userEvent.click(await screen.findByRole('option', { name: 'Category' }));
   await userEvent.click(
     within(dialog).getByRole('combobox', { name: 'requisitions.reject.reason' }),
   );

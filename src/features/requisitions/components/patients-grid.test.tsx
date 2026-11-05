@@ -78,3 +78,11 @@ it('enforces Skip and live required errors in the editable layout at phone width
   fireEvent.click(skip);
   await waitFor(() => expect(inputs[0]).toBeDisabled());
 });
+
+it('reserves a bounded month-label column in the read-only table', () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
+  render(<PatientsGrid patients={parsePatients(null)} />);
+  expect(
+    screen.getByRole('columnheader', { name: 'requisitions.patients.month-of-treatment' }),
+  ).toHaveClass('w-52');
+});

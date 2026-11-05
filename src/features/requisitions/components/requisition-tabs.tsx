@@ -34,8 +34,10 @@ import {
 import { defaultRequisitionTab, type RequisitionTab } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { validateLine } from '@/features/requisitions/lib/validation';
+import { useCardLayout } from '@/hooks/use-card-view';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
+import { cn } from '@/lib/utils';
 
 type LineCacheEntry = {
   source: RequisitionLine['line'] | undefined;
@@ -80,6 +82,8 @@ function RequisitionTabsView({
   onTabChange: (value: RequisitionTab) => void;
 }) {
   const { t } = useTranslation();
+  const layout = useCardLayout<HTMLDivElement>();
+  const showDraft = layout.cards && editing?.editable && editor?.device.deviceAvailable;
   const [
     { data: products },
     { data: approvedProducts },
@@ -236,6 +240,7 @@ function RequisitionTabsView({
   return (
     <>
       <Tabs
+        ref={layout.measure}
         spacing="page"
         value={active}
         onValueChange={(value) => onTabChange(value as RequisitionTab)}
@@ -260,11 +265,16 @@ function RequisitionTabsView({
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="flex flex-wrap items-center gap-2 @xl/main:hidden">
-          {editing?.editable && editor?.device.deviceAvailable && (
-            <RequisitionDraftStatus editor={editor} />
+        <div
+          className={cn(
+            'flex flex-wrap items-center gap-2',
+            !showDraft && 'not-has-data-[slot=badge]:hidden',
           )}
-          <RequisitionCopyBadge />
+        >
+          {showDraft && editor && <RequisitionDraftStatus editor={editor} />}
+          <div className="@xl/main:hidden empty:hidden">
+            <RequisitionCopyBadge />
+          </div>
         </div>
         {tabs.map(({ value }) => (
           <TabsContent key={value} value={value}>

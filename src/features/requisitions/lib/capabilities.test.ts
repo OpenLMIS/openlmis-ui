@@ -192,3 +192,17 @@ it.each([
       .patientsEditable,
   ).toBe(patientsEditable);
 });
+
+it('keeps calculated losses read-only for creators', () => {
+  expect(
+    policy({
+      template: {
+        columnsMap: {
+          totalLossesAndAdjustments: column('totalLossesAndAdjustments', 0, {
+            source: 'CALCULATED',
+          }),
+        },
+      },
+    }).editableColumns,
+  ).not.toContain('totalLossesAndAdjustments');
+});

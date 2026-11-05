@@ -41,6 +41,7 @@ await labels.use(IsolatingICU).init({
   resources: {
     en: {
       translation: {
+        'requisitions.batch.errors': en['requisitions.batch.errors'],
         'requisitions.batch.quantity-label': en['requisitions.batch.quantity-label'],
         'requisitions.batch.failure-line': en['requisitions.batch.failure-line'],
       },
@@ -1106,4 +1107,13 @@ it('renders batch rows while membership is pending and enables approval only aft
     finish({ content: records.map((r) => ({ id: r.id })), totalPages: 1 } as never),
   );
   await waitFor(() => expect(approve).toBeEnabled());
+});
+
+it('counts a multiline request failure once instead of counting message lines', async () => {
+  vi.mocked(saveBatchRequisitions).mockRejectedValueOnce(new Error('First line\nSecond line'));
+  renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  expect(await screen.findByRole('heading', { name: 'There Was 1 Error' })).toBeInTheDocument();
 });

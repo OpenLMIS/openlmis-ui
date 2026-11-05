@@ -59,6 +59,7 @@ import { RequisitionGridToolbar } from '@/features/requisitions/components/requi
 import { RequisitionInput } from '@/features/requisitions/components/requisition-input';
 import { SkipControls } from '@/features/requisitions/components/skip-controls';
 import { SupplyingStockNote } from '@/features/requisitions/components/supplying-stock-note';
+import { useGridWidths } from '@/features/requisitions/hooks/use-grid-widths';
 import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 import type { calculateTotals } from '@/features/requisitions/lib/calculations';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
@@ -243,20 +244,6 @@ export function RequisitionGridView({
       t,
       onAdjustments,
     ],
-  );
-  const renderCell = useCallback(
-    (column: GridColumn, row: GridRow) =>
-      row.model ? (
-        <RequisitionLineCell
-          column={column}
-          model={row.model}
-          context={cellContext}
-          shortfall={supplyingHasStock && gridRowTone(row, true) === 'shortfall'}
-          editing={editing}
-          error={errors[row.id]?.[column.name]}
-        />
-      ) : null,
-    [cellContext, supplyingHasStock, editing, errors],
   );
   const removable = canRemoveLine(tab === 'fullSupply', !!editing?.editable);
   const removal = useRef({ data, editing });
@@ -457,6 +444,25 @@ export function RequisitionGridView({
     () => columns.filter((column) => visibleKey.split('|').includes(column.name)),
     [columns, visibleKey],
   );
+  const sizing = useMemo(
+    () =>
+      rowColumns.map((column) => ({
+        label: column.label,
+        min: column.kind === 'skip' ? 56 : column.name === 'orderable.fullProductName' ? 240 : 112,
+        max: column.kind === 'skip' ? 80 : column.name === 'orderable.fullProductName' ? 384 : 240,
+        values: models.map((model) =>
+          String(
+            column.name === 'orderable.fullProductName'
+              ? (model.product?.fullProductName ?? '')
+              : column.name === 'orderable.productCode'
+                ? (model.product?.productCode ?? '')
+                : (model.line[column.name as keyof RequisitionLineItem] ?? ''),
+          ),
+        ),
+      })),
+    [rowColumns, models],
+  );
+  const widths = useGridWidths(region, sizing, !view.cards);
   const leadingPinned = visible.findIndex((column) => !pinnedColumns.has(column.id));
   const totalSpan = Math.max(1, leadingPinned === -1 ? visible.length : leadingPinned);
   const adjustment = models.find((model) => model.line.id === search.adjustments);
@@ -505,22 +511,19 @@ export function RequisitionGridView({
       />
       {view.cards && editing?.editable ? (
         <RequisitionEditCards
+          requisitionId={record.id}
           supplyingStock={supplyingHasStock}
           rows={data}
-          columns={columns.filter((column) => view.columnView.visibility[column.name] !== false)}
-          renderCell={renderCell}
+          columns={rowColumns}
+          context={cellContext}
+          editing={editing}
+          errors={errors}
           footer={footer}
           empty={empty}
           listRef={pageStart.ref}
           remove={removable ? removeLine : undefined}
           pending={editing.pending}
-          invalid={(id) => !!errors[id]}
           unit={unit}
-          isControl={(column) =>
-            editing.editableColumns.includes(column.name) ||
-            column.kind === 'skip' ||
-            (column.kind === 'adjustments' && !record.template.populateStockOnHandFromStockCards)
-          }
         />
       ) : view.cards ? (
         <TableCards
@@ -537,7 +540,13 @@ export function RequisitionGridView({
           <Table
             ref={tableElement}
             density="compact"
-            layout="auto"
+            layout="fixed"
+            width="columns"
+            style={
+              {
+                '--table-width': `${widths.reduce((a, b) => a + b, removable ? 48 : 0)}px`,
+              } as CSSProperties
+            }
             tabIndex={-1}
             aria-label={t('requisitions.requisition.products')}
             aria-rowcount={
@@ -548,6 +557,16 @@ export function RequisitionGridView({
               if (row) setFocusedRow(Number(row.dataset.index));
             }}
           >
+            <colgroup>
+              {widths.map((width, index) => (
+                <col
+                  key={rowColumns[index].name}
+                  className="w-(--column-width)"
+                  style={{ '--column-width': `${width}px` } as CSSProperties}
+                />
+              ))}
+              {removable && <col className="w-12" />}
+            </colgroup>
             <RequisitionTableHeader
               columns={rowColumns}
               pinned={pinnedColumns}
@@ -778,7 +797,7 @@ const RequisitionProductRow = memo(function RequisitionProductRow({
     </TableRow>
   );
 });
-const RequisitionLineCell = memo(
+export const RequisitionLineCell = memo(
   function RequisitionLineCell({
     column,
     model,
@@ -902,7 +921,10 @@ function renderValue(
       return column.name === 'orderable.productCode' ? (
         (product?.productCode ?? null)
       ) : product ? (
-        <bdi className={context.cards ? undefined : 'line-clamp-2 w-80 max-w-96 whitespace-normal'}>
+        <bdi
+          title={product?.fullProductName ?? undefined}
+          className={context.cards ? undefined : 'line-clamp-3 max-w-96 whitespace-normal'}
+        >
           {context.cards
             ? `${productLabel(product)} (${product.productCode})`
             : product.fullProductName}

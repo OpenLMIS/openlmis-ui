@@ -1,10 +1,14 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { useTable } from '@tanstack/react-table';
+import { type ColumnDef, useTable } from '@tanstack/react-table';
 import { Trash2Icon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { DataTable, dataTableFeatures } from '@/components/data-table/data-table';
+import {
+  DataTable,
+  type DataTableFeatures,
+  dataTableFeatures,
+} from '@/components/data-table/data-table';
 import { CardActions } from '@/components/display/card-actions';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { TableCards } from '@/components/display/table-cards';
@@ -107,10 +111,14 @@ export function CreateOrderForm({
       }),
   });
   const { measure, cards } = useCardLayout<HTMLDivElement>();
-  const table = useTable({
-    features: dataTableFeatures,
-    data: selectedFacilities,
-    columns: [
+  const removeRef = useRef<(id: string) => void>(() => undefined);
+  removeRef.current = (id) => {
+    focus.removing(id);
+    setIds((current) => current.filter((value) => value !== id));
+    setSupplier('');
+  };
+  const columns = useMemo<ColumnDef<DataTableFeatures, MinimalFacility>[]>(
+    () => [
       {
         id: 'name',
         accessorKey: 'name',
@@ -122,11 +130,7 @@ export function CreateOrderForm({
         header: t('orders.edit.actions'),
         cell: ({ row }) => {
           const label = t('orders.create.remove-facility', { facility: row.original.name });
-          const remove = () => {
-            focus.removing(row.original.id);
-            setIds((current) => current.filter((id) => id !== row.original.id));
-            setSupplier('');
-          };
+          const remove = () => removeRef.current(row.original.id);
           return cards ? (
             <div data-removal-control>
               <CardActions
@@ -158,6 +162,12 @@ export function CreateOrderForm({
         },
       },
     ],
+    [t, cards, mutation.isPending],
+  );
+  const table = useTable({
+    features: dataTableFeatures,
+    data: selectedFacilities,
+    columns,
   });
   return (
     <>

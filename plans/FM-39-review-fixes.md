@@ -425,3 +425,73 @@ Acceptance of universal legacy parity remains unverified and must not be reporte
 Validation: 76 focused tests across six touched suites passed, plus 11 reference tests after
 adding idle chunk/session coverage. Typecheck, Biome, design-system lint and the production
 build passed before handoff. No full suite, server browser session, server write or push.
+
+## Screen Fix Check K1-K8 (2026-11-05)
+
+All eight findings were applicable at 480fb1fd. No items were skipped.
+
+- K1: Memoize Create Orders columns by translation, layout and pending state. A ref supplies
+  the current removal callback. The supplier-refresh test now forces desktop layout and checks
+  focus after another query update. It fails with b4c93bb8's component and passes with the fix.
+  The production Chrome keyboard reproduction also retains focus after four seconds.
+- K2: The status row follows the 672px cards threshold, independently from the small-header
+  breakpoint. Only the copy badge has the small-header visibility rule. Empty rows disappear;
+  draft failures and Retry remain visible. Header copy badges are display-hidden on phones,
+  preventing a second screen-reader copy. The 620px regression fails against the opening code.
+- K3: Product names use a maximum width, three lines and a full-name title in both grids.
+  The full-name accessibility regression fails before the fix.
+- K4: Both Patients tables use `TableHead width="patient"`. The read-only label column measures
+  208px at 1440 and 1024 in both English and Arabic. A regression rejects the unbounded header.
+- K5: Memoize card rows by line and reuse the table's memoized cells. Large card pages also
+  virtualize rows, retain focused neighbors for keyboard traversal and mount validation targets
+  before focus reveal. Skip still updates the entire draft once. A sibling-edit regression fails
+  with the opening cards; validation reveal covers both layouts. Production Chrome at 620px,
+  100 rows per page: All 25ms, None 41ms, This Page 34ms, None again 37ms. The initial memo-only
+  pass measured 170/554/524/759ms, so it was insufficient. Width measurement is disabled in cards.
+- K6: Update adopts the fresh server record without awaiting the complete offline copy. Copy
+  completion uses capture-version and session checks, with failures left in the existing notice.
+  The conflict Update regression holds capture pending and fails before the change.
+- K7: Calculated Losses And Adjustments remain read-only. Batch labels reuse the existing ICU
+  failure-line key in all five catalogs. Error counts track failed records or requests, never
+  message newlines. Exhausting a rejection category clears its form value. Arabic Skip and its
+  accessible label both use تخطي. Regression tests cover calculated losses, multiline errors
+  and the exhausted category returning after removal. No new translation keys are needed.
+- K8: Both product grids use fixed table layout with explicit colgroups. Widths measure labels
+  and the complete dataset, with cached text measurements; mounted virtual rows never determine
+  widths. Batch sizing includes quantity and currency formats and grand totals. Sticky dividers
+  use one-pixel shadows without adjacent duplicate borders. Footer scroll padding reserves its
+  measured height, and the final body row ends at the Total row's top rather than underneath it.
+
+### Production Browser Evidence
+
+Scripts, logs and PNGs are in `.screenshots/FM-39-k/`. `verify.mjs` uses this worktree's
+playwright-core, Chrome channel, headless, and a production build served on port 5347.
+It blocks every non-GET API request except token POSTs and read-only search POSTs. No server
+writes are performed. The preview is stopped after verification. Port 5200 and fm39-preview
+are not used.
+
+The five-record run verifies the four requested ids plus 074a49af-12c3-429f-b5da-ed3f9e65787c
+against the current approval list. All five return AUTHORIZED or IN_APPROVAL. Measurements
+sample the top, middle, bottom and top again while scrolling both axes.
+
+| Locale | Viewport | Largest Column Width Change Before | After |
+| --- | --- | --- | --- |
+| English | 1440 | 25.89px | 0px |
+| English | 1024 | 25.89px | 0px |
+| Arabic | 1440 | 25.89px | 0px |
+| Arabic | 1024 | 25.89px | 0px |
+
+`before5-measurements.json` and `after-measurements.json` contain every column width and
+last-row/footer coordinates. The scrolling assertion fails against the opening batch/table
+components and passes after the fixes. Bottom screenshots are
+`after-batch-1440-en-1.png`, `after-batch-1024-en-1.png`,
+`after-batch-1440-ar-1.png` and `after-batch-1024-ar-1.png`.
+`screens.json` records the requisition grid's stable widths and the Patients header widths;
+`after-product-*` and `after-patients-*` show the TB product and read-only Patients screens.
+`focus.log`, `skip-virtual.log`, `k1-b4c93bb8-red.log`, `k2-k5-red.log`, `red-layout.log`,
+`red.log`, `k7-red.log` and `k7-category-red.log` preserve the focused reproductions.
+
+Validation: 201 tests pass in the eight affected component/route/capability test files. The
+final status-row adjustment also passes all seven requisition-tabs tests. `pnpm tsc --noEmit`,
+`pnpm check` and `pnpm lint:ds` are clean. `pnpm sort-messages` reports all catalogs sorted;
+existing translations are retained and their key sets match English. No full suite or push.

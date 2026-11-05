@@ -174,7 +174,10 @@ function BatchHeader() {
         </WorkspaceIcon>
         <WorkspaceTitle>{t('requisitions.batch.title')}</WorkspaceTitle>
         <WorkspaceDescription>
-          {t('requisitions.batch.description')} <RequisitionCopyBadge />
+          {t('requisitions.batch.description')}{' '}
+          <span className="hidden @xl/main:inline-flex">
+            <RequisitionCopyBadge />
+          </span>
         </WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
@@ -309,10 +312,16 @@ function BatchPage() {
   const [dialog, setDialog] = useState<string | Map<string, string> | null>(() =>
     loaded.removed.size
       ? [...loaded.removed.values()]
-          .map((label) => `${label}: ${t('requisitions.batch.possibly-approved')}`)
+          .map((label) =>
+            t('requisitions.batch.failure-line', {
+              requisition: label,
+              reason: t('requisitions.batch.possibly-approved'),
+            }),
+          )
           .join('\n')
       : null,
   );
+  const [dialogCount, setDialogCount] = useState(loaded.removed.size || 1);
   const [invalid, setInvalid] = useState<string | null>(null);
   const invalidTarget = useRef<string | null>(null);
   const grid = useRef<BatchGridHandle>(null);
@@ -387,7 +396,11 @@ function BatchPage() {
     if (removed.length) {
       await drafts.clear(removed, [], false);
       const labels = removed.map(recordLabel).join(', ');
-      const description = `${labels}: ${t('requisitions.batch.possibly-approved')}`;
+      const description = t('requisitions.batch.failure-line', {
+        requisition: labels,
+        reason: t('requisitions.batch.possibly-approved'),
+      });
+      setDialogCount(removed.length);
       setDialog(description);
       toast.warning(t('requisitions.batch.status-uncertain'), { description });
     }
@@ -672,10 +685,12 @@ function BatchPage() {
       }
       assertSessionScope(scope);
     },
-    onError: (error) =>
+    onError: (error) => {
+      setDialogCount(1);
       setDialog(
         ids.reduce((message, id) => message.replaceAll(id, recordLabel(id)), errorMessage(error)),
-      ),
+      );
+    },
     onSettled: () => {
       busy.current = false;
       setAction(null);
@@ -936,7 +951,7 @@ function BatchPage() {
       <InvalidSubmitDialog
         open={!!dialog}
         title={t('requisitions.batch.errors', {
-          count: dialog instanceof Map ? dialog.size : (dialog?.split('\n').length ?? 1),
+          count: dialog instanceof Map ? dialog.size : dialogCount,
         })}
         description={
           <span className="whitespace-pre-line">
