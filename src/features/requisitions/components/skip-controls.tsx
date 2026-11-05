@@ -1,6 +1,7 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { ButtonGroup, ButtonGroupText } from '@/components/ui/button-group';
+import { ButtonGroup } from '@/components/ui/button-group';
 import type { GridEditing, GridModel } from '@/features/requisitions/components/requisition-grid';
 
 export function SkipControls({
@@ -37,10 +38,13 @@ export function SkipButtons({
   onSet?: (target: 'all' | 'page', skipped: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const label = useId();
   return (
-    <div className="w-full @2xl/main:w-auto">
-      <ButtonGroup aria-label={t('requisitions.edit.skip-lines')} width="full">
-        <ButtonGroupText>{t('requisitions.edit.skip')}</ButtonGroupText>
+    <div className="flex w-full items-center gap-2 @2xl/main:w-auto">
+      <span id={label} className="text-sm">
+        {t('requisitions.edit.skip')}
+      </span>
+      <ButtonGroup aria-labelledby={label} width="full">
         <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('all', true)}>
           {t('requisitions.edit.skip-all')}
         </Button>

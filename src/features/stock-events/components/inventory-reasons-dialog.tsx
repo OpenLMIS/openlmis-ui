@@ -295,7 +295,7 @@ export function InventoryReasonsDialog({
                           <DataTableHeaderLabel>{t('stock-events.quantity')}</DataTableHeaderLabel>
                         </TableHead>
                         <TableHead>
-                          <DataTableHeaderLabel>{t('stock-events.actions')}</DataTableHeaderLabel>
+                          <span className="sr-only">{t('stock-events.actions')}</span>
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -326,15 +326,17 @@ export function InventoryReasonsDialog({
                               </form.AppField>
                             </TableCell>
                             <TableCell>
-                              <Button
-                                type="button"
-                                variant="destructive-ghost"
-                                size="icon-sm"
-                                aria-label={removeLabel(item)}
-                                onClick={() => remove(index)}
-                              >
-                                <Trash2Icon />
-                              </Button>
+                              <div className="flex justify-center">
+                                <Button
+                                  type="button"
+                                  variant="destructive-ghost"
+                                  size="icon-sm"
+                                  aria-label={removeLabel(item)}
+                                  onClick={() => remove(index)}
+                                >
+                                  <Trash2Icon />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -359,10 +361,12 @@ export function InventoryReasonsDialog({
                         {display(difference)}
                       </bdi>
                     </SettingsItem>
-                    <SettingsItem label={<strong>{t('physical-inventory.total')}</strong>}>
-                      <strong>
+                    <SettingsItem
+                      label={<span className="text-base">{t('physical-inventory.total')}</span>}
+                    >
+                      <span className="font-semibold text-base">
                         <bdi dir="ltr">{display(adjustmentTotal(values()))}</bdi>
-                      </strong>
+                      </span>
                     </SettingsItem>
                   </CardRows>
                 </div>
@@ -375,8 +379,10 @@ export function InventoryReasonsDialog({
                     </bdi>
                   </span>
                   <span>
-                    <strong>{t('physical-inventory.total')}</strong>{' '}
-                    <bdi dir="ltr">{display(adjustmentTotal(values()))}</bdi>
+                    <span className="text-base">{t('physical-inventory.total')}</span>{' '}
+                    <bdi className="font-semibold text-base" dir="ltr">
+                      {display(adjustmentTotal(values()))}
+                    </bdi>
                   </span>
                 </div>
               )}

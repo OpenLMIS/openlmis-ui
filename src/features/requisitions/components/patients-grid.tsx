@@ -129,8 +129,10 @@ function PatientsEditor({
           >
             <TableHeader surface="muted">
               <TableRow pinned surface="muted">
-                <TableHead ref={skipRef} sticky>
-                  <DataTableHeaderLabel>{t('requisitions.patients.skip')}</DataTableHeaderLabel>
+                <TableHead ref={skipRef} width="fit" sticky>
+                  <div className="flex justify-center">
+                    <DataTableHeaderLabel>{t('requisitions.patients.skip')}</DataTableHeaderLabel>
+                  </div>
                 </TableHead>
                 <TableHead sticky stickyOffset={skipWidth}>
                   <DataTableHeaderLabel>
@@ -206,11 +208,13 @@ function PatientsReadOnly({ patients }: { patients: PatientsData }) {
               header: skip,
               cell: ({ row }) =>
                 row.original.patient ? (
-                  <Checkbox
-                    disabled
-                    checked={row.original.patient.isSkipped}
-                    aria-label={`${skip}: ${label(row.original.patient)}`}
-                  />
+                  <div className="flex justify-center">
+                    <Checkbox
+                      disabled
+                      checked={row.original.patient.isSkipped}
+                      aria-label={`${skip}: ${label(row.original.patient)}`}
+                    />
+                  </div>
                 ) : null,
             }),
           ]
@@ -221,7 +225,9 @@ function PatientsReadOnly({ patients }: { patients: PatientsData }) {
         cell: ({ row }) =>
           row.original.patient ? (
             <span className="flex flex-wrap items-center gap-2">
-              <bdi>{label(row.original.patient)}</bdi>
+              <bdi className={cards ? undefined : 'line-clamp-2 w-48 max-w-48 whitespace-normal'}>
+                {label(row.original.patient)}
+              </bdi>
               {cards && flag(row.original.patient)}
             </span>
           ) : null,
@@ -271,6 +277,7 @@ function PatientsReadOnly({ patients }: { patients: PatientsData }) {
                 {columns.map((column) => (
                   <TableHead
                     key={column.id}
+                    width={column.id === 'skip' ? 'fit' : undefined}
                     ref={column.id === 'skip' ? skipRef : undefined}
                     sticky={column.id === 'skip' || column.id === 'patient'}
                     stickyOffset={column.id === 'patient' ? skipWidth : 0}

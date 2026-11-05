@@ -80,7 +80,9 @@ const ProductRow = memo(function ProductRow({
         {row.product.productCode}
       </TableCell>
       <TableCell sticky stickyOffset="var(--batch-code-width)" rowHeader>
-        <div className="max-w-64 whitespace-normal">{row.product.fullProductName}</div>
+        <div className="line-clamp-2 w-80 max-w-96 whitespace-normal">
+          {row.product.fullProductName}
+        </div>
       </TableCell>
       {records.map((record) => {
         const line = row.lines.get(record.id);

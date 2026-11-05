@@ -115,7 +115,7 @@ export const PatientEditRow = memo(function PatientEditRow({
         </div>
       </TableCell>
       <TableCell sticky stickyOffset={skipWidth}>
-        <bdi>{label}</bdi>
+        <bdi className="line-clamp-2 w-48 max-w-48 whitespace-normal">{label}</bdi>
       </TableCell>
       {PATIENT_MONTHS.map((index) => (
         <TableCell key={`month${index + 1}`}>{!row.data[index].disabled && cell(index)}</TableCell>
