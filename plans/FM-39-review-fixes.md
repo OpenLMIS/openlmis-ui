@@ -982,3 +982,5 @@ checks: `pnpm sort-messages`, `pnpm tsc --noEmit`, `pnpm check`, and `pnpm lint:
 - History includes status changes without comments, resolves author names where available and avoids duplicating a linked status message.
 - Cold offline View builds facility/program choices and results from complete owned copies when the separate access download is missing. Existing downloaded access continues to restrict local searches where available.
 - Missing filter data uses a compact note when saved requisitions are available. Membership timeout settles into failed verification with Retry, a disabled Approve label and friendly wording. Offline batch Sync and Approve explain their connection requirement.
+
+Verification: the focused single/batch/approval/offline regression pass passed 174 tests in five files. The focused saved-list, cold-start, accepted-draft and history pass passed 66 tests in five files. The history dialog's user-name reads only start while the dialog is open.

@@ -49,12 +49,18 @@ export function RequisitionHistoryDialog({
         if (!value) onClose();
       }}
     >
-      <HistoryContent messages={messages} />
+      <HistoryContent messages={messages} open={open} />
     </FormDialog>
   );
 }
 
-function HistoryContent({ messages }: { messages: readonly RequisitionStatusMessage[] }) {
+function HistoryContent({
+  messages,
+  open,
+}: {
+  messages: readonly RequisitionStatusMessage[];
+  open: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
   const authorIds = [
@@ -64,7 +70,9 @@ function HistoryContent({ messages }: { messages: readonly RequisitionStatusMess
       ),
     ),
   ];
-  const authors = useQueries({ queries: authorIds.map((id) => userRecordOptions(id)) });
+  const authors = useQueries({
+    queries: authorIds.map((id) => ({ ...userRecordOptions(id), enabled: open })),
+  });
   const authorNames = authors.map(({ data }) =>
     data ? [data.firstName, data.lastName].filter(Boolean).join(' ') : '',
   );
