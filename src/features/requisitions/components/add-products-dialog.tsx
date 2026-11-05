@@ -31,10 +31,12 @@ import type { OrderableIdentity } from '@/features/reference-data/api/api';
 import { orderablesByIdentitiesOptions } from '@/features/reference-data/api/queries';
 import { productLabel } from '@/features/reference-data/lib/products';
 import type { Orderable } from '@/features/reference-data/lib/types';
+import { savedProductsOptions } from '@/features/requisitions/lib/offline-single';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 
 type AddProductsDialogProps = {
   load: {
+    requisitionId?: string;
     identities: readonly OrderableIdentity[];
     select: (products: readonly Orderable[]) => readonly Orderable[];
   };
@@ -94,7 +96,11 @@ function ProductsError({ error, reset }: ErrorComponentProps) {
 }
 
 function AvailableProductsForm({ load, ...props }: Omit<AddProductsDialogProps, 'onClose'>) {
-  const { data } = useSuspenseQuery(orderablesByIdentitiesOptions(load.identities));
+  const { data } = useSuspenseQuery(
+    load.requisitionId
+      ? savedProductsOptions(load.requisitionId, load.identities)
+      : orderablesByIdentitiesOptions(load.identities),
+  );
   return <ProductsForm {...props} products={load.select(data)} />;
 }
 function ProductsForm({

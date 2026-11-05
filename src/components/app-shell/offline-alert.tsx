@@ -27,6 +27,7 @@ export function OfflineAlert({ children, short }: { children: ReactNode; short?:
 }
 
 type SnapshotMessage =
+  | 'requisitions.offline.snapshot'
   | 'physical-inventory.reconnected-snapshot'
   | 'physical-inventory.offline-snapshot'
   | 'stock-events.offline-snapshot'
@@ -35,6 +36,7 @@ type SnapshotMessage =
   | 'stock-card.offline-summary';
 
 const unreachableMessages = {
+  'requisitions.offline.snapshot': 'requisitions.offline.snapshot',
   'physical-inventory.reconnected-snapshot': 'physical-inventory.reconnected-snapshot',
   'physical-inventory.offline-snapshot': 'physical-inventory.unreachable-snapshot',
   'stock-events.offline-snapshot': 'offline.stock-snapshot-unreachable',

@@ -37,3 +37,16 @@ export function productQuantity(
   const remainder = doses % netContent;
   return remainder === 0 ? format(packs) : `${format(packs)} ( +${format(remainder)} )`;
 }
+
+export function packsToShip(
+  quantity: number,
+  netContent: number | null | undefined,
+  threshold = 0,
+  roundToZero = false,
+): number {
+  if (quantity <= 0 || !netContent || netContent < 0) return 0;
+  const remainder = quantity % netContent;
+  const packs =
+    Math.floor(quantity / netContent) + (remainder > 0 && remainder > threshold ? 1 : 0);
+  return packs === 0 && !roundToZero ? 1 : packs;
+}

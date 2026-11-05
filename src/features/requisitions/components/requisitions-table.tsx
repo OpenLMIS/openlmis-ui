@@ -14,6 +14,8 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { requisitionSearchOptions } from '@/features/requisitions/api/queries';
+import { OfflineMarker } from '@/features/requisitions/components/offline-marker';
+import { RequisitionCopyNotice } from '@/features/requisitions/components/requisition-copy-notice';
 import {
   cardColumns,
   EMERGENCY_COLUMN,
@@ -22,8 +24,12 @@ import {
   RequisitionListSkeleton,
   RequisitionListTable,
   requisitionListCell,
-  ViewRequisition,
 } from '@/features/requisitions/components/requisition-list-parts';
+import { RequisitionRowActions } from '@/features/requisitions/components/requisition-row-actions';
+import {
+  RequisitionCopiesContext,
+  useOfflineCopies,
+} from '@/features/requisitions/hooks/use-offline-copies';
 import {
   CLEARED_REQUISITION_FILTERS,
   hasRequisitionFilters,
@@ -36,6 +42,8 @@ import type { RequisitionSearchResult } from '@/features/requisitions/lib/types'
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { tableValue } from '@/lib/empty-value';
+import { isDeviceAccess } from '@/lib/offline-access';
+import { useOnline } from '@/lib/online';
 import { REQUISITION_STATUS } from '@/lib/requisition-status';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
@@ -45,6 +53,7 @@ const COLUMNS = [
   ['createdDate', 'requisitions.columns.date-initiated'],
   ['status', 'requisitions.columns.status'],
   EMERGENCY_COLUMN,
+  ['offline', 'requisitions.offline.label'],
 ] as const;
 export const REQUISITION_HIDEABLE_COLUMNS = hideableColumns(COLUMNS);
 const CARD_COLUMNS = cardColumns(COLUMNS);
@@ -82,6 +91,8 @@ function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
               ),
             cell: ({ row: { original: record } }) => {
               switch (id) {
+                case 'offline':
+                  return <OfflineMarker id={record.id} />;
                 case 'status': {
                   const status = REQUISITION_STATUS[record.status];
                   if (!status) return tableValue(record.status);
@@ -106,7 +117,7 @@ function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
             <DataTableHeaderLabel>{t('requisitions.columns.actions')}</DataTableHeaderLabel>
           ),
           cell: ({ row }) => (
-            <ViewRequisition disabled={stale} record={row.original} linkProps={{ search }} />
+            <RequisitionRowActions disabled={stale} record={row.original} search={search} />
           ),
         }),
       ]),
@@ -152,8 +163,13 @@ function useResultsTable({
 
 export function RequisitionsTable({ cards, search, columns, onSearchChange }: Props) {
   const { t } = useTranslation();
+  const copies = useOfflineCopies();
   const deferred = useDeferredValue(search);
-  const { data: page } = useSuspenseQuery(requisitionSearchOptions(toRequisitionQuery(deferred)));
+  const online = useOnline();
+  const timeZone = useDeploymentTimeZone();
+  const { data: page } = useSuspenseQuery(
+    requisitionSearchOptions(toRequisitionQuery(deferred), online, !!deferred.offline, timeZone),
+  );
   const stale = deferred !== search;
   const { table, pageStart } = useResultsTable({
     cards,
@@ -168,7 +184,7 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange }: Pr
   useEffect(() => {
     if (pastEnd) onSearchChange({ page: page.totalPages > 1 ? page.totalPages : undefined }, true);
   }, [pastEnd, page.totalPages, onSearchChange]);
-  const empty = hasRequisitionFilters(deferred) ? (
+  const empty = hasRequisitionFilters({ ...deferred, offline: undefined }) ? (
     <DataTableEmpty
       action={
         <Button variant="destructive" onClick={() => onSearchChange(CLEARED_REQUISITION_FILTERS)}>
@@ -181,21 +197,35 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange }: Pr
     />
   ) : (
     <DataTableEmpty
-      description={t('requisitions.view.empty-description')}
+      description={t(
+        !online || search.offline
+          ? 'requisitions.offline.empty-description'
+          : 'requisitions.view.empty-description',
+      )}
       icon={<ClipboardListIcon />}
-      title={t('requisitions.view.empty-title')}
+      title={t(
+        !online || search.offline
+          ? 'requisitions.offline.empty-title'
+          : 'requisitions.view.empty-title',
+      )}
     />
   );
   const footer = !pastEnd && page.totalElements > 0 && <DataTablePagination table={table} />;
   return (
-    <RequisitionListTable
-      cards={cards}
-      table={table}
-      stale={stale}
-      empty={!pastEnd && empty}
-      footer={footer}
-      listRef={pageStart.ref}
-    />
+    <RequisitionCopiesContext value={copies}>
+      <RequisitionCopyNotice
+        local={!!deferred.offline || isDeviceAccess(page)}
+        ids={page.content.map((record) => record.id)}
+      />
+      <RequisitionListTable
+        cards={cards}
+        table={table}
+        stale={stale}
+        empty={!pastEnd && empty}
+        footer={footer}
+        listRef={pageStart.ref}
+      />
+    </RequisitionCopiesContext>
   );
 }
 

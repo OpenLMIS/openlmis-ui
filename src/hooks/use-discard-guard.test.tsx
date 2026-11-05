@@ -1,4 +1,5 @@
 import {
+  type AnyRouter,
   createBrowserHistory,
   createMemoryHistory,
   createRootRoute,
@@ -256,4 +257,33 @@ it.each(['leave', 'sign-out'] as const)('uses the discard label for %s intent', 
   expect(proceed).not.toHaveBeenCalled();
   await userEvent.click(discard);
   expect(proceed).toHaveBeenCalledOnce();
+});
+
+it('keeps comma and encoded-comma links on the same draft when switching tabs', async () => {
+  showDialog = false;
+  saving = false;
+  leaving = false;
+  flushBeforeLeave = undefined;
+  const root = createRootRoute({ component: Outlet });
+  const page = createRoute({
+    getParentRoute: () => root,
+    path: '/orders/$ids',
+    component: () => <Draft dirty />,
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([page]),
+    history: createMemoryHistory({ initialEntries: ['/orders/a,b'] }),
+  }) as AnyRouter;
+  render(<RouterProvider router={router} />);
+  await screen.findByText('editing');
+  act(
+    () =>
+      void router.navigate({
+        to: '/orders/$ids',
+        params: { ids: 'a,b' },
+        search: { tab: 'b' },
+      } as never),
+  );
+  await waitFor(() => expect(router.state.location.searchStr).toBe('?tab=b'));
+  expect(guard.dialog.open).toBe(false);
 });

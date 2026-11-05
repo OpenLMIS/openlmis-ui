@@ -9,6 +9,7 @@ import {
   patientsForProduct,
 } from '@/features/requisitions/lib/patients';
 import type { Requisition, RequisitionLineItem } from '@/features/requisitions/lib/requisition';
+import { packsToShip } from '@/lib/quantity';
 
 const preAuthorization = new Set(['INITIATED', 'REJECTED', 'SUBMITTED']);
 const patientOverrideStatuses = new Set([
@@ -31,19 +32,6 @@ function recordPatients(requisition: Requisition): PatientsData {
   const data = parsePatients(requisition.patientsData);
   patientsByRecord.set(requisition, { json: requisition.patientsData, data });
   return data;
-}
-
-export function packsToShip(
-  quantity: number,
-  netContent: number | null | undefined,
-  threshold = 0,
-  roundToZero = false,
-): number {
-  if (quantity <= 0 || !netContent || netContent < 0) return 0;
-  const remainder = quantity % netContent;
-  const packs =
-    Math.floor(quantity / netContent) + (remainder > 0 && remainder > threshold ? 1 : 0);
-  return packs === 0 && !roundToZero ? 1 : packs;
 }
 
 function orderQuantity(

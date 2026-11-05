@@ -6,6 +6,7 @@ import type {
   BatchResponse,
   BatchRow,
 } from '@/features/requisitions/lib/batch-types';
+import { packsToShip } from '@/lib/quantity';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 export const batchIds = (value: string) => [
@@ -24,10 +25,14 @@ export function batchCost(line: BatchLine, text = batchText(line)) {
   const quantity = toWholeNumber(text);
   const { netContent, packRoundingThreshold, roundToZero } = line.orderable;
   if (!quantity || !Number.isFinite(quantity) || !netContent) return 0;
-  let packs = Math.floor(quantity / netContent);
-  if (packRoundingThreshold != null && quantity % netContent > packRoundingThreshold) packs++;
-  if (!packs && !roundToZero) packs = 1;
-  return packs * (line.pricePerPack ?? 0);
+  return (
+    packsToShip(
+      quantity,
+      netContent,
+      packRoundingThreshold ?? Number.POSITIVE_INFINITY,
+      roundToZero,
+    ) * (line.pricePerPack ?? 0)
+  );
 }
 export function batchRows(records: readonly BatchRequisition[]): BatchRow[] {
   const rows = new Map<string, BatchRow>();
@@ -144,3 +149,6 @@ export function matchesBaseline(
     record.status === baseline.baselineStatus
   );
 }
+
+export const batchApprovable = (record: BatchRequisition) =>
+  ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status);

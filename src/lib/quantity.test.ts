@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardQuantity, productQuantity } from '@/lib/quantity';
+import { cardQuantity, packsToShip, productQuantity } from '@/lib/quantity';
 
 describe('cardQuantity', () => {
   it('formats doses and both pack quantities in the requested language', () => {
@@ -76,5 +76,22 @@ describe('productQuantity', () => {
 
   it('has nothing to show in doses without a total', () => {
     expect(productQuantity(null, [], 10, 'DOSES')).toBeNull();
+  });
+});
+
+describe('packsToShip', () => {
+  it.each([
+    [20, 10, -1, false, 2],
+    [15, 10, 5, false, 1],
+    [16, 10, 5, false, 2],
+    [5, 10, 5, false, 1],
+    [5, 10, 5, true, 0],
+    [0, 10, 5, false, 0],
+    [-1, 10, 5, false, 0],
+    [10, 0, 5, false, 0],
+  ])('rounds packs (%s/%s threshold %s, zero %s)', (q, size, threshold, zero, expected) => {
+    expect(packsToShip(q as number, size as number, threshold as number, zero as boolean)).toBe(
+      expected,
+    );
   });
 });

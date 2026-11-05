@@ -51,7 +51,7 @@ The protected layout has an icon-collapsible sidebar (`Ctrl/Cmd+B`) and top bar,
 from `@7ovr/app-shell-1`. `NAV_GROUPS` in `src/lib/config.ts` drives both the sidebar and
 command palette (`Ctrl/Cmd+K`). `LIVE_NAV_GROUPS` excludes unmigrated `to: '#'` entries and
 sections with no live pages. `useNavGroups()` in `src/components/app-shell/nav-access.ts` then
-filters both by the user's rights.
+filters both by the user's rights and each entry's optional runtime feature flag.
 
 - Requisition navigation also counts `REQUISITION_VIEW` in the user's supervision roles, so sidebar,
   palette and breadcrumbs agree.
@@ -626,6 +626,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   into the registry.
 - Text comes from `DataTableLabelsProvider` (English defaults); the shell's
   `TranslatedDataTableLabels` supplies `data-table.*` translations.
+- `DataTable` and `DialogTable` accept `heading` for full-width group rows; `DialogTable`
+  passes the same headings to phone cards. `useDialogCardLayout` also accepts `2xl`.
 - `DataTable` and `DataTableSkeleton` share column metadata: `density="comfortable"` by
   default, `default` for compact tables needing room, `compact` for tighter cell padding;
   `layout="fixed"` by default, `auto`
@@ -823,6 +825,9 @@ home facility, user programs, all facilities and page grants, following legacy:
   only: `fetchQuery`/`ensureQueryData` ignore `select`. Features never import auth; see Home.
 - Facility/program pages check exact grants with `hasProgramGrant`. Unscoped rights or
   grants elsewhere never count.
+- Create Orders deliberately offers requesting facilities with `ORDER_CREATE` for any program,
+  matching the server's program-independent receiving-facility check. Order reads still need
+  supplier facility-only grants or exact requesting-facility/program POD grants.
 - User-changing saves call `invalidateUserQueries(queryClient, userId)`
   (`src/lib/user-queries.ts`). Per-user caches hold only the signed-in user's data; rights,
   Profile and Home refresh only when saving that user.
@@ -1132,7 +1137,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   Event Details puts status notices above the lines. In its `useDialogCardLayout` cards layout the
   footer shows Retry, Copy For Correction or Transaction History, then Close; other actions go in
   "...", except a lone Remove or Dismiss, which stays a trash icon button.
-- Already-open requisition details remain editable offline through the shell retention policy; cold offline opens stay blocked.
+- Requisition lists and saved single/batch routes open offline using complete owner-scoped copies, separate from delta drafts. Keep single and batch readiness distinct; server actions still require a connection.
 - Hidden pages retain drafts/guards only for a valid protected match in the same session scope.
   Persistent overlay drafts stay mounted behind the visibility gate; transient overlays close.
   Discard decisions opt out so navigation and Log Out remain answerable.

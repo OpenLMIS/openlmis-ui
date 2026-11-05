@@ -27,7 +27,7 @@ export function useCardView<T extends HTMLElement = HTMLDivElement>(
   return { measure, cards, columnView, layout, choices } as const;
 }
 
-const DIALOG_WIDTHS_REM = { lg: 32, table: 36, xl: 48 } as const;
+const DIALOG_WIDTHS_REM = { lg: 32, table: 36, xl: 48, '2xl': 64 } as const;
 
 type CardDialogSize = keyof typeof DIALOG_WIDTHS_REM;
 

@@ -25,7 +25,7 @@ import {
 } from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import {
-  requireRequisitionView,
+  type requireRequisitionView,
   requisitionViewNodes,
 } from '@/features/auth/lib/requisition-access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -51,6 +51,7 @@ import {
   RequisitionsTableSkeleton,
 } from '@/features/requisitions/components/requisitions-table';
 import { RequisitionsToolbar } from '@/features/requisitions/components/requisitions-toolbar';
+import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
 import {
   groupIdsOf,
   invalidDateRange,
@@ -65,9 +66,11 @@ import {
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { queryKeys } from '@/lib/key-factory';
+import { isOnline } from '@/lib/online';
 import { programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 import { type SearchChange, searchSort } from '@/lib/table-search';
+import { requireRequisitionViewWithDevice } from '@/routes/-requisition-access';
 
 const NO_DIALOGS = {} satisfies Partial<RequisitionSearch>;
 const noop = () => {};
@@ -78,8 +81,9 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view'
   validateSearch: requisitionSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
+    await prepareRequisitionAccess(queryClient);
     const userId = useLoginData.getState().referenceDataUserId;
-    const access = await requireRequisitionView(queryClient);
+    const access = await requireRequisitionViewWithDevice(queryClient);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
     queryClient.prefetchQuery(minimalFacilitiesOptions());
@@ -101,7 +105,13 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view'
         queryClient.prefetchQuery(programsOptions());
     });
     const facilityPrograms = grants.filter(({ facilityId }) => facilityId === search.facility);
-    if (search.facility && !invalidDateRange(search) && facilityPrograms.length > 0) {
+    if (
+      isOnline() &&
+      !search.offline &&
+      search.facility &&
+      !invalidDateRange(search) &&
+      facilityPrograms.length > 0
+    ) {
       queryClient.prefetchQuery(
         requisitionSearchOptions(
           toRequisitionQuery({

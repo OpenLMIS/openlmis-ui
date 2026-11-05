@@ -22,6 +22,7 @@ export const queryKeys = {
   lots: createQueryKeys('lots'),
   orderableDisplayCategories: createQueryKeys('orderableDisplayCategories'),
   orderables: createQueryKeys('orderables'),
+  orders: createQueryKeys('orders'),
   organizations: createQueryKeys('organizations'),
   physicalInventories: createQueryKeys('physicalInventories'),
   physicalInventoryProducts: createQueryKeys('physicalInventoryProducts'),

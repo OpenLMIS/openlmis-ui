@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { hasProgramGrant, parsePermissions, programGrants } from '@/lib/permissions';
+import {
+  facilityGrants,
+  hasProgramGrant,
+  parsePermissions,
+  programGrants,
+} from '@/lib/permissions';
 
 describe('parsePermissions', () => {
   it('names every right the user holds, scoped or not', () => {
@@ -56,6 +61,21 @@ describe('programGrants', () => {
 
     expect(programGrants(permissions, 'STOCK_CARDS_VIEW')).toEqual([
       { right: 'STOCK_CARDS_VIEW', facilityId: 'f1', programId: 'p1' },
+    ]);
+  });
+});
+
+describe('facilityGrants', () => {
+  it('keeps only well-formed facility-only grants, deduplicated', () => {
+    const permissions = parsePermissions([
+      'ORDERS_VIEW|s',
+      'ORDERS_VIEW|s',
+      'ORDERS_VIEW|s|p',
+      'ORDERS_VIEW|s|',
+      'ORDERS_VIEW',
+    ]);
+    expect(facilityGrants(permissions, 'ORDERS_VIEW')).toEqual([
+      { right: 'ORDERS_VIEW', facilityId: 's' },
     ]);
   });
 });

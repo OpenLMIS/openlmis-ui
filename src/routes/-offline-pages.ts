@@ -8,6 +8,10 @@ import { registerOfflinePages, registerOpenOfflinePages } from '@/lib/offline-pa
 import { RIGHTS } from '@/lib/rights';
 
 registerOpenOfflinePages(['/requisitions/view/']);
+registerOfflinePages(
+  ['/requisitions/view', '/requisitions/approve'],
+  [RIGHTS.requisitionView, RIGHTS.requisitionApprove],
+);
 
 registerOfflinePages(['/stock-management/stock-on-hand'], [RIGHTS.stockCardsView]);
 registerOfflinePages(['/stock-management/physical-inventory'], [RIGHTS.stockInventoriesEdit]);

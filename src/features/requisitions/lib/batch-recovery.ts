@@ -20,7 +20,7 @@ export async function recoverBatchApprovals(ids: readonly string[], response: Ba
         const marker = readBatchSessionMarker(userId, id);
         if (!marker) continue;
         const record = response.requisitionDtos?.find((r) => r.id === id);
-        if (matchesBaseline(record, marker)) continue;
+        if (!record || matchesBaseline(record, marker)) continue;
         writeBatchSessionMarker(userId, id);
         removed.set(id, record ? batchLabel(record) : id);
       }
@@ -42,7 +42,7 @@ export async function recoverBatchApprovals(ids: readonly string[], response: Ba
     assertSessionScope(scope);
     if (!stored?.unresolvedApproval) continue;
     const record = response.requisitionDtos?.find((r) => r.id === id);
-    if (matchesBaseline(record, stored)) continue;
+    if (!record || matchesBaseline(record, stored)) continue;
     await saveRevisionedDraft({
       db,
       table,

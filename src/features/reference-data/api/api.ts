@@ -496,3 +496,17 @@ async function fetchByIdentities<T>(
   });
   return batches.flat();
 }
+
+export async function fetchFacilitySupervisoryNodes(filter: {
+  programId: string;
+  facilityId: string;
+}) {
+  const { data } = await client.get<Page<{ id: string }>>('/supervisoryNodes', { params: filter });
+  return data.content;
+}
+export async function fetchSupplyLines(filter: { programId: string; supervisoryNodeId: string }) {
+  const { data } = await client.get<Page<{ supplyingFacility: { id: string } }>>('/supplyLines', {
+    params: filter,
+  });
+  return data.content;
+}

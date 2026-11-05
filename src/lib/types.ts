@@ -1,6 +1,7 @@
 import type { LinkProps } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import type { LucideIcon } from 'lucide-react';
+import type { FeatureFlagKey } from '@/lib/feature-flags';
 
 export type NavLink = {
   titleKey: ParseKeys;
@@ -8,6 +9,7 @@ export type NavLink = {
   to: LinkProps['to'] | '#';
   icon?: LucideIcon;
   connectionRequired?: boolean;
+  flag?: FeatureFlagKey;
 };
 
 /** Expands in place in the sidebar and opens as a flyout menu when the sidebar is collapsed. */

@@ -2,8 +2,8 @@ import type { HistoryState } from '@tanstack/react-router';
 import { Link } from '@tanstack/react-router';
 import type { RowData } from '@tanstack/react-table';
 import type { ParseKeys, TFunction } from 'i18next';
-import { EyeIcon } from 'lucide-react';
-import type { ReactNode, Ref } from 'react';
+import { ClipboardCheckIcon, EyeIcon } from 'lucide-react';
+import { type ReactNode, type Ref, use } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -16,9 +16,12 @@ import { WrappingCell } from '@/components/display/wrapping-cell';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
 import { FlagBadge } from '@/components/shared/flag-badge';
 import { Button } from '@/components/ui/button';
+import { RequisitionCopiesContext } from '@/features/requisitions/hooks/use-offline-copies';
+import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { RequisitionSearch } from '@/features/requisitions/lib/search-facilities';
 import type { ApprovalListRow, RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { tableValue } from '@/lib/empty-value';
+import { useOnline } from '@/lib/online';
 
 type ListRecord = RequisitionSearchResult | Omit<ApprovalListRow, 'status'>;
 export const requisitionRowLabel = (row: ListRecord, emergency: string) =>
@@ -124,15 +127,33 @@ export function ViewRequisition({
 }) {
   const { t } = useTranslation();
   const cards = useInCards();
-  const name = t('requisitions.view.action-name', {
-    program: record.program?.name ?? '',
-    period: includeFacility
-      ? [record.processingPeriod?.name, record.facility?.code, record.facility?.name]
-          .filter(Boolean)
-          .join(' - ')
-      : (record.processingPeriod?.name ?? ''),
-  });
-  const link = (
+  const online = useOnline();
+  const copy = use(RequisitionCopiesContext)?.find((copy) => copy.id === record.id);
+  const batch = !online && !copy?.single && !!copy?.batch;
+  disabled ||= !online && !copy?.single && !copy?.batch;
+  const label = t(batch ? 'requisitions.batch.title' : 'requisitions.view.action');
+  const name = batch
+    ? label
+    : t('requisitions.view.action-name', {
+        program: record.program?.name ?? '',
+        period: includeFacility
+          ? [record.processingPeriod?.name, record.facility?.code, record.facility?.name]
+              .filter(Boolean)
+              .join(' - ')
+          : (record.processingPeriod?.name ?? ''),
+      });
+  const link = batch ? (
+    <Link
+      aria-label={name}
+      to="/requisitions/approve/batch"
+      search={{ ids: record.id }}
+      state={
+        'state' in linkProps
+          ? linkProps.state
+          : returnState({ to: '/requisitions/view', search: linkProps.search })
+      }
+    />
+  ) : (
     <Link
       aria-label={name}
       to="/requisitions/view/$requisitionId"
@@ -149,8 +170,8 @@ export function ViewRequisition({
         actions={[
           {
             id: 'view',
-            icon: <EyeIcon />,
-            label: t('requisitions.view.action'),
+            icon: batch ? <ClipboardCheckIcon /> : <EyeIcon />,
+            label,
             name,
             link,
             disabled,
@@ -160,7 +181,7 @@ export function ViewRequisition({
     );
   return (
     <Button aria-label={name} disabled={disabled} nativeButton={false} render={link} size="sm">
-      {t('requisitions.view.action')}
+      {label}
     </Button>
   );
 }
