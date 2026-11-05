@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { hashKey, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { ParseKeys, TFunction } from 'i18next';
 import { EyeIcon, RefrigeratorIcon, SearchXIcon } from 'lucide-react';
@@ -253,13 +253,12 @@ export function InventoryResults({
 }: ResultsProps) {
   const { t, i18n } = useTranslation();
   const deferredSearch = useDeferredValue(search);
-  const { data: page } = useSuspenseQuery(
-    inventoryItemsOptions(toInventoryQuery(deferredSearch, selection)),
-  );
+  const query = toInventoryQuery(deferredSearch, selection);
+  const { data: page } = useSuspenseQuery(inventoryItemsOptions(query));
   const ids = useMemo(() => page.content.map((item) => item.id), [page.content]);
   const { data: alertList } = useQuery(inventoryAlertsOptions(ids));
   const actions = useRowActions(deferredSearch, selection, canEdit);
-  const stale = search !== deferredSearch;
+  const stale = hashKey([toInventoryQuery(search, selection)]) !== hashKey([query]);
   const rows = useMemo(
     () => ({ activeAlerts: activeAlertsByDevice(alertList ?? []), actions, stale }),
     [alertList, actions, stale],
