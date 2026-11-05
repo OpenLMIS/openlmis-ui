@@ -12,13 +12,11 @@ import {
 import { CardActions } from '@/components/display/card-actions';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { TableCards } from '@/components/display/table-cards';
-import { PickerAdd, PickerAddButton, PickerAddField } from '@/components/pickers/picker-add';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
-import { WorkspaceActionsPortal } from '@/components/workspace/workspace-tabs';
 import { createOrder } from '@/features/orders/api/api';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { OrderSelect } from '@/features/orders/components/order-select';
@@ -55,7 +53,7 @@ export function CreateOrderForm({
     selectedFacilities.map((facility) => facility.id),
     () => picker.current?.querySelector<HTMLElement>('[role=combobox]') ?? null,
   );
-  const [picked, setPicked] = useState('');
+  const [pickerVersion, setPickerVersion] = useState(0);
   const [supplier, setSupplier] = useState('');
   const suppliers = useQuery({
     ...supplyingFacilitiesOptions(programId, ids),
@@ -172,18 +170,9 @@ export function CreateOrderForm({
     columns,
   });
   return (
-    <>
-      <WorkspaceActionsPortal>
-        <Button
-          size="lg"
-          disabled={!readable || mutation.isPending}
-          onClick={() => mutation.mutate()}
-        >
-          {t('orders.create.create')}
-        </Button>
-      </WorkspaceActionsPortal>
+    <form className="flex flex-col gap-4" onSubmit={(event) => event.preventDefault()}>
       <FieldGroup>
-        <div className="min-w-0 @3xl/main:max-w-96">
+        <div className="min-w-0">
           <OrderSelect
             required
             label={t('orders.create.program')}
@@ -198,30 +187,25 @@ export function CreateOrderForm({
           />
         </div>
       </FieldGroup>
-      <div ref={picker} className="flex items-end gap-2 @3xl/main:max-w-xl">
-        <PickerAdd align="end">
-          <PickerAddField>
-            <OrderSelect
-              required
-              label={t('orders.create.requesting-facility')}
-              placeholder={t('orders.create.select-requesting-facility')}
-              options={requesting.filter((f) => !ids.includes(f.id))}
-              value={picked}
-              disabled={mutation.isPending || facilitiesPending}
-              onChange={setPicked}
-            />
-          </PickerAddField>
-          <PickerAddButton
-            disabled={!picked || mutation.isPending}
-            onClick={() => {
-              setIds((current) => [...current, picked]);
-              setPicked('');
-              setSupplier('');
-            }}
-          >
-            {t('orders.add')}
-          </PickerAddButton>
-        </PickerAdd>
+      <div ref={picker}>
+        <OrderSelect
+          key={pickerVersion}
+          required
+          label={t('orders.create.requesting-facility')}
+          placeholder={t('orders.create.select-requesting-facility')}
+          options={requesting.filter((f) => !ids.includes(f.id))}
+          value=""
+          disabled={mutation.isPending || facilitiesPending}
+          onChange={(id) => {
+            if (!id) return;
+            setIds((current) => (current.includes(id) ? current : [...current, id]));
+            setSupplier('');
+            setPickerVersion((version) => version + 1);
+            requestAnimationFrame(() =>
+              picker.current?.querySelector<HTMLElement>('[role=combobox]')?.focus(),
+            );
+          }}
+        />
       </div>
       <Separator />
       <div
@@ -236,7 +220,7 @@ export function CreateOrderForm({
           <DataTable table={table} empty={t('orders.create.empty')} />
         )}
       </div>
-      <div className="min-w-0 @3xl/main:max-w-96">
+      <div className="min-w-0">
         <OrderSelect
           required
           label={t('orders.create.supplying-facility')}
@@ -273,6 +257,16 @@ export function CreateOrderForm({
           <AlertDescription>{t('orders.create.no-read-right')}</AlertDescription>
         </Alert>
       )}
-    </>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          size="lg"
+          disabled={!readable || mutation.isPending}
+          onClick={() => mutation.mutate()}
+        >
+          {t('orders.create.create')}
+        </Button>
+      </div>
+    </form>
   );
 }

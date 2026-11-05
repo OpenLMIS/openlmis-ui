@@ -1173,6 +1173,7 @@ it('keeps focus and every keystroke when reopening a warm batch', async () => {
   await userEvent.type(input, '6543', { skipClick: true });
   expect(input).toHaveFocus();
   expect(input).toHaveValue('9876543');
+  expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
 });
 
 it('retrieves a trusted list opening before starting its offline membership scan', async () => {

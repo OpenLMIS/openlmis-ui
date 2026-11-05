@@ -5,6 +5,7 @@ import {
   type RequisitionDraft,
   rebaseRequisitionDraft,
 } from '@/features/requisitions/lib/draft';
+import { type DraftBaseValues, draftBaseValues } from '@/features/requisitions/lib/draft-merge';
 import {
   assertCopyLease,
   beginCopy,
@@ -32,6 +33,7 @@ export type RequisitionLocalDraft = {
   draft: RequisitionDraft;
   modifiedDate: RequisitionRecord['modifiedDate'];
   eTag: RequisitionRecord['eTag'];
+  baseValues?: DraftBaseValues;
   baseHeaders?: Pick<RequisitionDraft, 'draftStatusMessage' | 'datePhysicalStockCountCompleted'>;
 };
 
@@ -168,6 +170,7 @@ export function useRequisitionDraft(
               formatVersion: 1,
               revision: (stored?.revision ?? 0) + 1,
               draft: rebased,
+              baseValues: draftBaseValues(currentBase, rebased),
               baseHeaders: {
                 draftStatusMessage: headers.draftStatusMessage,
                 datePhysicalStockCountCompleted: headers.datePhysicalStockCountCompleted,
@@ -188,6 +191,20 @@ export function useRequisitionDraft(
       },
     );
     const api = {
+      recoveryDraft: () => (outdated ? expected?.draft : undefined),
+      baseValues: () => expected?.baseValues,
+      async rebase(draft: RequisitionDraft, base: RequisitionRecord) {
+        await api.flush({ allowFailure: true });
+        assertSessionScope(scope);
+        baseline = base;
+        outdated = false;
+        closed = false;
+        api.write(draft, base);
+        await api.flush();
+        assertSessionScope(scope);
+        adopt.current?.(draft);
+        publish();
+      },
       subscribeStatus(listener: () => void) {
         listeners.add(listener);
         return () => {
@@ -322,6 +339,9 @@ export function useRequisitionDraft(
     return () => controller.dispose();
   }, [controller]);
   return {
+    recoveryDraft: controller.recoveryDraft,
+    baseValues: controller.baseValues,
+    rebase: controller.rebase,
     get status() {
       return controller.status;
     },

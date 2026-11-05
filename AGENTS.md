@@ -602,8 +602,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 **Selection and reports:**
 
 - Convert To Order keeps ticks across filter changes, as legacy; filters close only its dialogs.
-- Approve Requisitions offers Select All / None through `LabelledButtonGroup`, shared with the
-  editor's Skip control, plus the header checkbox and a toolbar Newest/Oldest Authorized select.
+- Approve Requisitions uses the header checkbox to select or clear the page, with no separate
+  Select All / None control. Keep the toolbar Newest/Oldest Authorized select.
 
 - Use `selectionColumn()` (`src/components/data-table/data-table-selection.tsx`); the header
   picks the page. Preserve selection across pages by id and name for confirmations.
@@ -691,7 +691,9 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
 - Dialog state belongs in the URL (`?user=new` / `?user=<id>`). Opening adds history; closing
   steps back, or replaces for a directly linked dialog. Use
   `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
-- Create Orders keeps a visible required Requesting Facility picker label for legacy parity.
+- Create Orders keeps a visible required Requesting Facility picker label and adds on pick.
+  This exception to the inline Add-button rule clears and refocuses the picker. Use a narrow
+  form with Create Order at its bottom end; Enter never creates orders.
 - Inline add forms with one picker, where picking reveals no further field, drop the label
   and card: a picker with a leading icon and a placeholder naming the choice, then a separate
   Add button beside it (never attached). The row sits above the toolbar, capped at
@@ -1084,9 +1086,12 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   use background transport and govern offline capture for these openings; approveAll reports rows no longer approvable.
   Direct links verify before approval. Ignore opening results superseded by Sync, preserve record
   identity when availability is unchanged, and discard route cache on exit to preserve warm typing.
+- Recent batch retrieveAll results stay fresh for 60 seconds; mutations invalidate them. Never
+  remount the active grid through a background refresh on warm opening.
 - Batch Sync uses the saveAll response and retains failed rows and reasons. Refresh membership
   afterwards without delaying success feedback. Remove confirmed approvals from every cached
-  approval list before returning, then invalidate. Single Approve uses the save response and ETag.
+  approval list before returning, then invalidate. Single Approve refreshes its baseline through GET after PUT, in parallel with Approve.
+  Never adopt the PUT response ETag: the backend can return its pre-save version.
 - Approval editor rows/cards subscribe to their own draft line. Keep aggregate tab/grid work deferred
   so keystrokes do not synchronously rebuild unrelated rows.
 - Grid widths use baseline formatted values and uppercase header fonts, independent of typing.
@@ -1137,7 +1142,10 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 ### Drafts, queue and recovery
 
 - Requisition device drafts retain their server modified date and ETag; Sync rebases concurrent
-  edits and conflicts keep the local copy until a confirmed Update. Store baseline comment/date
+  edits through a three-way field merge. Persist changed-field base values in the unreleased v17
+  draft shape; only fields changed differently on both sides need a choice. Ambiguous PUTs
+  reconcile through GET before another write; requisition writes have no client timeout.
+  Close never discards edits; Update remains explicit and confirmed. Store baseline comment/date
   values for unsynced draft counting; register feature counters through route composition.
 - Enable downloads/drafts through kind policy. Use the shared revisioned draft store and serial
   writer; inventory supplies revision-aware write/clear callbacks. Stage immediately for leave

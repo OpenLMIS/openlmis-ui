@@ -52,7 +52,7 @@ export async function saveRequisition(
   const { data, headers } = await client.put<RequisitionRecord>(
     `/v2/requisitions/${record.id}`,
     transformRequisition(record, addedLineIds),
-    { headers: record.eTag ? { 'If-Match': record.eTag } : {} },
+    { timeout: 0, headers: record.eTag ? { 'If-Match': record.eTag } : {} },
   );
   assertSessionScope(scope);
   return { ...data, eTag: headers.etag as string | undefined };
@@ -71,7 +71,7 @@ async function transition(
 ) {
   assertSessionScope(attempt.sessionScope);
   try {
-    const config = { headers: { 'Idempotency-Key': attempt.key } };
+    const config = { timeout: 0, headers: { 'Idempotency-Key': attempt.key } };
     const path = `/requisitions/${id}/${action}`;
     const response =
       action === 'reject'

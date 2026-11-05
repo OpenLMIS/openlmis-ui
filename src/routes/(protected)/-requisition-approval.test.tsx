@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -187,7 +187,7 @@ it('hides View Selected Requisitions when the approval list is empty', async () 
   queryClient.clear();
 });
 
-it('ticks the page with Select All, clears it with None and sorts oldest first', async () => {
+it('ticks and clears the page with the header checkbox and sorts oldest first', async () => {
   vi.mocked(useFlag).mockReturnValue(true);
   const row = (id: string) => ({
     id,
@@ -206,17 +206,16 @@ it('ticks the page with Select All, clears it with None and sorts oldest first',
   });
   const { router, queryClient } = renderRoute('/requisitions/approve');
   await screen.findAllByText('March');
-  const select = screen.getByRole('group', { name: 'requisitions.approve.select' });
-  await userEvent.click(
-    within(select).getByRole('button', { name: 'requisitions.approve.select-all' }),
-  );
+  expect(
+    screen.queryByRole('group', { name: 'requisitions.approve.select' }),
+  ).not.toBeInTheDocument();
+  const select = screen.getAllByRole('checkbox')[0];
+  await userEvent.click(select);
   expect(screen.getAllByRole('checkbox', { checked: true })).toHaveLength(3);
   expect(
     screen.getByRole('button', { name: /requisitions\.approve\.view-selected/ }),
   ).toBeInTheDocument();
-  await userEvent.click(
-    within(select).getByRole('button', { name: 'requisitions.approve.select-none' }),
-  );
+  await userEvent.click(select);
   expect(screen.queryAllByRole('checkbox', { checked: true })).toHaveLength(0);
   expect(
     screen.queryByRole('button', { name: /requisitions\.approve\.view-selected/ }),

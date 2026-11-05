@@ -477,3 +477,17 @@ it('coalesces typing into one device write and flushes the final value before le
     '123',
   );
 });
+
+it('persists changed-field bases and retains them when reopening an outdated draft', async () => {
+  const hook = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(hook.result.current.status.status).toBe('saved'));
+  act(() => hook.result.current.write(draft));
+  await act(() => hook.result.current.flush());
+  hook.unmount();
+  const reopened = renderHook(() =>
+    useRequisitionDraft({ ...base, modifiedDate: 'new', draftStatusMessage: 'Server' }),
+  );
+  await waitFor(() => expect(reopened.result.current.outdated).toBe(true));
+  expect(reopened.result.current.baseValues()).toMatchObject({ draftStatusMessage: '' });
+  expect(reopened.result.current.recoveryDraft()?.draftStatusMessage).toBe('Device comment');
+});

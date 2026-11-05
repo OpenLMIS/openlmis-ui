@@ -37,7 +37,7 @@ it('reads the ETag and sends it on save, adopting the response record and new ET
   expect(client.put).toHaveBeenCalledWith(
     '/v2/requisitions/r',
     expect.not.objectContaining({ eTag: expect.anything() }),
-    { headers: { 'If-Match': '"old"' } },
+    { timeout: 0, headers: { 'If-Match': '"old"' } },
   );
 });
 it.each([
@@ -68,7 +68,7 @@ it.each([
     expect(transport).toHaveBeenLastCalledWith(
       `/requisitions/r/${name}`,
       {},
-      { headers: { 'Idempotency-Key': attempt.key } },
+      { timeout: 0, headers: { 'Idempotency-Key': attempt.key } },
     );
   },
 );
@@ -85,7 +85,7 @@ it('saves without If-Match when the server did not expose an ETag', async () => 
   expect(client.put).toHaveBeenCalledWith(
     '/v2/requisitions/r',
     expect.objectContaining({ modifiedDate: 'original' }),
-    { headers: {} },
+    { timeout: 0, headers: {} },
   );
 });
 

@@ -5,6 +5,7 @@ import {
   canSkipLine,
   rebaseRequisitionDraft,
 } from '@/features/requisitions/lib/draft';
+import { draftBaseValues, mergeRequisitionDraft } from '@/features/requisitions/lib/draft-merge';
 import { column, line, record } from '@/features/requisitions/lib/fixtures/builders';
 import { parsePatients } from '@/features/requisitions/lib/patients';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
@@ -311,4 +312,99 @@ it('drops patient changes after typing into an empty cell and clearing it', () =
   ).toBe(12);
   typed.patients = { 'TBData:numberOfAdultPatients': { values: { 0: '' } } };
   expect(rebaseRequisitionDraft(base, typed)).toEqual(buildRequisitionDraft(base));
+});
+
+it('merges disjoint edits and asks only for fields changed on both sides', () => {
+  const draft = buildRequisitionDraft(base);
+  draft.lines.a = { requestedQuantity: '12' };
+  draft.draftStatusMessage = 'Mine';
+  const fresh = {
+    ...base,
+    draftStatusMessage: 'Theirs',
+    datePhysicalStockCountCompleted: '2026-11-05',
+  };
+  const values = draftBaseValues(base, draft);
+  const result = mergeRequisitionDraft(fresh, draft, values, base);
+  expect(result.draft.lines.a.requestedQuantity).toBe('12');
+  expect(result.draft.datePhysicalStockCountCompleted).toBe('2026-11-05');
+  expect(result.conflicts.map((field) => field.path)).toEqual(['draftStatusMessage']);
+  expect(
+    mergeRequisitionDraft(fresh, draft, values, base, { draftStatusMessage: 'server' }).draft
+      .draftStatusMessage,
+  ).toBe('Theirs');
+});
+it('clears an ambiguously accepted edit when it already matches the server', () => {
+  const draft = buildRequisitionDraft(base);
+  draft.lines.a = { requestedQuantity: '12' };
+  const fresh = applyRequisitionDraft(base, draft);
+  const result = mergeRequisitionDraft(fresh, draft, draftBaseValues(base, draft), base);
+  expect(result.conflicts).toEqual([]);
+  expect(result.draft.lines).toEqual({});
+});
+
+it('retains edits typed after a lost save when GET confirms the attempted value', () => {
+  const sent = buildRequisitionDraft(base);
+  sent.lines.a = { requestedQuantity: '12' };
+  const attempted = applyRequisitionDraft(base, sent);
+  const later = { ...sent, lines: { a: { requestedQuantity: '14' } } };
+  const result = mergeRequisitionDraft(
+    attempted,
+    later,
+    draftBaseValues(base, later),
+    base,
+    {},
+    attempted,
+  );
+  expect(result.conflicts).toEqual([]);
+  expect(result.draft.lines.a.requestedQuantity).toBe('14');
+});
+
+it('merges different fields on one product and resolves only a competing quantity', () => {
+  const original = {
+    ...base,
+    template: {
+      columnsMap: {
+        ...base.template.columnsMap,
+        remarks: column('remarks', 1, {
+          source: 'USER_INPUT',
+          columnDefinition: { columnType: 'TEXT' },
+        }),
+      },
+    },
+  } as RequisitionRecord;
+  const draft = buildRequisitionDraft(original);
+  draft.lines.a = { requestedQuantity: '12' };
+  const fresh = {
+    ...original,
+    requisitionLineItems: original.requisitionLineItems.map((line) =>
+      line.id === 'a' ? { ...line, remarks: 'Server note', requestedQuantity: 10 } : line,
+    ),
+  };
+  const result = mergeRequisitionDraft(fresh, draft, draftBaseValues(original, draft), original);
+  expect(result.conflicts.map((field) => field.path)).toEqual(['lines/a/requestedQuantity']);
+  const merged = mergeRequisitionDraft(fresh, draft, draftBaseValues(original, draft), original, {
+    'lines/a/requestedQuantity': 'yours',
+  });
+  expect(applyRequisitionDraft(fresh, merged.draft).requisitionLineItems[0]).toMatchObject({
+    requestedQuantity: 12,
+    remarks: 'Server note',
+  });
+});
+
+it('retains an edited product removed on the server until the user chooses its fate', () => {
+  const draft = buildRequisitionDraft(base);
+  draft.lines.a = { requestedQuantity: '12' };
+  const values = draftBaseValues(base, draft);
+  const fresh = { ...base, requisitionLineItems: [] };
+  expect(mergeRequisitionDraft(fresh, draft, values).conflicts).toHaveLength(1);
+  const yours = mergeRequisitionDraft(fresh, draft, values, fresh, {
+    'lines/a/requestedQuantity': 'yours',
+  });
+  expect(applyRequisitionDraft(fresh, yours.draft).requisitionLineItems).toContainEqual(
+    expect.objectContaining({ id: 'a', requestedQuantity: 12 }),
+  );
+  const server = mergeRequisitionDraft(fresh, draft, values, fresh, {
+    'lines/a/requestedQuantity': 'server',
+  });
+  expect(server.draft.addedLines).toEqual([]);
 });

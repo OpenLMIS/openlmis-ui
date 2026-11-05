@@ -18,11 +18,6 @@ import {
   WorkspaceHeading,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import {
-  WorkspaceActionsPortal,
-  WorkspaceActionsSlot,
-  WorkspaceSlots,
-} from '@/components/workspace/workspace-tabs';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { CreateOrderForm } from '@/features/orders/components/create-order-form';
@@ -48,26 +43,23 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/creat
 function Page() {
   const { t } = useTranslation();
   return (
-    <WorkspaceSlots>
-      <Workspace>
-        <WorkspaceHeader>
-          <WorkspaceHeading>
-            <WorkspaceTitle>{t('orders.create.title')}</WorkspaceTitle>
-            <WorkspaceDescription>{t('orders.create.description')}</WorkspaceDescription>
-          </WorkspaceHeading>
-          <WorkspaceActionsSlot />
-        </WorkspaceHeader>
-        <WorkspaceContent>
-          <QueryBoundary
-            resetKey="create-orders"
-            errorComponent={CreateError}
-            pendingFallback={<CreatePending />}
-          >
-            <Content />
-          </QueryBoundary>
-        </WorkspaceContent>
-      </Workspace>
-    </WorkspaceSlots>
+    <Workspace width="narrow">
+      <WorkspaceHeader>
+        <WorkspaceHeading>
+          <WorkspaceTitle>{t('orders.create.title')}</WorkspaceTitle>
+          <WorkspaceDescription>{t('orders.create.description')}</WorkspaceDescription>
+        </WorkspaceHeading>
+      </WorkspaceHeader>
+      <WorkspaceContent>
+        <QueryBoundary
+          resetKey="create-orders"
+          errorComponent={CreateError}
+          pendingFallback={<CreatePending />}
+        >
+          <Content />
+        </QueryBoundary>
+      </WorkspaceContent>
+    </Workspace>
   );
 }
 function CreatePending() {
@@ -87,12 +79,7 @@ function CreatePending() {
   });
   return (
     <>
-      <WorkspaceActionsPortal>
-        <Button size="lg" disabled>
-          {t('orders.create.create')}
-        </Button>
-      </WorkspaceActionsPortal>
-      <div className="min-w-0 @3xl/main:max-w-96">
+      <div className="min-w-0">
         <Field>
           <FieldLabel>{t('orders.create.program')}</FieldLabel>
           <div className="h-9">
@@ -100,13 +87,10 @@ function CreatePending() {
           </div>
         </Field>
       </div>
-      <div className="flex items-center gap-2 @3xl/main:max-w-xl">
+      <div className="flex items-center gap-2">
         <div className="h-9 min-w-0 flex-1">
           <Skeleton fill />
         </div>
-        <Button size="lg" disabled>
-          {t('orders.add')}
-        </Button>
       </div>
       <Separator />
       <div ref={measure}>
@@ -116,13 +100,18 @@ function CreatePending() {
           <DataTableSkeleton table={table} rowCount={1} pagination="none" />
         )}
       </div>
-      <div className="min-w-0 @3xl/main:max-w-96">
+      <div className="min-w-0">
         <Field>
           <FieldLabel>{t('orders.create.supplying-facility')}</FieldLabel>
           <div className="h-9">
             <Skeleton fill />
           </div>
         </Field>
+      </div>
+      <div className="flex justify-end">
+        <Button size="lg" disabled>
+          {t('orders.create.create')}
+        </Button>
       </div>
     </>
   );

@@ -503,8 +503,11 @@ it('syncs with If-Match before submitting with an idempotency key and returns to
   await screen.findByText('Opening List');
   expect(errorToast).not.toHaveBeenCalled();
   expect(calls).toEqual(['put', 'post']);
-  expect(put.mock.calls[0][2]).toEqual({ headers: { 'If-Match': '"base"' } });
-  expect(post.mock.calls[0][2]).toEqual({ headers: { 'Idempotency-Key': expect.any(String) } });
+  expect(put.mock.calls[0][2]).toEqual({ timeout: 0, headers: { 'If-Match': '"base"' } });
+  expect(post.mock.calls[0][2]).toEqual({
+    timeout: 0,
+    headers: { 'Idempotency-Key': expect.any(String) },
+  });
   expect(router.state.location.pathname).toBe('/requisitions/view');
   expect(router.state.location.search).toMatchObject({ facility: 'f', page: 3 });
   expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
@@ -595,7 +598,7 @@ it('locks editing during Sync and uses the refetched ETag next time', async () =
   put.mockResolvedValue({ data: base, headers: { etag: '"next"' } });
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
-  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': '"fresh"' } });
+  expect(put.mock.calls[1][2]).toEqual({ timeout: 0, headers: { 'If-Match': '"fresh"' } });
   expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
   queryClient.clear();
 });
@@ -632,7 +635,7 @@ it('refetches after a saved PUT loses its GET before sending the next PUT', asyn
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   await waitFor(() => expect(calls).toHaveLength(5));
   expect(calls).toEqual(['put', 'get-failed', 'get', 'put', 'get']);
-  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': '"fresh"' } });
+  expect(put.mock.calls[1][2]).toEqual({ timeout: 0, headers: { 'If-Match': '"fresh"' } });
   expect(put.mock.calls[1][1]).toMatchObject({
     modifiedDate: 'fresh',
     requisitionLineItems: [expect.objectContaining({ beginningBalance: 14 }), expect.anything()],
@@ -961,29 +964,18 @@ it('refuses a timed-out Submit retry when the server draft changed', async () =>
   expect(post).toHaveBeenCalledOnce();
   queryClient.clear();
 });
-it('refetches permissions and the record and drops edits when closing a forbidden Sync', async () => {
-  const { base, queryClient } = await openEditor();
-  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
-    target: { value: '42' },
-  });
+it('keeps edits and makes no reads when closing a forbidden Sync', async () => {
+  const { queryClient } = await openEditor();
+  const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.change(input, { target: { value: '42' } });
   vi.spyOn(client, 'put').mockRejectedValue(httpError(403));
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   const dialog = await screen.findByRole('alertdialog');
-  await within(dialog).findByText('requisitions.edit.error.forbidden');
   const reads = vi.mocked(fetchRequisition).mock.calls.length;
-  const permissions = vi.mocked(fetchPermissionStrings).mock.calls.length;
-  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
-  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: 'new' });
   fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
-  await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledTimes(permissions + 1));
-  expect(vi.mocked(fetchRequisition).mock.calls.length).toBeGreaterThan(reads);
-  await waitFor(() =>
-    expect(
-      screen.queryByRole('textbox', { name: 'beginningBalance: Product (P1)' }),
-    ).not.toBeInTheDocument(),
-  );
-  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
-  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(input).toHaveValue('42');
+  expect(fetchRequisition).toHaveBeenCalledTimes(reads);
   queryClient.clear();
 });
 
@@ -1127,7 +1119,7 @@ it.each(['submit', 'authorize'] as const)('uses the GET base for %s after Sync',
   await confirmAction(kind);
   await screen.findByText('Create Authorize Search');
   expect(post).toHaveBeenCalledOnce();
-  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': 'W/"2"' } });
+  expect(put.mock.calls[1][2]).toEqual({ timeout: 0, headers: { 'If-Match': 'W/"2"' } });
   expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
   queryClient.clear();
 });
@@ -1436,7 +1428,7 @@ it('saves and approves despite creator errors and returns to the approval search
   expect(post).toHaveBeenCalledWith(
     '/requisitions/r/approve',
     {},
-    { headers: { 'Idempotency-Key': expect.any(String) } },
+    { timeout: 0, headers: { 'Idempotency-Key': expect.any(String) } },
   );
   expect(router.state.location.search).toEqual({ page: 3 });
   queryClient.clear();
@@ -1594,7 +1586,10 @@ it('requires a reason before confirming rejection and sends its DTO after saving
       },
     },
   ]);
-  expect(put.mock.calls[1][2]).toEqual({ headers: { 'Idempotency-Key': expect.any(String) } });
+  expect(put.mock.calls[1][2]).toEqual({
+    timeout: 0,
+    headers: { 'Idempotency-Key': expect.any(String) },
+  });
   queryClient.clear();
 });
 it('resends a lost approval with the same key when the record is unchanged', async () => {
@@ -2331,16 +2326,63 @@ it('uses neutral discard wording when device drafts are unavailable', async () =
   queryClient.clear();
 });
 
-it('approves using the saved record and ETag without a second GET', async () => {
+it('uses the GET ETag after a failed Approve before retrying its PUT', async () => {
   const { base, queryClient } = await openApprover();
-  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"saved"' } });
-  const reads = vi.mocked(fetchRequisition).mock.calls.length;
-  const post = vi.spyOn(client, 'post').mockImplementation(async () => {
-    expect(fetchRequisition).toHaveBeenCalledTimes(reads);
-    return { data: {} };
-  });
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
+  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, eTag: '"fresh"' });
+  vi.spyOn(client, 'post').mockRejectedValueOnce(httpError(400)).mockResolvedValue({ data: {} });
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.error-description');
+  const dialog = screen.getByRole('alertdialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
   await confirmApproval();
   await screen.findByText('Approval List');
-  expect(post).toHaveBeenCalledOnce();
+  expect(put.mock.calls[1][2]).toMatchObject({ timeout: 0, headers: { 'If-Match': '"fresh"' } });
+  queryClient.clear();
+});
+
+it('reconciles a lost PUT response before saving again with the fresh version', async () => {
+  const { base, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(new AxiosError('Lost response'))
+    .mockResolvedValue({ data: base, headers: {} });
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    modifiedDate: 'fresh',
+    eTag: '"fresh"',
+    requisitionLineItems: base.requisitionLineItems.map((line, index) =>
+      index ? line : { ...line, beginningBalance: 12 },
+    ),
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  const dialog = await screen.findByRole('alertdialog');
+  await waitFor(() =>
+    expect(within(dialog).getByRole('button', { name: 'dialog.close' })).toBeEnabled(),
+  );
+  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '14' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+  expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
+  queryClient.clear();
+});
+
+it('starts Approve while the post-save GET is still pending', async () => {
+  const { base, queryClient } = await openApprover();
+  const fresh = Promise.withResolvers<RequisitionRecord>();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
+  vi.mocked(fetchRequisition).mockReturnValueOnce(fresh.promise);
+  const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  await confirmApproval();
+  await waitFor(() => expect(post).toHaveBeenCalledOnce());
+  await act(() => fresh.resolve({ ...base, eTag: '"fresh"' }));
+  await screen.findByText('Approval List');
   queryClient.clear();
 });

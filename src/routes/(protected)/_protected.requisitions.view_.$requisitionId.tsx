@@ -90,6 +90,7 @@ import {
 import { RequisitionError } from '@/features/requisitions/components/requisition-error';
 import { RequisitionFooter } from '@/features/requisitions/components/requisition-footer';
 import { RequisitionHeader } from '@/features/requisitions/components/requisition-header';
+import { RequisitionMergeDialog } from '@/features/requisitions/components/requisition-merge-dialog';
 import { RequisitionOutdatedAlert } from '@/features/requisitions/components/requisition-outdated-alert';
 import {
   type PendingEditing,
@@ -105,8 +106,14 @@ import { isApprovalKind, requisitionCapabilities } from '@/features/requisitions
 import {
   applyRequisitionDraft,
   buildRequisitionDraft,
+  type RequisitionDraft,
   rebaseRequisitionDraft,
 } from '@/features/requisitions/lib/draft';
+import {
+  type DraftFieldConflict,
+  draftBaseValues,
+  mergeRequisitionDraft,
+} from '@/features/requisitions/lib/draft-merge';
 import {
   ApprovalInProgress,
   type RequisitionFailure,
@@ -432,6 +439,7 @@ function RequisitionBody({
   const search = Route.useSearch();
   const { unit, setUnit, canSwitch } = quantity;
   const { t } = useTranslation();
+  const online = useOnline();
   const router = useRouter();
   const queryClient = useQueryClient();
   const policy = useRequisitionPolicy(currentData);
@@ -548,11 +556,49 @@ function RequisitionBody({
     }
     return saved;
   };
-  const sync = async (useSaveResponse = false) => {
+  const needsReconcile = useRef(false);
+  const attemptedSave = useRef<RequisitionRecord | undefined>(undefined);
+  const [merge, setMerge] = useState<{
+    fresh: RequisitionRecord;
+    draft: RequisitionDraft;
+    base: ReturnType<typeof draftBaseValues>;
+    original: RequisitionRecord;
+    conflicts: DraftFieldConflict[];
+  } | null>(null);
+  const reconcile = async (server?: RequisitionRecord) => {
+    const scope = getSessionScope();
+    requireOnline();
+    const original = latest.current.record;
+    const draft = editor.device.recoveryDraft() ?? latest.current.editor.form.state.values.draft;
+    const base = {
+      ...(editor.device.outdated ? {} : draftBaseValues(original, draft)),
+      ...editor.device.baseValues(),
+    };
+    const fresh = server ?? (await fetchRequisition(original.id));
+    assertSessionScope(scope);
+    const result = mergeRequisitionDraft(fresh, draft, base, original, {}, attemptedSave.current);
+    if (result.conflicts.length) {
+      setMerge({ fresh, draft, base, original, conflicts: result.conflicts });
+    } else {
+      await editor.device.rebase(result.draft, fresh);
+      assertSessionScope(scope);
+      editor.form.setFieldValue('draft', result.draft);
+      setRecord(fresh);
+      latest.current = { record: fresh, editor };
+      setLoaderOutdated(false);
+      refreshPending.current = false;
+      queryClient.setQueryData(requisitionOptions(fresh.id).queryKey, fresh);
+      needsReconcile.current = false;
+    }
+    return result.conflicts.length === 0;
+  };
+  const savedRefresh = useRef<Promise<RequisitionRecord> | undefined>(undefined);
+  const sync = async (deferRefresh = false) => {
     const scope = getSessionScope();
     await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
     requireOnline();
+    if (needsReconcile.current && !(await reconcile())) throw new RequisitionRetryConflict();
     if (refreshPending.current) {
       await refreshSaved();
       assertSessionScope(scope);
@@ -608,13 +654,23 @@ function RequisitionBody({
         throw new PatientsPayloadError();
       }
     }
+    attemptedSave.current = sent;
     const response = await saveRequisition(
       sent,
       latest.current.editor.draft.addedLines.map((line) => line.id),
     );
     assertSessionScope(scope);
     refreshPending.current = true;
-    return refreshSaved(useSaveResponse ? response : undefined);
+    await queryClient.invalidateQueries({
+      queryKey: [...queryKeys.requisitions.all, 'batch'],
+      refetchType: 'none',
+    });
+    assertSessionScope(scope);
+    const refresh = refreshSaved();
+    if (!deferRefresh) return refresh;
+    savedRefresh.current = refresh;
+    void refresh.catch(() => undefined);
+    return response;
   };
   const mutation = useSessionMutation({
     retry: false,
@@ -694,10 +750,8 @@ function RequisitionBody({
           fresh.modifiedDate !== retry.modifiedDate
         ) {
           if (approval) {
-            await editor.device.update(fresh);
+            await reconcile(fresh);
             assertSessionScope(scope);
-            setRecord(fresh);
-            queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
             updateUncertain(null);
             attempt.key = randomId();
           }
@@ -729,8 +783,15 @@ function RequisitionBody({
         ) {
           const base = saved ?? latest.current.record;
           try {
-            if (kind === 'approve') await approveRequisition(record.id, attempt);
-            else if (kind === 'reject') await rejectRequisition(record.id, attempt, rejectReasons);
+            if (kind === 'approve') {
+              try {
+                await approveRequisition(record.id, attempt);
+              } finally {
+                await savedRefresh.current;
+                savedRefresh.current = undefined;
+              }
+            } else if (kind === 'reject')
+              await rejectRequisition(record.id, attempt, rejectReasons);
             else if (kind === 'authorize') await authorizeRequisition(record.id, attempt);
             else await submitRequisition(record.id, attempt);
           } catch (error) {
@@ -880,6 +941,16 @@ function RequisitionBody({
         uncertain.current && isApprovalKind(uncertain.current.kind)
           ? { kind: 'reconciling' as const }
           : toRequisitionFailure(error);
+      if (
+        !refreshPending.current &&
+        !uncertain.current &&
+        (failure.kind === 'conflict' ||
+          (isAxiosError(error) && (!error.response || error.response.status >= 500)))
+      ) {
+        needsReconcile.current = true;
+        await reconcile().catch(() => undefined);
+        if (!mutation.isCurrent()) return false;
+      }
       if (failure.kind === 'key-used') {
         const fresh = await fetchRequisition(record.id).catch(() => undefined);
         if (!mutation.isCurrent()) return false;
@@ -1125,14 +1196,30 @@ function RequisitionBody({
           )}
           {(editor.device.outdated || loaderOutdated) && (
             <RequisitionOutdatedAlert>
-              <RequisitionUpdate
-                tone="warning"
-                pending={pending}
-                onUpdate={() => {
-                  setFailure(null);
-                  setAction('update');
-                }}
-              />
+              <div className="flex flex-wrap gap-2">
+                <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
+                  <Button
+                    variant="warning"
+                    disabled={pending || !online}
+                    focusableWhenDisabled={!online}
+                    onClick={() =>
+                      void reconcile().catch((error: unknown) =>
+                        setFailure(toRequisitionFailure(error)),
+                      )
+                    }
+                  >
+                    {t('requisitions.merge.recover')}
+                  </Button>
+                </ActionTooltip>
+                <RequisitionUpdate
+                  tone="warning"
+                  pending={pending}
+                  onUpdate={() => {
+                    setFailure(null);
+                    setAction('update');
+                  }}
+                />
+              </div>
             </RequisitionOutdatedAlert>
           )}
 
@@ -1257,7 +1344,42 @@ function RequisitionBody({
           }}
         />
       )}
-      {failure && (
+      {merge && (
+        <RequisitionMergeDialog
+          conflicts={merge.conflicts}
+          record={merge.original}
+          lineLabels={Object.fromEntries(
+            buildLines(merge.original, products, approved).map((model) => [
+              model.line.id,
+              model.product?.fullProductName ?? model.product?.productCode ?? '',
+            ]),
+          )}
+          onClose={() => setMerge(null)}
+          onResolve={async (choices) => {
+            const scope = getSessionScope();
+            const result = mergeRequisitionDraft(
+              merge.fresh,
+              merge.draft,
+              merge.base,
+              merge.original,
+              choices,
+              attemptedSave.current,
+            );
+            await editor.device.rebase(result.draft, merge.fresh);
+            assertSessionScope(scope);
+            editor.form.setFieldValue('draft', result.draft);
+            setRecord(merge.fresh);
+            latest.current = { record: merge.fresh, editor };
+            queryClient.setQueryData(requisitionOptions(merge.fresh.id).queryKey, merge.fresh);
+            setLoaderOutdated(false);
+            needsReconcile.current = false;
+            refreshPending.current = false;
+            setMerge(null);
+            setFailure(null);
+          }}
+        />
+      )}
+      {failure && !merge && (
         <RequisitionErrorDialog
           error={failure}
           pending={pending}
@@ -1265,10 +1387,7 @@ function RequisitionBody({
             setFailure(null);
             setAction('update');
           }}
-          onClose={() => {
-            if (failure.kind === 'forbidden') void run('update');
-            else setFailure(null);
-          }}
+          onClose={() => setFailure(null)}
         />
       )}
       {validation && (

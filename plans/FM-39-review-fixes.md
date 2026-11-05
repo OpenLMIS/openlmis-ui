@@ -723,3 +723,38 @@ Touched tests passed. Typecheck, Biome and design-system lint passed. No full su
 | Approve | batch-sync | warm | 1601 | 1832 | Faster/Equal |
 | Approve | batch-approve | warm | 3696 | 6119 | Faster/Equal |
 
+
+## Version Conflicts, Selection And Create Orders (2026-11-05)
+
+- MD1: replace Approve's PUT ETag adoption with a post-save GET, started alongside Approve.
+  Stubbed production-browser measurement: 200/201 ms GET and 251/249 ms Approve settle in
+  269/270 ms from PUT dispatch; Approve starts after 18/21 ms. Retry sends W/"11" after the first
+  PUT returned W/"10". The route test holds GET pending and verifies Approve already dispatched.
+- MD2: requisition PUT and transitions use timeout 0, matching batch writes and legacy.
+- MD3: ambiguous save failure reconciles GET against the attempted values and field bases before
+  another write. Retain later edits when GET confirms the attempted value; keep reconciliation
+  pending after an unreachable GET instead of resending the stale version.
+- MD4: field-level three-way recovery stores changed-field base values with local drafts, preserves
+  disjoint edits and offers Yours/Server for overlapping changes. Extend the existing unindexed
+  draft shape within unreleased v17. No v18, no released-data loss. Outdated drafts offer Recover
+  Edits; confirmed Update remains available as an explicit discard. Comparison Close preserves edits.
+- MD5: forbidden Close only closes; the uncertain-approval conflict path rebases without clearing
+  additional edits. Session checks follow asynchronous reads and durable writes.
+- C8: remove the separate Select All / None control and its three keys in every catalog. Keep
+  header page selection, the selection footer and the editor Skip group.
+- O7: Create Orders adds on pick, clears and focuses the picker, excludes added options and keeps
+  removal focus. Use a narrow form with full-width fields and Create Order at the bottom end;
+  Enter does not submit. Screenshots at 1440/390 in English/Arabic are in FM-39-r5.
+- Warm batch: the r4 waterfall forced retrieveAll on each opening (about 1.7 s in the sampled
+  waterfall). Keep batch data fresh for 60 seconds; invalidate batch caches after accepted writes.
+  Preserve route gcTime 0 and stable grid identity while typing; never background-remount the editor.
+
+Production timing uses the r4 harness copied into `.screenshots/FM-39-r5/`, port 5359, with
+mutations intercepted. Three-run warm medians: First Value 2,326 -> 59 ms (59/59/61; legacy 669),
+Approve Enabled 2,584 -> 314 ms (314/314/319; legacy 935). All warm First Value waterfalls have
+zero new retrieval requests. Timing evidence: timing.json, warm-batch.json, approve-baseline.json.
+The enabled probe includes the harness's existing 250 ms pause after the First Value probe.
+
+Validation: only touched test files, including conflict choice, lost PUT response, retry ETag,
+forbidden Close, persisted bases, warm focus, header selection and add-on-pick. Typecheck, Biome
+and all design-system rules pass. Production build passes. No push or server data mutation.

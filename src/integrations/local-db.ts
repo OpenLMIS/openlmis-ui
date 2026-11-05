@@ -57,7 +57,10 @@ export function getLocalDb(): Dexie {
       requisitionCopyLifecycles: 'id',
       requisitionAccess: 'userId',
     });
-    database.version(17).stores({ requisitionCopies: 'id, *batch.requestedIds' });
+    database.version(17).stores({
+      requisitionCopies: 'id, *batch.requestedIds',
+      requisitionDrafts: 'draftId',
+    });
   }
   return database;
 }

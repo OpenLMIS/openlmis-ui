@@ -579,6 +579,11 @@ function BatchPage() {
         assertSessionScope(scope);
         throw error;
       }
+      await queryClient.invalidateQueries({
+        queryKey: [...queryKeys.requisitions.all, 'batch'],
+        refetchType: 'none',
+      });
+      assertSessionScope(scope);
       const save = parseBatchResult(
         saveResponse,
         eligible.map((r) => r.id),
