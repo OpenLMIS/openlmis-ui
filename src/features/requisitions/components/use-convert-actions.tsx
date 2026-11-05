@@ -57,6 +57,8 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
   const [problem, setProblem] = useFilterScoped<Problem | null>(filter, null);
   const [confirmation, setConfirmation] = useFilterScoped<boolean | null>(filter, null);
   const listRef = useRef<HTMLElement>(null);
+  const confirmationKind = useRef(true);
+  if (confirmation !== null) confirmationKind.current = confirmation;
   const sending = useRef(false);
   const invalidTarget = useRef<HTMLElement | null>(null);
   const onRows = useCallback((rows: ConvertListRow[]) => {
@@ -119,6 +121,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
       setUnresolved((previous) => new Set([...previous].filter((id) => !ids.includes(id))));
       setInvalid(false);
       notifySuccess(body);
+      focusList();
       await refresh();
       if (!mutation.isCurrent()) return;
       focusList();
@@ -134,6 +137,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
         setInvalid(false);
         setUnresolved((previous) => new Set([...previous, ...ids]));
         setProblem({ kind: body.createOrder ? 'uncertain' : 'release-unknown' }, filter);
+        focusList();
         await refresh();
         if (!mutation.isCurrent()) return;
         const results = await settleFew(ids, async (id) => {
@@ -147,7 +151,11 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
         const done = new Set(results.done.filter((result) => result.done).map(({ id }) => id));
         setUnresolved((previous) => new Set([...previous].filter((id) => !done.has(id))));
       } else {
-        setProblem({ kind: 'server', message: serverMessage(error) }, filter);
+        let message = serverMessage(error);
+        for (const [id, row] of picked) message = message?.replaceAll(id, row.label);
+        setPicked(new Map());
+        setProblem({ kind: 'server', message }, filter);
+        focusList();
         await refresh();
       }
     },
@@ -274,10 +282,11 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
     <>
       <InvalidSubmitDialog
         open={problem !== null}
-        finalFocus={invalidTarget.current ? false : undefined}
+        finalFocus={invalidTarget.current ? false : () => listRef.current ?? true}
         onOpenChangeComplete={(open) => {
-          if (open || !invalidTarget.current) return;
-          revealField(invalidTarget.current, cards);
+          if (open) return;
+          if (invalidTarget.current) revealField(invalidTarget.current, cards);
+          else focusList();
           invalidTarget.current = null;
         }}
         title={title}
@@ -309,11 +318,15 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t(confirmation ? 'requisitions.convert.convert' : 'requisitions.convert.release')}
+              {t(
+                confirmationKind.current
+                  ? 'requisitions.convert.convert'
+                  : 'requisitions.convert.release',
+              )}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                confirmation
+                confirmationKind.current
                   ? 'requisitions.convert.convert-confirm'
                   : 'requisitions.convert.release-confirm',
               )}

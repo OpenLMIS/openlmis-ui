@@ -331,3 +331,36 @@ it('merges partner facilities after nodes arrive without clearing their linked p
   expect(screen.queryByText('requisitions.view.refused-title')).not.toBeInTheDocument();
   queryClient.clear();
 });
+
+it('applies the drafted facility together with its program chosen in Filters', async () => {
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([
+    'REQUISITION_VIEW|f|p',
+    'REQUISITION_VIEW|other|q',
+  ]);
+  vi.mocked(fetchPrograms).mockResolvedValue([
+    { id: 'p', name: 'Family Planning', code: 'P', active: true },
+    { id: 'q', name: 'Other Program', code: 'Q', active: true },
+  ]);
+  vi.mocked(fetchMinimalFacilities).mockResolvedValue([
+    { id: 'f', name: 'Comfort', code: 'HC01', active: true },
+    { id: 'other', name: 'Other Facility', code: 'OTHER', active: true },
+  ]);
+  const { router, queryClient } = renderRoute('/requisitions/view?facility=f');
+  await screen.findByText('requisitions.view.empty-title');
+  await userEvent.click(screen.getByRole('combobox', { name: 'facility-program.facility' }));
+  await userEvent.click(await screen.findByRole('option', { name: /Other Facility/ }));
+  await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+  await userEvent.click(screen.getByRole('combobox', { name: 'requisitions.filters.program' }));
+  await userEvent.click(await screen.findByRole('option', { name: 'Other Program' }));
+  expect(router.state.location.search.facility).toBe('f');
+  expect(router.state.location.search.program).toBeUndefined();
+  await userEvent.keyboard('{Escape}');
+  await userEvent.click(screen.getByRole('button', { name: 'facility-program.search' }));
+  await waitFor(() =>
+    expect(router.state.location.search).toMatchObject({ facility: 'other', program: 'q' }),
+  );
+  expect(searchRequisitions).toHaveBeenCalledWith(
+    expect.objectContaining({ facility: 'other', program: 'q' }),
+  );
+  queryClient.clear();
+});

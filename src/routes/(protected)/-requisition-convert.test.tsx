@@ -231,7 +231,7 @@ it('requires a depot before confirming and focuses it after closing validation',
   );
   queryClient.clear();
 });
-it('shows a 400 server message while retaining ticks for Release Without Order', async () => {
+it('shows a 400 server message and clears ticks for Release Without Order', async () => {
   rows();
   vi.mocked(releaseRequisitions).mockRejectedValueOnce(
     new AxiosError('Bad', undefined, undefined, undefined, {
@@ -248,9 +248,10 @@ it('shows a 400 server message while retaining ticks for Release Without Order',
   await confirm();
   await screen.findByText('Approved quantity must be displayed');
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
-  expect(screen.getAllByRole('checkbox').at(-1)).toBeChecked();
+  expect(screen.getAllByRole('checkbox').at(-1)).not.toBeChecked();
   expect(screen.queryByText('requisitions.convert.uncertain')).not.toBeInTheDocument();
   vi.mocked(releaseRequisitions).mockResolvedValueOnce(undefined);
+  await selectRow();
   await action(false);
   await confirm();
   await waitFor(() =>
@@ -689,5 +690,26 @@ it('retires later released copies when the first retirement fails', async () => 
   await waitFor(() => expect(releaseRequisitions).toHaveBeenCalledOnce());
   await waitFor(() => expect(retire).toHaveBeenCalledTimes(2));
   expect(retire.mock.calls.map(([lease]) => lease.id)).toEqual(['March', 'April']);
+  queryClient.clear();
+});
+
+it('clears a definite refused selection and restores list focus after closing its error', async () => {
+  rows();
+  vi.mocked(releaseRequisitions).mockRejectedValueOnce(
+    new AxiosError('Refused', undefined, undefined, undefined, {
+      status: 400,
+      data: { message: 'Refused March' },
+    } as never),
+  );
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action();
+  await confirm();
+  await screen.findByRole('alertdialog');
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() =>
+    expect(screen.getByRole('region', { name: 'requisitions.convert.title' })).toHaveFocus(),
+  );
+  expect(screen.getAllByRole('checkbox').at(-1)).not.toBeChecked();
   queryClient.clear();
 });

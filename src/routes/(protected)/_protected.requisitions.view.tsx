@@ -337,10 +337,12 @@ function RequisitionsBody({
   const { options, pending: choicesPending } = useSearchFacilities(userId);
   const facility = options.find(({ id }) => id === search.facility);
   const [draft, setDraft] = useState<string | null>(null);
+  const [draftProgram, setDraftProgram] = useState<string | undefined>(search.program);
   const [draftOver, setDraftOver] = useState(search.facility);
   if (draftOver !== search.facility) {
     setDraftOver(search.facility);
     setDraft(null);
+    setDraftProgram(search.program);
   }
   const draftedFacility = options.find(
     ({ id }) =>
@@ -357,8 +359,8 @@ function RequisitionsBody({
     [search, programValid],
   );
   useEffect(() => {
-    if (!programValid) onSearchChange({ program: undefined, page: undefined }, true);
-  }, [programValid, onSearchChange]);
+    if (!pending && !programValid) onSearchChange({ program: undefined, page: undefined }, true);
+  }, [programValid, pending, onSearchChange]);
   const onSearch = useCallback(
     (next: string) => {
       if (next === search.facility)
@@ -367,19 +369,24 @@ function RequisitionsBody({
         facility: next,
         program: options
           .find(({ id }) => id === next)
-          ?.programs.some(({ id }) => id === previous.program)
-          ? previous.program
+          ?.programs.some(({ id }) => id === (pending ? draftProgram : previous.program))
+          ? pending
+            ? draftProgram
+            : previous.program
           : undefined,
         page: undefined,
       }));
     },
-    [search.facility, queryClient, onSearchChange, options],
+    [search.facility, queryClient, onSearchChange, options, pending, draftProgram],
   );
   const toolbar = (
     <RequisitionsToolbar
       programs={draftedFacility?.programs}
-      search={search}
-      onFilterChange={(patch) => onSearchChange(patch, true)}
+      search={pending ? { ...search, program: draftProgram } : search}
+      onFilterChange={(patch) => {
+        if (pending && 'program' in patch) setDraftProgram(patch.program);
+        else onSearchChange(patch, true);
+      }}
       view={
         facility && !pending ? (
           <ColumnsMenu columnView={columnView} search={search} onSearchChange={onSearchChange} />
@@ -458,7 +465,10 @@ function RequisitionsBody({
     <>
       <RequisitionSearchPicker
         applied={search.facility}
-        onDraftChange={setDraft}
+        onDraftChange={(facilityId) => {
+          setDraft(facilityId);
+          setDraftProgram(search.program);
+        }}
         onSearch={onSearch}
         options={options}
       />
