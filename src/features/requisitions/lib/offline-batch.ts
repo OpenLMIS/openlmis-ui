@@ -26,17 +26,28 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { supervisoryNodesWithRight } from '@/lib/supervisory-nodes';
 import type { Page } from '@/lib/types';
 
-async function findBatchSummaries(ids: readonly string[], session: number, program?: string) {
+async function findBatchSummaries(
+  ids: readonly string[],
+  session: number,
+  program?: string,
+  background = false,
+) {
   const remaining = new Set(ids);
   const found: ApprovalListRow[] = [];
   for (let page = 0; remaining.size; page++) {
     assertSessionScope(session);
-    const result = await fetchApprovalList({
+    const params = {
       page,
       size: 100,
       sort: ['id,asc'],
       ...(program && { program }),
-    });
+    };
+    const result = background
+      ? await fetchApprovalList(params, {
+          backgroundDownload: true,
+          downloadProvider: 'requisition-copy',
+        })
+      : await fetchApprovalList(params);
     assertSessionScope(session);
     for (const row of result.content) if (remaining.delete(row.id)) found.push(row);
     if (page + 1 >= result.totalPages) break;
@@ -65,9 +76,10 @@ export async function fetchBatchMembership(
   ids: readonly string[],
   session: number,
   program?: string,
+  background = false,
 ): Promise<BatchMembership> {
   try {
-    return await findBatchSummaries(ids, session, program);
+    return await findBatchSummaries(ids, session, program, background);
   } catch (error) {
     assertSessionScope(session);
     if (isAccessFallbackError(error)) throw error;

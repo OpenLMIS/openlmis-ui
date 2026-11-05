@@ -1,4 +1,4 @@
-import { isAxiosError } from 'axios';
+import { type AxiosRequestConfig, isAxiosError } from 'axios';
 import type { RejectionReason } from '@/features/reference-data/lib/types';
 import type { toApprovalQuery } from '@/features/requisitions/lib/approval-search';
 import { type batchSaveBody, orderBatch } from '@/features/requisitions/lib/batch';
@@ -151,10 +151,13 @@ export async function fetchUnskipSetting() {
   return data;
 }
 
-export async function fetchApprovalList(params: ReturnType<typeof toApprovalQuery>) {
+export async function fetchApprovalList(
+  params: ReturnType<typeof toApprovalQuery>,
+  config?: AxiosRequestConfig,
+) {
   const { data } = await client.get<Page<ApprovalListRow>>(
     '/requisitions/requisitionsForApproval',
-    { params, paramsSerializer: { indexes: null } },
+    { ...config, params, paramsSerializer: { indexes: null } },
   );
   return data;
 }

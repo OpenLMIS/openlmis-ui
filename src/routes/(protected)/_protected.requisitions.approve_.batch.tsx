@@ -136,7 +136,9 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
       async () => {
         const batch = queryClient.fetchQuery(batchRequisitionsOptions(ids));
         const readMembership = () =>
-          fetchBatchMembership(ids, scope, program).catch((error: unknown) => ({ error }));
+          fetchBatchMembership(ids, scope, program, !!cachedMembership).catch((error: unknown) => ({
+            error,
+          }));
         if (!cachedMembership) membership = readMembership();
         const [response, currency] = await Promise.all([
           batch,

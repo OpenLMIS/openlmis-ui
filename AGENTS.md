@@ -1081,7 +1081,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   authorization refreshes explicitly bypass covering caches.
 - Batch routes render retrieved rows while membership verifies. Rows picked on the approval list
   or its recent matching cache verify list openings immediately. Opening membership reads only
-  govern offline capture for these openings; approveAll reports rows no longer approvable.
+  use background transport and govern offline capture for these openings; approveAll reports rows no longer approvable.
   Direct links verify before approval. Ignore opening results superseded by Sync, preserve record
   identity when availability is unchanged, and discard route cache on exit to preserve warm typing.
 - Batch Sync uses the saveAll response and retains failed rows and reasons. Refresh membership

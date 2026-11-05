@@ -1188,5 +1188,8 @@ it('retrieves a trusted list opening before starting its offline membership scan
   await act(() => response.resolve({ requisitionDtos: records }));
   const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
   await waitFor(() => expect(approve).toBeEnabled());
-  expect(fetchApprovalList).toHaveBeenCalledOnce();
+  expect(fetchApprovalList).toHaveBeenCalledWith(expect.anything(), {
+    backgroundDownload: true,
+    downloadProvider: 'requisition-copy',
+  });
 });
