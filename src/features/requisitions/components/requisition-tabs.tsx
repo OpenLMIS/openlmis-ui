@@ -2,7 +2,7 @@ import { useStore } from '@tanstack/react-form';
 import { useSuspenseQueries } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { CircleAlertIcon } from 'lucide-react';
-import { type ComponentProps, useMemo, useRef } from 'react';
+import { type ComponentProps, memo, useDeferredValue, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { requisitionGridQueries } from '@/features/requisitions/api/queries';
@@ -45,7 +45,7 @@ type LineCacheEntry = {
   model: RequisitionLine & { canSkip: boolean };
   errors: Record<string, ParseKeys>;
 };
-function RequisitionTabsView({
+const RequisitionTabsView = memo(function RequisitionTabsView({
   record,
   editing,
   onAddProduct,
@@ -114,20 +114,19 @@ function RequisitionTabsView({
     [record],
   );
   const cache = useRef(new Map<string, LineCacheEntry>());
-  const baseModels = useMemo(
-    () =>
-      buildLines(
-        draft?.addedLines.length
-          ? {
-              ...record,
-              requisitionLineItems: [...record.requisitionLineItems, ...draft.addedLines],
-            }
-          : record,
-        products,
-        approvedProducts,
-      ),
-    [record, products, approvedProducts, draft?.addedLines],
-  );
+  const baseModels = useMemo(() => {
+    const removed = new Set(draft?.removedLineIds);
+    const saved = record.requisitionLineItems.filter((line) => !removed.has(line.id));
+    const productsInRecord = new Set(saved.map((line) => line.orderable.id));
+    const added = (draft?.addedLines ?? []).filter(
+      (line) => !removed.has(line.id) && !productsInRecord.has(line.orderable.id),
+    );
+    return buildLines(
+      { ...record, requisitionLineItems: [...saved, ...added] },
+      products,
+      approvedProducts,
+    );
+  }, [record, products, approvedProducts, draft?.addedLines, draft?.removedLineIds]);
   const currentLines = useMemo(
     () => new Map(current.requisitionLineItems.map((line) => [line.id, line])),
     [current],
@@ -230,6 +229,16 @@ function RequisitionTabsView({
     draft,
     patientData,
   ]);
+  const liveEditing = useMemo(
+    () =>
+      editing?.approver
+        ? {
+            ...editing,
+            calculation: { record, months: period.durationInMonths ?? 1, patients: patientData },
+          }
+        : editing,
+    [editing, record, period.durationInMonths, patientData],
+  );
   const patients = record.template.patientsTabEnabled;
   const tabs: { value: RequisitionTab; label: string }[] = [
     ...(patients
@@ -303,7 +312,7 @@ function RequisitionTabsView({
               <RequisitionGridView
                 key={`${record.id}:${record.template.id ?? 'template'}`}
                 record={record}
-                editing={editing}
+                editing={liveEditing}
                 errors={errors}
                 onAddProduct={onAddProduct}
                 models={models}
@@ -330,7 +339,7 @@ function RequisitionTabsView({
       />
     </>
   );
-}
+});
 
 type TabsProps = Omit<ComponentProps<typeof RequisitionTabsView>, 'draft' | 'showAllErrors'>;
 export function RequisitionTabs(props: TabsProps) {
@@ -343,5 +352,12 @@ export function RequisitionTabs(props: TabsProps) {
 function RequisitionDraftTabs(props: TabsProps & { editor: RequisitionEditor }) {
   const draft = useStore(props.editor.form.store, (state) => state.values.draft);
   const showAllErrors = useStore(props.editor.form.store, (state) => state.values.showAllErrors);
-  return <RequisitionTabsView {...props} draft={draft} showAllErrors={showAllErrors} />;
+  const deferred = useDeferredValue(draft);
+  return (
+    <RequisitionTabsView
+      {...props}
+      draft={props.editing?.approver ? deferred : draft}
+      showAllErrors={showAllErrors}
+    />
+  );
 }

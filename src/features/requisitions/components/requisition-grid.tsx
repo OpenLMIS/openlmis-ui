@@ -61,12 +61,14 @@ import { RequisitionInput } from '@/features/requisitions/components/requisition
 import { SkipControls } from '@/features/requisitions/components/skip-controls';
 import { SupplyingStockNote } from '@/features/requisitions/components/supplying-stock-note';
 import { useGridWidths } from '@/features/requisitions/hooks/use-grid-widths';
+import { useLiveGridLine } from '@/features/requisitions/hooks/use-live-grid-line';
 import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 import type { calculateTotals } from '@/features/requisitions/lib/calculations';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
 import { canRemoveLine, type LineDraft } from '@/features/requisitions/lib/draft';
 import { gridRowTone } from '@/features/requisitions/lib/grid-row-tone';
 import { filterLines, type RequisitionLine } from '@/features/requisitions/lib/lines';
+import type { PatientsData } from '@/features/requisitions/lib/patients';
 import { PATIENT_QUANTITY_COLUMNS } from '@/features/requisitions/lib/patients';
 import type { RequisitionLineItem } from '@/features/requisitions/lib/requisition';
 import {
@@ -752,7 +754,19 @@ const RequisitionTableHeader = memo(function RequisitionTableHeader({
   );
 });
 
-const RequisitionProductRow = memo(function RequisitionProductRow({
+type ProductRowProps = ComponentProps<typeof RequisitionProductRowView>;
+const RequisitionProductRow = memo(function RequisitionProductRow(props: ProductRowProps) {
+  return props.model && props.editing?.calculation ? (
+    <LiveProductRow {...props} model={props.model} editing={props.editing} />
+  ) : (
+    <RequisitionProductRowView {...props} />
+  );
+});
+function LiveProductRow(props: ProductRowProps & { model: GridModel; editing: GridEditing }) {
+  const live = useLiveGridLine(props.model, props.editing);
+  return <RequisitionProductRowView {...props} model={live.model} errors={live.errors} />;
+}
+const RequisitionProductRowView = memo(function RequisitionProductRowView({
   model,
   rowIndex,
   measure,
@@ -1012,6 +1026,7 @@ function renderValue(
 }
 
 export type GridEditing = {
+  calculation?: { record: RequisitionRecord; months: number; patients: PatientsData };
   patientsEditable?: boolean;
   approver?: boolean;
   editor: RequisitionEditor;

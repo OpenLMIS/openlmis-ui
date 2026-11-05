@@ -1087,6 +1087,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Batch Sync uses the saveAll response and retains failed rows and reasons. Refresh membership
   afterwards without delaying success feedback. Remove confirmed approvals from every cached
   approval list before returning, then invalidate. Single Approve uses the save response and ETag.
+- Approval editor rows/cards subscribe to their own draft line. Keep aggregate tab/grid work deferred
+  so keystrokes do not synchronously rebuild unrelated rows.
 - Grid widths use baseline formatted values and uppercase header fonts, independent of typing.
   Reserve ten quantity digits and let larger input text scroll internally. Virtual card spacers
   use list padding and item margins, never extra list items; expose item positions and total size.

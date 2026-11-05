@@ -571,8 +571,9 @@ pinned totals, including 1024px, with the Total row reachable at the end of page
 - AP1: Accept selected approval-list rows immediately, with membership retained for offline capture.
 - AP2: Use saveAll records directly; retain failed records/reasons and refresh membership afterwards.
 - AP3: Read all batch sizes before CSS writes and skip unchanged variables.
-- AP4: Cache sorted product models between keystrokes and recalculate changed lines. The full draft
-  subscription remains; timing results must establish whether additional subscription work is needed.
+- AP4: Approval rows and cards subscribe to their own line draft for immediate values and errors.
+  Memoized tabs defer aggregate model, totals and pager updates so they leave the urgent input render.
+  Cached sorted models retain added/removed-line and save-rebase behavior.
 - AP5: Drop route cache on exit and preserve unchanged membership identities during warm editing.
 - AP6: Remove confirmed ids from all cached approval pages before returning to the list.
 - AP7: Single Approve uses the save response and ETag without the intervening GET.

@@ -27,6 +27,7 @@ import {
   type GridRow,
   RequisitionLineCell,
 } from '@/features/requisitions/components/requisition-grid';
+import { useLiveGridLine } from '@/features/requisitions/hooks/use-live-grid-line';
 import { gridRowTone } from '@/features/requisitions/lib/grid-row-tone';
 import type { GridColumn } from '@/features/requisitions/lib/template';
 import { EMPTY_VALUE } from '@/lib/empty-value';
@@ -174,7 +175,19 @@ export function RequisitionEditCards({
   );
 }
 
-const RequisitionEditCard = memo(function RequisitionEditCard({
+type EditCardProps = ComponentProps<typeof RequisitionEditCardView>;
+const RequisitionEditCard = memo(function RequisitionEditCard(props: EditCardProps) {
+  return props.editing.calculation ? (
+    <LiveEditCard {...props} />
+  ) : (
+    <RequisitionEditCardView {...props} />
+  );
+});
+function LiveEditCard(props: EditCardProps) {
+  const live = useLiveGridLine(props.model, props.editing);
+  return <RequisitionEditCardView {...props} model={live.model} errors={live.errors} />;
+}
+const RequisitionEditCardView = memo(function RequisitionEditCardView({
   rowIndex,
   virtual,
   measure,
