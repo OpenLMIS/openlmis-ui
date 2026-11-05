@@ -20,21 +20,16 @@ export async function requisitionReferences(
   userId: string,
   config?: AxiosRequestConfig,
   fresh = false,
+  freshUser?: Awaited<ReturnType<typeof fetchUserRecord>>,
 ) {
+  const sessionClient = client;
   if (fresh)
     client = new QueryClient({
       defaultOptions: { queries: { retry: false, networkMode: 'always' } },
     });
   const scope = getSessionScope();
-  const [user, roles, facilities, programs, userPrograms] = await Promise.all([
-    client.fetchQuery(
-      fresh
-        ? { ...userRecordOptions(userId, config), queryFn: () => fetchUserRecord(userId, config) }
-        : userRecordOptions(userId, config),
-    ),
-    client.fetchQuery(rolesOptions(config)),
-    client.fetchQuery(minimalFacilitiesOptions(config)),
-    client.fetchQuery(programsOptions(config)),
+  const [facilities, userPrograms, programs, roles, user] = await Promise.all([
+    sessionClient.fetchQuery(minimalFacilitiesOptions(config)),
     client.fetchQuery(
       fresh
         ? {
@@ -43,6 +38,14 @@ export async function requisitionReferences(
           }
         : userProgramsOptions(userId, config),
     ),
+    sessionClient.fetchQuery(programsOptions(config)),
+    client.fetchQuery(rolesOptions(config)),
+    freshUser ??
+      client.fetchQuery(
+        fresh
+          ? { ...userRecordOptions(userId, config), queryFn: () => fetchUserRecord(userId, config) }
+          : userRecordOptions(userId, config),
+      ),
   ]);
   assertSessionScope(scope);
   const sets = [

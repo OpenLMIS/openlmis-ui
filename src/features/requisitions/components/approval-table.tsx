@@ -159,7 +159,7 @@ function useResultsTable({
     cards,
     search,
     defaultSort: APPROVAL_SORT,
-    defaultPageSize: 20,
+    defaultPageSize: 10,
     onSearchChange,
   });
   const table = useTable({
@@ -345,7 +345,7 @@ export function ApprovalTableSkeleton({
     stale: false,
     batch,
   });
-  const rowCount = toPaginationState(search, 20).pageSize;
+  const rowCount = toPaginationState(search, 10).pageSize;
   return (
     <>
       {batch && <SelectButtons disabled />}

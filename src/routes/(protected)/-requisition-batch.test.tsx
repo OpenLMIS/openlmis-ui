@@ -1100,7 +1100,7 @@ it('renders batch rows while membership is pending and enables approval only aft
       }),
   );
   renderRoute();
-  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.verifying' });
   await screen.findByRole('table', { name: 'requisitions.batch.title' });
   expect(approve).toBeDisabled();
   await act(async () =>
@@ -1116,4 +1116,18 @@ it('counts a multiline request failure once instead of counting message lines', 
   await waitFor(() => expect(inputs[0]).toBeEnabled());
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
   expect(await screen.findByRole('heading', { name: 'There Was 1 Error' })).toBeInTheDocument();
+});
+
+it('keeps Sync membership when the opening read finishes later', async () => {
+  const opening = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
+  vi.mocked(fetchApprovalList).mockReturnValueOnce(opening.promise);
+  renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  await userEvent.click(sync);
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await act(async () => opening.resolve({ content: [], totalPages: 1 } as never));
+  expect(approve).toBeEnabled();
+  expect(screen.queryByText('requisitions.batch.no-longer-awaiting')).not.toBeInTheDocument();
 });

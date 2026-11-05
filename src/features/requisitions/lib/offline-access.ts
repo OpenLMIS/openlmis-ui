@@ -212,6 +212,7 @@ export const requisitionAccessProvider = defineDownloadProvider({
       access.userId,
       config,
       true,
+      access.user,
     );
     check();
     return {

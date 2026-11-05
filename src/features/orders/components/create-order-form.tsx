@@ -31,12 +31,14 @@ import { settleFew } from '@/lib/settle-few';
 
 export function CreateOrderForm({
   userId,
+  facilitiesPending = false,
   facilities,
   requesting,
   canRead,
   onCreated,
 }: {
   userId: string;
+  facilitiesPending?: boolean;
   facilities: MinimalFacility[];
   requesting: MinimalFacility[];
   canRead: (program: string, supplier: string, ids: string[]) => boolean;
@@ -205,7 +207,7 @@ export function CreateOrderForm({
               placeholder={t('orders.create.select-requesting-facility')}
               options={requesting.filter((f) => !ids.includes(f.id))}
               value={picked}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || facilitiesPending}
               onChange={setPicked}
             />
           </PickerAddField>

@@ -52,6 +52,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { productLabel } from '@/features/reference-data/lib/products';
 import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { AdjustmentsDialog } from '@/features/requisitions/components/adjustments-dialog';
+import { RequisitionCopyBadge } from '@/features/requisitions/components/requisition-copy-notice';
 import { RequisitionDraftStatus } from '@/features/requisitions/components/requisition-draft-status';
 import { RequisitionEditCards } from '@/features/requisitions/components/requisition-edit-cards';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
@@ -498,7 +499,14 @@ export function RequisitionGridView({
               )
             : undefined
         }
-        status={!view.cards && status}
+        status={
+          !view.cards && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <RequisitionCopyBadge />
+              {status}
+            </div>
+          )
+        }
         columns={columns}
         view={view}
         search={search}

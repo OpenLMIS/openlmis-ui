@@ -84,7 +84,6 @@ import {
 } from '@/features/requisitions/components/requisition-action-dialogs';
 import { RequisitionComments } from '@/features/requisitions/components/requisition-comments';
 import {
-  RequisitionCopyBadge,
   RequisitionCopyContext,
   RequisitionCopyNotice,
 } from '@/features/requisitions/components/requisition-copy-notice';
@@ -1512,9 +1511,6 @@ function RequisitionHeading({ record }: { record: RequisitionRecord }) {
           facility: facility.name,
           period: period.name,
         })}{' '}
-        <span className="hidden @xl/main:inline-flex">
-          <RequisitionCopyBadge />
-        </span>
       </WorkspaceDescription>
     </WorkspaceHeading>
   );

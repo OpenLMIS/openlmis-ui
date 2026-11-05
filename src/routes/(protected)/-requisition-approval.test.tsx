@@ -91,12 +91,12 @@ afterEach(() => {
 });
 
 it.each([
-  ['', { page: 0, size: 20, sort: ['emergency,desc', 'authorizedDate,desc'] }],
+  ['', { page: 0, size: 10, sort: ['emergency,desc', 'authorizedDate,desc'] }],
   [
     '?page=3&dir=asc&program=11111111-1111-4111-8111-111111111111',
     {
       page: 2,
-      size: 20,
+      size: 10,
       program: '11111111-1111-4111-8111-111111111111',
       sort: ['emergency,desc', 'authorizedDate,asc'],
     },
@@ -161,7 +161,7 @@ it('explains an empty device list without clearing its required program', async 
   vi.spyOn(offlineSearch, 'localApprovals').mockResolvedValue({
     content: [],
     number: 0,
-    size: 20,
+    size: 10,
     totalElements: 0,
     totalPages: 0,
   });
@@ -200,7 +200,7 @@ it('ticks the page with Select All, clears it with None and sorts oldest first',
   vi.mocked(fetchApprovalList).mockResolvedValue({
     content: [row('March'), row('April')],
     number: 0,
-    size: 20,
+    size: 10,
     totalElements: 2,
     totalPages: 1,
   });
@@ -228,7 +228,7 @@ it('ticks the page with Select All, clears it with None and sorts oldest first',
   await waitFor(() =>
     expect(fetchApprovalList).toHaveBeenLastCalledWith({
       page: 0,
-      size: 20,
+      size: 10,
       sort: ['emergency,desc', 'authorizedDate,asc'],
     }),
   );

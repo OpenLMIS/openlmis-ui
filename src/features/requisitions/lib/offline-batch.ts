@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { fetchApprovalList } from '@/features/requisitions/api/api';
 import type { BatchRequisition, BatchResponse } from '@/features/requisitions/lib/batch-types';
@@ -18,10 +19,12 @@ import {
 import type { SingleReferences } from '@/features/requisitions/lib/offline-single';
 import type { ApprovalListRow } from '@/features/requisitions/lib/types';
 import { isAccessFallbackError } from '@/lib/http';
+import { queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { RIGHTS } from '@/lib/rights';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { supervisoryNodesWithRight } from '@/lib/supervisory-nodes';
+import type { Page } from '@/lib/types';
 
 async function findBatchSummaries(ids: readonly string[], session: number, program?: string) {
   const remaining = new Set(ids);
@@ -41,6 +44,23 @@ async function findBatchSummaries(ids: readonly string[], session: number, progr
   return { found, remaining };
 }
 export type BatchMembership = Awaited<ReturnType<typeof findBatchSummaries>> | { error: unknown };
+export function cachedBatchMembership(
+  client: QueryClient,
+  ids: readonly string[],
+  program?: string,
+): BatchMembership | undefined {
+  if (!program || !ids.length) return;
+  const found = new Map<string, ApprovalListRow>();
+  for (const query of client
+    .getQueryCache()
+    .findAll({ queryKey: [...queryKeys.requisitions.all, 'approval'] })) {
+    if (query.state.isInvalidated || Date.now() - query.state.dataUpdatedAt > 60_000) continue;
+    const data = query.state.data as Page<ApprovalListRow> | undefined;
+    for (const row of data?.content ?? [])
+      if (row.program.id === program && ids.includes(row.id)) found.set(row.id, row);
+  }
+  if (found.size === ids.length) return { found: [...found.values()], remaining: new Set() };
+}
 export async function fetchBatchMembership(
   ids: readonly string[],
   session: number,

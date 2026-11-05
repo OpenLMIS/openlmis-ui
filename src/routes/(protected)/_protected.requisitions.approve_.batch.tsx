@@ -77,6 +77,7 @@ import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
 import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
 import {
   type BatchMembership,
+  cachedBatchMembership,
   captureBatch,
   fetchBatchMembership,
   readBatch,
@@ -110,13 +111,16 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   validateSearch: z.object({ ids: z.string().catch(''), program: z.string().optional() }),
   loaderDeps: ({ search }) => ({ ids: batchIds(search.ids), program: search.program }),
   preload: false,
-  loader: async ({ context: { queryClient }, deps: { ids, program } }) => {
+  loader: async ({ location, context: { queryClient }, deps: { ids, program } }) => {
     const scope = getSessionScope();
     await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
     const leases = isSecureOrigin ? await Promise.all(ids.map(beginCopy)) : [];
     let copyResult: Promise<unknown> | undefined;
     let membership: Promise<BatchMembership> | undefined;
+    const cachedMembership = location?.state.requisitionBatchRecords?.length
+      ? cachedBatchMembership(queryClient, ids, program)
+      : undefined;
     const loaded = await onlineOrDevice(
       async () => {
         const batch = queryClient.fetchQuery(batchRequisitionsOptions(ids));
@@ -155,6 +159,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
       ids,
       copyResult,
       membership,
+      cachedMembership,
       copyLeases: leases,
       accessEpoch: fresh ? uploadAccessEpoch() : undefined,
     };
@@ -173,12 +178,7 @@ function BatchHeader() {
           <ClipboardCheckIcon />
         </WorkspaceIcon>
         <WorkspaceTitle>{t('requisitions.batch.title')}</WorkspaceTitle>
-        <WorkspaceDescription>
-          {t('requisitions.batch.description')}{' '}
-          <span className="hidden @xl/main:inline-flex">
-            <RequisitionCopyBadge />
-          </span>
-        </WorkspaceDescription>
+        <WorkspaceDescription>{t('requisitions.batch.description')} </WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
   );
@@ -225,7 +225,7 @@ function BatchPending() {
             {t('requisitions.batch.sync')}
           </Button>
           <Button size="lg" disabled>
-            {t('requisitions.batch.approve')}
+            {t('requisitions.batch.verifying')}
           </Button>
         </div>
       </WorkspaceFooter>
@@ -274,21 +274,27 @@ function BatchPage() {
   const [response, setResponse] = useState(loaded.response);
   const [copyFailure, setCopyFailure] = useState<unknown>();
   const accessEpoch = useRef(loaded.accessEpoch);
-  const membership = useRef<BatchMembership | undefined>(undefined);
+  const membership = useRef<BatchMembership | undefined>(loaded.cachedMembership);
+  const membershipRevision = useRef(0);
+  const [membershipFailure, setMembershipFailure] = useState(false);
   const [verifiedOpening, setVerifiedOpening] = useState<typeof loaded>();
   const opening = useRef(loaded);
   if (opening.current !== loaded) {
     opening.current = loaded;
     setCopyFailure(undefined);
-    membership.current = undefined;
+    membershipRevision.current++;
+    membership.current = loaded.cachedMembership;
+    setMembershipFailure(false);
     setResponse(loaded.response);
   }
   useEffect(() => {
     let active = true;
     if (!loaded.membership) return;
     const scope = getSessionScope();
+    const revision = membershipRevision.current;
     void loaded.membership.then((found) => {
-      if (!active || scope !== getSessionScope()) return;
+      if (!active || scope !== getSessionScope() || revision !== membershipRevision.current) return;
+      setMembershipFailure('error' in found);
       membership.current = found;
       setResponse((current) => orderBatch(verifyBatchMembership(current, found), loaded.ids));
       if (!('error' in found)) setVerifiedOpening(loaded);
@@ -297,7 +303,11 @@ function BatchPage() {
       active = false;
     };
   }, [loaded]);
-  const membershipVerified = !loaded.membership || verifiedOpening === loaded;
+  const membershipVerified =
+    !membershipFailure &&
+    (!loaded.membership ||
+      verifiedOpening === loaded ||
+      (!!loaded.cachedMembership && membership.current === loaded.cachedMembership));
   const records = response.requisitionDtos;
   const drafts = useBatchDrafts(records);
   const meta = useSyncExternalStore(
@@ -357,12 +367,14 @@ function BatchPage() {
     if (failures.size) setDialog(failures);
   };
   const refresh = async () => {
+    membershipRevision.current++;
     const [result, found] = await Promise.all([
       fetchBatchRequisitions(ids),
       fetchBatchMembership(ids, scope, search.program),
     ]);
     assertSessionScope(scope);
     membership.current = found;
+    setMembershipFailure('error' in found);
     if (!('error' in found)) setVerifiedOpening(loaded);
     return orderBatch(verifyBatchMembership(result, found), ids);
   };
@@ -497,6 +509,18 @@ function BatchPage() {
         setResponse(fresh);
         report(new Map(affected.map((id) => [id, 'requisitions.batch.review-refreshed'])));
         return;
+      }
+      if (kind === 'approve') {
+        membershipRevision.current++;
+        const found = await fetchBatchMembership(ids, scope, search.program);
+        assertSessionScope(scope);
+        membership.current = found;
+        setMembershipFailure('error' in found);
+        if ('error' in found) throw found.error;
+        const verified = orderBatch(verifyBatchMembership(response, found), ids);
+        setResponse(verified);
+        setVerifiedOpening(loaded);
+        if (found.remaining.size) return;
       }
       const failures = new Map<string, string>();
       const eligible = records.filter((r) => {
@@ -771,6 +795,20 @@ function BatchPage() {
         <WorkspaceContent>
           <div ref={layout.measure} className="min-w-0" data-batch-version={meta}>
             <div className="mb-4 flex flex-col gap-3">
+              {membershipFailure && (
+                <Alert variant="destructive">
+                  <AlertTitle>{t('requisitions.batch.verification-failed')}</AlertTitle>
+                  <AlertDescription>
+                    <Button
+                      variant="outline"
+                      disabled={pending || !online}
+                      onClick={() => run('check')}
+                    >
+                      {t('error.try-again')}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
               <RequisitionCopyNotice
                 representation="batch"
                 expected={records.some(batchApprovable)}
@@ -779,11 +817,9 @@ function BatchPage() {
                 result={loaded.copyResult}
                 failure={copyFailure}
               />
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <RequisitionCopyBadge />
                 <BatchDraftStatus drafts={drafts} />
-                <span className="@xl/main:hidden">
-                  <RequisitionCopyBadge />
-                </span>
               </div>
               {[...refused].map(([id, reason]) => (
                 <Alert key={id} variant="warning">
@@ -907,7 +943,7 @@ function BatchPage() {
             }
             onClick={approve}
           >
-            {t('requisitions.batch.approve')}
+            {t(membershipVerified ? 'requisitions.batch.approve' : 'requisitions.batch.verifying')}
           </Button>
         </div>
       </WorkspaceFooter>

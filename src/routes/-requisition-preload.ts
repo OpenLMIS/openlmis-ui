@@ -8,17 +8,31 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export async function preloadRequisitionReferences(client: QueryClient, userId: string) {
   const scope = getSessionScope();
-  const [permissions, user] = await Promise.all([
-    client.fetchQuery(permissionsOptions(userId)),
-    client.fetchQuery(userRecordOptions(userId)),
-  ]);
+  const permissions = await client.fetchQuery(permissionsOptions(userId));
+  assertSessionScope(scope);
+  if (
+    !permissions.rights.has(RIGHTS.requisitionView) &&
+    !permissions.rights.has(RIGHTS.requisitionApprove)
+  ) {
+    const user = await client.fetchQuery(userRecordOptions(userId));
+    assertSessionScope(scope);
+    if (!user.roleAssignments.some((assignment) => !!assignment.supervisoryNodeId)) return;
+  }
+  await requisitionReferences(client, userId);
+}
+
+export async function hasRequisitionReferences(client: QueryClient, userId: string) {
+  const scope = getSessionScope();
+  const permissions = await client.fetchQuery(permissionsOptions(userId));
   assertSessionScope(scope);
   if (
     permissions.rights.has(RIGHTS.requisitionView) ||
-    permissions.rights.has(RIGHTS.requisitionApprove) ||
-    user.roleAssignments.some((assignment) => !!assignment.supervisoryNodeId)
+    permissions.rights.has(RIGHTS.requisitionApprove)
   )
-    await requisitionReferences(client, userId);
+    return true;
+  const user = await client.fetchQuery(userRecordOptions(userId));
+  assertSessionScope(scope);
+  return user.roleAssignments.some((assignment) => !!assignment.supervisoryNodeId);
 }
 
 export function warmRequisitionChunks(router: AnyRouter) {

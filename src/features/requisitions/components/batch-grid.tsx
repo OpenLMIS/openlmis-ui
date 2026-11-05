@@ -1,4 +1,4 @@
-import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
+import { defaultRangeExtractor, useWindowVirtualizer } from '@tanstack/react-virtual';
 import {
   type CSSProperties,
   Fragment,
@@ -107,7 +107,7 @@ function BatchFooter() {
   useBatchVersion('totals');
   const totals = batchTotals(records, drafts.quantities());
   return (
-    <TableFooter sticky>
+    <TableFooter>
       <TableRow pinned surface="muted">
         <TableCell sticky colSpan={2}>
           {t('requisitions.batch.total')}
@@ -164,6 +164,7 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
   const code = useRef<HTMLTableCellElement>(null);
   const header = useRef<HTMLTableSectionElement>(null);
   const [headerHeight, setHeaderHeight] = useState(128);
+  const [scrollMargin, setScrollMargin] = useState(128);
   useLayoutEffect(() => {
     const element = code.current;
     if (!element || !records.length) return;
@@ -171,7 +172,9 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
       const footerHeight =
         frame.current?.querySelector('tfoot')?.getBoundingClientRect().height ?? 48;
       frame.current?.style.setProperty('--table-footer-height', `${footerHeight}px`);
-      setHeaderHeight(header.current?.getBoundingClientRect().height ?? 128);
+      const height = header.current?.getBoundingClientRect().height ?? 128;
+      setHeaderHeight(height);
+      setScrollMargin((frame.current?.getBoundingClientRect().top ?? 0) + window.scrollY + height);
       const codeWidth = element.getBoundingClientRect().width;
       const nameWidth = name.current?.getBoundingClientRect().width ?? 0;
       const costWidth = cost.current?.getBoundingClientRect().width ?? 0;
@@ -189,7 +192,18 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
         (frame.current?.getBoundingClientRect().width ?? 0);
       frame.current?.toggleAttribute('data-pin-end', end);
     };
+    const positionHeader = () => {
+      const rect = frame.current?.getBoundingClientRect();
+      const appHeader =
+        document.querySelector('[data-slot="app-header"]') ??
+        document.querySelector('main > header');
+      const top = appHeader?.getBoundingClientRect().bottom ?? 48;
+      if (rect && header.current)
+        header.current.style.transform = `translateY(${Math.max(0, Math.min(top - rect.top, rect.height - header.current.offsetHeight))}px)`;
+    };
     measure();
+    positionHeader();
+    window.addEventListener('scroll', positionHeader, { passive: true });
     const observer = new ResizeObserver(measure);
     for (const target of [
       element,
@@ -201,19 +215,20 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
       quantity.current,
     ])
       if (target) observer.observe(target);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', positionHeader);
+    };
   }, [records]);
   const [focusedRow, setFocusedRow] = useState<number | null>(null);
-  const virtualizer = useVirtualizer({
+  const virtualizer = useWindowVirtualizer({
     count: rows.length,
     getItemKey: (index) => rows[index].product.id,
-    getScrollElement: () =>
-      frame.current?.querySelector<HTMLDivElement>('[data-slot="table-container"]') ?? null,
     estimateSize: () => 49,
     overscan: 4,
     initialRect: { width: 1200, height: 512 },
-    scrollMargin: headerHeight,
-    scrollPaddingStart: headerHeight,
+    scrollMargin,
+    scrollPaddingStart: headerHeight + 48,
     scrollPaddingEnd: 48,
     rangeExtractor: (range) => {
       const indices = defaultRangeExtractor(range);
@@ -244,11 +259,11 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
   };
   useImperativeHandle(ref, () => ({ reveal }));
   const items = virtualizer.getVirtualItems();
-  let previousEnd = headerHeight;
+  let previousEnd = scrollMargin;
   return (
     <div
       ref={frame}
-      className="batch-grid h-128 min-h-0 overflow-hidden rounded-xl border bg-card"
+      className="batch-grid min-w-0 rounded-xl border bg-card"
       onFocusCapture={(event) => {
         const field = fields.find((field) => field.id === event.target.id);
         if (field) setFocusedRow(field.index);
@@ -360,7 +375,7 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
               className="batch-spacer"
               style={
                 {
-                  '--batch-spacer-height': `${Math.max(0, virtualizer.getTotalSize() - previousEnd + headerHeight)}px`,
+                  '--batch-spacer-height': `${Math.max(0, virtualizer.getTotalSize() - previousEnd + scrollMargin)}px`,
                 } as CSSProperties
               }
             />

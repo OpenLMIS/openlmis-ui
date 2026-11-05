@@ -376,9 +376,9 @@ it('explains the facility cap and can find facilities beyond the first fifty', a
     facilities.map(({ id }) => `REQUISITION_VIEW|${id}|p`),
   );
   renderRoute('/requisitions/view');
-  await screen.findByText('lots.search-hint');
   const input = await screen.findByRole('combobox', { name: /facility-program.facility/ });
   await userEvent.click(input);
+  expect(await screen.findByText('requisitions.view.facility-matches')).toBeVisible();
   expect(screen.getAllByRole('option')).toHaveLength(50);
   await userEvent.type(input, 'Clinic 54');
   expect(await screen.findByRole('option', { name: /Clinic 54/ })).toBeInTheDocument();

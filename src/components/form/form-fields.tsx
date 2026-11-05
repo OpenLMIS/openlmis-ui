@@ -1,3 +1,4 @@
+import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox';
 import { useStore } from '@tanstack/react-form';
 import {
   CalendarIcon,
@@ -43,6 +44,7 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxStatus,
   ComboboxValue,
   useComboboxAnchor,
 } from '@/components/ui/combobox';
@@ -1253,6 +1255,7 @@ type ComboboxFieldProps = FieldProps &
     clearLabel: string;
     /** Most matches rendered at once, so a list of thousands stays quick to type into. */
     limit?: number;
+    resultStatus?: (shown: number, count: number) => ReactNode;
     size?: 'default' | 'lg';
   };
 
@@ -1270,10 +1273,14 @@ export function ComboboxField({
   clearLabel,
   invalid,
   describedBy,
+  resultStatus,
   limit = 50,
   size = 'default',
 }: ComboboxFieldProps) {
   const field = useFieldContext<string | null>();
+  const [search, setSearch] = useState('');
+  const { contains } = ComboboxPrimitive.useFilter();
+  const matches = resultStatus ? items.filter((item) => contains(item.label, search)).length : 0;
   const state = useFieldErrors(description);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
   const selected = useMemo(
@@ -1297,6 +1304,7 @@ export function ComboboxField({
         itemToStringLabel={(item) => item.label}
         items={items}
         limit={limit}
+        onInputValueChange={setSearch}
         onValueChange={(item, details) => {
           // Base UI clears the field on Escape once the list is closed; let Escape close the dialog instead.
           if (details.reason === 'escape-key' && !item) return details.allowPropagation();
@@ -1319,6 +1327,9 @@ export function ComboboxField({
         />
         <ComboboxContent>
           <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
+          {resultStatus && (
+            <ComboboxStatus>{resultStatus(Math.min(limit, matches), matches)}</ComboboxStatus>
+          )}
           <ComboboxList>
             {(item: ComboboxFieldItem) => (
               <ComboboxItem disabled={item.disabled} key={item.value} value={item}>

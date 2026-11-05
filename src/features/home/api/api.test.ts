@@ -104,19 +104,19 @@ it('cancels every status request when the dashboard query is cancelled', async (
   await cache.cancelQueries({ queryKey: queryKeys.home.all });
   await loading;
   expect(signals.every((signal) => signal?.aborted)).toBe(true);
+  expect(get.mock.calls[0]?.[1]).not.toHaveProperty('backgroundDownload');
   cache.clear();
 });
 
-it('sends dashboard approval counts through the background gate with cancellation', async () => {
+it('sends visible dashboard counts at normal priority with cancellation', async () => {
   const { QueryClient } = await import('@tanstack/react-query');
   const { approvalsOptions } = await import('@/features/home/api/queries');
   get.mockResolvedValueOnce(page(1));
   const cache = new QueryClient();
   await cache.fetchQuery(approvalsOptions());
   expect(get.mock.calls[0]?.[1]).toMatchObject({
-    backgroundDownload: true,
-    downloadProvider: 'home',
     signal: expect.any(AbortSignal),
   });
+  expect(get.mock.calls[0]?.[1]).not.toHaveProperty('backgroundDownload');
   cache.clear();
 });

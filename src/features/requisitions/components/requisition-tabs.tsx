@@ -37,7 +37,6 @@ import { validateLine } from '@/features/requisitions/lib/validation';
 import { useCardLayout } from '@/hooks/use-card-view';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
-import { cn } from '@/lib/utils';
 
 type LineCacheEntry = {
   source: RequisitionLine['line'] | undefined;
@@ -83,7 +82,7 @@ function RequisitionTabsView({
 }) {
   const { t } = useTranslation();
   const layout = useCardLayout<HTMLDivElement>();
-  const showDraft = layout.cards && editing?.editable && editor?.device.deviceAvailable;
+  const showDraft = editing?.editable && editor?.device.deviceAvailable;
   const [
     { data: products },
     { data: approvedProducts },
@@ -265,17 +264,12 @@ function RequisitionTabsView({
             </TabsTrigger>
           ))}
         </TabsList>
-        <div
-          className={cn(
-            'flex flex-wrap items-center gap-2',
-            !showDraft && 'not-has-data-[slot=badge]:hidden',
-          )}
-        >
-          {showDraft && editor && <RequisitionDraftStatus editor={editor} />}
-          <div className="@xl/main:hidden empty:hidden">
+        {(layout.cards || active === 'patients') && (
+          <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
             <RequisitionCopyBadge />
+            {showDraft && editor && <RequisitionDraftStatus editor={editor} />}
           </div>
-        </div>
+        )}
         {tabs.map(({ value }) => (
           <TabsContent key={value} value={value}>
             {value === 'patients' ? (

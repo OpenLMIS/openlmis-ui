@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import { waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -111,6 +112,8 @@ it('forces download references to the server despite a populated session cache',
   expect(api.fetchUserPrograms).toHaveBeenCalledTimes(2);
   expect(api.fetchRoles).toHaveBeenCalledTimes(2);
   expect(api.fetchRequisitionGroup).toHaveBeenCalledTimes(2);
+  expect(api.fetchMinimalFacilities).toHaveBeenCalledTimes(1);
+  expect(api.fetchPrograms).toHaveBeenCalledTimes(1);
   client.clear();
 });
 it('classifies missing nodes as unavailable local data', async () => {
@@ -199,4 +202,22 @@ it('warms only requisition chunks at idle and cancels scheduling on teardown', (
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+it('starts picker references before a granted user record resolves', async () => {
+  let finish!: (user: never) => void;
+  vi.mocked(api.fetchUserRecord).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const client = new QueryClient();
+  const loading = preloadRequisitionReferences(client, 'u');
+  await waitFor(() => expect(api.fetchUserRecord).toHaveBeenCalled());
+  expect(api.fetchMinimalFacilities).toHaveBeenCalled();
+  expect(api.fetchUserPrograms).toHaveBeenCalled();
+  finish({ id: 'u', roleAssignments: [] } as never);
+  await loading;
+  client.clear();
 });

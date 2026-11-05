@@ -47,7 +47,7 @@ import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
 export function AppSidebar() {
   const { t } = useTranslation();
-  const { pathname } = useLocation();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const { isMobile, setOpenMobile, state } = useSidebar();
   const direction = useDirection();
   const railTooltipSide = !isMobile && state === 'collapsed' ? 'inline-end' : 'top';

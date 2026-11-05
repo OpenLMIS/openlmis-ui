@@ -13,7 +13,11 @@ import { canRetainPageOffline, isOfflineCapable } from '@/lib/offline-pages';
 import { isOnline, seedOnline, useOnline } from '@/lib/online';
 import { loginSearch } from '@/lib/redirect';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
-import { preloadRequisitionReferences, warmRequisitionChunks } from '@/routes/-requisition-preload';
+import {
+  hasRequisitionReferences,
+  preloadRequisitionReferences,
+  warmRequisitionChunks,
+} from '@/routes/-requisition-preload';
 
 export const Route = createFileRoute('/(protected)/_protected')({
   beforeLoad: ({ location, context }) => {
@@ -26,6 +30,9 @@ export const Route = createFileRoute('/(protected)/_protected')({
       location.pathname !== context.getResolvedPathname?.()
     )
       throw new OfflinePageUnavailableError();
+    const userId = useLoginData.getState().referenceDataUserId;
+    if (userId && isOnline())
+      void preloadRequisitionReferences(queryClient, userId).catch(() => {});
     return { sessionScope: getSessionScope() };
   },
   component: ProtectedLayout,
@@ -52,7 +59,17 @@ function ProtectedLayout() {
   const router = useRouter();
   useEffect(() => {
     if (!userId || !online) return;
-    return warmRequisitionChunks(router);
+    let active = true;
+    let stop: (() => void) | undefined;
+    void hasRequisitionReferences(queryClient, userId)
+      .then((allowed) => {
+        if (active && allowed) stop = warmRequisitionChunks(router);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      stop?.();
+    };
   }, [router, userId, online]);
   const contentRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);

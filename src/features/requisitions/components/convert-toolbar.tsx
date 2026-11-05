@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import {
@@ -22,17 +22,17 @@ export function ConvertToolbar({
   view: ReactNode;
   disabled?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data: facilities } = useQuery(minimalFacilitiesOptions());
   const { data: programs } = useQuery(programsOptions());
   const unknown = t('valid-assignments.unknown');
-  const facility = withPicked(
-    facilities
-      ?.toSorted((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
-      .map(({ id, name }) => ({ value: id, label: name ?? id })),
-    search.facilityId,
-    unknown,
-  );
+  const facilityOptions = useMemo(() => {
+    const collator = new Intl.Collator(i18n.language);
+    return facilities
+      ?.toSorted((a, b) => collator.compare(a.name ?? '', b.name ?? ''))
+      .map(({ id, name }) => ({ value: id, label: name ?? id }));
+  }, [facilities, i18n.language]);
+  const facility = withPicked(facilityOptions, search.facilityId, unknown);
   const program = withPicked(
     programs?.map(({ id, name }) => ({ value: id, label: name ?? id })),
     search.programId,

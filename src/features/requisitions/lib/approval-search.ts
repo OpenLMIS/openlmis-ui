@@ -9,7 +9,7 @@ export const approvalSearchSchema = tableSearchSchema(['authorizedDate']).extend
 });
 export type ApprovalSearch = z.infer<typeof approvalSearchSchema>;
 export function toApprovalQuery(search: ApprovalSearch) {
-  const { pageIndex, pageSize } = toPaginationState(search, 20);
+  const { pageIndex, pageSize } = toPaginationState(search, 10);
   return {
     page: pageIndex,
     size: pageSize,

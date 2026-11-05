@@ -132,7 +132,7 @@ Reasons do.
 - Sign-in requisition preloads use normal foreground request handling, gated by the download's
   requisition rights or supervision eligibility. Failed reads never abort sibling page lookups.
   Warm requisition route chunks at browser idle without running their loaders.
-- Cancel Home queries on navigation start; dashboard reads use the shared background gate.
+- Cancel Home queries on navigation start; visible dashboard reads use normal foreground handling.
 - Requisition pages and background access downloads share reference-data query options through
   `requisitionReferences`. Roles, minimal facilities, programs, user records/programs, nodes and
   groups stay fresh for the session; administrative saves still invalidate their keys. Foreground
@@ -1070,12 +1070,15 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 
 - Download access refreshes read user/program assignments directly from the server, without device
   fallback. Requisition download references use an isolated fresh query cache so neither session
-  freshness nor a pending page request can substitute an older grant generation. Keep background
+  freshness nor a pending page request can substitute an older grant generation. Reuse session
+  facilities/programs and the fresh user from the current access generation. Keep background
   fail-fast handling, two transport slots, foreground priority and provider fairness.
 - Node subset reuse prefers completed data; pages never await a background superset. Forced node
   authorization refreshes explicitly bypass covering caches.
 - Batch routes render retrieved rows while membership verifies. Approve stays disabled until the
-  current opening is verified; direct links follow the same rule. Only verified membership may
+  current opening is verified. Recent complete approval-list cache entries for the same program
+  can verify list openings immediately; direct links await verification. Recheck before approval,
+  show retry on failure, and ignore opening results superseded by Sync. Only verified membership may
   produce a complete offline approval copy.
 
 - `getLocalDb()` opens one database per deployment/user. Close on identity change without
@@ -1226,3 +1229,15 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Run pnpm test:offline for Chromium and pnpm test:offline:browsers for installed engines.
   Missing engines and known interception gaps are coverage limits, not passing checks.
   Reproduction recipes belong in the plan. Unit tests cover the no-Web-Locks fallback.
+
+### Requisition Performance And Device Status
+
+- Batch grids virtualize against window scrolling, retaining focused rows and fixed colgroup widths.
+  The header follows page scroll beneath the app header; Code/Name and totals pin horizontally.
+  Total stays at the end of the table, reachable through page scroll, with single-pixel dividers.
+- Group offline-copy status before draft status with `flex flex-wrap items-center justify-end gap-2`.
+  Put this group above the grid, in the desktop product toolbar or below tabs for cards/Patients.
+  Headers contain title, description and actions only. Hide unavailable device statuses on HTTP.
+- Approve and Convert default to ten rows, matching legacy. Keep URL size choices intact.
+- ComboboxField `resultStatus(shown, count)` renders capped filtered counts inside its open list.
+  Reuse a collator and memoize facility sorting rather than constructing locale comparisons per row.

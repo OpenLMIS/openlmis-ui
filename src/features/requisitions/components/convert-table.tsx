@@ -221,7 +221,7 @@ function useResultsTable(
     cards,
     search,
     defaultSort: { id: 'unused', desc: false },
-    defaultPageSize: 20,
+    defaultPageSize: 10,
     onSearchChange,
   });
   const table = useTable({
@@ -355,7 +355,7 @@ export function ConvertTableSkeleton({
     <RequisitionListSkeleton
       cards={cards}
       actions={0}
-      rowCount={toPaginationState(search, 20).pageSize}
+      rowCount={toPaginationState(search, 10).pageSize}
       table={table}
     />
   );

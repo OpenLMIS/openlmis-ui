@@ -499,3 +499,26 @@ existing translations are retained and their key sets match English. No full sui
 Final divider inspection also checks the unpinned narrow layout. End-cell rules retain their
 normal divider there; pinned divider pseudo-elements overlap the preceding border at its
 existing pixel. The focused batch route's 44 tests and all three final static checks pass.
+
+## Performance Round Three (2026-11-05)
+
+- R1: visible Home requests use normal priority, timeout and retry; navigation cancellation stays.
+- R2: protected route entry starts authorized reference preloading before Home fills browser connections; granted users start references without waiting for user detail; Create Orders Program loads independently of facilities.
+- R3: complete approval-list cache entries younger than one minute verify a list opening for the same program; background and pre-approval verification remain. Failure shows Retry and pending Approve says Verifying. A revision excludes late opening results after Sync. Query caches clear on identity changes.
+- R4: Approve and Convert use legacy's ten-row default; explicit URL sizes remain.
+- R5: downloads refresh assignments, roles, nodes and groups in isolation, reusing session facilities/programs and the current access reader's fresh user.
+- R6: the facility list shows its own translated filtered match count inside the popup.
+- R7: idle requisition chunk warming uses the same rights/supervision eligibility as reference preloading.
+- R8: the supplied CPU profile identifies repeated facility sorting in Convert. Memoize that list and reuse locale collators in Convert and View; sidebar location subscribes only to pathname.
+- K9: window virtualization keeps page flow, stable columns and reachable Total; device status aligns at logical end.
+- U1b: move copy status from headers to the device status group, copy before draft, including cards and Patients.
+
+Evidence is under `.screenshots/FM-39-r3/`. Timing uses the supplied harness against the local
+production build and read-only test server, with non-GET API writes blocked except OAuth and
+read-only searches. Measurements and any remaining slower steps are reported separately.
+
+Safety limitation: the supplied legacy initiation harness sent one successful GET containing
+`unfinished=true` during an earlier run. FM-40 documents that this flag can remove older drafts;
+we cannot establish whether any draft was affected. The adapted harness removes this flag before
+forwarding GETs. Final target timings cover View picker/search, batch, Convert and Create Orders;
+they omit initiation and record-opening steps outside the requested performance targets.
