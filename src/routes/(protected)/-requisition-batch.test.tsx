@@ -471,7 +471,7 @@ it('keeps a refusal reason from the Sync response', async () => {
   const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
   await waitFor(() => expect(sync).toBeEnabled());
   await userEvent.click(sync);
-  await screen.findByText('Access revoked');
+  await screen.findAllByText('Access revoked');
   expect(screen.queryByText('requisitions.batch.missing')).not.toBeInTheDocument();
 });
 it('unlocks Approve only after confirming Approve Anyway for an opening marker', async () => {
@@ -1173,4 +1173,20 @@ it('keeps focus and every keystroke when reopening a warm batch', async () => {
   await userEvent.type(input, '6543', { skipClick: true });
   expect(input).toHaveFocus();
   expect(input).toHaveValue('9876543');
+});
+
+it('retrieves a trusted list opening before starting its offline membership scan', async () => {
+  const response = Promise.withResolvers<Awaited<ReturnType<typeof fetchBatchRequisitions>>>();
+  vi.mocked(fetchBatchRequisitions).mockReturnValueOnce(response.promise);
+  vi.spyOn(savedBatches, 'cachedBatchMembership').mockReturnValue({
+    found: [],
+    remaining: new Set(),
+  });
+  renderRoute();
+  await waitFor(() => expect(fetchBatchRequisitions).toHaveBeenCalledOnce());
+  expect(fetchApprovalList).not.toHaveBeenCalled();
+  await act(() => response.resolve({ requisitionDtos: records }));
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  expect(fetchApprovalList).toHaveBeenCalledOnce();
 });

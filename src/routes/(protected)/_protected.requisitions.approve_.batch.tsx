@@ -135,14 +135,15 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
     const loaded = await onlineOrDevice(
       async () => {
         const batch = queryClient.fetchQuery(batchRequisitionsOptions(ids));
-        membership = fetchBatchMembership(ids, scope, program).catch((error: unknown) => ({
-          error,
-        }));
+        const readMembership = () =>
+          fetchBatchMembership(ids, scope, program).catch((error: unknown) => ({ error }));
+        if (!cachedMembership) membership = readMembership();
         const [response, currency] = await Promise.all([
           batch,
           queryClient.ensureQueryData(currencySettingsOptions()),
         ]);
         assertSessionScope(scope);
+        membership ??= readMembership();
         if (isSecureOrigin) {
           copyResult = membership
             .then((found) => {
