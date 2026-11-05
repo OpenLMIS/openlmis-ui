@@ -6,6 +6,10 @@ const alertVariants = cva(
   "group/alert relative grid w-full gap-0.5 rounded-lg border px-2.5 py-2 text-start text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pe-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
   {
     variants: {
+      actionLayout: {
+        default: "",
+        flow: "has-data-[slot=alert-action]:pe-2.5 *:data-[slot=alert-action]:static *:data-[slot=alert-action]:col-span-full *:data-[slot=alert-action]:mt-2",
+      },
       countdown: {
         true: "isolate overflow-hidden",
         false: "",
@@ -34,6 +38,7 @@ function Alert({
   className,
   variant,
   countdown,
+  actionLayout,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
   return (
@@ -41,7 +46,7 @@ function Alert({
       data-slot="alert"
       role="alert"
       data-countdown={countdown || undefined}
-      className={cn(alertVariants({ variant, countdown }), className)}
+      className={cn(alertVariants({ variant, countdown, actionLayout }), className)}
       {...props}
     />
   )

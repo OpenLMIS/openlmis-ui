@@ -132,16 +132,15 @@ export function ViewRequisition({
   const batch = !online && !copy?.single && !!copy?.batch;
   disabled ||= !online && !copy?.single && !copy?.batch;
   const label = t(batch ? 'requisitions.batch.title' : 'requisitions.view.action');
-  const name = batch
-    ? label
-    : t('requisitions.view.action-name', {
-        program: record.program?.name ?? '',
-        period: includeFacility
-          ? [record.processingPeriod?.name, record.facility?.code, record.facility?.name]
-              .filter(Boolean)
-              .join(' - ')
-          : (record.processingPeriod?.name ?? ''),
-      });
+  const name = t('requisitions.view.action-name', {
+    program: record.program?.name ?? '',
+    period:
+      includeFacility || batch
+        ? [record.processingPeriod?.name, record.facility?.code, record.facility?.name]
+            .filter(Boolean)
+            .join(' - ')
+        : (record.processingPeriod?.name ?? ''),
+  });
   const link = batch ? (
     <Link
       aria-label={name}

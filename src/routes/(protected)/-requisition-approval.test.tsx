@@ -176,3 +176,13 @@ it('explains an empty device list without clearing its required program', async 
   expect(fetchApprovalList).not.toHaveBeenCalled();
   queryClient.clear();
 });
+
+it('hides View Selected Requisitions when the approval list is empty', async () => {
+  vi.mocked(useFlag).mockReturnValue(true);
+  const { queryClient } = renderRoute('/requisitions/approve');
+  await screen.findByText('requisitions.approve.empty');
+  expect(
+    screen.queryByRole('button', { name: 'requisitions.approve.view-selected' }),
+  ).not.toBeInTheDocument();
+  queryClient.clear();
+});

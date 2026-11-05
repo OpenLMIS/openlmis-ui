@@ -1,7 +1,7 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps, useNavigate } from '@tanstack/react-router';
 import { ClipboardCheckIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -62,7 +62,6 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   loader: async ({ context: { queryClient }, deps: { search } }) => {
     await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
-    await prepareRequisitionAccess(queryClient);
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
     queryClient.prefetchQuery(approvalListOptions(search));
@@ -139,6 +138,7 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
   const view = useCardView(APPROVAL_HIDEABLE_COLUMNS, 'requisitions.approve.column-visibility');
   const batch = useFlag('BATCH_APPROVE_SCREEN');
   const online = useOnline();
+  const [hasRows, setHasRows] = useState(false);
   const scope = approvalScope(search, online);
   const [picked, setPicked] = useFilterScoped(scope, NOTHING_PICKED);
   const [error, setError] = useFilterScoped<'none' | 'mixed' | null>(scope, null);
@@ -231,10 +231,11 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
                 batch={batch}
                 picked={picked}
                 onSelection={setPicked}
+                onHasRows={setHasRows}
               />
             </QueryBoundary>
           )}
-          {batch && (
+          {batch && hasRows && (
             <>
               {!picked.size && (
                 <div>

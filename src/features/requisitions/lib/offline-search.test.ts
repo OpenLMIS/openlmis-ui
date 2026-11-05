@@ -67,3 +67,8 @@ it('sorts whole-second and fractional timestamps by time rather than their text'
   );
   expect(rows.map((row) => row.id)).toEqual(['whole', 'fraction']);
 });
+
+it('returns an empty page without reading saved access until an approval program is chosen', async () => {
+  const { localApprovals } = await import('./offline-search');
+  expect(await localApprovals({})).toMatchObject({ content: [], totalElements: 0 });
+});

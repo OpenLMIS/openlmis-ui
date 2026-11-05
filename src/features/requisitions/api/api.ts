@@ -207,8 +207,8 @@ export async function fetchBatchRequisitions(ids: readonly string[]) {
   return orderBatch(data, ids);
 }
 export const saveBatchRequisitions = (body: ReturnType<typeof batchSaveBody>) =>
-  batchRequest(() => client.put('/requisitions', body, { params: { saveAll: '' } }));
+  batchRequest(() => client.put('/requisitions', body, { params: { saveAll: '' }, timeout: 0 }));
 export const approveBatchRequisitions = (ids: readonly string[]) =>
   batchRequest(() =>
-    client.post('/requisitions', {}, { params: { approveAll: '', id: ids.join(',') } }),
+    client.post('/requisitions', {}, { params: { approveAll: '', id: ids.join(',') }, timeout: 0 }),
   );

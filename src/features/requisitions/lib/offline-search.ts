@@ -7,7 +7,6 @@ import {
 } from '@/features/requisitions/lib/offline-access';
 import { type RequisitionCopy, readCopies } from '@/features/requisitions/lib/offline-copies';
 import type { RequisitionsQuery } from '@/features/requisitions/lib/types';
-import { LocalDataUnavailableError } from '@/lib/local-data';
 import type { Page } from '@/lib/types';
 
 const timestamp = (value?: string | null) =>
@@ -57,7 +56,7 @@ export async function localRequisitions(search: RequisitionsQuery, timeZone: str
   );
 }
 export async function localApprovals(search: ApprovalSearch) {
-  if (!search.program) throw new LocalDataUnavailableError();
+  if (!search.program) return localPage([], (search.page ?? 1) - 1, search.size ?? 20);
   const access = await readRequisitionAccess();
   const direction = search.dir === 'asc' ? 1 : -1;
   const copies = (await readCopies()).filter(

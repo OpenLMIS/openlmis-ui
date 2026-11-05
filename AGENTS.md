@@ -288,6 +288,7 @@ edits, which have no prop for TypeScript to detect:
 | `button.tsx` | Keep warning tint on hover with `tone="sidebar"` |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
 | `button.tsx` | Preserve `align="between"` for labels with end-aligned values |
+| `alert.tsx` | Preserve `actionLayout="flow"` for wrapping actions below long alert text |
 | `badge.tsx` | Preserve `wrap="normal"` for wrapping badge labels |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |

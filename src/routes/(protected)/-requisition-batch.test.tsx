@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -169,6 +169,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  onlineManager.setOnline(true);
   vi.restoreAllMocks();
 });
 it('checks approve rights before loading any batch', async () => {
@@ -255,7 +256,7 @@ it('orders columns by ids and names refused and missing records above the grid',
   });
   renderRoute(`${records[0].id},${records[1].id},refused,missing`);
   await screen.findByText('Permission refused');
-  await screen.findByText('missing');
+  await screen.findByText('requisitions.requisition missing');
   const headers = await screen.findAllByRole('columnheader');
   const groupLabels = headers.filter((h) => h.textContent?.includes('requisitions.batch.group'));
   expect(groupLabels).toHaveLength(2);
@@ -484,6 +485,30 @@ it('unlocks Approve only after confirming Approve Anyway for an opening marker',
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.confirm' }));
   await waitFor(() => expect(approve).toBeEnabled());
   expect(approveBatchRequisitions).not.toHaveBeenCalled();
+});
+
+it('keeps Approve Anyway disabled offline for an opening marker', async () => {
+  await getLocalDb()
+    .table('requisitionBatchDrafts')
+    .put({
+      draftId: records[0].id,
+      userId: useLoginData.getState().referenceDataUserId,
+      formatVersion: 1,
+      revision: 1,
+      baselineModifiedDate: records[0].modifiedDate,
+      baselineStatus: records[0].status,
+      approvedQuantities: {},
+      unresolvedApproval: { attemptedAt: 'now' },
+    });
+  renderRoute();
+  await screen.findByText('requisitions.batch.uncertain');
+  act(() => onlineManager.setOnline(false));
+  expect(screen.getByRole('button', { name: 'requisitions.batch.anyway' })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.anyway' }));
+  expect(screen.queryByText('requisitions.batch.anyway-confirm')).not.toBeInTheDocument();
 });
 
 it('shows missing product placeholders, invalid markers and save failure reasons on phone cards', async () => {

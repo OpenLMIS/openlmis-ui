@@ -49,6 +49,7 @@ import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { isDeviceAccess } from '@/lib/offline-access';
 import { useOnline } from '@/lib/online';
+import { isSecureOrigin } from '@/lib/secure-context';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const helper = createColumnHelper<DataTableFeatures, ApprovalListRow>();
@@ -57,7 +58,7 @@ const COLUMNS = [
   ['submittedDate', 'requisitions.approve.date-submitted'],
   ['authorizedDate', 'requisitions.approve.date-authorized'],
   EMERGENCY_COLUMN,
-  ['offline', 'requisitions.offline.label'],
+  ...(isSecureOrigin ? [['offline', 'requisitions.offline.label'] as const] : []),
 ] as const;
 export const APPROVAL_HIDEABLE_COLUMNS = hideableColumns(COLUMNS);
 const CARD_COLUMNS = cardColumns(COLUMNS);
@@ -70,6 +71,7 @@ type Props = {
   search: ApprovalSearch;
   batch?: boolean;
   picked?: ApprovalSelection;
+  onHasRows?: (value: boolean) => void;
   onSelection?: (next: ApprovalSelection, scope: string) => void;
   columns: ColumnVisibilityState;
   onSearchChange: SearchChange<ApprovalSearch>;
@@ -211,12 +213,14 @@ export function ApprovalTable({
   batch,
   picked,
   onSelection,
+  onHasRows,
 }: Props) {
   const { t } = useTranslation();
   const copies = useOfflineCopies();
   const deferred = useDeferredValue(search);
   const online = useOnline();
   const { data: page } = useSuspenseQuery(approvalListOptions(deferred, online));
+  useEffect(() => onHasRows?.(page.content.length > 0), [page, onHasRows]);
   const stale = deferred !== search;
   const { table, pageStart } = useResultsTable({
     cards,
@@ -235,39 +239,47 @@ export function ApprovalTable({
     if (pastEnd) onSearchChange({ page: page.totalPages > 1 ? page.totalPages : undefined }, true);
   }, [pastEnd, page.totalPages, onSearchChange]);
   const local = !online || !!deferred.offline || isDeviceAccess(page);
-  const empty = local ? (
-    <DataTableEmpty
-      description={t(
-        copies?.length
-          ? 'requisitions.view.no-matches-description'
-          : 'requisitions.offline.empty-description',
-      )}
-      icon={copies?.length ? <SearchXIcon /> : <ClipboardListIcon />}
-      title={t(
-        copies?.length ? 'requisitions.view.no-matches-title' : 'requisitions.offline.empty-title',
-      )}
-    />
-  ) : deferred.program ? (
-    <DataTableEmpty
-      action={
-        <Button
-          variant="destructive"
-          onClick={() => onSearchChange({ program: undefined, page: undefined })}
-        >
-          {t('data-table.clear-filters')}
-        </Button>
-      }
-      description={t('requisitions.view.no-matches-description')}
-      icon={<SearchXIcon />}
-      title={t('requisitions.view.no-matches-title')}
-    />
-  ) : (
-    <DataTableEmpty
-      description={t('requisitions.approve.empty-description')}
-      icon={<ClipboardListIcon />}
-      title={t('requisitions.approve.empty')}
-    />
-  );
+  const empty =
+    local && !deferred.program ? (
+      <DataTableEmpty
+        title={t('requisitions.filters.program')}
+        description={t('requisitions.offline.choose-program')}
+      />
+    ) : local ? (
+      <DataTableEmpty
+        description={t(
+          copies?.length
+            ? 'requisitions.view.no-matches-description'
+            : 'requisitions.offline.empty-description',
+        )}
+        icon={copies?.length ? <SearchXIcon /> : <ClipboardListIcon />}
+        title={t(
+          copies?.length
+            ? 'requisitions.view.no-matches-title'
+            : 'requisitions.offline.empty-title',
+        )}
+      />
+    ) : deferred.program ? (
+      <DataTableEmpty
+        action={
+          <Button
+            variant="destructive"
+            onClick={() => onSearchChange({ program: undefined, page: undefined })}
+          >
+            {t('data-table.clear-filters')}
+          </Button>
+        }
+        description={t('requisitions.view.no-matches-description')}
+        icon={<SearchXIcon />}
+        title={t('requisitions.view.no-matches-title')}
+      />
+    ) : (
+      <DataTableEmpty
+        description={t('requisitions.approve.empty-description')}
+        icon={<ClipboardListIcon />}
+        title={t('requisitions.approve.empty')}
+      />
+    );
   const footer = !pastEnd && page.totalElements > 0 && <DataTablePagination table={table} />;
   return (
     <RequisitionCopiesContext value={copies}>

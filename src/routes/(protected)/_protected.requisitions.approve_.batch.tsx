@@ -13,6 +13,7 @@ import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { DraftStatus, DraftStatusSkeleton } from '@/components/display/draft-status';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -49,7 +50,11 @@ import { BatchContext } from '@/features/requisitions/components/batch-context';
 import { BatchGrid, type BatchGridHandle } from '@/features/requisitions/components/batch-grid';
 import { batchFieldId } from '@/features/requisitions/components/batch-quantity';
 import { RemovedCopyDialog } from '@/features/requisitions/components/removed-copy-dialog';
-import { RequisitionCopyNotice } from '@/features/requisitions/components/requisition-copy-notice';
+import {
+  RequisitionCopyBadge,
+  RequisitionCopyContext,
+  RequisitionCopyNotice,
+} from '@/features/requisitions/components/requisition-copy-notice';
 import { RequisitionOutdatedAlert } from '@/features/requisitions/components/requisition-outdated-alert';
 import { type BatchDrafts, useBatchDrafts } from '@/features/requisitions/hooks/use-batch-drafts';
 import {
@@ -161,7 +166,9 @@ function BatchHeader() {
           <ClipboardCheckIcon />
         </WorkspaceIcon>
         <WorkspaceTitle>{t('requisitions.batch.title')}</WorkspaceTitle>
-        <WorkspaceDescription>{t('requisitions.batch.description')}</WorkspaceDescription>
+        <WorkspaceDescription>
+          {t('requisitions.batch.description')} <RequisitionCopyBadge />
+        </WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
   );
@@ -311,7 +318,7 @@ function BatchPage() {
       ? batchLabel(record)
       : (response.requisitionErrors?.find((error) => error.requisitionId === id)?.label ??
           locationState.requisitionBatchLabels?.[id] ??
-          id);
+          `${t('requisitions.requisition')} ${id.slice(0, 8)}`);
   };
   const report = (failures: Map<string, string>) => {
     setReasons(new Map([...failures].map(([id, message]) => [id, batchReason(message)])));
@@ -438,7 +445,12 @@ function BatchPage() {
           if (kept.length) await replaceIds(kept);
           else await returnToList();
           assertSessionScope(scope);
-        } else setResponse(orderBatch(fresh, ids));
+        } else {
+          setResponse(orderBatch(fresh, ids));
+          toast.warning(t('requisitions.batch.status-uncertain'), {
+            description: t('requisitions.batch.uncertain'),
+          });
+        }
         return;
       }
       if (needsRefresh.current.length) {
@@ -636,7 +648,10 @@ function BatchPage() {
       }
       assertSessionScope(scope);
     },
-    onError: (error) => setDialog(errorMessage(error)),
+    onError: (error) =>
+      setDialog(
+        ids.reduce((message, id) => message.replaceAll(id, recordLabel(id)), errorMessage(error)),
+      ),
     onSettled: () => {
       busy.current = false;
       setAction(null);
@@ -701,7 +716,16 @@ function BatchPage() {
     } else setAction('approve');
   };
   return (
-    <>
+    <RequisitionCopyContext
+      value={{
+        representation: 'batch',
+        expected: records.some(batchApprovable),
+        local: loaded.fetchedAt !== undefined,
+        id: ids[0],
+        result: loaded.copyResult,
+        failure: copyFailure,
+      }}
+    >
       <Workspace width="wide">
         <BatchHeader />
         <WorkspaceContent>
@@ -715,7 +739,12 @@ function BatchPage() {
                 result={loaded.copyResult}
                 failure={copyFailure}
               />
-              <BatchDraftStatus drafts={drafts} />
+              <div className="flex flex-wrap items-center gap-2">
+                <BatchDraftStatus drafts={drafts} />
+                <span className="@xl/main:hidden">
+                  <RequisitionCopyBadge />
+                </span>
+              </div>
               {[...refused].map(([id, reason]) => (
                 <Alert key={id} variant="warning">
                   <AlertTitle>{recordLabel(id)}</AlertTitle>
@@ -744,28 +773,36 @@ function BatchPage() {
                 </RequisitionOutdatedAlert>
               ))}
               {unresolved.map((r) => (
-                <Alert key={r.id} variant="warning">
+                <Alert key={r.id} variant="warning" actionLayout="flow">
                   <AlertTitle>{batchLabel(r)}</AlertTitle>
                   <AlertDescription>{t('requisitions.batch.uncertain')}</AlertDescription>
                   <AlertAction>
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="warning"
-                        disabled={pending || !online}
-                        onClick={() => run('check')}
-                      >
-                        {t('requisitions.batch.check')}
-                      </Button>
-                      <Button
-                        variant="warning"
-                        disabled={pending}
-                        onClick={() => {
-                          setTarget([r.id]);
-                          setAction('anyway');
-                        }}
-                      >
-                        {t('requisitions.batch.anyway')}
-                      </Button>
+                      <ActionTooltip reason={!online ? t('offline.action-description') : undefined}>
+                        <Button
+                          variant="warning"
+                          disabled={pending || !online}
+                          focusableWhenDisabled={!online}
+                          aria-description={!online ? t('offline.action-description') : undefined}
+                          onClick={() => run('check')}
+                        >
+                          {t('requisitions.batch.check')}
+                        </Button>
+                      </ActionTooltip>
+                      <ActionTooltip reason={!online ? t('offline.action-description') : undefined}>
+                        <Button
+                          variant="warning"
+                          disabled={pending || !online}
+                          focusableWhenDisabled={!online}
+                          aria-description={!online ? t('offline.action-description') : undefined}
+                          onClick={() => {
+                            setTarget([r.id]);
+                            setAction('anyway');
+                          }}
+                        >
+                          {t('requisitions.batch.anyway')}
+                        </Button>
+                      </ActionTooltip>
                       <Button
                         variant="outline"
                         disabled={pending}
@@ -872,7 +909,9 @@ function BatchPage() {
       />
       <InvalidSubmitDialog
         open={!!dialog}
-        title={t('requisitions.batch.errors', { count: reasons.size || 1 })}
+        title={t('requisitions.batch.errors', {
+          count: dialog instanceof Map ? dialog.size : (dialog?.split('\n').length ?? 1),
+        })}
         description={
           <span className="whitespace-pre-line">
             {dialog instanceof Map
@@ -883,7 +922,9 @@ function BatchPage() {
                     return t('requisitions.batch.failure-line', {
                       requisition: recordLabel(id),
                       reason: batchReasonText(
-                        batchReason(reason || 'requisitions.batch.missing'),
+                        batchReason(
+                          (reason || 'requisitions.batch.missing').replaceAll(id, recordLabel(id)),
+                        ),
                         t,
                       ),
                     });
@@ -899,9 +940,13 @@ function BatchPage() {
       />
       <DiscardChangesDialog
         {...guard.dialog}
-        description={t('requisitions.edit.discard-description')}
+        description={t(
+          isSecureOrigin
+            ? 'requisitions.edit.discard-description'
+            : 'orders.edit.discard-description',
+        )}
       />
-    </>
+    </RequisitionCopyContext>
   );
 }
 function errorMessage(error: unknown) {
