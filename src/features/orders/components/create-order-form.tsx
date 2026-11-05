@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef, useTable } from '@tanstack/react-table';
 import { Trash2Icon } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
@@ -22,10 +22,12 @@ import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { OrderSelect } from '@/features/orders/components/order-select';
 import { useRemovalFocus } from '@/features/orders/hooks/use-removal-focus';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
-import type { MinimalFacility } from '@/features/reference-data/lib/types';
+import type { MinimalFacility, Program } from '@/features/reference-data/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { settleFew } from '@/lib/settle-few';
+
+const EMPTY_PROGRAMS: Program[] = [];
 
 export function CreateOrderForm({
   userId,
@@ -43,12 +45,26 @@ export function CreateOrderForm({
   onCreated: (ids: string[]) => void;
 }) {
   const { t } = useTranslation();
-  const { data: programs } = useSuspenseQuery(userProgramsOptions(userId));
+  const { data: programs = EMPTY_PROGRAMS, isPending: programsPending } = useQuery({
+    ...userProgramsOptions(userId),
+    throwOnError: true,
+  });
+  const programOptions = useMemo(
+    () => programs.map((p) => ({ id: p.id, name: p.name ?? p.code })),
+    [programs],
+  );
   const [pickedProgram, setProgram] = useState('');
   const programId = pickedProgram || (programs.length === 1 ? programs[0].id : '');
   const picker = useRef<HTMLDivElement>(null);
   const [ids, setIds] = useState<string[]>([]);
-  const selectedFacilities = facilities.filter((facility) => ids.includes(facility.id));
+  const selectedFacilities = useMemo(
+    () => facilities.filter((facility) => ids.includes(facility.id)),
+    [facilities, ids],
+  );
+  const requestingOptions = useMemo(
+    () => requesting.filter((facility) => !ids.includes(facility.id)),
+    [requesting, ids],
+  );
   const focus = useRemovalFocus(
     selectedFacilities.map((facility) => facility.id),
     () => picker.current?.querySelector<HTMLElement>('[role=combobox]') ?? null,
@@ -177,9 +193,9 @@ export function CreateOrderForm({
             required
             label={t('orders.create.program')}
             placeholder={t('orders.create.select-program')}
-            options={programs.map((p) => ({ id: p.id, name: p.name ?? p.code }))}
+            options={programOptions}
             value={programId}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || programsPending}
             onChange={(id) => {
               setProgram(id);
               setSupplier('');
@@ -193,7 +209,7 @@ export function CreateOrderForm({
           required
           label={t('orders.create.requesting-facility')}
           placeholder={t('orders.create.select-requesting-facility')}
-          options={requesting.filter((f) => !ids.includes(f.id))}
+          options={requestingOptions}
           value=""
           disabled={mutation.isPending || facilitiesPending}
           onChange={(id) => {

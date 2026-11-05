@@ -758,3 +758,120 @@ The enabled probe includes the harness's existing 250 ms pause after the First V
 Validation: only touched test files, including conflict choice, lost PUT response, retry ETag,
 forbidden Close, persisted bases, warm focus, header selection and add-on-pick. Typecheck, Biome
 and all design-system rules pass. Production build passes. No push or server data mutation.
+
+## S1-S3 Measurement Follow-Up (2026-11-05)
+
+This r6 pass supersedes the r4 timing verdicts above. The production build lives in
+`.screenshots/FM-39-r6/dist`, with `BATCH_APPROVE_SCREEN` enabled in its runtime config.
+The r4 harness was copied to r6 and run on port 5367. Browser interception stubs every API
+mutation except OAuth and read-only POST searches. The preview independently refuses writes.
+The harness removes the `unfinished` parameter before forwarding period reads.
+
+Three fresh settled runs before implementation:
+
+| Item | New runs (ms) | Legacy runs (ms) | New median | Legacy median | Decision |
+|---|---|---|---:|---:|---|
+| S1 Convert list | 716, 720, 832 | 895, 696, 703 | 720 | 703 | Small loss is in request time; retain current code |
+| S2 Create Orders options | 187, 209, 195 | 140, 142, 149 | 195 | 142 | Change cached option rendering |
+| S3 Approve list sort | 2498, 2290, 2279 | 2566, 2479, 2444 | 2290 | 2479 | Faster in all three runs; retain current code |
+
+Waterfall findings:
+
+- S1 sends the same `requisitionsForConvert?page=0&size=10` request as legacy. New requests start
+  at 62-79 ms and take 619-703 ms, versus legacy starts at 50-63 ms and takes 490-531 ms.
+  New rows appear 25-50 ms after the response, versus legacy's 152-301 ms. The new browser's
+  recorded queue/stall time is 38-41 ms versus 3-5 ms. The local preview proxies to the live
+  test server, whereas legacy calls it directly. These samples do not isolate how much of
+  the request-time difference belongs to the proxy or server variability. No speculative
+  application change is justified by this waterfall.
+- S2 has no API calls in any measured step, but has a 51-55 ms long task. A separate CPU
+  sample confirms route/form mounting and garbage collection, without a network wait.
+  Use an ordinary program query with a disabled loading picker, retaining the form while
+  programs load. Memoize program options, selected/requesting facilities and the route's
+  rights-filtered facility list across layout renders. Keep query errors in the page boundary.
+- S3 sends page 0, size 10, the same program, `emergency,desc` and `authorizedDate,asc`.
+  Legacy additionally sends explicit `offline=false`. New requests begin 8-15 ms after the
+  click, versus 2-3 ms in legacy, and take 2246-2442 ms. New rendering adds 17-41 ms after
+  the response, versus legacy's 243-247 ms. There is no new serialized lookup or long task.
+
+The new focused test holds program loading pending, adds a facility, then resolves programs
+and checks that the facility picker remains mounted and order creation becomes available.
+
+Final complete pass: one new/legacy sample for every navigation and Approve checkpoint in all
+three phases. The early column times each non-typing checkpoint from the captured Sign In
+click, including the intervening harness interactions and pauses. Settled and warm columns
+use each step's own click. Typing stays per key: median and maximum are both shown, and values
+below 50 ms/key count as equal. All values are milliseconds, written New / Legacy.
+`n/m` means the r4 harness records that metric only for the new UI, not a failed step.
+
+| Area | Step | Early: New / Legacy | Settled: New / Legacy | Warm: New / Legacy |
+|---|---|---:|---:|---:|
+| Navigation | Sign In (view) | 736 / 11103 | 1045 / 10542 | - |
+| Navigation | view-nav | 1280 / 11741 | 134 / 133 **SLOWER** | 49 / 125 |
+| Navigation | view-option | 1630 / n/m | 419 / n/m | 397 / n/m |
+| Navigation | view-search | 3004 / 13197 | 720 / 915 | 55 / 1446 |
+| Navigation | view-open | 5300 / 64965 | 686 / 6508 | 1639 / 5185 |
+| Navigation | Sign In (initiate) | 1085 / 10904 | 1110 / 10558 | - |
+| Navigation | init-nav | 1619 / 12048 | 134 / 346 | 38 / 652 |
+| Navigation | init-search | 3051 / 13322 | 338 / 399 | 34 / 928 |
+| Navigation | Sign In (approve) | 1026 / 12986 | 770 / 10370 | - |
+| Navigation | approve-nav | 5344 / 15935 | 2399 / 2604 | 54 / 3198 |
+| Navigation | approve-batch | 6832 / 17285 | 741 / 1813 | 61 / 520 |
+| Navigation | approve-enabled | 7088 / 17544 | 1003 / 2030 | 316 / 777 |
+| Navigation | Sign In (convert) | 1060 / 13964 | 1061 / 10325 | - |
+| Navigation | convert-nav | 8415 / 15359 | 640 / 765 | 77 / 725 |
+| Navigation | Sign In (orders) | 1045 / 10827 | 1005 / 10894 | - |
+| Navigation | orders-nav | 1580 / 11260 | 191 / 138 **SLOWER** | 92 / 161 |
+| Approve | Sign In | 1067 / 12938 | 1531 / 10549 | - |
+| Approve | list | 6516 / 16586 | 2533 / 2469 **SLOWER** | 50 / 2631 |
+| Approve | filter | 10830 / 19682 | 2392 / 2439 | 229 / 2585 |
+| Approve | sort | 14556 / 22546 | 2589 / 2515 **SLOWER** | 54 / 2427 |
+| Approve | open | 16797 / 57363 | 675 / 6228 | 1022 / 4565 |
+| Approve | open (approve-enabled) | 16799 / 57366 | 689 / 6234 | 1027 / 4566 |
+| Approve | type-10 | 20 / 5 | 17 / 4 | 26 / 3 |
+| Approve | type-10 (max/key) | 29 / 20 | 28 / 15 | 29 / 12 |
+| Approve | type-25 | 18 / 14 | 20 / 12 | 24 / 12 |
+| Approve | type-25 (max/key) | 33 / 67 | 29 / 102 | 25 / 42 |
+| Approve | sync | 25019 / 74705 | 1335 / 6669 | 1312 / 6326 |
+| Approve | reject-dialog | 26380 / 76076 | 23 / 55 | 13 / 55 |
+| Approve | approve-dialog | 27839 / 77495 | 37 / 39 | 31 / 45 |
+| Approve | approve | 30295 / 82563 | 2118 / 4577 | 2105 / 4584 |
+| Approve | batch-open | 34254 / 85041 | 463 / 588 | 458 / 543 |
+| Approve | batch-open (approve-enabled) | 34259 / 85043 | 465 / 590 | 461 / 547 |
+| Approve | batch-type | 19 / 14 | 22 / 12 | 17 / 9 |
+| Approve | batch-type (max/key) | 25 / 18 | 24 / 19 | 27 / 18 |
+| Approve | batch-sync | 39198 / 90184 | 1589 / 1847 | 1631 / 1811 |
+| Approve | batch-approve | 44735 / 97695 | 3719 / 6019 | 3711 / 5989 |
+
+Every final context and every typing-value check completed successfully. All new typing keys
+were below 50 ms. Four settled steps are strictly slower; no tolerance hides the 1 ms View
+navigation difference. Every comparable warm checkpoint is faster or equal.
+
+- Create Orders remains 191 vs 138 ms settled, with no HTTP work and a 58 ms long task.
+  Its warm options improve to 92 vs 161 ms. The non-suspending query and stable arrays do
+  not eliminate the remaining settled route/form mounting cost; S2 performance parity
+  remains outstanding.
+- Final Approve list loading is 2533 vs 2469 ms: the new request starts at 62 ms and takes
+  2455 ms, versus legacy 66 ms and 2154 ms. New rendering takes 16 ms versus legacy 249 ms.
+- Final sorting is 2589 vs 2515 ms: new request start/duration 12/2550 ms, legacy 3/2203 ms.
+  New rendering takes 27 ms versus legacy 309 ms. The earlier three-run sort comparison
+  was faster in every run. Retain the current implementation, and report this live-server
+  sample's loss without claiming S3 is faster in every environment.
+- Final Convert is 640 vs 765 ms settled and 77 vs 725 ms warm without application changes.
+
+Read endpoints are live. Write endpoints use the harness's equal delays in both UIs:
+1 second for a single save/approve, 1.5 seconds for saveAll and 2 seconds for approveAll.
+These approval timings measure client orchestration and subsequent reads, not live mutation
+latency. The early baseline and CPU sample each had one download that settled as Incomplete;
+all final navigation downloads settled as Ready. Only OAuth and read-only POST searches were forwarded as non-GET API requests. The independent preview guard returned 405 for a stock-event write probe.
+
+Evidence: `.screenshots/FM-39-r6/s1-s2-before.json`, `approve/s3-before.json`,
+`orders-profile.json`, `timing-final.json`, `approve/timing-final.json` and `full-report.json`.
+
+Validation: the touched Create Orders test file passes all seven tests, including the new
+pending-program regression. `pnpm tsc --noEmit`, `pnpm check`, `pnpm lint:ds` and the production
+build pass. Arabic smoke checks at 1440 and 390 px pass for program selection and facility
+add/remove, including retained picker focus and no phone overflow. Evidence includes
+`rtl-smoke.json` and `rtl-create-orders-1440.png` / `rtl-create-orders-390.png`.
+The shared preview's language click and snapshot timed out, so the RTL check used the same
+isolated Playwright harness as the timing pass. No full test suite and no push.

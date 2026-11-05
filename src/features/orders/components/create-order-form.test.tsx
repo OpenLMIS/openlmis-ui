@@ -7,6 +7,7 @@ import { createOrder } from '@/features/orders/api/api';
 import * as orderQueries from '@/features/orders/api/queries';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { CreateOrderForm } from '@/features/orders/components/create-order-form';
+import * as referenceQueries from '@/features/reference-data/api/queries';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
 
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
@@ -21,13 +22,14 @@ const facilities = ['Alpha', 'Beta', 'Supplier'].map((name, index) => ({
   code: name,
   active: true,
 }));
-function setup(readable = true, freshSuppliers = false) {
+function setup(readable = true, freshSuppliers = false, freshPrograms = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
-  client.setQueryData(userProgramsOptions('user').queryKey, [
-    { id: 'program', name: 'Program', code: 'P', active: true },
-  ]);
+  if (!freshPrograms)
+    client.setQueryData(userProgramsOptions('user').queryKey, [
+      { id: 'program', name: 'Program', code: 'P', active: true },
+    ]);
   if (!freshSuppliers)
     for (const ids of [['0'], ['1'], ['2'], ['0', '1'], ['0', '2'], ['1', '2'], ['0', '1', '2']])
       client.setQueryData(supplyingFacilitiesOptions('program', ids).queryKey, ['2']);
@@ -145,4 +147,34 @@ it('retains removal focus when fresh supplier queries settle after removing the 
   });
   expect(remove()[0]).toHaveFocus();
   spy.mockRestore();
+});
+
+it('keeps the facility picker mounted while programs load and enables the loaded program', async () => {
+  let finish!: (programs: { id: string; name: string; code: string; active: boolean }[]) => void;
+  const pending = new Promise<{ id: string; name: string; code: string; active: boolean }[]>(
+    (resolve) => {
+      finish = resolve;
+    },
+  );
+  const original = referenceQueries.userProgramsOptions;
+  vi.spyOn(referenceQueries, 'userProgramsOptions').mockImplementation((id) => ({
+    ...original(id),
+    queryFn: () => pending,
+  }));
+  const { user } = setup(true, false, true);
+  expect(screen.getByRole('combobox', { name: 'orders.create.program' })).toHaveAttribute(
+    'data-disabled',
+  );
+  await add(user, 'Alpha');
+  const picker = screen.getByRole('combobox', { name: 'orders.create.requesting-facility' });
+  await act(() => finish([{ id: 'program', name: 'Program', code: 'P', active: true }]));
+  expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toBe(picker);
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: 'orders.create.program' })).not.toHaveAttribute(
+      'data-disabled',
+    ),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeEnabled(),
+  );
 });

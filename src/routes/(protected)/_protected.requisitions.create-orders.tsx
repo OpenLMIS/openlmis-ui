@@ -1,6 +1,7 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps } from '@tanstack/react-router';
 import { useTable } from '@tanstack/react-table';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -122,12 +123,16 @@ function Content() {
   const navigate = Route.useNavigate();
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
   const { data: facilities = [], isPending } = useQuery(minimalFacilitiesOptions());
+  const requesting = useMemo(
+    () => requestingFacilities(permissions, facilities),
+    [permissions, facilities],
+  );
   return (
     <CreateOrderForm
       userId={userId}
       facilitiesPending={isPending}
       facilities={facilities}
-      requesting={requestingFacilities(permissions, facilities)}
+      requesting={requesting}
       canRead={(program, supplier, ids) => canReadOrders(permissions, program, supplier, ids)}
       onCreated={(ids) =>
         navigate({
