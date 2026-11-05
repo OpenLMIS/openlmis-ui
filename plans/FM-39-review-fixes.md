@@ -925,3 +925,49 @@ Arabic production smoke checks pass at 1440 and 390 px with fully intercepted fi
 readable product/column labels, a described dialog, one radio group per field, no phone
 horizontal overflow, and automatic resolution with GET's fresh ETag. Evidence:
 `rtl-merge.json`, `merge-1440-ar.png` and `merge-390-ar.png` in the same evidence directory.
+
+## Final Facility And List Revisions (F3-F5, 2026-11-05)
+
+- F3 final removes View's fifty-result limit and match-count status, including its key in all
+  five catalogs. A shared virtual list keeps visible options mounted, preserves keyboard
+  navigation and exposes item positions and total size to assistive technology. Selected
+  facilities reopen within the full list, marked and scrolled into view. Create Orders'
+  requesting and supplying pickers also lose their cap; Create/Authorize was already uncapped.
+- F4 retains online View and Approve results when the connection drops, matching legacy
+  `requisition-search.controller.js`. Show their online load time and stale-data notice;
+  disable View with Not Available Offline for rows without a copy. Search or changing the
+  applied criteria offline switches to saved-copy results. Session changes reset the source.
+- F5 keeps View visible on every row, with a separate trash Remove From This Device for copies.
+  Cards use CardActions. Keep dirty-copy confirmation, revision checks, owner/session guards,
+  batch-only navigation and cancellation focus restoration.
+
+### Production Picker Evidence
+
+An isolated Vite production build imports the real RequisitionSearchPicker and OrderSelect,
+with 1,006 facilities. Its static server on port 5293 rejects API calls and all writes. Local
+Chromium uses a fresh context per English/Arabic and 1440/390 px scenario, with no saved session.
+Ten openings and forty input events per scenario measure from the real pointer/input event
+through two animation frames. Every opening verifies the selected facility is marked, visible,
+and part of all 1,006 options. Typing filters by code, and keyboard movement retains a mounted
+active item. Evidence and the reproducible fixture are in `.screenshots/F3-F5/`.
+
+The final View run measured the following event-to-paint times, including two animation frames:
+
+| Language And Width | Open Median | Open Maximum | Typing Maximum |
+|---|---:|---:|---:|
+| en 1440 px | 48.6 ms | 112.8 ms | 32.3 ms |
+| en 390 px | 58.5 ms | 111.5 ms | 30.7 ms |
+| ar 1440 px | 58.4 ms | 126.2 ms | 35.5 ms |
+| ar 390 px | 33.6 ms | 86.2 ms | 31.0 ms |
+
+Every scenario mounted at most thirteen options. Openings were within or below the earlier
+legacy opening range of roughly 90-230 ms; every typing sample stayed below 50 ms. The shared
+preview's Arabic frame measurements timed out, so these final measurements use a separate local
+Chromium process. The selected item and its visibility passed in all four scenarios. No server
+data or shared preview was changed. Full application production build also passed.
+
+Create Orders' shared requesting/supplying picker also passed all four language/width scenarios
+with 1,006 facilities: 32.8-151.4 ms opening, 12.5-29.5 ms typing, and at most thirteen mounted
+options. Its selected facility was marked and visible on every opening. Focused verification
+passes 67 tests across the View/Approve routes, shared form fields and Create Orders. Final
+checks: `pnpm sort-messages`, `pnpm tsc --noEmit`, `pnpm check`, and `pnpm lint:ds`.

@@ -1,6 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { SearchIcon } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAppForm } from '@/components/form/form';
@@ -33,6 +33,15 @@ export function RequisitionSearchPicker({
     : !applied && options.length === 1
       ? options[0]?.id
       : '';
+  const items = useMemo(
+    () =>
+      options.map((facility) => ({
+        value: facility.id,
+        label: recordLabel(facility),
+        description: facility.code,
+      })),
+    [options],
+  );
   const form = useAppForm({
     defaultValues: { facility: start ?? '' },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
@@ -76,16 +85,9 @@ export function RequisitionSearchPicker({
             <field.ComboboxField
               clearLabel={t('facility-program.clear-facility')}
               emptyMessage={t('requisitions.view.no-facilities')}
-              resultStatus={(shown, count) =>
-                t('requisitions.view.facility-matches', { shown, count })
-              }
-              items={options.map((facility) => ({
-                value: facility.id,
-                label: recordLabel(facility),
-                description: facility.code,
-              }))}
+              items={items}
               label={t('facility-program.facility')}
-              limit={50}
+              virtualized
               placeholder={t('facility-program.facility-placeholder')}
               required
               size="lg"

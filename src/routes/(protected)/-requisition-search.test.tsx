@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -22,6 +22,8 @@ import {
   fetchUserRecord,
 } from '@/features/reference-data/api/api';
 import { searchRequisitions } from '@/features/requisitions/api/api';
+import { readCopies, removalDecision } from '@/features/requisitions/lib/offline-copies';
+import { localRequisitions } from '@/features/requisitions/lib/offline-search';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view';
 import { httpError } from '@/test-utils/http-error';
 
@@ -43,11 +45,22 @@ vi.mock('@/features/reference-data/api/api', () => ({
   fetchPrograms: vi.fn(async () => [{ id: 'p', name: 'Family Planning' }]),
   fetchMinimalFacilities: vi.fn(async () => [{ id: 'f', name: 'Comfort', code: 'HC01' }]),
 }));
+vi.mock('@/features/requisitions/lib/offline-access', async (original) => ({
+  ...(await original<typeof import('@/features/requisitions/lib/offline-access')>()),
+  prepareRequisitionAccess: vi.fn(async () => {}),
+}));
 vi.mock('@/features/requisitions/api/api', () => ({ searchRequisitions: vi.fn() }));
+
+vi.mock('@/features/requisitions/lib/offline-copies', async (original) => ({
+  ...(await original<typeof import('@/features/requisitions/lib/offline-copies')>()),
+  readCopies: vi.fn(async () => []),
+  removalDecision: vi.fn(),
+}));
+vi.mock('@/features/requisitions/lib/offline-search', () => ({ localRequisitions: vi.fn() }));
 
 function renderRoute(path: string) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    defaultOptions: { queries: { retry: false, staleTime: Infinity, networkMode: 'always' } },
   });
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
@@ -79,6 +92,7 @@ function renderRoute(path: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(readCopies).mockResolvedValue([]);
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     width: 1200,
   } as DOMRect);
@@ -365,10 +379,20 @@ it('applies the drafted facility together with its program chosen in Filters', a
   queryClient.clear();
 });
 
-it('explains the facility cap and can find facilities beyond the first fifty', async () => {
-  const facilities = Array.from({ length: 55 }, (_, index) => ({
+it('offers the whole facility list through virtualization and searches name or code', async () => {
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(248);
+  vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(1006 * 36);
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(36);
+  vi.spyOn(HTMLElement.prototype, 'scrollTo').mockImplementation(function (
+    this: HTMLElement,
+    options: number | ScrollToOptions,
+  ) {
+    if (typeof options === 'object') this.scrollTop = options.top ?? 0;
+    queueMicrotask(() => this.dispatchEvent(new Event('scroll')));
+  });
+  const facilities = Array.from({ length: 1006 }, (_, index) => ({
     id: `f${index}`,
-    name: `Clinic ${index}`,
+    name: `Clinic ${String(index).padStart(4, '0')}`,
     code: `C${index}`,
   }));
   vi.mocked(fetchMinimalFacilities).mockResolvedValueOnce(facilities as never);
@@ -378,8 +402,95 @@ it('explains the facility cap and can find facilities beyond the first fifty', a
   renderRoute('/requisitions/view');
   const input = await screen.findByRole('combobox', { name: /facility-program.facility/ });
   await userEvent.click(input);
-  expect(await screen.findByText('requisitions.view.facility-matches')).toBeVisible();
-  expect(screen.getAllByRole('option')).toHaveLength(50);
-  await userEvent.type(input, 'Clinic 54');
-  expect(await screen.findByRole('option', { name: /Clinic 54/ })).toBeInTheDocument();
+  expect(document.querySelector('[data-slot=combobox-status]')).toBeNull();
+  expect(screen.getAllByRole('option').length).toBeLessThan(30);
+  expect(screen.getAllByRole('option')[0]).toHaveAttribute('aria-setsize', '1006');
+  await act(() => {
+    const list = screen.getByRole('listbox');
+    list.scrollTop = 1006 * 36 - 248;
+    list.dispatchEvent(new Event('scroll'));
+  });
+  expect(await screen.findByRole('option', { name: /Clinic 1005/ })).toBeInTheDocument();
+  await userEvent.clear(input);
+  await userEvent.type(input, 'C987');
+  await userEvent.click(await screen.findByRole('option', { name: /Clinic 0987/ }));
+  await userEvent.click(input);
+  const selected = await screen.findByRole('option', { selected: true });
+  expect(selected).toHaveTextContent('Clinic 0987');
+  expect(selected).toHaveAttribute('aria-setsize', '1006');
+  expect(selected).toHaveAttribute('aria-posinset', '988');
+  expect(document.querySelector('[data-slot=combobox-status]')).toBeNull();
+});
+
+const onlineRows = ['Online Only', 'Saved Copy'].map((name, index) => ({
+  id: `r${index}`,
+  emergency: false,
+  status: 'AUTHORIZED' as const,
+  program: { id: 'p', name: 'Family Planning' },
+  facility: { id: 'f', name: 'Comfort' },
+  processingPeriod: { id: name, name },
+}));
+function savedCopy() {
+  return { id: 'r1', fetchedAt: 1700000000000, single: { record: onlineRows[1] } } as never;
+}
+
+it('keeps online results on disconnect until Search requests saved copies', async () => {
+  vi.mocked(readCopies).mockResolvedValue([savedCopy()]);
+  vi.mocked(searchRequisitions).mockResolvedValue({
+    content: onlineRows,
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  vi.mocked(localRequisitions).mockResolvedValue({
+    content: [onlineRows[1]],
+    number: 0,
+    size: 10,
+    totalElements: 1,
+    totalPages: 1,
+  });
+  const { queryClient } = renderRoute('/requisitions/view?facility=f');
+  await screen.findByText('Online Only');
+  await act(() => onlineManager.setOnline(false));
+  expect(screen.getByText('Online Only')).toBeVisible();
+  const actions = screen.getAllByRole('button', { name: 'requisitions.view.action-name' });
+  expect(actions[0]).toHaveAttribute('aria-disabled', 'true');
+  expect(actions[0]).toHaveAttribute('aria-description', 'offline.unavailable-title');
+  expect(actions[1]).not.toHaveAttribute('aria-disabled', 'true');
+  expect(localRequisitions).not.toHaveBeenCalled();
+  expect(await screen.findByText('requisitions.offline.online-results')).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'facility-program.search' }));
+  await waitFor(() => expect(localRequisitions).toHaveBeenCalled());
+  await waitFor(() => expect(screen.queryByText('Online Only')).not.toBeInTheDocument());
+  expect(screen.getByText('Saved Copy')).toBeVisible();
+  expect(localRequisitions).toHaveBeenCalled();
+  queryClient.clear();
+});
+
+it.each([1200, 390])('shows View and separate removal actions at width %i', async (width) => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width } as DOMRect);
+  vi.mocked(readCopies).mockResolvedValue([savedCopy()]);
+  vi.mocked(removalDecision).mockResolvedValue({ id: 'r1', dirty: true } as never);
+  vi.mocked(searchRequisitions).mockResolvedValue({
+    content: onlineRows,
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  const { queryClient } = renderRoute('/requisitions/view?facility=f');
+  await screen.findByText('Online Only');
+  const views = screen.getAllByRole('button', { name: 'requisitions.view.action-name' });
+  expect(views).toHaveLength(2);
+  const remove = await screen.findByRole('button', { name: 'requisitions.offline.remove' });
+  expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+  if (width === 390) expect(remove.closest('[data-card-actions]')).toContainElement(views[1]);
+  await userEvent.click(remove);
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'requisitions.offline.dirty-warning',
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.cancel' }));
+  await waitFor(() => expect(remove).toHaveFocus());
+  queryClient.clear();
 });

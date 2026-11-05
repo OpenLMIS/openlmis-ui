@@ -1,9 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ClipboardCheckIcon, EyeIcon, Trash2Icon } from 'lucide-react';
+import { Trash2Icon } from 'lucide-react';
 import { use, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RowActions } from '@/components/display/card-actions';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -25,7 +24,6 @@ import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { RequisitionSearch } from '@/features/requisitions/lib/search-facilities';
 import type { RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { useOnline } from '@/lib/online';
 
 type Decision = Awaited<ReturnType<typeof removalDecision>>;
 export function RequisitionRowActions({
@@ -38,7 +36,6 @@ export function RequisitionRowActions({
   disabled: boolean;
 }) {
   const { t } = useTranslation();
-  const online = useOnline();
   const client = useQueryClient();
   const copies = use(RequisitionCopiesContext);
   const copy = copies?.find((copy) => copy.id === record.id);
@@ -80,46 +77,14 @@ export function RequisitionRowActions({
       setOpen(true);
     },
   });
-  if (!copy && online)
-    return <ViewRequisition record={record} disabled={disabled} linkProps={{ search }} />;
   return (
     <>
-      <RowActions
-        label={t('card-actions.actions-for', {
-          name: [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
-        })}
-        actions={[
-          {
-            id: 'view',
-            icon: <EyeIcon />,
-            label: t('requisitions.view.action'),
-            disabled: disabled || (!online && !copy?.single),
-            link: (
-              <Link
-                to="/requisitions/view/$requisitionId"
-                params={{ requisitionId: record.id }}
-                search={search}
-              />
-            ),
-          },
-          ...(!online && copy?.batch
-            ? [
-                {
-                  id: 'batch',
-                  icon: <ClipboardCheckIcon />,
-                  label: t('requisitions.batch.title'),
-                  disabled,
-                  link: (
-                    <Link
-                      to="/requisitions/approve/batch"
-                      search={{ ids: record.id, program: record.program?.id }}
-                      state={returnState({ to: '/requisitions/view', search })}
-                    />
-                  ),
-                },
-              ]
-            : []),
-          ...(copy
+      <ViewRequisition
+        record={record}
+        disabled={disabled}
+        linkProps={{ search }}
+        actions={
+          copy
             ? [
                 {
                   id: 'remove',
@@ -127,14 +92,14 @@ export function RequisitionRowActions({
                   label: t('requisitions.offline.remove'),
                   destructive: true,
                   disabled: disabled || start.isPending,
-                  onSelect: (element: HTMLButtonElement) => {
+                  onSelect: (element) => {
                     trigger.current = element;
                     start.mutate();
                   },
                 },
               ]
-            : []),
-        ]}
+            : []
+        }
       />
       <AlertDialog
         open={open}

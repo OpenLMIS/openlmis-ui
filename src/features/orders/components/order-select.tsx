@@ -1,3 +1,4 @@
+import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox';
 import { Building2Icon, ChevronDownIcon } from 'lucide-react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,11 +11,12 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxVirtualList,
 } from '@/components/ui/combobox';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 
-type Option = { id: string; name: string };
+type Option = { id: string; name: string; code?: string };
 export function OrderSelect({
   label,
   placeholder,
@@ -36,6 +38,7 @@ export function OrderSelect({
 }) {
   const { t } = useTranslation();
   const id = useId();
+  const { contains } = ComboboxPrimitive.useFilter();
   const selected = options.find((item) => item.id === value) ?? null;
   return (
     <Field>
@@ -62,8 +65,10 @@ export function OrderSelect({
         </InputGroup>
       ) : (
         <Combobox
+          filter={(item, query) => contains(item.name, query) || contains(item.code ?? '', query)}
           items={options}
-          limit={50}
+          limit={-1}
+          virtualized={options.length > 50}
           value={selected}
           disabled={disabled}
           itemToStringLabel={(item) => item.name}
@@ -90,13 +95,23 @@ export function OrderSelect({
           </ComboboxInput>
           <ComboboxContent>
             <ComboboxEmpty>{t('orders.no-options')}</ComboboxEmpty>
-            <ComboboxList>
-              {(item: Option) => (
-                <ComboboxItem key={item.id} value={item}>
-                  {item.name}
-                </ComboboxItem>
-              )}
-            </ComboboxList>
+            {options.length > 50 ? (
+              <ComboboxVirtualList<Option> itemKey={(item) => item.id}>
+                {(item: Option) => (
+                  <span className="min-w-0 whitespace-normal break-words" dir="auto">
+                    {item.name}
+                  </span>
+                )}
+              </ComboboxVirtualList>
+            ) : (
+              <ComboboxList>
+                {(item: Option) => (
+                  <ComboboxItem key={item.id} value={item}>
+                    {item.name}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            )}
           </ComboboxContent>
         </Combobox>
       )}

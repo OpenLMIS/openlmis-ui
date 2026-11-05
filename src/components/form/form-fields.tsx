@@ -46,6 +46,7 @@ import {
   ComboboxList,
   ComboboxStatus,
   ComboboxValue,
+  ComboboxVirtualList,
   useComboboxAnchor,
 } from '@/components/ui/combobox';
 import { useDirection } from '@/components/ui/direction';
@@ -1255,6 +1256,7 @@ type ComboboxFieldProps = FieldProps &
     clearLabel: string;
     /** Most matches rendered at once, so a list of thousands stays quick to type into. */
     limit?: number;
+    virtualized?: boolean;
     resultStatus?: (shown: number, count: number) => ReactNode;
     size?: 'default' | 'lg';
   };
@@ -1274,9 +1276,11 @@ export function ComboboxField({
   invalid,
   describedBy,
   resultStatus,
+  virtualized = false,
   limit = 50,
   size = 'default',
 }: ComboboxFieldProps) {
+  const virtual = virtualized && items.length > 50;
   const field = useFieldContext<string | null>();
   const [search, setSearch] = useState('');
   const { contains } = ComboboxPrimitive.useFilter();
@@ -1303,8 +1307,15 @@ export function ComboboxField({
         isItemEqualToValue={(item, value) => item.value === value.value}
         itemToStringLabel={(item) => item.label}
         items={items}
-        limit={limit}
-        onInputValueChange={setSearch}
+        limit={virtualized ? -1 : limit}
+        virtualized={virtual}
+        filter={
+          virtualized
+            ? (item, query) =>
+                contains(item.label, query) || contains(item.description ?? '', query)
+            : undefined
+        }
+        onInputValueChange={resultStatus ? setSearch : undefined}
         onValueChange={(item, details) => {
           // Base UI clears the field on Escape once the list is closed; let Escape close the dialog instead.
           if (details.reason === 'escape-key' && !item) return details.allowPropagation();
@@ -1330,23 +1341,38 @@ export function ComboboxField({
           {resultStatus && (
             <ComboboxStatus>{resultStatus(Math.min(limit, matches), matches)}</ComboboxStatus>
           )}
-          <ComboboxList>
-            {(item: ComboboxFieldItem) => (
-              <ComboboxItem disabled={item.disabled} key={item.value} value={item}>
-                <span className="min-w-0 whitespace-normal break-words" dir="auto">
-                  {item.label}
-                </span>
-                {item.description && (
-                  <span className="ms-auto shrink-0 text-muted-foreground text-xs">
-                    {item.description}
-                  </span>
-                )}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
+          {virtual ? (
+            <ComboboxVirtualList<ComboboxFieldItem>
+              itemKey={(item) => item.value}
+              itemDisabled={(item) => item.disabled}
+            >
+              {(item) => <ComboboxOptionText item={item} />}
+            </ComboboxVirtualList>
+          ) : (
+            <ComboboxList>
+              {(item: ComboboxFieldItem) => (
+                <ComboboxItem disabled={item.disabled} key={item.value} value={item}>
+                  <ComboboxOptionText item={item} />
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          )}
         </ComboboxContent>
       </Combobox>
     </FieldFrame>
+  );
+}
+
+function ComboboxOptionText({ item }: { item: ComboboxFieldItem }) {
+  return (
+    <>
+      <span className="min-w-0 whitespace-normal break-words" dir="auto">
+        {item.label}
+      </span>
+      {item.description && (
+        <span className="ms-auto shrink-0 text-muted-foreground text-xs">{item.description}</span>
+      )}
+    </>
   );
 }
 

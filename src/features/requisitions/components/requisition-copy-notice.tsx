@@ -21,6 +21,7 @@ export function RequisitionCopyBadge() {
 
 export function RequisitionCopyNotice({
   id,
+  onlineResultsAt,
   ids,
   representation,
   result,
@@ -31,6 +32,7 @@ export function RequisitionCopyNotice({
   badge = false,
 }: {
   id?: string;
+  onlineResultsAt?: number;
   ids?: readonly string[];
   representation?: 'single' | 'batch';
   result?: Promise<unknown>;
@@ -67,6 +69,14 @@ export function RequisitionCopyNotice({
   );
   const saved = candidates?.toSorted((a, b) => a.fetchedAt - b.fetchedAt)[0];
   if (!expected) return null;
+  if (onlineResultsAt && !online)
+    return (
+      <SnapshotAlert
+        snapshot={{ fetchedAt: onlineResultsAt, generation: String(onlineResultsAt) }}
+        online={false}
+        message="requisitions.offline.online-results"
+      />
+    );
   if (!isSecureOrigin)
     return list ? (
       <p role="note" className="text-muted-foreground text-sm">

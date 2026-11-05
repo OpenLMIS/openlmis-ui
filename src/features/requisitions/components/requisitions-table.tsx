@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import { ClipboardListIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
@@ -26,6 +26,7 @@ import {
   requisitionListCell,
 } from '@/features/requisitions/components/requisition-list-parts';
 import { RequisitionRowActions } from '@/features/requisitions/components/requisition-row-actions';
+import { useListConnection } from '@/features/requisitions/hooks/use-list-connection';
 import {
   RequisitionCopiesContext,
   useOfflineCopies,
@@ -66,6 +67,7 @@ const rowId = (row: RequisitionSearchResult) => row.id;
 
 type Props = {
   cards: boolean;
+  refresh?: number;
   search: RequisitionSearch & { facility: string };
   columns: ColumnVisibilityState;
   onSearchChange: SearchChange<RequisitionSearch>;
@@ -166,15 +168,28 @@ function useResultsTable({
   return { table, pageStart };
 }
 
-export function RequisitionsTable({ cards, search, columns, onSearchChange }: Props) {
+export function RequisitionsTable({ cards, search, columns, onSearchChange, refresh }: Props) {
   const { t } = useTranslation();
   const copies = useOfflineCopies();
   const deferred = useDeferredValue(search);
   const online = useOnline();
   const timeZone = useDeploymentTimeZone();
-  const { data: page } = useSuspenseQuery(
-    requisitionSearchOptions(toRequisitionQuery(deferred), online, !!deferred.offline, timeZone),
+  const sourceOnline = useListConnection(deferred, refresh);
+  const client = useQueryClient();
+  const options = requisitionSearchOptions(
+    toRequisitionQuery(deferred),
+    sourceOnline,
+    !!deferred.offline,
+    timeZone,
   );
+  const retained = !online && sourceOnline && !deferred.offline;
+  const { data: page, dataUpdatedAt } = useSuspenseQuery({
+    ...options,
+    ...(retained && {
+      staleTime: Infinity,
+      queryFn: () => client.ensureQueryData(options),
+    }),
+  });
   const stale = deferred !== search;
   const { table, pageStart } = useResultsTable({
     cards,
@@ -189,6 +204,7 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange }: Pr
   useEffect(() => {
     if (pastEnd) onSearchChange({ page: page.totalPages > 1 ? page.totalPages : undefined }, true);
   }, [pastEnd, page.totalPages, onSearchChange]);
+  const local = !sourceOnline || !!deferred.offline || isDeviceAccess(page);
   const empty = hasRequisitionFilters({ ...deferred, offline: undefined }) ? (
     <DataTableEmpty
       action={
@@ -203,16 +219,10 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange }: Pr
   ) : (
     <DataTableEmpty
       description={t(
-        !online || search.offline
-          ? 'requisitions.offline.empty-description'
-          : 'requisitions.view.empty-description',
+        local ? 'requisitions.offline.empty-description' : 'requisitions.view.empty-description',
       )}
       icon={<ClipboardListIcon />}
-      title={t(
-        !online || search.offline
-          ? 'requisitions.offline.empty-title'
-          : 'requisitions.view.empty-title',
-      )}
+      title={t(local ? 'requisitions.offline.empty-title' : 'requisitions.view.empty-title')}
     />
   );
   const footer = !pastEnd && page.totalElements > 0 && <DataTablePagination table={table} />;
@@ -220,6 +230,7 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange }: Pr
     <RequisitionCopiesContext value={copies}>
       <RequisitionCopyNotice
         list
+        onlineResultsAt={retained && !isDeviceAccess(page) ? dataUpdatedAt : undefined}
         local={!!deferred.offline || isDeviceAccess(page)}
         ids={page.content.map((record) => record.id)}
       />

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { usePageGatedOpen } from "@/components/shared/page-visibility"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
@@ -15,19 +16,33 @@ import {
 } from "@/components/ui/input-group"
 import { ChevronDownIcon, ChevronUpIcon, XIcon, CheckIcon } from "lucide-react"
 
+const VirtualComboboxContext = React.createContext<{
+  selected: unknown
+  scrollTo: React.RefObject<((item: unknown) => void) | null>
+} | null>(null)
+
 function Combobox<Value, Multiple extends boolean | undefined = false, Item = Value>({
   open,
   defaultOpen,
   onOpenChange,
+  onItemHighlighted,
   ...props
 }: ComboboxPrimitive.Root.Props<Value, Multiple, Item>) {
   const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange })
+  const scrollTo = React.useRef<((item: unknown) => void) | null>(null)
+  const virtual = React.useMemo(() => ({ selected: props.value, scrollTo }), [props.value])
   return (
-    <ComboboxPrimitive.Root
-      {...props}
-      open={gated.open}
-      onOpenChange={gated.onOpenChange}
-    />
+    <VirtualComboboxContext value={virtual}>
+      <ComboboxPrimitive.Root
+        {...props}
+        onItemHighlighted={(item, details) => {
+          if (details.reason === "keyboard") scrollTo.current?.(item)
+          onItemHighlighted?.(item, details)
+        }}
+        open={gated.open}
+        onOpenChange={gated.onOpenChange}
+      />
+    </VirtualComboboxContext>
   )
 }
 
@@ -189,6 +204,68 @@ function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
   )
 }
 
+function ComboboxVirtualList<Item>({
+  children,
+  itemKey,
+  itemDisabled,
+}: {
+  children: (item: Item) => React.ReactNode
+  itemKey: (item: Item) => string
+  itemDisabled?: (item: Item) => boolean | undefined
+}) {
+  const items = ComboboxPrimitive.useFilteredItems<Item>()
+  const context = React.useContext(VirtualComboboxContext)
+  const viewport = React.useRef<HTMLDivElement>(null)
+  const selectedIndex = items.indexOf(context?.selected as Item)
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => viewport.current,
+    estimateSize: () => 36,
+    getItemKey: (index) => itemKey(items[index]),
+    overscan: 3,
+    initialRect: { width: 0, height: 248 },
+    initialOffset: Math.max(0, selectedIndex) * 36,
+  })
+  React.useLayoutEffect(() => {
+    virtualizer.scrollToIndex(Math.max(0, selectedIndex), { align: "auto" })
+  }, [items, selectedIndex, virtualizer])
+  React.useLayoutEffect(() => {
+    if (!context) return
+    context.scrollTo.current = (item) => {
+      const index = items.indexOf(item as Item)
+      if (index >= 0) virtualizer.scrollToIndex(index, { align: "auto" })
+    }
+    return () => {
+      context.scrollTo.current = null
+    }
+  }, [context, items, virtualizer])
+  return (
+    <ComboboxList ref={viewport}>
+      <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((row) => {
+          const item = items[row.index]
+          return (
+            <ComboboxItem
+              key={row.key}
+              value={item}
+              index={row.index}
+              disabled={itemDisabled?.(item)}
+              aria-posinset={row.index + 1}
+              aria-setsize={items.length}
+              data-index={row.index}
+              ref={virtualizer.measureElement}
+              className="absolute start-0 top-0 min-h-9"
+              style={{ transform: `translateY(${row.start}px)` }}
+            >
+              {children(item)}
+            </ComboboxItem>
+          )
+        })}
+      </div>
+    </ComboboxList>
+  )
+}
+
 function ComboboxItem({
   className,
   children,
@@ -344,6 +421,7 @@ export {
   ComboboxContent,
   ComboboxStatus,
   ComboboxList,
+  ComboboxVirtualList,
   ComboboxItem,
   ComboboxGroup,
   ComboboxLabel,

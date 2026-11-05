@@ -22,7 +22,12 @@ const facilities = ['Alpha', 'Beta', 'Supplier'].map((name, index) => ({
   code: name,
   active: true,
 }));
-function setup(readable = true, freshSuppliers = false, freshPrograms = false) {
+function setup(
+  readable = true,
+  freshSuppliers = false,
+  freshPrograms = false,
+  available = facilities,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -40,8 +45,8 @@ function setup(readable = true, freshSuppliers = false, freshPrograms = false) {
         <WorkspaceActionsSlot />
         <CreateOrderForm
           userId="user"
-          facilities={facilities}
-          requesting={facilities}
+          facilities={available}
+          requesting={available}
           canRead={() => readable}
           onCreated={onCreated}
         />
@@ -177,4 +182,26 @@ it('keeps the facility picker mounted while programs load and enables the loaded
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeEnabled(),
   );
+});
+
+it('offers every requesting facility through virtualization and can search its code', async () => {
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(248);
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(36);
+  const available = Array.from({ length: 1006 }, (_, index) => ({
+    id: String(index),
+    name: `Clinic ${index}`,
+    code: `C${index}`,
+    active: true,
+  }));
+  const { user, client } = setup(true, false, false, available);
+  client.setQueryData(supplyingFacilitiesOptions('program', ['1005']).queryKey, ['2']);
+  const input = screen.getByRole('combobox', { name: 'orders.create.requesting-facility' });
+  await user.click(input);
+  const listed = await screen.findAllByRole('option');
+  expect(listed.length).toBeLessThan(30);
+  expect(listed[0]).toHaveAttribute('aria-setsize', '1006');
+  await user.type(input, 'C1005');
+  await user.click(await screen.findByRole('option', { name: 'Clinic 1005' }));
+  expect(screen.getByText('Clinic 1005')).toBeVisible();
+  expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toHaveFocus();
 });

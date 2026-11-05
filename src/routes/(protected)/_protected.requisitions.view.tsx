@@ -336,6 +336,7 @@ function RequisitionsBody({
   const queryClient = useQueryClient();
   const { options, pending: choicesPending } = useSearchFacilities(userId);
   const facility = options.find(({ id }) => id === search.facility);
+  const [refresh, setRefresh] = useState(0);
   const [draft, setDraft] = useState<string | null>(null);
   const [draftProgram, setDraftProgram] = useState<string | undefined>(search.program);
   const [draftOver, setDraftOver] = useState(search.facility);
@@ -363,6 +364,7 @@ function RequisitionsBody({
   }, [programValid, pending, onSearchChange]);
   const onSearch = useCallback(
     (next: string) => {
+      setRefresh((value) => value + 1);
       if (next === search.facility)
         void queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all });
       onSearchChange((previous) => ({
@@ -454,6 +456,7 @@ function RequisitionsBody({
   } else {
     outcome = (
       <RequisitionsResults
+        refresh={refresh}
         columnView={columnView}
         facility={facility}
         search={validSearch}
@@ -499,6 +502,7 @@ function OutcomeMessage({
 }
 
 function RequisitionsResults({
+  refresh,
   columnView,
   facility,
   search,
@@ -506,6 +510,7 @@ function RequisitionsResults({
 }: {
   columnView: ColumnView;
   facility: SearchFacility;
+  refresh: number;
   search: RequisitionSearch;
   onSearchChange: SearchChange<RequisitionSearch>;
 }) {
@@ -531,6 +536,7 @@ function RequisitionsResults({
       resetKey={JSON.stringify(toRequisitionQuery(applied))}
     >
       <RequisitionsTable
+        refresh={refresh}
         cards={columnView.cards}
         columns={columnView.columnView.visibility}
         search={applied}

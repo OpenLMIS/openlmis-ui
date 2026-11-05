@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import {
   type ColumnVisibilityState,
   createColumnHelper,
@@ -32,6 +32,7 @@ import {
   requisitionRowLabel,
   ViewRequisition,
 } from '@/features/requisitions/components/requisition-list-parts';
+import { useListConnection } from '@/features/requisitions/hooks/use-list-connection';
 import {
   RequisitionCopiesContext,
   useOfflineCopies,
@@ -217,7 +218,17 @@ export function ApprovalTable({
   const copies = useOfflineCopies();
   const deferred = useDeferredValue(search);
   const online = useOnline();
-  const { data: page } = useSuspenseQuery(approvalListOptions(deferred, online));
+  const sourceOnline = useListConnection(deferred);
+  const client = useQueryClient();
+  const options = approvalListOptions(deferred, sourceOnline);
+  const retained = !online && sourceOnline && !deferred.offline;
+  const { data: page, dataUpdatedAt } = useSuspenseQuery({
+    ...options,
+    ...(retained && {
+      staleTime: Infinity,
+      queryFn: () => client.ensureQueryData(options),
+    }),
+  });
   const stale = deferred !== search;
   const { table, pageStart } = useResultsTable({
     cards,
@@ -235,7 +246,7 @@ export function ApprovalTable({
   useEffect(() => {
     if (pastEnd) onSearchChange({ page: page.totalPages > 1 ? page.totalPages : undefined }, true);
   }, [pastEnd, page.totalPages, onSearchChange]);
-  const local = !online || !!deferred.offline || isDeviceAccess(page);
+  const local = !sourceOnline || !!deferred.offline || isDeviceAccess(page);
   const empty =
     local && !deferred.program ? (
       <DataTableEmpty
@@ -282,6 +293,7 @@ export function ApprovalTable({
     <RequisitionCopiesContext value={copies}>
       <RequisitionCopyNotice
         list
+        onlineResultsAt={retained && !isDeviceAccess(page) ? dataUpdatedAt : undefined}
         local={!!deferred.offline || isDeviceAccess(page)}
         ids={page.content.map((record) => record.id)}
       />
