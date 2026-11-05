@@ -323,6 +323,7 @@ describe('CCE inventory page', () => {
       programId: EPI,
       page: 0,
       size: 10,
+      sort: ['referenceName,asc', 'id,asc'],
     });
     await waitFor(() =>
       expect(fetchInventoryAlerts).toHaveBeenCalledWith([FRIDGE, FREEZER, COLD_BOX]),
@@ -406,6 +407,7 @@ describe('CCE inventory page', () => {
         programId: EPI,
         page: 0,
         size: 10,
+        sort: ['referenceName,asc', 'id,asc'],
       }),
     );
     expect(router.state.location.search).not.toHaveProperty('functionalStatus');

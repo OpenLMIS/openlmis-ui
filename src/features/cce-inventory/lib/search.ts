@@ -47,8 +47,9 @@ export const isInventorySortField = (id: string): id is InventorySortField =>
 
 function sortParams(search: InventorySearch) {
   const chosen = toSortParam(search, INVENTORY_SORT);
-  const tieBreakers =
-    search.sort === 'referenceName' ? ['id,asc'] : ['referenceName,asc', 'id,asc'];
+  const tieBreakers = chosen.startsWith('referenceName,')
+    ? ['id,asc']
+    : ['referenceName,asc', 'id,asc'];
   return [chosen, ...tieBreakers];
 }
 
@@ -62,7 +63,7 @@ export function toInventoryQuery(
     programId,
     page: pageIndex,
     size: pageSize,
-    ...((search.sort || search.dir) && { sort: sortParams(search) }),
+    sort: sortParams(search),
     ...(search.functionalStatus && { functionalStatus: search.functionalStatus }),
   };
 }
