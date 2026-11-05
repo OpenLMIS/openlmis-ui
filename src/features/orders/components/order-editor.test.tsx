@@ -195,6 +195,8 @@ describe('order editor workflow', () => {
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByText('Facility a')).toBeVisible();
     expect(within(dialog).getByText('Facility b')).toBeVisible();
+    expect(within(dialog).getAllByText('Medicine')).toHaveLength(2);
+    expect(within(dialog).getAllByText('CODE')).toHaveLength(2);
     await user.click(within(dialog).getByRole('button', { name: 'orders.edit.summary-confirm' }));
     await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith(['b']));
     expect(sendOrder).toHaveBeenCalledTimes(2);
@@ -304,7 +306,7 @@ it.each(['delete', 'remove'] as const)(
     fireEvent.change(quantity(), { target: { value: '25' } });
     const pendingBefore = pending.mock.calls.length;
     const user = userEvent.setup();
-    await user.click(screen.getByRole('tab', { name: /^(Facility a|a)/ }));
+    await user.click(screen.getByRole('tab', { name: /^(Facility a|orders.edit.order-label)/ }));
     if (action === 'remove')
       await user.click(screen.getByRole('button', { name: 'orders.edit.remove-from-batch' }));
     else {
@@ -468,6 +470,7 @@ it('marks an empty order invalid after adding and removing its only product', as
   await user.click(screen.getByRole('combobox', { name: 'orders.edit.select-product' }));
   await user.click(await screen.findByRole('option', { name: 'Medicine' }));
   await user.click(screen.getByRole('button', { name: 'orders.add' }));
+  await waitFor(() => expect(quantity()).toHaveFocus());
   await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
   expect(screen.getByRole('tab', { name: /Facility a/ })).toHaveTextContent('orders.edit.invalid');
 });

@@ -491,6 +491,12 @@ function OrderFields({
         ...(form.getFieldValue(`orders.${order.id}`) ?? []),
         { key: randomId(), product, quantity: quantityValue('', product.netContent) },
       ]);
+      requestAnimationFrame(() => {
+        const index = (form.getFieldValue(`orders.${order.id}`) ?? []).length - 1;
+        document
+          .querySelector<HTMLElement>(`[name^="orders.${order.id}[${index}].quantity"]`)
+          ?.focus();
+      });
     },
     [form, order.id],
   );

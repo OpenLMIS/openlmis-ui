@@ -17,7 +17,8 @@ export function OrderTabs({
     <TabsList aria-label={t('orders.create.facilities-label')} size="lg" wrap="column">
       {entries.map((entry) => (
         <TabsTrigger key={entry.id} value={entry.id}>
-          {entry.order?.requestingFacility.name ?? entry.id}
+          {entry.order?.requestingFacility.name ??
+            t('orders.edit.order-label', { code: entry.id.slice(0, 8) })}
           {invalid(entry.id) && (
             <>
               <AlertTriangleIcon className="text-destructive" />

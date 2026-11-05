@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceActionsSlot, WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { createOrder } from '@/features/orders/api/api';
+import * as orderQueries from '@/features/orders/api/queries';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { CreateOrderForm } from '@/features/orders/components/create-order-form';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
@@ -20,15 +21,16 @@ const facilities = ['Alpha', 'Beta', 'Supplier'].map((name, index) => ({
   code: name,
   active: true,
 }));
-function setup(readable = true) {
+function setup(readable = true, freshSuppliers = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
   client.setQueryData(userProgramsOptions('user').queryKey, [
     { id: 'program', name: 'Program', code: 'P', active: true },
   ]);
-  for (const ids of [['0'], ['1'], ['2'], ['0', '1'], ['0', '2'], ['1', '2'], ['0', '1', '2']])
-    client.setQueryData(supplyingFacilitiesOptions('program', ids).queryKey, ['2']);
+  if (!freshSuppliers)
+    for (const ids of [['0'], ['1'], ['2'], ['0', '1'], ['0', '2'], ['1', '2'], ['0', '1', '2']])
+      client.setQueryData(supplyingFacilitiesOptions('program', ids).queryKey, ['2']);
   const onCreated = vi.fn();
   render(
     <QueryClientProvider client={client}>
@@ -109,4 +111,32 @@ it('shows the required requesting facility label before a facility is added', as
   expect(label).toBeVisible();
   expect(label?.textContent).toContain('*');
   expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeDisabled();
+});
+
+it('retains removal focus when fresh supplier queries settle after removing the first facility', async () => {
+  let refresh = false;
+  let finish!: (ids: string[]) => void;
+  const original = orderQueries.supplyingFacilitiesOptions;
+  const spy = vi
+    .spyOn(orderQueries, 'supplyingFacilitiesOptions')
+    .mockImplementation((...args) => ({
+      ...original(...args),
+      staleTime: 0,
+      queryFn: () =>
+        refresh
+          ? new Promise<string[]>((resolve) => {
+              finish = resolve;
+            })
+          : Promise.resolve(['2']),
+    }));
+  const { user } = setup(true, true);
+  await add(user, 'Alpha');
+  await add(user, 'Beta');
+  const remove = () => screen.getAllByRole('button', { name: 'orders.create.remove-facility' });
+  refresh = true;
+  await user.click(remove()[0]);
+  await waitFor(() => expect(finish).toBeDefined());
+  await act(() => finish(['2']));
+  await waitFor(() => expect(remove()[0]).toHaveFocus());
+  spy.mockRestore();
 });

@@ -1,5 +1,6 @@
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useTable } from '@tanstack/react-table';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { dataTableFeatures } from '@/components/data-table/data-table';
 import { DialogTable } from '@/components/display/dialog-table';
@@ -15,7 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cachedOrderBalance, orderStockOnHandOptions } from '@/features/orders/api/queries';
-import { PackHint, productName } from '@/features/orders/components/order-lines';
+import { PackHint } from '@/features/orders/components/order-lines';
 import { OrderStockBalance, OrderStockError } from '@/features/orders/components/order-stock';
 import type { OrderSnapshot } from '@/features/orders/lib/order-actions';
 import type { DraftLine } from '@/features/orders/lib/order-draft';
@@ -40,6 +41,10 @@ export function OrderSummaryDialog({
   pending: boolean;
 }) {
   const { t, i18n } = useTranslation();
+  const confirmed = useRef(false);
+  const wasOpen = useRef(open);
+  if (open && !wasOpen.current) confirmed.current = false;
+  wasOpen.current = open;
   const { measure, cards } = useDialogCardLayout('2xl');
   const client = useQueryClient();
   const stocks = useQueries({
@@ -85,7 +90,7 @@ export function OrderSummaryDialog({
         id: 'product',
         header: t('orders.edit.product'),
         meta: { label: t('orders.edit.product') },
-        cell: ({ row }) => (row.original.line ? productName(row.original.line) : null),
+        cell: ({ row }) => (row.original.line ? row.original.line.product.fullProductName : null),
       },
       {
         id: 'size',
@@ -136,7 +141,17 @@ export function OrderSummaryDialog({
         if (!pending) onOpenChange(value);
       }}
     >
-      <DialogContent size="2xl" layout="scroll" showCloseButton={!pending}>
+      <DialogContent
+        size="2xl"
+        layout="scroll"
+        showCloseButton={!pending}
+        finalFocus={() => {
+          if (!confirmed.current) return true;
+          const heading = document.querySelector<HTMLElement>('h1');
+          heading?.setAttribute('tabindex', '-1');
+          return heading ?? true;
+        }}
+      >
         <div ref={measure} />
         <DialogHeader>
           <DialogTitle>{t('orders.edit.summary-title')}</DialogTitle>
@@ -166,7 +181,13 @@ export function OrderSummaryDialog({
           <DialogClose render={<Button variant="outline" disabled={pending} />}>
             {t('orders.edit.cancel')}
           </DialogClose>
-          <Button disabled={pending} onClick={onConfirm}>
+          <Button
+            disabled={pending}
+            onClick={() => {
+              confirmed.current = true;
+              onConfirm();
+            }}
+          >
             {t('orders.edit.summary-confirm')}
           </Button>
         </DialogFooter>
