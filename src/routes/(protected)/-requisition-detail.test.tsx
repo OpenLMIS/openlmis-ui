@@ -290,7 +290,7 @@ it('keeps the skipped filter out of the pending default Patients tab', async () 
   vi.mocked(fetchRequisition).mockResolvedValue(patientRecord());
   vi.mocked(fetchOrderablesByIdentities).mockImplementationOnce(() => new Promise(() => {}));
   const { queryClient } = renderRoute('/requisitions/view/r');
-  await screen.findByRole('heading', { name: 'requisitions.requisition.comments' });
+  await screen.findByRole('status', { name: 'pending-products' });
   expect(screen.getByRole('status', { name: 'pending-products' })).toBeInTheDocument();
   expect(screen.queryByRole('status', { name: 'pending-skipped-filter' })).not.toBeInTheDocument();
   queryClient.clear();
@@ -310,10 +310,10 @@ it('keeps header facts and comments when approval group lookup fails', async () 
   const { queryClient } = renderRoute('/requisitions/view/r');
   await screen.findAllByText('requisitions.requisition.section-error-title');
   expect(screen.getByText('HC01 - Comfort')).toBeInTheDocument();
-  expect(screen.getByText('requisitions.requisition.no-comments')).toBeInTheDocument();
+  expect(screen.queryByText('requisitions.requisition.no-comments')).not.toBeInTheDocument();
   expect(
-    screen.getByRole('heading', { name: 'requisitions.requisition.comments' }),
-  ).toBeInTheDocument();
+    screen.queryByRole('heading', { name: 'requisitions.requisition.comments' }),
+  ).not.toBeInTheDocument();
   queryClient.clear();
 });
 
@@ -657,7 +657,7 @@ it('deletes only after confirmation, removes the saved copy and toasts before re
   const dialog = await screen.findByRole('alertdialog');
   expect(remove).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.actions.delete' }));
-  await screen.findByText('Opening List');
+  await screen.findByText('Create Authorize Search');
   expect(remove).toHaveBeenCalledWith('/requisitions/r');
   expect(vi.mocked(fetchStatusMessages).mock.calls).toHaveLength(messageReads);
   expect(await copies.get('r')).toBeUndefined();
@@ -1335,7 +1335,12 @@ it('returns to Create/Authorize after tab and grid paging changes before finishi
   queryClient.clear();
 });
 
-async function openApprover(invalid = false, reasons = false, fromList = true) {
+async function openApprover(
+  invalid = false,
+  reasons = false,
+  fromList = true,
+  adjustments = false,
+) {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
@@ -1357,6 +1362,13 @@ async function openApprover(invalid = false, reasons = false, fromList = true) {
       rejectionReasonWindowVisible: reasons,
       columnsMap: {
         ...editingRecord().template.columnsMap,
+        ...(adjustments
+          ? {
+              totalLossesAndAdjustments: column('totalLossesAndAdjustments', 3, {
+                source: 'USER_INPUT',
+              }),
+            }
+          : {}),
         approvedQuantity: column('approvedQuantity', 2, {
           source: 'USER_INPUT',
           columnDefinition: { columnType: 'NUMERIC' },
@@ -2263,5 +2275,43 @@ it('finishes Sync and Submit while complete copy capture is still pending', asyn
   await confirmAction();
   await screen.findByText('Opening List');
   expect(post).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('does not open rejection reasons from a direct dialog link when the template disables them', async () => {
+  const { router, queryClient } = await openApprover();
+  await act(() => router.navigate({ to: '.', search: { dialog: 'reject-reasons' } } as never));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('opens adjustments read-only for an approver who can edit approval quantities', async () => {
+  const { queryClient } = await openApprover(false, false, true, true);
+  fireEvent.click(screen.getAllByRole('button', { name: /^totalLossesAndAdjustments:/ })[0]);
+  const dialog = await screen.findByRole('dialog');
+  expect(
+    within(dialog).queryByRole('button', { name: 'requisitions.edit.update' }),
+  ).not.toBeInTheDocument();
+  expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('uses neutral discard wording when device drafts are unavailable', async () => {
+  const drafts = await import('@/features/requisitions/hooks/use-requisition-draft');
+  const useDraft = drafts.useRequisitionDraft;
+  vi.spyOn(drafts, 'useRequisitionDraft').mockImplementation((...args) => ({
+    ...useDraft(...args),
+    deviceAvailable: false,
+  }));
+  const { router, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '42' },
+  });
+  act(() => {
+    void router.navigate({ to: '/requisitions/view' });
+  });
+  const dialog = await screen.findByRole('alertdialog');
+  expect(within(dialog).getByText('orders.edit.discard-description')).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'discard-changes.keep-editing' }));
   queryClient.clear();
 });

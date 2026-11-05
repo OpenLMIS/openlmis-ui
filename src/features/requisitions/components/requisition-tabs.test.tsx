@@ -154,3 +154,14 @@ it('updates skip eligibility from recalculated draft adjustments', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Clear Adjustments' }));
   expect(skip).not.toHaveAttribute('aria-disabled', 'true');
 });
+
+it('reuses the edited line calculation for live validation', async () => {
+  const calculations = await import('@/features/requisitions/lib/calculations');
+  const calculate = vi.spyOn(calculations, 'calculateLine');
+  renderEditor();
+  const input = await screen.findByRole('textbox', { name: 'totalConsumedQuantity: Product (P1)' });
+  await userEvent.clear(input);
+  calculate.mockClear();
+  await userEvent.type(input, '1');
+  expect(calculate).toHaveBeenCalledTimes(1);
+});

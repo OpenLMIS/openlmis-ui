@@ -207,3 +207,8 @@
 .batch-grid:not([data-pin-end]) [data-sticky="end"]::after {
   display: none;
 }
+
+.requisition-spacer {
+  height: var(--requisition-spacer-height);
+  padding: 0;
+}

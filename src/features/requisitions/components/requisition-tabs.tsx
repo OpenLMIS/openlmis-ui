@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { requisitionGridQueries } from '@/features/requisitions/api/queries';
 import { PatientsGrid } from '@/features/requisitions/components/patients-grid';
+import { RequisitionCopyBadge } from '@/features/requisitions/components/requisition-copy-notice';
+import { RequisitionDraftStatus } from '@/features/requisitions/components/requisition-draft-status';
 import type { GridEditing } from '@/features/requisitions/components/requisition-grid';
 import {
   type GridSearch,
@@ -153,6 +155,7 @@ function RequisitionTabsView({
               changes,
               editing.approver ? editing.editableColumns : undefined,
               patientData,
+              line,
             )
           : {};
         entry = {
@@ -257,6 +260,12 @@ function RequisitionTabsView({
             </TabsTrigger>
           ))}
         </TabsList>
+        <div className="flex flex-wrap items-center gap-2 @xl/main:hidden">
+          {editing?.editable && editor?.device.deviceAvailable && (
+            <RequisitionDraftStatus editor={editor} />
+          )}
+          <RequisitionCopyBadge />
+        </div>
         {tabs.map(({ value }) => (
           <TabsContent key={value} value={value}>
             {value === 'patients' ? (

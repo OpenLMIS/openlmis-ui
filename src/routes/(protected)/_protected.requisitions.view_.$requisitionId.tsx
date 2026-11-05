@@ -83,7 +83,11 @@ import {
   RequisitionValidationDialog,
 } from '@/features/requisitions/components/requisition-action-dialogs';
 import { RequisitionComments } from '@/features/requisitions/components/requisition-comments';
-import { RequisitionCopyNotice } from '@/features/requisitions/components/requisition-copy-notice';
+import {
+  RequisitionCopyBadge,
+  RequisitionCopyContext,
+  RequisitionCopyNotice,
+} from '@/features/requisitions/components/requisition-copy-notice';
 import { RequisitionError } from '@/features/requisitions/components/requisition-error';
 import { RequisitionFooter } from '@/features/requisitions/components/requisition-footer';
 import { RequisitionHeader } from '@/features/requisitions/components/requisition-header';
@@ -405,9 +409,11 @@ function RequisitionBody({
   const [loaderOutdated, setLoaderOutdated] = useState(false);
   const [copyFailure, setCopyFailure] = useState<unknown>();
   const [copyResult, setCopyResult] = useState(data.copyResult);
+  const captureVersion = useRef(0);
   const copyOpening = useRef(data.copyResult);
   if (copyOpening.current !== data.copyResult) {
     copyOpening.current = data.copyResult;
+    captureVersion.current++;
     setCopyFailure(undefined);
     setCopyResult(data.copyResult);
   }
@@ -519,12 +525,15 @@ function RequisitionBody({
     if (isSecureOrigin) {
       const lease = await beginCopy(saved.id);
       attachCopyLease(saved, lease);
+      const version = ++captureVersion.current;
       const result = captureSingle(queryClient, lease, saved, 'read').then(
         () => {
-          if (scope === getSessionScope()) setCopyFailure(null);
+          if (scope === getSessionScope() && version === captureVersion.current)
+            setCopyFailure(null);
         },
         (error: unknown) => {
-          if (scope === getSessionScope()) setCopyFailure(error);
+          if (scope === getSessionScope() && version === captureVersion.current)
+            setCopyFailure(error);
           return error;
         },
       );
@@ -821,7 +830,15 @@ function RequisitionBody({
       const direct =
         !router.state.location.state.requisitionReturn &&
         !search.facility &&
-        ['submit', 'submitAndAuthorize', 'authorize', 'approve', 'reject'].includes(kind);
+        [
+          'submit',
+          'submitAndAuthorize',
+          'authorize',
+          'approve',
+          'reject',
+          'delete',
+          'skip',
+        ].includes(kind);
       await router.navigate(
         direct
           ? {
@@ -1047,7 +1064,15 @@ function RequisitionBody({
     });
   };
   return (
-    <>
+    <RequisitionCopyContext
+      value={{
+        representation: 'single',
+        local: isDeviceAccess(record),
+        id: record.id,
+        result: copyResult,
+        failure: copyFailure,
+      }}
+    >
       <Workspace width="wide">
         <WorkspaceHeader>
           <RequisitionHeading record={record} />
@@ -1184,7 +1209,11 @@ function RequisitionBody({
       />
       <DiscardChangesDialog
         {...guard.dialog}
-        description={t('requisitions.edit.discard-description')}
+        description={t(
+          editor.device.deviceAvailable
+            ? 'requisitions.edit.discard-description'
+            : 'orders.edit.discard-description',
+        )}
       />
       {action && (
         <RequisitionActionDialog
@@ -1195,6 +1224,7 @@ function RequisitionBody({
         />
       )}
       {search.dialog === 'reject-reasons' &&
+        record.template.rejectionReasonWindowVisible &&
         policy.actions.includes('reject') &&
         !editingBlocked && (
           <RejectReasonsDialog
@@ -1243,7 +1273,11 @@ function RequisitionBody({
             setValidation(null);
             if (patient) {
               void router
-                .navigate({ to: '.', state: true, search: { ...search, tab: 'patients' } } as never)
+                .navigate({
+                  to: '.',
+                  state: true,
+                  search: { ...search, tab: 'patients' },
+                } as never)
                 .then(() => {
                   requestAnimationFrame(() => {
                     const node = document.querySelector<HTMLElement>(`[name="texts.${patient}"]`);
@@ -1275,19 +1309,25 @@ function RequisitionBody({
                 },
               } as never)
               .then(() => {
+                document.dispatchEvent(
+                  new CustomEvent('requisition-line-focus', {
+                    detail: { requisitionId: record.id, lineId: target.id },
+                  }),
+                );
                 const focus = () => {
                   const node = document.querySelector<HTMLElement>(
                     `[name^="quantities.${target.id}:${target.field}."], [name="texts.${target.id}:${target.field}"], [name^="quantities.${target.id}:"], [name^="texts.${target.id}:"]`,
                   );
                   if (node) revealField(node, !!node.closest('li'));
                 };
-                requestAnimationFrame(focus);
+                requestAnimationFrame(() => requestAnimationFrame(focus));
               });
           }}
         />
       )}
       {search.adjustments &&
         policy.editable &&
+        policy.editableColumns.includes('totalLossesAndAdjustments') &&
         !editingBlocked &&
         !editor.locked &&
         (() => {
@@ -1340,7 +1380,10 @@ function RequisitionBody({
                   );
                   addedLines.push({
                     id: randomId(),
-                    orderable: { id: product.id, versionNumber: product.meta?.versionNumber ?? 1 },
+                    orderable: {
+                      id: product.id,
+                      versionNumber: product.meta?.versionNumber ?? 1,
+                    },
                     pricePerPack: entry?.pricePerPack,
                   });
                 }
@@ -1351,7 +1394,7 @@ function RequisitionBody({
           }}
         />
       )}
-    </>
+    </RequisitionCopyContext>
   );
 }
 
@@ -1461,7 +1504,8 @@ function RequisitionHeading({ record }: { record: RequisitionRecord }) {
         {t('requisitions.requisition.description', {
           facility: facility.name,
           period: period.name,
-        })}
+        })}{' '}
+        <RequisitionCopyBadge />
       </WorkspaceDescription>
     </WorkspaceHeading>
   );

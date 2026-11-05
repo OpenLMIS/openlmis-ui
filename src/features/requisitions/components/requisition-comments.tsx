@@ -55,6 +55,7 @@ export function RequisitionComments({
   const latest = messages[0];
   const rejected = latestRejection(record);
   const hasRejections = record.status === 'REJECTED' && !!rejected?.rejectionDtos?.length;
+  if (!commenting && !latest && !hasRejections) return null;
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3" ref={sectionRef}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -103,6 +104,7 @@ export function RequisitionComments({
       {latest ? (
         <StatusMessage message={latest} />
       ) : (
+        commenting &&
         !draftComment && (
           <p className="rounded-xl border border-dashed px-4 py-3 text-muted-foreground text-sm">
             {t('requisitions.requisition.no-comments')}

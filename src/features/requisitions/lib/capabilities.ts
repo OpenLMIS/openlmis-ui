@@ -70,7 +70,9 @@ export function requisitionCapabilities(context: CapabilityContext) {
             .filter(
               (c) =>
                 c.isDisplayed &&
-                c.source === 'USER_INPUT' &&
+                (c.source === 'USER_INPUT' ||
+                  (c.name === 'totalLossesAndAdjustments' &&
+                    !template.populateStockOnHandFromStockCards)) &&
                 c.name !== 'approvedQuantity' &&
                 c.name !== approvalColumn &&
                 c.name !== 'remarks' &&

@@ -64,9 +64,10 @@ export function validateLine(
   changes: LineDraft = {},
   columnFilter?: readonly string[],
   patients?: PatientsData,
+  calculated?: RequisitionLineItem,
 ) {
   const errors: Record<string, ParseKeys> = {};
-  const line = calculateLine(model, record, monthsInPeriod, patients);
+  const line = calculated ?? calculateLine(model, record, monthsInPeriod, patients);
   if (line.skipped) return errors;
   const columns = compileColumns(record.template, {
     status: record.status,

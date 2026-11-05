@@ -126,7 +126,11 @@ function Harness({
               editor,
               editable: true,
               pending,
-              editableColumns: ['requestedQuantity', 'totalStockoutDays'],
+              editableColumns: [
+                'requestedQuantity',
+                'totalStockoutDays',
+                'totalLossesAndAdjustments',
+              ],
               skipLines: true,
               addFullSupplyProduct: false,
               addNonFullSupplyProduct: true,
@@ -607,4 +611,36 @@ it.each([1000, 390])('interpolates product removal labels in Arabic at width %s'
     </I18nextProvider>,
   );
   expect(screen.getByRole('button', { name: 'إزالة ⁨Medicine 0⁩' })).toBeInTheDocument();
+});
+
+it('reveals an offscreen line when validation requests focus in a large page', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(48);
+  render(
+    <Harness
+      editable
+      initial={{ detailSize: 100 }}
+      value={{
+        ...requisition,
+        template: {
+          columnsMap: {
+            ...requisition.template.columnsMap,
+            requestedQuantity: column('requestedQuantity', 3, { source: 'USER_INPUT' }),
+          },
+        },
+        requisitionLineItems: Array.from({ length: 100 }, (_, index) => ({
+          ...requisition.requisitionLineItems[0],
+          id: `virtual-${index}`,
+        })),
+      }}
+    />,
+  );
+  const selector = '[name="quantities.virtual-99:requestedQuantity.doses"]';
+  expect(document.querySelector(selector)).toBeNull();
+  fireEvent(
+    document,
+    new CustomEvent('requisition-line-focus', {
+      detail: { requisitionId: requisition.id, lineId: 'virtual-99' },
+    }),
+  );
+  expect(document.querySelector(selector)).not.toBeNull();
 });

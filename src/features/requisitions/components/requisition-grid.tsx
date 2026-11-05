@@ -1,4 +1,5 @@
 import { createColumnHelper, functionalUpdate, useTable } from '@tanstack/react-table';
+import { defaultRangeExtractor, useWindowVirtualizer } from '@tanstack/react-virtual';
 import type { ParseKeys } from 'i18next';
 import {
   CircleAlertIcon,
@@ -9,10 +10,15 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react';
 import {
+  type ComponentProps,
+  type CSSProperties,
+  Fragment,
   memo,
   type ReactNode,
+  type Ref,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -328,6 +334,43 @@ export function RequisitionGridView({
       ),
     ),
   });
+  const [focusedRow, setFocusedRow] = useState<number | null>(null);
+  const virtual = !view.cards && data.length > 30;
+  const virtualizer = useWindowVirtualizer({
+    count: data.length,
+    enabled: virtual,
+    estimateSize: () => 48,
+    overscan: 4,
+    scrollMargin: tableElement.current
+      ? tableElement.current.getBoundingClientRect().top + window.scrollY
+      : 0,
+    getItemKey: (index) => data[index].id,
+    rangeExtractor: (range) => {
+      const indices = new Set(defaultRangeExtractor(range));
+      if (focusedRow !== null)
+        for (const index of [focusedRow - 1, focusedRow, focusedRow + 1]) {
+          if (index >= 0 && index < data.length) indices.add(index);
+        }
+      return [...indices].sort((a, b) => a - b);
+    },
+  });
+  useEffect(() => {
+    const reveal = (event: Event) => {
+      const detail = (event as CustomEvent<{ requisitionId: string; lineId: string }>).detail;
+      if (!virtual || detail.requisitionId !== record.id) return;
+      const index = data.findIndex((row) => row.id === detail.lineId);
+      if (index < 0) return;
+      setFocusedRow(index);
+      virtualizer.scrollToIndex(index, { align: 'center' });
+    };
+    document.addEventListener('requisition-line-focus', reveal);
+    return () => document.removeEventListener('requisition-line-focus', reveal);
+  }, [virtual, record.id, data, virtualizer]);
+  const tableRows = table.getRowModel().rows;
+  const renderedRows = virtual
+    ? virtualizer.getVirtualItems()
+    : tableRows.map((_, index) => ({ index, start: 0, end: 0 }));
+  let previousEnd = virtualizer.options.scrollMargin ?? 0;
   const empty = (
     <DataTableEmpty
       action={
@@ -422,7 +465,6 @@ export function RequisitionGridView({
   );
   return (
     <div ref={measure} tabIndex={-1} className="flex min-w-0 flex-col gap-4 outline-none">
-      {view.cards && status && <div className="flex">{status}</div>}
       {supplyingStock && <SupplyingStockNote record={record} />}
       <RequisitionGridToolbar
         disabled={editing?.pending}
@@ -498,6 +540,11 @@ export function RequisitionGridView({
             layout="auto"
             tabIndex={-1}
             aria-label={t('requisitions.requisition.products')}
+            aria-rowcount={data.length + 1}
+            onFocusCapture={(event) => {
+              const row = (event.target as HTMLElement).closest<HTMLElement>('tr[data-index]');
+              if (row) setFocusedRow(Number(row.dataset.index));
+            }}
           >
             <RequisitionTableHeader
               columns={rowColumns}
@@ -508,33 +555,73 @@ export function RequisitionGridView({
             />
             <TableBody>
               {table.getRowModel().rows.length ? (
-                table.getRowModel().rows.map((row) =>
-                  row.original.category !== undefined ? (
-                    <TableRow key={row.id} pinned surface="primary">
-                      <TableCell colSpan={visible.length}>
-                        <div className="sticky start-1.5 w-fit ps-6">
-                          <bdi>{row.original.category}</bdi>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <RequisitionProductRow
-                      key={row.id}
-                      model={row.original.model}
-                      columns={rowColumns}
-                      errors={errors[row.id]}
-                      context={cellContext}
-                      shortfall={supplyingHasStock}
-                      editing={editing}
-                      pinned={pinnedColumns}
-                      remove={removable ? removeLine : undefined}
-                    />
-                  ),
-                )
+                renderedRows.map((item) => {
+                  const row = tableRows[item.index];
+                  const gap = virtual ? item.start - previousEnd : 0;
+                  previousEnd = item.end;
+                  return (
+                    <Fragment key={row.id}>
+                      {gap > 0 && (
+                        <tr aria-hidden>
+                          <td
+                            colSpan={visible.length}
+                            className="requisition-spacer"
+                            style={{ '--requisition-spacer-height': `${gap}px` } as CSSProperties}
+                          />
+                        </tr>
+                      )}
+                      {row.original.category !== undefined ? (
+                        <TableRow
+                          data-index={item.index}
+                          ref={virtual ? virtualizer.measureElement : undefined}
+                          pinned
+                          surface="primary"
+                        >
+                          <TableCell colSpan={visible.length}>
+                            <div className="sticky start-1.5 w-fit ps-6">
+                              <bdi>{row.original.category}</bdi>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        <RequisitionProductRow
+                          rowIndex={item.index}
+                          measure={virtual ? virtualizer.measureElement : undefined}
+                          model={row.original.model}
+                          columns={rowColumns}
+                          errors={errors[row.id]}
+                          context={cellContext}
+                          shortfall={supplyingHasStock}
+                          editing={editing}
+                          pinned={pinnedColumns}
+                          remove={removable ? removeLine : undefined}
+                        />
+                      )}
+                    </Fragment>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={visible.length}>{empty}</TableCell>
                 </TableRow>
+              )}
+              {virtual && (
+                <tr aria-hidden>
+                  <td
+                    colSpan={visible.length}
+                    className="requisition-spacer"
+                    style={
+                      {
+                        '--requisition-spacer-height': `${Math.max(
+                          0,
+                          virtualizer.getTotalSize() -
+                            previousEnd +
+                            (virtualizer.options.scrollMargin ?? 0),
+                        )}px`,
+                      } as CSSProperties
+                    }
+                  />
+                </tr>
               )}
             </TableBody>
             {visible.some((column) => column.id === 'totalCost') && (
@@ -563,14 +650,16 @@ export function RequisitionGridView({
           <DataTableFooter>{footer}</DataTableFooter>
         </DataTableCard>
       )}
-      {adjustment && !editing?.editable && !record.template.populateStockOnHandFromStockCards && (
-        <AdjustmentsDialog
-          model={adjustment}
-          reasons={record.stockAdjustmentReasons ?? []}
-          unit={unit}
-          onClose={onCloseAdjustments}
-        />
-      )}
+      {adjustment &&
+        !editing?.editableColumns.includes('totalLossesAndAdjustments') &&
+        !record.template.populateStockOnHandFromStockCards && (
+          <AdjustmentsDialog
+            model={adjustment}
+            reasons={record.stockAdjustmentReasons ?? []}
+            unit={unit}
+            onClose={onCloseAdjustments}
+          />
+        )}
     </div>
   );
 }
@@ -620,6 +709,8 @@ const RequisitionTableHeader = memo(function RequisitionTableHeader({
 
 const RequisitionProductRow = memo(function RequisitionProductRow({
   model,
+  rowIndex,
+  measure,
   columns,
   errors,
   context,
@@ -629,6 +720,8 @@ const RequisitionProductRow = memo(function RequisitionProductRow({
   remove,
 }: {
   model?: GridModel;
+  rowIndex?: number;
+  measure?: Ref<HTMLTableRowElement>;
   columns: GridColumn[];
   errors?: Record<string, ParseKeys>;
   context: Parameters<typeof renderValue>[2];
@@ -641,7 +734,13 @@ const RequisitionProductRow = memo(function RequisitionProductRow({
   if (!model) return null;
   const tone = gridRowTone({ model }, shortfall);
   return (
-    <TableRow pinned data-invalid={!!errors || undefined} tone={tone}>
+    <TableRow
+      data-index={rowIndex}
+      ref={measure}
+      pinned
+      data-invalid={!!errors || undefined}
+      tone={tone}
+    >
       {columns.map((column) => (
         <TableCell key={column.name} {...pinned.get(column.name)}>
           <RequisitionLineCell
@@ -675,54 +774,86 @@ const RequisitionProductRow = memo(function RequisitionProductRow({
     </TableRow>
   );
 });
-const RequisitionLineCell = memo(function RequisitionLineCell({
-  column,
-  model,
-  context,
-  shortfall,
-  editing,
-  error,
-}: {
-  column: GridColumn;
-  model: GridModel;
-  context: Parameters<typeof renderValue>[2];
-  shortfall: boolean;
-  editing?: GridEditing;
-  error?: ParseKeys;
-}) {
-  return editing ? (
-    <RequisitionEditCell
-      column={column}
-      model={model}
-      stockBased={context.stockBased}
-      formatter={context.formatter}
-      editing={editing}
-      unit={context.unit}
-      error={error}
-      cards={context.cards}
-      onAdjustments={context.onAdjustments}
-    >
-      {column.kind === 'adjustments' && editing.editable && !context.stockBased ? (
-        cardQuantity(
-          model.line.totalLossesAndAdjustments ?? 0,
-          model.product?.netContent,
-          context.unit,
-          undefined,
-          context.formatter,
-        )
-      ) : (
-        <RequisitionReadCell
-          column={column}
-          model={model}
-          context={context}
-          shortfall={shortfall}
-        />
-      )}
-    </RequisitionEditCell>
-  ) : (
-    renderValue(column, model, context, shortfall)
-  );
-});
+const RequisitionLineCell = memo(
+  function RequisitionLineCell({
+    column,
+    model,
+    context,
+    shortfall,
+    editing,
+    error,
+  }: {
+    column: GridColumn;
+    model: GridModel;
+    context: Parameters<typeof renderValue>[2];
+    shortfall: boolean;
+    editing?: GridEditing;
+    error?: ParseKeys;
+  }) {
+    return editing ? (
+      <RequisitionEditCell
+        column={column}
+        model={model}
+        stockBased={context.stockBased}
+        formatter={context.formatter}
+        editing={editing}
+        unit={context.unit}
+        error={error}
+        cards={context.cards}
+        onAdjustments={context.onAdjustments}
+      >
+        {column.kind === 'adjustments' &&
+        editing.editable &&
+        editing.editableColumns.includes(column.name) &&
+        !context.stockBased ? (
+          cardQuantity(
+            model.line.totalLossesAndAdjustments ?? 0,
+            model.product?.netContent,
+            context.unit,
+            undefined,
+            context.formatter,
+          )
+        ) : (
+          <RequisitionReadCell
+            column={column}
+            model={model}
+            context={context}
+            shortfall={shortfall}
+          />
+        )}
+      </RequisitionEditCell>
+    ) : (
+      renderValue(column, model, context, shortfall)
+    );
+  },
+  (previous, next) => {
+    if (
+      previous.column !== next.column ||
+      previous.context !== next.context ||
+      previous.shortfall !== next.shortfall ||
+      previous.editing !== next.editing ||
+      previous.error !== next.error
+    )
+      return false;
+    const { column, editing } = next;
+    if (
+      editing &&
+      (editing.editableColumns.includes(column.name) ||
+        column.kind === 'skip' ||
+        column.kind === 'adjustments')
+    )
+      return previous.model === next.model;
+    const a = previous.model;
+    const b = next.model;
+    return (
+      a.line.id === b.line.id &&
+      a.product === b.product &&
+      a.line.patientQuantitiesNotAvailable === b.line.patientQuantitiesNotAvailable &&
+      a.line[column.name as keyof RequisitionLineItem] ===
+        b.line[column.name as keyof RequisitionLineItem]
+    );
+  },
+);
 
 function RequisitionReadCell({
   column,
@@ -767,7 +898,7 @@ function renderValue(
       return column.name === 'orderable.productCode' ? (
         (product?.productCode ?? null)
       ) : product ? (
-        <bdi>
+        <bdi className={context.cards ? undefined : 'line-clamp-2 w-80 max-w-96 whitespace-normal'}>
           {context.cards
             ? `${productLabel(product)} (${product.productCode})`
             : product.fullProductName}
@@ -782,7 +913,7 @@ function renderValue(
         <FlagBadge value={!!line.skipped} trueLabel={context.yes} falseLabel={context.no} />
       ) : (
         <div className="flex justify-center">
-          <Checkbox
+          <SkipCheckbox
             disabled
             checked={!!line.skipped}
             aria-label={`${column.label}: ${product?.fullProductName ?? product?.productCode ?? ''}`}
@@ -882,7 +1013,7 @@ function RequisitionEditCell({
     ['quantity', 'count', 'text'].includes(column.kind);
   if (editing.editable && column.kind === 'skip') {
     const checkbox = (
-      <Checkbox
+      <SkipCheckbox
         surface={cards ? 'background' : 'default'}
         checked={!!model.line.skipped}
         disabled={editing.pending || !editing.skipLines || (!model.line.skipped && !model.canSkip)}
@@ -916,7 +1047,12 @@ function RequisitionEditCell({
         />
       </div>
     );
-  if (editing.editable && column.kind === 'adjustments' && !stockBased)
+  if (
+    editing.editable &&
+    editing.editableColumns.includes(column.name) &&
+    column.kind === 'adjustments' &&
+    !stockBased
+  )
     return (
       <AdjustmentsCell
         mode="edit"
@@ -986,5 +1122,17 @@ function CalculatedError({ error, children }: { error?: ParseKeys; children?: Re
         <TooltipContent>{t(error)}</TooltipContent>
       </Tooltip>
     </span>
+  );
+}
+
+function SkipCheckbox({ 'aria-label': label, ...props }: ComponentProps<typeof Checkbox>) {
+  const id = useId();
+  return (
+    <>
+      <span id={id} className="sr-only">
+        {label}
+      </span>
+      <Checkbox {...props} aria-labelledby={id} />
+    </>
   );
 }

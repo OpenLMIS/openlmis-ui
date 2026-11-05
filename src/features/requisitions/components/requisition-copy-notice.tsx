@@ -1,13 +1,23 @@
 import { useRouter } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { CheckIcon, Loader2Icon, TriangleAlertIcon } from 'lucide-react';
+import { createContext, use, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SnapshotAlert } from '@/components/app-shell/offline-alert';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useOfflineCopies } from '@/features/requisitions/hooks/use-offline-copies';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { useOnline } from '@/lib/online';
 import { isSecureOrigin } from '@/lib/secure-context';
+
+export const RequisitionCopyContext = createContext<
+  Parameters<typeof RequisitionCopyNotice>[0] | undefined
+>(undefined);
+export function RequisitionCopyBadge() {
+  const props = use(RequisitionCopyContext);
+  return props ? <RequisitionCopyNotice {...props} badge /> : null;
+}
 
 export function RequisitionCopyNotice({
   id,
@@ -18,6 +28,7 @@ export function RequisitionCopyNotice({
   local = false,
   list = false,
   expected = true,
+  badge = false,
 }: {
   id?: string;
   ids?: readonly string[];
@@ -27,6 +38,7 @@ export function RequisitionCopyNotice({
   local?: boolean;
   list?: boolean;
   expected?: boolean;
+  badge?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -62,6 +74,29 @@ export function RequisitionCopyNotice({
       </p>
     ) : null;
   if (saved) savedIdentity.current = identity;
+  if (badge) {
+    const failed = failure === undefined ? error : failure;
+    if (!pending && !failed && !(representation ? saved?.[representation] : saved)) return null;
+    return (
+      <Badge variant={failed ? 'destructive' : 'secondary'} wrap="normal">
+        {failed ? (
+          <TriangleAlertIcon data-icon="inline-start" />
+        ) : pending ? (
+          <Loader2Icon className="animate-spin" data-icon="inline-start" />
+        ) : (
+          <CheckIcon className="text-success" data-icon="inline-start" />
+        )}
+        {t(
+          failed
+            ? 'requisitions.offline.failed-label'
+            : pending
+              ? 'requisitions.offline.saving-label'
+              : 'requisitions.offline.saved-label',
+        )}
+      </Badge>
+    );
+  }
+
   if (id && copies && !saved && savedIdentity.current === identity)
     return (
       <Alert variant="warning">
@@ -82,7 +117,7 @@ export function RequisitionCopyNotice({
         </AlertAction>
       </Alert>
     );
-  if (pending) return <p role="note">{t('requisitions.offline.saving')}</p>;
+  if (pending) return null;
   if (failure === undefined ? error : failure)
     return (
       <Alert variant="warning">

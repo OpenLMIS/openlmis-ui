@@ -131,3 +131,9 @@ it('shows the rejection date without an author when the server omits names', asy
   const dialog = await screen.findByRole('dialog');
   expect(within(dialog).getByText('Oct 27, 2026, 10:00:00 AM')).toBeInTheDocument();
 });
+
+it('hides empty comments for viewers without comment rights', () => {
+  renderComments([], []);
+  expect(screen.queryByText('No Comments')).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Comments' })).not.toBeInTheDocument();
+});
