@@ -75,7 +75,7 @@ it.each([
 it('deletes without a PUT first', async () => {
   vi.mocked(client.delete).mockResolvedValue({ status: 204 });
   await deleteRequisition('r');
-  expect(client.delete).toHaveBeenCalledWith('/requisitions/r');
+  expect(client.delete).toHaveBeenCalledWith('/requisitions/r', { timeout: 0 });
   expect(client.put).not.toHaveBeenCalled();
 });
 

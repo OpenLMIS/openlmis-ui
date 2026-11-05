@@ -119,6 +119,7 @@ it.each([1200, 390])(
       {
         params: { program: p, facility: f, emergency: false },
         headers: { 'Idempotency-Key': expect.any(String) },
+        timeout: 0,
       },
     );
     expect(router.state.location.pathname).toBe('/requisitions/view/new');

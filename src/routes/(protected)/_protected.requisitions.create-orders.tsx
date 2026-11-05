@@ -88,11 +88,12 @@ function CreatePending() {
           </div>
         </Field>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="h-9 min-w-0 flex-1">
+      <Field>
+        <FieldLabel>{t('orders.create.requesting-facility')}</FieldLabel>
+        <div className="h-9">
           <Skeleton fill />
         </div>
-      </div>
+      </Field>
       <Separator />
       <div ref={measure}>
         {cards ? (

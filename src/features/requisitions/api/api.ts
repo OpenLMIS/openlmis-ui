@@ -105,7 +105,7 @@ export const skipRequisition = (id: string, attempt: RequisitionActionAttempt) =
   transition(id, 'skip', attempt);
 export async function deleteRequisition(id: string) {
   const scope = getSessionScope();
-  await client.delete(`/requisitions/${id}`);
+  await client.delete(`/requisitions/${id}`, { timeout: 0 });
   assertSessionScope(scope);
 }
 
@@ -131,6 +131,7 @@ export async function initiateRequisition(
         emergency: params.emergency,
       },
       headers: { 'Idempotency-Key': attempt.key },
+      timeout: 0,
     },
   );
   assertSessionScope(attempt.sessionScope);
@@ -180,6 +181,7 @@ export async function releaseRequisitions(body: ReleaseBody) {
   const scope = getSessionScope();
   await client.post('/requisitions/batchReleases', body, {
     headers: { 'Idempotency-Key': randomId() },
+    timeout: 0,
   });
   assertSessionScope(scope);
 }

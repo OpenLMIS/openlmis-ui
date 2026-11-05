@@ -408,3 +408,46 @@ it('retains an edited product removed on the server until the user chooses its f
   });
   expect(server.draft.addedLines).toEqual([]);
 });
+
+it('keeps legacy removals with unknown bases and uses stored header bases', () => {
+  const draft = buildRequisitionDraft(base);
+  draft.removedLineIds = ['a'];
+  const fresh = { ...base, draftStatusMessage: 'Server comment' };
+  const result = mergeRequisitionDraft(fresh, draft, {
+    draftStatusMessage: '',
+    datePhysicalStockCountCompleted: null,
+  });
+  expect(result.draft.removedLineIds).toEqual(['a']);
+  expect(result.conflicts.map((field) => field.path)).not.toContain('draftStatusMessage');
+  expect(result.draft.draftStatusMessage).toBe('Server comment');
+});
+
+it('compares adjustment values independently of server ids and row order', () => {
+  const original = {
+    ...base,
+    requisitionLineItems: base.requisitionLineItems.map((item) => ({
+      ...item,
+      stockAdjustments: [{ id: 'server-id', reasonId: 'r', quantity: 2 }],
+    })),
+  };
+  const draft = buildRequisitionDraft(original);
+  draft.lines.a = {
+    stockAdjustments: [
+      { reasonId: 'r', quantity: 3 },
+      { reasonId: 's', quantity: 4 },
+    ],
+  };
+  const fresh = {
+    ...original,
+    requisitionLineItems: original.requisitionLineItems.map((item) => ({
+      ...item,
+      stockAdjustments: [
+        { id: 's-id', reasonId: 's', quantity: 4 },
+        { id: 'new-id', reasonId: 'r', quantity: 3 },
+      ],
+    })),
+  };
+  const result = mergeRequisitionDraft(fresh, draft, draftBaseValues(original, draft), original);
+  expect(result.conflicts).toEqual([]);
+  expect(result.draft.lines).toEqual({});
+});

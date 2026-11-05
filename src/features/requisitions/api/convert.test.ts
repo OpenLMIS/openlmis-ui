@@ -28,5 +28,6 @@ it('posts one legacy batch with an idempotency key on an insecure origin', async
   await releaseRequisitions(body);
   expect(client.post).toHaveBeenCalledExactlyOnceWith('/requisitions/batchReleases', body, {
     headers: { 'Idempotency-Key': expect.any(String) },
+    timeout: 0,
   });
 });

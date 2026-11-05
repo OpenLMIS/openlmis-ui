@@ -875,3 +875,21 @@ add/remove, including retained picker focus and no phone overflow. Evidence incl
 `rtl-smoke.json` and `rtl-create-orders-1440.png` / `rtl-create-orders-390.png`.
 The shared preview's language click and snapshot timed out, so the RTL check used the same
 isolated Playwright harness as the timing pass. No full test suite and no push.
+
+### Conflict Recovery Recheck (M1-M9, 2026-11-05)
+
+- M1: preserve legacy draft removals with unknown bases and read stored header bases.
+- M2: save a clean or resolved merge with the current timestamp and ETag; clear the stale error.
+- M3: compare adjustments as sorted reason/quantity pairs, excluding server row ids.
+- M4: provide product/column labels, localized values, treatment months, Added/Removed,
+  a dialog description, per-field radio groups and retry errors with the server message.
+- M5: route Recover Edits through Sync's busy/session/authorization guards and read the latest
+  draft after GET so edits typed during recovery survive.
+- M6: track reconciliation per action so retries never reconcile twice.
+- M7: use GET's approval baseline and retain Approve's outcome if the follow-up GET fails.
+- M8: disable the client timeout for Delete, Initiate and Release too.
+- M9: reserve the labelled Requesting Facility row in the pending Create Orders form.
+
+Tests first reproduced lost removals, false adjustment conflicts, the stale conflict dialog,
+recovery typing and masked Approve success. Focused tests also cover single reconciliation,
+stored legacy header bases and resetting the server failure on retry.

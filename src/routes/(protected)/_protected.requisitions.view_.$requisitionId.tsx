@@ -565,17 +565,19 @@ function RequisitionBody({
     original: RequisitionRecord;
     conflicts: DraftFieldConflict[];
   } | null>(null);
+  const reconciliationVersion = useRef(0);
   const reconcile = async (server?: RequisitionRecord) => {
     const scope = getSessionScope();
     requireOnline();
     const original = latest.current.record;
+    reconciliationVersion.current += 1;
+    const fresh = server ?? (await fetchRequisition(original.id));
+    assertSessionScope(scope);
     const draft = editor.device.recoveryDraft() ?? latest.current.editor.form.state.values.draft;
     const base = {
       ...(editor.device.outdated ? {} : draftBaseValues(original, draft)),
       ...editor.device.baseValues(),
     };
-    const fresh = server ?? (await fetchRequisition(original.id));
-    assertSessionScope(scope);
     const result = mergeRequisitionDraft(fresh, draft, base, original, {}, attemptedSave.current);
     if (result.conflicts.length) {
       setMerge({ fresh, draft, base, original, conflicts: result.conflicts });
@@ -781,14 +783,20 @@ function RequisitionBody({
           kind === 'authorize' ||
           isApprovalKind(kind)
         ) {
-          const base = saved ?? latest.current.record;
+          let base = saved ?? latest.current.record;
           try {
             if (kind === 'approve') {
               try {
                 await approveRequisition(record.id, attempt);
               } finally {
-                await savedRefresh.current;
-                savedRefresh.current = undefined;
+                try {
+                  base = (await savedRefresh.current) ?? latest.current.record;
+                } catch {
+                  assertSessionScope(scope);
+                  needsReconcile.current = true;
+                } finally {
+                  savedRefresh.current = undefined;
+                }
               }
             } else if (kind === 'reject')
               await rejectRequisition(record.id, attempt, rejectReasons);
@@ -814,7 +822,7 @@ function RequisitionBody({
               updateUncertain({
                 kind,
                 status: base.status,
-                modifiedDate: base.modifiedDate,
+                modifiedDate: needsReconcile.current ? undefined : base.modifiedDate,
                 node: base.supervisoryNode,
                 keyUsed: toRequisitionFailure(error).kind === 'key-used',
               });
@@ -928,6 +936,7 @@ function RequisitionBody({
     if (posting.current || finished.current) return false;
     posting.current = true;
     setBusy(true);
+    const reconciledBefore = reconciliationVersion.current;
     try {
       await mutation.mutateAsync(kind);
       if (!mutation.isCurrent()) return false;
@@ -942,14 +951,26 @@ function RequisitionBody({
           ? { kind: 'reconciling' as const }
           : toRequisitionFailure(error);
       if (
+        reconciliationVersion.current === reconciledBefore &&
         !refreshPending.current &&
         !uncertain.current &&
         (failure.kind === 'conflict' ||
           (isAxiosError(error) && (!error.response || error.response.status >= 500)))
       ) {
         needsReconcile.current = true;
-        await reconcile().catch(() => undefined);
-        if (!mutation.isCurrent()) return false;
+        try {
+          const clean = await reconcile();
+          if (!mutation.isCurrent()) return false;
+          if (clean) {
+            setFailure(null);
+            await mutation.mutateAsync('sync');
+            return mutation.isCurrent();
+          }
+        } catch (recoveryError) {
+          if (!mutation.isCurrent()) return false;
+          setFailure(toRequisitionFailure(recoveryError));
+          return false;
+        }
       }
       if (failure.kind === 'key-used') {
         const fresh = await fetchRequisition(record.id).catch(() => undefined);
@@ -1202,11 +1223,10 @@ function RequisitionBody({
                     variant="warning"
                     disabled={pending || !online}
                     focusableWhenDisabled={!online}
-                    onClick={() =>
-                      void reconcile().catch((error: unknown) =>
-                        setFailure(toRequisitionFailure(error)),
-                      )
-                    }
+                    onClick={() => {
+                      needsReconcile.current = true;
+                      void run('sync');
+                    }}
                   >
                     {t('requisitions.merge.recover')}
                   </Button>
@@ -1349,9 +1369,21 @@ function RequisitionBody({
           conflicts={merge.conflicts}
           record={merge.original}
           lineLabels={Object.fromEntries(
-            buildLines(merge.original, products, approved).map((model) => [
+            buildLines(
+              {
+                ...merge.original,
+                requisitionLineItems: [
+                  ...merge.original.requisitionLineItems,
+                  ...merge.draft.addedLines,
+                ],
+              },
+              products,
+              approved,
+            ).map((model) => [
               model.line.id,
-              model.product?.fullProductName ?? model.product?.productCode ?? '',
+              [model.product?.productCode, model.product?.fullProductName]
+                .filter(Boolean)
+                .join(' - '),
             ]),
           )}
           onClose={() => setMerge(null)}
@@ -1376,6 +1408,7 @@ function RequisitionBody({
             refreshPending.current = false;
             setMerge(null);
             setFailure(null);
+            await run('sync');
           }}
         />
       )}

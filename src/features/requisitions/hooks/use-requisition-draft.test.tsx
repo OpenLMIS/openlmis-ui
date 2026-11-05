@@ -491,3 +491,18 @@ it('persists changed-field bases and retains them when reopening an outdated dra
   expect(reopened.result.current.baseValues()).toMatchObject({ draftStatusMessage: '' });
   expect(reopened.result.current.recoveryDraft()?.draftStatusMessage).toBe('Device comment');
 });
+
+it('uses legacy stored header bases when changed-field bases are absent', async () => {
+  await store('older');
+  await getLocalDb()
+    .table('requisitionDrafts')
+    .update('r', {
+      baseHeaders: { draftStatusMessage: '', datePhysicalStockCountCompleted: null },
+    });
+  const { result } = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(result.current.outdated).toBe(true));
+  expect(result.current.baseValues()).toEqual({
+    draftStatusMessage: '',
+    datePhysicalStockCountCompleted: null,
+  });
+});

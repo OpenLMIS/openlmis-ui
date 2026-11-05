@@ -192,7 +192,7 @@ export function useRequisitionDraft(
     );
     const api = {
       recoveryDraft: () => (outdated ? expected?.draft : undefined),
-      baseValues: () => expected?.baseValues,
+      baseValues: () => ({ ...expected?.baseHeaders, ...expected?.baseValues }),
       async rebase(draft: RequisitionDraft, base: RequisitionRecord) {
         await api.flush({ allowFailure: true });
         assertSessionScope(scope);

@@ -8,7 +8,26 @@ import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 
 export type DraftBaseValues = Record<string, unknown>;
 export type DraftFieldConflict = { path: string; yours: unknown; server: unknown };
-const equal = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+function comparable(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    const items = value.map(comparable);
+    return value.every((item) => item && typeof item === 'object' && 'reasonId' in item)
+      ? items.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+      : items;
+  }
+  if (value && typeof value === 'object') {
+    if ('reasonId' in value && 'quantity' in value)
+      return { reasonId: value.reasonId, quantity: value.quantity };
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, item]) => [key, comparable(item)]),
+    );
+  }
+  return value ?? null;
+}
+const equal = (a: unknown, b: unknown) =>
+  JSON.stringify(comparable(a)) === JSON.stringify(comparable(b));
 function fields(record: RequisitionRecord): DraftBaseValues {
   const result: DraftBaseValues = {
     draftStatusMessage: record.draftStatusMessage ?? '',
@@ -105,14 +124,14 @@ export function mergeRequisitionDraft(
   for (const [path, yours] of Object.entries(changes)) {
     const current = server[path] ?? null;
     const before = accepted && equal(accepted[path], current) ? current : (base[path] ?? null);
-    const changed = !equal(yours, before);
+    const changed = !(path in base) || !equal(yours, before);
     const [kind, id, key, month] = path.split('/');
     const missingLine =
       kind === 'lines' && !fresh.requisitionLineItems.some((line) => line.id === id);
     const conflict =
       changed && (missingLine || (!equal(current, before) && !equal(current, yours)));
     if (conflict && !choices[path]) conflicts.push({ path, yours, server: current });
-    const keep = changed && choices[path] !== 'server';
+    const keep = changed && !equal(current, yours) && choices[path] !== 'server';
     if (missingLine && keep && !next.addedLines.some((line) => line.id === id)) {
       const previous =
         original.requisitionLineItems.find((line) => line.id === id) ??

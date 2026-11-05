@@ -661,7 +661,7 @@ it('deletes only after confirmation, removes the saved copy and toasts before re
   expect(remove).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.actions.delete' }));
   await screen.findByText('Create Authorize Search');
-  expect(remove).toHaveBeenCalledWith('/requisitions/r');
+  expect(remove).toHaveBeenCalledWith('/requisitions/r', { timeout: 0 });
   expect(vi.mocked(fetchStatusMessages).mock.calls).toHaveLength(messageReads);
   expect(await copies.get('r')).toBeUndefined();
   expect(success).toHaveBeenCalledWith('requisitions.edit.success.delete', {
@@ -2003,7 +2003,7 @@ it('preserves approval edits on a conflict after another approver acted and relo
   await confirmApproval();
   await screen.findByText('requisitions.edit.error.conflict');
   expect(post).not.toHaveBeenCalled();
-  expect(put).toHaveBeenCalledOnce();
+  expect(put).toHaveBeenCalledTimes(2);
   expect(input).toHaveValue('27');
   vi.mocked(fetchRequisition).mockResolvedValue({
     ...base,
@@ -2359,18 +2359,18 @@ it('reconciles a lost PUT response before saving again with the fresh version', 
     ),
   });
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
-  const dialog = await screen.findByRole('alertdialog');
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
   await waitFor(() =>
-    expect(within(dialog).getByRole('button', { name: 'dialog.close' })).toBeEnabled(),
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeEnabled(),
   );
-  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
     target: { value: '14' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
-  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
-  expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
-  expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(3));
+  expect(put.mock.calls[2][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  expect(put.mock.calls[2][1]).toMatchObject({ modifiedDate: 'fresh' });
   queryClient.clear();
 });
 
@@ -2384,5 +2384,146 @@ it('starts Approve while the post-save GET is still pending', async () => {
   await waitFor(() => expect(post).toHaveBeenCalledOnce());
   await act(() => fresh.resolve({ ...base, eTag: '"fresh"' }));
   await screen.findByText('Approval List');
+  queryClient.clear();
+});
+
+it('automatically saves a clean conflict merge once with the fresh date and ETag', async () => {
+  const { base, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  const get = vi
+    .mocked(fetchRequisition)
+    .mockResolvedValue({ ...base, modifiedDate: 'fresh', eTag: '"fresh"' });
+  const calls = get.mock.calls.length;
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+  expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
+  expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(get.mock.calls.length - calls).toBe(2);
+  queryClient.clear();
+});
+
+it('keeps typing during conflict recovery and prevents another Sync', async () => {
+  const { base, queryClient } = await openEditor();
+  const fresh = Promise.withResolvers<RequisitionRecord>();
+  vi.spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  const get = vi
+    .mocked(fetchRequisition)
+    .mockReturnValueOnce(fresh.promise)
+    .mockResolvedValue(base);
+  const calls = get.mock.calls.length;
+  const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.change(input, { target: { value: '12' } });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(get.mock.calls.length).toBe(calls + 1));
+  expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeDisabled();
+  fireEvent.change(input, { target: { value: '14' } });
+  await act(() => fresh.resolve({ ...base, modifiedDate: 'fresh', eTag: '"fresh"' }));
+  await waitFor(() =>
+    expect(vi.mocked(client.put).mock.calls[1]?.[1]).toMatchObject({
+      requisitionLineItems: expect.arrayContaining([
+        expect.objectContaining({ beginningBalance: 14 }),
+      ]),
+    }),
+  );
+  queryClient.clear();
+});
+
+it.each([true, false])(
+  'preserves Approve outcome when the follow-up GET fails: %s',
+  async (success) => {
+    const { base, queryClient } = await openApprover();
+    vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    vi.mocked(fetchRequisition).mockRejectedValueOnce(new Error('Follow-up failed'));
+    const post = vi.spyOn(client, 'post');
+    if (success) post.mockResolvedValue({ data: {} });
+    else post.mockRejectedValue(httpError(400));
+    await confirmApproval();
+    if (success) await screen.findByText('Approval List');
+    else await screen.findByText('requisitions.edit.error-description');
+    expect(post).toHaveBeenCalledOnce();
+    queryClient.clear();
+  },
+);
+
+it('reconciles an uncertain approval retry only once', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post').mockRejectedValue(new AxiosError('Lost approval'));
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  const dialog = await screen.findByRole('alertdialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  const get = vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: 'newer' });
+  const calls = get.mock.calls.length;
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await screen.findByRole('alertdialog');
+  expect(get.mock.calls.length - calls).toBe(1);
+  expect(post).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('uses the GET modified date to retry an uncertain Approve without another save', async () => {
+  const { base, queryClient } = await openApprover();
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    modifiedDate: 'after-save',
+    eTag: '"fresh"',
+  });
+  const post = vi
+    .spyOn(client, 'post')
+    .mockRejectedValueOnce(new AxiosError('Lost approval'))
+    .mockResolvedValue({ data: {} });
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await screen.findByText('Approval List');
+  expect(put).toHaveBeenCalledOnce();
+  expect(post).toHaveBeenCalledTimes(2);
+  queryClient.clear();
+});
+
+it('saves a resolved field conflict with the fresh server version', async () => {
+  const user = userEvent.setup();
+  const { base, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    modifiedDate: 'fresh',
+    eTag: '"fresh"',
+    requisitionLineItems: base.requisitionLineItems.map((item) => ({
+      ...item,
+      beginningBalance: 20,
+    })),
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByRole('radio', { name: 'requisitions.merge.yours: 12' }));
+  await user.click(within(dialog).getByRole('button', { name: 'requisitions.merge.recover' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+  expect(put.mock.calls[1][1]).toMatchObject({
+    modifiedDate: 'fresh',
+    requisitionLineItems: expect.arrayContaining([
+      expect.objectContaining({ beginningBalance: 12 }),
+    ]),
+  });
+  expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   queryClient.clear();
 });
