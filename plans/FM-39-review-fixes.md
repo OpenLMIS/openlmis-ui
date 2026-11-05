@@ -587,3 +587,7 @@ pinned totals, including 1024px, with the Total row reachable at the end of page
 
 Production build, navigation/Approve timings, blocked writes and individual samples are stored in
 `.screenshots/FM-39-r4/`. Timing results below distinguish remaining slower steps explicitly.
+
+The early waterfall also exposed foreground node/group reads triggered by sign-in warming. Limit
+that warm-up to the five picker references; node/group reads now belong to their actual page or
+the gated background download. A regression test fails when warm-up starts those extra reads.

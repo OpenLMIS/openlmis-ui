@@ -131,7 +131,8 @@ Reasons do.
 
 - Sign-in requisition preloads use normal foreground request handling, gated by the download's
   requisition rights or supervision eligibility. Failed reads never abort sibling page lookups.
-  Warm requisition route chunks at browser idle without running their loaders.
+  Warm only user, roles, minimal facilities, programs and user programs at sign-in. Leave node/group
+  reads to their page or the gated download. Warm route chunks at idle without running loaders.
 - Cancel Home queries on navigation start; visible dashboard reads use normal foreground handling.
 - Requisition pages and background access downloads share reference-data query options through
   `requisitionReferences`. Roles, minimal facilities, programs, user records/programs, nodes and

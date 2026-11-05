@@ -1,8 +1,13 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { AnyRouter } from '@tanstack/react-router';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { userRecordOptions } from '@/features/reference-data/api/queries';
-import { requisitionReferences } from '@/features/reference-data/api/requisition-reference';
+import {
+  minimalFacilitiesOptions,
+  programsOptions,
+  rolesOptions,
+  userProgramsOptions,
+  userRecordOptions,
+} from '@/features/reference-data/api/queries';
 import { RIGHTS } from '@/lib/rights';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -18,7 +23,14 @@ export async function preloadRequisitionReferences(client: QueryClient, userId: 
     assertSessionScope(scope);
     if (!user.roleAssignments.some((assignment) => !!assignment.supervisoryNodeId)) return;
   }
-  await requisitionReferences(client, userId);
+  await Promise.all([
+    client.fetchQuery(minimalFacilitiesOptions()),
+    client.fetchQuery(programsOptions()),
+    client.fetchQuery(rolesOptions()),
+    client.fetchQuery(userProgramsOptions(userId)),
+    client.fetchQuery(userRecordOptions(userId)),
+  ]);
+  assertSessionScope(scope);
 }
 
 export async function hasRequisitionReferences(client: QueryClient, userId: string) {

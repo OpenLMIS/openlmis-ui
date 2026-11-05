@@ -221,3 +221,13 @@ it('starts picker references before a granted user record resolves', async () =>
   await loading;
   client.clear();
 });
+
+it('keeps sign-in warming to picker references so nodes and groups do not compete with pages', async () => {
+  const client = new QueryClient();
+  await preloadRequisitionReferences(client, 'u');
+  expect(api.fetchMinimalFacilities).toHaveBeenCalledOnce();
+  expect(api.fetchUserPrograms).toHaveBeenCalledOnce();
+  expect(api.fetchSupervisoryNodesByIds).not.toHaveBeenCalled();
+  expect(api.fetchRequisitionGroup).not.toHaveBeenCalled();
+  client.clear();
+});
