@@ -2,7 +2,7 @@ import { useStore } from '@tanstack/react-form';
 import { useSuspenseQueries } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { CircleAlertIcon } from 'lucide-react';
-import { type ComponentProps, memo, useDeferredValue, useMemo, useRef } from 'react';
+import { type ComponentProps, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { requisitionGridQueries } from '@/features/requisitions/api/queries';
@@ -352,7 +352,19 @@ export function RequisitionTabs(props: TabsProps) {
 function RequisitionDraftTabs(props: TabsProps & { editor: RequisitionEditor }) {
   const draft = useStore(props.editor.form.store, (state) => state.values.draft);
   const showAllErrors = useStore(props.editor.form.store, (state) => state.values.showAllErrors);
-  const deferred = useDeferredValue(draft);
+  const [deferred, setDeferred] = useState(draft);
+  const approver = props.editing?.approver;
+  useEffect(() => {
+    if (!approver) return;
+    let second: number | undefined;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setDeferred(draft));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      if (second !== undefined) cancelAnimationFrame(second);
+    };
+  }, [draft, approver]);
   return (
     <RequisitionTabsView
       {...props}
