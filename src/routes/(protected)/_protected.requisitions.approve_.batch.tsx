@@ -683,7 +683,6 @@ function BatchPage() {
               approvalResponse.requisitionErrors?.some((error) => error.requisitionId === id),
           );
           if (isSecureOrigin) {
-            copyRevision.current++;
             try {
               for (const record of approvalResponse.requisitionDtos ?? []) {
                 const lease = loaded.copyLeases.find((lease) => lease.id === record.id);
@@ -692,6 +691,7 @@ function BatchPage() {
               }
             } catch (error) {
               assertSessionScope(scope);
+              copyRevision.current++;
               setCopyFailure(error);
             }
           }

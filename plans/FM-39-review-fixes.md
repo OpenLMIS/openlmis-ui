@@ -974,17 +974,37 @@ checks: `pnpm sort-messages`, `pnpm tsc --noEmit`, `pnpm check`, and `pnpm lint:
 
 ### Screen QA Follow-Up
 
-- Restore a separate saved-batch action beside View on offline rows, with the complete row identity; keep single-copy and batch-copy readiness independent.
-- Scroll a virtual facility list to its selected item only on opening or selection change, preserving manual scrolling while filtered items refresh.
-- Retained online lists read device results if their online cache is evicted during a disconnection.
-- Submit, Authorize and Approve invalidate list data without awaiting refetches before returning. Batch saves publish their accepted DTOs without awaiting copy capture.
-- An immediate reload recognizes edits already accepted by the server and removes the matching device draft without an outdated warning. Different pending values still require conflict recovery.
-- History includes status changes without comments, resolves author names where available and avoids duplicating a linked status message.
-- Cold offline View builds facility/program choices and results from complete owned copies when the separate access download is missing. Existing downloaded access continues to restrict local searches where available.
-- Missing filter data uses a compact note when saved requisitions are available. Membership timeout settles into failed verification with Retry, a disabled Approve label and friendly wording. Offline batch Sync and Approve explain their connection requirement.
+- F6: keep View and the saved-batch action separate offline, with complete row identity and independent readiness.
+- F7: scroll the virtual facility picker to its selection on opening or selected-key changes, preserving manual scrolling when item references change.
+- F8: if retained online results are evicted offline, read device results without an online request.
+- Q1: invalidate affected lists without awaiting refetches before navigation. Batch copy capture does not delay mutation completion.
+- Q2: recognize stored edits already accepted by the server before reporting an outdated draft; retire only matching values through the revision-checked writer.
+- Q3: include comment-free status changes, dates and author lookups in history; reserve No Comments for comments and use No Status Changes for empty history.
+- Q4: controlled paired measurements show no remaining regression against legacy in the requested approval steps.
+- Q5: cold offline View derives facility/program choices and results from complete owned copies without requiring the separate requisition access download. Existing complete access snapshots still restrict exact View pairs.
+- Q6: show a compact missing-filter note when copies are usable, preserving reconnect retry.
+- Q7: membership timeouts settle into failed verification with Try Again, friendly wording and a disabled Approve label.
+- Q8: offline batch Sync and Approve explain the connection requirement through aria-description.
 
-Verification: the focused single/batch/approval/offline regression pass passed 174 tests in five files. The focused saved-list, cold-start, accepted-draft and history pass passed 66 tests in five files. The history dialog's user-name reads only start while the dialog is open.
+Copy feedback follows the latest snapshot capture and opening. Older captures cannot hide a newer failure; approval persistence failures supersede pending capture callbacks. The current capture supplies the saving indicator.
 
-Final focused verification passed 115 tests across the six changed test files. Both retained-cache eviction tests fail with the previous query functions and pass with the device fallback. The compact missing-filter note keeps reconnect recovery, and a comment-free history entry resolves its author from the backend user id.
+#### Final Verification
 
-Post-save copy capture stays outside the mutation's completion path. Its status follows the latest snapshot capture and opening, so an older capture cannot clear a newer failure. The current capture supplies the pending indicator. A held-capture interaction reproduces the race before the guard and passes after it; all 50 batch workflow tests pass.
+- 116 focused tests passed across the six changed test files. The broader single/batch/approval/offline regression pass also passed 174 tests in five files. No full suite was run.
+- Both cache-eviction tests fail with the old query functions and pass with the device fallback. The held-capture interaction reproduces the stale-success race before its guard.
+- TypeScript, Biome, design-system lint and the production build pass. All five catalogs have matching, sorted keys.
+- Cold offline View shows a complete saved copy with zero separate access snapshots, at 1440 px in English and 390 px in Arabic. Arabic uses RTL cards with separate View and removal actions.
+- Evidence and controlled harness: `.screenshots/FM-39-r7/README.md`. Both origins stub every write except token requests and read-only POST searches; period reads never send unfinished=true. Real GET latency is retained; Q1 overlays the reserved record and period status consistently because mutations are stubbed.
+
+Median seconds, settled / warm. Three runs per cell.
+
+| Action | Before | After | Legacy |
+|---|---:|---:|---:|
+| Submit | 1.802 / 1.840 | 1.804 / 1.792 | 2.374 / 2.375 |
+| Authorize | 1.806 / 1.816 | 1.798 / 1.788 | 2.506 / 2.286 |
+| Single Approve | 2.087 / 2.084 | 2.075 / 2.087 | 4.514 / 4.465 |
+| Two-Level Open | 1.012 / 0.319 | 0.655 / 0.328 | 5.276 / 4.835 |
+| Level-1 Approve | 2.085 / 2.090 | 2.092 / 2.103 | 4.618 / 4.617 |
+| Sync | 1.324 / 1.264 | 1.252 / 1.237 | 5.176 / 5.141 |
+| Batch Sync | 1.622 / 1.591 | 1.566 / 1.554 | 1.820 / 1.834 |
+| Batch Approve | 3.729 / 3.699 | 3.702 / 3.704 | 6.020 / 6.013 |
