@@ -313,6 +313,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
                 confirmationKind.current
                   ? 'requisitions.convert.convert-confirm'
                   : 'requisitions.convert.release-confirm',
+                { count: picked.size },
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>

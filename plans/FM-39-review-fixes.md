@@ -1025,3 +1025,9 @@ Median seconds, settled / warm. Three runs per cell.
   replaces the passive saved-draft badge; active draft persistence/errors retain priority.
   Background-copy copy explicitly concerns offline access and leaves server saves unaffected.
   Offline snapshot and draft recovery behavior is unchanged. All five catalogs are synchronized.
+
+- RV9: conversion and release confirmations use the selected requisition count with ICU
+  plurals and plain wording in all five catalogs.
+- Q1b skipped: this optional optimistic list-status update is outside the confirmed defects.
+  Existing nonblocking invalidation refreshes the authoritative status without delaying navigation;
+  predicting Submit/Authorize status would add a second transition policy.
