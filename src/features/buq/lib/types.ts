@@ -22,4 +22,4 @@ export type BuqPreparation = {
   processingPeriodId: string;
 };
 
-export type NamedRecord = { id: string; name: string };
+export type NamedItem = { id: string; name: string };

@@ -15,7 +15,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { RowActions } from '@/components/display/card-actions';
 import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
-import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { BUQ_CSV_FILENAME, deleteBuq, downloadBuq } from '@/features/buq/api/api';
 import { BUQ_STATUS } from '@/features/buq/lib/buq-status';
 import { DEFAULT_PREPARED_SORT, type PrepareSearch } from '@/features/buq/lib/search';
-import type { Buq, BuqPeriod, NamedRecord } from '@/features/buq/lib/types';
+import type { Buq, BuqPeriod, NamedItem } from '@/features/buq/lib/types';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { downloadFile } from '@/lib/download-file';
@@ -49,12 +49,12 @@ type RowHandlers = {
 
 const columnHelper = createColumnHelper<DataTableFeatures, BuqRow>();
 
-function createColumns(t: TFunction, facility: NamedRecord, handlers: RowHandlers) {
+function createColumns(t: TFunction, facility: NamedItem, handlers: RowHandlers) {
   return columnHelper.columns([
     columnHelper.display({
       id: 'facility',
       header: t('buq.prepare.facility-name'),
-      cell: () => <bdi>{facility.name}</bdi>,
+      cell: () => <CellText overflow="clamp">{facility.name}</CellText>,
       meta: { label: t('buq.prepare.facility-name') },
     }),
     columnHelper.accessor('targetYear', {
@@ -63,7 +63,7 @@ function createColumns(t: TFunction, facility: NamedRecord, handlers: RowHandler
     }),
     columnHelper.accessor('periodName', {
       header: t('buq.prepare.quantification-period'),
-      cell: ({ getValue }) => getValue(),
+      cell: ({ getValue }) => <CellText overflow="clamp">{getValue()}</CellText>,
       meta: { label: t('buq.prepare.quantification-period') },
     }),
     columnHelper.accessor('status', {
@@ -82,7 +82,7 @@ function createColumns(t: TFunction, facility: NamedRecord, handlers: RowHandler
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('buq.prepare.actions')}</span>,
-      meta: { className: 'w-16', skeleton: 'control' },
+      meta: { className: 'w-24', skeleton: 'control' },
       cell: ({ row }) => (
         <RowActions
           actions={[
@@ -120,7 +120,7 @@ function createColumns(t: TFunction, facility: NamedRecord, handlers: RowHandler
 const getRowId = (row: BuqRow) => row.id;
 const NO_ROWS: BuqRow[] = [];
 const IDLE: RowHandlers = { downloading: undefined, onDownload: () => {}, onDelete: () => {} };
-const SKELETON_FACILITY: NamedRecord = { id: '', name: '' };
+const SKELETON_FACILITY: NamedItem = { id: '', name: '' };
 const noop = () => {};
 
 type PagedTableProps = {
@@ -131,7 +131,7 @@ type PagedTableProps = {
 
 function useBuqTable(
   rows: readonly BuqRow[],
-  facility: NamedRecord,
+  facility: NamedItem,
   handlers: RowHandlers,
   { search, onSearchChange, cards }: PagedTableProps,
 ) {
@@ -190,28 +190,35 @@ export function PreparedTable({
 }: PagedTableProps & {
   buqs: readonly Buq[];
   periods: readonly BuqPeriod[];
-  facility: NamedRecord;
+  facility: NamedItem;
 }) {
   const { t } = useTranslation();
   const [deleting, setDeleting] = useState<BuqRow>();
-  const download = useSessionMutation({
-    mutationFn: (buq: BuqRow) => downloadBuq(buq.id),
-    onSuccess: (blob) => downloadFile(blob, BUQ_CSV_FILENAME),
-    onError: (error) =>
-      toast.error(t('buq.prepare.download-error-title'), {
-        description: serverMessage(error) ?? t('buq.prepare.download-error'),
-      }),
-  });
   const rows = useMemo(() => {
     const names = new Map(periods.map(({ id, name }) => [id, name]));
     return buqs
       .map((buq) => ({ ...buq, periodName: names.get(buq.processingPeriodId) ?? '' }))
       .toSorted((a, b) => a.targetYear - b.targetYear);
   }, [buqs, periods]);
+  const download = useSessionMutation({
+    mutationFn: downloadBuq,
+    onSuccess: (blob, id) => {
+      downloadFile(blob, BUQ_CSV_FILENAME);
+      toast.success(t('buq.prepare.downloaded-title'), {
+        description: t('buq.prepare.downloaded', {
+          period: rows.find((row) => row.id === id)?.periodName ?? '',
+        }),
+      });
+    },
+    onError: (error) =>
+      toast.error(t('buq.prepare.download-error-title'), {
+        description: serverMessage(error) ?? t('buq.prepare.download-error'),
+      }),
+  });
   const handlers = useMemo<RowHandlers>(
     () => ({
-      downloading: download.isPending ? download.variables?.id : undefined,
-      onDownload: (buq) => download.mutate(buq),
+      downloading: download.isPending ? download.variables : undefined,
+      onDownload: (buq) => download.mutate(buq.id),
       onDelete: setDeleting,
     }),
     [download.isPending, download.variables, download.mutate],
@@ -267,9 +274,7 @@ function DeleteBuqDialog({ buq, onClose }: { buq: BuqRow | undefined; onClose: (
         description: t('buq.prepare.deleted', { period: shown?.periodName ?? '' }),
       });
     },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'list'] });
-    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'list'] }),
   });
   const props = dialogProps(remove.isPending);
 
