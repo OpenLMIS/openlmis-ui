@@ -440,7 +440,6 @@ function BatchPage() {
   };
   const mutation = useSessionMutation({
     mutationFn: async (kind: 'sync' | Action | 'check') => {
-      const captureRevision = ++copyRevision.current;
       if (kind !== 'revert' && kind !== 'remove') requireOnline();
       await drafts.flush();
       if (kind !== 'revert' && kind !== 'remove' && accessEpoch.current !== uploadAccessEpoch()) {
@@ -613,6 +612,8 @@ function BatchPage() {
       await drafts.clear(save.succeeded, fresh.requisitionDtos, false);
       assertSessionScope(scope);
       if (isSecureOrigin && save.succeeded.length) {
+        const captureRevision = ++copyRevision.current;
+        setCopyFailure(undefined);
         const leases = loaded.copyLeases.filter((lease) => save.succeeded.includes(lease.id));
         const result = captureBatch(
           leases,
@@ -682,6 +683,7 @@ function BatchPage() {
               approvalResponse.requisitionErrors?.some((error) => error.requisitionId === id),
           );
           if (isSecureOrigin) {
+            copyRevision.current++;
             try {
               for (const record of approvalResponse.requisitionDtos ?? []) {
                 const lease = loaded.copyLeases.find((lease) => lease.id === record.id);

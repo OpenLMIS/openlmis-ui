@@ -987,4 +987,4 @@ Verification: the focused single/batch/approval/offline regression pass passed 1
 
 Final focused verification passed 115 tests across the six changed test files. Both retained-cache eviction tests fail with the previous query functions and pass with the device fallback. The compact missing-filter note keeps reconnect recovery, and a comment-free history entry resolves its author from the backend user id.
 
-Post-save copy capture stays outside the mutation's completion path. Its status follows the latest action and opening, so an older capture cannot clear a newer failure. The current capture supplies the pending indicator. A held-capture interaction reproduces the race before the guard and passes after it; all 50 batch workflow tests pass.
+Post-save copy capture stays outside the mutation's completion path. Its status follows the latest snapshot capture and opening, so an older capture cannot clear a newer failure. The current capture supplies the pending indicator. A held-capture interaction reproduces the race before the guard and passes after it; all 50 batch workflow tests pass.
