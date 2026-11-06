@@ -175,18 +175,11 @@ describe('order editor workflow', () => {
   });
   it('requires every tab to be valid, summarizes both, and removes only a successful send', async () => {
     const { user, onBatchChange } = setup([creatingOrder('a'), creatingOrder('b', 0)]);
-    await user.click(screen.getByRole('button', { name: 'orders.edit.create' }));
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'orders.edit.create-invalid-description',
-    );
+    const create = screen.getByRole('button', { name: 'orders.edit.create' });
+    expect(create).toBeDisabled();
+    expect(create).toHaveAttribute('aria-description', 'orders.edit.create-invalid-description');
     expect(sendOrder).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'dialog.close' }));
-    await waitFor(() =>
-      expect(screen.getByRole('tab', { name: /Facility b/ })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      ),
-    );
+    await user.click(screen.getByRole('tab', { name: /Facility b/ }));
     fireEvent.change(quantity(), { target: { value: '15' } });
     vi.mocked(sendOrder)
       .mockResolvedValueOnce(undefined)
@@ -382,17 +375,21 @@ it('deletes only readable Creating orders in a batch with known problem entries'
   expect(deleteOrders).toHaveBeenCalledWith(['a', 'b']);
 });
 
-it('does not mark a new empty order invalid until Create is attempted', async () => {
+it('keeps an empty order unmarked and Create disabled until a positive quantity is entered', async () => {
   const { user } = setup([{ ...creatingOrder('a'), orderLineItems: [] }]);
   expect(screen.getByRole('tab', { name: /Facility a/ })).not.toHaveTextContent(
     'orders.edit.invalid',
   );
-  await user.click(screen.getByRole('button', { name: 'orders.edit.create' }));
-  expect(screen.getByRole('alertdialog')).toHaveTextContent(
-    'orders.edit.create-invalid-description',
-  );
-  await user.click(screen.getByRole('button', { name: 'dialog.close' }));
-  expect(screen.getByRole('tab', { name: /Facility a/ })).toHaveTextContent('orders.edit.invalid');
+  const create = screen.getByRole('button', { name: 'orders.edit.create' });
+  expect(create).toBeDisabled();
+  expect(create).toHaveAttribute('aria-description', 'orders.edit.create-invalid-description');
+  await user.click(screen.getByRole('combobox', { name: 'orders.edit.select-product' }));
+  await user.click(await screen.findByRole('option', { name: 'Medicine' }));
+  await user.click(screen.getByRole('button', { name: 'orders.add' }));
+  expect(create).toBeDisabled();
+  fireEvent.change(quantity(), { target: { value: '5' } });
+  expect(create).toBeEnabled();
+  expect(create).not.toHaveAttribute('aria-description');
 });
 
 it('focuses the next line removal control, then the product picker after the final line', async () => {

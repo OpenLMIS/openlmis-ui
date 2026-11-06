@@ -1008,3 +1008,9 @@ Median seconds, settled / warm. Three runs per cell.
 | Sync | 1.324 / 1.264 | 1.252 / 1.237 | 5.176 / 5.141 |
 | Batch Sync | 1.622 / 1.591 | 1.566 / 1.554 | 1.820 / 1.834 |
 | Batch Approve | 3.729 / 3.699 | 3.702 / 3.704 | 6.020 / 6.013 |
+
+## Online Release Follow-Up (R8)
+
+- RV8: Create Order stays disabled until every order in the batch has valid positive
+  quantities and no loading/access problem. Its accessible description explains the requirement.
+  Existing interaction coverage now verifies empty and invalid sibling orders before allowing creation.

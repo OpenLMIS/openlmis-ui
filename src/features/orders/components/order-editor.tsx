@@ -219,6 +219,7 @@ export function OrderEditor({
     },
   });
   const pending = mutation.isPending;
+  const invalidBatch = !entries.length || status.some((entry) => entry.invalid);
   const guard = useDiscardGuard(
     entries.some((entry) => dirty(entry.id)),
     { pending, allowLeave: () => leaving.current },
@@ -362,7 +363,10 @@ export function OrderEditor({
           </Button>
           <Button
             size="lg"
-            disabled={pending}
+            disabled={pending || invalidBatch}
+            aria-description={
+              invalidBatch ? t('orders.edit.create-invalid-description') : undefined
+            }
             onClick={() => {
               const bad = entries.find((entry) => invalid(entry.id));
               setCreatingInvalid(true);
