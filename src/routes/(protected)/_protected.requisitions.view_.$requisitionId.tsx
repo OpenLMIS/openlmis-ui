@@ -595,14 +595,14 @@ function RequisitionBody({
     return result.conflicts.length === 0;
   };
   const savedRefresh = useRef<Promise<RequisitionRecord> | undefined>(undefined);
-  const sync = async (deferRefresh = false) => {
+  const sync = async (refreshMode: 'wait' | 'background' | 'approval' = 'wait') => {
     const scope = getSessionScope();
     await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
     requireOnline();
     if (needsReconcile.current && !(await reconcile())) throw new RequisitionRetryConflict();
-    if (refreshPending.current) {
-      await refreshSaved();
+    if (savedRefresh.current || refreshPending.current) {
+      await (savedRefresh.current ?? refreshSaved());
       assertSessionScope(scope);
       requireOnline();
     }
@@ -669,15 +669,29 @@ function RequisitionBody({
     });
     assertSessionScope(scope);
     const refresh = refreshSaved();
-    if (!deferRefresh) return refresh;
+    if (refreshMode === 'wait') return refresh;
     savedRefresh.current = refresh;
-    void refresh.catch(() => undefined);
+    void refresh.catch((error: unknown) => {
+      if (scope === getSessionScope() && refreshMode === 'background')
+        setFailure(toRequisitionFailure(error));
+    });
+    void refresh
+      .finally(() => {
+        if (savedRefresh.current === refresh) savedRefresh.current = undefined;
+      })
+      .catch(() => undefined);
+    setSynced(true);
     return response;
   };
   const mutation = useSessionMutation({
     retry: false,
     mutationFn: async (kind: EditorAction | 'update' | 'print') => {
       const scope = getSessionScope();
+      if (savedRefresh.current || refreshPending.current) {
+        await (savedRefresh.current ?? refreshSaved());
+        assertSessionScope(scope);
+        requireOnline();
+      }
       if (kind === 'update') {
         if (failure?.kind === 'forbidden') {
           await queryClient.invalidateQueries({
@@ -719,7 +733,8 @@ function RequisitionBody({
             throw new ForbiddenError(RIGHTS.requisitionView);
           const fresh = await fetchRequisition(record.id);
           assertSessionScope(scope);
-          if (fresh.modifiedDate !== record.modifiedDate || fresh.status !== record.status)
+          const baseline = latest.current.record;
+          if (fresh.modifiedDate !== baseline.modifiedDate || fresh.status !== baseline.status)
             throw new RequisitionRetryConflict();
         }
         requireOnline();
@@ -770,7 +785,9 @@ function RequisitionBody({
         kind === 'authorize' ||
         isApprovalKind(kind)
       ) {
-        saved = await sync(kind === 'approve');
+        saved = await sync(
+          kind === 'sync' ? 'background' : kind === 'approve' ? 'approval' : 'wait',
+        );
         assertSessionScope(scope);
       }
       requireOnline();

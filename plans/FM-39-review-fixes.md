@@ -1111,12 +1111,90 @@ and two animation frames, in milliseconds:
 
 | Screen | Supplied baseline median | Local baseline | After trials | After median | Legacy target |
 |---|---:|---:|---|---:|---:|
-| Approve | 22,800 | 14,534 | 4,794 / 4,326 / 4,915 | 4,794 | 13,600 |
-| Convert | 25,600 | 21,695 | 2,915 / 2,311 / 2,819 | 2,819 | 12,000 |
+| Approve | 22,800 | 14,534 | 4,525 / 5,085 / 5,107 | 5,085 | 13,600 |
+| Convert | 25,600 | 21,695 | 2,533 / 2,457 / 3,040 | 2,533 | 12,000 |
 
-Start loads for the post-fix blocks were 3.03-3.73. Local baseline is a single trial;
+Start loads for the final post-fix blocks were 2.52-3.12.
+The final build explicitly enables `BATCH_APPROVE_SCREEN` in its generated config;
+earlier post-fix diagnostic runs without the rebuilt config are excluded. Local baseline is a single trial;
 the supplied medians are independent earlier measurements. Evidence and harnesses are
 in `/home/user/.t3/fm39-opus/implementation-first-signin/`. A focused failing test proved
 both skeletons suspended with a never-resolving date-settings read; both now render
 immediately. Download scheduling, complete generations, endpoint readers and Dexie
 transactions are unchanged. No Worker or dataset-format migration is needed for this fix.
+
+Save now returns control after the PUT succeeds and starts the authoritative GET in
+the background. The returned PUT ETag is still never adopted. A shared in-flight
+refresh promise gates every subsequent editor action, including another Save, Sync,
+Submit, Authorize, Approve, Reject, Skip, Delete, Update and Print. The refresh still
+rebases the latest in-memory edits, writes and flushes the device draft, updates the
+query baseline and captures the single-record copy. A failed refresh keeps the draft,
+shows the existing failure dialog and leaves the next attempt responsible for a
+fresh read. Renewed-access comparisons use the latest adopted record baseline.
+
+The new failing interaction test held the post-PUT GET unresolved: editing stayed
+locked before this change. It now verifies editing resumes, a later quantity edit
+survives the background rebase, and an immediate second Save or Submit waits and
+sends the GET's ETag and modified date. Existing failed-read retry, conflict,
+approval-overlap and device-copy tests remain in the focused suite.
+
+Submit and Authorize retain their existing PUT, GET, POST ordering. Their transition
+reader sends an idempotency key without an ETag, but this fix does not remove the
+baseline read without a verified backend lifecycle contract. Approve keeps its
+existing overlapping POST and baseline GET. The PUT response cannot establish the
+post-save version for retry and uncertain-outcome recovery.
+
+Validation: 101 focused tests pass across the detail-route and loading-skeleton files.
+The final baseline adjustment also passes seven targeted Save/ETag/retry/approval
+tests. TypeScript, design-system lint, Biome and production build pass. The coordinator
+and providers did not change, so the conditional `test:offline` suite is not required.
+FM-165 and FM-191 need no behavior update because download priority, session scope,
+access generations, dataset acceptance and storage formats are unchanged.
+
+Final Save measurements, milliseconds:
+
+| Lines | Supplied new baseline | Supplied legacy target | After new trials | After new median | Paired legacy median |
+|---|---:|---:|---|---:|---:|
+| 24 | 971 | 619 | 737 / 743 / 920 | 743 | 690 |
+| 1,003 | 15,161 | 12,805 | 13,407 / 12,296 / 9,156 | 12,296 | 12,726 |
+
+Three adjacent new/legacy pairs per accepted cell, using owned AUTHORIZED records
+and unchanged payloads. The original first large pair (10,422 / 14,309 ms) is excluded:
+its start loads were 7.98 / 4.12, exceeding the allowed difference of 3. The replacement
+pair started at 2.85 / 3.58 and measured 9,156 / 12,726 ms. Other accepted starts were
+below 8 and differed by less than 3 within each pair. No stock writes or lifecycle
+transitions were performed; only Save PUTs on the owned test fixtures were allowed.
+
+The 1,003-line target passes. The 24-line target remains unmet, including against its
+contemporary paired legacy result. Its median PUT time was 607 ms new versus 605 ms
+legacy; most of the remaining 53 ms wall-time difference is client completion work.
+The small-row target must not be reported as complete. The large-record improvement
+also includes backend request variation, so the entire reduction cannot be attributed
+to removing the serialized GET. Submit/Authorize were not timed again and retain the
+baseline read described above.
+
+Final live offline verification used client-side navigation throughout, preserving the
+`sign-in` trigger. All five scopes completed: requisition access, two home-stock bundles
+and two receive catalogs. The database contained 13,347 permission strings, 2,734
+facilities, 18 roles, five nodes and five groups; the catalogs contained 10,003 and 26
+approved products. Both home-stock records remained format 6, catalogs format 1,
+and requisition access matched the complete access generation. The coordinator writes
+one complete bundle per scope, not individual product records.
+
+With connectivity disabled, Approve filtered by Family Planning and View filtered by
+the owned facility/program each rendered the saved requisition, its offline marker and
+the saved-device timestamp. The detail editor retained the local quantity `111` across
+navigation. Offline Data Ready appeared. Repeated sign-in on the same device reached
+Approve rows in 4,058 ms; the earlier reload-based check measured 4,396 ms.
+
+At start load 1.58, actual typed keys sampled throughout the sign-in download painted
+in 3.1-21.5 ms. The initial programmatic field clear took 112.1 ms and is not counted
+as a typed key; clearing latency is not resolved by this fix. Observed long tasks reached
+180 ms across buffered startup/download observations, so this work does not establish
+an absolute 50 ms bound on every background task. It establishes responsive sampled
+keystrokes and complete generations without changing the download architecture.
+
+Final flag-enabled Home medians were 1,405 / 1,404 ms in the Approve/Convert blocks.
+Create/Authorize, View and Create Orders entry timings and Submit/Authorize action
+timings were not rerun. Keep those as verification limits, not passing measurements.
+The preview server is stopped at handoff. No branch switch, push or other checkout edit.

@@ -602,6 +602,38 @@ it('locks editing during Sync and uses the refetched ETag next time', async () =
   expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
   queryClient.clear();
 });
+it.each(['sync', 'submit'] as const)(
+  'releases Save before its GET and serializes the next %s',
+  async (kind) => {
+    const { base, queryClient } = await openEditor();
+    const fresh = { ...base, eTag: '"fresh"', modifiedDate: 'fresh' };
+    const pending = Promise.withResolvers<typeof fresh>();
+    vi.mocked(fetchRequisition).mockReturnValueOnce(pending.promise).mockResolvedValue(fresh);
+    const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+    fireEvent.change(input, { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+    await waitFor(() => expect(put).toHaveBeenCalledOnce());
+    await waitFor(() => expect(input).toBeEnabled());
+    fireEvent.change(input, { target: { value: '14' } });
+    fireEvent.click(screen.getByRole('button', { name: `requisitions.edit.actions.${kind}` }));
+    if (kind === 'submit') {
+      const dialog = await screen.findByRole('alertdialog');
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'requisitions.edit.actions.submit' }),
+      );
+    }
+    expect(put).toHaveBeenCalledOnce();
+    pending.resolve(fresh);
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+    expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+    expect(put.mock.calls[1][1]).toMatchObject({
+      modifiedDate: 'fresh',
+      requisitionLineItems: [expect.objectContaining({ beginningBalance: 14 }), expect.anything()],
+    });
+    queryClient.clear();
+  },
+);
 it('refetches after a saved PUT loses its GET before sending the next PUT', async () => {
   const { base, queryClient } = await openEditor();
   const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
