@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { deleteBuq, fetchBuqPeriods, fetchPreparedBuqs, prepareBuq } from '@/features/buq/api/api';
 import { PrepareBuq } from '@/features/buq/components/prepare-buq';
+import type { PrepareSearch } from '@/features/buq/lib/search';
 import type { Buq } from '@/features/buq/lib/types';
 import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
 import { httpError } from '@/test-utils/http-error';
@@ -36,7 +37,8 @@ beforeEach(() => {
   vi.mocked(fetchBuqPeriods).mockResolvedValue(PERIODS);
 });
 
-function renderPrepare() {
+function renderPrepare(search: PrepareSearch = {}) {
+  const onSearchChange = vi.fn();
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -46,12 +48,13 @@ function renderPrepare() {
   renderPage(
     <PrepareBuq
       facility={{ id: 'f1', name: 'Cuamba' }}
-      onSearchChange={vi.fn()}
+      onSearchChange={onSearchChange}
       program={{ id: 'g1', name: 'BUQ' }}
-      search={{}}
+      search={search}
     />,
     { queryClient },
   );
+  return onSearchChange;
 }
 
 const openPeriods = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -144,4 +147,11 @@ it('deletes a forecast only after confirmation', async () => {
 
   await waitFor(() => expect(deleteBuq).toHaveBeenCalledWith('b-p16', expect.anything()));
   expect(await screen.findByText('buq.prepare.empty')).toBeInTheDocument();
+});
+
+it('returns to the last page when the shown page no longer has forecasts', async () => {
+  vi.mocked(fetchPreparedBuqs).mockResolvedValue([prepared('p16', 2017)]);
+  const onSearchChange = renderPrepare({ page: 2, size: 1 });
+
+  await waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({ page: undefined }, true));
 });
