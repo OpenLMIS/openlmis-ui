@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import {
   CONTAINER_WIDTHS,
+  type ContainerSize,
   type ResponsiveColumn,
   useColumnVisibility,
   useElementWidth,
@@ -10,9 +11,9 @@ import { useStoredState } from '@/hooks/use-stored-state';
 
 export const columnChoicesSchema = z.record(z.string(), z.boolean());
 
-export function useCardLayout<T extends HTMLElement>() {
+export function useCardLayout<T extends HTMLElement>(below: ContainerSize = '2xl') {
   const [measure, width] = useElementWidth<T>();
-  const cards = width !== undefined && width < CONTAINER_WIDTHS['2xl'];
+  const cards = width !== undefined && width < CONTAINER_WIDTHS[below];
   return { measure, width, cards };
 }
 

@@ -535,7 +535,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   its action in a band, using the table's No lot defined text. Rows show Pack Size, Expiry,
   Stock On Hand, Current Stock, VVM, Reasons and Unaccounted. Multi-lot products add a Total
   section matching the table summary. Add Products dialog lines use flat cards with inline errors.
-  Every table switches to cards below 672px. Other tables use `TableCards` and
+  Every table switches to cards below 672px, except two-column lists in narrow forms such as
+  Create Orders, which pass `useCardLayout('md')` and switch below 448px. Other tables use `TableCards` and
   `TableCardsSkeleton` (`src/components/display/table-cards.tsx`) over the same TanStack table: the
   `title` column and the `actions` cell form the band; every other visible column is a row labelled
   by `meta.label`. Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"`

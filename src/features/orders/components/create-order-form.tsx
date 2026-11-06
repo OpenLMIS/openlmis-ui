@@ -127,7 +127,7 @@ export function CreateOrderForm({
         }),
       }),
   });
-  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  const { measure, cards } = useCardLayout<HTMLDivElement>('md');
   const removeRef = useRef<(id: string) => void>(() => undefined);
   removeRef.current = (id) => {
     focus.removing(id);
