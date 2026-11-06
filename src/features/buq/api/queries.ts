@@ -13,6 +13,6 @@ export const preparedBuqsOptions = (facilityId: string) =>
 
 export const buqPeriodsOptions = (scheduleId: string | undefined) =>
   queryOptions({
-    queryKey: [...queryKeys.buq.all, 'periods', scheduleId],
+    queryKey: [...queryKeys.processingPeriods.all, 'buq', scheduleId],
     queryFn: () => (scheduleId ? fetchBuqPeriods(scheduleId) : NO_PERIODS),
   });

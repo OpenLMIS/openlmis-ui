@@ -117,7 +117,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const periods = useBuqPeriods();
-  const { data: buqs = NO_BUQS } = useQuery(preparedBuqsOptions(facility.id));
+  const list = useQuery(preparedBuqsOptions(facility.id));
   const prepare = useSessionMutation({
     mutationFn: prepareBuq,
     onSuccess: async (_, { processingPeriodId }) => {
@@ -130,7 +130,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
   });
   return (
     <PeriodPicker
-      disabled={prepare.isPending}
+      disabled={prepare.isPending || list.isPending}
       error={
         prepare.isError
           ? (serverMessage(prepare.error) ?? t('buq.prepare.prepare-error'))
@@ -145,7 +145,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
       }
       pending={prepare.isPending}
       periods={periods}
-      prepared={buqs}
+      prepared={list.data ?? NO_BUQS}
     />
   );
 }
@@ -190,6 +190,7 @@ function PeriodPicker({
         <PickerAdd>
           <Combobox
             disabled={disabled}
+            isItemEqualToValue={(item, value) => item.value === value.value}
             itemToStringLabel={(item) => item.label}
             items={items}
             onValueChange={(item) => {
