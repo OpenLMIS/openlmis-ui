@@ -69,8 +69,13 @@ function createColumns(t: TFunction, facility: NamedRecord, handlers: RowHandler
     columnHelper.accessor('status', {
       header: t('buq.prepare.status'),
       cell: ({ getValue }) => {
-        const { labelKey, tone } = BUQ_STATUS[getValue()];
-        return <Badge variant={tone}>{t(labelKey)}</Badge>;
+        const { labelKey, tone, icon: Icon } = BUQ_STATUS[getValue()];
+        return (
+          <Badge variant={tone}>
+            <Icon data-icon="inline-start" />
+            {t(labelKey)}
+          </Badge>
+        );
       },
       meta: { label: t('buq.prepare.status') },
     }),
@@ -170,9 +175,9 @@ export function PreparedTableSkeleton({
     cards: false,
   });
   if (cards) {
-    return <TableCardsSkeleton actions={2} rowCount={2} table={table} title="facility" />;
+    return <TableCardsSkeleton actions={2} rowCount={1} table={table} title="periodName" />;
   }
-  return <DataTableSkeleton rowCount={2} table={table} />;
+  return <DataTableSkeleton rowCount={1} table={table} />;
 }
 
 export function PreparedTable({
@@ -240,7 +245,7 @@ export function PreparedTable({
           footer={footer}
           listRef={pageStart.ref}
           table={table}
-          title="facility"
+          title="periodName"
         />
       ) : (
         <DataTable empty={empty} footer={footer} table={table} />
