@@ -69,6 +69,7 @@ import { queryKeys } from '@/lib/key-factory';
 import { isOnline } from '@/lib/online';
 import { programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
+import { isSecureOrigin } from '@/lib/secure-context';
 import { type SearchChange, searchSort } from '@/lib/table-search';
 import { requireRequisitionViewWithDevice } from '@/routes/-requisition-access';
 
@@ -78,7 +79,10 @@ const combineGroups = (results: UseSuspenseQueryResult<RequisitionGroup>[]) =>
   results.map(({ data }) => data);
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/view')({
-  validateSearch: requisitionSearchSchema,
+  validateSearch: (input) => {
+    const search = requisitionSearchSchema.parse(input);
+    return isSecureOrigin ? search : { ...search, offline: undefined };
+  },
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
     await prepareRequisitionAccess(queryClient);

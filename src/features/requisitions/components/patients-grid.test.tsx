@@ -66,9 +66,9 @@ it('enforces Skip and live required errors in the editable layout at phone width
   });
   expect(inputs).toHaveLength(66);
   await waitFor(() => expect(inputs[0]).toBeEnabled());
-  const skip = screen.getByRole('checkbox', {
-    name: 'requisitions.patients.skip: requisitions.patients.adult-patients',
-  });
+  const skip = screen.getAllByRole('checkbox', {
+    name: 'requisitions.patients.skip-label',
+  })[0];
   fireEvent.change(inputs[0], { target: { value: '0' } });
   await waitFor(() => expect(skip).toHaveAttribute('aria-disabled', 'true'));
   expect(inputs[1]).toHaveAttribute('aria-invalid', 'true');

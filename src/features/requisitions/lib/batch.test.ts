@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   batchCost,
   batchRows,
+  batchRowTotals,
   batchSaveBody,
   batchTotals,
   orderBatch,
@@ -10,6 +11,7 @@ import {
 } from '@/features/requisitions/lib/batch';
 import arv from '@/features/requisitions/lib/fixtures/batch/retrieveall-arv.json';
 import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
+import i18n from '@/integrations/i18n';
 
 describe('legacy batch calculations', () => {
   it('matches the captured ARV line costs, including rounded packs, and FP totals', () => {
@@ -103,4 +105,33 @@ it('rounds a partial pack to zero when roundToZero is enabled', () => {
       '5',
     ),
   ).toBe(0);
+});
+
+it('excludes records that are no longer awaiting approval from batch and product totals', () => {
+  const approved = { ...arv.requisitionDtos[0], status: 'APPROVED' };
+  expect(batchTotals([approved]).cost).toBe(0);
+  const [row] = batchRows([approved]);
+  expect(batchRowTotals(row, {}).cost).toBeGreaterThan(0);
+  expect(batchRowTotals(row, {}, [approved])).toEqual({ quantity: 0, cost: 0 });
+});
+
+it('retains translated failure keys until rendering', () => {
+  const translate = vi.spyOn(i18n, 't').mockReturnValue('Translated message' as never);
+  const key = 'requisitions.batch.no-longer-awaiting';
+  expect(
+    parseBatchResult(
+      { requisitionErrors: [{ requisitionId: 'r', errorMessage: { messageKey: key } }] },
+      ['r'],
+    ).failed.get('r'),
+  ).toBe(key);
+  translate.mockRestore();
+});
+
+it('keeps a refused column total while excluding it from all-facility totals', () => {
+  const available = arv.requisitionDtos[0];
+  const refused = { ...available, id: 'refused', approvalAvailable: false };
+  const totals = batchTotals([available, refused]);
+  const expected = batchTotals([available]).cost;
+  expect(totals.perRecord.get('refused')).toBeCloseTo(expected);
+  expect(totals.cost).toBeCloseTo(expected);
 });

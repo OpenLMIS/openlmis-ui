@@ -28,11 +28,14 @@ import {
   seedDepots,
   uncertainRelease,
 } from '@/features/requisitions/lib/convert-search';
+import { beginCopy, retireCopy } from '@/features/requisitions/lib/offline-copies';
 import type { ConvertListRow } from '@/features/requisitions/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
 import { revealField } from '@/lib/reveal-field';
+import { isSecureOrigin } from '@/lib/secure-context';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import { settleFew } from '@/lib/settle-few';
 
 type Problem =
@@ -90,7 +93,25 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
   const mutation = useSessionMutation({
     mutationFn: async (body: ReleaseBody) => {
       requireOnline();
+      const scope = getSessionScope();
       await releaseRequisitions(body);
+      assertSessionScope(scope);
+      if (isSecureOrigin) {
+        for (const { requisitionId } of body.requisitionsToRelease) {
+          try {
+            const lease = await beginCopy(requisitionId);
+            assertSessionScope(scope);
+            await retireCopy(lease);
+            assertSessionScope(scope);
+          } catch (error) {
+            assertSessionScope(scope);
+            if (!(error instanceof LocalDataUnavailableError))
+              toast.error(t('requisitions.offline.failed-title'), {
+                description: t('requisitions.offline.failed-description'),
+              });
+          }
+        }
+      }
     },
     onSuccess: async (_, body) => {
       const ids = body.requisitionsToRelease.map(({ requisitionId }) => requisitionId);

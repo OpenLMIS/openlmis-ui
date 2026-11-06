@@ -21,6 +21,12 @@ import { searchRequisitions } from '@/features/requisitions/api/api';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view';
 import { httpError } from '@/test-utils/http-error';
 
+const security = vi.hoisted(() => ({ secure: true }));
+vi.mock('@/lib/secure-context', () => ({
+  get isSecureOrigin() {
+    return security.secure;
+  },
+}));
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
@@ -227,4 +233,20 @@ it('only warns about missing programs after a facility has been selected', async
   await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
   expect(screen.getByText('requisitions.view.no-programs')).toBeVisible();
   queryClient.clear();
+});
+
+it('ignores an offline URL filter and hides offline columns on plain HTTP', async () => {
+  security.secure = false;
+  try {
+    const { router, queryClient } = renderRoute('/requisitions/view?facility=f&offline=true');
+    await waitFor(() => expect(searchRequisitions).toHaveBeenCalled());
+    expect(router.state.location.search.offline).toBeUndefined();
+    expect(screen.queryByText('requisitions.offline.empty-title')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: 'requisitions.offline.label' }),
+    ).not.toBeInTheDocument();
+    queryClient.clear();
+  } finally {
+    security.secure = true;
+  }
 });

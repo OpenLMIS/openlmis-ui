@@ -282,6 +282,8 @@ edits, which have no prop for TypeScript to detect:
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
 | `button.tsx` | Keep warning tint on hover with `tone="sidebar"` |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
+| `button.tsx` | Preserve `align="between"` for labels with end-aligned values |
+| `badge.tsx` | Preserve `wrap="normal"` for wrapping badge labels |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
@@ -471,8 +473,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 - Tables draw vertical column dividers by default.
 
-- Exception to one-line headers: the requisition grid wraps header labels between words, up to
-  three lines, with an info icon tooltip for template definitions.
+- Exception to one-line headers: the requisition and batch approval grids wrap header labels
+  between words, up to three lines, with an info icon tooltip for template definitions.
 
 - Yes/no and active/inactive cells use `FlagBadge` (`src/components/shared/flag-badge.tsx`): a
   success check or destructive cross, always with its label.
@@ -613,10 +615,12 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Import only stock `@/components/ui/` primitives, `@/lib/utils`, `@tanstack/react-table`,
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
-  `Table density/layout/width/scroll`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
+  `Table density/layout/width/scroll`, `TableCell rowHeader`, `TableHeader surface`,
+  `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width/clearLabel`, `InputGroup size="lg"`, `PopoverContent width`, `Skeleton fill`,
-  `Button variant="destructive-solid"` and `"destructive-outline"`. These become plain
-  `className`s in the registry; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
+  `Button variant="destructive-solid"` and `"destructive-outline"`. `TableCell rowHeader` becomes
+  `<th scope="row">` in the registry. Other exceptions become plain `className`s;
+  `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
 - Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet import the app
   `@/components/shared/page-visibility` gate. Its context defaults to false, keeping these
@@ -670,6 +674,7 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
 - Dialog state belongs in the URL (`?user=new` / `?user=<id>`). Opening adds history; closing
   steps back, or replaces for a directly linked dialog. Use
   `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
+- Create Orders keeps a visible required Requesting Facility picker label for legacy parity.
 - Inline add forms with one picker, where picking reveals no further field, drop the label
   and card: a picker with a leading icon and a placeholder naming the choice, then a separate
   Add button beside it (never attached). The row sits above the toolbar, capped at

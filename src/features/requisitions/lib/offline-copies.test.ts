@@ -1,4 +1,4 @@
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import type { RequisitionStatus } from '@/lib/requisition-status';
@@ -10,6 +10,7 @@ import {
   readCopy,
   removalDecision,
   removeCopy,
+  retireCopy,
 } from './offline-copies';
 import type { SingleReferences } from './offline-single';
 
@@ -336,4 +337,106 @@ it('keeps confirmed status when an older clean capture finishes later, but accep
     summary: { status: 'APPROVED' },
     batch: { confirmedApproval: { status: 'APPROVED' } },
   });
+});
+
+it('retires both representations after an action and prevents an old capture restoring them', async () => {
+  const lease = await beginCopy('r');
+  await commitCopy(lease, ready(lease));
+  for (const name of [LOCAL_TABLES.requisitionDrafts, LOCAL_TABLES.requisitionBatchDrafts]) {
+    await getLocalDb()
+      .table(name)
+      .bulkPut([{ draftId: 'r' }, { draftId: 'other' }]);
+  }
+  const scan = vi.spyOn(getLocalDb().table(LOCAL_TABLES.requisitionCopies), 'toArray');
+  await retireCopy(lease);
+  expect(scan).not.toHaveBeenCalled();
+  scan.mockRestore();
+  for (const name of [LOCAL_TABLES.requisitionDrafts, LOCAL_TABLES.requisitionBatchDrafts]) {
+    expect(await getLocalDb().table(name).get('r')).toBeUndefined();
+    expect(await getLocalDb().table(name).get('other')).toBeDefined();
+  }
+  expect(await readCopy('r')).toBeUndefined();
+  await expect(commitCopy(lease, ready(lease))).rejects.toThrow();
+});
+
+it('refreshes the list status while retaining dirty batch values and their baseline', async () => {
+  const lease = await beginCopy('r');
+  const first = ready(lease);
+  await commitCopy(lease, first);
+  await getLocalDb()
+    .table(LOCAL_TABLES.requisitionBatchDrafts)
+    .put({
+      draftId: 'r',
+      userId: lease.userId,
+      formatVersion: 1,
+      revision: 1,
+      approvedQuantities: { line: 12 },
+    });
+  await commitCopy(lease, {
+    ...first,
+    summary: { ...first.summary, status: 'APPROVED' },
+    batch: {
+      ...first.batch,
+      record: { ...first.batch.record, status: 'APPROVED', modifiedDate: 'new' },
+    },
+  });
+  const copy = await readCopy('r');
+  expect(copy?.summary.status).toBe('APPROVED');
+  expect(copy?.batch?.record.status).toBe('AUTHORIZED');
+  expect(await getLocalDb().table(LOCAL_TABLES.requisitionBatchDrafts).get('r')).toMatchObject({
+    approvedQuantities: { line: 12 },
+  });
+});
+
+it('retains the retired facility and period label on sibling batch errors', async () => {
+  const first = await beginCopy('r');
+  const sibling = await beginCopy('other');
+  await commitCopy(first, ready(first));
+  const copy = ready(sibling);
+  copy.batch.requestedIds = ['r', 'other'];
+  copy.summary.id = 'other';
+  await commitCopy(sibling, copy);
+  await retireCopy(first);
+  expect((await readCopy('other'))?.batch?.errors[0]).toMatchObject({
+    requisitionId: 'r',
+    label: 'Clinic - November',
+  });
+});
+
+it('checks large product identity sets without quadratic scans', async () => {
+  const { completeSingle } = await import('./offline-copies');
+  const { record, product } = await import('./fixtures/builders');
+  const base = { ...record(), id: 'r', facility: { id: 'f' }, processingPeriod: { id: 'period' } };
+  const products = Array.from({ length: 10003 }, (_, index) => ({
+    ...product(),
+    id: String(index),
+  }));
+  let reads = 0;
+  const counted = products.map((product) => ({
+    ...product,
+    get id() {
+      reads++;
+      return product.id;
+    },
+  }));
+  const refs = {
+    products: counted,
+    approved: [],
+    messages: [],
+    currency: {},
+    facility: base.facility,
+    program: base.program,
+    period: base.processingPeriod,
+  } as unknown as SingleReferences;
+  expect(
+    completeSingle(
+      {
+        ...base,
+        requisitionLineItems: [],
+        availableProducts: products.map((p) => ({ id: p.id, versionNumber: 1 })),
+      },
+      refs,
+    ),
+  ).toBe(true);
+  expect(reads).toBeLessThanOrEqual(products.length * 2);
 });

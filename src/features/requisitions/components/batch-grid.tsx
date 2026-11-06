@@ -30,7 +30,7 @@ import {
 } from '@/features/requisitions/components/batch-quantity';
 import { BatchRecordStatus } from '@/features/requisitions/components/batch-record-status';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
-import { batchRowTotals, batchTotals } from '@/features/requisitions/lib/batch';
+import { batchApprovable, batchRowTotals, batchTotals } from '@/features/requisitions/lib/batch';
 import type { BatchRequisition, BatchRow } from '@/features/requisitions/lib/batch-types';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
 import { revealField } from '@/lib/reveal-field';
@@ -52,9 +52,9 @@ const BatchGroup = memo(function BatchGroup({ record }: { record: BatchRequisiti
   );
 });
 const ProductTotals = memo(function ProductTotals({ row }: { row: BatchRow }) {
-  const { drafts, currency } = useBatch();
+  const { drafts, currency, records } = useBatch();
   useBatchVersion(`product:${row.product.id}`);
-  const { quantity, cost } = batchRowTotals(row, drafts.quantities());
+  const { quantity, cost } = batchRowTotals(row, drafts.quantities(), records);
   return (
     <>
       <TableCell sticky="end" stickyOffset="var(--batch-cost-width)">
@@ -189,7 +189,7 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
       rows.flatMap((row, index) =>
         records.flatMap((record) => {
           const line = row.lines.get(record.id);
-          return line && !line.skipped
+          return batchApprovable(record) && line && !line.skipped
             ? [{ id: batchFieldId(record.id, line.id), index, recordId: record.id }]
             : [];
         }),

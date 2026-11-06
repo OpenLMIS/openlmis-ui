@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios';
 import { fetchApprovalList } from '@/features/requisitions/api/api';
-import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
+import type { BatchRequisition, BatchResponse } from '@/features/requisitions/lib/batch-types';
 import {
   mayApproveCopy,
   mayApproveSavedCopy,
@@ -17,6 +17,7 @@ import {
 } from '@/features/requisitions/lib/offline-copies';
 import type { SingleReferences } from '@/features/requisitions/lib/offline-single';
 import type { ApprovalListRow } from '@/features/requisitions/lib/types';
+import { isAccessFallbackError } from '@/lib/http';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { RIGHTS } from '@/lib/rights';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -34,11 +35,40 @@ async function findBatchSummaries(ids: readonly string[], session: number) {
   }
   return { found, remaining };
 }
+export type BatchMembership = Awaited<ReturnType<typeof findBatchSummaries>> | { error: unknown };
+export async function fetchBatchMembership(
+  ids: readonly string[],
+  session: number,
+): Promise<BatchMembership> {
+  try {
+    return await findBatchSummaries(ids, session);
+  } catch (error) {
+    assertSessionScope(session);
+    if (isAccessFallbackError(error)) throw error;
+    return { error };
+  }
+}
+export function verifyBatchMembership(
+  response: BatchResponse,
+  membership: BatchMembership,
+): BatchResponse & { requisitionDtos: BatchRequisition[] } {
+  if ('error' in membership)
+    return { ...response, requisitionDtos: response.requisitionDtos ?? [] };
+  const { remaining } = membership;
+  return {
+    ...response,
+    requisitionDtos: (response.requisitionDtos ?? []).map((record) => ({
+      ...record,
+      approvalAvailable: !remaining.has(record.id),
+    })),
+  };
+}
 export async function captureBatch(
   leases: CopyLease[],
   response: BatchResponse,
   currency: SingleReferences['currency'],
   accessMode: 'wait' | 'read' = 'wait',
+  suppliedMembership?: BatchMembership,
 ) {
   const refused = new Set(response.requisitionErrors?.map((error) => error.requisitionId));
   for (const lease of leases) if (refused.has(lease.id)) await revokeBatchApproval(lease);
@@ -48,10 +78,15 @@ export async function captureBatch(
   if (session === undefined) throw new LocalDataUnavailableError();
   let membership: Awaited<ReturnType<typeof findBatchSummaries>>;
   try {
-    membership = await findBatchSummaries(
-      records.map((record) => record.id),
-      session,
-    );
+    const result =
+      suppliedMembership ??
+      (await fetchBatchMembership(
+        records.map((record) => record.id),
+        session,
+      ));
+    assertSessionScope(session);
+    if ('error' in result) throw result.error;
+    membership = result;
   } catch (error) {
     if (isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
       for (const lease of leases) await revokeBatchApproval(lease);
@@ -61,8 +96,8 @@ export async function captureBatch(
     const lease = leases.find((lease) => lease.id === id);
     if (lease) await revokeBatchApproval(lease);
   }
-  if (membership.remaining.size) throw new LocalDataUnavailableError();
   for (const record of records) {
+    if (membership.remaining.has(record.id)) continue;
     const lease = leases.find((lease) => lease.id === record.id);
     if (!lease) throw new LocalDataUnavailableError();
     const source = membership.found.find(
@@ -108,7 +143,20 @@ export async function captureBatch(
         approvalNodes,
         approvalVerified: true,
         requestedIds: leases.map((lease) => lease.id),
-        errors: response.requisitionErrors ?? [],
+        errors: [
+          ...(response.requisitionErrors ?? []),
+          ...leases
+            .filter(
+              (lease) =>
+                !refused.has(lease.id) &&
+                (membership.remaining.has(lease.id) ||
+                  !records.some((record) => record.id === lease.id)),
+            )
+            .map((lease) => ({
+              requisitionId: lease.id,
+              errorMessage: { messageKey: 'requisitions.batch.no-longer-awaiting' },
+            })),
+        ],
       },
     });
     attachCopyLease(record, lease);
@@ -117,11 +165,13 @@ export async function captureBatch(
 export async function readBatch(ids: readonly string[]) {
   const access = await readRequisitionAccess();
   const copies = await Promise.all(ids.map(readCopy));
-  const ready = copies.flatMap((copy) => (copy?.batch ? [{ ...copy, batch: copy.batch }] : []));
+  const ready = copies.flatMap((copy) =>
+    copy?.batch?.approvalVerified ? [{ ...copy, batch: copy.batch }] : [],
+  );
   if (ready.some((copy) => !copy.batch.approvalVerified || !mayApproveSavedCopy(access, copy)))
     throw new LocalDataUnavailableError();
   const errors = ids.flatMap((id, index) => {
-    if (copies[index]?.batch) return [];
+    if (copies[index]?.batch?.approvalVerified) return [];
     const error = ready
       .flatMap((copy) => (copy.batch.requestedIds.includes(id) ? copy.batch.errors : []))
       .find((error) => error.requisitionId === id);

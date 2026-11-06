@@ -63,10 +63,10 @@ export function batchTotals(
       const q = Number.isFinite(value) ? value : 0;
       const c = batchCost(line, text);
       total += c;
-      quantity += q;
+      if (batchApprovable(record)) quantity += q;
     }
     perRecord.set(record.id, total);
-    cost += total;
+    if (batchApprovable(record)) cost += total;
   }
   return { cost, quantity, perRecord };
 }
@@ -93,6 +93,8 @@ export function batchSaveBody(
   }));
 }
 function batchErrorMessage(error: NonNullable<BatchResponse['requisitionErrors']>[number]) {
+  if (error.errorMessage?.messageKey === 'requisitions.batch.no-longer-awaiting')
+    return 'requisitions.batch.no-longer-awaiting';
   return (
     error.errorMessage?.message ??
     Object.values(error.fieldErrors ?? {})
@@ -125,10 +127,15 @@ export function orderBatch(response: BatchResponse, ids: readonly string[]) {
   };
 }
 
-export function batchRowTotals(row: BatchRow, quantities: BatchQuantities) {
+export function batchRowTotals(
+  row: BatchRow,
+  quantities: BatchQuantities,
+  records?: readonly BatchRequisition[],
+) {
   let quantity = 0;
   let cost = 0;
   for (const [id, line] of row.lines) {
+    if (records && !records.some((record) => record.id === id && batchApprovable(record))) continue;
     const text = batchText(line, quantities[id]);
     const value = toWholeNumber(text);
     quantity += Number.isFinite(value) ? value : 0;
@@ -151,4 +158,4 @@ export function matchesBaseline(
 }
 
 export const batchApprovable = (record: BatchRequisition) =>
-  ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status);
+  record.approvalAvailable !== false && ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status);

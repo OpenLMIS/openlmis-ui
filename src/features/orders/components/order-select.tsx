@@ -1,6 +1,7 @@
 import { Building2Icon } from 'lucide-react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FieldLabelText } from '@/components/form/form-fields';
 import { PickerAddIcon } from '@/components/pickers/picker-add';
 import {
   Combobox,
@@ -21,6 +22,7 @@ export function OrderSelect({
   onChange,
   disabled,
   compact = false,
+  required = false,
 }: {
   label: string;
   placeholder: string;
@@ -29,13 +31,18 @@ export function OrderSelect({
   onChange: (id: string) => void;
   disabled?: boolean;
   compact?: boolean;
+  required?: boolean;
 }) {
   const { t } = useTranslation();
   const id = useId();
   const selected = options.find((item) => item.id === value) ?? null;
   return (
     <Field>
-      {!compact && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+      {!compact && (
+        <FieldLabel htmlFor={id}>
+          <FieldLabelText label={label} required={required} />
+        </FieldLabel>
+      )}
       <Combobox
         items={options}
         limit={50}
@@ -51,6 +58,7 @@ export function OrderSelect({
         <ComboboxInput
           id={id}
           aria-label={label}
+          aria-required={required}
           placeholder={placeholder}
           size="lg"
           width="full"

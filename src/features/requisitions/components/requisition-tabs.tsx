@@ -168,7 +168,10 @@ function RequisitionTabsView({
               emergency: record.emergency,
             }),
           },
-          errors,
+          errors:
+            previous && JSON.stringify(previous.errors) === JSON.stringify(errors)
+              ? previous.errors
+              : errors,
         };
       }
       next.set(model.line.id, entry);

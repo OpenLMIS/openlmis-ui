@@ -45,6 +45,7 @@ import { tableValue } from '@/lib/empty-value';
 import { isDeviceAccess } from '@/lib/offline-access';
 import { useOnline } from '@/lib/online';
 import { REQUISITION_STATUS } from '@/lib/requisition-status';
+import { isSecureOrigin } from '@/lib/secure-context';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const helper = createColumnHelper<DataTableFeatures, RequisitionSearchResult>();
@@ -55,7 +56,9 @@ const COLUMNS = [
   EMERGENCY_COLUMN,
   ['offline', 'requisitions.offline.label'],
 ] as const;
-export const REQUISITION_HIDEABLE_COLUMNS = hideableColumns(COLUMNS);
+export const REQUISITION_HIDEABLE_COLUMNS = hideableColumns(
+  COLUMNS.filter(([id]) => isSecureOrigin || id !== 'offline'),
+);
 const CARD_COLUMNS = cardColumns(COLUMNS);
 const NO_ROWS: RequisitionSearchResult[] = [];
 const noop = () => {};
@@ -74,42 +77,44 @@ function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
   return useMemo(
     () =>
       helper.columns([
-        ...(cards ? CARD_COLUMNS : COLUMNS).map(([id, key]) =>
-          helper.display({
-            id,
-            ...(id === 'createdDate' && {
-              accessorFn: (record: RequisitionSearchResult) => record.createdDate,
-            }),
-            meta: { label: t(key) },
-            enableSorting: id === 'createdDate',
-            sortDescFirst: true,
-            header: ({ column }) =>
-              id === 'createdDate' ? (
-                <DataTableColumnHeader column={column} title={t(key)} />
-              ) : (
-                <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
-              ),
-            cell: ({ row: { original: record } }) => {
-              switch (id) {
-                case 'offline':
-                  return <OfflineMarker id={record.id} />;
-                case 'status': {
-                  const status = REQUISITION_STATUS[record.status];
-                  if (!status) return tableValue(record.status);
-                  const Icon = status.icon;
-                  return (
-                    <Badge variant={status.tone}>
-                      <Icon data-icon="inline-start" />
-                      {t(status.labelKey)}
-                    </Badge>
-                  );
+        ...(cards ? CARD_COLUMNS : COLUMNS)
+          .filter(([id]) => isSecureOrigin || id !== 'offline')
+          .map(([id, key]) =>
+            helper.display({
+              id,
+              ...(id === 'createdDate' && {
+                accessorFn: (record: RequisitionSearchResult) => record.createdDate,
+              }),
+              meta: { label: t(key) },
+              enableSorting: id === 'createdDate',
+              sortDescFirst: true,
+              header: ({ column }) =>
+                id === 'createdDate' ? (
+                  <DataTableColumnHeader column={column} title={t(key)} />
+                ) : (
+                  <DataTableHeaderLabel>{t(key)}</DataTableHeaderLabel>
+                ),
+              cell: ({ row: { original: record } }) => {
+                switch (id) {
+                  case 'offline':
+                    return <OfflineMarker id={record.id} />;
+                  case 'status': {
+                    const status = REQUISITION_STATUS[record.status];
+                    if (!status) return tableValue(record.status);
+                    const Icon = status.icon;
+                    return (
+                      <Badge variant={status.tone}>
+                        <Icon data-icon="inline-start" />
+                        {t(status.labelKey)}
+                      </Badge>
+                    );
+                  }
+                  default:
+                    return requisitionListCell(id, record, i18n.language, timeZone, t);
                 }
-                default:
-                  return requisitionListCell(id, record, i18n.language, timeZone, t);
-              }
-            },
-          }),
-        ),
+              },
+            }),
+          ),
         helper.display({
           id: 'actions',
           meta: { label: t('requisitions.columns.actions'), skeleton: 'control' },
@@ -214,6 +219,7 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange }: Pr
   return (
     <RequisitionCopiesContext value={copies}>
       <RequisitionCopyNotice
+        list
         local={!!deferred.offline || isDeviceAccess(page)}
         ids={page.content.map((record) => record.id)}
       />

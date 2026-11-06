@@ -62,7 +62,13 @@ function setup(
         size: 50,
       }).queryKey,
       {
-        content: [{ id: 'approved', orderable: order.orderLineItems[0].orderable }],
+        content: [
+          {
+            id: 'approved',
+            orderable: (order.orderLineItems[0] ?? creatingOrder(order.id).orderLineItems[0])
+              .orderable,
+          },
+        ],
         totalElements: 1,
         totalPages: 1,
         number: 0,
@@ -98,7 +104,7 @@ function setup(
   return { user: userEvent.setup(), onBatchChange };
 }
 function quantity() {
-  return screen.getByRole('textbox', { name: /orders.edit.quantity Medicine/ });
+  return screen.getByRole('textbox', { name: 'orders.edit.quantity-label' });
 }
 describe('order editor workflow', () => {
   it('keeps edits across tabs and saves only changed orders while newer typing stays unsaved', async () => {
@@ -294,7 +300,7 @@ it.each(['delete', 'remove'] as const)(
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
-    await screen.findByRole('textbox', { name: /orders.edit.quantity Medicine/ });
+    await screen.findByRole('textbox', { name: 'orders.edit.quantity-label' });
     fireEvent.change(quantity(), { target: { value: '25' } });
     const pendingBefore = pending.mock.calls.length;
     const user = userEvent.setup();
@@ -371,4 +377,97 @@ it('deletes only readable Creating orders in a batch with known problem entries'
     expect(onBatchChange).toHaveBeenCalledWith(problems.map((entry) => entry.id)),
   );
   expect(deleteOrders).toHaveBeenCalledWith(['a', 'b']);
+});
+
+it('does not mark a new empty order invalid until Create is attempted', async () => {
+  const { user } = setup([{ ...creatingOrder('a'), orderLineItems: [] }]);
+  expect(screen.getByRole('tab', { name: /Facility a/ })).not.toHaveTextContent(
+    'orders.edit.invalid',
+  );
+  await user.click(screen.getByRole('button', { name: 'orders.edit.create' }));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent(
+    'orders.edit.create-invalid-description',
+  );
+  await user.click(screen.getByRole('button', { name: 'dialog.close' }));
+  expect(screen.getByRole('tab', { name: /Facility a/ })).toHaveTextContent('orders.edit.invalid');
+});
+
+it('focuses the next line removal control, then the product picker after the final line', async () => {
+  const order = creatingOrder('a');
+  order.orderLineItems.push({ ...order.orderLineItems[0], id: 'second' });
+  const { user } = setup([order]);
+  await user.click(screen.getAllByRole('button', { name: 'orders.edit.remove-line' })[0]);
+  expect(screen.getByRole('button', { name: 'orders.edit.remove-line' })).toHaveFocus();
+  await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
+  expect(screen.getByRole('combobox', { name: 'orders.edit.select-product' })).toHaveFocus();
+});
+
+it('deletes the final order and replaces its history entry with the list', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+  vi.mocked(fetchOrder).mockResolvedValue(creatingOrder('a'));
+  vi.mocked(deleteOrders).mockResolvedValue(undefined);
+  const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
+  const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
+  const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
+  const page = createRoute({
+    getParentRoute: () => layout,
+    path: 'requisitions/create-orders/$orderIds',
+    validateSearch: Route.options.validateSearch as never,
+    loader: Route.options.loader as never,
+    component: Route.options.component as never,
+  });
+  const list = createRoute({
+    getParentRoute: () => layout,
+    path: 'requisitions/create-orders',
+    component: () => (
+      <main>
+        <h1>Create Orders List</h1>
+      </main>
+    ),
+  });
+  const previous = createRoute({
+    getParentRoute: () => layout,
+    path: 'previous',
+    component: () => <p>Previous</p>,
+  });
+  const history = createMemoryHistory({
+    initialEntries: ['/previous', '/requisitions/create-orders/a'],
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([
+      group.addChildren([layout.addChildren([page, list, previous] as never)] as never),
+    ] as never),
+    history,
+    context: { queryClient: client },
+  } as never) as AnyRouter;
+  render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'orders.edit.delete-order' }));
+  await user.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', {
+      name: 'orders.edit.delete-order-action',
+    }),
+  );
+  await screen.findByRole('heading', { name: 'Create Orders List' });
+  expect(deleteOrders).toHaveBeenCalledExactlyOnceWith(['a']);
+  expect(router.state.location.pathname).toBe('/requisitions/create-orders');
+  history.back();
+  await waitFor(() => expect(router.state.location.pathname).toBe('/previous'));
+  client.clear();
+});
+
+it('marks an empty order invalid after adding and removing its only product', async () => {
+  const { user } = setup([{ ...creatingOrder('a'), orderLineItems: [] }]);
+  await user.click(screen.getByRole('combobox', { name: 'orders.edit.select-product' }));
+  await user.click(await screen.findByRole('option', { name: 'Medicine' }));
+  await user.click(screen.getByRole('button', { name: 'orders.add' }));
+  await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
+  expect(screen.getByRole('tab', { name: /Facility a/ })).toHaveTextContent('orders.edit.invalid');
 });

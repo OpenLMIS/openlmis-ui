@@ -38,11 +38,22 @@ export type RequisitionLocalDraft = {
 export function useRequisitionDraft(
   record: RequisitionRecord,
   onLoad?: (draft: RequisitionDraft) => void,
+  loaderRecord = record,
 ) {
   const scope = useSessionScope();
   const draftId = record.id;
   const initial = useRef(record);
-  if (initial.current.id !== draftId) initial.current = record;
+  initial.current = record;
+  const leaseSource = useRef(copyLeaseFor(loaderRecord));
+  const nextLease = copyLeaseFor(loaderRecord);
+  if (
+    leaseSource.current?.generation !== nextLease?.generation ||
+    leaseSource.current?.userId !== nextLease?.userId ||
+    leaseSource.current?.session !== nextLease?.session ||
+    leaseSource.current?.id !== nextLease?.id
+  )
+    leaseSource.current = nextLease;
+  const currentLease = leaseSource.current;
   const adopt = useRef(onLoad);
   adopt.current = onLoad;
   const [, setVersion] = useState(0);
@@ -52,7 +63,7 @@ export function useRequisitionDraft(
     const db = userId ? getLocalDb() : undefined;
     const table = db?.table<RequisitionLocalDraft, string>(LOCAL_TABLES.requisitionDrafts);
     let expected: RequisitionLocalDraft | undefined;
-    let lease = copyLeaseFor(initial.current);
+    let lease = currentLease;
     let unsubscribe: (() => void) | undefined;
     let pendingBase: RequisitionRecord | undefined;
     let active = false;
@@ -99,6 +110,8 @@ export function useRequisitionDraft(
       assertSessionScope(scope);
     };
     let loaded: Promise<void> | undefined;
+    let initialized = false;
+    let writeTimer: ReturnType<typeof setTimeout> | undefined;
     const load = () => {
       loaded ??= (async () => {
         if (db) lease ??= await beginCopy(draftId);
@@ -121,8 +134,8 @@ export function useRequisitionDraft(
           stored = undefined;
         }
         outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;
-        if (active && stored && !outdated)
-          adopt.current?.(rebaseRequisitionDraft(baseline, stored.draft));
+        if (active && stored) adopt.current?.(rebaseRequisitionDraft(baseline, stored.draft));
+        initialized = true;
         status = { status: 'saved' };
         publish();
       });
@@ -189,9 +202,9 @@ export function useRequisitionDraft(
           const subscription = liveQuery(() =>
             db.table(LOCAL_TABLES.requisitionCopyLifecycles).get(draftId),
           ).subscribe(() => {
-            if (lease)
+            if (lease && !closed)
               void assertCopyLease(lease).catch((error) => {
-                if (active && scope === getSessionScope()) {
+                if (active && !closed && scope === getSessionScope()) {
                   closed = true;
                   outdated = true;
                   writer.fail(error, true);
@@ -214,10 +227,13 @@ export function useRequisitionDraft(
         assertSessionScope(scope);
         if (!closed && !outdated && db) {
           pendingBase = base ?? pendingBase;
-          writer.enqueue({ draft: structuredClone(draft), base: pendingBase });
+          writer.stage({ draft, base: pendingBase });
+          clearTimeout(writeTimer);
+          writeTimer = setTimeout(() => writer.start(), 250);
         }
       },
       async flush({ allowFailure = false }: { allowFailure?: boolean } = {}) {
+        clearTimeout(writeTimer);
         try {
           await load();
           assertSessionScope(scope);
@@ -230,8 +246,21 @@ export function useRequisitionDraft(
         }
         assertSessionScope(scope);
       },
-      retry: writer.retry,
+      async retry() {
+        if (closed || writer.conflicted) return;
+        try {
+          if (!initialized) {
+            loaded = undefined;
+            await load();
+            assertSessionScope(scope);
+          }
+          writer.retry();
+        } catch (error) {
+          if (active && scope === getSessionScope()) writer.fail(error);
+        }
+      },
       async clear() {
+        clearTimeout(writeTimer);
         closed = true;
         writer.clear();
         await writer.wait();
@@ -245,11 +274,18 @@ export function useRequisitionDraft(
         writer.reset();
       },
       async update(base: RequisitionRecord) {
-        await api.clear();
-        assertSessionScope(scope);
-        baseline = base;
-        closed = false;
-        adopt.current?.(buildRequisitionDraft(base));
+        try {
+          await api.clear();
+          assertSessionScope(scope);
+          baseline = base;
+          closed = false;
+          adopt.current?.(buildRequisitionDraft(base));
+        } catch (error) {
+          assertSessionScope(scope);
+          closed = false;
+          writer.fail(error);
+          throw error;
+        }
       },
       async resolve() {
         await writer.wait();
@@ -261,13 +297,18 @@ export function useRequisitionDraft(
           expected = stored;
           pendingBase = undefined;
           outdated = !!stored && stored.modifiedDate !== baseline.modifiedDate;
-          if (!outdated) adopt.current?.(stored?.draft ?? buildRequisitionDraft(baseline));
+          adopt.current?.(
+            stored
+              ? rebaseRequisitionDraft(baseline, stored.draft)
+              : buildRequisitionDraft(baseline),
+          );
           writer.reset();
         } catch (error) {
           writer.fail(error, true);
         }
       },
       dispose() {
+        clearTimeout(writeTimer);
         active = false;
         unsubscribe?.();
         closed = true;
@@ -275,7 +316,7 @@ export function useRequisitionDraft(
       },
     };
     return api;
-  }, [draftId, scope]);
+  }, [draftId, scope, currentLease]);
   useEffect(() => {
     controller.activate();
     return () => controller.dispose();

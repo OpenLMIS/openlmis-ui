@@ -48,7 +48,10 @@ export const BatchQuantity = memo(function BatchQuantity({
         >
           <Input
             id={id}
-            aria-label={`${batchLabel(record)}: ${line.orderable.productCode}: ${t('requisitions.batch.approved-quantity')}`}
+            aria-label={t('requisitions.batch.quantity-label', {
+              facility: batchLabel(record),
+              code: line.orderable.productCode,
+            })}
             aria-invalid={!!error}
             aria-describedby={error ? `${id}-error` : undefined}
             controlSize={controlSize}

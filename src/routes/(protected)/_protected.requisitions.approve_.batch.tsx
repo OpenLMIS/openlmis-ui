@@ -62,15 +62,27 @@ import {
   orderBatch,
   parseBatchResult,
 } from '@/features/requisitions/lib/batch';
+import {
+  type BatchReason,
+  batchReason,
+  batchReasonText,
+} from '@/features/requisitions/lib/batch-reason';
 import { recoverBatchApprovals } from '@/features/requisitions/lib/batch-recovery';
 import type { BatchResponse } from '@/features/requisitions/lib/batch-types';
 import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
-import { captureBatch, readBatch } from '@/features/requisitions/lib/offline-batch';
+import {
+  type BatchMembership,
+  captureBatch,
+  fetchBatchMembership,
+  readBatch,
+  verifyBatchMembership,
+} from '@/features/requisitions/lib/offline-batch';
 import {
   beginCopy,
   confirmBatchApproval,
   RequisitionCopyRemovedError,
   readCopy,
+  retireCopy,
 } from '@/features/requisitions/lib/offline-copies';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -94,18 +106,24 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   loaderDeps: ({ search }) => ({ ids: batchIds(search.ids) }),
   preload: false,
   loader: async ({ context: { queryClient }, deps: { ids } }) => {
+    const scope = getSessionScope();
     await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
     const leases = isSecureOrigin ? await Promise.all(ids.map(beginCopy)) : [];
     let copyResult: Promise<unknown> | undefined;
+    let membership: BatchMembership | undefined;
     const loaded = await onlineOrDevice(
       async () => {
-        const [response, currency] = await Promise.all([
+        const [rawResponse, currency, found] = await Promise.all([
           queryClient.fetchQuery(batchRequisitionsOptions(ids)),
           queryClient.ensureQueryData(currencySettingsOptions()),
+          fetchBatchMembership(ids, scope),
         ]);
+        assertSessionScope(scope);
+        membership = found;
+        const response = verifyBatchMembership(rawResponse, found);
         if (isSecureOrigin) {
-          copyResult = captureBatch(leases, response, currency).then(
+          copyResult = captureBatch(leases, response, currency, 'wait', found).then(
             () => undefined,
             (error: unknown) => error,
           );
@@ -124,6 +142,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
       removed: recovered.removed,
       ids,
       copyResult,
+      membership,
       copyLeases: leases,
       accessEpoch: fresh ? uploadAccessEpoch() : undefined,
     };
@@ -237,10 +256,12 @@ function BatchPage() {
   const [response, setResponse] = useState(loaded.response);
   const [copyFailure, setCopyFailure] = useState<unknown>();
   const accessEpoch = useRef(loaded.accessEpoch);
+  const membership = useRef(loaded.membership);
   const opening = useRef(loaded);
   if (opening.current !== loaded) {
     opening.current = loaded;
     setCopyFailure(undefined);
+    membership.current = loaded.membership;
     setResponse(loaded.response);
   }
   const records = response.requisitionDtos;
@@ -251,10 +272,10 @@ function BatchPage() {
   );
   const online = useOnline();
   const layout = useCardLayout<HTMLDivElement>();
-  const [reasons, setReasons] = useState(new Map<string, string>());
+  const [reasons, setReasons] = useState(new Map<string, BatchReason>());
   const [action, setAction] = useState<Action | null>(null);
   const [target, setTarget] = useState<string[]>([]);
-  const [dialog, setDialog] = useState<string | null>(() =>
+  const [dialog, setDialog] = useState<string | Map<string, string> | null>(() =>
     loaded.removed.size
       ? [...loaded.removed.values()]
           .map((label) => `${label}: ${t('requisitions.batch.possibly-approved')}`)
@@ -274,7 +295,7 @@ function BatchPage() {
   const scope = useRef(getSessionScope()).current;
   const ids = records.map((r) => r.id);
   const unresolved = records.filter((r) => drafts.unresolved(r.id));
-  const outdated = records.filter((r) => drafts.outdated(r.id));
+  const outdated = records.filter((r) => batchApprovable(r) && drafts.outdated(r.id));
   const returnToList = () => navigate(approvalReturn(locationState));
   const replaceIds = (next: readonly string[]) =>
     navigate({
@@ -285,22 +306,44 @@ function BatchPage() {
     });
   const recordLabel = (id: string) => {
     const record = records.find((r) => r.id === id);
-    return record ? batchLabel(record) : (locationState.requisitionBatchLabels?.[id] ?? id);
+    return record
+      ? batchLabel(record)
+      : (response.requisitionErrors?.find((error) => error.requisitionId === id)?.label ??
+          locationState.requisitionBatchLabels?.[id] ??
+          id);
   };
   const report = (failures: Map<string, string>) => {
-    setReasons(failures);
-    if (failures.size)
-      setDialog(
-        ids
-          .filter((id) => failures.has(id))
-          .map((id) => `${recordLabel(id)}: ${failures.get(id) || t('requisitions.batch.missing')}`)
-          .join('\n'),
-      );
+    setReasons(new Map([...failures].map(([id, message]) => [id, batchReason(message)])));
+    if (failures.size) setDialog(failures);
   };
   const refresh = async () => {
-    const result = await fetchBatchRequisitions(ids);
+    const [result, found] = await Promise.all([
+      fetchBatchRequisitions(ids),
+      fetchBatchMembership(ids, scope),
+    ]);
     assertSessionScope(scope);
-    return orderBatch(result, ids);
+    membership.current = found;
+    return orderBatch(verifyBatchMembership(result, found), ids);
+  };
+  const retireUnavailable = async (fresh: BatchResponse) => {
+    const unavailable = records
+      .filter((record) => {
+        const next = fresh.requisitionDtos?.find((next) => next.id === record.id);
+        return next && !batchApprovable(next);
+      })
+      .map((record) => record.id);
+    if (!unavailable.length) return;
+    await drafts.clear(unavailable, fresh.requisitionDtos, false);
+    drafts.releaseCopies(unavailable);
+    if (isSecureOrigin) {
+      try {
+        for (const id of unavailable) await retireCopy(await beginCopy(id));
+      } catch (error) {
+        assertSessionScope(scope);
+        setCopyFailure(error);
+      }
+    }
+    assertSessionScope(scope);
   };
   const reconcile = async (fresh: BatchResponse) => {
     const removed = ids.filter((id) =>
@@ -351,7 +394,10 @@ function BatchPage() {
             records.some((record) => {
               const next = fresh.requisitionDtos?.find((next) => next.id === record.id);
               return (
-                !next || next.status !== record.status || next.modifiedDate !== record.modifiedDate
+                !next ||
+                next.status !== record.status ||
+                next.modifiedDate !== record.modifiedDate ||
+                batchApprovable(next) !== batchApprovable(record)
               );
             })
           ) {
@@ -399,7 +445,7 @@ function BatchPage() {
         const affected = needsRefresh.current;
         needsRefresh.current = [];
         setResponse(fresh);
-        report(new Map(affected.map((id) => [id, t('requisitions.batch.review-refreshed')])));
+        report(new Map(affected.map((id) => [id, 'requisitions.batch.review-refreshed'])));
         return;
       }
       const failures = new Map<string, string>();
@@ -410,13 +456,15 @@ function BatchPage() {
             (kind === 'approve' || drafts.text(r.id, l).trim() !== ''),
         );
         const reason = !batchApprovable(r)
-          ? t('requisitions.batch.possibly-approved')
+          ? r.approvalAvailable === false
+            ? 'requisitions.batch.no-longer-awaiting'
+            : 'requisitions.batch.possibly-approved'
           : drafts.unresolved(r.id)
-            ? t('requisitions.batch.uncertain')
+            ? 'requisitions.batch.uncertain'
             : drafts.outdated(r.id)
-              ? t('requisitions.edit.outdated-title')
+              ? 'requisitions.edit.outdated-title'
               : invalidNumber
-                ? t('requisitions.batch.invalid-requisition')
+                ? 'requisitions.batch.invalid-requisition'
                 : undefined;
         if (reason) failures.set(r.id, reason);
         return !reason;
@@ -448,15 +496,25 @@ function BatchPage() {
         eligible.map((r) => r.id),
       );
       for (const [id, reason] of save.failed)
-        failures.set(id, reason || t('requisitions.batch.save-failed'));
+        failures.set(id, reason || 'requisitions.batch.save-failed');
       needsRefresh.current = eligible.map((r) => r.id);
       const fresh =
         kind === 'sync' || failures.size ? await refresh() : orderBatch(saveResponse, ids);
+      assertSessionScope(scope);
+      setResponse(fresh);
       await drafts.clear(save.succeeded, fresh.requisitionDtos, false);
+      assertSessionScope(scope);
       if (isSecureOrigin && save.succeeded.length) {
         const leases = loaded.copyLeases.filter((lease) => save.succeeded.includes(lease.id));
         try {
-          await captureBatch(leases, orderBatch(fresh, save.succeeded), loaded.currency, 'read');
+          await captureBatch(
+            leases,
+            orderBatch(fresh, save.succeeded),
+            loaded.currency,
+            'read',
+            membership.current,
+          );
+          assertSessionScope(scope);
           setCopyFailure(null);
         } catch (error) {
           assertSessionScope(scope);
@@ -465,7 +523,6 @@ function BatchPage() {
       }
       needsRefresh.current = [];
       if (kind === 'sync') {
-        setResponse(fresh);
         report(failures);
         if (save.succeeded.length)
           toast.success(t('requisitions.batch.synced', { count: save.succeeded.length }), {
@@ -492,6 +549,13 @@ function BatchPage() {
           confirmed = true;
           const approval = parseBatchResult(approvalResponse, saved);
           approved = approval.succeeded;
+          setResponse((previous) => ({
+            ...previous,
+            requisitionDtos: previous.requisitionDtos.map(
+              (record) =>
+                approvalResponse.requisitionDtos?.find((next) => next.id === record.id) ?? record,
+            ),
+          }));
           resolvedApprovals = saved.filter(
             (id) =>
               approved.includes(id) ||
@@ -509,16 +573,29 @@ function BatchPage() {
               setCopyFailure(error);
             }
           }
+          let approvedElsewhere = false;
           for (const [id, reason] of approval.failed) {
             const alreadyApproved = approvalResponse.requisitionErrors
               ?.find((e) => e.requisitionId === id)
               ?.errorMessage?.messageKey?.endsWith('requisitionMustBeAuthorized');
+            if (alreadyApproved) approvedElsewhere = true;
             failures.set(
               id,
               alreadyApproved
-                ? t('requisitions.batch.possibly-approved')
-                : reason || t('requisitions.batch.missing'),
+                ? 'requisitions.batch.possibly-approved'
+                : reason || 'requisitions.batch.missing',
             );
+          }
+          if (approvedElsewhere) {
+            try {
+              const latest = await refresh();
+              await retireUnavailable(latest);
+              assertSessionScope(scope);
+              setResponse(latest);
+            } catch (error) {
+              assertSessionScope(scope);
+              setCopyFailure(error);
+            }
           }
         } catch (error) {
           assertSessionScope(scope);
@@ -527,11 +604,13 @@ function BatchPage() {
             await drafts.mark(saved, false);
           }
           for (const id of saved)
-            failures.set(id, uncertain ? t('requisitions.batch.uncertain') : errorMessage(error));
+            failures.set(id, uncertain ? 'requisitions.batch.uncertain' : errorMessage(error));
           try {
             const latest = await refresh();
+            await retireUnavailable(latest);
             const removed = await reconcile(latest);
             assertSessionScope(scope);
+            setResponse(latest);
             for (const id of removed) failures.delete(id);
           } catch {
             assertSessionScope(scope);
@@ -630,6 +709,7 @@ function BatchPage() {
             <div className="mb-4 flex flex-col gap-3">
               <RequisitionCopyNotice
                 representation="batch"
+                expected={records.some(batchApprovable)}
                 local={loaded.fetchedAt !== undefined}
                 id={ids[0]}
                 result={loaded.copyResult}
@@ -640,7 +720,12 @@ function BatchPage() {
                 <Alert key={id} variant="warning">
                   <AlertTitle>{recordLabel(id)}</AlertTitle>
                   <AlertDescription>
-                    {reason || reasons.get(id) || t('requisitions.batch.missing')}
+                    {reason === 'requisitions.batch.no-longer-awaiting'
+                      ? t(reason)
+                      : reason ||
+                        (reasons.has(id)
+                          ? batchReasonText(reasons.get(id), t)
+                          : t('requisitions.batch.missing'))}
                   </AlertDescription>
                 </Alert>
               ))}
@@ -788,7 +873,25 @@ function BatchPage() {
       <InvalidSubmitDialog
         open={!!dialog}
         title={t('requisitions.batch.errors', { count: reasons.size || 1 })}
-        description={<span className="whitespace-pre-line">{dialog}</span>}
+        description={
+          <span className="whitespace-pre-line">
+            {dialog instanceof Map
+              ? ids
+                  .filter((id) => dialog.has(id))
+                  .map((id) => {
+                    const reason = dialog.get(id);
+                    return t('requisitions.batch.failure-line', {
+                      requisition: recordLabel(id),
+                      reason: batchReasonText(
+                        batchReason(reason || 'requisitions.batch.missing'),
+                        t,
+                      ),
+                    });
+                  })
+                  .join('\n')
+              : dialog}
+          </span>
+        }
         closeLabel={t('dialog.close')}
         onOpenChange={(open) => {
           if (!open) setDialog(null);

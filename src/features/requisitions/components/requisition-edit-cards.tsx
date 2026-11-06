@@ -77,7 +77,9 @@ export function RequisitionEditCards({
                         disabled: pending,
                         data: { 'data-requisition-remove': row.id },
                         label: t('requisitions.edit.remove-product'),
-                        name: `${t('requisitions.edit.remove-product')}: ${row.model.product?.fullProductName}`,
+                        name: t('requisitions.edit.remove-product-label', {
+                          product: row.model.product?.fullProductName ?? '',
+                        }),
                         icon: <Trash2Icon />,
                         destructive: true,
                         onSelect: () => remove(row.id),

@@ -21,7 +21,7 @@ function CardTotals({ row }: { row?: BatchRow }) {
   const { drafts, records, currency } = useBatch();
   useBatchVersion(row ? `product:${row.product.id}` : 'totals');
   const totals = batchTotals(row ? [] : records, drafts.quantities());
-  const product = row ? batchRowTotals(row, drafts.quantities()) : totals;
+  const product = row ? batchRowTotals(row, drafts.quantities(), records) : totals;
   return (
     <CardRows>
       {row && (

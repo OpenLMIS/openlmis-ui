@@ -8,7 +8,15 @@ import {
 import { createFileRoute, type ErrorComponentProps, useRouter } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon } from 'lucide-react';
-import { type ComponentProps, type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -105,12 +113,14 @@ import {
   prepareRequisitionAccess,
   requisitionNodesOptions,
 } from '@/features/requisitions/lib/offline-access';
-import { attachCopyLease, beginCopy } from '@/features/requisitions/lib/offline-copies';
+import { captureSingle } from '@/features/requisitions/lib/offline-capture-single';
 import {
-  captureSingle,
-  hydrateSingle,
-  readSingle,
-} from '@/features/requisitions/lib/offline-single';
+  attachCopyLease,
+  beginCopy,
+  newerServerRecord,
+  retireCopy,
+} from '@/features/requisitions/lib/offline-copies';
+import { hydrateSingle, readSingle } from '@/features/requisitions/lib/offline-single';
 import {
   applyPatientChanges,
   parsePatients,
@@ -131,7 +141,7 @@ import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
-import { onlineOrDevice, requireOnline } from '@/lib/local-data';
+import { LocalDataUnavailableError, onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isDeviceAccess } from '@/lib/offline-access';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
@@ -223,15 +233,6 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
         throw error;
       })) ?? [];
     if (!userId || userChanged() || !access || !record) return;
-    if (lease) {
-      attachCopyLease(record, lease);
-      if (isOnline() && !isDeviceAccess(record)) {
-        copyResult = captureSingle(queryClient, lease, record).then(
-          () => undefined,
-          (error: unknown) => error,
-        );
-      }
-    }
     if (needsUnskipSetting(record)) queryClient.prefetchQuery(unskipSettingOptions());
     queryClient.prefetchQuery(requisitionStatusMessagesOptions(record.id));
     queryClient.prefetchQuery(facilityOptions(record.facility.id));
@@ -241,6 +242,15 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
     queryClient.prefetchQuery(period);
     queryClient.prefetchQuery(currency);
     queryClient.prefetchQuery(program);
+    if (lease) {
+      attachCopyLease(record, lease);
+      if (isOnline() && !isDeviceAccess(record)) {
+        copyResult = captureSingle(queryClient, lease, record).then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+      }
+    }
     shownRequisitionId = record.id;
     return {
       record,
@@ -376,6 +386,7 @@ function RequisitionBody({
   quantity: ReturnType<typeof useQuantityUnit>;
 }) {
   const [record, setRecord] = useState(data.record);
+  const [loaderOutdated, setLoaderOutdated] = useState(false);
   const [copyFailure, setCopyFailure] = useState<unknown>();
   const copyOpening = useRef(data.copyResult);
   if (copyOpening.current !== data.copyResult) {
@@ -384,7 +395,7 @@ function RequisitionBody({
   }
   const accessEpoch = useRef(data.accessEpoch);
   const currentData = { ...data, record };
-  const editor = useRequisitionForm(record);
+  const editor = useRequisitionForm(record, data.record);
   const addedLines = useStore(editor.form.store, (state) => state.values.draft.addedLines);
   const gridRecord = useMemo(
     () => ({
@@ -462,6 +473,7 @@ function RequisitionBody({
       }
       attachCopyLease(fresh, lease);
     }
+    setLoaderOutdated(false);
     setRecord(fresh);
     queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
     setFailure(null);
@@ -724,15 +736,46 @@ function RequisitionBody({
         return;
       }
       finished.current = true;
+      let clearFailed = false;
+      let retired = false;
       try {
         await editor.device.clear();
       } catch {
         assertSessionScope(scope);
+        clearFailed = true;
+      }
+      assertSessionScope(scope);
+      if (isSecureOrigin) {
+        try {
+          await retireCopy(await beginCopy(record.id));
+          assertSessionScope(scope);
+          retired = true;
+          if (kind !== 'delete' && kind !== 'skip') {
+            const fresh = await fetchRequisition(record.id);
+            assertSessionScope(scope);
+            await captureSingle(queryClient, await beginCopy(record.id), fresh, 'read', {
+              freshMessages: true,
+            });
+          }
+        } catch (error) {
+          assertSessionScope(scope);
+          if (!(error instanceof LocalDataUnavailableError))
+            toast.error(t('requisitions.offline.failed-title'), {
+              description: t(
+                retired
+                  ? 'requisitions.offline.refresh-failed-description'
+                  : 'requisitions.offline.failed-description',
+              ),
+            });
+        }
+      }
+      assertSessionScope(scope);
+      if (clearFailed && !retired)
         toast.error(t('requisitions.edit.error-title'), {
           description: t('requisitions.edit.clear-error'),
         });
-      }
-      assertSessionScope(scope);
+      queryClient.removeQueries({ queryKey: requisitionOptions(record.id).queryKey });
+      queryClient.removeQueries({ queryKey: requisitionStatusMessagesOptions(record.id).queryKey });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),
@@ -748,7 +791,23 @@ function RequisitionBody({
           ),
         },
       );
-      await router.navigate(opening);
+      const direct =
+        !router.state.location.state.requisitionReturn &&
+        !search.facility &&
+        ['submit', 'submitAndAuthorize', 'authorize', 'approve', 'reject'].includes(kind);
+      await router.navigate(
+        direct
+          ? {
+              to: isApprovalKind(kind) ? '/requisitions/approve' : '/requisitions/initiate',
+              search: {},
+            }
+          : opening,
+      );
+      assertSessionScope(scope);
+      router.clearCache({
+        filter: (match) =>
+          'requisitionId' in match.params && match.params.requisitionId === record.id,
+      });
       assertSessionScope(scope);
     },
   });
@@ -803,12 +862,45 @@ function RequisitionBody({
     refusedDescription: t('requisitions.requisition.print-refused'),
   });
   const pending = busy || print.isPending;
-  const editingBlocked = pending || !!uncertainty;
-  const baseline = useMemo(() => JSON.stringify(buildRequisitionDraft(record)), [record]);
-  const dirty = useStore(
-    editor.form.store,
-    (state) => JSON.stringify(state.values.draft) !== baseline,
-  );
+  const adoptingLoader = newerServerRecord(data.record, record);
+  const editingBlocked = pending || !!uncertainty || loaderOutdated || adoptingLoader;
+  const baseline = useMemo(() => buildRequisitionDraft(record), [record]);
+  const dirty = useStore(editor.form.store, (state) => {
+    const draft = state.values.draft;
+    return !!(
+      draft.patients ||
+      Object.keys(draft.lines).length ||
+      draft.addedLines.length ||
+      draft.removedLineIds.length ||
+      draft.draftStatusMessage !== baseline.draftStatusMessage ||
+      draft.datePhysicalStockCountCompleted !== baseline.datePhysicalStockCountCompleted
+    );
+  });
+  const loaderRecord = useRef(data.record);
+  useEffect(() => {
+    if (loaderRecord.current === data.record) return;
+    loaderRecord.current = data.record;
+    if (!newerServerRecord(data.record, record)) return;
+    if (dirty) {
+      setLoaderOutdated(true);
+      return;
+    }
+    const scope = getSessionScope();
+    const next = data.record;
+    void editor.device.update(next).then(
+      () => {
+        if (loaderRecord.current !== next || scope !== getSessionScope()) return;
+        if (!newerServerRecord(next, latest.current.record)) return;
+        setRecord(next);
+        accessEpoch.current = data.accessEpoch;
+        setLoaderOutdated(false);
+      },
+      () => {
+        if (loaderRecord.current !== next || scope !== getSessionScope()) return;
+        setLoaderOutdated(true);
+      },
+    );
+  }, [data.record, data.accessEpoch, record, dirty, editor]);
   const guard = useDiscardGuard(dirty, {
     pending,
     allowLeave: () => finished.current,
@@ -971,7 +1063,7 @@ function RequisitionBody({
               {t('requisitions.edit.synced-title')}
             </p>
           )}
-          {editor.device.outdated && (
+          {(editor.device.outdated || loaderOutdated) && (
             <RequisitionOutdatedAlert>
               <RequisitionUpdate
                 tone="warning"
@@ -1059,7 +1151,7 @@ function RequisitionBody({
       <RequisitionFooter
         policy={policy}
         pending={pending}
-        disabled={!!serverStatus || editor.locked}
+        disabled={!!serverStatus || editor.locked || loaderOutdated || adoptingLoader}
         onAction={begin}
         reconciling={uncertainty && isApprovalKind(uncertainty.kind) ? uncertainty.kind : undefined}
       />

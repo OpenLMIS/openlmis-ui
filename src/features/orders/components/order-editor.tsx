@@ -99,6 +99,7 @@ export function OrderEditor({
         return {
           id: entry.id,
           dirty: isChanged(lines, baselines[entry.id] ?? []),
+          touched: !!state.fieldMeta[`orders.${entry.id}`]?.isTouched,
           invalid: !!(problems[entry.id] ?? entry.problem) || !validLines(lines, true),
         };
       }),
@@ -108,6 +109,7 @@ export function OrderEditor({
         (item, index) =>
           item.id === next[index].id &&
           item.dirty === next[index].dirty &&
+          item.touched === next[index].touched &&
           item.invalid === next[index].invalid,
       ),
   );
@@ -265,7 +267,19 @@ export function OrderEditor({
             }}
           >
             <Tabs value={active?.id ?? ''} onValueChange={(value) => onTab(String(value))}>
-              <OrderTabs entries={entries} dirty={dirty} invalid={invalid} />
+              <OrderTabs
+                entries={entries}
+                dirty={dirty}
+                invalid={(id) =>
+                  invalid(id) &&
+                  (creatingInvalid ||
+                    status.some((entry) => entry.id === id && entry.touched) ||
+                    dirty(id) ||
+                    !!initial[id]?.length ||
+                    !!entries.find((entry) => entry.id === id)?.problem ||
+                    !!problems[id])
+                }
+              />
               <TabsContent value={active?.id ?? ''}>
                 <div className="flex flex-col gap-4">
                   {problem ? (
@@ -501,7 +515,7 @@ function OrderFields({
       >
         {(field) => (
           <field.QuantityField
-            label={`${t('orders.edit.quantity')} ${productName(line)}`}
+            label={t('orders.edit.quantity-label', { product: productName(line) })}
             layout="inline"
             hideErrors
             required

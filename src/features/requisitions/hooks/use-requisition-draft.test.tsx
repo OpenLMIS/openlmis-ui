@@ -59,7 +59,7 @@ it('loads a matching base and flags an older draft without discarding it', async
   const olderLoad = vi.fn();
   const older = renderHook(() => useRequisitionDraft(base, olderLoad));
   await waitFor(() => expect(older.result.current.outdated).toBe(true));
-  expect(olderLoad).not.toHaveBeenCalled();
+  expect(olderLoad).toHaveBeenCalledWith(draft);
   expect((await getLocalDb().table('requisitionDrafts').get('r')).draft).toEqual(draft);
 });
 it('never loads another owner, including a row with an incorrect owner', async () => {
@@ -385,4 +385,95 @@ it('stops a clean editor from creating a delta after its copy is removed in anot
     await expect(hook.result.current.flush()).rejects.toBeInstanceOf(DraftConflictError);
   });
   expect(await getLocalDb().table('requisitionDrafts').get(base.id)).toBeUndefined();
+});
+
+it('retries an initial storage read and loads the saved draft', async () => {
+  await store();
+  const records = await import('@/lib/local-records');
+  vi.spyOn(records, 'readOwnedRecord').mockRejectedValueOnce(new Error('Storage busy'));
+  const onLoad = vi.fn();
+  const { result } = renderHook(() => useRequisitionDraft(base, onLoad));
+  await waitFor(() => expect(result.current.status.status).toBe('failed'));
+  await act(async () => {
+    await result.current.retry();
+  });
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  expect(onLoad).toHaveBeenCalledWith(draft);
+});
+
+it('ignores copy retirement after a successful terminal clear', async () => {
+  const { result } = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const { beginCopy, retireCopy } = await import('@/features/requisitions/lib/offline-copies');
+  await act(async () => {
+    await result.current.clear();
+    await retireCopy(await beginCopy(base.id));
+  });
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  expect(result.current.outdated).toBe(false);
+});
+
+it('rebases a conflicting stored draft on the current server baseline', async () => {
+  const onLoad = vi.fn();
+  const { result } = renderHook(() => useRequisitionDraft(base, onLoad));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const stored = { ...draft, lines: { removed: { requestedQuantity: '7' } } };
+  await store();
+  const table = getLocalDb().table('requisitionDrafts');
+  await table.put({ ...(await table.get('r')), draft: stored });
+  await act(() => result.current.resolve());
+  expect(onLoad).toHaveBeenLastCalledWith(draft);
+});
+
+it('keeps edits after a failed loader adoption and saves them on Retry', async () => {
+  const { result } = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const store = await import('@/lib/draft-store');
+  const error = new Error('Storage unavailable');
+  const spy = vi.spyOn(store, 'saveRevisionedDraft').mockRejectedValueOnce(error);
+  await act(async () => {
+    await expect(result.current.update({ ...base, modifiedDate: 'newer' })).rejects.toBe(error);
+  });
+  expect(result.current.status).toEqual({ status: 'failed', error });
+  spy.mockRestore();
+  act(() => result.current.write(draft));
+  await act(async () => {
+    await result.current.retry();
+    await result.current.flush();
+  });
+  expect(result.current.status.status).toBe('saved');
+  expect((await getLocalDb().table('requisitionDrafts').get('r')).draft).toEqual(draft);
+});
+
+it('reports saved when Retry follows failed adoption without another edit', async () => {
+  const { result } = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const store = await import('@/lib/draft-store');
+  const error = new Error('Storage unavailable');
+  vi.spyOn(store, 'saveRevisionedDraft').mockRejectedValueOnce(error);
+  await act(async () => {
+    await expect(result.current.update({ ...base, modifiedDate: 'newer' })).rejects.toBe(error);
+  });
+  await act(() => result.current.retry());
+  expect(result.current.status.status).toBe('saved');
+});
+
+it('coalesces typing into one device write and flushes the final value before leaving', async () => {
+  const { result } = renderHook(() => useRequisitionDraft(base));
+  await waitFor(() => expect(result.current.status.status).toBe('saved'));
+  const store = await import('@/lib/draft-store');
+  const save = vi.spyOn(store, 'saveRevisionedDraft');
+  act(() => {
+    for (const text of ['1', '12', '123'])
+      result.current.write({ ...draft, draftStatusMessage: text });
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(save).not.toHaveBeenCalled();
+  await act(() => result.current.flush());
+  expect(save).toHaveBeenCalledOnce();
+  expect((await getLocalDb().table('requisitionDrafts').get('r')).draft.draftStatusMessage).toBe(
+    '123',
+  );
 });
