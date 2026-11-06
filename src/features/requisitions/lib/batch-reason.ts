@@ -2,6 +2,7 @@ import type { ParseKeys, TFunction } from 'i18next';
 
 export type BatchReason = { key: ParseKeys } | { message: string };
 const keys: readonly ParseKeys[] = [
+  'requisitions.batch.verification-failed',
   'requisitions.batch.no-longer-awaiting',
   'requisitions.batch.review-refreshed',
   'requisitions.batch.possibly-approved',

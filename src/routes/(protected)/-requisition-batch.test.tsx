@@ -1248,3 +1248,27 @@ it('shows the offline connection reason beside batch Sync and Approve', async ()
   expect(screen.getByText('offline.action-description')).toBeVisible();
   queryClient.clear();
 });
+
+it('translates a Sync timeout again when the page language changes', async () => {
+  labels.addResource(
+    'fr',
+    'translation',
+    'requisitions.batch.verification-failed',
+    'Vérification impossible',
+  );
+  vi.mocked(saveBatchRequisitions).mockRejectedValueOnce(
+    new AxiosError('timeout of 60000ms exceeded', 'ECONNABORTED'),
+  );
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  await userEvent.click(sync);
+  await screen.findByText('requisitions.batch.verification-failed');
+  try {
+    await act(() => labels.changeLanguage('fr'));
+    expect(screen.getByText('Vérification impossible')).toBeVisible();
+  } finally {
+    await act(() => labels.changeLanguage('en'));
+    queryClient.clear();
+  }
+});

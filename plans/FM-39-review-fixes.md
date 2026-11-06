@@ -1017,3 +1017,6 @@ Median seconds, settled / warm. Three runs per cell.
 
 - Q8b: offline batch Sync and Approve now have a visible connection note beside the footer
   actions, reusing the existing connection description and preserving their accessible descriptions.
+
+- Q7b: timeout errors retain a translation key through the action state and resolve it during
+  rendering, so an already-open failure message follows a language change.

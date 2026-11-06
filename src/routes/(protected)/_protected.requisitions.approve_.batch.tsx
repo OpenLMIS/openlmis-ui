@@ -94,7 +94,6 @@ import {
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import i18n from '@/integrations/i18n';
 import { queryKeys } from '@/lib/key-factory';
 import { onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
@@ -1068,7 +1067,7 @@ function BatchPage() {
                     });
                   })
                   .join('\n')
-              : dialog}
+              : dialog && batchReasonText(batchReason(dialog), t)}
           </span>
         }
         closeLabel={t('dialog.close')}
@@ -1089,6 +1088,6 @@ function BatchPage() {
 }
 function errorMessage(error: unknown) {
   if (isAxiosError(error) && error.code === 'ECONNABORTED')
-    return i18n.t('requisitions.batch.verification-failed');
+    return 'requisitions.batch.verification-failed';
   return serverMessage(error) ?? (error instanceof Error ? error.message : String(error));
 }
