@@ -1035,3 +1035,7 @@ Median seconds, settled / warm. Three runs per cell.
 - RV2: the protected route's initial pending view renders the app shell and the destination's
   pending view instead of a second generic heading/body layout. Identity changes still hide
   the previous user's content behind the access skeleton.
+
+- RV11: toast placement accounts for the visible workspace header as well as the app header,
+  so desktop header actions remain reachable. The offset follows header resizing and scrolling
+  while toasts are present; retained hidden pages do not affect it.

@@ -37,7 +37,10 @@ export function Workspace({ children, width = 'default' }: WorkspaceWidthProps) 
 
 export function WorkspaceHeader({ children }: WorkspaceProps) {
   return (
-    <div className="flex flex-col gap-3 @2xl/main:flex-row @2xl/main:items-start @2xl/main:justify-between">
+    <div
+      data-slot="workspace-header"
+      className="flex flex-col gap-3 @2xl/main:flex-row @2xl/main:items-start @2xl/main:justify-between"
+    >
       {children}
     </div>
   );
