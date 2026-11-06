@@ -1,4 +1,4 @@
-import type { NamedRecord } from '@/features/buq/lib/types';
+import type { NamedItem } from '@/features/buq/lib/types';
 import { hasProgramGrant, type Permissions } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 
@@ -13,7 +13,7 @@ type HomeFacility = {
 type ProgramRecord = { id: string; code: string; name: string | null };
 
 export type PrepareAccess =
-  | { kind: 'ready'; facility: NamedRecord; program: NamedRecord }
+  | { kind: 'ready'; facility: NamedItem; program: NamedItem }
   | { kind: 'no-home' | 'no-program' | 'unsupported' | 'no-grant' };
 
 export function prepareAccess({

@@ -21,9 +21,9 @@ import {
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { preparedBuqsOptions } from '@/features/buq/api/queries';
+import { buqPeriodsOptions, preparedBuqsOptions } from '@/features/buq/api/queries';
 import { PrepareBuq, PrepareBuqSkeleton } from '@/features/buq/components/prepare-buq';
-import { type PrepareAccess, prepareAccess } from '@/features/buq/lib/access';
+import { BUQ_CODE, type PrepareAccess, prepareAccess } from '@/features/buq/lib/access';
 import { type PrepareSearch, prepareSearchSchema } from '@/features/buq/lib/search';
 import {
   homeFacilityOptions,
@@ -32,6 +32,8 @@ import {
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+
+const noop = () => {};
 
 export const Route = createFileRoute('/(protected)/_protected/buq/prepare')({
   validateSearch: prepareSearchSchema,
@@ -51,7 +53,10 @@ export const Route = createFileRoute('/(protected)/_protected/buq/prepare')({
     const access = prepareAccess({ home, programs, permissions });
     if (access.kind === 'no-grant') throw new ForbiddenError(RIGHTS.prepareBuq);
     if (access.kind === 'ready') {
-      queryClient.prefetchQuery(processingSchedulesOptions());
+      void queryClient.fetchQuery(processingSchedulesOptions()).then((schedules) => {
+        const schedule = schedules.find(({ code }) => code === BUQ_CODE);
+        return queryClient.prefetchQuery(buqPeriodsOptions(schedule?.id));
+      }, noop);
       queryClient.prefetchQuery(preparedBuqsOptions(access.facility.id));
     }
     return access;

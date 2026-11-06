@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios';
 import type { Buq, BuqPeriod, BuqPreparation } from '@/features/buq/lib/types';
 import { client } from '@/integrations/axios';
 import { fetchReport } from '@/lib/fetch-report';
@@ -9,33 +10,32 @@ const PREPARED_STATUSES = ['DRAFT', 'SUBMITTED', 'REJECTED'];
 
 export const BUQ_CSV_FILENAME = 'buq_quantification_preparation_report.csv';
 
-export async function fetchPreparedBuqs(facilityId: string) {
+async function fetchEveryPage<T>(path: string, config: AxiosRequestConfig) {
   const scope = getSessionScope();
-  const buqs: Buq[] = [];
+  const records: T[] = [];
   for (let page = 0; ; page += 1) {
     assertSessionScope(scope);
-    const { data } = await client.get<Page<Buq>>('/bottomUpQuantifications', {
-      params: { facility: facilityId, status: PREPARED_STATUSES, page, size: PAGE_SIZE },
-      paramsSerializer: { indexes: null },
+    const { data } = await client.get<Page<T>>(path, {
+      ...config,
+      params: { ...config.params, page, size: PAGE_SIZE },
     });
     assertSessionScope(scope);
-    buqs.push(...data.content);
-    if (page + 1 >= data.totalPages) return buqs;
+    records.push(...data.content);
+    if (page + 1 >= data.totalPages) return records;
   }
 }
 
-export async function fetchBuqPeriods(scheduleId: string) {
-  const scope = getSessionScope();
-  const periods: BuqPeriod[] = [];
-  for (let page = 0; ; page += 1) {
-    assertSessionScope(scope);
-    const { data } = await client.get<Page<BuqPeriod>>('/processingPeriods', {
-      params: { processingScheduleId: scheduleId, page, size: PAGE_SIZE, sort: 'startDate,asc' },
-    });
-    assertSessionScope(scope);
-    periods.push(...data.content);
-    if (page + 1 >= data.totalPages) return periods;
-  }
+export function fetchPreparedBuqs(facilityId: string) {
+  return fetchEveryPage<Buq>('/bottomUpQuantifications', {
+    params: { facility: facilityId, status: PREPARED_STATUSES },
+    paramsSerializer: { indexes: null },
+  });
+}
+
+export function fetchBuqPeriods(scheduleId: string) {
+  return fetchEveryPage<BuqPeriod>('/processingPeriods', {
+    params: { processingScheduleId: scheduleId, sort: 'startDate,asc' },
+  });
 }
 
 export async function prepareBuq(preparation: BuqPreparation) {

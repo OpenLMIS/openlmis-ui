@@ -93,6 +93,7 @@ it('prepares a forecast for the home facility and BUQ program once a period is c
   expect(within(card).getByText('2018')).toBeInTheDocument();
   expect(within(card).getByText('Cuamba')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'buq.prepare.prepare' })).toBeDisabled();
+  expect(screen.getByRole('combobox', { name: 'buq.prepare.select-period' })).toHaveFocus();
 });
 
 it('offers a period whose forecast is listed as already prepared', async () => {
@@ -154,4 +155,41 @@ it('returns to the last page when the shown page no longer has forecasts', async
   const onSearchChange = renderPrepare({ page: 2, size: 1 });
 
   await waitFor(() => expect(onSearchChange).toHaveBeenCalledWith({ page: undefined }, true));
+});
+
+it('keeps the delete confirmation open until the list no longer shows the report', async () => {
+  const user = userEvent.setup();
+  let refreshed: (buqs: Buq[]) => void = () => {};
+  vi.mocked(fetchPreparedBuqs)
+    .mockResolvedValueOnce([prepared('p16', 2017)])
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        refreshed = resolve;
+      }),
+    );
+  vi.mocked(deleteBuq).mockResolvedValue(undefined);
+  renderPrepare();
+
+  await user.click(await screen.findByRole('button', { name: 'buq.prepare.delete' }));
+  const dialog = await screen.findByRole('alertdialog');
+  await user.click(within(dialog).getByRole('button', { name: 'buq.prepare.delete' }));
+  await waitFor(() => expect(fetchPreparedBuqs).toHaveBeenCalledTimes(2));
+
+  expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  refreshed([]);
+  expect(await screen.findByText('buq.prepare.empty')).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+});
+
+it('keeps the period picker working when only the report list fails', async () => {
+  vi.mocked(fetchPreparedBuqs).mockRejectedValue(new Error('list failed'));
+  renderPrepare();
+
+  expect(await screen.findByText('buq.prepare.list-error-title')).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByRole('combobox', { name: 'buq.prepare.select-period' })).not.toHaveAttribute(
+      'data-disabled',
+    ),
+  );
+  expect(screen.queryByText('buq.prepare.periods-error')).toBeNull();
 });

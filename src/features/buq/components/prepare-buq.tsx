@@ -1,4 +1,4 @@
-import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { CalendarIcon, ClipboardPlusIcon, Loader2Icon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,14 +28,14 @@ import { buqPeriodsOptions, preparedBuqsOptions } from '@/features/buq/api/queri
 import { PreparedTable, PreparedTableSkeleton } from '@/features/buq/components/prepared-table';
 import { BUQ_CODE } from '@/features/buq/lib/access';
 import type { PrepareSearch } from '@/features/buq/lib/search';
-import type { Buq, BuqPeriod, NamedRecord } from '@/features/buq/lib/types';
+import type { Buq, BuqPeriod, NamedItem } from '@/features/buq/lib/types';
 import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 
-type PrepareBuqProps = { facility: NamedRecord; program: NamedRecord };
+type PrepareBuqProps = { facility: NamedItem; program: NamedItem };
 
 type ListSearchProps = { search: PrepareSearch; onSearchChange: SearchChange<PrepareSearch> };
 
@@ -98,18 +98,14 @@ export function PrepareBuq({
 function useBuqPeriods() {
   const { data: schedules } = useSuspenseQuery(processingSchedulesOptions());
   const schedule = schedules.find(({ code }) => code === BUQ_CODE);
-  const { data } = useSuspenseQuery({
-    ...buqPeriodsOptions(schedule?.id ?? ''),
-    queryFn: schedule ? buqPeriodsOptions(schedule.id).queryFn : () => NO_PERIODS,
-  });
-  return data;
+  return useSuspenseQuery(buqPeriodsOptions(schedule?.id)).data;
 }
 
 function LoadedTable({
   facility,
   cards,
   ...list
-}: ListSearchProps & { facility: NamedRecord; cards: boolean }) {
+}: ListSearchProps & { facility: NamedItem; cards: boolean }) {
   const periods = useBuqPeriods();
   const { data: buqs } = useSuspenseQuery(preparedBuqsOptions(facility.id));
   return (
@@ -121,7 +117,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const periods = useBuqPeriods();
-  const { data: buqs } = useSuspenseQuery(preparedBuqsOptions(facility.id));
+  const { data: buqs = NO_BUQS } = useQuery(preparedBuqsOptions(facility.id));
   const prepare = useSessionMutation({
     mutationFn: prepareBuq,
     onSuccess: async (_, { processingPeriodId }) => {
@@ -182,11 +178,15 @@ function PeriodPicker({
     label: name,
     prepared: preparedIds.has(id),
   }));
-  const picked = items.find(({ value }) => value === pickedId && !preparedIds.has(value)) ?? null;
+  const picked = items.find((item) => item.value === pickedId && !item.prepared) ?? null;
+  const afterPrepare = () => {
+    setPickedId(null);
+    field.current?.querySelector('input')?.focus();
+  };
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 @3xl/main:max-w-xl">
         <PickerAdd>
           <Combobox
             disabled={disabled}
@@ -236,7 +236,7 @@ function PeriodPicker({
                 <ClipboardPlusIcon data-icon="inline-start" />
               )
             }
-            onClick={() => picked && onPrepare(picked.value, () => setPickedId(null))}
+            onClick={() => picked && onPrepare(picked.value, afterPrepare)}
           >
             {t('buq.prepare.prepare')}
           </PickerAddButton>
