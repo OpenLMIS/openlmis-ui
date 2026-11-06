@@ -32,19 +32,19 @@ export function OrderTabs({
           <TabsItem key={entry.id}>
             <TabsTrigger value={entry.id}>
               {name}
-              <span
-                aria-hidden="true"
-                className={
-                  invalid(entry.id)
-                    ? 'size-2 shrink-0 rounded-full bg-destructive'
-                    : 'size-2 shrink-0 rounded-full bg-success'
-                }
-              />
               <span className="sr-only">
                 {t(invalid(entry.id) ? 'orders.edit.invalid' : 'orders.edit.valid')}
               </span>
               {dirty(entry.id) && <span className="sr-only">{t('orders.edit.unsaved')}</span>}
             </TabsTrigger>
+            <span
+              aria-hidden="true"
+              className={
+                invalid(entry.id)
+                  ? 'pointer-events-none absolute -end-1 -top-1 size-2.5 rounded-full bg-destructive ring-2 ring-background'
+                  : 'pointer-events-none absolute -end-1 -top-1 size-2.5 rounded-full bg-success ring-2 ring-background'
+              }
+            />
             {deletable(entry.id) && (
               <Tooltip>
                 <TooltipTrigger
