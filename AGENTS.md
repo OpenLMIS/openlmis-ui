@@ -290,7 +290,7 @@ edits, which have no prop for TypeScript to detect:
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus; keep `components` parts module-level and memoize DayButton, so re-renders never remount the calendar mid-click |
 | `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
-| `button.tsx` | Keep warning tint on hover with `tone="sidebar"` |
+| `button.tsx` | Keep warning and `warning-ghost` tints on hover with `tone="sidebar"` |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
 | `button.tsx` | Preserve `align="between"` for labels with end-aligned values |
 | `alert.tsx` | Preserve `actionLayout="flow"` for wrapping actions below long alert text |

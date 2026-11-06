@@ -20,7 +20,7 @@ export function BackToLegacyButton({
             onClick={legacy.onClick}
             size="icon-sm"
             tone="sidebar"
-            variant="warning"
+            variant="warning-ghost"
           />
         }
       >
