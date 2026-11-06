@@ -1020,3 +1020,8 @@ Median seconds, settled / warm. Three runs per cell.
 
 - Q7b: timeout errors retain a translation key through the action state and resolve it during
   rendering, so an already-open failure message follows a language change.
+
+- RV4/RV10: online editors show one device status. Background capture preparation or failure
+  replaces the passive saved-draft badge; active draft persistence/errors retain priority.
+  Background-copy copy explicitly concerns offline access and leaves server saves unaffected.
+  Offline snapshot and draft recovery behavior is unchanged. All five catalogs are synchronized.

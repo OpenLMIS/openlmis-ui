@@ -982,7 +982,9 @@ it('keeps the batch usable when approval membership returns a service error', as
   const { queryClient } = renderRoute();
   const inputs = await screen.findAllByRole('textbox');
   await waitFor(() => expect(inputs[0]).toBeEnabled());
-  expect(await screen.findByText('requisitions.offline.failed-description')).toBeInTheDocument();
+  expect(
+    await screen.findByText('requisitions.offline.unavailable-description'),
+  ).toBeInTheDocument();
   expect(fetchApprovalList).toHaveBeenCalledOnce();
   queryClient.clear();
 });
@@ -1229,7 +1231,7 @@ it('finishes Sync before copy capture and preserves a newer capture failure', as
     await waitFor(() => expect(capture).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(sync).toBeEnabled());
     await userEvent.click(sync);
-    const failure = await screen.findByText('requisitions.offline.failed-description');
+    const failure = await screen.findByText('requisitions.offline.unavailable-description');
     await act(async () => first.resolve());
     expect(failure).toBeInTheDocument();
   } finally {

@@ -519,8 +519,7 @@ export function RequisitionGridView({
         status={
           !view.cards && (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <RequisitionCopyBadge />
-              {status}
+              {status || <RequisitionCopyBadge />}
             </div>
           )
         }

@@ -296,8 +296,11 @@ const RequisitionTabsView = memo(function RequisitionTabsView({
         </TabsList>
         {(layout.cards || active === 'patients') && (
           <div className="flex flex-wrap items-center justify-end gap-2 empty:hidden">
-            <RequisitionCopyBadge />
-            {showDraft && editor && <RequisitionDraftStatus editor={editor} />}
+            {showDraft && editor ? (
+              <RequisitionDraftStatus editor={editor} />
+            ) : (
+              <RequisitionCopyBadge />
+            )}
           </div>
         )}
         {tabs.map(({ value }) => (
