@@ -1,6 +1,7 @@
 import type { CatalogItem } from '@/features/cce-inventory/lib/types';
 
-export const makeModelLabel = (item: CatalogItem) => `${item.manufacturer} ${item.model}`;
+export const makeModelLabel = (item: Pick<CatalogItem, 'manufacturer' | 'model'>) =>
+  `${item.manufacturer} ${item.model}`;
 
 export function equipmentTypes(items: readonly CatalogItem[]) {
   return [...new Set(items.map((item) => item.type))].toSorted((a, b) => a.localeCompare(b));

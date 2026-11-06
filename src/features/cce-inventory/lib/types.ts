@@ -7,6 +7,7 @@ export type InventoryItem = {
   catalogItem: { manufacturer: string; model: string; type: string };
   functionalStatus: EquipmentStatus;
   reasonNotWorkingOrNotInUse?: EquipmentReason;
+  decommissionDate?: string;
   yearOfInstallation: number;
   modifiedDate?: string;
   lastModifier?: { firstName?: string; lastName?: string };

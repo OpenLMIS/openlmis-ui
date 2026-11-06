@@ -335,8 +335,8 @@ describe('InventoryItemView', () => {
       'facility-program.facility',
       'cce-inventory.form.equipment-type',
       'cce-inventory.status.current',
-      'cce-inventory.alerts-title',
     ]);
+    expect(screen.getByRole('region', { name: 'cce-inventory.alerts-title' })).toBeInTheDocument();
     await user.click(
       screen.getByRole('combobox', { name: /cce-inventory.form.functional-status/ }),
     );

@@ -65,7 +65,15 @@ const POWER_LABELS: Record<PowerField, ParseKeys> = {
   'details.backupGenerator': 'cce-inventory.form.backup-generator',
 };
 
-function SectionHeading({ id, children }: { id: string; children: ReactNode }) {
+function SectionHeading({
+  id,
+  action,
+  children,
+}: {
+  id: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="flex items-center gap-3">
       <h3 className="shrink-0 font-medium text-sm" id={id}>
@@ -74,7 +82,30 @@ function SectionHeading({ id, children }: { id: string; children: ReactNode }) {
       <div className="min-w-0 flex-1">
         <Separator />
       </div>
+      {action}
     </div>
+  );
+}
+
+export function ActionSection({
+  legend,
+  action,
+  children,
+}: {
+  legend: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  const id = useId();
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-2">
+      <div className="flex min-h-7 flex-col justify-center">
+        <SectionHeading action={action} id={id}>
+          {legend}
+        </SectionHeading>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -116,15 +147,7 @@ export function ChosenEquipment({
 
 export type ReadOnlyRow = [ParseKeys, ReactNode];
 
-export function ReadOnlySection({
-  legend,
-  rows,
-  children,
-}: {
-  legend?: string;
-  rows: ReadOnlyRow[];
-  children?: ReactNode;
-}) {
+export function ReadOnlySection({ legend, rows }: { legend?: string; rows: ReadOnlyRow[] }) {
   const { t } = useTranslation();
   const id = useId();
   return (
@@ -136,7 +159,6 @@ export function ReadOnlySection({
             <bdi>{orEmpty(value)}</bdi>
           </SettingsItem>
         ))}
-        {children}
       </SettingsList>
     </section>
   );

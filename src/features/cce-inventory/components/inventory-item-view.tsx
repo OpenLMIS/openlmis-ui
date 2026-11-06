@@ -2,11 +2,12 @@ import { useStore } from '@tanstack/react-form';
 import {
   useIsMutating,
   useQuery,
+  useQueryClient,
   useSuspenseQueries,
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
-import { type RefObject, useRef } from 'react';
+import { type ReactNode, type RefObject, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -36,7 +37,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchInventoryItem, updateInventoryItem } from '@/features/cce-inventory/api/api';
-import { inventoryAlertsOptions, inventoryItemOptions } from '@/features/cce-inventory/api/queries';
+import {
+  inventoryAlertsOptions,
+  inventoryItemOptions,
+  listedInventoryItem,
+} from '@/features/cce-inventory/api/queries';
 import {
   SAVE_KEY,
   StatusItem,
@@ -44,6 +49,7 @@ import {
   useItemSave,
 } from '@/features/cce-inventory/components/inventory-item-actions';
 import {
+  ActionSection,
   DetailsFields,
   GAUGE_KEYS,
   MONITOR_KEYS,
@@ -60,16 +66,26 @@ import { makeModelLabel } from '@/features/cce-inventory/lib/catalog';
 import {
   inventoryItemSchema,
   solarPower,
+  statusUsesDecommission,
+  statusUsesReason,
   toEditValues,
   toInventoryItemUpdate,
   type ValidInventoryItemDetails,
 } from '@/features/cce-inventory/lib/inventory-item-form';
 import type { InventorySearch } from '@/features/cce-inventory/lib/search';
-import type { InventoryItemRecord, PowerStatus } from '@/features/cce-inventory/lib/types';
+import type {
+  InventoryItem,
+  InventoryItemRecord,
+  PowerStatus,
+} from '@/features/cce-inventory/lib/types';
 import { facilityOptions, programLookupOptions } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useOpening } from '@/hooks/use-opening';
-import { EQUIPMENT_REASON_KEYS, EQUIPMENT_STATUS } from '@/lib/cce-equipment-status';
+import {
+  EQUIPMENT_REASON_KEYS,
+  EQUIPMENT_STATUS,
+  type EquipmentStatus,
+} from '@/lib/cce-equipment-status';
 import { isNotFound, isRefused } from '@/lib/http';
 import type { ProgramGrant } from '@/lib/permissions';
 import { fullName } from '@/lib/text';
@@ -87,8 +103,18 @@ type InventoryItemViewProps = {
   onAction: (action: ItemAction | undefined) => void;
 };
 
-export function InventoryItemView({ itemId, onClose, ...content }: InventoryItemViewProps) {
+export function InventoryItemView({
+  itemId,
+  action,
+  stacked,
+  onClose,
+  ...content
+}: InventoryItemViewProps) {
   const { shown, dialogProps } = useDialogTarget(itemId, onClose);
+  const [view, setView] = useState({ action, stacked });
+  if (itemId !== undefined && (view.action !== action || view.stacked !== stacked)) {
+    setView({ action, stacked });
+  }
   const pending = useIsMutating({ mutationKey: SAVE_KEY }) > 0;
   const { opening, requestClose, cancelClose } = useCloseOnce(itemId !== undefined, onClose);
 
@@ -103,10 +129,12 @@ export function InventoryItemView({ itemId, onClose, ...content }: InventoryItem
       {shown && (
         <ItemBoundary
           {...content}
+          action={view.action}
           id={shown}
           key={opening}
           onCloseCancelled={cancelClose}
           onDone={requestClose}
+          stacked={view.stacked}
         />
       )}
     </FormDialog>
@@ -116,6 +144,7 @@ export function InventoryItemView({ itemId, onClose, ...content }: InventoryItem
 function ItemBoundary(props: ItemContentProps) {
   const { t } = useTranslation();
   const opening = useOpening();
+  const queryClient = useQueryClient();
   const alerts = useQuery({
     ...inventoryAlertsOptions([props.id]),
     enabled: props.action === 'status',
@@ -143,6 +172,8 @@ function ItemBoundary(props: ItemContentProps) {
         <ViewSkeleton
           action={props.stacked ? undefined : props.action}
           editing={props.grants.length > 0}
+          listed={listedInventoryItem(queryClient, props.id)}
+          transferring={props.transferGrants.length > 0}
         />
       }
       resetKey={props.id}
@@ -265,7 +296,7 @@ function ActionContent({
   if (action === 'edit') return <EditItem {...props} header={header} />;
   if (action === 'transfer') return <TransferItem {...props} grants={transferGrants} />;
   return alertsLoading ? (
-    <ViewSkeleton action="status" editing />
+    <ViewSkeleton action="status" editing status={props.item.functionalStatus} />
   ) : (
     <StatusItem {...props} facilityName={facilityName} />
   );
@@ -546,10 +577,39 @@ const ACTION_TITLES: Record<ItemAction, ParseKeys> = {
   transfer: 'cce-inventory.transfer.title',
 };
 
-function ViewSkeleton({ action, editing }: { action: ItemAction | undefined; editing: boolean }) {
+function ViewSkeleton({
+  action,
+  editing,
+  transferring = false,
+  listed,
+  status = listed?.functionalStatus,
+}: {
+  action: ItemAction | undefined;
+  editing: boolean;
+  transferring?: boolean;
+  listed?: InventoryItem;
+  status?: EquipmentStatus;
+}) {
   const { t } = useTranslation();
+  const detailLines = listed
+    ? Object.entries({
+        reason: listed.reasonNotWorkingOrNotInUse,
+        decommissioned: listed.decommissionDate,
+        modified: fullName(listed.lastModifier ?? {}) || listed.modifiedDate,
+      })
+        .filter(([, value]) => value)
+        .map(([line]) => line)
+    : ['modified'];
+  const known: Partial<Record<ParseKeys, ReactNode>> = listed
+    ? {
+        'cce-inventory.form.equipment-type': listed.catalogItem.type,
+        'cce-inventory.make-model': makeModelLabel(listed.catalogItem),
+        'cce-inventory.form.serial-number': listed.equipmentTrackingId ?? '',
+        'cce-inventory.form.year-of-installation': listed.yearOfInstallation,
+      }
+    : {};
   const rows = (labels: readonly ParseKeys[]): ReadOnlyRow[] =>
-    labels.map((label) => [label, <SkeletonLine key={label} width="short" />]);
+    labels.map((label) => [label, known[label] ?? <SkeletonLine key={label} width="short" />]);
   return (
     <>
       <FormDialogHeader>
@@ -568,10 +628,36 @@ function ViewSkeleton({ action, editing }: { action: ItemAction | undefined; edi
       </FormDialogHeader>
       <FormDialogBody>
         <div aria-busy className="flex flex-col gap-6">
-          <div className="flex flex-col gap-1">
-            <SkeletonLine width="medium" />
-            {action === undefined && <SkeletonLine width="short" />}
-          </div>
+          {action === undefined ? (
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <div className="flex h-6 items-center">
+                  <SkeletonLine width="medium" />
+                </div>
+                {detailLines.map((line) => (
+                  <div className="flex h-5 items-center" key={line}>
+                    <SkeletonLine width="short" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {editing && (
+                  <div className="h-8 w-28">
+                    <Skeleton fill />
+                  </div>
+                )}
+                {transferring && (
+                  <div className="h-8 w-20">
+                    <Skeleton fill />
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-6 items-center">
+              <SkeletonLine width="medium" />
+            </div>
+          )}
           {action === undefined ? (
             <>
               <ReadOnlySection rows={rows(HEADER_SKELETON)} />
@@ -593,8 +679,15 @@ function ViewSkeleton({ action, editing }: { action: ItemAction | undefined; edi
               {ACTION_SKELETON[action].length > 0 && (
                 <ReadOnlySection rows={rows(ACTION_SKELETON[action])} />
               )}
+              {action === 'status' && (
+                <ActionSection legend={t('cce-inventory.alerts-title')}>
+                  <div className="flex h-5 items-center">
+                    <SkeletonLine width="short" />
+                  </div>
+                </ActionSection>
+              )}
               <Section legend={t(ACTION_SECTION[action])}>
-                {ACTION_FIELDS[action].map((label) => (
+                {actionFields(action, status).map((label) => (
                   <FieldSkeleton key={label} label={t(label)} required />
                 ))}
               </Section>
@@ -654,6 +747,14 @@ const ACTION_SECTION: Record<ItemAction, ParseKeys> = {
   edit: 'cce-inventory.form.identification',
   status: 'cce-inventory.status.update-section',
   transfer: 'cce-inventory.form.equipment',
+};
+
+const actionFields = (action: ItemAction, status: EquipmentStatus | undefined) => {
+  if (action !== 'status' || status === undefined) return ACTION_FIELDS[action];
+  const fields: ParseKeys[] = [...ACTION_FIELDS.status];
+  if (statusUsesReason(status)) fields.push('cce-inventory.form.reason');
+  if (statusUsesDecommission(status)) fields.push('cce-inventory.form.decommission-date');
+  return fields;
 };
 
 const ACTION_FIELDS: Record<ItemAction, readonly ParseKeys[]> = {

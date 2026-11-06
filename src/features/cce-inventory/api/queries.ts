@@ -1,12 +1,13 @@
-import { queryOptions } from '@tanstack/react-query';
+import { type QueryClient, queryOptions } from '@tanstack/react-query';
 import {
   fetchCatalogItems,
   fetchInventoryAlerts,
   fetchInventoryItem,
   fetchInventoryItems,
 } from '@/features/cce-inventory/api/api';
-import type { InventoryQuery } from '@/features/cce-inventory/lib/types';
+import type { InventoryItem, InventoryQuery } from '@/features/cce-inventory/lib/types';
 import { queryKeys } from '@/lib/key-factory';
+import type { Page } from '@/lib/types';
 
 export const inventoryItemsOptions = (query: InventoryQuery) =>
   queryOptions({
@@ -32,3 +33,9 @@ export const inventoryItemOptions = (id: string, opening: number) =>
     queryKey: [...queryKeys.inventoryItems.detail(id), opening],
     queryFn: () => fetchInventoryItem(id),
   });
+
+export const listedInventoryItem = (queryClient: QueryClient, id: string) =>
+  queryClient
+    .getQueriesData<Page<InventoryItem>>({ queryKey: [...queryKeys.inventoryItems.all, 'list'] })
+    .flatMap(([, page]) => page?.content ?? [])
+    .find((item) => item.id === id);

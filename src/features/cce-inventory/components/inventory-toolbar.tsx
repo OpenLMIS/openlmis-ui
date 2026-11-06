@@ -77,9 +77,9 @@ export function InventoryToolbar({
           />
         </DataTableFilters>
       </div>
-      {view}
+      {view && <div className="@2xl/main:ms-auto">{view}</div>}
       {adding && (
-        <div className="order-3 w-full @2xl/main:order-none @2xl/main:ms-auto @2xl/main:w-auto">
+        <div className="order-3 w-full @2xl/main:order-none @2xl/main:w-auto">
           <Button disabled={disabled || !onAdd} onClick={onAdd} size="lg" width="full">
             <PlusIcon data-icon="inline-start" />
             {t('cce-inventory.add')}
