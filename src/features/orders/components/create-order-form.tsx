@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef, useTable } from '@tanstack/react-table';
-import { Trash2Icon } from 'lucide-react';
+import { Building2Icon, Trash2Icon } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   DataTable,
+  DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -231,7 +232,11 @@ export function CreateOrderForm({
         }}
       >
         {cards ? (
-          <TableCards table={table} title="name" empty={t('orders.create.empty')} />
+          <TableCards
+            table={table}
+            title="name"
+            empty={<DataTableEmpty icon={<Building2Icon />} title={t('orders.create.empty')} />}
+          />
         ) : (
           <DataTable table={table} empty={t('orders.create.empty')} />
         )}
