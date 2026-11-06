@@ -8,6 +8,7 @@ import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
+import { ScrollBar } from "@/components/ui/scroll-area"
 import {
   InputGroup,
   InputGroupAddon,
@@ -200,6 +201,7 @@ function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
       >
         <ChevronDownIcon className="size-4" />
       </span>
+      <ScrollBar className="py-1" />
     </ScrollAreaPrimitive.Root>
   )
 }
