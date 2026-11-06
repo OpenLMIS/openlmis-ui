@@ -863,6 +863,7 @@
   "orders.edit.create-failed-description": "تعذّر إنشاء {facilities}: {reason}",
   "orders.edit.create-failed-title": "تعذّر إنشاء الأوامر",
   "orders.edit.create-invalid-description": "أضف منتجًا واحدًا على الأقل بكمية صحيحة أكبر من صفر إلى كل أمر.",
+  "orders.edit.create-invalid-orders": "أضف منتجًا واحدًا على الأقل بكمية صحيحة أكبر من صفر إلى {orders} قبل الإنشاء.",
   "orders.edit.created-description": "تم إنشاء الأوامر بنجاح.",
   "orders.edit.created-title": "تم إنشاء الأوامر",
   "orders.edit.crumb": "تعديل",

@@ -1,6 +1,6 @@
 import { useStore } from '@tanstack/react-form';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ListError } from '@/components/app-shell/list-error';
@@ -75,7 +75,7 @@ export function OrderEditor({
   onBatchChange: (ids: string[]) => Promise<unknown>;
   onCancel: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [initial] = useState<Record<string, DraftLine[]>>(() =>
     Object.fromEntries(
@@ -220,6 +220,16 @@ export function OrderEditor({
   });
   const pending = mutation.isPending;
   const invalidBatch = !entries.length || status.some((entry) => entry.invalid);
+  const invalidOrders = new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(
+    entries
+      .filter((entry) => invalid(entry.id))
+      .map(
+        (entry) =>
+          entry.order?.requestingFacility.name ??
+          t('orders.edit.order-label', { code: entry.id.slice(0, 8) }),
+      ),
+  );
+  const createReasonId = useId();
   const guard = useDiscardGuard(
     entries.some((entry) => dirty(entry.id)),
     { pending, allowLeave: () => leaving.current },
@@ -341,6 +351,15 @@ export function OrderEditor({
           </Button>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
+          {invalidBatch && entries.length > 0 && (
+            <p
+              id={createReasonId}
+              role="note"
+              className="basis-full text-end text-muted-foreground text-sm"
+            >
+              {t('orders.edit.create-invalid-orders', { orders: invalidOrders })}
+            </p>
+          )}
           <Button
             size="lg"
             variant="destructive"
@@ -364,9 +383,7 @@ export function OrderEditor({
           <Button
             size="lg"
             disabled={pending || invalidBatch}
-            aria-description={
-              invalidBatch ? t('orders.edit.create-invalid-description') : undefined
-            }
+            aria-describedby={invalidBatch && entries.length > 0 ? createReasonId : undefined}
             onClick={() => {
               const bad = entries.find((entry) => invalid(entry.id));
               setCreatingInvalid(true);

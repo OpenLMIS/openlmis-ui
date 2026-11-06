@@ -863,6 +863,7 @@
   "orders.edit.create-failed-description": "Não foi possível criar {facilities}: {reason}",
   "orders.edit.create-failed-title": "Não Foi Possível Criar Pedidos",
   "orders.edit.create-invalid-description": "Adicione pelo menos um produto com uma quantidade inteira superior a zero a cada encomenda.",
+  "orders.edit.create-invalid-orders": "Adicione pelo menos um produto com uma quantidade inteira maior que zero a {orders} antes de criar.",
   "orders.edit.created-description": "Pedidos criados com sucesso.",
   "orders.edit.created-title": "Pedidos Criados",
   "orders.edit.crumb": "Editar",

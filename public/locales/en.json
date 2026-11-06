@@ -863,6 +863,7 @@
   "orders.edit.create-failed-description": "Could not create {facilities}: {reason}",
   "orders.edit.create-failed-title": "Could Not Create Orders",
   "orders.edit.create-invalid-description": "Add at least one product with a whole quantity greater than zero to every order.",
+  "orders.edit.create-invalid-orders": "Add at least one product with a whole quantity greater than zero to {orders} before creating.",
   "orders.edit.created-description": "Orders created successfully.",
   "orders.edit.created-title": "Orders Created",
   "orders.edit.crumb": "Edit",

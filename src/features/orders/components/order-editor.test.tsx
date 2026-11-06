@@ -177,7 +177,7 @@ describe('order editor workflow', () => {
     const { user, onBatchChange } = setup([creatingOrder('a'), creatingOrder('b', 0)]);
     const create = screen.getByRole('button', { name: 'orders.edit.create' });
     expect(create).toBeDisabled();
-    expect(create).toHaveAttribute('aria-description', 'orders.edit.create-invalid-description');
+    expect(create).toHaveAccessibleDescription('orders.edit.create-invalid-orders');
     expect(sendOrder).not.toHaveBeenCalled();
     await user.click(screen.getByRole('tab', { name: /Facility b/ }));
     fireEvent.change(quantity(), { target: { value: '15' } });
@@ -382,7 +382,7 @@ it('keeps an empty order unmarked and Create disabled until a positive quantity 
   );
   const create = screen.getByRole('button', { name: 'orders.edit.create' });
   expect(create).toBeDisabled();
-  expect(create).toHaveAttribute('aria-description', 'orders.edit.create-invalid-description');
+  expect(create).toHaveAccessibleDescription('orders.edit.create-invalid-orders');
   await user.click(screen.getByRole('combobox', { name: 'orders.edit.select-product' }));
   await user.click(await screen.findByRole('option', { name: 'Medicine' }));
   await user.click(screen.getByRole('button', { name: 'orders.add' }));
