@@ -1053,3 +1053,37 @@ Median seconds, settled / warm. Three runs per cell.
   RV11's toast observer subscribes only to pathname changes, so filter/paging search updates
   do not rerender the root through its route subscription. English desktop and Arabic
   1440/390 px production checks show no overlap with Print; Arabic has no page overflow.
+
+### R8 Final Measurements And Verification
+
+- RV6: no route/form performance fix was necessary after clean measurement. Correct the
+  supplied paired harness by foregrounding each tab before its trial; otherwise Chrome
+  background-tab frame throttling disadvantages the new UI. Keep the same readiness predicates.
+  The original unfocused data and CPU profiles remain in the evidence directory.
+
+| Warm navigation, median ms | Before new | Before legacy | After new | After legacy |
+|---|---:|---:|---:|---:|
+| View facility picker | 59.6 | 94.4 | 42.1 | 74.4 |
+| Convert rows | 61.8 | 1089.1 | 71.9 | 903.3 |
+| Create Orders input | 27.4 | 31.6 | 31.9 | 33.2 |
+
+Three trials per cell. Corrected baseline load: 3.52/3.55/4.64 on 16 reported CPUs.
+Final measurement load: 6.47/5.08/4.72, with no build or test process running.
+Create Orders is practical parity within a frame. Convert includes one slower initial
+request and two warm cache hits; these are navigation medians, not uncached API timings.
+
+| CLS session maximum through step | Before | After |
+|---|---:|---:|
+| Open | 0.002240 | 0.001250 |
+| Page size 100 | 0.002240 | 0.001250 |
+| Scroll | 0.114691 | 0.001250 |
+| Typing | 0.114691 | 0.001250 |
+
+Evidence and reproducible harnesses: `.screenshots/FM-39-r8/README.md`. Desktop Print
+overlap is reproduced before and absent after; Arabic 1440/390 px has no overlap or page
+overflow and explains the disabled empty-order Create action. Pending-view frame traces
+include slow protected chunks. All five catalogs match and the changed ICU messages parse.
+
+Final checks pass: 243 tests across seven focused files, TypeScript, design-system lint,
+Biome and a production build. No full suite, server writes, stock-event POSTs or unfinished=true
+requests were run. No push; the production preview is stopped at handoff.
