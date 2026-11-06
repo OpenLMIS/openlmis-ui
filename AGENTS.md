@@ -877,6 +877,7 @@ notice presentation belongs in [FM-165](plans/FM-165.md).
 - `SYSTEM_SETTINGS` is off by default while the released backend lacks the endpoint.
   It is `deploymentOnly`, read solely from `config.json`, excluded from `ADMIN_FLAG_KEYS`
   so admins cannot disable Settings there. Dev also needs `public/config.json` to enable it.
+  With it off, boot skips `GET /api/appConfiguration` and keeps the cached configuration.
 - Deployment-name messages use `{appName}` and `useAppName()`, never hardcoded "OpenLMIS".
   References to the platform, such as "Powered by OpenLMIS", keep that name.
 - Appearance uses `src/lib/appearance.ts`, never next-themes. Store user choice under `theme`;

@@ -80,6 +80,17 @@ describe('parseAppConfiguration', () => {
 });
 
 describe('loadAppConfiguration', () => {
+  it('asks nothing when System Settings is off and keeps the last answer', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
+    const fetch = respond(200, { ...stored, appName: 'Fresh' });
+    vi.stubGlobal('fetch', fetch);
+
+    await loadAppConfiguration(Promise.resolve(false));
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(getAppConfiguration().appName).toBe('SIGECA');
+  });
+
   it('reads the public endpoint without a token and remembers the answer', async () => {
     const fetch = respond(200, stored);
     vi.stubGlobal('fetch', fetch);

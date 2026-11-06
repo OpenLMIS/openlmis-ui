@@ -78,8 +78,11 @@ export function rememberAppConfiguration(value: unknown): void {
   setAppConfiguration(parseAppConfiguration(value));
 }
 
-export async function loadAppConfiguration(): Promise<void> {
+export async function loadAppConfiguration(
+  enabled: Promise<boolean> | boolean = true,
+): Promise<void> {
   setAppConfiguration(parseAppConfiguration(readCache()));
+  if (!(typeof enabled === 'boolean' ? enabled : await enabled)) return;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS);
   try {
