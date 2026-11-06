@@ -59,7 +59,7 @@ function setup(
         facilityId: order.requestingFacility.id,
         name: '',
         page: 0,
-        size: 50,
+        size: 100,
       }).queryKey,
       {
         content: [
@@ -72,7 +72,7 @@ function setup(
         totalElements: 1,
         totalPages: 1,
         number: 0,
-        size: 50,
+        size: 100,
       },
     );
   let changeBatch: (ids: string[]) => void;
