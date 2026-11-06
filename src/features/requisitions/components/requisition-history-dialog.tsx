@@ -133,7 +133,7 @@ function HistoryContent({
           title="status"
           density="compact"
           layout="auto"
-          empty={<DataTableEmpty title={t('requisitions.requisition.no-comments')} />}
+          empty={<DataTableEmpty title={t('requisitions.requisition.no-history')} />}
         />
       </FormDialogBody>
       <FormDialogFooter>

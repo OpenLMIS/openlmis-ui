@@ -2117,6 +2117,7 @@
   "requisitions.requisition.history-date": "التاريخ",
   "requisitions.requisition.history-description": "عرض تغييرات الحالة والتعليقات لهذا الطلب.",
   "requisitions.requisition.no-comments": "لا توجد تعليقات",
+  "requisitions.requisition.no-history": "لا توجد تغييرات في الحالة",
   "requisitions.requisition.no-matching-products": "لا توجد منتجات مطابقة",
   "requisitions.requisition.no-rejection-reasons": "لا توجد أسباب رفض",
   "requisitions.requisition.non-full-supply": "منتجات الإمداد غير الكامل",

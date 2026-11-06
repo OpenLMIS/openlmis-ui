@@ -2117,6 +2117,7 @@
   "requisitions.requisition.history-date": "Fecha",
   "requisitions.requisition.history-description": "Ver los cambios de estado y los comentarios de esta requisición.",
   "requisitions.requisition.no-comments": "Sin Comentarios",
+  "requisitions.requisition.no-history": "Sin Cambios De Estado",
   "requisitions.requisition.no-matching-products": "No Hay Productos Coincidentes",
   "requisitions.requisition.no-rejection-reasons": "Sin Motivos de Rechazo",
   "requisitions.requisition.non-full-supply": "Productos de Suministro No Completo",
