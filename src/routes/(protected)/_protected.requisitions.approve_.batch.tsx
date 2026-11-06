@@ -288,6 +288,8 @@ function BatchPage() {
   const locationState = useRouterState({ select: (state) => state.location.state });
   const [response, setResponse] = useState(loaded.response);
   const [copyFailure, setCopyFailure] = useState<unknown>();
+  const [copyResult, setCopyResult] = useState(loaded.copyResult);
+  const copyRevision = useRef(0);
   const accessEpoch = useRef(loaded.accessEpoch);
   const membership = useRef<BatchMembership | undefined>(loaded.cachedMembership);
   const membershipRevision = useRef(0);
@@ -297,6 +299,8 @@ function BatchPage() {
   if (opening.current !== loaded) {
     opening.current = loaded;
     setCopyFailure(undefined);
+    setCopyResult(loaded.copyResult);
+    copyRevision.current++;
     membershipRevision.current++;
     membership.current = loaded.cachedMembership;
     setMembershipFailure(false);
@@ -436,6 +440,7 @@ function BatchPage() {
   };
   const mutation = useSessionMutation({
     mutationFn: async (kind: 'sync' | Action | 'check') => {
+      const captureRevision = ++copyRevision.current;
       if (kind !== 'revert' && kind !== 'remove') requireOnline();
       await drafts.flush();
       if (kind !== 'revert' && kind !== 'remove' && accessEpoch.current !== uploadAccessEpoch()) {
@@ -609,7 +614,7 @@ function BatchPage() {
       assertSessionScope(scope);
       if (isSecureOrigin && save.succeeded.length) {
         const leases = loaded.copyLeases.filter((lease) => save.succeeded.includes(lease.id));
-        void captureBatch(
+        const result = captureBatch(
           leases,
           orderBatch(fresh, save.succeeded),
           loaded.currency,
@@ -617,12 +622,15 @@ function BatchPage() {
           membership.current,
         ).then(
           () => {
-            if (scope === getSessionScope()) setCopyFailure(null);
+            if (mutation.isCurrent() && captureRevision === copyRevision.current)
+              setCopyFailure(null);
           },
           (error: unknown) => {
-            if (scope === getSessionScope()) setCopyFailure(error);
+            if (mutation.isCurrent() && captureRevision === copyRevision.current)
+              setCopyFailure(error);
           },
         );
+        setCopyResult(result);
       }
       needsRefresh.current = [];
       if (kind === 'sync') {
@@ -826,7 +834,7 @@ function BatchPage() {
         expected: records.some(batchApprovable),
         local: loaded.fetchedAt !== undefined,
         id: ids[0],
-        result: loaded.copyResult,
+        result: copyResult,
         failure: copyFailure,
       }}
     >
@@ -854,7 +862,7 @@ function BatchPage() {
                 expected={records.some(batchApprovable)}
                 local={loaded.fetchedAt !== undefined}
                 id={ids[0]}
-                result={loaded.copyResult}
+                result={copyResult}
                 failure={copyFailure}
               />
               <div className="flex flex-wrap items-center justify-end gap-2">

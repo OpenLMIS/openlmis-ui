@@ -1212,3 +1212,28 @@ it('settles a timed out membership read and allows retry without technical text'
   );
   queryClient.clear();
 });
+
+it('finishes Sync before copy capture and preserves a newer capture failure', async () => {
+  const first = Promise.withResolvers<void>();
+  const capture = vi
+    .spyOn(savedBatches, 'captureBatch')
+    .mockResolvedValueOnce(undefined)
+    .mockReturnValueOnce(first.promise)
+    .mockRejectedValueOnce(new Error('Latest copy failed'));
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(capture).toHaveBeenCalledOnce());
+  await waitFor(() => expect(sync).toBeEnabled());
+  try {
+    await userEvent.click(sync);
+    await waitFor(() => expect(capture).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(sync).toBeEnabled());
+    await userEvent.click(sync);
+    const failure = await screen.findByText('requisitions.offline.failed-description');
+    await act(async () => first.resolve());
+    expect(failure).toBeInTheDocument();
+  } finally {
+    await act(async () => first.resolve());
+    queryClient.clear();
+  }
+});
