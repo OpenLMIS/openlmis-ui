@@ -36,7 +36,11 @@ export const Route = createFileRoute('/(protected)/_protected')({
     return { sessionScope: getSessionScope() };
   },
   component: ProtectedLayout,
-  pendingComponent: AppShellSkeleton,
+  pendingComponent: () => (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  ),
   errorComponent: (props) => (
     <AppShell>
       <ErrorFallback {...props} />
