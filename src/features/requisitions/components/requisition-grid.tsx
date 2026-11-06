@@ -607,7 +607,7 @@ export function RequisitionGridView({
                   return (
                     <Fragment key={row.id}>
                       {gap > 0 && (
-                        <tr aria-hidden>
+                        <tr aria-hidden className="invisible">
                           <td
                             colSpan={visible.length}
                             className="requisition-spacer"
@@ -652,7 +652,7 @@ export function RequisitionGridView({
                 </TableRow>
               )}
               {virtual && (
-                <tr aria-hidden>
+                <tr aria-hidden className="invisible">
                   <td
                     colSpan={visible.length}
                     className="requisition-spacer"

@@ -1039,3 +1039,13 @@ Median seconds, settled / warm. Three runs per cell.
 - RV11: toast placement accounts for the visible workspace header as well as the app header,
   so desktop header actions remain reachable. The offset follows header resizing and scrolling
   while toasts are present; retained hidden pages do not affect it.
+
+- RV3: node-level traces identify virtual table spacer rows as the scrolling CLS source.
+  Keep their layout space but make the spacer rows invisible, preventing blank spacer borders
+  and their movement from being painted as product-row content. Product positions, widths,
+  virtual measurements and focused-row retention are unchanged.
+
+  Large Essential Meds record: 1,003 lines, page size 100 (virtualized, 15-28 mounted rows).
+  CLS session maximum fell from 0.114691 to 0.001250; scrolling and typing add no shifts
+  after the change. Residual initial-load sources are the pending table and sidebar status.
+  Node rectangles and per-step scroll/row positions are in `.screenshots/FM-39-r8/*-cls.json`.
