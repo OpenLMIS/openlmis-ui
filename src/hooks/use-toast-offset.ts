@@ -27,5 +27,5 @@ export function useToastOffset() {
       window.removeEventListener('scroll', update, true);
     };
   }, [pathname, toasts.length]);
-  return { top: `calc(16px + max(var(--app-header-height, 0px), ${bottom}px))` };
+  return { top: `calc(16px + min(50vh, max(var(--app-header-height, 0px), ${bottom}px)))` };
 }

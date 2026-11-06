@@ -100,9 +100,20 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   notFoundComponent: NotFoundPage,
 });
 
+function AppToaster() {
+  const { t } = useTranslation();
+  const offset = useToastOffset();
+  return (
+    <Toaster
+      offset={offset}
+      mobileOffset={offset}
+      toastOptions={{ closeButtonAriaLabel: t('toast.close') }}
+    />
+  );
+}
+
 function RootLayout() {
   const { t } = useTranslation();
-  const toastOffset = useToastOffset();
 
   return (
     <>
@@ -118,11 +129,7 @@ function RootLayout() {
           </DialogCloseLabelProvider>
         </TranslatedFormMessages>
       </SignedInDeviceWork>
-      <Toaster
-        offset={toastOffset}
-        mobileOffset={toastOffset}
-        toastOptions={{ closeButtonAriaLabel: t('toast.close') }}
-      />
+      <AppToaster />
       {import.meta.env.VITE_SHOW_DEVTOOLS === 'true' && (
         <>
           <ReactQueryDevtools initialIsOpen={false} />
