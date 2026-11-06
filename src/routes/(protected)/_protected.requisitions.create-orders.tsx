@@ -44,7 +44,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/creat
 function Page() {
   const { t } = useTranslation();
   return (
-    <Workspace width="narrow">
+    <Workspace width="form">
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceTitle>{t('orders.create.title')}</WorkspaceTitle>
