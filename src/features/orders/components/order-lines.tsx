@@ -1,9 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTable } from '@tanstack/react-table';
-import { Trash2Icon } from 'lucide-react';
+import { ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
 import { memo, type ReactNode, useCallback, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  DataTableCard,
+  DataTableEmpty,
   DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
@@ -117,6 +119,13 @@ export function OrderLines({
       loading={stock.isPending}
     />
   );
+  const empty = (
+    <DataTableEmpty
+      icon={<ClipboardPenLineIcon />}
+      title={t('orders.edit.empty-title')}
+      description={t('orders.edit.empty-description')}
+    />
+  );
   return (
     <div
       ref={(element) => {
@@ -126,41 +135,45 @@ export function OrderLines({
     >
       {stock.isError && <OrderStockError error={stock.error} reset={() => stock.refetch()} />}
       {cards ? (
-        <CardList empty={!lines.length && t('orders.create.empty')}>{lines.map(row)}</CardList>
+        <CardList empty={!lines.length && empty}>{lines.map(row)}</CardList>
       ) : (
-        <Table scroll="both" layout="auto">
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <DataTableHeaderLabel>{t('orders.edit.product-code')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead>
-                <DataTableHeaderLabel>{t('orders.edit.product')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead>
-                <DataTableHeaderLabel>{t('orders.edit.pack-size')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead>
-                <DataTableHeaderLabel>{t('orders.edit.stock-on-hand')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead>
-                <QuantityHeaderSizer unit={unit} />
-                <DataTableHeaderLabel>{t('orders.edit.quantity')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead width="icon">
-                <DataTableHeaderLabel>{t('orders.edit.actions')}</DataTableHeaderLabel>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {!lines.length && (
+        <DataTableCard>
+          <Table density="compact" layout="auto">
+            <TableHeader surface="muted">
               <TableRow>
-                <TableCell colSpan={6}>{t('orders.create.empty')}</TableCell>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('orders.edit.product-code')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('orders.edit.product')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('orders.edit.pack-size')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('orders.edit.stock-on-hand')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <QuantityHeaderSizer unit={unit} />
+                  <DataTableHeaderLabel>{t('orders.edit.quantity')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead width="icon">
+                  <DataTableHeaderLabel>{t('orders.edit.actions')}</DataTableHeaderLabel>
+                </TableHead>
               </TableRow>
-            )}
-            {lines.map(row)}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {!lines.length && (
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    <div className="whitespace-normal">{empty}</div>
+                  </TableCell>
+                </TableRow>
+              )}
+              {lines.map(row)}
+            </TableBody>
+          </Table>
+        </DataTableCard>
       )}
     </div>
   );
@@ -275,7 +288,10 @@ export function OrderLinesSkeleton() {
     ).map((key) => ({
       id: key,
       header: t(`orders.edit.${key}`),
-      meta: { label: t(`orders.edit.${key}`) },
+      meta: {
+        label: t(`orders.edit.${key}`),
+        skeleton: key === 'quantity' || key === 'actions' ? ('control' as const) : undefined,
+      },
     })),
   });
   return (
@@ -283,7 +299,13 @@ export function OrderLinesSkeleton() {
       {cards ? (
         <TableCardsSkeleton table={table} title="product" rowCount={2} pagination={false} />
       ) : (
-        <DataTableSkeleton table={table} rowCount={2} pagination="none" layout="auto" />
+        <DataTableSkeleton
+          table={table}
+          rowCount={2}
+          pagination="none"
+          density="compact"
+          layout="auto"
+        />
       )}
     </div>
   );

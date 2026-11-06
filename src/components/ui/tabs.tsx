@@ -1,3 +1,4 @@
+import type * as React from "react"
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
@@ -100,6 +101,35 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
+// Keeps a trailing control, such as TabsClose, beside its tab rather than nested inside it.
+function TabsItem({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="tabs-item"
+      className={cn(
+        "relative flex flex-1 group-data-vertical/tabs:w-full [&:has(>[data-tabs-close])>[data-slot=tabs-trigger]]:pe-9",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function TabsClose({ className, ...props }: React.ComponentProps<"button">) {
+  return (
+    <button
+      type="button"
+      data-slot="tabs-close"
+      data-tabs-close=""
+      className={cn(
+        "absolute end-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
 function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   return (
     <TabsPrimitive.Panel
@@ -110,4 +140,4 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   )
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+export { Tabs, TabsList, TabsTrigger, TabsItem, TabsClose, TabsContent, tabsListVariants }

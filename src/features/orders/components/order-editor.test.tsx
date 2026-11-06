@@ -133,7 +133,8 @@ describe('order editor workflow', () => {
       }),
     );
     expect(screen.getByRole('button', { name: 'orders.edit.create' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'orders.edit.delete-order' })).toBeDisabled();
+    for (const close of screen.getAllByRole('button', { name: 'orders.edit.delete-order-for' }))
+      expect(close).toBeDisabled();
     fireEvent.change(quantity(), { target: { value: '30' } });
     await act(async () =>
       deferred.resolve({
@@ -306,11 +307,11 @@ it.each(['delete', 'remove'] as const)(
     fireEvent.change(quantity(), { target: { value: '25' } });
     const pendingBefore = pending.mock.calls.length;
     const user = userEvent.setup();
-    await user.click(screen.getByRole('tab', { name: /^(Facility a|orders.edit.order-label)/ }));
-    if (action === 'remove')
+    if (action === 'remove') {
+      await user.click(screen.getByRole('tab', { name: /^(Facility a|orders.edit.order-label)/ }));
       await user.click(screen.getByRole('button', { name: 'orders.edit.remove-from-batch' }));
-    else {
-      await user.click(screen.getByRole('button', { name: 'orders.edit.delete-order' }));
+    } else {
+      await user.click(screen.getAllByRole('button', { name: 'orders.edit.delete-order-for' })[0]);
       await user.click(
         within(screen.getByRole('alertdialog')).getByRole('button', {
           name: 'orders.edit.delete-order-action',
@@ -451,7 +452,7 @@ it('deletes the final order and replaces its history entry with the list', async
     </QueryClientProvider>,
   );
   const user = userEvent.setup();
-  await user.click(await screen.findByRole('button', { name: 'orders.edit.delete-order' }));
+  await user.click(await screen.findByRole('button', { name: 'orders.edit.delete-order-for' }));
   await user.click(
     within(screen.getByRole('alertdialog')).getByRole('button', {
       name: 'orders.edit.delete-order-action',

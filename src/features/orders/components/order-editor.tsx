@@ -269,6 +269,13 @@ export function OrderEditor({
             <Tabs value={active?.id ?? ''} onValueChange={(value) => onTab(String(value))}>
               <OrderTabs
                 entries={entries}
+                active={active?.id}
+                disabled={pending}
+                deletable={(id) => editable.some((entry) => entry.id === id)}
+                onDelete={(id) => {
+                  onTab(id);
+                  setDeleting({ ids: [id], batch: false });
+                }}
                 dirty={dirty}
                 invalid={(id) =>
                   invalid(id) &&
@@ -301,25 +308,13 @@ export function OrderEditor({
                   ) : (
                     current && (
                       <>
-                        <div className="flex flex-wrap items-start gap-4">
-                          <div className="w-full min-w-0 @2xl/main:w-auto @2xl/main:flex-1">
-                            <QueryBoundary
-                              resetKey={current.id}
-                              errorComponent={HeaderError}
-                              pendingFallback={<OrderHeaderSkeleton />}
-                            >
-                              <OrderHeader order={current} />
-                            </QueryBoundary>
-                          </div>
-                          <Button
-                            size="lg"
-                            variant="destructive"
-                            disabled={pending}
-                            onClick={() => setDeleting({ ids: [active.id], batch: false })}
-                          >
-                            {t('orders.edit.delete-order')}
-                          </Button>
-                        </div>
+                        <QueryBoundary
+                          resetKey={current.id}
+                          errorComponent={HeaderError}
+                          pendingFallback={<OrderHeaderSkeleton />}
+                        >
+                          <OrderHeader order={current} />
+                        </QueryBoundary>
                         <OrderFields
                           key={active.id}
                           form={form}
@@ -339,10 +334,12 @@ export function OrderEditor({
         </WorkspaceContent>
       </Workspace>
       <WorkspaceFooter>
-        <div className="flex flex-wrap gap-2">
+        <div className="self-end">
           <Button size="lg" variant="outline" disabled={pending} onClick={onCancel}>
             {t('orders.edit.cancel')}
           </Button>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
           <Button
             size="lg"
             variant="destructive"
@@ -351,8 +348,6 @@ export function OrderEditor({
           >
             {t('orders.edit.delete-batch')}
           </Button>
-        </div>
-        <div className="flex flex-wrap justify-end gap-2">
           <Button
             size="lg"
             variant="outline"

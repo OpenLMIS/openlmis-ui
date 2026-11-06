@@ -304,6 +304,7 @@ edits, which have no prop for TypeScript to detect:
 | `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `data-[invalid]:bg-destructive/10` for invalid draft lines |
 | `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
+| `tabs.tsx` | Keep `TabsItem` and `TabsClose`: a closable tab's button sits beside its trigger, which reserves end padding, never nested inside it |
 
 ### Integrations
 

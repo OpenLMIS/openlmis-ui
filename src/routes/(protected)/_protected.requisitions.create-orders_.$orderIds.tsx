@@ -108,14 +108,7 @@ function Pending() {
             <div className="h-9">
               <Skeleton fill />
             </div>
-            <div className="flex flex-wrap items-start gap-4">
-              <div className="w-full min-w-0 @2xl/main:w-auto @2xl/main:flex-1">
-                <OrderHeaderSkeleton />
-              </div>
-              <div className="h-9 w-32">
-                <Skeleton fill />
-              </div>
-            </div>
+            <OrderHeaderSkeleton />
             <div className="h-9">
               <Skeleton fill />
             </div>
@@ -124,24 +117,23 @@ function Pending() {
         </WorkspaceContent>
       </Workspace>
       <WorkspaceFooter>
-        <div className="flex flex-wrap gap-2">
-          {(['cancel', 'delete-batch'] as const).map((key) => (
-            <Button
-              key={key}
-              size="lg"
-              variant={key === 'delete-batch' ? 'destructive' : 'outline'}
-              disabled
-            >
-              {t(`orders.edit.${key}`)}
-            </Button>
-          ))}
+        <div className="self-end">
+          <Button size="lg" variant="outline" disabled>
+            {t('orders.edit.cancel')}
+          </Button>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          {(['save-draft', 'create'] as const).map((key) => (
+          {(['delete-batch', 'save-draft', 'create'] as const).map((key) => (
             <Button
               key={key}
               size="lg"
-              variant={key === 'save-draft' ? 'outline' : 'default'}
+              variant={
+                key === 'delete-batch'
+                  ? 'destructive'
+                  : key === 'save-draft'
+                    ? 'outline'
+                    : 'default'
+              }
               disabled
             >
               {t(`orders.edit.${key}`)}
