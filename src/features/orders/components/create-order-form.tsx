@@ -17,7 +17,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
-import { Spinner } from '@/components/ui/spinner';
 import { createOrder } from '@/features/orders/api/api';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { OrderSelect } from '@/features/orders/components/order-select';
@@ -248,16 +247,11 @@ export function CreateOrderForm({
           placeholder={t('orders.create.select-supplying-facility')}
           options={options}
           value={supplierId}
-          disabled={!programId || !ids.length || suppliers.isFetching || mutation.isPending}
+          disabled={!programId || !ids.length || mutation.isPending}
+          loading={suppliers.isFetching ? t('supply-lines.facilities-loading') : undefined}
           onChange={setSupplier}
         />
       </div>
-      {suppliers.isFetching && (
-        <div role="status" className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Spinner />
-          {t('supply-lines.facilities-loading')}
-        </div>
-      )}
       {suppliers.isError && (
         <Alert variant="destructive">
           <AlertDescription>

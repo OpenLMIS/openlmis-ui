@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/combobox';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import { Spinner } from '@/components/ui/spinner';
 
 type Option = { id: string; name: string; code?: string };
 export function OrderSelect({
@@ -24,6 +25,7 @@ export function OrderSelect({
   value,
   onChange,
   disabled,
+  loading,
   compact = false,
   required = false,
 }: {
@@ -33,6 +35,7 @@ export function OrderSelect({
   value: string;
   onChange: (id: string) => void;
   disabled?: boolean;
+  loading?: string | undefined;
   compact?: boolean;
   required?: boolean;
 }) {
@@ -47,7 +50,7 @@ export function OrderSelect({
           <FieldLabelText label={label} required={required} />
         </FieldLabel>
       )}
-      {disabled ? (
+      {disabled || loading ? (
         <InputGroup size="lg">
           <InputGroupInput
             id={id}
@@ -55,12 +58,13 @@ export function OrderSelect({
             aria-expanded={false}
             aria-required={required}
             aria-label={label}
+            aria-busy={loading ? true : undefined}
             disabled
-            value={selected?.name ?? ''}
-            placeholder={placeholder}
+            value={loading ? '' : (selected?.name ?? '')}
+            placeholder={loading ?? placeholder}
           />
           <InputGroupAddon align="inline-end">
-            <ChevronDownIcon aria-hidden="true" />
+            {loading ? <Spinner aria-label={loading} /> : <ChevronDownIcon aria-hidden="true" />}
           </InputGroupAddon>
         </InputGroup>
       ) : (
