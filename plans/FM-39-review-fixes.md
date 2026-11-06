@@ -1049,3 +1049,7 @@ Median seconds, settled / warm. Three runs per cell.
   CLS session maximum fell from 0.114691 to 0.001250; scrolling and typing add no shifts
   after the change. Residual initial-load sources are the pending table and sidebar status.
   Node rectangles and per-step scroll/row positions are in `.screenshots/FM-39-r8/*-cls.json`.
+
+  RV11's toast observer subscribes only to pathname changes, so filter/paging search updates
+  do not rerender the root through its route subscription. English desktop and Arabic
+  1440/390 px production checks show no overlap with Print; Arabic has no page overflow.

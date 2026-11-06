@@ -3,7 +3,7 @@ import { useLayoutEffect, useState } from 'react';
 import { useSonner } from 'sonner';
 
 export function useToastOffset() {
-  const { pathname } = useLocation();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const { toasts } = useSonner();
   const [bottom, setBottom] = useState(0);
   // biome-ignore lint/correctness/useExhaustiveDependencies: navigation replaces the observed headers
