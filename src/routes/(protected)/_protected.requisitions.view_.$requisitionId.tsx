@@ -687,12 +687,14 @@ function RequisitionBody({
     retry: false,
     mutationFn: async (kind: EditorAction | 'update' | 'print') => {
       const scope = getSessionScope();
-      if (savedRefresh.current || refreshPending.current) {
+      if (kind !== 'update' && (savedRefresh.current || refreshPending.current)) {
         await (savedRefresh.current ?? refreshSaved());
         assertSessionScope(scope);
         requireOnline();
       }
       if (kind === 'update') {
+        await savedRefresh.current?.catch(() => undefined);
+        assertSessionScope(scope);
         if (failure?.kind === 'forbidden') {
           await queryClient.invalidateQueries({
             queryKey: permissionsOptions(data.userId).queryKey,
