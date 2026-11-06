@@ -16,7 +16,7 @@ type WorkspaceWidthProps = WorkspaceProps & {
 const MAX_WIDTH = {
   default: 'max-w-6xl',
   narrow: 'max-w-4xl',
-  form: 'max-w-3xl',
+  form: 'max-w-2xl',
   large: 'max-w-336',
   wide: 'max-w-none',
 } as const;

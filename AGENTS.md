@@ -399,7 +399,7 @@ App-shell pages compose `src/components/workspace/workspace.tsx`:
   one-sentence `WorkspaceDescription`; omit unused icons/actions. Below `@xl/main` the
   description is screen-reader only and the title centres on the icon. `Workspace` and
   `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
-  `width="form"` (48rem) for one-column forms such as Create Orders,
+  `width="form"` (42rem) for one-column forms such as Create Orders,
   `width="large"` (84rem) for tables slightly wider than the default, such as Supervisory
   Nodes, and `width="wide"` for uncapped tables.
 - Stock event pending views use the real icon, description, cached title or title-height placeholder,
