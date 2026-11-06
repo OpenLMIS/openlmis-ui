@@ -965,6 +965,11 @@ function BatchPage() {
           {t('dialog.cancel')}
         </Button>
         <div className="flex flex-wrap justify-end gap-2">
+          {!online && (
+            <p role="note" className="basis-full text-end text-muted-foreground text-sm">
+              {t('offline.action-description')}
+            </p>
+          )}
           <Button
             size="lg"
             variant="outline"

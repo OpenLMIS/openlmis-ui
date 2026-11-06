@@ -1237,3 +1237,14 @@ it('finishes Sync before copy capture and preserves a newer capture failure', as
     queryClient.clear();
   }
 });
+
+it('shows the offline connection reason beside batch Sync and Approve', async () => {
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  act(() => onlineManager.setOnline(false));
+  expect(sync).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeDisabled();
+  expect(screen.getByText('offline.action-description')).toBeVisible();
+  queryClient.clear();
+});

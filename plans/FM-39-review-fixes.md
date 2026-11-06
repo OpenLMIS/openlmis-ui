@@ -1014,3 +1014,6 @@ Median seconds, settled / warm. Three runs per cell.
 - RV8: Create Order stays disabled until every order in the batch has valid positive
   quantities and no loading/access problem. Its accessible description explains the requirement.
   Existing interaction coverage now verifies empty and invalid sibling orders before allowing creation.
+
+- Q8b: offline batch Sync and Approve now have a visible connection note beside the footer
+  actions, reusing the existing connection description and preserving their accessible descriptions.
