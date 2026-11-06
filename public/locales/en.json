@@ -845,7 +845,6 @@
   "orders.create.description": "Choose the program and facilities to create orders without requisitions.",
   "orders.create.empty": "Showing No Items",
   "orders.create.facilities-label": "Requesting Facilities",
-  "orders.create.facility": "Facility",
   "orders.create.no-read-right": "You need order viewing rights at the supplying facility, or proof of delivery rights at every requesting facility, to open these drafts.",
   "orders.create.no-supplier": "No warehouse supplies all chosen facilities for this program.",
   "orders.create.program": "Program",

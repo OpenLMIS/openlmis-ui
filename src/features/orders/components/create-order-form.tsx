@@ -1,29 +1,32 @@
+import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox';
 import { useQuery } from '@tanstack/react-query';
-import { type ColumnDef, useTable } from '@tanstack/react-table';
-import { Building2Icon, Trash2Icon } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { Building2Icon } from 'lucide-react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  DataTable,
-  DataTableEmpty,
-  type DataTableFeatures,
-  dataTableFeatures,
-} from '@/components/data-table/data-table';
-import { CardActions } from '@/components/display/card-actions';
 import { serverMessage } from '@/components/display/dialog-parts';
-import { TableCards } from '@/components/display/table-cards';
+import { FieldLabelText } from '@/components/form/form-fields';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { FieldGroup } from '@/components/ui/field';
-import { Separator } from '@/components/ui/separator';
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  ComboboxVirtualList,
+  useComboboxAnchor,
+} from '@/components/ui/combobox';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { createOrder } from '@/features/orders/api/api';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { OrderSelect } from '@/features/orders/components/order-select';
-import { useRemovalFocus } from '@/features/orders/hooks/use-removal-focus';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
 import type { MinimalFacility, Program } from '@/features/reference-data/lib/types';
-import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { settleFew } from '@/lib/settle-few';
 
@@ -55,21 +58,15 @@ export function CreateOrderForm({
   );
   const [pickedProgram, setProgram] = useState('');
   const programId = pickedProgram || (programs.length === 1 ? programs[0].id : '');
-  const picker = useRef<HTMLDivElement>(null);
+  const requestingId = useId();
+  const anchor = useComboboxAnchor();
+  const { contains } = ComboboxPrimitive.useFilter();
   const [ids, setIds] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
   const selectedFacilities = useMemo(
     () => facilities.filter((facility) => ids.includes(facility.id)),
     [facilities, ids],
   );
-  const requestingOptions = useMemo(
-    () => requesting.filter((facility) => !ids.includes(facility.id)),
-    [requesting, ids],
-  );
-  const focus = useRemovalFocus(
-    selectedFacilities.map((facility) => facility.id),
-    () => picker.current?.querySelector<HTMLElement>('[role=combobox]') ?? null,
-  );
-  const [pickerVersion, setPickerVersion] = useState(0);
   const [supplier, setSupplier] = useState('');
   const suppliers = useQuery({
     ...supplyingFacilitiesOptions(programId, ids),
@@ -126,65 +123,6 @@ export function CreateOrderForm({
         }),
       }),
   });
-  const { measure, cards } = useCardLayout<HTMLDivElement>('md');
-  const removeRef = useRef<(id: string) => void>(() => undefined);
-  removeRef.current = (id) => {
-    focus.removing(id);
-    setIds((current) => current.filter((value) => value !== id));
-    setSupplier('');
-  };
-  const columns = useMemo<ColumnDef<DataTableFeatures, MinimalFacility>[]>(
-    () => [
-      {
-        id: 'name',
-        accessorKey: 'name',
-        header: t('orders.create.facility'),
-        meta: { label: t('orders.create.facility') },
-      },
-      {
-        id: 'actions',
-        header: t('orders.edit.actions'),
-        cell: ({ row }) => {
-          const label = t('orders.create.remove-facility', { facility: row.original.name });
-          const remove = () => removeRef.current(row.original.id);
-          return cards ? (
-            <div data-removal-control>
-              <CardActions
-                label={t('orders.edit.actions')}
-                actions={[
-                  {
-                    id: 'remove',
-                    icon: <Trash2Icon />,
-                    label,
-                    destructive: true,
-                    disabled: mutation.isPending,
-                    onSelect: remove,
-                  },
-                ]}
-              />
-            </div>
-          ) : (
-            <Button
-              data-removal-control
-              variant="ghost"
-              size="icon-sm"
-              aria-label={label}
-              disabled={mutation.isPending}
-              onClick={remove}
-            >
-              <Trash2Icon />
-            </Button>
-          );
-        },
-      },
-    ],
-    [t, cards, mutation.isPending],
-  );
-  const table = useTable({
-    features: dataTableFeatures,
-    data: selectedFacilities,
-    columns,
-  });
   return (
     <form className="flex flex-col gap-4" onSubmit={(event) => event.preventDefault()}>
       <FieldGroup>
@@ -203,43 +141,83 @@ export function CreateOrderForm({
           />
         </div>
       </FieldGroup>
-      <div ref={picker}>
-        <OrderSelect
-          key={pickerVersion}
-          required
-          label={t('orders.create.requesting-facility')}
-          placeholder={t('orders.create.select-requesting-facility')}
-          options={requestingOptions}
-          value=""
+      <Field data-disabled={mutation.isPending || facilitiesPending}>
+        <FieldLabel htmlFor={requestingId}>
+          <FieldLabelText label={t('orders.create.requesting-facility')} required />
+        </FieldLabel>
+        <Combobox
+          multiple
+          items={requesting}
+          limit={-1}
+          virtualized={requesting.length > 50}
+          value={selectedFacilities}
+          inputValue={search}
+          onInputValueChange={setSearch}
           disabled={mutation.isPending || facilitiesPending}
-          onChange={(id) => {
-            if (!id) return;
-            setIds((current) => (current.includes(id) ? current : [...current, id]));
-            setSupplier('');
-            setPickerVersion((version) => version + 1);
-            requestAnimationFrame(() =>
-              picker.current?.querySelector<HTMLElement>('[role=combobox]')?.focus(),
-            );
+          filter={(item, query) => contains(item.name, query) || contains(item.code ?? '', query)}
+          itemToStringLabel={(item) => item.name}
+          isItemEqualToValue={(a, b) => a.id === b.id}
+          onOpenChange={(open, details) => {
+            if (!open && details.reason === 'item-press') details.cancel();
           }}
-        />
-      </div>
-      <Separator />
-      <div
-        ref={(element) => {
-          measure(element);
-          focus.region.current = element;
-        }}
-      >
-        {cards ? (
-          <TableCards
-            table={table}
-            title="name"
-            empty={<DataTableEmpty icon={<Building2Icon />} title={t('orders.create.empty')} />}
-          />
-        ) : (
-          <DataTable table={table} empty={t('orders.create.empty')} />
-        )}
-      </div>
+          onValueChange={(chosen, details) => {
+            if (details.reason === 'escape-key' && !chosen.length)
+              return details.allowPropagation();
+            setSearch('');
+            setIds(chosen.map((item) => item.id));
+            setSupplier('');
+          }}
+        >
+          <ComboboxChips ref={anchor} size="lg">
+            <Building2Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <ComboboxValue>
+              {(values: MinimalFacility[]) => (
+                <>
+                  {values.map((item) => (
+                    <ComboboxChip
+                      key={item.id}
+                      removeLabel={t('orders.create.remove-facility', { facility: item.name })}
+                    >
+                      <span className="truncate" dir="auto">
+                        {item.name}
+                      </span>
+                    </ComboboxChip>
+                  ))}
+                  <ComboboxChipsInput
+                    id={requestingId}
+                    aria-label={t('orders.create.requesting-facility')}
+                    aria-required
+                    disabled={mutation.isPending || facilitiesPending}
+                    placeholder={
+                      values.length ? undefined : t('orders.create.select-requesting-facility')
+                    }
+                  />
+                </>
+              )}
+            </ComboboxValue>
+          </ComboboxChips>
+          <ComboboxContent anchor={anchor}>
+            <ComboboxEmpty>{t('orders.no-options')}</ComboboxEmpty>
+            {requesting.length > 50 ? (
+              <ComboboxVirtualList<MinimalFacility> itemKey={(item) => item.id}>
+                {(item) => (
+                  <span className="min-w-0 whitespace-normal break-words" dir="auto">
+                    {item.name}
+                  </span>
+                )}
+              </ComboboxVirtualList>
+            ) : (
+              <ComboboxList>
+                {(item: MinimalFacility) => (
+                  <ComboboxItem key={item.id} value={item}>
+                    <span dir="auto">{item.name}</span>
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            )}
+          </ComboboxContent>
+        </Combobox>
+      </Field>
       <div className="min-w-0">
         <OrderSelect
           required

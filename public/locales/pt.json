@@ -845,7 +845,6 @@
   "orders.create.description": "Escolha o programa e as unidades para criar pedidos sem requisições.",
   "orders.create.empty": "Nenhum Item",
   "orders.create.facilities-label": "Unidades Solicitantes",
-  "orders.create.facility": "Unidade",
   "orders.create.no-read-right": "Precisa de direitos de consulta de pedidos na unidade fornecedora ou de comprovativos de entrega em cada unidade solicitante para abrir estes rascunhos.",
   "orders.create.no-supplier": "Nenhum armazém abastece todas as unidades escolhidas para este programa.",
   "orders.create.program": "Programa",

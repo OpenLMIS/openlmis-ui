@@ -19,6 +19,7 @@ import { ChevronDownIcon, ChevronUpIcon, XIcon, CheckIcon } from "lucide-react"
 
 const VirtualComboboxContext = React.createContext<{
   selected: unknown
+  multiple: boolean
   scrollTo: React.RefObject<((item: unknown) => void) | null>
 } | null>(null)
 
@@ -31,7 +32,7 @@ function Combobox<Value, Multiple extends boolean | undefined = false, Item = Va
 }: ComboboxPrimitive.Root.Props<Value, Multiple, Item>) {
   const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange })
   const scrollTo = React.useRef<((item: unknown) => void) | null>(null)
-  const virtual = React.useMemo(() => ({ selected: props.value, scrollTo }), [props.value])
+  const virtual = React.useMemo(() => ({ selected: props.value, multiple: !!props.multiple, scrollTo }), [props.value, props.multiple])
   return (
     <VirtualComboboxContext value={virtual}>
       <ComboboxPrimitive.Root
@@ -218,7 +219,8 @@ function ComboboxVirtualList<Item>({
   const items = ComboboxPrimitive.useFilteredItems<Item>()
   const context = React.useContext(VirtualComboboxContext)
   const viewport = React.useRef<HTMLDivElement>(null)
-  const selectedIndex = items.indexOf(context?.selected as Item)
+  const selected = context?.multiple ? (context.selected as Item[])?.[0] : context?.selected as Item
+  const selectedIndex = items.indexOf(selected as Item)
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => viewport.current,
@@ -228,7 +230,7 @@ function ComboboxVirtualList<Item>({
     initialRect: { width: 0, height: 248 },
     initialOffset: Math.max(0, selectedIndex) * 36,
   })
-  const selectedKey = context?.selected == null ? null : itemKey(context.selected as Item)
+  const selectedKey = selected == null ? null : itemKey(selected as Item)
   const previousSelection = React.useRef<string | null | symbol>(Symbol())
   React.useLayoutEffect(() => {
     if (previousSelection.current === selectedKey) return
@@ -355,14 +357,16 @@ function ComboboxSeparator({
 
 function ComboboxChips({
   className,
+  size = "default",
   ...props
 }: React.ComponentPropsWithRef<typeof ComboboxPrimitive.Chips> &
-  ComboboxPrimitive.Chips.Props) {
+  ComboboxPrimitive.Chips.Props & { size?: "default" | "lg" }) {
   return (
     <ComboboxPrimitive.Chips
       data-slot="combobox-chips"
+      data-size={size}
       className={cn(
-        "flex min-h-8 flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent bg-clip-padding px-2.5 py-1 text-sm transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20 has-data-[slot=combobox-chip]:px-1 dark:bg-input/30 dark:has-aria-invalid:border-destructive/50 dark:has-aria-invalid:ring-destructive/40",
+        "flex min-h-8 data-[size=lg]:min-h-9 w-full min-w-0 flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent bg-clip-padding px-2.5 py-1 text-sm has-disabled:bg-input/50 has-disabled:opacity-50 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20 has-data-[slot=combobox-chip]:px-1 dark:bg-input/30 dark:has-aria-invalid:border-destructive/50 dark:has-aria-invalid:ring-destructive/40",
         className
       )}
       {...props}

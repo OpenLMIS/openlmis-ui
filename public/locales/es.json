@@ -845,7 +845,6 @@
   "orders.create.description": "Elija el programa y los establecimientos para crear pedidos sin solicitudes.",
   "orders.create.empty": "No Hay Elementos",
   "orders.create.facilities-label": "Establecimientos Solicitantes",
-  "orders.create.facility": "Establecimiento",
   "orders.create.no-read-right": "Necesita permisos para ver pedidos en el proveedor o comprobantes de entrega en cada solicitante para abrir estos borradores.",
   "orders.create.no-supplier": "Ningún almacén abastece a todos los establecimientos elegidos para este programa.",
   "orders.create.program": "Programa",

@@ -302,7 +302,7 @@ edits, which have no prop for TypeScript to detect:
 | `table.tsx` | Keep TableFooter `sticky`, opaque headers and zero-spacing separate cell borders with `scroll="both"` so sticky dividers and measured end offsets stay gapless, TableCell `rowHeader`, and TableHead/TableCell `sticky="end"` with CSS-variable logical offsets and end-pin data attributes |
 | `table.tsx` | Preserve `width="columns"` with explicit colgroup sizing, `TableHead width="patient"`, footer scroll padding and single-pixel sticky dividers |
 | `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `data-[invalid]:bg-destructive/10` for invalid draft lines |
-| `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
+| `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate. Preserve full-width wrapping `ComboboxChips`, disabled styling and `size="lg"` (36px minimum); virtual lists accept single or multiple values and scroll keyboard highlights into view |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
 | `tabs.tsx` | Keep `TabsItem` and `TabsClose`: a closable tab's button sits beside its trigger, which reserves end padding, never nested inside it |
 
@@ -536,8 +536,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   its action in a band, using the table's No lot defined text. Rows show Pack Size, Expiry,
   Stock On Hand, Current Stock, VVM, Reasons and Unaccounted. Multi-lot products add a Total
   section matching the table summary. Add Products dialog lines use flat cards with inline errors.
-  Every table switches to cards below 672px, except two-column lists in narrow forms such as
-  Create Orders, which pass `useCardLayout('md')` and switch below 448px. Other tables use `TableCards` and
+  Every table switches to cards below 672px. Other tables use `TableCards` and
   `TableCardsSkeleton` (`src/components/display/table-cards.tsx`) over the same TanStack table: the
   `title` column and the `actions` cell form the band; every other visible column is a row labelled
   by `meta.label`. Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"`
@@ -694,8 +693,8 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
 - Dialog state belongs in the URL (`?user=new` / `?user=<id>`). Opening adds history; closing
   steps back, or replaces for a directly linked dialog. Use
   `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
-- Create Orders keeps a visible required Requesting Facility picker label and adds on pick.
-  This exception to the inline Add-button rule clears and refocuses the picker. Use a narrow
+- Create Orders uses one required Requesting Facility multi-select with removable chips.
+  Picked options stay ticked; picking clears the search and keeps the list open. Use the 42rem
   form with Create Order at its bottom end; Enter never creates orders.
 - Inline add forms with one picker, where picking reveals no further field, drop the label
   and card: a picker with a leading icon and a placeholder naming the choice, then a separate

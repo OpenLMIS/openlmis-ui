@@ -1,15 +1,11 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps } from '@tanstack/react-router';
-import { useTable } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
-import { DataTableSkeleton, dataTableFeatures } from '@/components/data-table/data-table';
-import { TableCardsSkeleton } from '@/components/display/table-cards';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
@@ -27,7 +23,6 @@ import {
   minimalFacilitiesOptions,
   userProgramsOptions,
 } from '@/features/reference-data/api/queries';
-import { useCardLayout } from '@/hooks/use-card-view';
 import { RIGHTS } from '@/lib/rights';
 import { getSessionUserId } from '@/lib/session-scope';
 
@@ -65,19 +60,6 @@ function Page() {
 }
 function CreatePending() {
   const { t } = useTranslation();
-  const { measure, cards } = useCardLayout<HTMLDivElement>();
-  const table = useTable({
-    features: dataTableFeatures,
-    data: [],
-    columns: [
-      {
-        id: 'name',
-        header: t('orders.create.facility'),
-        meta: { label: t('orders.create.facility') },
-      },
-      { id: 'actions', header: t('orders.edit.actions'), meta: { skeleton: 'control' } },
-    ],
-  });
   return (
     <>
       <div className="min-w-0">
@@ -94,14 +76,6 @@ function CreatePending() {
           <Skeleton fill />
         </div>
       </Field>
-      <Separator />
-      <div ref={measure}>
-        {cards ? (
-          <TableCardsSkeleton table={table} title="name" rowCount={1} pagination={false} />
-        ) : (
-          <DataTableSkeleton table={table} rowCount={1} pagination="none" />
-        )}
-      </div>
       <div className="min-w-0">
         <Field>
           <FieldLabel>{t('orders.create.supplying-facility')}</FieldLabel>

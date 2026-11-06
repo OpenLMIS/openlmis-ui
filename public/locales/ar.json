@@ -845,7 +845,6 @@
   "orders.create.description": "اختر البرنامج والمرافق لإنشاء أوامر دون طلبات.",
   "orders.create.empty": "لا توجد عناصر",
   "orders.create.facilities-label": "المرافق الطالبة",
-  "orders.create.facility": "المرفق",
   "orders.create.no-read-right": "تحتاج إلى صلاحيات عرض الأوامر في المرفق المورّد أو صلاحيات إثبات التسليم في كل مرفق طالب لفتح هذه المسودات.",
   "orders.create.no-supplier": "لا يوجد مستودع يزوّد جميع المرافق المختارة لهذا البرنامج.",
   "orders.create.program": "البرنامج",

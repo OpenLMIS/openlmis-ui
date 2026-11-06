@@ -845,7 +845,6 @@
   "orders.create.description": "Choisissez le programme et les établissements pour créer des commandes sans réquisitions.",
   "orders.create.empty": "Aucun Élément",
   "orders.create.facilities-label": "Établissements Demandeurs",
-  "orders.create.facility": "Établissement",
   "orders.create.no-read-right": "Vous devez pouvoir consulter les commandes chez le fournisseur ou les preuves de livraison de chaque demandeur pour ouvrir ces brouillons.",
   "orders.create.no-supplier": "Aucun entrepôt ne fournit tous les établissements choisis pour ce programme.",
   "orders.create.program": "Programme",

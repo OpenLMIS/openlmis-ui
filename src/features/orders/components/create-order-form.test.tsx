@@ -1,10 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceActionsSlot, WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { createOrder } from '@/features/orders/api/api';
-import * as orderQueries from '@/features/orders/api/queries';
 import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { CreateOrderForm } from '@/features/orders/components/create-order-form';
 import * as referenceQueries from '@/features/reference-data/api/queries';
@@ -56,20 +55,34 @@ function setup(
   return { client, onCreated, user: userEvent.setup() };
 }
 async function add(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.click(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' }));
+  const input = screen.getByRole('combobox', { name: 'orders.create.requesting-facility' });
+  if (input.getAttribute('aria-expanded') !== 'true') await user.click(input);
   await user.click(await screen.findByRole('option', { name }));
   expect(screen.queryByRole('button', { name: 'orders.add' })).not.toBeInTheDocument();
   expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toHaveFocus();
 }
 describe('create order workflow', () => {
   it('creates one legacy body per facility and opens successful ids after a partial failure', async () => {
+    let finish!: (order: Awaited<ReturnType<typeof createOrder>>) => void;
     vi.mocked(createOrder)
-      .mockResolvedValueOnce({ id: 'draft-a' } as Awaited<ReturnType<typeof createOrder>>)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
       .mockRejectedValueOnce(new Error('Refused'));
     const { user, onCreated } = setup();
     await add(user, 'Alpha');
     await add(user, 'Beta');
+    await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'orders.create.create' }));
+    expect(
+      screen.getByRole('combobox', { name: 'orders.create.requesting-facility' }),
+    ).toBeDisabled();
+    for (const remove of screen.getAllByRole('button', { name: 'orders.create.remove-facility' }))
+      expect(remove).toHaveAttribute('aria-disabled', 'true');
+    await act(() => finish({ id: 'draft-a' } as Awaited<ReturnType<typeof createOrder>>));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(['draft-a']));
     expect(createOrder).toHaveBeenCalledTimes(2);
     for (const id of ['0', '1'])
@@ -86,24 +99,51 @@ describe('create order workflow', () => {
   it('blocks creation when drafts cannot be read', async () => {
     const { user } = setup(false);
     await add(user, 'Alpha');
+    await user.keyboard('{Escape}');
     expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeDisabled();
     expect(screen.getByText('orders.create.no-read-right')).toBeVisible();
     expect(createOrder).not.toHaveBeenCalled();
   });
 });
 
-it('moves focus to the next displayed removal control, then back to the facility picker', async () => {
-  const { user } = setup();
-  await add(user, 'Supplier');
+it('keeps picked facilities as chips and ticked options, toggles and removes them, and resets the supplier', async () => {
+  const { user, client } = setup();
+  for (const ids of [['0'], ['0', '1']])
+    client.setQueryData(supplyingFacilitiesOptions('program', ids).queryKey, ['2', '0']);
+  const create = screen.getByRole('button', { name: 'orders.create.create' });
+  expect(create).toBeDisabled();
   await add(user, 'Alpha');
+  expect(screen.getByRole('option', { name: 'Alpha' })).toHaveAttribute('aria-selected', 'true');
+  await user.keyboard('{Escape}');
+  const supplier = screen.getByRole('combobox', { name: 'orders.create.supplying-facility' });
+  await user.click(supplier);
+  await user.click(await screen.findByRole('option', { name: 'Supplier' }));
+  expect(create).toBeEnabled();
   await add(user, 'Beta');
-  const remove = () => screen.getAllByRole('button', { name: 'orders.create.remove-facility' });
-  await user.click(remove()[0]);
-  expect(remove()[0]).toHaveFocus();
-  await user.click(remove()[0]);
-  expect(remove()[0]).toHaveFocus();
-  await user.click(remove()[0]);
-  expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toHaveFocus();
+  for (const name of ['Alpha', 'Beta']) {
+    expect(screen.getByRole('option', { name })).toHaveAttribute('aria-selected', 'true');
+    expect(
+      screen.getByText(name, { selector: '[data-slot=combobox-chip] span[dir]' }),
+    ).toBeVisible();
+  }
+  expect(create).toBeDisabled();
+  await user.click(screen.getByRole('option', { name: 'Beta' }));
+  expect(screen.getByRole('option', { name: 'Beta' })).toHaveAttribute('aria-selected', 'false');
+  await user.click(screen.getByRole('option', { name: 'Beta' }));
+  await user.keyboard('{Escape}');
+  await user.click(supplier);
+  await user.click(await screen.findByRole('option', { name: 'Supplier' }));
+  expect(create).toBeEnabled();
+  const chip = screen
+    .getByText('Beta', { selector: '[data-slot=combobox-chip] span[dir]' })
+    .closest('[data-slot=combobox-chip]') as HTMLElement;
+  await user.click(within(chip).getByRole('button', { name: 'orders.create.remove-facility' }));
+  expect(
+    screen.queryByText('Beta', { selector: '[data-slot=combobox-chip] span[dir]' }),
+  ).not.toBeInTheDocument();
+  expect(supplier).toHaveValue('');
+  expect(create).toBeDisabled();
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
 });
 
 it('keeps required picker placeholders free of spoken punctuation', () => {
@@ -119,39 +159,6 @@ it('shows the required requesting facility label before a facility is added', as
   expect(label).toBeVisible();
   expect(label?.textContent).toContain('*');
   expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeDisabled();
-});
-
-it('retains removal focus when fresh supplier queries settle after removing the first facility', async () => {
-  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
-  let refresh = false;
-  let finish!: (ids: string[]) => void;
-  const original = orderQueries.supplyingFacilitiesOptions;
-  const spy = vi
-    .spyOn(orderQueries, 'supplyingFacilitiesOptions')
-    .mockImplementation((...args) => ({
-      ...original(...args),
-      staleTime: 0,
-      queryFn: () =>
-        refresh
-          ? new Promise<string[]>((resolve) => {
-              finish = resolve;
-            })
-          : Promise.resolve(['2']),
-    }));
-  const { user, client } = setup(true, true);
-  await add(user, 'Alpha');
-  await add(user, 'Beta');
-  const remove = () => screen.getAllByRole('button', { name: 'orders.create.remove-facility' });
-  refresh = true;
-  await user.click(remove()[0]);
-  await waitFor(() => expect(finish).toBeDefined());
-  await act(() => finish(['2']));
-  await waitFor(() => expect(remove()[0]).toHaveFocus());
-  await act(async () => {
-    client.setQueryData(supplyingFacilitiesOptions('program', ['1']).queryKey, ['2', '0']);
-  });
-  expect(remove()[0]).toHaveFocus();
-  spy.mockRestore();
 });
 
 it('keeps the facility picker mounted while programs load and enables the loaded program', async () => {
@@ -170,9 +177,11 @@ it('keeps the facility picker mounted while programs load and enables the loaded
   expect(screen.getByRole('combobox', { name: 'orders.create.program' })).toHaveAttribute(
     'data-disabled',
   );
+  expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeDisabled();
   await add(user, 'Alpha');
   const picker = screen.getByRole('combobox', { name: 'orders.create.requesting-facility' });
   await act(() => finish([{ id: 'program', name: 'Program', code: 'P', active: true }]));
+  await user.keyboard('{Escape}');
   expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toBe(picker);
   await waitFor(() =>
     expect(screen.getByRole('combobox', { name: 'orders.create.program' })).not.toHaveAttribute(
@@ -202,6 +211,15 @@ it('offers every requesting facility through virtualization and can search its c
   expect(listed[0]).toHaveAttribute('aria-setsize', '1006');
   await user.type(input, 'C1005');
   await user.click(await screen.findByRole('option', { name: 'Clinic 1005' }));
-  expect(screen.getByText('Clinic 1005')).toBeVisible();
+  expect(input).toHaveValue('');
+  expect(
+    screen.getByText('Clinic 1005', { selector: '[data-slot=combobox-chip] span[dir]' }),
+  ).toBeVisible();
+  expect(screen.getByRole('listbox')).toBeVisible();
+  await user.type(input, 'C1005');
+  expect(await screen.findByRole('option', { name: 'Clinic 1005' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toHaveFocus();
 });
