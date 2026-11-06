@@ -23,7 +23,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   Workspace,
@@ -531,21 +530,20 @@ function OrderFields({
   );
   return (
     <>
-      <OrderProductPicker
-        programId={order.program.id}
-        facilityId={order.requestingFacility.id}
-        added={added}
-        disabled={disabled}
-        onAdd={onAdd}
-      />
-      <Separator />
-      {canSwitch && (
-        <DataTableToolbar align="end">
-          <div className="flex-1 @2xl/main:flex-none">
+      <DataTableToolbar>
+        <OrderProductPicker
+          programId={order.program.id}
+          facilityId={order.requestingFacility.id}
+          added={added}
+          disabled={disabled}
+          onAdd={onAdd}
+        />
+        {canSwitch && (
+          <div className="ms-auto flex-1 @2xl/main:flex-none">
             <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
           </div>
-        </DataTableToolbar>
-      )}
+        )}
+      </DataTableToolbar>
       <OrderLines
         order={order}
         lines={lines ?? []}
