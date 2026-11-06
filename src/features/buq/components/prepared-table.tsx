@@ -195,10 +195,15 @@ export function PreparedTable({
   const { t } = useTranslation();
   const [deleting, setDeleting] = useState<BuqRow>();
   const rows = useMemo(() => {
-    const names = new Map(periods.map(({ id, name }) => [id, name]));
+    const byId = new Map(periods.map((period) => [period.id, period]));
     return buqs
-      .map((buq) => ({ ...buq, periodName: names.get(buq.processingPeriodId) ?? '' }))
-      .toSorted((a, b) => a.targetYear - b.targetYear);
+      .map((buq) => ({ ...buq, period: byId.get(buq.processingPeriodId) }))
+      .toSorted(
+        (a, b) =>
+          a.targetYear - b.targetYear ||
+          (a.period?.startDate ?? '').localeCompare(b.period?.startDate ?? ''),
+      )
+      .map(({ period, ...buq }) => ({ ...buq, periodName: period?.name ?? '' }));
   }, [buqs, periods]);
   const download = useSessionMutation({
     mutationFn: downloadBuq,

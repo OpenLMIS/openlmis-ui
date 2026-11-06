@@ -14,7 +14,10 @@ type ProgramRecord = { id: string; code: string; name: string | null };
 
 export type PrepareAccess =
   | { kind: 'ready'; facility: NamedItem; program: NamedItem }
-  | { kind: 'no-home' | 'no-program' | 'unsupported' | 'no-grant' };
+  | { kind: 'no-home' }
+  | { kind: 'no-program' }
+  | { kind: 'unsupported' }
+  | { kind: 'no-grant' };
 
 export function prepareAccess({
   home,

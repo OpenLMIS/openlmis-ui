@@ -35,9 +35,11 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 const noop = () => {};
 
+type ShownAccess = Exclude<PrepareAccess, { kind: 'no-grant' }>;
+
 export const Route = createFileRoute('/(protected)/_protected/buq/prepare')({
   validateSearch: prepareSearchSchema,
-  loader: async ({ context: { queryClient } }): Promise<PrepareAccess> => {
+  loader: async ({ context: { queryClient } }): Promise<ShownAccess> => {
     const userId = useLoginData.getState().referenceDataUserId;
     const permissions = await requirePermissions(queryClient, RIGHTS.prepareBuq);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) {
@@ -80,7 +82,7 @@ function PrepareBuqHeader() {
   );
 }
 
-const UNAVAILABLE: Record<Exclude<PrepareAccess['kind'], 'ready' | 'no-grant'>, ParseKeys> = {
+const UNAVAILABLE: Record<Exclude<ShownAccess['kind'], 'ready'>, ParseKeys> = {
   'no-home': 'buq.prepare.no-home',
   'no-program': 'buq.prepare.no-program',
   unsupported: 'buq.prepare.unsupported',
@@ -103,19 +105,17 @@ function PrepareBuqPage() {
             search={search}
           />
         ) : (
-          access.kind !== 'no-grant' && (
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <LockIcon />
-                </EmptyMedia>
-                <EmptyTitle>
-                  <h2>{t('buq.prepare.unavailable-title')}</h2>
-                </EmptyTitle>
-                <EmptyDescription>{t(UNAVAILABLE[access.kind])}</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          )
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <LockIcon />
+              </EmptyMedia>
+              <EmptyTitle>
+                <h2>{t('buq.prepare.unavailable-title')}</h2>
+              </EmptyTitle>
+              <EmptyDescription>{t(UNAVAILABLE[access.kind])}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
       </WorkspaceContent>
     </Workspace>
