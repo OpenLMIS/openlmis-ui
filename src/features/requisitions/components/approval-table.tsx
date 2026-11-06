@@ -77,9 +77,14 @@ type Props = {
   onSearchChange: SearchChange<ApprovalSearch>;
 };
 
-function useColumns(search: ApprovalSearch, stale: boolean, cards: boolean, batch = false) {
+function useColumns(
+  search: ApprovalSearch,
+  stale: boolean,
+  cards: boolean,
+  timeZone: string,
+  batch = false,
+) {
   const { t, i18n } = useTranslation();
-  const timeZone = useDeploymentTimeZone();
   return useMemo(
     () =>
       helper.columns([
@@ -140,6 +145,7 @@ function useResultsTable({
   onSearchChange,
   data,
   rowCount,
+  timeZone,
   stale,
   batch,
   picked,
@@ -147,6 +153,7 @@ function useResultsTable({
 }: Props & {
   data: ApprovalListRow[];
   rowCount: number;
+  timeZone: string;
   stale: boolean;
 }) {
   const { t } = useTranslation();
@@ -154,7 +161,7 @@ function useResultsTable({
   const rowSelection = Object.fromEntries(
     [...(picked?.keys() ?? [])].map((id) => [id, true as const]),
   );
-  const defs = useColumns(search, stale, cards, batch);
+  const defs = useColumns(search, stale, cards, timeZone, batch);
   const { pageStart, searchState } = usePagedTableSearch({
     cards,
     search,
@@ -216,6 +223,7 @@ export function ApprovalTable({
 }: Props) {
   const { t } = useTranslation();
   const copies = useOfflineCopies();
+  const timeZone = useDeploymentTimeZone();
   const deferred = useDeferredValue(search);
   const online = useOnline();
   const sourceOnline = useListConnection(deferred);
@@ -239,6 +247,7 @@ export function ApprovalTable({
     onSearchChange,
     data: page.content,
     rowCount: page.totalElements,
+    timeZone,
     stale,
     batch,
     picked,
@@ -324,6 +333,7 @@ export function ApprovalTableSkeleton({
     onSearchChange: noop,
     data: NO_ROWS,
     rowCount: 0,
+    timeZone: 'UTC',
     stale: false,
     batch,
   });

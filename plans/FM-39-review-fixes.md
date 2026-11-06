@@ -1087,3 +1087,36 @@ include slow protected chunks. All five catalogs match and the changed ICU messa
 Final checks pass: 243 tests across seven focused files, TypeScript, design-system lint,
 Biome and a production build. No full suite, server writes, stock-event POSTs or unfinished=true
 requests were run. No push; the production preview is stopped at handoff.
+
+## Fresh-device list entry and Save follow-up (2026-11-06)
+
+Fresh-device instrumentation disproved the download-write hypothesis for list entry.
+Before Approve rows rendered, IndexedDB had received zero `put` calls. There were 12,580
+observer-result notifications each for roles and user references, 10,895 for rights,
+3,353 for time-zone settings and 1,681 for the approval page. Only 18 queries and one
+cache listener existed. Disabling download Web Locks still took 26.295 seconds for
+Approve and 15.434 seconds for Convert. The existing profile's 4.70 seconds in cache
+notification frames and 2.15 seconds in GC describe repeated initial rendering, not
+per-record background cache writes.
+
+Both list skeletons called the suspending time-zone reader through their shared table
+hooks. Their Suspense fallback therefore suspended on the same fresh-device date
+settings read. Repeated initial render attempts rebuilt the shell, query observers and
+DOM while the current page was waiting. Skeleton table hooks now accept a time zone
+without reading it; their empty cells use UTC. Only real rows read and format with the
+resolved deployment time zone. No date value renders using the placeholder zone.
+
+Production Chrome fresh-context results, measured from Sign In through visible rows
+and two animation frames, in milliseconds:
+
+| Screen | Supplied baseline median | Local baseline | After trials | After median | Legacy target |
+|---|---:|---:|---|---:|---:|
+| Approve | 22,800 | 14,534 | 4,794 / 4,326 / 4,915 | 4,794 | 13,600 |
+| Convert | 25,600 | 21,695 | 2,915 / 2,311 / 2,819 | 2,819 | 12,000 |
+
+Start loads for the post-fix blocks were 3.03-3.73. Local baseline is a single trial;
+the supplied medians are independent earlier measurements. Evidence and harnesses are
+in `/home/user/.t3/fm39-opus/implementation-first-signin/`. A focused failing test proved
+both skeletons suspended with a never-resolving date-settings read; both now render
+immediately. Download scheduling, complete generations, endpoint readers and Dexie
+transactions are unchanged. No Worker or dataset-format migration is needed for this fix.
