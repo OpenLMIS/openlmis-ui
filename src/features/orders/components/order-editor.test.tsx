@@ -177,7 +177,7 @@ describe('order editor workflow', () => {
     const { user, onBatchChange } = setup([creatingOrder('a'), creatingOrder('b', 0)]);
     const create = screen.getByRole('button', { name: 'orders.edit.create' });
     expect(create).toBeDisabled();
-    expect(create).toHaveAccessibleDescription('orders.edit.create-invalid-orders');
+    expect(create).toHaveAttribute('aria-description', 'orders.edit.create-invalid-description');
     expect(sendOrder).not.toHaveBeenCalled();
     await user.click(screen.getByRole('tab', { name: /Facility b/ }));
     fireEvent.change(quantity(), { target: { value: '15' } });
@@ -375,14 +375,13 @@ it('deletes only readable Creating orders in a batch with known problem entries'
   expect(deleteOrders).toHaveBeenCalledWith(['a', 'b']);
 });
 
-it('keeps an empty order unmarked and Create disabled until a positive quantity is entered', async () => {
+it('marks an empty order invalid and keeps Create disabled until a positive quantity is entered', async () => {
   const { user } = setup([{ ...creatingOrder('a'), orderLineItems: [] }]);
-  expect(screen.getByRole('tab', { name: /Facility a/ })).not.toHaveTextContent(
-    'orders.edit.invalid',
-  );
+  const tab = screen.getByRole('tab', { name: /Facility a/ });
+  expect(tab).toHaveTextContent('orders.edit.invalid');
   const create = screen.getByRole('button', { name: 'orders.edit.create' });
   expect(create).toBeDisabled();
-  expect(create).toHaveAccessibleDescription('orders.edit.create-invalid-orders');
+  expect(create).toHaveAttribute('aria-description', 'orders.edit.create-invalid-description');
   await user.click(screen.getByRole('combobox', { name: 'orders.edit.select-product' }));
   await user.click(await screen.findByRole('option', { name: 'Medicine' }));
   await user.click(screen.getByRole('button', { name: 'orders.add' }));
@@ -390,6 +389,7 @@ it('keeps an empty order unmarked and Create disabled until a positive quantity 
   fireEvent.change(quantity(), { target: { value: '5' } });
   expect(create).toBeEnabled();
   expect(create).not.toHaveAttribute('aria-description');
+  expect(tab).toHaveTextContent('orders.edit.valid');
 });
 
 it('focuses the next line removal control, then the product picker after the final line', async () => {

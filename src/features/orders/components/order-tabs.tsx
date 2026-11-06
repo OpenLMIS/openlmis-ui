@@ -1,4 +1,4 @@
-import { AlertTriangleIcon, CircleIcon, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { TabsClose, TabsItem, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -32,18 +32,18 @@ export function OrderTabs({
           <TabsItem key={entry.id}>
             <TabsTrigger value={entry.id}>
               {name}
-              {invalid(entry.id) && (
-                <>
-                  <AlertTriangleIcon className="text-destructive" />
-                  <span className="sr-only">{t('orders.edit.invalid')}</span>
-                </>
-              )}
-              {dirty(entry.id) && (
-                <>
-                  <CircleIcon className="fill-current" />
-                  <span className="sr-only">{t('orders.edit.unsaved')}</span>
-                </>
-              )}
+              <span
+                aria-hidden="true"
+                className={
+                  invalid(entry.id)
+                    ? 'size-2 shrink-0 rounded-full bg-destructive'
+                    : 'size-2 shrink-0 rounded-full bg-success'
+                }
+              />
+              <span className="sr-only">
+                {t(invalid(entry.id) ? 'orders.edit.invalid' : 'orders.edit.valid')}
+              </span>
+              {dirty(entry.id) && <span className="sr-only">{t('orders.edit.unsaved')}</span>}
             </TabsTrigger>
             {deletable(entry.id) && (
               <Tooltip>
