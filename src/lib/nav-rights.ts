@@ -25,6 +25,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/administration/rejection-reasons': RIGHTS.usersManage,
   '/administration/valid-destinations': RIGHTS.stockDestinationsManage,
   '/administration/valid-sources': RIGHTS.stockSourcesManage,
+  '/cce/inventory': RIGHTS.cceInventoryView,
   '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
   '/stock-management/transaction-history': RIGHTS.stockCardsView,
   '/stock-management/physical-inventory': RIGHTS.stockInventoriesEdit,

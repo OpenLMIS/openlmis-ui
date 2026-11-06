@@ -11,12 +11,6 @@ export type RequisitionSummary = {
   statusChanges?: Partial<Record<RequisitionStatus, { changeDate: string }>>;
 };
 
-export type EquipmentStatus =
-  | 'FUNCTIONING'
-  | 'NEEDS_ATTENTION'
-  | 'AWAITING_REPAIR'
-  | 'UNSERVICEABLE';
-
 export type SystemNotification = {
   id: string;
   title: string | null;

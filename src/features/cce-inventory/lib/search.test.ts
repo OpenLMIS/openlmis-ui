@@ -1,0 +1,51 @@
+import { describe, expect, it } from 'vitest';
+import {
+  type InventorySearch,
+  inventorySavedSearch,
+  inventorySearchSchema,
+} from '@/features/cce-inventory/lib/search';
+import type { CompleteSelection } from '@/lib/facility-program-selection';
+
+const listSearch: InventorySearch = {
+  mode: 'my',
+  programId: 'epi',
+  facilityId: 'home',
+  page: 3,
+  size: 25,
+  sort: 'type',
+  dir: 'desc',
+  functionalStatus: 'FUNCTIONING',
+  item: 'new',
+};
+
+const home: CompleteSelection = { mode: 'my', programId: 'epi', facilityId: 'home' };
+const lurio: CompleteSelection = { mode: 'supervised', programId: 'fp', facilityId: 'lurio' };
+
+describe('inventorySavedSearch', () => {
+  it('shows the saved equipment: its pair, the first page, sort and size kept', () => {
+    expect(inventorySavedSearch(listSearch, lurio, 'FUNCTIONING')).toEqual({
+      ...lurio,
+      size: 25,
+      sort: 'type',
+      dir: 'desc',
+      functionalStatus: 'FUNCTIONING',
+    });
+  });
+
+  it('drops a status filter that would hide the saved equipment', () => {
+    expect(inventorySavedSearch(listSearch, home, 'AWAITING_REPAIR')).not.toHaveProperty(
+      'functionalStatus',
+    );
+  });
+});
+
+describe('inventorySearchSchema', () => {
+  it('opens only Add or an item id from a link, never another path', () => {
+    const item = (value: string) => inventorySearchSchema.parse({ item: value }).item;
+    expect(item('new')).toBe('new');
+    expect(item('55bd67f1-cc2e-4bbe-8c47-679b5a8dc547')).toBe(
+      '55bd67f1-cc2e-4bbe-8c47-679b5a8dc547',
+    );
+    expect(item('../facilities/x')).toBeUndefined();
+  });
+});
