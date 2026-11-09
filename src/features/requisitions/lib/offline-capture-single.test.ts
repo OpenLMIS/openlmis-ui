@@ -5,23 +5,26 @@ import {
   facilityOptions,
   orderablesByIdentitiesOptions,
 } from '@/features/reference-data/api/queries';
-import { fetchStatusMessages } from '../api/api';
-import { requisitionGridQueries, requisitionStatusMessagesOptions } from '../api/queries';
-import { product, record } from './fixtures/builders';
-import { captureSingle } from './offline-capture-single';
-import type { RequisitionRecord } from './types';
+import { fetchStatusMessages } from '@/features/requisitions/api/api';
+import {
+  requisitionGridQueries,
+  requisitionStatusMessagesOptions,
+} from '@/features/requisitions/api/queries';
+import { product, record } from '@/features/requisitions/lib/fixtures/builders';
+import { captureSingle } from '@/features/requisitions/lib/offline-capture-single';
+import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 
-vi.mock('../api/api', () => ({ fetchStatusMessages: vi.fn(async () => []) }));
+vi.mock('@/features/requisitions/api/api', () => ({ fetchStatusMessages: vi.fn(async () => []) }));
 vi.mock('@/features/reference-data/api/api', async (original) => ({
   ...(await original<typeof import('@/features/reference-data/api/api')>()),
   fetchOrderablesByIdentities: vi.fn(async () => []),
 }));
-vi.mock('./offline-access', () => ({
+vi.mock('@/features/requisitions/lib/offline-access', () => ({
   readRequisitionAccess: vi.fn(async () => ({})),
   mayViewCopy: () => true,
 }));
-vi.mock('./offline-copies', async (original) => ({
-  ...(await original<typeof import('./offline-copies')>()),
+vi.mock('@/features/requisitions/lib/offline-copies', async (original) => ({
+  ...(await original<typeof import('@/features/requisitions/lib/offline-copies')>()),
   commitCopy: vi.fn(),
 }));
 function seedCopyQueries(
