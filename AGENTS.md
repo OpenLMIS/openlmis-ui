@@ -264,6 +264,7 @@ fits odd tab counts; `wrap="md"` fits short labels. Page tabs use `TabsList size
 dialogs keep the default. `Button variant="destructive-solid"` and
 `"destructive-outline"` mark the current and other invalid pages in the pager.
 `Button variant="warning"` and `"info"` match notice actions to their Alert tones.
+`Button variant="warning-ghost"` marks Back To Legacy.
 `DialogContent size="2xl"` (64rem) fits a one-line summary table of six columns;
 `size="table"` (36rem) fits a short form above a compact five-column table.
 
@@ -302,7 +303,7 @@ edits, which have no prop for TypeScript to detect:
 | `table.tsx` | Keep TableFooter `sticky`, opaque headers and zero-spacing separate cell borders with `scroll="both"` so sticky dividers and measured end offsets stay gapless, TableCell `rowHeader`, and TableHead/TableCell `sticky="end"` with CSS-variable logical offsets and end-pin data attributes |
 | `table.tsx` | Preserve `width="columns"` with explicit colgroup sizing, `TableHead width="patient"`, footer scroll padding and single-pixel sticky dividers |
 | `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `data-[invalid]:bg-destructive/10` for invalid draft lines |
-| `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate. Preserve full-width wrapping `ComboboxChips`, disabled styling and `size="lg"` (36px minimum); virtual lists accept single or multiple values and scroll keyboard highlights into view |
+| `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate. Preserve full-width wrapping `ComboboxChips`, disabled styling and `size="lg"` (36px minimum); virtual lists accept single or multiple values and scroll keyboard highlights into view. Keep the ScrollArea `ScrollBar` in `ComboboxList` |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
 | `tabs.tsx` | Keep `TabsItem` and `TabsClose`: a closable tab's button sits beside its trigger, which reserves end padding, never nested inside it |
 
@@ -418,7 +419,8 @@ App-shell pages compose `src/components/workspace/workspace.tsx`:
   Use `WorkspaceFooterPortal` (`src/components/workspace/workspace-tabs.tsx`): `narrow` by default,
   `width="default"` for full-width editors. Tab switches must not remount the header.
   Tab-specific actions use `WorkspaceActionsPortal` into `WorkspaceActionsSlot`.
-- Toasts appear below the header at the top end corner, tinted by kind.
+- Toasts appear below the page header and its actions at the top end corner, tinted by kind.
+  Keep `WorkspaceHeader`'s `data-slot="workspace-header"` so `useToastOffset` can measure it.
 
 `Workspace` derives breadcrumbs from `NAV_GROUPS` through `getNavTrail()`:
 
@@ -1081,28 +1083,12 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 
 - Download access refreshes read user/program assignments directly from the server, without device
   fallback. Requisition download references use an isolated fresh query cache so neither session
-  freshness nor a pending page request can substitute an older grant generation. Reuse session
-  facilities/programs and the fresh user from the current access generation. Keep background
+  freshness nor a pending page request can substitute an older grant generation. Keep background
+  facilities/programs on separate query keys and reuse the fresh user from the current access generation.
+  Keep background
   fail-fast handling, two transport slots, foreground priority and provider fairness.
 - Node subset reuse prefers completed data; pages never await a background superset. Forced node
   authorization refreshes explicitly bypass covering caches.
-- Batch routes render retrieved rows while membership verifies. Rows picked on the approval list
-  or its recent matching cache verify list openings immediately. Opening membership reads only
-  use background transport and govern offline capture for these openings; approveAll reports rows no longer approvable.
-  Direct links verify before approval. Ignore opening results superseded by Sync, preserve record
-  identity when availability is unchanged, and discard route cache on exit to preserve warm typing.
-- Recent batch retrieveAll results stay fresh for 60 seconds; mutations invalidate them. Never
-  remount the active grid through a background refresh on warm opening.
-- Batch Sync uses the saveAll response and retains failed rows and reasons. Refresh membership
-  afterwards without delaying success feedback. Remove confirmed approvals from every cached
-  approval list before returning, then invalidate. Single Approve refreshes its baseline through GET after PUT, in parallel with Approve.
-  Never adopt the PUT response ETag: the backend can return its pre-save version.
-- Approval editor rows/cards subscribe to their own draft line. Keep aggregate tab/grid work deferred
-  so keystrokes do not synchronously rebuild unrelated rows.
-- Grid widths use baseline formatted values and uppercase header fonts, independent of typing.
-  Reserve ten quantity digits and let larger input text scroll internally. Virtual card spacers
-  use list padding and item margins, never extra list items; expose item positions and total size.
-
 - `getLocalDb()` opens one database per deployment/user. Close on identity change without
   deleting records. Use `LOCAL_TABLES` and `localTable`; use `local-records.ts` for owned records.
   Add one new schema version per PR, never reuse a number, and rebase before merge. Preserve
@@ -1147,7 +1133,7 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 ### Drafts, queue and recovery
 
 - Requisition device drafts retain their server modified date and ETag; Sync rebases concurrent
-  edits through a three-way field merge. Persist changed-field base values in the unreleased v17
+  edits through a three-way field merge. Persist changed-field base values in the v17
   draft shape; only fields changed differently on both sides need a choice. Ambiguous PUTs
   reconcile through GET before another write; requisition writes have no client timeout.
   Close never discards edits; Update remains explicit and confirmed. Store baseline comment/date
@@ -1256,6 +1242,23 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   Reproduction recipes belong in the plan. Unit tests cover the no-Web-Locks fallback.
 
 ### Requisition Performance And Device Status
+
+- Batch routes render retrieved rows while membership verifies. Rows picked on the approval list
+  or its recent matching cache verify list openings immediately. Opening membership reads only
+  use background transport and govern offline capture for these openings; approveAll reports rows no longer approvable.
+  Direct links verify before approval. Ignore opening results superseded by Sync, preserve record
+  identity when availability is unchanged, and discard route cache on exit to preserve warm typing.
+- Recent batch retrieveAll results stay fresh for 60 seconds; mutations invalidate them. Never
+  remount the active grid through a background refresh on warm opening.
+- Batch Sync uses the saveAll response and retains failed rows and reasons. Refresh membership
+  afterwards without delaying success feedback. Remove confirmed approvals from every cached
+  approval list before returning, then invalidate. Single Approve refreshes its baseline through GET after PUT, in parallel with Approve.
+  Never adopt the PUT response ETag: the backend can return its pre-save version.
+- Approval editor rows/cards subscribe to their own draft line. Keep aggregate tab/grid work deferred
+  so keystrokes do not synchronously rebuild unrelated rows.
+- Grid widths use baseline formatted values and uppercase header fonts, independent of typing.
+  Reserve ten quantity digits and let larger input text scroll internally. Virtual card spacers
+  use list padding and item margins, never extra list items; expose item positions and total size.
 
 - Batch grids virtualize against window scrolling, retaining focused rows and fixed colgroup widths.
   The header follows page scroll beneath the app header; Code/Name and totals pin horizontally.

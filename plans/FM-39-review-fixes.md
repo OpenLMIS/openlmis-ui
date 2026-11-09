@@ -5,16 +5,21 @@ https://openlmis.atlassian.net/browse/FM-39
 ## Scope
 
 Fixes for the confirmed findings of the two whole-epic reviews (Codex, then Opus) on master
-f78b0d6f. One PR. Not in scope: the simplification list (separate refactor PR), the
+f78b0d6f, later review simplifications, requisition performance work and the Create Orders and
+order-editor redesign. One PR. Not in scope: the
 `BATCH_APPROVE_SCREEN` default (deployment setting, documented) and the backend 500 on Release
 Without Order.
 
 ## Summary
 
-The Requisitions screens work end to end and match legacy on counts, totals and calculations,
-but the reviews found stale data after actions, offline copies that go stale or become
-unreachable, a slow first open on secure sites, and a set of smaller gaps. This PR fixes them so
-the epic can close.
+The screens retain current server and device state after lifecycle actions, recover conflicting
+edits field by field and keep eligible batch approvals usable. Per-row subscriptions, stable
+grid widths and virtualized batch rows improve opening and typing speed. Create Orders uses a
+required requesting-facility multi-select with chips; order editing adds per-tab deletion,
+visible validity and unsaved markers, and a clearer summary and footer. Sign-in warms picker
+references and idle route chunks. Background downloads pause during navigation and for 1.8
+seconds afterwards, share two transport slots fairly and yield to foreground work. Home-stock
+and receive-catalog providers allow 60 seconds per request; other downloads retain 20 seconds.
 
 ## Fixes
 
@@ -68,7 +73,8 @@ the epic can close.
 10. Create Orders: removing a line or a requesting facility moves focus to the next row's remove
     button, or the picker when none is left (`order-editor.tsx:483-491`,
     `create-order-form.tsx:118`); required markers on Program, Requesting Facility and Supplying
-    Facility as legacy; no Invalid Order marker on a new empty order until the user acts.
+    Facility as legacy; always show a corner status dot inside each tab (red with ! when invalid,
+    green with a check when valid), plus a small unsaved dot after the facility name.
 11. Plain HTTP: hide the Offline filter and show why copies are unavailable
     (`use-offline-copies.ts`, `requisitions-toolbar.tsx:66`, `requisitions-table.tsx:202-208`), as
     `plans/FM-191.md:340` promises.
@@ -108,8 +114,9 @@ then the fix. Performance items are checked in a production build in review.
 
 ## Resumed Fix Pass (2026-11-04)
 
-Fixes 10-21 are implemented. Fix 10 also retains the invalid marker after the user adds and
-removes the only product. Fix 17 uses the documented `TableCell rowHeader` registry exception,
+Fixes 10-21 are implemented. Fix 10 always shows each order tab's validity, including a new
+empty order and after removing its only product; unsaved edits have a separate visible marker.
+Fix 17 uses the documented `TableCell rowHeader` registry exception,
 preserving row-header semantics without changing rendering. Fix 20 reuses the existing FM-45
 URL/request and flag-off tests; the other promised workflows have focused regression tests.
 Fix 21 also corrects FM-50's contradictory Create Order acceptance summary noted by the reviewer.
@@ -394,7 +401,9 @@ Focused regression checks cover request config, sibling failure isolation, prelo
 Home cancellation before loader completion, batch rendering before verification, forced fresh
 references, unreachable fresh reads, missing-node classification and background node isolation.
 
-Local replay: `pnpm build`, then `node scripts/fm39-performance.mjs`. The replay fulfills production
+Local replay recipe: build with `pnpm build`, preserve the baseline build and record median
+service timings, then use a temporary Playwright harness to replay the same fixture requests
+against baseline and current assets. The original local harness fulfills production
 assets and every API request inside Playwright at an invalid origin. It never starts an HTTP
 server, reaches a deployment, or sends a server write. It reuses offline requisition fixtures and
 median service latencies from `.screenshots/FM-39-perf/timing.json`. The baseline is the preserved
