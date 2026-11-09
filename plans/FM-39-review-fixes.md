@@ -1265,3 +1265,12 @@ Chromium offline suite are recorded in the group C report under
 
 - Attach rejection handlers immediately to parallel lease and membership reads, preserving their error handling when saves or server reads take longer.
 - Invalidate the old membership revision when the action starts so a late opening read cannot replace the action's verification.
+
+### Round 10 B: Create Orders, Print and navigation
+
+- Include users with Order Create alone in sign-in reference and route-chunk warming. Keep the existing permission gates and idle chunk loading without running route loaders.
+- Isolate the requesting-facility picker from program and supplier changes, initialize its full option list when opened, and reuse product options and unchanged order headers and rows. Keep all facilities available and virtualized.
+- Focus each newly added line during layout, before paint, instead of waiting for an animation frame. A regression checks immediate quantity focus.
+- Keep a fully sent batch's confirmed summary intact until navigation replaces its editor. Avoid clearing and rebuilding the summary during navigation; retain partial-failure recovery. A held-navigation regression protects this path.
+- Recheck Print using the existing server-authorized Blob path. Time from captured browser events, with menu expansion, selection-popup opening and summary stock loading completed as setup. Preserve the separate automation-inclusive timings and HTTP waterfalls in the group B report rather than treating harness waiting as application CPU.
+- Detailed paired measurements, validation and commits are recorded in `/home/user/.t3/fm39-opus/review-online/r10/B/report.md`.
