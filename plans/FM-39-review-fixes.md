@@ -1206,3 +1206,9 @@ The preview server is stopped at handoff. No branch switch, push or other checko
 - After lifecycle saves, send the transition immediately and refresh only on failure for recovery. Later PUTs still wait for a fresh GET; never adopt the PUT response ETag.
 - Keep post-action copy capture in the background and invalidate cached requisition lists without refetching active editor queries. Prune rejected records from the approval cache too.
 - Regression coverage holds refresh reads pending, checks lifecycle headers and navigation, and retains failed-approval retry and subsequent-save version checks.
+
+
+### Round 10 A: T2 batch action membership
+
+- Run the approval membership preflight in parallel with saveAll. Wait for its result before approveAll, exclude departed records and retain failed-verification recovery.
+- The held-membership regression proves saveAll starts immediately and approveAll receives only the records still awaiting approval.

@@ -529,18 +529,10 @@ function BatchPage() {
         report(new Map(affected.map((id) => [id, 'requisitions.batch.review-refreshed'])));
         return;
       }
-      if (kind === 'approve' && !loaded.cachedMembership) {
-        membershipRevision.current++;
-        const found = await fetchBatchMembership(ids, scope, search.program);
-        assertSessionScope(scope);
-        membership.current = found;
-        setMembershipFailure('error' in found);
-        if ('error' in found) throw found.error;
-        const verified = orderBatch(verifyBatchMembership(response, found), ids);
-        setResponse(verified);
-        setVerifiedOpening(loaded);
-        if (found.remaining.size) return;
-      }
+      const checkingMembership =
+        kind === 'approve' && !loaded.cachedMembership
+          ? fetchBatchMembership(ids, scope, search.program)
+          : undefined;
       const failures = new Map<string, string>();
       const eligible = records.filter((r) => {
         const invalidNumber = r.requisitionLineItems.some(
@@ -650,8 +642,19 @@ function BatchPage() {
           });
         return;
       }
+      if (checkingMembership) {
+        membershipRevision.current++;
+        const found = await checkingMembership;
+        assertSessionScope(scope);
+        membership.current = found;
+        setMembershipFailure('error' in found);
+        if ('error' in found) throw found.error;
+        setResponse(orderBatch(verifyBatchMembership(fresh, found), ids));
+        setVerifiedOpening(loaded);
+        for (const id of found.remaining) failures.set(id, 'requisitions.batch.no-longer-awaiting');
+      }
       const available = new Set(fresh.requisitionDtos?.map((r) => r.id));
-      const saved = save.succeeded.filter((id) => available.has(id));
+      const saved = save.succeeded.filter((id) => available.has(id) && !failures.has(id));
       for (const id of save.succeeded)
         if (!available.has(id))
           failures.set(

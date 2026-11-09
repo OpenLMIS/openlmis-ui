@@ -1274,3 +1274,17 @@ it('translates a Sync timeout again when the page language changes', async () =>
     queryClient.clear();
   }
 });
+
+it('saves while approval membership is pending and excludes departed records from approval', async () => {
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  const pending = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
+  vi.mocked(fetchApprovalList).mockReturnValueOnce(pending.promise);
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  expect(approveBatchRequisitions).not.toHaveBeenCalled();
+  await act(() => pending.resolve({ content: [records[0]], totalPages: 1 } as never));
+  await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
+});
