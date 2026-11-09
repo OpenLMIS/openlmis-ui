@@ -21,3 +21,29 @@ it('reserves formatted currency and measures uppercase headers in their actual f
   expect(result.current).toBe(before);
   element.remove();
 });
+
+it('never exposes widths for columns removed by a tab switch', () => {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    font: '',
+    measureText: () => ({ width: 80 }),
+  } as never);
+  const frame = { current: document.createElement('div') };
+  const snapshots: number[] = [];
+  const { rerender } = renderHook(
+    ({ columns }) => {
+      const widths = useGridWidths(frame, columns);
+      snapshots.push(widths.length - columns.length);
+    },
+    {
+      initialProps: {
+        columns: [
+          { label: 'Code', values: [] },
+          { label: 'Stock', values: [] },
+        ],
+      },
+    },
+  );
+  rerender({ columns: [{ label: 'Code', values: [] }] });
+  expect(snapshots).toEqual(expect.arrayContaining([0]));
+  expect(snapshots.every((difference) => difference === 0)).toBe(true);
+});

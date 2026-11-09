@@ -41,5 +41,5 @@ export function useGridWidths(
         : next,
     );
   }, [columns, frame, enabled]);
-  return widths;
+  return widths.length === columns.length ? widths : columns.map(({ min = 96 }) => min);
 }

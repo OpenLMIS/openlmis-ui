@@ -1252,3 +1252,10 @@ Chromium offline suite are recorded in the group C report under
 - Ignore late save-refresh persistence after a lifecycle action has completed.
 - If a failed transition's recovery GET proves approval advanced, complete navigation without approving the next level.
 - Focused recovery, version sequencing and immediate-action regressions pass.
+
+
+### Round 10 A: T11 retained-grid width recovery
+
+- Production tab timing exposed old measured widths surviving a change in visible columns. Return one temporary minimum width per current column until the layout effect remeasures, preventing the retained grid from indexing removed columns.
+- A regression checks every render during a column-count change; it failed before the fix.
+- The shared-worktree commit `728982bf` also contains the product-panel reuse change staged by Group A.
