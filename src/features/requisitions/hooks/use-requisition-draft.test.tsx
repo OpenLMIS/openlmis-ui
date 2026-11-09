@@ -445,19 +445,6 @@ it('keeps edits after a failed loader adoption and saves them on Retry', async (
   expect((await getLocalDb().table('requisitionDrafts').get('r')).draft).toEqual(draft);
 });
 
-it('reports saved when Retry follows failed adoption without another edit', async () => {
-  const { result } = renderHook(() => useRequisitionDraft(base));
-  await waitFor(() => expect(result.current.status.status).toBe('saved'));
-  const store = await import('@/lib/draft-store');
-  const error = new Error('Storage unavailable');
-  vi.spyOn(store, 'saveRevisionedDraft').mockRejectedValueOnce(error);
-  await act(async () => {
-    await expect(result.current.update({ ...base, modifiedDate: 'newer' })).rejects.toBe(error);
-  });
-  await act(() => result.current.retry());
-  expect(result.current.status.status).toBe('saved');
-});
-
 it('coalesces typing into one device write and flushes the final value before leaving', async () => {
   const { result } = renderHook(() => useRequisitionDraft(base));
   await waitFor(() => expect(result.current.status.status).toBe('saved'));

@@ -93,30 +93,20 @@ describe('fetchSystemNotifications', () => {
 
 it('cancels every status request when the dashboard query is cancelled', async () => {
   const { QueryClient } = await import('@tanstack/react-query');
-  const { requisitionStatusCountsOptions } = await import('./queries');
+  const { requisitionStatusCountsOptions, approvalsOptions } = await import('./queries');
   const { queryKeys } = await import('@/lib/key-factory');
   const cache = new QueryClient();
   get.mockImplementation(() => new Promise(() => {}));
-  const loading = cache.prefetchQuery(requisitionStatusCountsOptions());
-  expect(get).toHaveBeenCalledTimes(5);
+  const loading = Promise.all([
+    cache.prefetchQuery(requisitionStatusCountsOptions()),
+    cache.prefetchQuery(approvalsOptions()),
+  ]);
+  expect(get).toHaveBeenCalledTimes(6);
   const signals = get.mock.calls.map(([, config]) => config?.signal);
   expect(signals.every((signal) => signal && !signal.aborted)).toBe(true);
   await cache.cancelQueries({ queryKey: queryKeys.home.all });
   await loading;
   expect(signals.every((signal) => signal?.aborted)).toBe(true);
-  expect(get.mock.calls[0]?.[1]).not.toHaveProperty('backgroundDownload');
-  cache.clear();
-});
-
-it('sends visible dashboard counts at normal priority with cancellation', async () => {
-  const { QueryClient } = await import('@tanstack/react-query');
-  const { approvalsOptions } = await import('@/features/home/api/queries');
-  get.mockResolvedValueOnce(page(1));
-  const cache = new QueryClient();
-  await cache.fetchQuery(approvalsOptions());
-  expect(get.mock.calls[0]?.[1]).toMatchObject({
-    signal: expect.any(AbortSignal),
-  });
-  expect(get.mock.calls[0]?.[1]).not.toHaveProperty('backgroundDownload');
+  for (const [, config] of get.mock.calls) expect(config).not.toHaveProperty('backgroundDownload');
   cache.clear();
 });

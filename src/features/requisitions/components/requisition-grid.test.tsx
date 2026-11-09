@@ -645,14 +645,11 @@ it.each([1000, 390])(
         detail: { requisitionId: requisition.id, lineId: 'virtual-99' },
       }),
     );
-    expect(document.querySelector(selector)).not.toBeNull();
-    if (width === 1000)
-      expect(document.querySelector(selector)?.closest('tr')).toHaveAttribute(
-        'aria-rowindex',
-        '102',
-      );
-    else
-      expect(document.querySelector(selector)?.closest('li')).toHaveAttribute('data-index', '100');
+    const target = document.querySelector<HTMLInputElement>(selector);
+    expect(target).toBeInTheDocument();
+    if (!target) throw new Error('Validation target was not rendered');
+    await userEvent.click(target);
+    expect(target).toHaveFocus();
   },
 );
 

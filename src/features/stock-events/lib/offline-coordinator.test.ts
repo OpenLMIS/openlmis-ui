@@ -1290,11 +1290,15 @@ it('counts a failed download once when going offline interrupts the same run', a
 it('limits all providers to two HTTP reads and gives foreground work priority', async () => {
   const releases = new Map<string, () => void>();
   const sent: string[] = [];
+  let active = 0;
+  let peak = 0;
   client.defaults.adapter = async (config) => {
     sent.push(config.url ?? '');
+    if (config.backgroundDownload) peak = Math.max(peak, ++active);
     if (config.backgroundDownload) expect(config.timeout).toBe(20_000);
     else expect(config.timeout).toBe(60_000);
     await new Promise<void>((resolve) => releases.set(config.url ?? '', resolve));
+    if (config.backgroundDownload) active -= 1;
     return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
   };
   const requests = Array.from({ length: 6 }, (_, i) =>
@@ -1319,6 +1323,7 @@ it('limits all providers to two HTTP reads and gives foreground work priority', 
   releases.get('/background-4')?.();
   releases.get('/background-5')?.();
   await Promise.all(requests);
+  expect(peak).toBe(2);
 });
 
 it.each(['timeout', 'gateway'] as const)(
@@ -1375,53 +1380,6 @@ it.each(['timeout', 'gateway'] as const)(
     expect(download).toHaveBeenCalledTimes(3);
   },
 );
-
-it('starts home stock after lighter datasets while retaining the transport budget', async () => {
-  localStorage.setItem('openlmis-ui.time-zone', 'UTC');
-  const held = Promise.withResolvers<void>();
-  let active = 0;
-  let peak = 0;
-  client.defaults.adapter = async (config) => {
-    active += 1;
-    peak = Math.max(peak, active);
-    await held.promise;
-    active -= 1;
-    return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
-  };
-  download.mockImplementation(async ({ programId }, signal) => {
-    await Promise.all(
-      Array.from({ length: 4 }, (_, i) =>
-        client.get(`/stock/${programId}/${i}`, {
-          backgroundDownload: true,
-          downloadProvider: programId,
-          signal,
-        }),
-      ),
-    );
-    return bundle(programId);
-  });
-  const provider = homeStockProvider(download);
-  stop = startCoordinator({
-    access: () => raw,
-    providers: [
-      provider,
-      {
-        ...provider,
-        id: 'other',
-        tasks: (access) => provider.tasks(access).slice(1, 2),
-      },
-    ],
-  });
-  try {
-    await waitFor(() => expect(download).toHaveBeenCalledOnce());
-    await waitFor(() => expect(active).toBe(2));
-    expect(peak).toBe(2);
-  } finally {
-    held.resolve();
-  }
-  await finished();
-  expect(peak).toBe(2);
-});
 
 it('drops an aborted queued read and rejects an old owner before transport', async () => {
   const held = Promise.withResolvers<void>();

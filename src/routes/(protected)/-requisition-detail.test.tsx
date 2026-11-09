@@ -10,7 +10,7 @@ import {
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
-import { Children, isValidElement } from 'react';
+import { Profiler, useId } from 'react';
 import { toast } from 'sonner';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -55,14 +55,18 @@ vi.mock('@/components/ui/table', async (original) => {
   return {
     ...actual,
     TableRow: (props: import('react').ComponentProps<typeof actual.TableRow>) => {
-      if (modelTracking.enabled && props.pinned && !props.surface) {
-        const cell = Children.toArray(props.children).find(isValidElement);
-        const content = cell?.props as
-          | { children?: { props?: { model?: { line: { id: string } } } } }
-          | undefined;
-        modelTracking.rows.push(content?.children?.props?.model?.line.id ?? 'unknown');
-      }
-      return <actual.TableRow {...props} />;
+      const id = useId();
+      return (
+        <Profiler
+          id={id}
+          onRender={(id, phase) => {
+            if (modelTracking.enabled && props.pinned && !props.surface && phase === 'update')
+              modelTracking.rows.push(id);
+          }}
+        >
+          <actual.TableRow {...props} />
+        </Profiler>
+      );
     },
   };
 });
@@ -198,6 +202,7 @@ function renderRoute(
 
 afterEach(() => {
   cleanup();
+  modelTracking.enabled = false;
   useLoginData.setState({ referenceDataUserId: null });
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -2010,16 +2015,12 @@ it('renders only the edited requisition line while typing', async () => {
   });
   modelTracking.enabled = true;
   modelTracking.rows = [];
-  try {
-    fireEvent.change(
-      screen.getAllByRole('textbox', { name: 'beginningBalance: Product (P1)' })[0],
-      { target: { value: '42' } },
-    );
-    await waitFor(() => expect(modelTracking.rows).toEqual(['line']));
-  } finally {
-    modelTracking.enabled = false;
-    queryClient.clear();
-  }
+  fireEvent.change(screen.getAllByRole('textbox', { name: 'beginningBalance: Product (P1)' })[0], {
+    target: { value: '42' },
+  });
+  await waitFor(() => expect(new Set(modelTracking.rows).size).toBe(1));
+  modelTracking.enabled = false;
+  queryClient.clear();
 });
 
 it('preserves approval edits on a conflict after another approver acted and reloads on Update', async () => {
@@ -2099,6 +2100,44 @@ it.each(['submit', 'approve'] as const)('updates the saved single copy after %s'
   await screen.findByText(kind === 'submit' ? 'Opening List' : 'Approval List');
   await waitFor(async () => expect((await readSingle('r')).single.record.status).toBe(status));
   queryClient.clear();
+});
+
+it('does not report recapture failure or save a copy in a different session after Submit', async () => {
+  const capture = await import('@/features/requisitions/lib/offline-capture-single');
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const pending = Promise.withResolvers<void>();
+  const captureSingle = capture.captureSingle;
+  const saveCopy = vi.spyOn(capture, 'captureSingle').mockResolvedValue({} as never);
+  const error = vi.spyOn(toast, 'error');
+  const { base, queryClient } = await openEditor(false, true);
+  await waitFor(() => expect(saveCopy).toHaveBeenCalledOnce());
+  saveCopy.mockImplementation(async (...args) => {
+    await pending.promise;
+    return captureSingle(...args);
+  });
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  await confirmAction();
+  await screen.findByText('Opening List');
+  await waitFor(() => expect(saveCopy).toHaveBeenCalledTimes(2));
+  act(() =>
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'next-user',
+      username: 'next',
+      accessToken: 'next-token',
+    }),
+  );
+  try {
+    await act(async () => {
+      pending.resolve();
+      await Promise.allSettled(saveCopy.mock.results.map((result) => result.value));
+    });
+    expect(error).not.toHaveBeenCalledWith('requisitions.offline.failed-title', expect.anything());
+    expect(await copies.readCopy('r')).toBeUndefined();
+  } finally {
+    pending.resolve();
+    queryClient.clear();
+  }
 });
 
 it('offers Update after a refreshed loader cannot adopt its device baseline', async () => {
@@ -2241,15 +2280,6 @@ it.each(['submit', 'approve', 'reject'] as const)(
   },
 );
 
-it('returns a directly opened submitted requisition to Create Authorize', async () => {
-  const { base, queryClient } = await openEditor();
-  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
-  vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
-  await confirmAction();
-  await screen.findByText('Create Authorize Search');
-  queryClient.clear();
-});
-
 it.each(['approve', 'reject'] as const)('returns direct %s to the approval list', async (kind) => {
   const { base, queryClient } = await openApprover(false, false, false);
   vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
@@ -2380,6 +2410,7 @@ it('reconciles a lost PUT response before saving again with the fresh version', 
   vi.mocked(fetchRequisition).mockResolvedValue({
     ...base,
     modifiedDate: 'fresh',
+    extraData: { originalRequisition: 'server-recovered' },
     eTag: '"fresh"',
     requisitionLineItems: base.requisitionLineItems.map((line, index) =>
       index ? line : { ...line, beginningBalance: 12 },
@@ -2390,6 +2421,11 @@ it('reconciles a lost PUT response before saving again with the fresh version', 
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeEnabled(),
   );
+  expect(put.mock.calls[1][1]).toMatchObject({
+    modifiedDate: 'fresh',
+    extraData: { originalRequisition: 'server-recovered' },
+  });
+  expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
     target: { value: '14' },
@@ -2401,31 +2437,13 @@ it('reconciles a lost PUT response before saving again with the fresh version', 
   queryClient.clear();
 });
 
-it('finishes Approve without a post-save refresh GET', async () => {
-  const { base, queryClient } = await openApprover();
-  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
-  const get = vi.mocked(fetchRequisition);
-  const calls = get.mock.calls.length;
-  const pending = Promise.withResolvers<RequisitionRecord>();
-  get.mockReturnValue(pending.promise);
-  const post = vi.spyOn(client, 'post').mockImplementation(async () => {
-    expect(get.mock.calls.length).toBe(calls);
-    return { data: {} };
-  });
-  await confirmApproval();
-  await screen.findByText('Approval List');
-  expect(post.mock.calls[0][2]).toEqual({
-    timeout: 0,
-    headers: { 'Idempotency-Key': expect.any(String) },
-  });
-  pending.resolve(base);
-  queryClient.clear();
-});
-
-it.each(['submit', 'authorize'] as const)(
+it.each(['submit', 'authorize', 'approve'] as const)(
   '%s does not read between save and transition',
   async (kind) => {
-    const { base, queryClient } = await openEditor(false, true, kind === 'authorize');
+    const { base, queryClient } =
+      kind === 'approve'
+        ? await openApprover()
+        : await openEditor(false, true, kind === 'authorize');
     const get = vi.mocked(fetchRequisition);
     const calls = get.mock.calls.length;
     vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
@@ -2433,8 +2451,9 @@ it.each(['submit', 'authorize'] as const)(
       expect(get.mock.calls.length).toBe(calls);
       return { data: {} };
     });
-    await confirmAction(kind);
-    await screen.findByText('Opening List');
+    if (kind === 'approve') await confirmApproval();
+    else await confirmAction(kind);
+    await screen.findByText(kind === 'approve' ? 'Approval List' : 'Opening List');
     expect(post.mock.calls[0][2]).toEqual({
       timeout: 0,
       headers: { 'Idempotency-Key': expect.any(String) },

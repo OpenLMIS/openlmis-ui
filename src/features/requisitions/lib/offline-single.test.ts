@@ -1,8 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
 import { fetchOrderablesByIdentities } from '@/features/reference-data/api/api';
-import { orderablesByIdentitiesOptions } from '@/features/reference-data/api/queries';
+import {
+  facilityOptions,
+  orderablesByIdentitiesOptions,
+} from '@/features/reference-data/api/queries';
 import { fetchStatusMessages } from '../api/api';
+import { requisitionGridQueries, requisitionStatusMessagesOptions } from '../api/queries';
 import { product, record } from './fixtures/builders';
 import { captureSingle } from './offline-capture-single';
 import type { RequisitionRecord } from './types';
@@ -20,11 +24,22 @@ vi.mock('./offline-copies', async (original) => ({
   ...(await original<typeof import('./offline-copies')>()),
   commitCopy: vi.fn(),
 }));
+function seedCopyQueries(
+  client: QueryClient,
+  base: RequisitionRecord,
+  products?: ReturnType<typeof product>[],
+) {
+  const queries = requisitionGridQueries(base);
+  if (products) client.setQueryData([...queries[0].queryKey], products);
+  client.setQueryData([...queries[1].queryKey], []);
+  client.setQueryData([...queries[2].queryKey], { id: base.processingPeriod.id });
+  client.setQueryData([...queries[3].queryKey], {});
+  client.setQueryData([...queries[4].queryKey], { id: base.program.id });
+  client.setQueryData([...facilityOptions(base.facility.id).queryKey], { id: base.facility.id });
+  client.setQueryData(requisitionStatusMessagesOptions(base.id).queryKey, []);
+}
+
 it('reuses the grid and available-product queries when capturing a copy', async () => {
-  const { requisitionGridQueries, requisitionStatusMessagesOptions } = await import(
-    '../api/queries'
-  );
-  const { facilityOptions } = await import('@/features/reference-data/api/queries');
   const { getSessionScope } = await import('@/lib/session-scope');
   const base = {
     ...record(),
@@ -35,14 +50,7 @@ it('reuses the grid and available-product queries when capturing a copy', async 
     availableProducts: [{ id: 'another', versionNumber: 1 }],
   } as RequisitionRecord;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const queries = requisitionGridQueries(base);
-  client.setQueryData([...queries[0].queryKey], [product()]);
-  client.setQueryData([...queries[1].queryKey], []);
-  client.setQueryData([...queries[2].queryKey], { id: base.processingPeriod.id });
-  client.setQueryData([...queries[3].queryKey], {});
-  client.setQueryData([...queries[4].queryKey], { id: base.program.id });
-  client.setQueryData([...facilityOptions(base.facility.id).queryKey], { id: base.facility.id });
-  client.setQueryData([...requisitionStatusMessagesOptions(base.id).queryKey], []);
+  seedCopyQueries(client, base, [product()]);
   client.setQueryData(
     [...orderablesByIdentitiesOptions(base.availableProducts ?? []).queryKey],
     [{ ...product(), id: 'another' }],
@@ -72,10 +80,6 @@ it('reuses the grid and available-product queries when capturing a copy', async 
 });
 
 it('waits for grid products before requesting missing available products', async () => {
-  const { requisitionGridQueries, requisitionStatusMessagesOptions } = await import(
-    '../api/queries'
-  );
-  const { facilityOptions } = await import('@/features/reference-data/api/queries');
   const { getSessionScope } = await import('@/lib/session-scope');
   const base = {
     ...record(),
@@ -95,12 +99,7 @@ it('waits for grid products before requesting missing available products', async
         resolveProducts = resolve;
       }),
   });
-  client.setQueryData([...queries[1].queryKey], []);
-  client.setQueryData([...queries[2].queryKey], { id: 'period' });
-  client.setQueryData([...queries[3].queryKey], {});
-  client.setQueryData([...queries[4].queryKey], { id: 'p' });
-  client.setQueryData([...facilityOptions('f').queryKey], { id: 'f' });
-  client.setQueryData(requisitionStatusMessagesOptions('r').queryKey, []);
+  seedCopyQueries(client, base);
   vi.mocked(fetchOrderablesByIdentities).mockClear();
   const capture = captureSingle(
     client,
@@ -118,10 +117,6 @@ it('waits for grid products before requesting missing available products', async
 });
 
 it('waits for idle and foreground requests before fetching extra products in batches', async () => {
-  const { requisitionGridQueries, requisitionStatusMessagesOptions } = await import(
-    '../api/queries'
-  );
-  const { facilityOptions } = await import('@/features/reference-data/api/queries');
   const { getSessionScope } = await import('@/lib/session-scope');
   const base = {
     ...record(),
@@ -135,17 +130,7 @@ it('waits for idle and foreground requests before fetching extra products in bat
     })),
   } as RequisitionRecord;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const queries = requisitionGridQueries(base);
-  for (const [index, value] of [
-    [0, []],
-    [1, []],
-    [2, { id: 'period' }],
-    [3, {}],
-    [4, { id: 'p' }],
-  ] as const)
-    client.setQueryData([...queries[index].queryKey], value);
-  client.setQueryData([...facilityOptions('f').queryKey], { id: 'f' });
-  client.setQueryData(requisitionStatusMessagesOptions('r').queryKey, []);
+  seedCopyQueries(client, base, []);
   let idle: (() => void) | undefined;
   const releaseIdle = () => idle?.();
   vi.stubGlobal('requestIdleCallback', (callback: () => void) => {

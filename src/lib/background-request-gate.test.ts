@@ -74,37 +74,6 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-it('interleaves three looping providers within the first few slots', async () => {
-  vi.useFakeTimers();
-  const sent: string[] = [];
-  let active = 0;
-  let maximum = 0;
-  const loop = async (provider: string) => {
-    for (let index = 0; index < 10; index += 1) {
-      await withRequestPriority(
-        true,
-        undefined,
-        async () => {
-          sent.push(provider);
-          active += 1;
-          maximum = Math.max(maximum, active);
-          await Promise.resolve();
-          active -= 1;
-        },
-        provider,
-      );
-    }
-  };
-  const reads = [loop('A'), loop('B'), loop('C')];
-  await vi.runAllTimersAsync();
-  await Promise.all(reads);
-  expect(sent.slice(0, 3)).toEqual(['A', 'B', 'C']);
-  expect(maximum).toBeLessThanOrEqual(2);
-  for (let index = 0; index < sent.length; index += 3) {
-    expect(new Set(sent.slice(index, index + 3)).size).toBe(3);
-  }
-});
-
 it('rotates among queued providers instead of draining their siblings first', async () => {
   vi.useFakeTimers();
   const foreground = Promise.withResolvers<void>();

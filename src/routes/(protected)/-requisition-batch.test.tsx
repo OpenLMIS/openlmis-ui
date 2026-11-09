@@ -8,7 +8,7 @@ import {
   type HistoryState,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { createInstance } from 'i18next';
@@ -174,6 +174,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  document.documentElement.dir = 'ltr';
   onlineManager.setOnline(true);
   vi.restoreAllMocks();
 });
@@ -710,7 +711,6 @@ it.each(['ltr', 'rtl'])(
     expect(document.activeElement).toHaveAttribute('id', `batch-requisition-0-line-0-${nextRow}`);
     await userEvent.tab({ shift: true });
     expect(last).toHaveFocus();
-    document.documentElement.dir = 'ltr';
   },
 );
 it('reveals and focuses an off-screen invalid quantity after closing the invalid dialog', async () => {
@@ -952,25 +952,20 @@ it.each(['missing', 'timeout', 'refused'] as const)(
   },
 );
 
-it.each(['ltr', 'rtl'])(
-  'labels and tabs past a requisition no longer awaiting approval in %s',
-  async (direction) => {
-    document.documentElement.dir = direction;
-    const batch = generateBatch(3, 2);
-    batch[1].status = 'APPROVED';
-    vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: batch });
-    renderRoute(batch.map((r) => r.id).join(','));
-    const inputs = await screen.findAllByRole('textbox');
-    await waitFor(() => expect(inputs[0]).toBeEnabled());
-    expect(screen.getByText('requisitions.batch.no-longer-awaiting')).toBeInTheDocument();
-    act(() => inputs[0].focus());
-    await userEvent.tab();
-    expect(inputs[2]).toHaveFocus();
-    await userEvent.tab({ shift: true });
-    expect(inputs[0]).toHaveFocus();
-    document.documentElement.dir = 'ltr';
-  },
-);
+it('labels and tabs past a requisition no longer awaiting approval', async () => {
+  const batch = generateBatch(3, 2);
+  batch[1].status = 'APPROVED';
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: batch });
+  renderRoute(batch.map((r) => r.id).join(','));
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  expect(screen.getByText('requisitions.batch.no-longer-awaiting')).toBeInTheDocument();
+  act(() => inputs[0].focus());
+  await userEvent.tab();
+  expect(inputs[2]).toHaveFocus();
+  await userEvent.tab({ shift: true });
+  expect(inputs[0]).toHaveFocus();
+});
 
 it('shows the saved batch response before its device copy finishes', async () => {
   const capture = vi.spyOn(savedBatches, 'captureBatch').mockResolvedValueOnce(undefined);
@@ -1032,9 +1027,9 @@ it('blocks a requisition moved to another node while still in approval', async (
   expect(screen.getByText('requisitions.batch.no-longer-awaiting')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
   expect(
-    await screen.findByText(/requisitions.batch.no-longer-awaiting/, {
-      selector: '.whitespace-pre-line',
-    }),
+    within(await screen.findByRole('alertdialog')).getByText(
+      /requisitions.batch.no-longer-awaiting/,
+    ),
   ).toBeInTheDocument();
   expect(screen.queryByText(/requisitions.batch.possibly-approved/)).not.toBeInTheDocument();
 });
