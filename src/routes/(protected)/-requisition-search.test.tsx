@@ -513,7 +513,9 @@ it('keeps a separate saved batch action next to View offline', async () => {
   const { queryClient } = renderRoute('/requisitions/view?facility=f');
   await screen.findByText('Saved Copy');
   await act(() => onlineManager.setOnline(false));
-  const batch = await screen.findByRole('button', { name: /^requisitions.batch.title:/ });
+  const batch = await screen.findByRole('button', {
+    name: 'requisitions.batch.action-label',
+  });
   expect(batch).toHaveAttribute('href', expect.stringContaining('/requisitions/approve/batch'));
   expect(screen.getAllByRole('button', { name: 'requisitions.view.action-name' })).toHaveLength(2);
   queryClient.clear();
