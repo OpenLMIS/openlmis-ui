@@ -56,7 +56,7 @@ const FORECAST: BuqForecast = {
 const PRODUCTS: Record<string, ProductInfo> = Object.fromEntries(
   NAMES.map((name, index) => [
     `l${index}`,
-    { code: `C${index}`, name, unit: 'each', price: 1, category: 'Vaccines' },
+    { consumption: 10, code: `C${index}`, name, unit: 'each', price: 1, category: 'Vaccines' },
   ]),
 );
 
@@ -86,6 +86,7 @@ function Harness() {
         period: 'July 2017 - June 2018',
       }}
       forecast={FORECAST}
+      header={null}
       onCloseDialog={() => setSearch((previous) => ({ ...previous, dialog: undefined }))}
       onDone={vi.fn()}
       onOpenDialog={(dialog) => setSearch((previous) => ({ ...previous, dialog }))}

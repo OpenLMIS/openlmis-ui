@@ -42,6 +42,7 @@
   "buq.forecast.forecasted": "Procura Prevista de {product}",
   "buq.forecast.forecasted-column": "Procura Prevista",
   "buq.forecast.funding": "Fontes de Financiamento",
+  "buq.forecast.funding-empty": "Sem fontes de financiamento",
   "buq.forecast.funding-projected": "Fundo Previsto de {source}",
   "buq.forecast.funding-projected-column": "Fundo Previsto",
   "buq.forecast.funding-save": "Guardar",

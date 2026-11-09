@@ -18,7 +18,7 @@ import {
 } from '@/features/buq/components/create-authorize';
 import { type BuqListSearch, buqListSearchSchema } from '@/features/buq/lib/search';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { loadBuqAccess } from '@/routes/-buq-access';
+import { loadBuqAccess, useForecastRights } from '@/routes/-buq-access';
 
 const FORECASTING_RIGHTS = [RIGHTS.createForecasting, RIGHTS.authorizeForecasting];
 
@@ -51,6 +51,7 @@ function CreateAuthorizePage() {
   const access = Route.useLoaderData();
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<BuqListSearch>({});
+  const rights = useForecastRights(access);
   return (
     <Workspace>
       <CreateAuthorizeHeader />
@@ -60,11 +61,9 @@ function CreateAuthorizePage() {
             facility={access.facility}
             onSearchChange={updateSearch}
             program={access.program}
-            rights={{
-              create: access.granted.includes(RIGHTS.createForecasting),
-              authorize: access.granted.includes(RIGHTS.authorizeForecasting),
-            }}
+            rights={rights}
             search={search}
+            skipAuthorization={access.skipAuthorization}
           />
         ) : (
           <BuqUnavailable kind={access.kind} title={t('buq.create.unavailable-title')} />

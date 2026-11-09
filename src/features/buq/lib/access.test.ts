@@ -11,6 +11,7 @@ const READY = {
   kind: 'ready',
   facility: { id: 'f1', name: 'Cuamba' },
   program: { id: 'g1', name: 'BUQ' },
+  skipAuthorization: false,
 };
 
 it.each([
