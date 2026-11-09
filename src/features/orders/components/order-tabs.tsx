@@ -32,6 +32,20 @@ export function OrderTabs({
           <TabsItem key={entry.id}>
             <TabsTrigger value={entry.id}>
               {name}
+              <span
+                aria-hidden="true"
+                className={
+                  invalid(entry.id)
+                    ? 'pointer-events-none flex size-3 shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground ring-2 ring-background'
+                    : 'pointer-events-none flex size-3 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground ring-2 ring-background'
+                }
+              >
+                {invalid(entry.id) ? (
+                  <span className="text-2xs font-bold leading-none">!</span>
+                ) : (
+                  <CheckIcon className="size-2.5" />
+                )}
+              </span>
               <span className="sr-only">
                 {t(invalid(entry.id) ? 'orders.edit.invalid' : 'orders.edit.valid')}
               </span>
@@ -42,20 +56,6 @@ export function OrderTabs({
                 </>
               )}
             </TabsTrigger>
-            <span
-              aria-hidden="true"
-              className={
-                invalid(entry.id)
-                  ? 'pointer-events-none absolute end-0.5 top-0.5 flex size-3 items-center justify-center rounded-full bg-destructive text-destructive-foreground ring-2 ring-background'
-                  : 'pointer-events-none absolute end-0.5 top-0.5 flex size-3 items-center justify-center rounded-full bg-success text-success-foreground ring-2 ring-background'
-              }
-            >
-              {invalid(entry.id) ? (
-                <span className="text-2xs font-bold leading-none">!</span>
-              ) : (
-                <CheckIcon className="size-2.5" />
-              )}
-            </span>
             {deletable(entry.id) && (
               <Tooltip>
                 <TooltipTrigger
