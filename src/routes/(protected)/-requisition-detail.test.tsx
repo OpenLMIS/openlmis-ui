@@ -2643,3 +2643,43 @@ it('submits an unchanged saved draft while its version refresh is still pending'
   expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
   queryClient.clear();
 });
+
+it.each(['submit', 'authorize', 'delete'] as const)(
+  'preserves a failed %s action without an unrequested save',
+  async (kind) => {
+    const { base, queryClient } = await openEditor(false, true, kind === 'authorize');
+    const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    const success = vi.spyOn(toast, 'success');
+    const error = httpError(500, { message: 'Action refused by server' });
+    vi.spyOn(client, 'post').mockRejectedValue(error);
+    vi.spyOn(client, 'delete').mockRejectedValue(error);
+    if (kind === 'delete') {
+      fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.delete' }));
+      fireEvent.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: 'requisitions.edit.actions.delete',
+        }),
+      );
+    } else await confirmAction(kind);
+    await screen.findByText('Action refused by server');
+    expect(put).toHaveBeenCalledTimes(kind === 'delete' ? 0 : 1);
+    expect(success).not.toHaveBeenCalled();
+    queryClient.clear();
+  },
+);
+
+it('does not turn a failed Submit save into a successful Save action', async () => {
+  const { base, queryClient } = await openEditor(false, true);
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post');
+  const success = vi.spyOn(toast, 'success');
+  await confirmAction();
+  await screen.findByText('requisitions.edit.error.conflict');
+  expect(put).toHaveBeenCalledOnce();
+  expect(post).not.toHaveBeenCalled();
+  expect(success).not.toHaveBeenCalled();
+  queryClient.clear();
+});

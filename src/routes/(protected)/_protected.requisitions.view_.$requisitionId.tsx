@@ -558,6 +558,7 @@ function RequisitionBody({
     return saved;
   };
   const needsReconcile = useRef(false);
+  const saveFailed = useRef(false);
   const attemptedSave = useRef<RequisitionRecord | undefined>(undefined);
   const acceptedDraft = useRef<string | undefined>(undefined);
   const [merge, setMerge] = useState<{
@@ -667,10 +668,16 @@ function RequisitionBody({
     }
     const sentDraft = JSON.stringify(latest.current.editor.form.state.values.draft);
     attemptedSave.current = sent;
-    const response = await saveRequisition(
-      sent,
-      latest.current.editor.draft.addedLines.map((line) => line.id),
-    );
+    let response: RequisitionRecord;
+    try {
+      response = await saveRequisition(
+        sent,
+        latest.current.editor.draft.addedLines.map((line) => line.id),
+      );
+    } catch (error) {
+      saveFailed.current = true;
+      throw error;
+    }
     assertSessionScope(scope);
     acceptedDraft.current = sentDraft;
     refreshPending.current = true;
@@ -981,6 +988,7 @@ function RequisitionBody({
     if (posting.current || finished.current) return false;
     posting.current = true;
     setBusy(true);
+    saveFailed.current = false;
     const reconciledBefore = reconciliationVersion.current;
     try {
       await mutation.mutateAsync(kind);
@@ -996,6 +1004,8 @@ function RequisitionBody({
           ? { kind: 'reconciling' as const }
           : toRequisitionFailure(error);
       if (
+        kind === 'sync' &&
+        saveFailed.current &&
         reconciliationVersion.current === reconciledBefore &&
         !refreshPending.current &&
         !uncertain.current &&
