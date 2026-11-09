@@ -73,6 +73,7 @@ import { Route as protectedProtectedAdministrationRequisitionGroupsNewRouteImpor
 import { Route as protectedProtectedAdministrationRequisitionTemplatesIdRouteImport } from './routes/(protected)/_protected.administration.requisition-templates_.$id'
 import { Route as protectedProtectedAdministrationSupervisoryNodesIdRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes_.$id'
 import { Route as protectedProtectedAdministrationSupplyPartnersIdRouteImport } from './routes/(protected)/_protected.administration.supply-partners_.$id'
+import { Route as protectedProtectedBuqCreateIdRouteImport } from './routes/(protected)/_protected.buq.create_.$id'
 import { Route as protectedProtectedRequisitionsApproveBatchRouteImport } from './routes/(protected)/_protected.requisitions.approve_.batch'
 import { Route as protectedProtectedRequisitionsCreateOrdersOrderIdsRouteImport } from './routes/(protected)/_protected.requisitions.create-orders_.$orderIds'
 import { Route as protectedProtectedRequisitionsViewRequisitionIdRouteImport } from './routes/(protected)/_protected.requisitions.view_.$requisitionId'
@@ -471,6 +472,12 @@ const protectedProtectedAdministrationSupplyPartnersIdRoute =
     path: '/administration/supply-partners/$id',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedBuqCreateIdRoute =
+  protectedProtectedBuqCreateIdRouteImport.update({
+    id: '/buq/create_/$id',
+    path: '/buq/create/$id',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedRequisitionsApproveBatchRoute =
   protectedProtectedRequisitionsApproveBatchRouteImport.update({
     id: '/requisitions/approve_/batch',
@@ -648,6 +655,7 @@ export interface FileRoutesByFullPath {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/buq/create/$id': typeof protectedProtectedBuqCreateIdRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/requisitions/create-orders/$orderIds': typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
@@ -728,6 +736,7 @@ export interface FileRoutesByTo {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/buq/create/$id': typeof protectedProtectedBuqCreateIdRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/requisitions/create-orders/$orderIds': typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
@@ -813,6 +822,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/requisition-templates_/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/(protected)/_protected/administration/supervisory-nodes_/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/(protected)/_protected/administration/supply-partners_/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/(protected)/_protected/buq/create_/$id': typeof protectedProtectedBuqCreateIdRoute
   '/(protected)/_protected/requisitions/approve_/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/(protected)/_protected/requisitions/create-orders_/$orderIds': typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   '/(protected)/_protected/requisitions/view_/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
@@ -898,6 +908,7 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/buq/create/$id'
     | '/requisitions/approve/batch'
     | '/requisitions/create-orders/$orderIds'
     | '/requisitions/view/$requisitionId'
@@ -978,6 +989,7 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/buq/create/$id'
     | '/requisitions/approve/batch'
     | '/requisitions/create-orders/$orderIds'
     | '/requisitions/view/$requisitionId'
@@ -1062,6 +1074,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/requisition-templates_/$id'
     | '/(protected)/_protected/administration/supervisory-nodes_/$id'
     | '/(protected)/_protected/administration/supply-partners_/$id'
+    | '/(protected)/_protected/buq/create_/$id'
     | '/(protected)/_protected/requisitions/approve_/batch'
     | '/(protected)/_protected/requisitions/create-orders_/$orderIds'
     | '/(protected)/_protected/requisitions/view_/$requisitionId'
@@ -1540,6 +1553,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/buq/create_/$id': {
+      id: '/(protected)/_protected/buq/create_/$id'
+      path: '/buq/create/$id'
+      fullPath: '/buq/create/$id'
+      preLoaderRoute: typeof protectedProtectedBuqCreateIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/requisitions/approve_/batch': {
       id: '/(protected)/_protected/requisitions/approve_/batch'
       path: '/requisitions/approve/batch'
@@ -1788,6 +1808,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationRequisitionTemplatesIdRoute: typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   protectedProtectedAdministrationSupervisoryNodesIdRoute: typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   protectedProtectedAdministrationSupplyPartnersIdRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  protectedProtectedBuqCreateIdRoute: typeof protectedProtectedBuqCreateIdRoute
   protectedProtectedRequisitionsApproveBatchRoute: typeof protectedProtectedRequisitionsApproveBatchRoute
   protectedProtectedRequisitionsCreateOrdersOrderIdsRoute: typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   protectedProtectedRequisitionsViewRequisitionIdRoute: typeof protectedProtectedRequisitionsViewRequisitionIdRoute
@@ -1903,6 +1924,7 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationSupervisoryNodesIdRoute,
   protectedProtectedAdministrationSupplyPartnersIdRoute:
     protectedProtectedAdministrationSupplyPartnersIdRoute,
+  protectedProtectedBuqCreateIdRoute: protectedProtectedBuqCreateIdRoute,
   protectedProtectedRequisitionsApproveBatchRoute:
     protectedProtectedRequisitionsApproveBatchRoute,
   protectedProtectedRequisitionsCreateOrdersOrderIdsRoute:

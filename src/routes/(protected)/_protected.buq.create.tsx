@@ -60,6 +60,10 @@ function CreateAuthorizePage() {
             facility={access.facility}
             onSearchChange={updateSearch}
             program={access.program}
+            rights={{
+              create: access.granted.includes(RIGHTS.createForecasting),
+              authorize: access.granted.includes(RIGHTS.authorizeForecasting),
+            }}
             search={search}
           />
         ) : (

@@ -1,8 +1,12 @@
 import type { AxiosRequestConfig } from 'axios';
+import type { forecastBody } from '@/features/buq/lib/forecast';
 import type {
   Buq,
+  BuqForecast,
   BuqPeriod,
   BuqPreparation,
+  BuqRejection,
+  NamedItem,
   PreparedBuq,
   TakenPeriod,
 } from '@/features/buq/lib/types';
@@ -69,4 +73,48 @@ export async function deleteBuq(id: string) {
   if (!OPEN_STATUSES.includes(data.status)) throw new BuqMovedError();
   assertSessionScope(scope);
   await client.delete(`/bottomUpQuantifications/${id}`);
+}
+
+export type ForecastBody = ReturnType<typeof forecastBody>;
+
+export async function fetchBuqForecast(id: string) {
+  const { data } = await client.get<BuqForecast>(`/bottomUpQuantifications/${id}`);
+  return data;
+}
+
+export async function saveBuqForecast(body: ForecastBody) {
+  const { data } = await client.put<BuqForecast>(`/bottomUpQuantifications/${body.id}`, body);
+  return data;
+}
+
+export async function submitBuqForecast(body: ForecastBody) {
+  const { data } = await client.post<BuqForecast>(
+    `/bottomUpQuantifications/${body.id}/submit`,
+    body,
+  );
+  return data;
+}
+
+export async function authorizeBuqForecast(body: ForecastBody) {
+  const { data } = await client.post<BuqForecast>(
+    `/bottomUpQuantifications/${body.id}/authorize`,
+    body,
+  );
+  return data;
+}
+
+export async function fetchRemarks() {
+  const { data } = await client.get<NamedItem[]>('/remark');
+  return data;
+}
+
+export function fetchSourcesOfFunds() {
+  return fetchEveryPage<NamedItem>('/sourcesOfFunds', {});
+}
+
+export async function fetchMostRecentRejection(id: string) {
+  const { data } = await client.get<BuqRejection>(
+    `/bottomUpQuantifications/${id}/mostRecentRejection`,
+  );
+  return data;
 }

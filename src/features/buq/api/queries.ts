@@ -1,5 +1,13 @@
 import { queryOptions } from '@tanstack/react-query';
-import { fetchBuqPeriods, fetchOpenBuqs, fetchTakenPeriods } from '@/features/buq/api/api';
+import {
+  fetchBuqForecast,
+  fetchBuqPeriods,
+  fetchMostRecentRejection,
+  fetchOpenBuqs,
+  fetchRemarks,
+  fetchSourcesOfFunds,
+  fetchTakenPeriods,
+} from '@/features/buq/api/api';
 import { BUQ_CODE } from '@/features/buq/lib/access';
 import type { BuqPeriod } from '@/features/buq/lib/types';
 import {
@@ -31,4 +39,22 @@ export const buqPeriodsOptions = () =>
       return schedule ? fetchBuqPeriods(schedule.id) : NO_PERIODS;
     },
     staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const buqForecastOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.buq.detail(id),
+    queryFn: () => fetchBuqForecast(id),
+  });
+
+export const buqRemarksOptions = () =>
+  queryOptions({ queryKey: [...queryKeys.buq.all, 'remarks'], queryFn: fetchRemarks });
+
+export const buqSourcesOfFundsOptions = () =>
+  queryOptions({ queryKey: [...queryKeys.buq.all, 'sources'], queryFn: fetchSourcesOfFunds });
+
+export const buqRejectionOptions = (id: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.buq.detail(id), 'rejection'],
+    queryFn: () => fetchMostRecentRejection(id),
   });

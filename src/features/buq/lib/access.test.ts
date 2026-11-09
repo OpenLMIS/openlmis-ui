@@ -14,19 +14,30 @@ const READY = {
 };
 
 it.each([
-  ['PREPARE_BUQ', PREPARE, 'PREPARE_BUQ|f1|g1'],
-  ['CREATE_FORECASTING alone', FORECASTING, 'CREATE_FORECASTING|f1|g1'],
-  ['AUTHORIZE_FORECASTING alone', FORECASTING, 'AUTHORIZE_FORECASTING|f1|g1'],
-])('opens with %s granted for BUQ at the home facility', (_, rights, grant) => {
+  ['PREPARE_BUQ', PREPARE, ['PREPARE_BUQ|f1|g1'], ['PREPARE_BUQ']],
+  ['CREATE_FORECASTING alone', FORECASTING, ['CREATE_FORECASTING|f1|g1'], ['CREATE_FORECASTING']],
+  [
+    'AUTHORIZE_FORECASTING alone',
+    FORECASTING,
+    ['AUTHORIZE_FORECASTING|f1|g1', 'CREATE_FORECASTING|f2|g1'],
+    ['AUTHORIZE_FORECASTING'],
+  ],
+  [
+    'both forecasting rights',
+    FORECASTING,
+    ['CREATE_FORECASTING|f1|g1', 'AUTHORIZE_FORECASTING|f1|g1'],
+    FORECASTING,
+  ],
+])('opens with %s granted for BUQ at the home facility', (_, rights, grants, granted) => {
   expect(
     buqAccess({
       home: HOME,
       programs: [BUQ],
-      permissions: parsePermissions([grant]),
+      permissions: parsePermissions(grants),
       rights,
       support: { activeOn: TODAY },
     }),
-  ).toEqual(READY);
+  ).toEqual({ ...READY, granted });
 });
 
 const SUPPORTLESS_HOME = { ...HOME, supportedPrograms: [] };
@@ -72,7 +83,7 @@ it('picks the BUQ program among the user programs', () => {
       rights: PREPARE,
       support: { activeOn: TODAY },
     }),
-  ).toEqual(READY);
+  ).toEqual({ ...READY, granted: PREPARE });
 });
 
 it('refuses a home grant held for another program or another right', () => {
@@ -123,5 +134,5 @@ it.each(NOT_YET_SUPPORTED)('still lists forecasts when support is %s', (_, suppo
       rights: FORECASTING,
       support: 'listed',
     }),
-  ).toEqual(READY);
+  ).toEqual({ ...READY, granted: ['CREATE_FORECASTING'] });
 });
