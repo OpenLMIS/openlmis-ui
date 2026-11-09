@@ -32,7 +32,7 @@ export const Route = createFileRoute('/(protected)/_protected')({
       throw new OfflinePageUnavailableError();
     const userId = useLoginData.getState().referenceDataUserId;
     if (userId && isOnline())
-      void preloadRequisitionReferences(queryClient, userId).catch(() => {});
+      void preloadRequisitionReferences(context.queryClient, userId).catch(() => {});
     return { sessionScope: getSessionScope() };
   },
   component: ProtectedLayout,
@@ -51,10 +51,6 @@ export const Route = createFileRoute('/(protected)/_protected')({
 function ProtectedLayout() {
   const online = useOnline();
   const userId = useLoginData((state) => state.referenceDataUserId);
-  useEffect(() => {
-    if (!userId || !online) return;
-    void preloadRequisitionReferences(queryClient, userId).catch(() => {});
-  }, [userId, online]);
   const { pathname } = useLocation();
   const available = online || canRetainPageOffline(pathname);
   const scope = useSessionScope();
@@ -67,14 +63,17 @@ function ProtectedLayout() {
     let stop: (() => void) | undefined;
     void hasRequisitionReferences(queryClient, userId)
       .then((allowed) => {
-        if (active && allowed) stop = warmRequisitionChunks(router);
+        if (active && allowed && scope === getSessionScope()) {
+          stop = warmRequisitionChunks(router);
+          void preloadRequisitionReferences(queryClient, userId).catch(() => {});
+        }
       })
       .catch(() => {});
     return () => {
       active = false;
       stop?.();
     };
-  }, [router, userId, online]);
+  }, [router, userId, online, scope]);
   const contentRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);

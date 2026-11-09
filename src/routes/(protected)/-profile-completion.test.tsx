@@ -10,6 +10,7 @@ import {
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchDigestConfigurations,
@@ -22,9 +23,15 @@ import { profileOptions, subscriptionsOptions } from '@/features/profile/api/que
 import { BasicInformation } from '@/features/profile/components/basic-information';
 import { NotificationSettings } from '@/features/profile/components/notification-settings';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
+import { fetchUserRecord } from '@/features/reference-data/api/api';
 import { queryClient } from '@/integrations/tanstack-query';
 import { Route } from '@/routes/(protected)/_protected';
 
+vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
+vi.mock('@/features/reference-data/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/reference-data/api/api')>()),
+  fetchUserRecord: vi.fn(),
+}));
 vi.mock('@/features/profile/api/api', () => ({
   saveProfile: vi.fn(),
   fetchProfile: vi.fn(),
@@ -98,6 +105,8 @@ beforeEach(() => {
     queries: { staleTime: Infinity, retry: false },
     mutations: { retry: 0 },
   });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
+  vi.mocked(fetchUserRecord).mockImplementation(async (id) => ({ ...profile.user, id }));
   vi.mocked(saveProfile).mockResolvedValue();
   vi.mocked(saveSubscriptions).mockResolvedValue();
   vi.mocked(fetchProfile).mockReturnValue(new Promise(() => {}));
