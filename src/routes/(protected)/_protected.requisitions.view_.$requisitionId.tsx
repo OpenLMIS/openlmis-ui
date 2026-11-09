@@ -757,8 +757,12 @@ function RequisitionBody({
           const fresh = await fetchRequisition(record.id);
           assertSessionScope(scope);
           const baseline = latest.current.record;
-          if (fresh.modifiedDate !== baseline.modifiedDate || fresh.status !== baseline.status)
-            throw new RequisitionRetryConflict();
+          if (fresh.modifiedDate !== baseline.modifiedDate || fresh.status !== baseline.status) {
+            if (kind !== 'sync') throw new RequisitionRetryConflict();
+            const clean = await reconcile(fresh);
+            assertSessionScope(scope);
+            if (!clean) throw new RequisitionRetryConflict();
+          }
         }
         requireOnline();
         if (epoch !== uploadAccessEpoch()) throw new RequisitionRetryConflict();

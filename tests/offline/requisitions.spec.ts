@@ -251,8 +251,8 @@ test('reconnect rechecks the server version and rights before sending saved loca
     await context.setOffline(false);
     await page.getByRole('button', { name: 'Save/Sync With Server', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Resolve Changed Fields' })).toBeVisible();
-    await expect(page.getByRole('radio', { name: 'Yours: 5', exact: true })).toBeVisible();
-    await expect(page.getByRole('radio', { name: 'Server: 3', exact: true })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Your Values: 5', exact: true })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Server Values: 3', exact: true })).toBeVisible();
     expect(sequence).toContain('GET /api/users/download-user/permissionStrings');
     expect(sequence).toContain(`GET /api/v2/requisitions/${requisition}`);
     expect(mutations).toEqual([]);
