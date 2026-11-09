@@ -1219,53 +1219,6 @@ Chromium offline suite are recorded in the group C report under
 `/home/user/.t3/fm39-opus/review-online/r10/C/report.md`.
 
 
-### Round 10 A: T1 and T12 lifecycle requests
-
-- Backend master `ff94e2fc` checks timestamps and If-Match only when saving requisitions. Submit, Authorize, Approve, Reject and Skip check status, rights and idempotency without an ETag precondition.
-- After lifecycle saves, send the transition immediately and refresh only on failure for recovery. Later PUTs still wait for a fresh GET; never adopt the PUT response ETag.
-- Keep post-action copy capture in the background and invalidate cached requisition lists without refetching active editor queries. Prune rejected records from the approval cache too.
-- Regression coverage holds refresh reads pending, checks lifecycle headers and navigation, and retains failed-approval retry and subsequent-save version checks.
-
-
-### Round 10 A: T2 batch action membership
-
-- Run the approval membership preflight in parallel with saveAll. Wait for its result before approveAll, exclude departed records and retain failed-verification recovery.
-- The held-membership regression proves saveAll starts immediately and approveAll receives only the records still awaiting approval.
-
-
-### Round 10 A: T3 batch opening
-
-- Start batch retrieval concurrently with device copy lease acquisition. Membership and copy capture already run outside the loader's critical path.
-- Remove the batch route's default 500 ms minimum pending-screen duration, which can extend navigation after its data is ready.
-- A held-copy-lease regression checks retrieval starts before local storage finishes.
-
-
-### Round 10 A: T11 product tab switch
-
-- Full Supply and Non Full Supply reuse one product-grid panel. Switching product tabs updates its model and columns without remounting the table, toolbar and width observers.
-- Patients retains a separate panel. The editor regression suite verifies edits survive tabs and paging.
-
-
-### Round 10 A: T1/T12 immediate actions and lost responses
-
-- Reuse an unchanged accepted save when its version refresh is pending. Lifecycle actions send no second PUT or stale If-Match, while edits made since that save still wait for a fresh version before another PUT.
-- Ignore late save-refresh persistence after a lifecycle action has completed.
-- If a failed transition's recovery GET proves approval advanced, complete navigation without approving the next level.
-- Focused recovery, version sequencing and immediate-action regressions pass.
-
-
-### Round 10 A: T11 retained-grid width recovery
-
-- Production tab timing exposed old measured widths surviving a change in visible columns. Return one temporary minimum width per current column until the layout effect remeasures, preventing the retained grid from indexing removed columns.
-- A regression checks every render during a column-count change; it failed before the fix.
-- The shared-worktree commit `728982bf` also contains the product-panel reuse change staged by Group A.
-
-
-### Round 10 A: T2/T3 parallel-read failures
-
-- Attach rejection handlers immediately to parallel lease and membership reads, preserving their error handling when saves or server reads take longer.
-- Invalidate the old membership revision when the action starts so a late opening read cannot replace the action's verification.
-
 ### Round 10 B: Create Orders, Print and navigation
 
 - Include users with Order Create alone in sign-in reference and route-chunk warming. Keep the existing permission gates and idle chunk loading without running route loaders.
@@ -1276,28 +1229,16 @@ Chromium offline suite are recorded in the group C report under
 - Detailed paired measurements, validation and commits are recorded in `/home/user/.t3/fm39-opus/review-online/r10/B/report.md`.
 
 
-### Round 10 A: T12 save preparation
 
-- Build patient-validation models only when the template needs them. Other saves no longer allocate a full line-model map that is immediately discarded.
-- Invalidate batch query keys without awaiting the already non-refetching invalidation, keeping the save completion path synchronous until its background version read starts.
-- All 103 requisition detail tests pass, including patient validation, stale versions and lifecycle recovery.
+### Round 10 Group A: requisition actions and approval
 
-
-### Round 10 A: T1/T12 copy reads yield to writes
-
-- Large-editor waterfalls found extra available-product reads continuing during lifecycle writes. These reads belong to single-copy capture and do not feed the visible grid.
-- Each extra-product batch now uses the shared background-priority gate, including a session check after waiting, so foreground requests and navigation take precedence.
-- The existing copy batching regression now holds a foreground request open and verifies extra product requests remain queued. It failed before this change and passes afterward.
-
-
-### Round 10 A: T1/T12 stable copy product batches
-
-- Sort missing available-product identities before chunking them. Equivalent server lists now share query keys even if their order changes between records.
-- The copy regression captures the same 250 identities in reverse order and verifies it still performs only the original three requests. It failed with six requests before this change.
-
-
-### Round 10 A: T2 fold verification into timestamp-protected save results
-
-- The first paired run showed the parallel membership GET still added about 1.5 seconds after saveAll. Backend master BatchRequisitionController.update validates canSave, current-node approval rights and modifiedDate before returning each successful saved record.
-- For timestamp-protected records, use those save results directly and approve only records still AUTHORIZED or IN_APPROVAL. Returned records in any other state retain No Longer Awaiting Approval and are excluded. Save failures remain excluded as before.
-- Records without modifiedDate retain the parallel membership fallback. Regression coverage verifies both response-based exclusion and the pending fallback.
+- Backend master confirms lifecycle requests do not use If-Match. Send them immediately after accepted saves; read on failure for recovery. Keep fresh GET versions for later PUTs, and complete already-advanced actions without repeating them.
+- Reuse an unchanged just-saved draft while its version read is pending. Late reads cannot recreate drafts after an accepted lifecycle action.
+- Use timestamp-protected saveAll results for current approval eligibility. Exclude failed saves and records no longer awaiting approval. Records missing modifiedDate retain parallel membership verification.
+- Start batch retrieval while copy leases are acquired, and remove the batch route's minimum pending duration. Keep copy capture and membership off the rendering dependency chain.
+- Reuse the product grid between supply tabs and keep measured widths aligned with current columns. Preserve patient tabs and editor state.
+- Build patient save models only when needed. Extra copy-product reads yield to foreground requests, recheck session scope after waiting and use stable identity batches.
+- The approval list already renders cached results while refreshing. Settled cached navigation measured 90 / 2,832 ms, new / legacy.
+- Final paired medians: Approve 9,778 / 12,045 ms; Reject 6,612 / 8,775; Approve All 4,790 / 4,494; batch open 838 / 810; Non Full Supply tab 112 / 118; small Save 586 / 522; large Save 10,464 / 9,162. Strict timing parity remains incomplete, including a 64 ms small-Save residual, mostly outside its PUT. The report separates request time from other work and records the earlier large Submit/Authorize measurements.
+- All 163 touched tests, typecheck, design-system lint, Biome and production build pass. Arabic supply-tab smoke checks pass at desktop and phone widths.
+- Full per-item status, timings, limitations, commits and evidence: `/home/user/.t3/fm39-opus/review-online/r10/A/report.md`.
