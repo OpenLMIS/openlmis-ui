@@ -675,6 +675,7 @@ function RequisitionBody({
       );
     } catch (error) {
       saveFailed.current = true;
+      if (toRequisitionFailure(error).kind === 'conflict') needsReconcile.current = true;
       throw error;
     }
     assertSessionScope(scope);
@@ -758,7 +759,10 @@ function RequisitionBody({
           assertSessionScope(scope);
           const baseline = latest.current.record;
           if (fresh.modifiedDate !== baseline.modifiedDate || fresh.status !== baseline.status) {
-            if (kind !== 'sync') throw new RequisitionRetryConflict();
+            if (kind !== 'sync' && !needsReconcile.current) {
+              needsReconcile.current = true;
+              throw new RequisitionRetryConflict();
+            }
             const clean = await reconcile(fresh);
             assertSessionScope(scope);
             if (!clean) throw new RequisitionRetryConflict();

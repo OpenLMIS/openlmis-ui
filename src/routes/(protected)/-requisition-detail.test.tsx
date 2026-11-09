@@ -2683,3 +2683,48 @@ it('does not turn a failed Submit save into a successful Save action', async () 
   expect(success).not.toHaveBeenCalled();
   queryClient.clear();
 });
+
+it.each(['submit', 'authorize', 'approve'] as const)(
+  'reconciles a failed %s save only when the user retries',
+  async (kind) => {
+    const { base, queryClient } =
+      kind === 'approve'
+        ? await openApprover()
+        : await openEditor(false, true, kind === 'authorize');
+    const fresh = { ...base, modifiedDate: 'fresh', eTag: '"fresh"' };
+    const put = vi
+      .spyOn(client, 'put')
+      .mockRejectedValueOnce(httpError(409))
+      .mockResolvedValue({ data: fresh, headers: {} });
+    const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+    if (kind === 'approve') await confirmApproval();
+    else await confirmAction(kind);
+    await screen.findByText('requisitions.edit.error.conflict');
+    expect(put).toHaveBeenCalledOnce();
+    expect(post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+    vi.mocked(fetchRequisition).mockResolvedValue(fresh);
+    if (kind === 'approve') await confirmApproval();
+    else await confirmAction(kind);
+    await screen.findByText(kind === 'approve' ? 'Approval List' : 'Opening List');
+    expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+    queryClient.clear();
+  },
+);
+
+it('reconciles a newer access-check version when Submit is retried', async () => {
+  const { base, queryClient } = await openEditor(false, true);
+  act(() => useLoginData.setState({ accessToken: 'renewed' }));
+  const fresh = { ...base, modifiedDate: 'fresh', eTag: '"fresh"' };
+  vi.mocked(fetchRequisition).mockResolvedValue(fresh);
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: fresh, headers: {} });
+  vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  await confirmAction();
+  await screen.findByText('requisitions.edit.error.conflict');
+  expect(put).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await confirmAction();
+  await screen.findByText('Opening List');
+  expect(put.mock.calls[0][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  queryClient.clear();
+});
