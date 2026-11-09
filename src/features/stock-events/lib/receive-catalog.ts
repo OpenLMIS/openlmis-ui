@@ -60,6 +60,7 @@ export async function fetchReceiveCatalog(
     backgroundRead: true,
     backgroundDownload: true,
     downloadProvider: 'receive-catalog',
+    downloadTimeout: 60_000,
     signal,
     sessionScope: getSessionScope(),
   };

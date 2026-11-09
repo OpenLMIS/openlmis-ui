@@ -18,6 +18,7 @@ declare module 'axios' {
     backgroundRead?: boolean;
     backgroundDownload?: boolean;
     downloadProvider?: string;
+    downloadTimeout?: number;
     connectionGeneration?: number;
     connectionStatus?: boolean;
     queueTransport?: QueueTransport;
@@ -57,11 +58,7 @@ const prepareTransport = (config: InternalAxiosRequestConfig) => {
         if (!request.anonymous) assertSessionScope(request.sessionScope ?? getSessionScope());
         if (request.backgroundDownload) {
           if (useLoginData.getState().expired) throw new Error('The download session expired.');
-          const limit =
-            request.downloadProvider === 'home-stock' ||
-            request.downloadProvider === 'receive-catalog'
-              ? 60_000
-              : 20_000;
+          const limit = request.downloadTimeout ?? 20_000;
           request.timeout = Math.min(request.timeout || limit, limit);
         }
         return adapter(request);

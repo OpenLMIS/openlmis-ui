@@ -241,6 +241,7 @@ export function fetchHomeStockBundle(filter: HomeStockScope, signal?: AbortSigna
       backgroundRead: true,
       backgroundDownload: true,
       downloadProvider: 'home-stock',
+      downloadTimeout: 60_000,
       signal,
       sessionScope: getSessionScope(),
     },
