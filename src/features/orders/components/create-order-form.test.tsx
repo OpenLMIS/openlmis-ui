@@ -59,7 +59,8 @@ async function add(user: ReturnType<typeof userEvent.setup>, name: string) {
   if (input.getAttribute('aria-expanded') !== 'true') await user.click(input);
   await user.click(await screen.findByRole('option', { name }));
   expect(screen.queryByRole('button', { name: 'orders.add' })).not.toBeInTheDocument();
-  expect(screen.getByRole('combobox', { name: 'orders.create.requesting-facility' })).toHaveFocus();
+  await waitFor(() => expect(input).toHaveAttribute('aria-expanded', 'false'));
+  expect(input).toHaveFocus();
 }
 describe('create order workflow', () => {
   it('creates one legacy body per facility and opens successful ids after a partial failure', async () => {
@@ -117,24 +118,29 @@ it('keeps picked facilities as chips and ticked options, toggles and removes the
   const create = screen.getByRole('button', { name: 'orders.create.create' });
   expect(create).toBeDisabled();
   await add(user, 'Alpha');
-  expect(screen.getByRole('option', { name: 'Alpha' })).toHaveAttribute('aria-selected', 'true');
-  await user.keyboard('{Escape}');
   const supplier = screen.getByRole('combobox', { name: 'orders.create.supplying-facility' });
   await user.click(supplier);
   await user.click(await screen.findByRole('option', { name: 'Supplier' }));
   expect(create).toBeEnabled();
-  await add(user, 'Beta');
+  const facility = screen.getByRole('combobox', { name: 'orders.create.requesting-facility' });
+  await user.click(facility);
+  await user.keyboard('Bet{ArrowDown}{Enter}');
+  await waitFor(() => expect(facility).toHaveAttribute('aria-expanded', 'false'));
+  expect(facility).toHaveFocus();
+  expect(facility).toHaveValue('');
+  await user.click(facility);
   for (const name of ['Alpha', 'Beta']) {
-    expect(screen.getByRole('option', { name })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('option', { name })).toHaveAttribute('aria-selected', 'true');
     expect(
       screen.getByText(name, { selector: '[data-slot=combobox-chip] span[dir]' }),
     ).toBeVisible();
   }
   expect(create).toBeDisabled();
   await user.click(screen.getByRole('option', { name: 'Beta' }));
-  expect(screen.getByRole('option', { name: 'Beta' })).toHaveAttribute('aria-selected', 'false');
-  await user.click(screen.getByRole('option', { name: 'Beta' }));
-  await user.keyboard('{Escape}');
+  expect(
+    screen.queryByText('Beta', { selector: '[data-slot=combobox-chip] span[dir]' }),
+  ).not.toBeInTheDocument();
+  await add(user, 'Beta');
   await user.click(supplier);
   await user.click(await screen.findByRole('option', { name: 'Supplier' }));
   expect(create).toBeEnabled();
@@ -204,7 +210,7 @@ it('offers every requesting facility through virtualization and can search its c
   expect(
     screen.getByText('Clinic 1005', { selector: '[data-slot=combobox-chip] span[dir]' }),
   ).toBeVisible();
-  expect(screen.getByRole('listbox')).toBeVisible();
+  await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
   await user.type(input, 'C1005');
   expect(await screen.findByRole('option', { name: 'Clinic 1005' })).toHaveAttribute(
     'aria-selected',
