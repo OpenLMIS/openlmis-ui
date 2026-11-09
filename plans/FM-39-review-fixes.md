@@ -1288,3 +1288,9 @@ Chromium offline suite are recorded in the group C report under
 - Large-editor waterfalls found extra available-product reads continuing during lifecycle writes. These reads belong to single-copy capture and do not feed the visible grid.
 - Each extra-product batch now uses the shared background-priority gate, including a session check after waiting, so foreground requests and navigation take precedence.
 - The existing copy batching regression now holds a foreground request open and verifies extra product requests remain queued. It failed before this change and passes afterward.
+
+
+### Round 10 A: T1/T12 stable copy product batches
+
+- Sort missing available-product identities before chunking them. Equivalent server lists now share query keys even if their order changes between records.
+- The copy regression captures the same 250 identities in reverse order and verifies it still performs only the original three requests. It failed with six requests before this change.

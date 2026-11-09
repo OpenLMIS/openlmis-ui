@@ -147,6 +147,7 @@ it('waits for idle and foreground requests before fetching extra products in bat
   client.setQueryData([...facilityOptions('f').queryKey], { id: 'f' });
   client.setQueryData(requisitionStatusMessagesOptions('r').queryKey, []);
   let idle: (() => void) | undefined;
+  const releaseIdle = () => idle?.();
   vi.stubGlobal('requestIdleCallback', (callback: () => void) => {
     idle = callback;
     return 1;
@@ -168,12 +169,22 @@ it('waits for idle and foreground requests before fetching extra products in bat
     const { waitFor } = await import('@testing-library/react');
     await waitFor(() => expect(idle).toBeDefined());
     expect(fetchOrderablesByIdentities).not.toHaveBeenCalled();
-    idle?.();
+    releaseIdle();
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     expect(fetchOrderablesByIdentities).not.toHaveBeenCalled();
     pending.resolve();
     await foreground;
     await capture;
+    idle = undefined;
+    const reordered = captureSingle(
+      client,
+      { id: 'r', userId: 'u', generation: 0, session: getSessionScope() },
+      { ...base, availableProducts: base.availableProducts?.toReversed() },
+      'read',
+    );
+    await waitFor(() => expect(idle).toBeDefined());
+    releaseIdle();
+    await reordered;
     expect(vi.mocked(fetchOrderablesByIdentities).mock.calls.map(([ids]) => ids.length)).toEqual([
       100, 100, 50,
     ]);

@@ -49,9 +49,9 @@ export async function captureSingle(
   const known = new Set(
     lineProducts.map((product) => `${product.id}:${product.meta?.versionNumber}`),
   );
-  const missing = (record.availableProducts ?? []).filter(
-    (identity) => !known.has(`${identity.id}:${identity.versionNumber}`),
-  );
+  const missing = (record.availableProducts ?? [])
+    .filter((identity) => !known.has(`${identity.id}:${identity.versionNumber}`))
+    .toSorted((a, b) => a.id.localeCompare(b.id) || a.versionNumber - b.versionNumber);
   const availableProducts: typeof lineProducts = [];
   if (missing.length) {
     await new Promise<void>((resolve) => {
