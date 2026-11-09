@@ -162,12 +162,13 @@ export function OrderEditor({
           queryClient.setQueryData(orderOptions(outcome.id).queryKey, response);
         }
       }
-      setProblems((previous) => ({
-        ...previous,
-        ...Object.fromEntries(
-          failed.flatMap((item) => (item.problem ? [[item.id, item.problem]] : [])),
-        ),
-      }));
+      if (failed.some((item) => item.problem))
+        setProblems((previous) => ({
+          ...previous,
+          ...Object.fromEntries(
+            failed.flatMap((item) => (item.problem ? [[item.id, item.problem]] : [])),
+          ),
+        }));
       if (failed.length) {
         const facilities = failed
           .map((item) => records[item.id]?.requestingFacility.name ?? item.id)
@@ -193,7 +194,7 @@ export function OrderEditor({
           description: t(`orders.edit.${key}-description`),
         });
       }
-      setSummary(null);
+      if (action.kind !== 'send' || success.length !== entries.length) setSummary(null);
       setDeleting(null);
       if (action.kind !== 'save' && success.length) {
         removed.current = true;

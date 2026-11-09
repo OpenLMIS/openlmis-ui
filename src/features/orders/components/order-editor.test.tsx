@@ -200,6 +200,21 @@ describe('order editor workflow', () => {
       'orders.edit.unsaved',
     );
   });
+  it('keeps the confirmed summary intact until navigation replaces a completed batch', async () => {
+    const navigation = Promise.withResolvers<void>();
+    const { user, onBatchChange } = setup([creatingOrder('a')]);
+    onBatchChange.mockImplementation(() => navigation.promise);
+    vi.mocked(sendOrder).mockResolvedValue(undefined);
+    await user.click(screen.getByRole('button', { name: 'orders.edit.create' }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'orders.edit.summary-confirm' }));
+    await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith([]));
+    expect(within(dialog).getByText('Medicine')).toBeVisible();
+    expect(
+      within(dialog).getByRole('button', { name: 'orders.edit.summary-confirm' }),
+    ).toBeDisabled();
+    await act(async () => navigation.resolve());
+  });
   it('confirms Delete Batch, deletes every id and leaves the batch', async () => {
     vi.mocked(deleteOrders).mockResolvedValue(undefined);
     const { user, onBatchChange } = setup();
