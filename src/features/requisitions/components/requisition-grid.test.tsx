@@ -680,3 +680,26 @@ it('keeps column widths stable across quantity keystrokes', async () => {
   await userEvent.type(input, '123456789');
   expect(widths()).toEqual(before);
 });
+
+it('measures product display units when sizing the UoI column', () => {
+  const measureText = vi.fn((text: string) => ({ width: text.length * 8 }));
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    font: '',
+    measureText,
+  } as never);
+  render(
+    <Harness
+      value={{
+        ...requisition,
+        template: {
+          columnsMap: {
+            'orderable.dispensable.displayUnit': column('orderable.dispensable.displayUnit', 0, {
+              label: 'UoI',
+            }),
+          },
+        },
+      }}
+    />,
+  );
+  expect(measureText).toHaveBeenCalledWith('Tablet');
+});

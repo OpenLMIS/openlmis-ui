@@ -467,14 +467,16 @@ export function RequisitionGridView({
               ? (model.product?.fullProductName ?? '')
               : column.name === 'orderable.productCode'
                 ? (model.product?.productCode ?? '')
-                : column.kind === 'currency'
-                  ? (formatCurrency(
-                      model.line[column.name as keyof RequisitionLineItem] as number,
-                      currency,
-                    ) ?? '')
-                  : column.kind === 'quantity' || column.kind === 'count'
-                    ? '0000000000'
-                    : (model.line[column.name as keyof RequisitionLineItem] ?? ''),
+                : column.kind === 'unit'
+                  ? (model.product?.dispensable?.displayUnit ?? '')
+                  : column.kind === 'currency'
+                    ? (formatCurrency(
+                        model.line[column.name as keyof RequisitionLineItem] as number,
+                        currency,
+                      ) ?? '')
+                    : column.kind === 'quantity' || column.kind === 'count'
+                      ? '0000000000'
+                      : (model.line[column.name as keyof RequisitionLineItem] ?? ''),
           ),
         ),
       })),
