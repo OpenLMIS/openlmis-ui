@@ -1274,3 +1274,10 @@ Chromium offline suite are recorded in the group C report under
 - Keep a fully sent batch's confirmed summary intact until navigation replaces its editor. Avoid clearing and rebuilding the summary during navigation; retain partial-failure recovery. A held-navigation regression protects this path.
 - Recheck Print using the existing server-authorized Blob path. Time from captured browser events, with menu expansion, selection-popup opening and summary stock loading completed as setup. Preserve the separate automation-inclusive timings and HTTP waterfalls in the group B report rather than treating harness waiting as application CPU.
 - Detailed paired measurements, validation and commits are recorded in `/home/user/.t3/fm39-opus/review-online/r10/B/report.md`.
+
+
+### Round 10 A: T12 save preparation
+
+- Build patient-validation models only when the template needs them. Other saves no longer allocate a full line-model map that is immediately discarded.
+- Invalidate batch query keys without awaiting the already non-refetching invalidation, keeping the save completion path synchronous until its background version read starts.
+- All 103 requisition detail tests pass, including patient validation, stale versions and lifecycle recovery.

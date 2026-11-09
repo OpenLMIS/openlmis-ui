@@ -622,8 +622,15 @@ function RequisitionBody({
       setValidation({ allSkipped: false, patient: Object.keys(patientErrors)[0] });
       throw new PatientsPayloadError();
     }
+    const needsPatientModels =
+      sent.template.patientsTabEnabled ||
+      (policy.patientsEditable &&
+        sent.template.columnsMap.numberOfPatientsOnTreatmentNextMonth?.source === 'CALCULATED');
     const models = new Map(
-      buildLines(sent, products, approved).map((model) => [model.line.id, model]),
+      (needsPatientModels ? buildLines(sent, products, approved) : []).map((model) => [
+        model.line.id,
+        model,
+      ]),
     );
     if (
       policy.patientsEditable &&
@@ -667,7 +674,7 @@ function RequisitionBody({
     assertSessionScope(scope);
     acceptedDraft.current = sentDraft;
     refreshPending.current = true;
-    await queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: [...queryKeys.requisitions.all, 'batch'],
       refetchType: 'none',
     });
