@@ -137,11 +137,13 @@ it('keeps the picker and toolbar visible when programs fail', async () => {
   expect(screen.getByRole('combobox', { name: /orders.view.supplier/ })).toBeVisible();
   expect(screen.getByRole('button', { name: 'View' })).toBeVisible();
 });
-it('returns the same supplier to page one without invalidating the old page', async () => {
+it('returns the same supplier to a fresh page one without refetching the old page', async () => {
   const { router, invalidate } = setup(false, 2);
   const user = userEvent.setup();
   await screen.findByText('ORDER-A');
   await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
   await waitFor(() => expect(router.state.location.search).not.toHaveProperty('page'));
-  expect(invalidate).not.toHaveBeenCalled();
+  expect(invalidate).toHaveBeenCalledWith(
+    expect.objectContaining({ queryKey: ['orders', 'list'], refetchType: 'none' }),
+  );
 });

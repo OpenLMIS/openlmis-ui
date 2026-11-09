@@ -18,8 +18,11 @@ export function useOrderFilterOptions(supplierIds: string[]) {
     programs: (programQuery.data ?? []).map(({ id, name }) => ({ value: id, label: name ?? id })),
     facilities: (facilityQuery.data ?? [])
       .filter(({ id }) => requestingIds.has(id))
-      .map(({ id, code, name }) => ({ value: id, label: [code, name].filter(Boolean).join(' - ') }))
-      .sort((a, b) => a.label.localeCompare(b.label)),
+      .toSorted((a, b) => (a.name ?? a.code ?? '').localeCompare(b.name ?? b.code ?? ''))
+      .map(({ id, code, name }) => ({
+        value: id,
+        label: [code, name].filter(Boolean).join(' - '),
+      })),
     programsDisabled: !programQuery.isSuccess,
     facilitiesDisabled: !requesters.isSuccess || !facilityQuery.isSuccess,
     failedLookup,

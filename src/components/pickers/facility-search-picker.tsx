@@ -32,7 +32,7 @@ export function FacilitySearchPicker({
   clearLabel: string;
   emptyMessage: string;
   applied?: string;
-  onDraftChange: (facility: string) => void;
+  onDraftChange: (facility: string | null) => void;
   onSearch: (facility: string) => void;
 }) {
   const { t } = useTranslation();
@@ -55,7 +55,7 @@ export function FacilitySearchPicker({
     defaultValues: { facility: (start ?? '') as string | null },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
-    listeners: { onChange: ({ formApi }) => onDraftChange(formApi.state.values.facility ?? '') },
+    listeners: { onChange: ({ formApi }) => onDraftChange(formApi.state.values.facility) },
     onSubmit: ({ value, formApi }) => {
       if (!value.facility) return;
       onSearch(value.facility);

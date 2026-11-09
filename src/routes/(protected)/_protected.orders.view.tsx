@@ -288,14 +288,17 @@ function OrdersBody({
         applied={search.supplyingFacilityId}
         onDraftChange={setDraft}
         onSearch={(id) => {
+          if (id === search.supplyingFacilityId)
+            void client.invalidateQueries({
+              queryKey: [...queryKeys.orders.all, 'list'],
+              refetchType: search.page ? 'none' : 'active',
+            });
           onSearchChange((previous) => ({
             supplyingFacilityId: id,
             requestingFacilityId:
               previous.supplyingFacilityId === id ? previous.requestingFacilityId : undefined,
             page: undefined,
           }));
-          if (id === search.supplyingFacilityId && !search.page)
-            void client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] });
         }}
       />
       {!pending && toolbar}
