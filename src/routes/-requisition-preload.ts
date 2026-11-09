@@ -17,7 +17,8 @@ export async function preloadRequisitionReferences(client: QueryClient, userId: 
   assertSessionScope(scope);
   if (
     !permissions.rights.has(RIGHTS.requisitionView) &&
-    !permissions.rights.has(RIGHTS.requisitionApprove)
+    !permissions.rights.has(RIGHTS.requisitionApprove) &&
+    !permissions.rights.has(RIGHTS.orderCreate)
   ) {
     const user = await client.fetchQuery(userRecordOptions(userId));
     assertSessionScope(scope);
@@ -39,7 +40,8 @@ export async function hasRequisitionReferences(client: QueryClient, userId: stri
   assertSessionScope(scope);
   if (
     permissions.rights.has(RIGHTS.requisitionView) ||
-    permissions.rights.has(RIGHTS.requisitionApprove)
+    permissions.rights.has(RIGHTS.requisitionApprove) ||
+    permissions.rights.has(RIGHTS.orderCreate)
   )
     return true;
   const user = await client.fetchQuery(userRecordOptions(userId));
