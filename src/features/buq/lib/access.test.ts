@@ -38,15 +38,18 @@ it.each([
   ],
   ['no-grant', { home: HOME, programs: [BUQ], grants: ['PREPARE_BUQ|f2|g1'] }],
   ['no-grant', { home: HOME, programs: [BUQ], grants: ['CREATE_FORECASTING|f1|g1'] }],
-])('refuses with %s', (kind, { home, programs, grants }) => {
+  [
+    'no-grant',
+    {
+      home: HOME,
+      programs: [BUQ],
+      grants: ['CREATE_FORECASTING|f2|g1', 'AUTHORIZE_FORECASTING|f1|g2'],
+    },
+    FORECASTING,
+  ],
+])('refuses with %s', (kind, { home, programs, grants }, rights = PREPARE) => {
   expect(
-    buqAccess({
-      home,
-      programs,
-      permissions: parsePermissions(grants),
-      rights: PREPARE,
-      today: TODAY,
-    }),
+    buqAccess({ home, programs, permissions: parsePermissions(grants), rights, today: TODAY }),
   ).toEqual({ kind });
 });
 

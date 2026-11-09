@@ -12,6 +12,8 @@ export type BuqTableProps = {
   cards: boolean;
 };
 
+export type BuqListProps = Omit<BuqTableProps, 'cards'>;
+
 const getRowId = (row: BuqRow) => row.id;
 
 export function useBuqTable(

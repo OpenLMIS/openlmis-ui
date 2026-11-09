@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/empty';
 import type { BuqAccess } from '@/features/buq/lib/access';
 
-export type UnavailableKind = Exclude<BuqAccess['kind'], 'ready' | 'no-grant'>;
+type UnavailableKind = Exclude<BuqAccess['kind'], 'ready' | 'no-grant'>;
 
 const REASONS: Record<UnavailableKind, ParseKeys> = {
   'no-home': 'buq.no-home',

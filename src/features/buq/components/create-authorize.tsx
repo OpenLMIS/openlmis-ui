@@ -6,19 +6,17 @@ import { preparedBuqsOptions } from '@/features/buq/api/queries';
 import { BuqHeading, BuqHeadingSkeleton } from '@/features/buq/components/buq-heading';
 import { ForecastsTable, ForecastsTableSkeleton } from '@/features/buq/components/forecasts-table';
 import { useBuqPeriods } from '@/features/buq/components/use-buq-periods';
+import type { BuqListProps } from '@/features/buq/components/use-buq-table';
 import type { BuqListSearch } from '@/features/buq/lib/search';
 import type { NamedItem } from '@/features/buq/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
-import type { SearchChange } from '@/lib/table-search';
-
-type ListSearchProps = { search: BuqListSearch; onSearchChange: SearchChange<BuqListSearch> };
 
 export function CreateAuthorize({
   facility,
   program,
   search,
   onSearchChange,
-}: ListSearchProps & { facility: NamedItem; program: NamedItem }) {
+}: BuqListProps & { facility: NamedItem; program: NamedItem }) {
   const { t } = useTranslation();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
@@ -50,7 +48,7 @@ export function CreateAuthorize({
 function LoadedForecasts({
   facility,
   ...props
-}: ListSearchProps & { facility: NamedItem; cards: boolean }) {
+}: BuqListProps & { facility: NamedItem; cards: boolean }) {
   const periods = useBuqPeriods();
   const { data: buqs } = useSuspenseQuery(preparedBuqsOptions(facility.id));
   return <ForecastsTable {...props} buqs={buqs} periods={periods} />;

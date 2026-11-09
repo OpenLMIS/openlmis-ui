@@ -11,9 +11,8 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
-import { BuqStatusBadge } from '@/features/buq/components/buq-status-badge';
+import { buqStatusBadge } from '@/features/buq/components/buq-status-badge';
 import { type BuqTableProps, useBuqTable } from '@/features/buq/components/use-buq-table';
-import { BUQ_STATUS } from '@/features/buq/lib/buq-status';
 import { type BuqRow, buqRows, quantificationYears } from '@/features/buq/lib/rows';
 import type { BuqListSearch } from '@/features/buq/lib/search';
 import type { Buq, BuqPeriod } from '@/features/buq/lib/types';
@@ -34,9 +33,7 @@ function createColumns(t: TFunction) {
     }),
     columnHelper.accessor('status', {
       header: t('buq.create.status'),
-      cell: ({ getValue }) => (
-        <BuqStatusBadge label={t(BUQ_STATUS[getValue()].labelKey)} status={getValue()} />
-      ),
+      cell: ({ getValue }) => buqStatusBadge(t, getValue()),
       meta: { label: t('buq.create.status') },
     }),
   ]);

@@ -10,8 +10,9 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
-export type ShownBuqAccess = Exclude<BuqAccess, { kind: 'no-grant' }>;
+type ShownBuqAccess = Exclude<BuqAccess, { kind: 'no-grant' }>;
 
 const noop = () => {};
 
@@ -20,6 +21,7 @@ export async function loadBuqAccess(
   rights: readonly string[],
   cause: 'enter' | 'stay' | 'preload',
 ): Promise<ShownBuqAccess> {
+  const scope = getSessionScope();
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new ForbiddenError(rights);
   const fresh = cause === 'enter' ? { staleTime: 0 } : {};
@@ -32,6 +34,7 @@ export async function loadBuqAccess(
   const home = user.homeFacilityId
     ? await queryClient.fetchQuery({ ...homeFacilityOptions(user.homeFacilityId), ...fresh })
     : undefined;
+  assertSessionScope(scope);
   const access = buqAccess({
     home,
     programs,
