@@ -2,7 +2,7 @@ import { useStore } from '@tanstack/react-form';
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { Loader2Icon } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { serverMessage } from '@/components/display/dialog-parts';
@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { WorkspaceFooter } from '@/components/workspace/workspace';
+import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace/workspace';
 import {
   authorizeBuqForecast,
   type ForecastBody,
@@ -46,7 +46,9 @@ import {
   forecastTotals,
   fundingComplete,
   initialDraft,
+  type LineDraft,
   lineValid,
+  numberError,
   numbersValid,
   type ProductInfo,
   productInfo,
@@ -67,7 +69,6 @@ import {
   facilityOptions,
   orderablesByIdsOptions,
   processingPeriodOptions,
-  programLookupOptions,
 } from '@/features/reference-data/api/queries';
 import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
@@ -80,12 +81,23 @@ import { type SearchChange, toPaginationState } from '@/lib/table-search';
 type SendAction = Exclude<ForecastAction, 'save'>;
 
 type ForecastPageProps = {
+  header: ReactNode;
   search: ForecastSearch;
   onSearchChange: SearchChange<ForecastSearch>;
   onOpenDialog: (dialog: NonNullable<ForecastSearch['dialog']>) => void;
   onCloseDialog: () => void;
   onDone: () => void;
 };
+
+const sameLine = (a: LineDraft | undefined, b: LineDraft | undefined) =>
+  a?.verified === b?.verified && a?.forecasted === b?.forecasted && a?.remarkId === b?.remarkId;
+
+const invalidPart = (line: LineDraft) =>
+  numberError(line.verified)
+    ? 'verified'
+    : numberError(line.forecasted)
+      ? 'forecasted'
+      : 'remarkId';
 
 const WRITE: Record<ForecastAction, (body: ForecastBody) => Promise<BuqForecast>> = {
   save: saveBuqForecast,
@@ -119,8 +131,13 @@ const DONE: Record<ForecastAction, { title: ParseKeys; description: ParseKeys }>
 export function ForecastEditor({
   forecastId,
   rights,
+  skipAuthorization,
   ...page
-}: ForecastPageProps & { forecastId: string; rights: ForecastRights }) {
+}: ForecastPageProps & {
+  forecastId: string;
+  rights: ForecastRights;
+  skipAuthorization: boolean;
+}) {
   const { data: forecast } = useSuspenseQuery(buqForecastOptions(forecastId));
   const ids = useMemo(
     () => forecast.bottomUpQuantificationLineItems.map(({ orderableId }) => orderableId),
@@ -128,7 +145,6 @@ export function ForecastEditor({
   );
   const { data: orderables } = useSuspenseQuery(orderablesByIdsOptions(ids));
   const { data: facility } = useSuspenseQuery(facilityOptions(forecast.facilityId));
-  const { data: program } = useSuspenseQuery(programLookupOptions(forecast.programId));
   const { data: remarks } = useSuspenseQuery(buqRemarksOptions());
   const { data: sources } = useSuspenseQuery(buqSourcesOfFundsOptions());
   const { data: currency } = useSuspenseQuery(currencySettingsOptions());
@@ -143,7 +159,11 @@ export function ForecastEditor({
     return Object.fromEntries(
       forecast.bottomUpQuantificationLineItems.map((line) => [
         line.id,
-        productInfo(byId.get(line.orderableId), forecast.programId),
+        productInfo(
+          byId.get(line.orderableId),
+          forecast.programId,
+          line.annualAdjustedConsumption ?? 0,
+        ),
       ]),
     );
   }, [forecast, orderables]);
@@ -165,7 +185,7 @@ export function ForecastEditor({
       products={products}
       remarks={remarks}
       rights={rights}
-      skipAuthorization={!!program.skipAuthorization}
+      skipAuthorization={skipAuthorization}
       sources={sources}
     />
   );
@@ -180,6 +200,7 @@ export function ForecastForm({
   rights,
   skipAuthorization,
   details,
+  header,
   search,
   onSearchChange,
   onOpenDialog,
@@ -215,16 +236,6 @@ export function ForecastForm({
     () => Object.fromEntries(Object.entries(products).map(([id, info]) => [id, info.price])),
     [products],
   );
-  const consumption = useMemo(
-    () =>
-      Object.fromEntries(
-        forecast.bottomUpQuantificationLineItems.map((line) => [
-          line.id,
-          line.annualAdjustedConsumption ?? 0,
-        ]),
-      ),
-    [forecast],
-  );
   const models = useMemo(
     () =>
       sortModels(
@@ -237,19 +248,35 @@ export function ForecastForm({
     [forecast, products],
   );
   const totals = forecastTotals(values, prices);
-  const changed = (lineId: string) =>
-    JSON.stringify(values.lines[lineId]) !== JSON.stringify(baseline.lines[lineId]);
-  const shown = (lineId: string) => attempted || changed(lineId);
-  const lineOk = (lineId: string) => {
-    const line = values.lines[lineId];
-    return line ? lineValid(line) : true;
-  };
+  const changedIds = useMemo(
+    () =>
+      new Set(
+        models
+          .filter(({ lineId }) => !sameLine(values.lines[lineId], baseline.lines[lineId]))
+          .map(({ lineId }) => lineId),
+      ),
+    [models, values.lines, baseline.lines],
+  );
+  const invalidIds = useMemo(
+    () =>
+      new Set(
+        models
+          .filter(({ lineId }) => {
+            const line = values.lines[lineId];
+            return line ? !lineValid(line) : false;
+          })
+          .map(({ lineId }) => lineId),
+      ),
+    [models, values.lines],
+  );
+  const shown = (lineId: string) => attempted || changedIds.has(lineId);
   const { pageSize } = toPaginationState(search);
   const isPageInvalid = (page: number) =>
     models
       .slice(page * pageSize, (page + 1) * pageSize)
-      .some(({ lineId }) => shown(lineId) && !lineOk(lineId));
-  const dirty = JSON.stringify(values) !== JSON.stringify(baseline);
+      .some(({ lineId }) => shown(lineId) && invalidIds.has(lineId));
+  const dirty =
+    changedIds.size > 0 || JSON.stringify(values.funding) !== JSON.stringify(baseline.funding);
 
   const mutation = useSessionMutation({
     mutationFn: ({ action, body }: { action: ForecastAction; body: ForecastBody }) =>
@@ -282,7 +309,8 @@ export function ForecastForm({
       const index = models.findIndex((model) => model.lineId === lineId);
       const page = Math.floor(index / pageSize);
       onSearchChange({ page: page ? page + 1 : undefined }, true);
-      invalidTarget.current = `lines.${lineId}.`;
+      const line = values.lines[lineId];
+      invalidTarget.current = `lines.${lineId}.${line ? invalidPart(line) : 'verified'}`;
     } else invalidTarget.current = null;
     setInvalid(description);
   };
@@ -299,7 +327,7 @@ export function ForecastForm({
   };
   const onSend = (action: SendAction) => {
     setAttempted(true);
-    const bad = models.find(({ lineId }) => !lineOk(lineId));
+    const bad = models.find(({ lineId }) => invalidIds.has(lineId));
     if (bad) showInvalid('buq.forecast.invalid-lines', bad.lineId);
     else if (!fundingComplete(values.funding)) showInvalid('buq.forecast.invalid-funding');
     else setConfirming(action);
@@ -309,26 +337,30 @@ export function ForecastForm({
 
   return (
     <>
-      <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-        <div className="flex flex-wrap items-center gap-2">
-          {buqStatusBadge(t, forecast.status)}
-        </div>
-        <ForecastDetailsList details={details} />
-        <ForecastGrid
-          cards={cards}
-          consumption={consumption}
-          currency={currency}
-          disabled={!editable || pending}
-          form={form}
-          isPageInvalid={isPageInvalid}
-          models={models}
-          onSearchChange={onSearchChange}
-          products={products}
-          remarks={remarks}
-          search={search}
-          shown={shown}
-        />
-      </div>
+      <Workspace width="wide">
+        {header}
+        <WorkspaceContent>
+          <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
+            <div className="flex flex-wrap items-center gap-2">
+              {buqStatusBadge(t, forecast.status)}
+            </div>
+            <ForecastDetailsList details={details} />
+            <ForecastGrid
+              cards={cards}
+              currency={currency}
+              disabled={!editable || pending}
+              form={form}
+              isPageInvalid={isPageInvalid}
+              models={models}
+              onSearchChange={onSearchChange}
+              products={products}
+              remarks={remarks}
+              search={search}
+              shown={shown}
+            />
+          </div>
+        </WorkspaceContent>
+      </Workspace>
       <WorkspaceFooter width="wide">
         <div className="flex flex-wrap gap-2">
           <Button disabled={pending} onClick={onDone} size="lg" variant="outline">
@@ -421,7 +453,7 @@ export function ForecastForm({
         onOpenChangeComplete={(open) => {
           const target = invalidTarget.current;
           if (open || !target) return;
-          const field = document.querySelector<HTMLElement>(`[id^="${target}"]`);
+          const field = document.querySelector<HTMLElement>(`[id="${target}"]`);
           if (field) revealField(field, !!field.closest('li'));
         }}
         open={invalid !== null}

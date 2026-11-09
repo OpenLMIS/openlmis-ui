@@ -1,12 +1,13 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { toDateValue } from '@/components/form/date-value';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
+import { RIGHTS } from '@/features/auth/lib/rights';
 import { buqPeriodsOptions, openBuqsOptions } from '@/features/buq/api/queries';
 import { type BuqAccess, buqAccess } from '@/features/buq/lib/access';
 import {
   deploymentTimeZoneOptions,
   homeFacilityOptions,
-  programLookupOptions,
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
@@ -18,6 +19,8 @@ import {
 } from '@/lib/session-scope';
 
 type ShownBuqAccess = Exclude<BuqAccess, { kind: 'no-grant' }>;
+
+const NO_RIGHTS: readonly string[] = [];
 
 export async function loadBuqAccess(
   queryClient: QueryClient,
@@ -51,7 +54,17 @@ export async function loadBuqAccess(
   if (access.kind === 'ready') {
     queryClient.prefetchQuery(buqPeriodsOptions());
     queryClient.prefetchQuery(openBuqsOptions(access.facility.id));
-    queryClient.prefetchQuery(programLookupOptions(access.program.id));
   }
   return access;
+}
+
+export function useForecastRights(access: ShownBuqAccess) {
+  const granted = access.kind === 'ready' ? access.granted : NO_RIGHTS;
+  return useMemo(
+    () => ({
+      create: granted.includes(RIGHTS.createForecasting),
+      authorize: granted.includes(RIGHTS.authorizeForecasting),
+    }),
+    [granted],
+  );
 }

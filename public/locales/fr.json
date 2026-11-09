@@ -42,6 +42,7 @@
   "buq.forecast.forecasted": "Demande prévue de {product}",
   "buq.forecast.forecasted-column": "Demande prévue",
   "buq.forecast.funding": "Sources de financement",
+  "buq.forecast.funding-empty": "Aucune source de financement",
   "buq.forecast.funding-projected": "Fonds prévu pour {source}",
   "buq.forecast.funding-projected-column": "Fonds prévu",
   "buq.forecast.funding-save": "Enregistrer",

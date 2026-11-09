@@ -14,10 +14,21 @@ type HomeFacility = {
   }[];
 };
 
-type ProgramRecord = { id: string; code: string; name: string | null };
+type ProgramRecord = {
+  id: string;
+  code: string;
+  name: string | null;
+  skipAuthorization?: boolean;
+};
 
 export type BuqAccess =
-  | { kind: 'ready'; facility: NamedItem; program: NamedItem; granted: readonly string[] }
+  | {
+      kind: 'ready';
+      facility: NamedItem;
+      program: NamedItem;
+      granted: readonly string[];
+      skipAuthorization: boolean;
+    }
   | { kind: 'no-home' }
   | { kind: 'no-program' }
   | { kind: 'unsupported' }
@@ -58,5 +69,6 @@ export function buqAccess({
     facility: { id: home.id, name: home.name ?? '' },
     program: { id: program.id, name: program.name ?? program.code },
     granted,
+    skipAuthorization: !!program.skipAuthorization,
   };
 }

@@ -42,6 +42,7 @@
   "buq.forecast.forecasted": "الطلب المتوقع لـ {product}",
   "buq.forecast.forecasted-column": "الطلب المتوقع",
   "buq.forecast.funding": "مصادر التمويل",
+  "buq.forecast.funding-empty": "لا توجد مصادر تمويل",
   "buq.forecast.funding-projected": "التمويل المتوقع لـ {source}",
   "buq.forecast.funding-projected-column": "التمويل المتوقع",
   "buq.forecast.funding-save": "حفظ",

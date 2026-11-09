@@ -37,6 +37,7 @@ export type BuqSourceOfFundEntry = {
 };
 
 export type BuqFundingDetails = {
+  id?: string;
   totalProjectedFund?: number | null;
   totalForecastedCost?: number | null;
   gap?: number | null;

@@ -142,7 +142,18 @@ describe('totals', () => {
 
 describe('write body', () => {
   it('sends the stored facility and program, every line with its consumption and money in cents', () => {
-    const stored = forecast();
+    const stored = forecast({
+      fundingDetails: {
+        id: 'fd1',
+        sourcesOfFunds: [
+          {
+            sourceOfFund: { id: 's1' },
+            amountUsedInLastFinancialYear: null,
+            projectedFund: null,
+          },
+        ],
+      },
+    });
     const draft = initialDraft(stored, SOURCES);
     draft.lines.l2 = { verified: '6', forecasted: '6', remarkId: '' };
     draft.funding = [{ sourceId: 's1', name: '', used: '1', projected: '2' }];
@@ -170,6 +181,7 @@ describe('write body', () => {
       },
     ]);
     expect(body.fundingDetails).toEqual({
+      id: 'fd1',
       totalProjectedFund: 2,
       totalForecastedCost: 1578.2,
       gap: -1576.2,
@@ -218,13 +230,17 @@ describe('product price and category', () => {
   };
 
   it("prefers the BUQ program's entry, else takes the first program, as legacy", () => {
-    expect(productInfo(orderable, 'g1')).toEqual({
+    expect(productInfo(orderable, 'g1', 20)).toEqual({
+      consumption: 20,
       code: '10122-313',
       name: 'Cardene IV',
       unit: '10 tab strip',
       price: 12,
       category: 'Analgesics',
     });
-    expect(productInfo(orderable, 'buq')).toMatchObject({ price: 78.58, category: 'Anaesthetics' });
+    expect(productInfo(orderable, 'buq', 20)).toMatchObject({
+      price: 78.58,
+      category: 'Anaesthetics',
+    });
   });
 });

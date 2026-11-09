@@ -9,16 +9,21 @@ import { usePeriodNames } from '@/features/buq/components/use-buq-periods';
 import type { ForecastRights } from '@/features/buq/lib/forecast-actions';
 import type { BuqListProps, BuqListSearch } from '@/features/buq/lib/search';
 import type { NamedItem } from '@/features/buq/lib/types';
-import { programLookupOptions } from '@/features/reference-data/api/queries';
 import { useCardLayout } from '@/hooks/use-card-view';
 
 export function CreateAuthorize({
   facility,
   program,
   rights,
+  skipAuthorization,
   search,
   onSearchChange,
-}: BuqListProps & { facility: NamedItem; program: NamedItem; rights: ForecastRights }) {
+}: BuqListProps & {
+  facility: NamedItem;
+  program: NamedItem;
+  rights: ForecastRights;
+  skipAuthorization: boolean;
+}) {
   const { t } = useTranslation();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
@@ -40,9 +45,9 @@ export function CreateAuthorize({
           cards={cards}
           facility={facility}
           onSearchChange={onSearchChange}
-          program={program}
           rights={rights}
           search={search}
+          skipAuthorization={skipAuthorization}
         />
       </QueryBoundary>
     </div>
@@ -51,26 +56,17 @@ export function CreateAuthorize({
 
 function LoadedForecasts({
   facility,
-  program,
   ...props
 }: BuqListProps & {
   facility: NamedItem;
-  program: NamedItem;
   rights: ForecastRights;
+  skipAuthorization: boolean;
   cards: boolean;
 }) {
   const periods = usePeriodNames();
   const { data: buqs } = useSuspenseQuery(openBuqsOptions(facility.id));
-  const { data: details } = useSuspenseQuery(programLookupOptions(program.id));
   if (!periods) return <ForecastsTableSkeleton cards={props.cards} search={props.search} />;
-  return (
-    <ForecastsTable
-      {...props}
-      buqs={buqs}
-      periods={periods}
-      skipAuthorization={!!details.skipAuthorization}
-    />
-  );
+  return <ForecastsTable {...props} buqs={buqs} periods={periods} />;
 }
 
 export function CreateAuthorizeSkeleton({ search }: { search: BuqListSearch }) {

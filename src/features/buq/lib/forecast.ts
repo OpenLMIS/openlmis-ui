@@ -132,6 +132,7 @@ export function forecastBody(
       };
     }),
     fundingDetails: {
+      id: forecast.fundingDetails?.id,
       totalProjectedFund: totals.totalProjectedFund,
       totalForecastedCost: totals.totalCost,
       gap: totals.gap,
@@ -165,6 +166,7 @@ export function pageRows(models: readonly GridModel[], pageIndex: number, pageSi
 }
 
 export type ProductInfo = {
+  consumption: number;
   code: string;
   name: string;
   unit: string;
@@ -172,10 +174,15 @@ export type ProductInfo = {
   category: string;
 };
 
-export function productInfo(orderable: Orderable | undefined, programId: string): ProductInfo {
+export function productInfo(
+  orderable: Orderable | undefined,
+  programId: string,
+  consumption: number,
+): ProductInfo {
   const programs = orderable?.programs ?? [];
   const entry = programs.find((program) => program.programId === programId) ?? programs[0];
   return {
+    consumption,
     code: orderable?.productCode ?? '',
     name: orderable?.fullProductName ?? '',
     unit: orderable?.dispensable?.displayUnit ?? '',

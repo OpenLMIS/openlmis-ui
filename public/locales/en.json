@@ -42,6 +42,7 @@
   "buq.forecast.forecasted": "Forecasted Demand For {product}",
   "buq.forecast.forecasted-column": "Forecasted Demand",
   "buq.forecast.funding": "Source Of Funds",
+  "buq.forecast.funding-empty": "No Sources Of Funds",
   "buq.forecast.funding-projected": "Projected Fund For {source}",
   "buq.forecast.funding-projected-column": "Projected Fund",
   "buq.forecast.funding-save": "Save",

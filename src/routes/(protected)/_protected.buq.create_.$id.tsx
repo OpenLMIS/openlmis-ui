@@ -47,11 +47,10 @@ import {
   currencySettingsOptions,
   facilityOptions,
   orderablesByIdsOptions,
-  programLookupOptions,
 } from '@/features/reference-data/api/queries';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { isNotFound } from '@/lib/http';
-import { loadBuqAccess } from '@/routes/-buq-access';
+import { loadBuqAccess, useForecastRights } from '@/routes/-buq-access';
 
 const FORECASTING_RIGHTS = [RIGHTS.createForecasting, RIGHTS.authorizeForecasting];
 
@@ -78,7 +77,6 @@ export const Route = createFileRoute('/(protected)/_protected/buq/create_/$id')(
         ),
       );
       queryClient.prefetchQuery(facilityOptions(forecast.facilityId));
-      queryClient.prefetchQuery(programLookupOptions(forecast.programId));
       queryClient.prefetchQuery(buqRemarksOptions());
       queryClient.prefetchQuery(buqSourcesOfFundsOptions());
       queryClient.prefetchQuery(currencySettingsOptions());
@@ -126,6 +124,7 @@ function ForecastPage() {
   const listSearch = useLocation({ select: (location) => location.state.buqListSearch });
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<ForecastSearch>(FORECAST_DIALOGS);
+  const rights = useForecastRights(access);
   if (access.kind !== 'ready') {
     return (
       <Workspace>
@@ -137,36 +136,35 @@ function ForecastPage() {
     );
   }
   return (
-    <Workspace width="wide">
-      <ForecastHeader />
-      <WorkspaceContent>
-        <QueryBoundary
-          errorComponent={({ error, reset }) => (
+    <QueryBoundary
+      errorComponent={({ error, reset }) => (
+        <Workspace width="wide">
+          <ForecastHeader />
+          <WorkspaceContent>
             <LoadError
               description={t('buq.forecast.load-error')}
               error={error}
               reset={reset}
               title={t('buq.forecast.load-error-title')}
             />
-          )}
-          pendingFallback={<ForecastSkeleton />}
-          resetKey={id}
-        >
-          <ForecastEditor
-            forecastId={id}
-            onCloseDialog={closeDialog}
-            onDone={() => void navigate({ to: '/buq/create', search: listSearch ?? {} })}
-            onOpenDialog={(dialog) => openDialog({ dialog })}
-            onSearchChange={updateSearch}
-            rights={{
-              create: access.granted.includes(RIGHTS.createForecasting),
-              authorize: access.granted.includes(RIGHTS.authorizeForecasting),
-            }}
-            search={search}
-          />
-        </QueryBoundary>
-      </WorkspaceContent>
-    </Workspace>
+          </WorkspaceContent>
+        </Workspace>
+      )}
+      pendingFallback={<ForecastPending />}
+      resetKey={id}
+    >
+      <ForecastEditor
+        forecastId={id}
+        header={<ForecastHeader />}
+        onCloseDialog={closeDialog}
+        onDone={() => void navigate({ to: '/buq/create', search: listSearch ?? {} })}
+        onOpenDialog={(dialog) => openDialog({ dialog })}
+        onSearchChange={updateSearch}
+        rights={rights}
+        search={search}
+        skipAuthorization={access.skipAuthorization}
+      />
+    </QueryBoundary>
   );
 }
 

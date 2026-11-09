@@ -40,7 +40,6 @@ type GridState = {
 
 type GridData = {
   products: Record<string, ProductInfo>;
-  consumption: Record<string, number>;
   currency: CurrencySettings;
 };
 
@@ -156,7 +155,7 @@ function LineCost({
   return formatMoney(lineCost(line, price), currency);
 }
 
-function createColumns(t: TFunction, { products, consumption, currency }: GridData) {
+function createColumns(t: TFunction, { products, currency }: GridData) {
   const product = (row: GridRow) => {
     const model = lineOf(row);
     return model ? products[model.lineId] : undefined;
@@ -185,15 +184,18 @@ function createColumns(t: TFunction, { products, consumption, currency }: GridDa
     columnHelper.display({
       id: 'unit',
       header: t('buq.forecast.unit'),
-      cell: ({ row }) => product(row.original)?.unit ?? '',
+      cell: ({ row }) => {
+        const unit = product(row.original)?.unit;
+        return unit ? <bdi>{unit}</bdi> : '';
+      },
       meta: { label: t('buq.forecast.unit'), className: 'w-28' },
     }),
     columnHelper.display({
       id: 'consumption',
       header: t('buq.forecast.consumption'),
       cell: ({ row }) => {
-        const model = lineOf(row.original);
-        return model ? String(consumption[model.lineId] ?? 0) : '';
+        const info = product(row.original);
+        return info ? String(info.consumption) : '';
       },
       meta: { label: t('buq.forecast.consumption'), className: 'w-28' },
     }),
@@ -263,7 +265,6 @@ const headingOf = (row: GridRow) => ('category' in row ? row.category : undefine
 export function ForecastGrid({
   models,
   products,
-  consumption,
   currency,
   isPageInvalid,
   search,
@@ -279,8 +280,8 @@ export function ForecastGrid({
   const { t } = useTranslation();
   const { pageIndex, pageSize } = toPaginationState(search);
   const columns = useMemo<ColumnDef<DataTableFeatures, GridRow>[]>(
-    () => createColumns(t, { products, consumption, currency }),
-    [t, products, consumption, currency],
+    () => createColumns(t, { products, currency }),
+    [t, products, currency],
   );
   const data = useMemo(() => pageRows(models, pageIndex, pageSize), [models, pageIndex, pageSize]);
   const { pageStart, searchState } = usePagedTableSearch({
