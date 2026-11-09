@@ -30,9 +30,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { BUQ_CSV_FILENAME, BuqMovedError, deleteBuq, downloadBuq } from '@/features/buq/api/api';
 import { preparedBuqsOptions, takenPeriodsOptions } from '@/features/buq/api/queries';
-import { BuqStatusBadge } from '@/features/buq/components/buq-status-badge';
+import { buqStatusBadge } from '@/features/buq/components/buq-status-badge';
 import { type BuqTableProps, useBuqTable } from '@/features/buq/components/use-buq-table';
-import { BUQ_STATUS } from '@/features/buq/lib/buq-status';
 import { type BuqRow, buqRows } from '@/features/buq/lib/rows';
 import type { BuqListSearch } from '@/features/buq/lib/search';
 import type { Buq, BuqPeriod, NamedItem } from '@/features/buq/lib/types';
@@ -96,9 +95,7 @@ function createColumns(t: TFunction, facility: NamedItem, handlers: RowHandlers)
     }),
     columnHelper.accessor('status', {
       header: t('buq.prepare.status'),
-      cell: ({ getValue }) => (
-        <BuqStatusBadge label={t(BUQ_STATUS[getValue()].labelKey)} status={getValue()} />
-      ),
+      cell: ({ getValue }) => buqStatusBadge(t, getValue()),
       meta: { label: t('buq.prepare.status') },
     }),
     columnHelper.display({

@@ -31,6 +31,7 @@ import {
 import { BuqHeading, BuqHeadingSkeleton } from '@/features/buq/components/buq-heading';
 import { PreparedTable, PreparedTableSkeleton } from '@/features/buq/components/prepared-table';
 import { useBuqPeriods } from '@/features/buq/components/use-buq-periods';
+import type { BuqListProps } from '@/features/buq/components/use-buq-table';
 import { BUQ_CODE } from '@/features/buq/lib/access';
 import type { BuqListSearch } from '@/features/buq/lib/search';
 import type { BuqPeriod, NamedItem, TakenPeriod } from '@/features/buq/lib/types';
@@ -38,11 +39,8 @@ import { processingSchedulesOptions } from '@/features/reference-data/api/querie
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
-import type { SearchChange } from '@/lib/table-search';
 
 type PrepareBuqProps = { facility: NamedItem; program: NamedItem };
-
-type ListSearchProps = { search: BuqListSearch; onSearchChange: SearchChange<BuqListSearch> };
 
 const NO_PERIODS: BuqPeriod[] = [];
 const NO_TAKEN: TakenPeriod[] = [];
@@ -53,7 +51,7 @@ export function PrepareBuq({
   program,
   search,
   onSearchChange,
-}: PrepareBuqProps & ListSearchProps) {
+}: PrepareBuqProps & BuqListProps) {
   const { t } = useTranslation();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
@@ -110,7 +108,7 @@ function LoadedTable({
   facility,
   cards,
   ...list
-}: ListSearchProps & { facility: NamedItem; cards: boolean }) {
+}: BuqListProps & { facility: NamedItem; cards: boolean }) {
   const periods = usePeriodNames();
   const { data: buqs } = useSuspenseQuery(preparedBuqsOptions(facility.id));
   if (!periods) return <PreparedTableSkeleton cards={cards} search={list.search} />;
