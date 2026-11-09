@@ -209,6 +209,7 @@ const RequestingFacilityPicker = memo(function RequestingFacilityPicker({
   const anchor = useComboboxAnchor();
   const { contains } = ComboboxPrimitive.useFilter();
   const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
   return (
     <Field data-disabled={disabled}>
       <FieldLabel htmlFor={requestingId}>
@@ -216,7 +217,8 @@ const RequestingFacilityPicker = memo(function RequestingFacilityPicker({
       </FieldLabel>
       <Combobox
         multiple
-        items={options}
+        items={open ? options : selected}
+        open={open}
         limit={-1}
         virtualized={options.length > 50}
         value={selected}
@@ -228,6 +230,7 @@ const RequestingFacilityPicker = memo(function RequestingFacilityPicker({
         isItemEqualToValue={(a, b) => a.id === b.id}
         onOpenChange={(open, details) => {
           if (!open && details.reason === 'item-press') details.cancel();
+          else setOpen(open);
         }}
         onValueChange={(chosen, details) => {
           if (details.reason === 'escape-key' && !chosen.length) return details.allowPropagation();
