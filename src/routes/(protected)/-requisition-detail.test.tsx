@@ -2034,7 +2034,7 @@ it('preserves approval edits on a conflict after another approver acted and relo
   await confirmApproval();
   await screen.findByText('requisitions.edit.error.conflict');
   expect(post).not.toHaveBeenCalled();
-  expect(put).toHaveBeenCalledTimes(2);
+  expect(put).toHaveBeenCalledOnce();
   expect(input).toHaveValue('27');
   vi.mocked(fetchRequisition).mockResolvedValue({
     ...base,
@@ -2589,7 +2589,7 @@ it('saves a resolved field conflict with the fresh server version', async () => 
   });
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   const dialog = await screen.findByRole('dialog');
-  await user.click(within(dialog).getByRole('radio', { name: 'requisitions.merge.yours: 12' }));
+  await user.click(within(dialog).getByRole('radio', { name: 'requisitions.merge.yours-value' }));
   await user.click(within(dialog).getByRole('button', { name: 'requisitions.merge.recover' }));
   await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
   expect(put.mock.calls[1][1]).toMatchObject({

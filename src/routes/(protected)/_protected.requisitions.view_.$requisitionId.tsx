@@ -144,6 +144,7 @@ import { requisitionReturnTarget } from '@/features/requisitions/lib/requisition
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
 import { defaultRequisitionTab, hidesSkipped } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import { hasUnsyncedRequisitionDraft } from '@/features/requisitions/lib/unsynced-device-work';
 import { validateRequisition } from '@/features/requisitions/lib/validation';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -403,6 +404,16 @@ function RequisitionReadShell({
   );
 }
 
+function lifecycleLanded(kind: EditorAction, fresh: RequisitionRecord, node?: string | null) {
+  if (kind === 'approve')
+    return (
+      ['APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER'].includes(fresh.status) ||
+      (fresh.status === 'IN_APPROVAL' && fresh.supervisoryNode !== node)
+    );
+  if (kind === 'reject') return fresh.status === 'REJECTED';
+  return REQUISITION_STATUSES.slice(kind === 'authorize' ? 3 : 2, 8).includes(fresh.status);
+}
+
 class PatientsPayloadError extends Error {}
 
 function RequisitionBody({
@@ -487,6 +498,23 @@ function RequisitionBody({
   const [opening] = useState(() =>
     requisitionReturnTarget(router.state.location.state, router.state.location.search),
   );
+  const startCapture = async (fresh: RequisitionRecord, scope: number) => {
+    const lease = await beginCopy(fresh.id);
+    assertSessionScope(scope);
+    attachCopyLease(fresh, lease);
+    const version = ++captureVersion.current;
+    const result = captureSingle(queryClient, lease, fresh, 'read').then(
+      () => {
+        if (scope === getSessionScope() && version === captureVersion.current) setCopyFailure(null);
+      },
+      (error: unknown) => {
+        if (scope === getSessionScope() && version === captureVersion.current)
+          setCopyFailure(error);
+        return error;
+      },
+    );
+    setCopyResult(result);
+  };
   const reload = async (keepKey = false) => {
     const scope = getSessionScope();
     requireOnline();
@@ -494,24 +522,7 @@ function RequisitionBody({
     assertSessionScope(scope);
     await editor.device.update(fresh);
     assertSessionScope(scope);
-    if (isSecureOrigin) {
-      const lease = await beginCopy(fresh.id);
-      assertSessionScope(scope);
-      attachCopyLease(fresh, lease);
-      const version = ++captureVersion.current;
-      const result = captureSingle(queryClient, lease, fresh, 'read').then(
-        () => {
-          if (scope === getSessionScope() && version === captureVersion.current)
-            setCopyFailure(null);
-        },
-        (error: unknown) => {
-          if (scope === getSessionScope() && version === captureVersion.current)
-            setCopyFailure(error);
-          return error;
-        },
-      );
-      setCopyResult(result);
-    }
+    if (isSecureOrigin) await startCapture(fresh, scope);
     setLoaderOutdated(false);
     setRecord(fresh);
     queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
@@ -523,9 +534,9 @@ function RequisitionBody({
     if (!keepKey) attempt.key = randomId();
     return fresh;
   };
-  const refreshSaved = async (response?: RequisitionRecord) => {
+  const refreshSaved = async () => {
     const scope = getSessionScope();
-    const saved = response ?? (await fetchRequisition(record.id));
+    const saved = await fetchRequisition(record.id);
     assertSessionScope(scope);
     if (finished.current) return saved;
     const next = rebaseRequisitionDraft(saved, latest.current.editor.form.state.values.draft);
@@ -538,23 +549,7 @@ function RequisitionBody({
     queryClient.setQueryData(requisitionOptions(saved.id).queryKey, saved);
     await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
-    if (isSecureOrigin) {
-      const lease = await beginCopy(saved.id);
-      attachCopyLease(saved, lease);
-      const version = ++captureVersion.current;
-      const result = captureSingle(queryClient, lease, saved, 'read').then(
-        () => {
-          if (scope === getSessionScope() && version === captureVersion.current)
-            setCopyFailure(null);
-        },
-        (error: unknown) => {
-          if (scope === getSessionScope() && version === captureVersion.current)
-            setCopyFailure(error);
-          return error;
-        },
-      );
-      setCopyResult(result);
-    }
+    if (isSecureOrigin) await startCapture(saved, scope);
     return saved;
   };
   const needsReconcile = useRef(false);
@@ -569,6 +564,17 @@ function RequisitionBody({
     conflicts: DraftFieldConflict[];
   } | null>(null);
   const reconciliationVersion = useRef(0);
+  const adoptMerge = async (draft: RequisitionDraft, fresh: RequisitionRecord, scope: number) => {
+    await editor.device.rebase(draft, fresh);
+    assertSessionScope(scope);
+    editor.form.setFieldValue('draft', draft);
+    setRecord(fresh);
+    latest.current = { record: fresh, editor };
+    queryClient.setQueryData(requisitionOptions(fresh.id).queryKey, fresh);
+    setLoaderOutdated(false);
+    needsReconcile.current = false;
+    refreshPending.current = false;
+  };
   const reconcile = async (server?: RequisitionRecord) => {
     const scope = getSessionScope();
     requireOnline();
@@ -585,19 +591,12 @@ function RequisitionBody({
     if (result.conflicts.length) {
       setMerge({ fresh, draft, base, original, conflicts: result.conflicts });
     } else {
-      await editor.device.rebase(result.draft, fresh);
-      assertSessionScope(scope);
-      editor.form.setFieldValue('draft', result.draft);
-      setRecord(fresh);
-      latest.current = { record: fresh, editor };
-      setLoaderOutdated(false);
-      refreshPending.current = false;
-      queryClient.setQueryData(requisitionOptions(fresh.id).queryKey, fresh);
-      needsReconcile.current = false;
+      await adoptMerge(result.draft, fresh, scope);
     }
     return result.conflicts.length === 0;
   };
   const savedRefresh = useRef<Promise<RequisitionRecord> | undefined>(undefined);
+  const settleSavedRefresh = () => savedRefresh.current ?? refreshSaved();
   const sync = async (refreshMode: 'wait' | 'background' | 'lifecycle' = 'wait') => {
     const scope = getSessionScope();
     await editor.device.flush({ allowFailure: true });
@@ -605,7 +604,7 @@ function RequisitionBody({
     requireOnline();
     if (needsReconcile.current && !(await reconcile())) throw new RequisitionRetryConflict();
     if (savedRefresh.current || refreshPending.current) {
-      await (savedRefresh.current ?? refreshSaved());
+      await settleSavedRefresh();
       assertSessionScope(scope);
       requireOnline();
     }
@@ -685,14 +684,12 @@ function RequisitionBody({
       queryKey: [...queryKeys.requisitions.all, 'batch'],
       refetchType: 'none',
     });
-    assertSessionScope(scope);
     if (refreshMode === 'lifecycle') return response;
     const refresh = refreshSaved();
     if (refreshMode === 'wait') return refresh;
     savedRefresh.current = refresh;
     void refresh.catch((error: unknown) => {
-      if (scope === getSessionScope() && refreshMode === 'background')
-        setFailure(toRequisitionFailure(error));
+      if (scope === getSessionScope()) setFailure(toRequisitionFailure(error));
     });
     void refresh
       .finally(() => {
@@ -712,7 +709,7 @@ function RequisitionBody({
         ['submit', 'submitAndAuthorize', 'authorize', 'approve', 'reject'].includes(kind) &&
         acceptedDraft.current === JSON.stringify(latest.current.editor.form.state.values.draft);
       if (kind !== 'update' && !reuseSaved && (savedRefresh.current || refreshPending.current)) {
-        await (savedRefresh.current ?? refreshSaved());
+        await settleSavedRefresh();
         assertSessionScope(scope);
         requireOnline();
       }
@@ -775,14 +772,7 @@ function RequisitionBody({
         const fresh = await fetchRequisition(record.id);
         assertSessionScope(scope);
         const approval = isApprovalKind(retry.kind);
-        const progressed = REQUISITION_STATUSES.slice(retry.kind === 'authorize' ? 3 : 2, 8);
-        advanced =
-          retry.kind === 'approve'
-            ? ['APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER'].includes(fresh.status) ||
-              (fresh.status === 'IN_APPROVAL' && fresh.supervisoryNode !== retry.node)
-            : retry.kind === 'reject'
-              ? fresh.status === 'REJECTED'
-              : progressed.includes(fresh.status);
+        advanced = lifecycleLanded(retry.kind, fresh, retry.node);
         if (advanced) {
           setRecord(fresh);
           queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
@@ -836,17 +826,8 @@ function RequisitionBody({
             assertSessionScope(scope);
             if (refreshPending.current) {
               try {
-                const fresh = await (savedRefresh.current ?? refreshSaved());
-                advanced =
-                  kind === 'approve'
-                    ? ['APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER'].includes(fresh.status) ||
-                      (fresh.status === 'IN_APPROVAL' &&
-                        fresh.supervisoryNode !== base.supervisoryNode)
-                    : kind === 'reject'
-                      ? fresh.status === 'REJECTED'
-                      : REQUISITION_STATUSES.slice(kind === 'authorize' ? 3 : 2, 8).includes(
-                          fresh.status,
-                        );
+                const fresh = await settleSavedRefresh();
+                advanced = lifecycleLanded(kind, fresh, base.supervisoryNode);
                 base = fresh;
               } catch {
                 assertSessionScope(scope);
@@ -911,11 +892,7 @@ function RequisitionBody({
           assertSessionScope(scope);
           if (!(error instanceof LocalDataUnavailableError))
             toast.error(t('requisitions.offline.failed-title'), {
-              description: t(
-                retired
-                  ? 'requisitions.offline.refresh-failed-description'
-                  : 'requisitions.offline.failed-description',
-              ),
+              description: t('requisitions.offline.failed-description'),
             });
         }
       }
@@ -932,7 +909,6 @@ function RequisitionBody({
         refetchType: 'none',
       });
       void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
-      assertSessionScope(scope);
       if (isSecureOrigin && retired && kind !== 'delete' && kind !== 'skip') {
         void (async () => {
           const fresh = await fetchRequisition(record.id);
@@ -956,18 +932,7 @@ function RequisitionBody({
           ),
         },
       );
-      const direct =
-        !router.state.location.state.requisitionReturn &&
-        !search.facility &&
-        [
-          'submit',
-          'submitAndAuthorize',
-          'authorize',
-          'approve',
-          'reject',
-          'delete',
-          'skip',
-        ].includes(kind);
+      const direct = !router.state.location.state.requisitionReturn && !search.facility;
       await router.navigate(
         direct
           ? {
@@ -1064,17 +1029,9 @@ function RequisitionBody({
   const adoptingLoader = newerServerRecord(data.record, record);
   const editingBlocked = pending || !!uncertainty || loaderOutdated || adoptingLoader;
   const baseline = useMemo(() => buildRequisitionDraft(record), [record]);
-  const dirty = useStore(editor.form.store, (state) => {
-    const draft = state.values.draft;
-    return !!(
-      draft.patients ||
-      Object.keys(draft.lines).length ||
-      draft.addedLines.length ||
-      draft.removedLineIds.length ||
-      draft.draftStatusMessage !== baseline.draftStatusMessage ||
-      draft.datePhysicalStockCountCompleted !== baseline.datePhysicalStockCountCompleted
-    );
-  });
+  const dirty = useStore(editor.form.store, (state) =>
+    hasUnsyncedRequisitionDraft({ draft: state.values.draft, baseHeaders: baseline }),
+  );
   const loaderRecord = useRef(data.record);
   useEffect(() => {
     if (loaderRecord.current === data.record) return;
@@ -1452,15 +1409,7 @@ function RequisitionBody({
               choices,
               attemptedSave.current,
             );
-            await editor.device.rebase(result.draft, merge.fresh);
-            assertSessionScope(scope);
-            editor.form.setFieldValue('draft', result.draft);
-            setRecord(merge.fresh);
-            latest.current = { record: merge.fresh, editor };
-            queryClient.setQueryData(requisitionOptions(merge.fresh.id).queryKey, merge.fresh);
-            setLoaderOutdated(false);
-            needsReconcile.current = false;
-            refreshPending.current = false;
+            await adoptMerge(result.draft, merge.fresh, scope);
             setMerge(null);
             setFailure(null);
             await run('sync');
