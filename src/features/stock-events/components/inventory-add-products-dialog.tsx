@@ -230,8 +230,8 @@ function AddProductsForm({
     if (soleProduct) selection.setFieldValue('productId', soleProduct);
   }, [selection, soleProduct]);
   useEffect(() => {
-    if (soleLot) selection.setFieldValue('lotId', soleLot);
-  }, [selection, soleLot]);
+    if (picked.productId && soleLot) selection.setFieldValue('lotId', soleLot);
+  }, [selection, soleLot, picked.productId]);
   const quantityField = (line: InventoryLine, index: number) => (
     <fieldset
       className={cards ? 'min-w-0' : unit === 'PACKS' ? 'w-28' : 'w-20'}

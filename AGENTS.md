@@ -527,7 +527,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   card per program, with program and action in the band; Physical Inventory adds a Status row.
   Issue, Receive, Adjustments and Unpack editors use one card per line, with the product label
   and Remove trash button in the band. `productLabel` from
-  `src/features/stock-events/lib/products.ts` formats `name - displayUnit (code)`. Read-only
+  `src/features/reference-data/lib/products.ts` formats `name - displayUnit`; bands append `(code)`.
+  Picker options show the name only and lot options the code only, as legacy. Lot pickers
+  become searchable at ten choices. Read-only
   rows show Pack Size, Lot Code with the table's no-lot text, Expiry and Stock On Hand;
   Total Quantity follows Quantity. `CardControlRow` (`src/components/display/card-list.tsx`) pairs
   labels with centred controls for counterparty and comments, reason and comments, VVM and

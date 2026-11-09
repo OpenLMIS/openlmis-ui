@@ -60,12 +60,12 @@ const card: EventStockCard = {
 };
 
 describe('ProductLotPicker', () => {
-  it('searches long lot lists by lot code without expiry text', async () => {
+  it.each([9, 10])('offers %i lots with search starting at ten choices', async (count) => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     queryClient.setQueryData(
       eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
       {
-        cards: Array.from({ length: 12 }, (_, index) => ({
+        cards: Array.from({ length: count }, (_, index) => ({
           ...card,
           lot: { id: `lot-${index}`, lotCode: `BATCH-${index}`, expirationDate: '2030-01-01' },
         })),
@@ -88,12 +88,20 @@ describe('ProductLotPicker', () => {
       { queryClient },
     );
     const lot = await screen.findByRole('combobox', { name: 'Lot Code' });
-    await user.type(lot, 'BATCH-11');
-    await user.click(await screen.findByRole('option', { name: /^BATCH-11$/ }));
+    const lastCode = `BATCH-${count - 1}`;
+    if (count === 10) {
+      await user.type(lot, lastCode);
+      expect(await screen.findByRole('option', { name: lastCode })).toBeVisible();
+      expect(screen.queryByRole('option', { name: /^BATCH-0$/ })).not.toBeInTheDocument();
+    } else {
+      expect(lot.tagName).toBe('BUTTON');
+      await user.click(lot);
+    }
+    await user.click(await screen.findByRole('option', { name: lastCode }));
     await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(onAdd).toHaveBeenCalledWith(
       expect.objectContaining({
-        lot: expect.objectContaining({ id: 'lot-11' }),
+        lot: expect.objectContaining({ id: `lot-${count - 1}` }),
       }),
       true,
     );
@@ -255,6 +263,7 @@ it('keeps an automatically picked lot when a refresh adds another option', async
 });
 
 const aspirin: Orderable = {
+  dispensable: { displayUnit: 'tablet' },
   id: 'aspirin',
   productCode: 'C1',
   fullProductName: 'Aspirin',
@@ -697,6 +706,7 @@ describe('ProductLotPicker with approved products', () => {
     await user.click(lot);
     await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
     const dialog = await screen.findByRole('dialog', { name: 'Add New Lot' });
+    expect(dialog).toHaveAccessibleDescription(/Aspirin - tablet/);
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(lot).toHaveTextContent('Lot Code');

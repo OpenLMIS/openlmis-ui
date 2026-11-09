@@ -5,7 +5,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import type { ParseKeys, TFunction } from 'i18next';
+import type { ParseKeys } from 'i18next';
 import { PackageIcon, PlusIcon } from 'lucide-react';
 import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
+import { productLabel } from '@/features/reference-data/lib/products';
 import {
   deviceNewLotsOptions,
   eventStockCardsOptions,
@@ -101,21 +102,6 @@ export function ProductLotPicker(props: Props) {
   return <StockCardLotPicker {...props} />;
 }
 
-type LotLabelItem = {
-  label?: string;
-  labelKey?: ParseKeys;
-  lot?: { expirationDate?: string | null } | null;
-};
-
-function useLotLabel() {
-  const { t } = useTranslation();
-  return (item: LotLabelItem) => <bdi>{item.labelKey ? t(item.labelKey) : item.label}</bdi>;
-}
-
-function lotItemLabel(item: LotLabelItem, t: TFunction): string {
-  return item.labelKey ? t(item.labelKey) : (item.label ?? '');
-}
-
 function LotPicker({
   items,
   value,
@@ -124,7 +110,6 @@ function LotPicker({
   id,
   required,
   placeholder,
-  children,
 }: {
   items: { value: string; label: string }[];
   value: string | null;
@@ -133,15 +118,15 @@ function LotPicker({
   id: string;
   required?: boolean;
   placeholder: string;
-  children: ReactNode;
 }) {
   const { t } = useTranslation();
+  const selectedItem = items.find((item) => item.value === value);
   if (items.length >= 10) {
     return (
       <Combobox
         items={items}
         itemToStringLabel={(item) => item.label}
-        value={items.find((item) => item.value === value) ?? null}
+        value={selectedItem ?? null}
         onValueChange={(item) => onValueChange(item?.value ?? null)}
         disabled={disabled}
       >
@@ -176,7 +161,9 @@ function LotPicker({
         aria-required={required}
         width="full"
       >
-        <SelectValue placeholder={placeholder}>{children}</SelectValue>
+        <SelectValue placeholder={placeholder}>
+          {selectedItem ? <bdi>{selectedItem.label}</bdi> : undefined}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
@@ -202,7 +189,6 @@ function StockCardLotPicker({
   bundleScope,
 }: BaseProps & { cardFilter: EventCardFilter }) {
   const { t } = useTranslation();
-  const lotLabel = useLotLabel();
   const copy = EVENT_KINDS[kind].copy;
   const id = useId();
   const {
@@ -220,7 +206,7 @@ function StockCardLotPicker({
   const lots = eventLotOptions(product?.cards ?? []);
   const lotItems = lots.map((item) => ({
     value: item.value,
-    label: lotItemLabel(item, t),
+    label: 'label' in item && item.label !== undefined ? item.label : t(item.labelKey),
   }));
   const selectedLotId = lots.length === 1 ? lots[0].value : lotId;
   if (lots.length === 1 && selectedLotId !== lotId) setLotId(selectedLotId);
@@ -328,9 +314,7 @@ function StockCardLotPicker({
             id={`${id}-lot`}
             required={lotRequired || undefined}
             placeholder={t(lotPlaceholder(product !== undefined, productHasLots))}
-          >
-            {productHasLots && pickedLot ? lotLabel(pickedLot) : undefined}
-          </LotPicker>
+          />
         </Field>
       </div>
       <PickerAddSlot>
@@ -405,7 +389,6 @@ function ApprovedProductLotPicker({
   const queryClient = useQueryClient();
   const deviceLots = useQuery(deviceNewLotsOptions()).data;
   const id = useId();
-  const lotLabel = useLotLabel();
   const today = toDateValue(new Date());
   const filter = { facilityId, programId };
   const [typed, setTyped] = useState('');
@@ -573,7 +556,7 @@ function ApprovedProductLotPicker({
     : lotOptions;
   const lotItems = lotChoices.map((item) => ({
     value: item.value,
-    label: lotItemLabel(item, t),
+    label: 'label' in item && item.label !== undefined ? item.label : t(item.labelKey),
   }));
   const shownLot = addingNewLot && typedLot ? typedLot : pickedLot;
   const pickLot = (value: string | null) => {
@@ -750,9 +733,7 @@ function ApprovedProductLotPicker({
             id={`${id}-lot`}
             required={!noLots || undefined}
             placeholder={t(lotPlaceholder(!!product, !noLots))}
-          >
-            {hasLotChoice && shownLot ? lotLabel(shownLot) : undefined}
-          </LotPicker>
+          />
         </Field>
       </div>
       {addingNewLot && !cards ? (
@@ -839,7 +820,7 @@ function ApprovedProductLotPicker({
           open={newLotDialog !== null}
           onOpenChange={(open) => !open && setNewLotDialog(null)}
           returnFocus={() => document.getElementById(`${id}-lot`)}
-          product={product.label}
+          product={productLabel(product.orderable)}
           tradeItemId={tradeItemId}
           lots={lots}
           lines={lines}
