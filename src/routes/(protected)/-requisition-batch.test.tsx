@@ -1288,3 +1288,27 @@ it('saves while approval membership is pending and excludes departed records fro
   await act(() => pending.resolve({ content: [records[0]], totalPages: 1 } as never));
   await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
 });
+
+it('starts retrieving the batch while device copy leases are pending', async () => {
+  await publishBatchAccess();
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const begin = copies.beginCopy;
+  const pending = Promise.withResolvers<void>();
+  vi.spyOn(copies, 'beginCopy').mockImplementation(async (id) => {
+    await pending.promise;
+    return begin(id);
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const loader = Route.options.loader as (arg: unknown) => Promise<unknown>;
+  const loaded = loader({
+    context: { queryClient: client },
+    deps: { ids: records.map((record) => record.id) },
+  });
+  try {
+    await waitFor(() => expect(fetchBatchRequisitions).toHaveBeenCalledOnce());
+  } finally {
+    pending.resolve();
+    await loaded;
+    client.clear();
+  }
+});

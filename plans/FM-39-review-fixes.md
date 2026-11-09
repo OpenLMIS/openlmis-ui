@@ -1212,3 +1212,10 @@ The preview server is stopped at handoff. No branch switch, push or other checko
 
 - Run the approval membership preflight in parallel with saveAll. Wait for its result before approveAll, exclude departed records and retain failed-verification recovery.
 - The held-membership regression proves saveAll starts immediately and approveAll receives only the records still awaiting approval.
+
+
+### Round 10 A: T3 batch opening
+
+- Start batch retrieval concurrently with device copy lease acquisition. Membership and copy capture already run outside the loader's critical path.
+- Remove the batch route's default 500 ms minimum pending-screen duration, which can extend navigation after its data is ready.
+- A held-copy-lease regression checks retrieval starts before local storage finishes.
