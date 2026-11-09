@@ -1259,3 +1259,9 @@ Chromium offline suite are recorded in the group C report under
 - Production tab timing exposed old measured widths surviving a change in visible columns. Return one temporary minimum width per current column until the layout effect remeasures, preventing the retained grid from indexing removed columns.
 - A regression checks every render during a column-count change; it failed before the fix.
 - The shared-worktree commit `728982bf` also contains the product-panel reuse change staged by Group A.
+
+
+### Round 10 A: T2/T3 parallel-read failures
+
+- Attach rejection handlers immediately to parallel lease and membership reads, preserving their error handling when saves or server reads take longer.
+- Invalidate the old membership revision when the action starts so a late opening read cannot replace the action's verification.

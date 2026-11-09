@@ -120,6 +120,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
     await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
     const copyLeases = isSecureOrigin ? Promise.all(ids.map(beginCopy)) : Promise.resolve([]);
+    void copyLeases.catch(() => undefined);
     let copyResult: Promise<unknown> | undefined;
     let membership: Promise<BatchMembership> | undefined;
     const selected =
@@ -534,8 +535,9 @@ function BatchPage() {
       }
       const checkingMembership =
         kind === 'approve' && !loaded.cachedMembership
-          ? fetchBatchMembership(ids, scope, search.program)
+          ? fetchBatchMembership(ids, scope, search.program).catch((error: unknown) => ({ error }))
           : undefined;
+      if (checkingMembership) membershipRevision.current++;
       const failures = new Map<string, string>();
       const eligible = records.filter((r) => {
         const invalidNumber = r.requisitionLineItems.some(
@@ -646,7 +648,6 @@ function BatchPage() {
         return;
       }
       if (checkingMembership) {
-        membershipRevision.current++;
         const found = await checkingMembership;
         assertSessionScope(scope);
         membership.current = found;
