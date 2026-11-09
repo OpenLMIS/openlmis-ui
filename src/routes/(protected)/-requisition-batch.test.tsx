@@ -27,6 +27,7 @@ import {
 import * as batchMarkers from '@/features/requisitions/lib/batch-session-markers';
 import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
 import * as savedBatches from '@/features/requisitions/lib/offline-batch';
+import * as copies from '@/features/requisitions/lib/offline-copies';
 import { getLocalDb } from '@/integrations/local-db';
 import { IsolatingICU } from '@/lib/isolate-values';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve_.batch';
@@ -203,6 +204,74 @@ it('validates, confirms, saves then approves and returns to the approval list', 
   expect(saveBatchRequisitions).toHaveBeenCalledOnce();
   expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
   expect(approveBatchRequisitions).toHaveBeenCalledWith(records.map((r) => r.id));
+});
+it('returns to the list before device confirmation and finishes cleanup after unmount', async () => {
+  await publishBatchAccess();
+  const confirm = copies.confirmBatchApproval;
+  const pending = Promise.withResolvers<void>();
+  const confirmation = vi
+    .spyOn(copies, 'confirmBatchApproval')
+    .mockImplementation(async (...args) => {
+      await pending.promise;
+      return confirm(...args);
+    });
+  vi.mocked(approveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: records.map((record) => ({ ...record, status: 'APPROVED' })),
+  });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  try {
+    await screen.findByText('Approval List');
+    await waitFor(() => expect(confirmation).toHaveBeenCalledTimes(records.length));
+  } finally {
+    await act(async () => pending.resolve());
+  }
+  await waitFor(async () => {
+    for (const record of records) {
+      expect((await copies.readCopy(record.id))?.batch?.confirmedApproval?.status).toBe('APPROVED');
+      expect(await getLocalDb().table('requisitionBatchDrafts').get(record.id)).toBeUndefined();
+    }
+  });
+});
+it('does not finish device cleanup or report its failure in a different session', async () => {
+  await publishBatchAccess();
+  const warning = vi.spyOn(toast, 'warning');
+  const pending = Promise.withResolvers<void>();
+  const confirm = copies.confirmBatchApproval;
+  const confirmation = vi
+    .spyOn(copies, 'confirmBatchApproval')
+    .mockImplementation(async (...args) => {
+      await pending.promise;
+      return confirm(...args);
+    });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await screen.findByText('Approval List');
+  await waitFor(() => expect(confirmation).toHaveBeenCalledTimes(records.length));
+  act(() =>
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: crypto.randomUUID(),
+      username: 'next',
+      accessToken: 'next-token',
+    }),
+  );
+  const table = getLocalDb().table('requisitionBatchDrafts');
+  await table.put({ draftId: records[0].id, sentinel: true });
+  await act(async () => {
+    pending.resolve();
+    await Promise.allSettled(confirmation.mock.results.map((result) => result.value));
+  });
+  expect(await table.get(records[0].id)).toMatchObject({ sentinel: true });
+  expect(warning).not.toHaveBeenCalledWith(
+    'requisitions.offline.unavailable-label',
+    expect.anything(),
+  );
 });
 it('keeps only partial failures and shows the server reason', async () => {
   vi.mocked(approveBatchRequisitions).mockResolvedValue({
@@ -584,7 +653,8 @@ it('does not show removed approved ids as missing while URL replacement is loadi
   );
 });
 
-it('does not classify a confirmed POST as uncertain when local marker removal fails', async () => {
+it('reports marker cleanup failure after returning without classifying approval as uncertain', async () => {
+  const warning = vi.spyOn(toast, 'warning');
   security.secure = false;
   vi.mocked(approveBatchRequisitions).mockImplementation(async () => {
     vi.spyOn(batchMarkers, 'writeBatchSessionMarker').mockImplementation(() => {
@@ -597,8 +667,13 @@ it('does not classify a confirmed POST as uncertain when local marker removal fa
   await waitFor(() => expect(approve).toBeEnabled());
   await userEvent.click(approve);
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
-  await screen.findByText('Marker removal failed');
-  expect(screen.getByRole('alertdialog').textContent).not.toContain('requisitions.batch.uncertain');
+  await screen.findByText('Approval List');
+  await waitFor(() =>
+    expect(warning).toHaveBeenCalledWith('requisitions.offline.unavailable-label', {
+      description: 'requisitions.offline.unavailable-description',
+    }),
+  );
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
 });
 

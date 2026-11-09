@@ -1242,3 +1242,10 @@ Chromium offline suite are recorded in the group C report under
 - Final paired medians: Approve 9,778 / 12,045 ms; Reject 6,612 / 8,775; Approve All 4,790 / 4,494; batch open 838 / 810; Non Full Supply tab 112 / 118; small Save 586 / 522; large Save 10,464 / 9,162. Strict timing parity remains incomplete, including a 64 ms small-Save residual, mostly outside its PUT. The report separates request time from other work and records the earlier large Submit/Authorize measurements.
 - All 163 touched tests, typecheck, design-system lint, Biome and production build pass. Arabic supply-tab smoke checks pass at desktop and phone widths.
 - Full per-item status, timings, limitations, commits and evidence: `/home/user/.t3/fm39-opus/review-online/r10/A/report.md`.
+
+### Round 12: batch approval completion
+
+- Fully successful Approve All removes confirmed ids from cached approval lists and returns before device confirmation and draft cleanup. The departing grid does not adopt the approved response.
+- Device confirmations run concurrently. The mutation continues after route unmount, retaining copy leases, draft revision checks and session assertions. Successful cleanup clears the approval marker with the draft instead of writing a separate resolved marker first.
+- Partial failures retain their response and recovery flow. Uncertain and possibly-approved outcomes retain their existing markers and reconciliation. Device failures after navigation show the existing offline-copy warning as a toast; session changes suppress obsolete feedback and cleanup.
+- Regression coverage pauses confirmation through navigation, checks durable completion after unmount and refuses cleanup in another session. Existing partial-result, uncertain-approval and saved-copy coverage remains in place.

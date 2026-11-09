@@ -670,41 +670,52 @@ function BatchPage() {
               : parseBatchResult(fresh, [id]).failed.get(id) || t('requisitions.batch.missing'),
           );
       let approved: string[] = [];
+      const confirmApprovals = async (result: BatchResponse) => {
+        try {
+          const outcomes = await Promise.allSettled(
+            (result.requisitionDtos ?? []).map(async (record) => {
+              const lease = loaded.copyLeases.find((lease) => lease.id === record.id);
+              if (lease && approved.includes(record.id)) await confirmBatchApproval(lease, record);
+            }),
+          );
+          assertSessionScope(scope);
+          const failed = outcomes.find((outcome) => outcome.status === 'rejected');
+          if (failed) throw failed.reason;
+        } catch (error) {
+          assertSessionScope(scope);
+          copyRevision.current++;
+          if (leaving.current)
+            toast.warning(t('requisitions.offline.unavailable-label'), {
+              description: t('requisitions.offline.unavailable-description'),
+            });
+          else setCopyFailure(error);
+        }
+      };
       if (saved.length) {
         let confirmed = false;
         let resolvedApprovals: string[] = [];
+        let approvalResult: BatchResponse | undefined;
         await drafts.mark(saved, true);
         try {
           const approvalResponse = await approveBatchRequisitions(saved);
           assertSessionScope(scope);
           confirmed = true;
+          approvalResult = approvalResponse;
           const approval = parseBatchResult(approvalResponse, saved);
           approved = approval.succeeded;
-          setResponse((previous) => ({
-            ...previous,
-            requisitionDtos: previous.requisitionDtos.map(
-              (record) =>
-                approvalResponse.requisitionDtos?.find((next) => next.id === record.id) ?? record,
-            ),
-          }));
+          if (failures.size || approval.failed.size)
+            setResponse((previous) => ({
+              ...previous,
+              requisitionDtos: previous.requisitionDtos.map(
+                (record) =>
+                  approvalResponse.requisitionDtos?.find((next) => next.id === record.id) ?? record,
+              ),
+            }));
           resolvedApprovals = saved.filter(
             (id) =>
               approved.includes(id) ||
               approvalResponse.requisitionErrors?.some((error) => error.requisitionId === id),
           );
-          if (isSecureOrigin) {
-            try {
-              for (const record of approvalResponse.requisitionDtos ?? []) {
-                const lease = loaded.copyLeases.find((lease) => lease.id === record.id);
-                if (lease && approved.includes(record.id))
-                  await confirmBatchApproval(lease, record);
-              }
-            } catch (error) {
-              assertSessionScope(scope);
-              copyRevision.current++;
-              setCopyFailure(error);
-            }
-          }
           let approvedElsewhere = false;
           for (const [id, reason] of approval.failed) {
             const alreadyApproved = approvalResponse.requisitionErrors
@@ -718,6 +729,7 @@ function BatchPage() {
                 : reason || 'requisitions.batch.missing',
             );
           }
+          if (isSecureOrigin && failures.size) await confirmApprovals(approvalResponse);
           if (approvedElsewhere) {
             try {
               const latest = await refresh();
@@ -748,12 +760,27 @@ function BatchPage() {
             assertSessionScope(scope);
           }
         }
-        if (confirmed) {
+        if (confirmed && !failures.size) {
+          removeApprovedFromLists(queryClient, approved);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all });
+          toast.success(t('requisitions.batch.approved', { count: approved.length }), {
+            description: t('requisitions.batch.approved-description'),
+          });
+          leaving.current = true;
+          await returnToList();
+          assertSessionScope(scope);
+        }
+        if (isSecureOrigin && approvalResult && leaving.current)
+          await confirmApprovals(approvalResult);
+        if (confirmed && !leaving.current) {
           await drafts.mark(resolvedApprovals, false);
         }
       }
-      removeApprovedFromLists(queryClient, approved);
+      if (!leaving.current) removeApprovedFromLists(queryClient, approved);
       await drafts.clear(approved, [], false);
+      assertSessionScope(scope);
+      if (leaving.current) return;
       void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all });
       if (approved.length)
@@ -769,13 +796,20 @@ function BatchPage() {
       }
       assertSessionScope(scope);
     },
-    onError: (error) => {
+    onError: (error, kind) => {
+      if (kind === 'approve' && leaving.current) {
+        toast.warning(t('requisitions.offline.unavailable-label'), {
+          description: t('requisitions.offline.unavailable-description'),
+        });
+        return;
+      }
       setDialogCount(1);
       setDialog(
         ids.reduce((message, id) => message.replaceAll(id, recordLabel(id)), errorMessage(error)),
       );
     },
-    onSettled: () => {
+    onSettled: (_data, _error, kind) => {
+      if (kind === 'approve' && leaving.current) return;
       busy.current = false;
       setAction(null);
     },
