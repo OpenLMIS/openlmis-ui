@@ -7,7 +7,7 @@ import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { httpError } from '@/test-utils/http-error';
 
 afterEach(cleanup);
-it('requires a field choice and preserves the draft when closed', async () => {
+it('requires a field choice and does not resolve when closed', async () => {
   const user = userEvent.setup();
   const onResolve = vi.fn(async () => undefined);
   const onClose = vi.fn();

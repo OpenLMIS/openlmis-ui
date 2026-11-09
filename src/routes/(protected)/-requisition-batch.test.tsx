@@ -484,6 +484,19 @@ it.each([true, false])('stores approval markers before the POST on secure=%s', a
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
   await screen.findByText('Approval List');
   expect(approveBatchRequisitions).toHaveBeenCalledOnce();
+  await waitFor(async () => {
+    for (const record of records) {
+      if (secure)
+        expect(await getLocalDb().table('requisitionBatchDrafts').get(record.id)).toBeUndefined();
+      else
+        expect(
+          batchMarkers.readBatchSessionMarker(
+            useLoginData.getState().referenceDataUserId as string,
+            record.id,
+          ),
+        ).toBeUndefined();
+    }
+  });
 });
 it('keeps the failed record typed quantity when other records synchronize', async () => {
   vi.mocked(saveBatchRequisitions).mockResolvedValue({

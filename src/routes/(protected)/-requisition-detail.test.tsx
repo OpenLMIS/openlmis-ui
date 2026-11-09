@@ -1967,20 +1967,16 @@ it.each(['overflowing', 'unreadable'] as const)(
   },
 );
 
-it.each([
-  [false, false],
-  [false, true],
-  [true, false],
-])(
-  'shows a refreshed reopened record, or keeps local edits as outdated (edited: %s, comment: %s)',
-  async (edited, comment) => {
+it.each([false, true])(
+  'shows a refreshed reopened record, or keeps local edits as outdated (edited: %s)',
+  async (edited) => {
     const { base, router, queryClient } = await openEditor();
     const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
     if (edited) fireEvent.change(input, { target: { value: '42' } });
     vi.mocked(fetchRequisition).mockResolvedValue({
       ...base,
       modifiedDate: '2026-10-28T11:00:00Z',
-      draftStatusMessage: comment ? 'New server comment' : base.draftStatusMessage,
+      draftStatusMessage: 'New server comment',
       requisitionLineItems: base.requisitionLineItems.map((item) => ({
         ...item,
         beginningBalance: 12,
@@ -1991,6 +1987,7 @@ it.each([
       await router.invalidate();
     });
     await waitFor(() => expect(input).toHaveValue(edited ? '42' : '12'));
+    if (!edited) expect(await screen.findByText('New server comment')).toBeVisible();
     if (edited) {
       expect(await screen.findByText('requisitions.edit.outdated-title')).toBeInTheDocument();
       expect(

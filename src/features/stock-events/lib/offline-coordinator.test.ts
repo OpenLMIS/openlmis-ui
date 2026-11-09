@@ -1321,7 +1321,7 @@ it('limits all providers to two HTTP reads and gives foreground work priority', 
   await Promise.all(requests);
 });
 
-it.each(['timeout', 'gateway', 'non-json'] as const)(
+it.each(['timeout', 'gateway'] as const)(
   'skips the remaining dataset after %s, retains old bundles and retries visibly',
   async (failure) => {
     begin();

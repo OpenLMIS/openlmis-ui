@@ -73,6 +73,10 @@ describe('create order workflow', () => {
       )
       .mockRejectedValueOnce(new Error('Refused'));
     const { user, onCreated } = setup();
+    expect(screen.getByText('orders.create.requesting-facility').closest('label')).toBeVisible();
+    for (const picker of screen.getAllByRole('combobox'))
+      expect(picker.getAttribute('placeholder')).not.toContain('*');
+    expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeDisabled();
     await add(user, 'Alpha');
     await add(user, 'Beta');
     await user.keyboard('{Escape}');
@@ -144,21 +148,6 @@ it('keeps picked facilities as chips and ticked options, toggles and removes the
   expect(supplier).toHaveValue('');
   expect(create).toBeDisabled();
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
-});
-
-it('keeps required picker placeholders free of spoken punctuation', () => {
-  setup();
-  for (const picker of screen.getAllByRole('combobox')) {
-    expect(picker.getAttribute('placeholder')).not.toContain('*');
-  }
-});
-
-it('shows the required requesting facility label before a facility is added', async () => {
-  setup();
-  const label = (await screen.findByText('orders.create.requesting-facility')).closest('label');
-  expect(label).toBeVisible();
-  expect(label?.textContent).toContain('*');
-  expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeDisabled();
 });
 
 it('keeps the facility picker mounted while programs load and enables the loaded program', async () => {

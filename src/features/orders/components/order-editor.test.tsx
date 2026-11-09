@@ -201,6 +201,18 @@ describe('order editor workflow', () => {
     await user.click(within(dialog).getByRole('button', { name: 'orders.edit.summary-confirm' }));
     await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith(['b']));
     expect(sendOrder).toHaveBeenCalledTimes(2);
+    expect(sendOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'b',
+        orderLineItems: [
+          {
+            id: 'line-b',
+            orderable: { id: 'product', meta: { versionNumber: 2 } },
+            orderedQuantity: 15,
+          },
+        ],
+      }),
+    );
     await user.click(screen.getByRole('button', { name: 'dialog.close' }));
     expect(quantity()).toHaveValue('15');
     expect(screen.getByRole('tab', { name: /Facility b/ })).toHaveTextContent(
@@ -412,6 +424,9 @@ it('marks an empty order invalid and keeps Create disabled until a positive quan
   expect(create).toBeEnabled();
   expect(create).not.toHaveAttribute('aria-description');
   expect(tab).toHaveTextContent('orders.edit.valid');
+  await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
+  expect(tab).toHaveTextContent('orders.edit.invalid');
+  expect(create).toBeDisabled();
 });
 
 it('focuses the next line removal control, then the product picker after the final line', async () => {
@@ -483,14 +498,4 @@ it('deletes the final order and replaces its history entry with the list', async
   history.back();
   await waitFor(() => expect(router.state.location.pathname).toBe('/previous'));
   client.clear();
-});
-
-it('marks an empty order invalid after adding and removing its only product', async () => {
-  const { user } = setup([{ ...creatingOrder('a'), orderLineItems: [] }]);
-  await user.click(screen.getByRole('combobox', { name: 'orders.edit.select-product' }));
-  await user.click(await screen.findByRole('option', { name: 'Medicine' }));
-  await user.click(screen.getByRole('button', { name: 'orders.add' }));
-  await waitFor(() => expect(quantity()).toHaveFocus());
-  await user.click(screen.getByRole('button', { name: 'orders.edit.remove-line' }));
-  expect(screen.getByRole('tab', { name: /Facility a/ })).toHaveTextContent('orders.edit.invalid');
 });

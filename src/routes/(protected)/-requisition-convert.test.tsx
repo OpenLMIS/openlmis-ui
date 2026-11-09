@@ -392,7 +392,7 @@ it('shows release actions only in the selection footer', async () => {
   const { queryClient } = renderRoute('/requisitions/convert');
   await screen.findAllByText('March');
   expect(
-    screen.queryByRole('button', { name: /^requisitions.convert.convert/ }),
+    screen.queryByRole('button', { name: /^requisitions.convert.release/ }),
   ).not.toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: /^requisitions.convert.convert/ }),
@@ -401,6 +401,11 @@ it('shows release actions only in the selection footer', async () => {
   expect(
     screen
       .getByRole('button', { name: /^requisitions.convert.convert/ })
+      .closest('[data-slot="selection-footer"]'),
+  ).toBeInTheDocument();
+  expect(
+    screen
+      .getByRole('button', { name: /^requisitions.convert.release/ })
       .closest('[data-slot="selection-footer"]'),
   ).toBeInTheDocument();
   queryClient.clear();

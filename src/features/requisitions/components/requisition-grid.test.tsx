@@ -661,7 +661,7 @@ it('exposes the complete product name when a table cell is clamped', () => {
   expect(screen.getByText('Medicine 0')).toHaveAttribute('title', 'Medicine 0');
 });
 
-it('keeps column widths stable across quantity keystrokes and fits formatted cost', async () => {
+it('keeps column widths stable across quantity keystrokes', async () => {
   const context = { font: '', measureText: (text: string) => ({ width: text.length * 8 }) };
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as never);
   const value = {

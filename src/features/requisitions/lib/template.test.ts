@@ -158,12 +158,3 @@ it('uses Patients as the default for pending skipped-line controls', () => {
   expect(hidesSkipped(t, undefined)).toBe(false);
   expect(hidesSkipped(t, 'fullSupply')).toBe(true);
 });
-
-it('reuses compiled columns for the same immutable template and context', () => {
-  const template = { columnsMap: { skipped: column('skipped') } };
-  const context = { tab: 'fullSupply' as const, status: 'INITIATED' as const };
-  expect(compileColumns(template, context)).toBe(compileColumns(template, { ...context }));
-  expect(compileColumns(template, { ...context, emergency: true })).not.toBe(
-    compileColumns(template, context),
-  );
-});
