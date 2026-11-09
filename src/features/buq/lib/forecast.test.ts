@@ -55,9 +55,16 @@ const PRICES = { l1: 78.58, l2: 1.1 };
 
 describe('initial values', () => {
   it('starts Verified from the consumption and Forecasted from Verified, keeping saved values', () => {
-    expect(initialDraft(forecast(), SOURCES).lines).toEqual({
+    const stored = forecast();
+    stored.bottomUpQuantificationLineItems.push({
+      ...stored.bottomUpQuantificationLineItems[0],
+      id: 'l3',
+      verifiedAnnualAdjustedConsumption: 25,
+    });
+    expect(initialDraft(stored, SOURCES).lines).toEqual({
       l1: { verified: '20', forecasted: '20', remarkId: '' },
       l2: { verified: '4', forecasted: '5', remarkId: 'r1' },
+      l3: { verified: '25', forecasted: '25', remarkId: '' },
     });
   });
 
@@ -137,7 +144,7 @@ describe('write body', () => {
   it('sends the stored facility and program, every line with its consumption and money in cents', () => {
     const stored = forecast();
     const draft = initialDraft(stored, SOURCES);
-    draft.lines.l2 = { verified: '3', forecasted: '3', remarkId: '' };
+    draft.lines.l2 = { verified: '6', forecasted: '6', remarkId: '' };
     draft.funding = [{ sourceId: 's1', name: '', used: '1', projected: '2' }];
     const body = forecastBody(stored, draft, PRICES);
 
@@ -156,16 +163,16 @@ describe('write body', () => {
         id: 'l2',
         orderableId: 'o2',
         annualAdjustedConsumption: 3,
-        verifiedAnnualAdjustedConsumption: 3,
-        forecastedDemand: 3,
-        totalCost: 3.3,
+        verifiedAnnualAdjustedConsumption: 6,
+        forecastedDemand: 6,
+        totalCost: 6.6,
         remark: null,
       },
     ]);
     expect(body.fundingDetails).toEqual({
       totalProjectedFund: 2,
-      totalForecastedCost: 1574.9,
-      gap: -1572.9,
+      totalForecastedCost: 1578.2,
+      gap: -1576.2,
       sourcesOfFunds: [
         { sourceOfFund: { id: 's1' }, amountUsedInLastFinancialYear: 1, projectedFund: 2 },
       ],
