@@ -75,8 +75,12 @@ async function seedForegroundLookup<T>(
   const scope = getSessionScope();
   const data = await read();
   assertSessionScope(scope);
-  if (config?.backgroundDownload && !config.signal?.aborted)
-    client.setQueryData<T>(key, (existing) => existing ?? data);
+  if (
+    config?.backgroundDownload &&
+    !config.signal?.aborted &&
+    client.getQueryData<T>(key) === undefined
+  )
+    client.setQueryData<T>(key, data);
   return data;
 }
 

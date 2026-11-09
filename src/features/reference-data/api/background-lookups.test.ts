@@ -119,13 +119,17 @@ it.each(['existing', 'identity'] as const)(
     try {
       await started.promise;
       const foreground = [{ id: 'current', name: 'Current', code: 'C', active: true }];
-      if (change === 'existing') queries.setQueryData(programsOptions().queryKey, foreground);
-      else useLoginData.setState({ referenceDataUserId: 'another' });
+      if (change === 'existing') {
+        queries.setQueryData(programsOptions().queryKey, foreground);
+        await queries.invalidateQueries({ queryKey: programsOptions().queryKey });
+      } else useLoginData.setState({ referenceDataUserId: 'another' });
       pending.resolve();
       await outcome;
       expect(queries.getQueryData(programsOptions().queryKey)).toEqual(
         change === 'existing' ? foreground : undefined,
       );
+      if (change === 'existing')
+        expect(queries.getQueryState(programsOptions().queryKey)?.isInvalidated).toBe(true);
     } finally {
       pending.resolve();
       await outcome;
