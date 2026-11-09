@@ -112,6 +112,7 @@ export async function requisitionStubs(
   mutations: string[],
   controls: {
     modifiedDate?: string;
+    requestedQuantity?: number;
     noCreate?: boolean;
     missingAvailable?: boolean;
     userId?: string;
@@ -251,6 +252,14 @@ export async function requisitionStubs(
       data = {
         ...single(path.split('/').at(-1)),
         ...(controls.modifiedDate ? { modifiedDate: controls.modifiedDate } : {}),
+        ...(controls.requestedQuantity === undefined
+          ? {}
+          : {
+              requisitionLineItems: single().requisitionLineItems.map((line) => ({
+                ...line,
+                requestedQuantity: controls.requestedQuantity,
+              })),
+            }),
       };
     else if (path.endsWith('/statusMessages'))
       data = [
