@@ -93,7 +93,6 @@ export function calculateLine(
   patientData?: PatientsData,
 ): RequisitionLineItem {
   const line = { ...model.line };
-  if (line.skipped) return line;
   const { template } = requisition;
   const calculated = (name: string) => template.columnsMap[name]?.source === 'CALCULATED';
   const displayed = (name: string) => template.columnsMap[name]?.isDisplayed;
