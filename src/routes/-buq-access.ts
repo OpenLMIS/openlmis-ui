@@ -6,6 +6,7 @@ import { type BuqAccess, buqAccess } from '@/features/buq/lib/access';
 import {
   deploymentTimeZoneOptions,
   homeFacilityOptions,
+  programLookupOptions,
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
@@ -50,6 +51,7 @@ export async function loadBuqAccess(
   if (access.kind === 'ready') {
     queryClient.prefetchQuery(buqPeriodsOptions());
     queryClient.prefetchQuery(openBuqsOptions(access.facility.id));
+    queryClient.prefetchQuery(programLookupOptions(access.program.id));
   }
   return access;
 }

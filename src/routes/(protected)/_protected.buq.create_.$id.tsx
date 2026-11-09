@@ -1,0 +1,217 @@
+import {
+  createFileRoute,
+  type ErrorComponentProps,
+  Link,
+  notFound,
+  useLocation,
+} from '@tanstack/react-router';
+import { FilePenLineIcon, SearchXIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
+import { LoadError } from '@/components/app-shell/load-error';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Workspace,
+  WorkspaceContent,
+  WorkspaceDescription,
+  WorkspaceHeader,
+  WorkspaceHeading,
+  WorkspaceIcon,
+  WorkspaceTitle,
+} from '@/components/workspace/workspace';
+import { RIGHTS } from '@/features/auth/lib/rights';
+import {
+  buqForecastOptions,
+  buqRemarksOptions,
+  buqSourcesOfFundsOptions,
+} from '@/features/buq/api/queries';
+import { BuqUnavailable } from '@/features/buq/components/buq-unavailable';
+import { ForecastEditor } from '@/features/buq/components/forecast-editor';
+import {
+  FORECAST_DIALOGS,
+  type ForecastSearch,
+  forecastSearchSchema,
+} from '@/features/buq/lib/search';
+import {
+  currencySettingsOptions,
+  facilityOptions,
+  orderablesByIdsOptions,
+  programLookupOptions,
+} from '@/features/reference-data/api/queries';
+import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { isNotFound } from '@/lib/http';
+import { loadBuqAccess } from '@/routes/-buq-access';
+
+const FORECASTING_RIGHTS = [RIGHTS.createForecasting, RIGHTS.authorizeForecasting];
+
+export const Route = createFileRoute('/(protected)/_protected/buq/create_/$id')({
+  staticData: { crumbKey: 'buq.forecast.crumb' },
+  preload: false,
+  validateSearch: forecastSearchSchema,
+  loader: async ({ context: { queryClient }, params, cause }) => {
+    if (!z.guid().safeParse(params.id).success) throw notFound();
+    const access = await loadBuqAccess(queryClient, FORECASTING_RIGHTS, cause, {
+      activeSupport: false,
+    });
+    if (access.kind !== 'ready') return access;
+    const detail = buqForecastOptions(params.id);
+    try {
+      const forecast =
+        cause === 'stay'
+          ? await queryClient.ensureQueryData(detail)
+          : await queryClient.fetchQuery({ ...detail, staleTime: 0 });
+      if (forecast.facilityId !== access.facility.id) throw notFound();
+      queryClient.prefetchQuery(
+        orderablesByIdsOptions(
+          forecast.bottomUpQuantificationLineItems.map(({ orderableId }) => orderableId),
+        ),
+      );
+      queryClient.prefetchQuery(facilityOptions(forecast.facilityId));
+      queryClient.prefetchQuery(programLookupOptions(forecast.programId));
+      queryClient.prefetchQuery(buqRemarksOptions());
+      queryClient.prefetchQuery(buqSourcesOfFundsOptions());
+      queryClient.prefetchQuery(currencySettingsOptions());
+      return access;
+    } catch (error) {
+      if (isNotFound(error)) throw notFound();
+      throw error;
+    }
+  },
+  pendingComponent: ForecastPending,
+  errorComponent: ForecastError,
+  notFoundComponent: ForecastNotFound,
+  component: ForecastPage,
+});
+
+function ForecastHeader() {
+  const { t } = useTranslation();
+  return (
+    <WorkspaceHeader>
+      <WorkspaceHeading>
+        <WorkspaceIcon>
+          <FilePenLineIcon />
+        </WorkspaceIcon>
+        <WorkspaceTitle>{t('buq.forecast.title')}</WorkspaceTitle>
+        <WorkspaceDescription>{t('buq.forecast.description')}</WorkspaceDescription>
+      </WorkspaceHeading>
+    </WorkspaceHeader>
+  );
+}
+
+function ForecastSkeleton() {
+  return (
+    <div aria-busy className="h-96">
+      <Skeleton fill />
+    </div>
+  );
+}
+
+function ForecastPage() {
+  const { t } = useTranslation();
+  const access = Route.useLoaderData();
+  const { id } = Route.useParams();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const listSearch = useLocation({ select: (location) => location.state.buqListSearch });
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<ForecastSearch>(FORECAST_DIALOGS);
+  if (access.kind !== 'ready') {
+    return (
+      <Workspace>
+        <ForecastHeader />
+        <WorkspaceContent>
+          <BuqUnavailable kind={access.kind} title={t('buq.create.unavailable-title')} />
+        </WorkspaceContent>
+      </Workspace>
+    );
+  }
+  return (
+    <Workspace width="wide">
+      <ForecastHeader />
+      <WorkspaceContent>
+        <QueryBoundary
+          errorComponent={({ error, reset }) => (
+            <LoadError
+              description={t('buq.forecast.load-error')}
+              error={error}
+              reset={reset}
+              title={t('buq.forecast.load-error-title')}
+            />
+          )}
+          pendingFallback={<ForecastSkeleton />}
+          resetKey={id}
+        >
+          <ForecastEditor
+            forecastId={id}
+            onCloseDialog={closeDialog}
+            onDone={() => void navigate({ to: '/buq/create', search: listSearch ?? {} })}
+            onOpenDialog={(dialog) => openDialog({ dialog })}
+            onSearchChange={updateSearch}
+            rights={{
+              create: access.granted.includes(RIGHTS.createForecasting),
+              authorize: access.granted.includes(RIGHTS.authorizeForecasting),
+            }}
+            search={search}
+          />
+        </QueryBoundary>
+      </WorkspaceContent>
+    </Workspace>
+  );
+}
+
+function ForecastPending() {
+  return (
+    <Workspace width="wide">
+      <ForecastHeader />
+      <WorkspaceContent>
+        <ForecastSkeleton />
+      </WorkspaceContent>
+    </Workspace>
+  );
+}
+
+function ForecastNotFound() {
+  const { t } = useTranslation();
+  return (
+    <Workspace>
+      <WorkspaceContent>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SearchXIcon />
+            </EmptyMedia>
+            <EmptyTitle>{t('buq.forecast.not-found-title')}</EmptyTitle>
+            <EmptyDescription>{t('buq.forecast.not-found-description')}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button nativeButton={false} render={<Link to="/buq/create" />} variant="outline">
+              {t('buq.forecast.back')}
+            </Button>
+          </EmptyContent>
+        </Empty>
+      </WorkspaceContent>
+    </Workspace>
+  );
+}
+
+function ForecastError(props: ErrorComponentProps) {
+  const { t } = useTranslation();
+  return (
+    <ErrorFallback
+      {...props}
+      description={t('buq.forecast.load-error')}
+      title={t('buq.forecast.load-error-title')}
+    />
+  );
+}
