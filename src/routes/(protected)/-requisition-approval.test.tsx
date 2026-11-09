@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-router';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { OfflineNavigationProvider } from '@/components/app-shell/offline-navigation';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -337,6 +338,41 @@ it('reopens the last online list offline and explains rows without a saved copy'
   renderRoute('/requisitions/approve', queryClient);
   expect(await screen.findByText('requisitions.approve.offline-empty-title')).toBeVisible();
   expect(fetchApprovalList).toHaveBeenCalledTimes(1);
+  queryClient.clear();
+});
+
+it('keeps the online approval list when the server becomes unreachable', async () => {
+  await act(() => onlineManager.setOnline(true));
+  vi.mocked(fetchApprovalList)
+    .mockResolvedValueOnce({
+      content: [
+        {
+          id: 'r0',
+          emergency: false,
+          status: 'AUTHORIZED',
+          program: { id: '11111111-1111-4111-8111-111111111111', name: 'Family Planning' },
+          facility: { id: 'f', name: 'Comfort' },
+          processingPeriod: { id: 'p0', name: 'Online Only' },
+        },
+      ],
+      number: 0,
+      size: 10,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    .mockRejectedValue(new AxiosError('Network Error', AxiosError.ERR_NETWORK));
+  const { queryClient } = renderRoute('/requisitions/approve');
+  await screen.findByText('Online Only');
+  cleanup();
+  renderRoute('/requisitions/approve', queryClient);
+  await waitFor(() => expect(vi.mocked(fetchApprovalList).mock.calls.length).toBeGreaterThan(1));
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(screen.getByText('Online Only')).toBeVisible();
+  cleanup();
+  await act(() => onlineManager.setOnline(false));
+  renderRoute('/requisitions/approve', queryClient);
+  expect(await screen.findByText('Online Only')).toBeVisible();
+  expect(await screen.findByText('requisitions.offline.online-results')).toBeVisible();
   queryClient.clear();
 });
 

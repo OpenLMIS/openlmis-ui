@@ -1,4 +1,4 @@
-import { type QueryClient, queryOptions } from '@tanstack/react-query';
+import { type QueryClient, type QueryFunctionContext, queryOptions } from '@tanstack/react-query';
 import {
   currencySettingsOptions,
   processingPeriodOptions,
@@ -30,7 +30,7 @@ import type {
 } from '@/features/requisitions/lib/types';
 import { deviceQuery } from '@/lib/device-query';
 import { queryKeys } from '@/lib/key-factory';
-import { onlineOrDevice } from '@/lib/local-data';
+import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { isDeviceAccess } from '@/lib/offline-access';
 import { isOnline } from '@/lib/online';
 
@@ -97,8 +97,8 @@ export const unskipSettingOptions = () =>
     queryFn: fetchUnskipSetting,
   });
 
-export const approvalListOptions = (search: ApprovalSearch, online = isOnline()) => ({
-  ...deviceQuery({
+export const approvalListOptions = (search: ApprovalSearch, online = isOnline()) => {
+  const options = deviceQuery({
     queryKey:
       !online || search.offline
         ? [...LOCAL_LIST_KEY, 'approve', search]
@@ -108,9 +108,23 @@ export const approvalListOptions = (search: ApprovalSearch, online = isOnline())
       search.offline ? localApprovals(search) : fetchApprovalList(toApprovalQuery(search)),
     device: () => localApprovals(search),
     staleTime: 0,
-  }),
-  ...(online && !search.offline && { gcTime: Infinity }),
-});
+  });
+  if (!online || search.offline) return options;
+  return {
+    ...options,
+    queryFn: (context: QueryFunctionContext) =>
+      onlineOrDevice(
+        () => fetchApprovalList(toApprovalQuery(search)),
+        (serverError) => {
+          const kept = context.client.getQueryData(context.queryKey);
+          if (kept !== undefined && !isDeviceAccess(kept))
+            throw serverError ?? new LocalDataUnavailableError();
+          return localApprovals(search);
+        },
+      ),
+    gcTime: Infinity,
+  };
+};
 
 export function hasOnlineApprovalList(client: QueryClient, search: ApprovalSearch) {
   if (search.offline) return false;
