@@ -1,4 +1,4 @@
-import type { Order } from '@/features/orders/lib/types';
+import type { Order, OrderSummary } from '@/features/orders/lib/types';
 
 export const orderProduct = {
   id: 'product',
@@ -18,5 +18,20 @@ export function creatingOrder(id = 'a', quantity: number | null = 10): Order {
     receivingFacility: { id: `facility-${id}` },
     supplyingFacility: { id: 'supplier', name: 'Supplier' },
     orderLineItems: [{ id: `line-${id}`, orderable: orderProduct, orderedQuantity: quantity }],
+  };
+}
+
+export function orderSummary(id = 'a'): OrderSummary {
+  return {
+    id,
+    orderCode: `ORDER-${id.toUpperCase()}`,
+    status: 'ORDERED',
+    emergency: false,
+    facility: { id: `facility-${id}`, code: 'F', name: `Facility ${id}`, geographicZone: null },
+    program: { id: 'program', name: 'Program' },
+    processingPeriod: null,
+    createdDate: '2026-01-01T12:00:00Z',
+    lastUpdatedDate: null,
+    supplyingFacility: { id: 'supplier' },
   };
 }

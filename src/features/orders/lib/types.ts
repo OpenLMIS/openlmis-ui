@@ -1,4 +1,5 @@
 import type { Orderable } from '@/features/reference-data/lib/types';
+import type { Page } from '@/lib/types';
 
 export type OrderFacility = { id: string; name?: string | null; code?: string };
 export type OrderProduct = Orderable & {
@@ -24,3 +25,27 @@ export type CreateOrderBody = {
   supplyingFacility: { id: string };
   facility: { id: string };
 };
+
+export type OrderSummary = {
+  id: string;
+  orderCode: string | null;
+  status: string;
+  emergency: boolean;
+  facility: {
+    id: string;
+    code: string | null;
+    name: string | null;
+    geographicZone: { name: string | null } | null;
+  } | null;
+  program: { id: string; name: string | null } | null;
+  processingPeriod: {
+    id: string;
+    name: string | null;
+    startDate: string | null;
+    endDate: string | null;
+  } | null;
+  createdDate: string | null;
+  lastUpdatedDate: string | null;
+  supplyingFacility: { id: string } | null;
+};
+export type OrdersPage = Page<OrderSummary>;

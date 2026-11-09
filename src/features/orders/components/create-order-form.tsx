@@ -1,5 +1,5 @@
 import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2Icon } from 'lucide-react';
 import { memo, useCallback, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +28,7 @@ import { OrderSelect } from '@/features/orders/components/order-select';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
 import type { MinimalFacility, Program } from '@/features/reference-data/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { queryKeys } from '@/lib/key-factory';
 import { settleFew } from '@/lib/settle-few';
 
 const EMPTY_PROGRAMS: Program[] = [];
@@ -48,6 +49,7 @@ export function CreateOrderForm({
   onCreated: (ids: string[]) => void;
 }) {
   const { t } = useTranslation();
+  const client = useQueryClient();
   const { data: programs = EMPTY_PROGRAMS, isPending: programsPending } = useQuery({
     ...userProgramsOptions(userId),
     throwOnError: true,
@@ -104,7 +106,7 @@ export function CreateOrderForm({
           facility: { id },
         }),
       })),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       const reason = serverMessage(result.error) ?? t('error.description');
       if (result.failed.length) {
         const names = result.failed
@@ -122,7 +124,13 @@ export function CreateOrderForm({
             description: t('orders.create.create-failed-description', { reason }),
           });
       }
-      if (result.done.length) onCreated(result.done.map((item) => item.order.id));
+      if (result.done.length) {
+        await Promise.all([
+          client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] }),
+          client.invalidateQueries({ queryKey: queryKeys.home.all }),
+        ]);
+        if (mutation.isCurrent()) onCreated(result.done.map((item) => item.order.id));
+      }
     },
     onError: (error) =>
       toast.error(t('orders.create.create-failed-title'), {

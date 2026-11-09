@@ -73,9 +73,8 @@ type Props = {
   onSearchChange: SearchChange<RequisitionSearch>;
 };
 
-function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
+function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean, timeZone: string) {
   const { t, i18n } = useTranslation();
-  const timeZone = useDeploymentTimeZone();
   return useMemo(
     () =>
       helper.columns([
@@ -132,21 +131,24 @@ function useColumns(search: RequisitionSearch, stale: boolean, cards: boolean) {
   );
 }
 
-function useResultsTable({
-  cards,
-  search,
-  columns,
-  onSearchChange,
-  data,
-  rowCount,
-  stale,
-}: Omit<Props, 'search'> & {
-  search: RequisitionSearch;
-  data: RequisitionSearchResult[];
-  rowCount: number;
-  stale: boolean;
-}) {
-  const defs = useColumns(search, stale, cards);
+function useResultsTable(
+  {
+    cards,
+    search,
+    columns,
+    onSearchChange,
+    data,
+    rowCount,
+    stale,
+  }: Omit<Props, 'search'> & {
+    search: RequisitionSearch;
+    data: RequisitionSearchResult[];
+    rowCount: number;
+    stale: boolean;
+  },
+  timeZone: string,
+) {
+  const defs = useColumns(search, stale, cards, timeZone);
   const { pageStart, searchState } = usePagedTableSearch({
     cards,
     search,
@@ -195,15 +197,18 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange, refr
     }),
   });
   const stale = deferred !== search;
-  const { table, pageStart } = useResultsTable({
-    cards,
-    search: deferred,
-    columns,
-    onSearchChange,
-    data: page.content,
-    rowCount: page.totalElements,
-    stale,
-  });
+  const { table, pageStart } = useResultsTable(
+    {
+      cards,
+      search: deferred,
+      columns,
+      onSearchChange,
+      data: page.content,
+      rowCount: page.totalElements,
+      stale,
+    },
+    timeZone,
+  );
   const pastEnd = page.content.length === 0 && page.totalElements > 0;
   useEffect(() => {
     if (pastEnd) onSearchChange({ page: page.totalPages > 1 ? page.totalPages : undefined }, true);
@@ -255,15 +260,18 @@ export function RequisitionsTableSkeleton({
   search,
   columns,
 }: Pick<Props, 'cards' | 'columns'> & { search: RequisitionSearch }) {
-  const { table } = useResultsTable({
-    cards,
-    search,
-    columns,
-    onSearchChange: noop,
-    data: NO_ROWS,
-    rowCount: 0,
-    stale: false,
-  });
+  const { table } = useResultsTable(
+    {
+      cards,
+      search,
+      columns,
+      onSearchChange: noop,
+      data: NO_ROWS,
+      rowCount: 0,
+      stale: false,
+    },
+    'UTC',
+  );
   const rowCount = toPaginationState(search, REQUISITIONS_PAGE_SIZE).pageSize;
   return <RequisitionListSkeleton cards={cards} rowCount={rowCount} table={table} />;
 }

@@ -76,6 +76,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
     await Promise.allSettled([
       client.invalidateQueries({ queryKey: queryKeys.requisitions.all }),
       client.invalidateQueries({ queryKey: queryKeys.home.all }),
+      client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] }),
     ]);
   };
   const notifySuccess = (body: ReleaseBody) => {

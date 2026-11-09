@@ -43,6 +43,7 @@ export type DataTableColumnMeta = {
   className?: string;
   skeleton?: 'control';
   label?: string;
+  sticky?: 'end';
 };
 
 // The server sorts and pages, so no client row models are registered.
@@ -135,12 +136,13 @@ export function DataTable<TData extends RowData>({
                   </TableRow>
                 ) : (
                   <TableRow
+                    pinned={columns.some((column) => column.columnDef.meta?.sticky)}
                     data-invalid={isRowInvalid?.(row.original) || undefined}
                     data-state={row.getIsSelected() ? 'selected' : undefined}
                     key={row.id}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} sticky={cell.column.columnDef.meta?.sticky}>
                         <FlexRender cell={cell} />
                       </TableCell>
                     ))}
@@ -170,6 +172,7 @@ function DataTableHeader<TData extends RowData>({
   table: DataTableInstance<TData>;
   columnWidths?: Readonly<Record<string, number>>;
 }) {
+  const pinned = table.getVisibleLeafColumns().some((column) => column.columnDef.meta?.sticky);
   return (
     <>
       <colgroup>
@@ -190,9 +193,13 @@ function DataTableHeader<TData extends RowData>({
       </colgroup>
       <TableHeader surface="muted">
         {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
+          <TableRow key={headerGroup.id} pinned={pinned} surface={pinned ? 'muted' : 'default'}>
             {headerGroup.headers.map((header) => (
-              <TableHead aria-sort={ariaSort(header.column)} key={header.id}>
+              <TableHead
+                aria-sort={ariaSort(header.column)}
+                key={header.id}
+                sticky={header.column.columnDef.meta?.sticky}
+              >
                 {header.isPlaceholder ? null : typeof header.column.columnDef.header ===
                   'string' ? (
                   <DataTableHeaderLabel>{header.column.columnDef.header}</DataTableHeaderLabel>
@@ -329,9 +336,12 @@ export function DataTableSkeleton<TData extends RowData>({
             <DataTableHeader table={table} />
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row}>
+                <TableRow
+                  key={row}
+                  pinned={columns.some((column) => column.columnDef.meta?.sticky)}
+                >
                   {columns.map((column) => (
-                    <TableCell key={column.id}>
+                    <TableCell key={column.id} sticky={column.columnDef.meta?.sticky}>
                       {column.id === 'select' ? (
                         <SkeletonBox />
                       ) : column.columnDef.meta?.skeleton === 'control' ? (

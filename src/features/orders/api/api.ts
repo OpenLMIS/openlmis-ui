@@ -1,7 +1,9 @@
 import type { OrderBody } from '@/features/orders/lib/order-draft';
-import type { CreateOrderBody, Order } from '@/features/orders/lib/types';
+import type { OrderSearchParams } from '@/features/orders/lib/order-search';
+import type { CreateOrderBody, Order, OrdersPage } from '@/features/orders/lib/types';
 import { client } from '@/integrations/axios';
 import { fetchIdBatches } from '@/lib/fetch-by-ids';
+import { fetchReport, fetchReportFile } from '@/lib/fetch-report';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
@@ -61,4 +63,35 @@ export async function fetchOrderStockOnHand(filter: {
   return [...new Set(filter.orderableIds)].map(
     (id) => balances.get(id) ?? { orderable: { id }, stockOnHand: 0 },
   );
+}
+
+export async function searchOrders(params: OrderSearchParams): Promise<OrdersPage> {
+  return (
+    await client.get<OrdersPage>('/orders', {
+      params,
+      paramsSerializer: { indexes: null },
+    })
+  ).data;
+}
+
+export async function fetchOrderRequestingFacilityIds(ids: readonly string[]): Promise<string[]> {
+  if (!ids.length) return [];
+  return (
+    await client.get<string[]>('/orders/requestingFacilities', {
+      params: { supplyingFacilityId: ids },
+      paramsSerializer: { indexes: null },
+    })
+  ).data;
+}
+
+export function fetchOrderPdf(id: string, language: string) {
+  return fetchReport(`/orders/${id}/print`, { format: 'pdf', lang: language });
+}
+
+export function fetchOrderCsv(id: string) {
+  return fetchReportFile(`/orders/${id}/export`, { type: 'csv' });
+}
+
+export async function retryOrderTransfer(id: string) {
+  return (await client.get<{ result: boolean }>(`/orders/${id}/retry`)).data;
 }

@@ -8,6 +8,7 @@ import { supplyingFacilitiesOptions } from '@/features/orders/api/queries';
 import { CreateOrderForm } from '@/features/orders/components/create-order-form';
 import * as referenceQueries from '@/features/reference-data/api/queries';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
+import { queryKeys } from '@/lib/key-factory';
 
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/features/orders/api/api', () => ({ createOrder: vi.fn() }));
@@ -37,6 +38,8 @@ function setup(
   if (!freshSuppliers)
     for (const ids of [['0'], ['1'], ['2'], ['0', '1'], ['0', '2'], ['1', '2'], ['0', '1', '2']])
       client.setQueryData(supplyingFacilitiesOptions('program', ids).queryKey, ['2']);
+  client.setQueryData(queryKeys.orders.list({}), {});
+  client.setQueryData([...queryKeys.home.all, 'counts'], {});
   const onCreated = vi.fn();
   render(
     <QueryClientProvider client={client}>
@@ -72,7 +75,7 @@ describe('create order workflow', () => {
           }),
       )
       .mockRejectedValueOnce(new Error('Refused'));
-    const { user, onCreated } = setup();
+    const { client, user, onCreated } = setup();
     expect(screen.getByText('orders.create.requesting-facility').closest('label')).toBeVisible();
     for (const picker of screen.getAllByRole('combobox'))
       expect(picker.getAttribute('placeholder')).not.toContain('*');
@@ -88,6 +91,8 @@ describe('create order workflow', () => {
       expect(remove).toHaveAttribute('aria-disabled', 'true');
     await act(() => finish({ id: 'draft-a' } as Awaited<ReturnType<typeof createOrder>>));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(['draft-a']));
+    expect(client.getQueryState(queryKeys.orders.list({}))?.isInvalidated).toBe(true);
+    expect(client.getQueryState([...queryKeys.home.all, 'counts'])?.isInvalidated).toBe(true);
     expect(createOrder).toHaveBeenCalledTimes(2);
     for (const id of ['0', '1'])
       expect(createOrder).toHaveBeenCalledWith({

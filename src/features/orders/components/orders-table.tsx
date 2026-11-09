@@ -1,0 +1,341 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
+import type { ParseKeys, TFunction } from 'i18next';
+import { PackageIcon, SearchXIcon } from 'lucide-react';
+import { type ReactNode, useDeferredValue, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmpty,
+  type DataTableFeatures,
+  DataTableHeaderLabel,
+  DataTableSkeleton,
+  dataTableFeatures,
+} from '@/components/data-table/data-table';
+import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
+import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
+import { FlagBadge } from '@/components/shared/flag-badge';
+import { Button } from '@/components/ui/button';
+import { ordersSearchOptions } from '@/features/orders/api/queries';
+import {
+  FulfillOrderButton,
+  type OrderRowAccess,
+  OrderRowButtons,
+} from '@/features/orders/components/order-row-buttons';
+import {
+  activeOrderFilterCount,
+  CLEARED_ORDER_FILTERS,
+} from '@/features/orders/components/orders-toolbar';
+import {
+  ORDER_DEFAULT_SORT,
+  ORDER_SORT_FIELDS,
+  toOrderParams,
+  type ViewOrdersSearch,
+} from '@/features/orders/lib/order-search';
+import { ORDER_STATUS, type OrderStatus } from '@/features/orders/lib/order-status';
+import type { OrderSummary } from '@/features/orders/lib/types';
+import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
+import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { tableValue } from '@/lib/empty-value';
+import { type SearchChange, toPaginationState } from '@/lib/table-search';
+
+const helper = createColumnHelper<DataTableFeatures, OrderSummary>();
+export const VIEW_ORDER_COLUMNS = [
+  ['orderCode', 'orders.view.columns.order-code'],
+  ['facility', 'orders.view.columns.facility'],
+  ['district', 'orders.view.columns.district'],
+  ['program', 'orders.view.columns.program'],
+  ['period', 'orders.view.columns.period'],
+  ['startDate', 'orders.view.columns.start-date'],
+  ['endDate', 'orders.view.columns.end-date'],
+  ['status', 'orders.view.columns.status'],
+  ['emergency', 'orders.view.columns.emergency'],
+  ['createdDate', 'orders.view.columns.created-date'],
+  ['lastUpdatedDate', 'orders.view.columns.last-updated-date'],
+] as const;
+export const FULFILL_ORDER_COLUMNS = [
+  ['emergency', 'orders.fulfill.columns.emergency'],
+  ['orderCode', 'orders.fulfill.columns.order-code'],
+  ['status', 'orders.fulfill.columns.status'],
+  ['facility', 'orders.fulfill.columns.facility'],
+  ['program', 'orders.fulfill.columns.program'],
+  ['period', 'orders.fulfill.columns.period'],
+  ['createdDate', 'orders.fulfill.columns.created-date'],
+] as const;
+export const FULFILL_ORDER_HIDEABLE_COLUMNS = FULFILL_ORDER_COLUMNS.filter(
+  ([id]) => id !== 'orderCode',
+).map(([id, labelKey]) => ({ id, labelKey }));
+export const ORDER_HIDEABLE_COLUMNS = VIEW_ORDER_COLUMNS.filter(([id]) => id !== 'orderCode').map(
+  ([id, labelKey]) => ({
+    id,
+    labelKey,
+    ...(['district', 'startDate', 'endDate', 'lastUpdatedDate'].includes(id) && {
+      hideBelow: 1280,
+    }),
+  }),
+);
+const NO_ROWS: OrderSummary[] = [];
+const NO_ACCESS: OrderRowAccess = { canEdit: false, retrySupplierIds: [] };
+const noop = () => {};
+const rowId = (order: OrderSummary) => order.id;
+
+export function orderListCell(
+  id: string,
+  order: OrderSummary,
+  language: string,
+  timeZone: string,
+  t: TFunction,
+) {
+  const text = (value: string | null | undefined) =>
+    tableValue(value) === null ? null : <CellText overflow="nowrap">{value}</CellText>;
+  switch (id) {
+    case 'orderCode':
+      return text(order.orderCode);
+    case 'facility':
+      return order.facility
+        ? text([order.facility.code, order.facility.name].filter(Boolean).join(' - '))
+        : null;
+    case 'district':
+      return text(order.facility?.geographicZone?.name);
+    case 'program':
+      return text(order.program?.name);
+    case 'period':
+      return text(order.processingPeriod?.name);
+    case 'startDate':
+    case 'endDate':
+      return text(formatDateValue(order.processingPeriod?.[id] ?? '', language));
+    case 'createdDate':
+    case 'lastUpdatedDate':
+      return text(formatTimestamp(order[id], language, { timeZone }));
+    case 'status':
+      return ORDER_STATUS[order.status as OrderStatus]
+        ? t(ORDER_STATUS[order.status as OrderStatus].labelKey)
+        : tableValue(order.status);
+    case 'emergency':
+      return (
+        <FlagBadge
+          value={order.emergency}
+          trueLabel={t('orders.yes')}
+          falseLabel={t('orders.no')}
+        />
+      );
+  }
+}
+
+export function orderColumns({
+  columns = VIEW_ORDER_COLUMNS,
+  t,
+  language,
+  timeZone,
+  actions,
+  actionsKey = 'orders.view.columns.actions',
+}: {
+  columns?: readonly (readonly [string, ParseKeys])[];
+  t: TFunction;
+  language: string;
+  timeZone: string;
+  actions?: (order: OrderSummary) => ReactNode;
+  actionsKey?: ParseKeys;
+}) {
+  return helper.columns([
+    ...columns.map(([id, key]) =>
+      helper.display({
+        id,
+        ...(ORDER_SORT_FIELDS.includes(id as (typeof ORDER_SORT_FIELDS)[number]) && {
+          accessorFn: (order: OrderSummary) =>
+            order[id as 'orderCode' | 'emergency' | 'createdDate'],
+        }),
+        enableSorting: ORDER_SORT_FIELDS.includes(id as (typeof ORDER_SORT_FIELDS)[number]),
+        sortDescFirst: id === 'createdDate',
+        meta: { label: t(key) },
+        header: ({ column }) => <DataTableColumnHeader column={column} title={t(key)} />,
+        cell: ({ row }) => orderListCell(id, row.original, language, timeZone, t),
+      }),
+    ),
+    ...(actions
+      ? [
+          helper.display({
+            id: 'actions',
+            meta: { label: t(actionsKey), skeleton: 'control', sticky: 'end' },
+            header: () => <DataTableHeaderLabel>{t(actionsKey)}</DataTableHeaderLabel>,
+            cell: ({ row }) => actions(row.original),
+          }),
+        ]
+      : []),
+  ]);
+}
+
+type Props<T extends ViewOrdersSearch = ViewOrdersSearch> = {
+  kind?: 'view' | 'fulfill';
+  legacyAvailable?: boolean;
+  cards: boolean;
+  columns: ColumnVisibilityState;
+  search: T;
+  onSearchChange: SearchChange<T>;
+  access?: OrderRowAccess;
+};
+function useResultsTable<T extends ViewOrdersSearch>(
+  {
+    kind = 'view',
+    legacyAvailable = true,
+    cards,
+    columns,
+    search,
+    onSearchChange,
+    access = NO_ACCESS,
+    data,
+    rowCount,
+    stale,
+  }: Props<T> & { data: OrderSummary[]; rowCount: number; stale: boolean },
+  timeZone: string,
+) {
+  const { t, i18n } = useTranslation();
+  const defs = useMemo(
+    () =>
+      orderColumns({
+        columns: kind === 'fulfill' ? FULFILL_ORDER_COLUMNS : VIEW_ORDER_COLUMNS,
+        t,
+        language: i18n.language,
+        timeZone,
+        actionsKey:
+          kind === 'fulfill' ? 'orders.fulfill.columns.actions' : 'orders.view.columns.actions',
+        actions:
+          kind === 'fulfill' && !legacyAvailable
+            ? undefined
+            : (order) =>
+                kind === 'fulfill' ? (
+                  <FulfillOrderButton order={order} disabled={stale} />
+                ) : (
+                  <OrderRowButtons order={order} search={search} access={access} disabled={stale} />
+                ),
+      }),
+    [kind, legacyAvailable, t, i18n.language, timeZone, search, access, stale],
+  );
+  const { pageStart, searchState } = usePagedTableSearch({
+    cards,
+    search,
+    defaultSort: ORDER_DEFAULT_SORT,
+    onSearchChange,
+  });
+  const table = useTable({
+    features: dataTableFeatures,
+    columns: defs,
+    data,
+    getRowId: rowId,
+    rowCount,
+    manualPagination: true,
+    manualSorting: true,
+    ...searchState,
+    state: { ...searchState.state, columnVisibility: columns },
+  });
+  return { table, pageStart };
+}
+export function OrdersTable<T extends ViewOrdersSearch>(props: Props<T>) {
+  const { t } = useTranslation();
+  const deferred = useDeferredValue(props.search);
+  const { data: page } = useSuspenseQuery(ordersSearchOptions(toOrderParams(deferred, props.kind)));
+  const timeZone = useDeploymentTimeZone();
+  const stale = deferred !== props.search;
+  const { table, pageStart } = useResultsTable(
+    {
+      ...props,
+      search: deferred,
+      data: page.content,
+      rowCount: page.totalElements,
+      stale,
+    },
+    timeZone,
+  );
+  const pastEnd = page.content.length === 0 && page.totalElements > 0;
+  const { onSearchChange } = props;
+  useEffect(() => {
+    if (pastEnd)
+      onSearchChange(
+        (previous) => ({ ...previous, page: page.totalPages > 1 ? page.totalPages : undefined }),
+        true,
+      );
+  }, [pastEnd, page.totalPages, onSearchChange]);
+  const filtered = activeOrderFilterCount(deferred) > 0;
+  const empty = !pastEnd && (
+    <DataTableEmpty
+      icon={filtered ? <SearchXIcon /> : <PackageIcon />}
+      title={t(filtered ? 'orders.view.no-matches-title' : 'orders.view.empty-title')}
+      description={t(
+        filtered
+          ? 'orders.view.no-matches-description'
+          : props.kind === 'fulfill'
+            ? 'orders.fulfill.empty-description'
+            : 'orders.view.empty-description',
+      )}
+      action={
+        filtered && (
+          <Button
+            size="lg"
+            variant="destructive"
+            onClick={() =>
+              onSearchChange((previous) => ({ ...previous, ...CLEARED_ORDER_FILTERS }), true)
+            }
+          >
+            {t('data-table.clear-filters')}
+          </Button>
+        )
+      }
+    />
+  );
+  const footer = !pastEnd && page.totalElements > 0 && <DataTablePagination table={table} />;
+  return props.cards ? (
+    <TableCards
+      busy={stale}
+      empty={empty}
+      footer={footer}
+      listRef={pageStart.ref}
+      table={table}
+      title="orderCode"
+    />
+  ) : (
+    <DataTable
+      density="default"
+      empty={empty}
+      footer={footer}
+      isStale={stale}
+      layout="auto"
+      table={table}
+    />
+  );
+}
+export function OrdersTableSkeleton<T extends ViewOrdersSearch>({
+  kind,
+  legacyAvailable = true,
+  cards,
+  columns,
+  search,
+}: Pick<Props<T>, 'kind' | 'legacyAvailable' | 'cards' | 'columns' | 'search'>) {
+  const { table } = useResultsTable(
+    {
+      kind,
+      legacyAvailable,
+      cards,
+      columns,
+      search,
+      access: NO_ACCESS,
+      onSearchChange: noop,
+      data: NO_ROWS,
+      rowCount: 0,
+      stale: false,
+    },
+    'UTC',
+  );
+  const rowCount = toPaginationState(search).pageSize;
+  return cards ? (
+    <TableCardsSkeleton
+      actions={kind === 'fulfill' ? (legacyAvailable ? 1 : 0) : 2}
+      rowCount={rowCount}
+      table={table}
+      title="orderCode"
+    />
+  ) : (
+    <DataTableSkeleton density="default" layout="auto" rowCount={rowCount} table={table} />
+  );
+}

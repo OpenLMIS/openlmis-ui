@@ -1,22 +1,39 @@
+import { waitFor } from '@testing-library/react';
 import { AxiosError } from 'axios';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  fetchMinimalFacilities,
+  fetchPrograms,
+  fetchRoles,
+  fetchSupervisoryNodesByIds,
+} from '@/features/reference-data/api/api';
+import { minimalFacilitiesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { fetchApprovalList } from '@/features/requisitions/api/api';
 import {
   mayApproveCopy,
   mayViewCopy,
   type RequisitionAccess,
   readRequisitionAccess,
+  requisitionAccessProvider,
 } from '@/features/requisitions/lib/offline-access';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
+import { queryClient } from '@/integrations/tanstack-query';
 import type { OfflineAccess } from '@/lib/offline-access';
 import { captureBatch, readBatch } from './offline-batch';
 import { beginCopy, readCopy, retireCopy } from './offline-copies';
 
+vi.mock('@/features/reference-data/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/reference-data/api/api')>()),
+  fetchMinimalFacilities: vi.fn(),
+  fetchPrograms: vi.fn(),
+  fetchRoles: vi.fn(),
+  fetchSupervisoryNodesByIds: vi.fn(),
+}));
 vi.mock('@/features/requisitions/api/api', () => ({ fetchApprovalList: vi.fn() }));
 
 beforeEach(() => {
-  vi.mocked(fetchApprovalList).mockReset();
+  vi.resetAllMocks();
   useLoginData.getState().setLoginData({
     referenceDataUserId: crypto.randomUUID(),
     username: 'owner',
@@ -401,4 +418,52 @@ it('filters batch membership by program and stops as soon as all requested ids a
     sort: ['id,asc'],
     program: 'p',
   });
+});
+
+it('refreshes offline preparation separately from cached screen lookups', async () => {
+  const data = access();
+  data.access.user.roleAssignments = [];
+  await publish(data);
+  queryClient.setQueryData(minimalFacilitiesOptions().queryKey, data.saved.facilities);
+  queryClient.setQueryData(programsOptions().queryKey, data.saved.programs);
+  vi.mocked(fetchMinimalFacilities).mockResolvedValue(data.saved.facilities);
+  vi.mocked(fetchPrograms).mockResolvedValue(data.saved.programs);
+  vi.mocked(fetchRoles).mockResolvedValue([]);
+  vi.mocked(fetchSupervisoryNodesByIds).mockResolvedValue([]);
+  const task = requisitionAccessProvider.tasks(data.access)[0];
+  const record = await task.fetch(new AbortController().signal);
+  expect(record).toMatchObject({
+    facilities: data.saved.facilities,
+    programs: data.saved.programs,
+  });
+  expect(fetchMinimalFacilities).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ backgroundDownload: true }),
+  );
+  expect(fetchPrograms).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ backgroundDownload: true }),
+  );
+});
+
+it('keeps screen and download requests separate and rejects preparation after the session changes', async () => {
+  const data = access();
+  data.access.user.roleAssignments = [];
+  await publish(data);
+  const response = Promise.withResolvers<typeof data.saved.facilities>();
+  vi.mocked(fetchMinimalFacilities).mockReturnValue(response.promise);
+  vi.mocked(fetchPrograms).mockResolvedValue(data.saved.programs);
+  vi.mocked(fetchRoles).mockResolvedValue([]);
+  const screenLookup = queryClient.fetchQuery(minimalFacilitiesOptions());
+  const task = requisitionAccessProvider.tasks(data.access)[0];
+  const preparing = task.fetch(new AbortController().signal);
+  await waitFor(() => expect(fetchRoles).toHaveBeenCalled());
+  const settled = Promise.allSettled([screenLookup, preparing]);
+  useLoginData.getState().setLoginData({
+    referenceDataUserId: crypto.randomUUID(),
+    username: 'other',
+    accessToken: 'other-token',
+  });
+  response.resolve(data.saved.facilities);
+  const outcomes = await settled;
+  expect(outcomes[1].status).toBe('rejected');
+  expect(fetchMinimalFacilities).toHaveBeenCalledTimes(2);
 });

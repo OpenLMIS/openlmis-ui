@@ -1,12 +1,26 @@
 import { type QueryClient, queryOptions } from '@tanstack/react-query';
-import { fetchOrder, fetchOrderStockOnHand } from '@/features/orders/api/api';
-import { commonNodeIds, supplierIds } from '@/features/orders/lib/supplying-facilities';
 import {
+  fetchOrder,
+  fetchOrderRequestingFacilityIds,
+  fetchOrderStockOnHand,
+  searchOrders,
+} from '@/features/orders/api/api';
+import type { OrderSearchParams } from '@/features/orders/lib/order-search';
+import {
+  commonNodeIds,
+  supplierIds,
+  viewOrderSupplierIds,
+} from '@/features/orders/lib/supplying-facilities';
+import {
+  facilitiesByIdsOptions,
   facilitySupervisoryNodesOptions,
+  LOOKUP_STALE_TIME,
+  minimalFacilitiesOptions,
   supplyLinesOptions,
 } from '@/features/reference-data/api/queries';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import type { Permissions } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const supplyingFacilitiesOptions = (programId: string, facilityIds: readonly string[]) =>
@@ -98,3 +112,33 @@ export const orderStockOnHandOptions = (filter: StockFilter) =>
       }));
     },
   });
+
+export const ordersSearchOptions = (params: OrderSearchParams) =>
+  queryOptions({ queryKey: queryKeys.orders.list(params), queryFn: () => searchOrders(params) });
+
+export const orderRequestingFacilitiesOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: [...queryKeys.orders.all, 'requesting-facilities', ids.toSorted()],
+    enabled: ids.length > 0,
+    queryFn: () => fetchOrderRequestingFacilityIds(ids),
+  });
+
+export function viewSupplierFacilitiesOptions(permissions: Permissions) {
+  const ids = viewOrderSupplierIds(permissions);
+  return queryOptions({
+    queryKey: [...queryKeys.facilities.all, 'order-suppliers', ids],
+    staleTime: LOOKUP_STALE_TIME,
+    queryFn: async ({ client }) => {
+      const cached = client.getQueryData(minimalFacilitiesOptions().queryKey);
+      if (cached) return cached;
+      if (ids.length > 100) return client.fetchQuery(minimalFacilitiesOptions());
+      const facilities = await client.fetchQuery(facilitiesByIdsOptions(ids));
+      return facilities.map(({ id, code, name, active }) => ({
+        id,
+        code,
+        name: name ?? code,
+        active,
+      }));
+    },
+  });
+}

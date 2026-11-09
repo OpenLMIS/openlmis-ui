@@ -183,6 +183,7 @@ it.each([true, false])(
     });
     const { queryClient } = renderRoute('/requisitions/convert');
     queryClient.setQueryData([...queryKeys.home.all, 'test-count'], 1);
+    queryClient.setQueryData(queryKeys.orders.list({}), {});
     await selectRow();
     await action(createOrder);
     await confirm();
@@ -194,6 +195,7 @@ it.each([true, false])(
     );
     await screen.findAllByText('April');
     expect(await copies.get('March')).toBeUndefined();
+    expect(queryClient.getQueryState(queryKeys.orders.list({}))?.isInvalidated).toBe(true);
     await waitFor(() =>
       expect(screen.getByRole('region', { name: 'requisitions.convert.title' })).toHaveFocus(),
     );
@@ -540,6 +542,7 @@ it('never resends a processed id in the next batch after a 503 with refused stat
     .mockResolvedValueOnce(undefined);
   const { queryClient } = renderRoute('/requisitions/convert');
   queryClient.setQueryData([...queryKeys.home.all, 'test-count'], 1);
+  queryClient.setQueryData(queryKeys.orders.list({}), {});
   await screen.findAllByText('March');
   await userEvent.click(screen.getByRole('checkbox', { name: 'Select Page' }));
   await action();

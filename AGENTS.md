@@ -637,6 +637,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
   `Table density/layout/width/scroll`, `TableCell rowHeader`, `TableHeader surface`,
+  `TableRow pinned/surface`,
+  `TableHead`/`TableCell sticky` (end-pinned Actions through `meta.sticky`),
   `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width/clearLabel`, `InputGroup size="lg"`, `PopoverContent width`, `Skeleton fill`,
   `Button variant="destructive-solid"` and `"destructive-outline"`. `TableCell rowHeader` becomes
