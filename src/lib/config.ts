@@ -59,7 +59,7 @@ export const NAV_GROUPS: NavGroup[] = [
         items: [
           { titleKey: 'nav.buq.prepare', to: '/buq/prepare' },
           { titleKey: 'nav.buq.create-authorize', to: '/buq/create' },
-          { titleKey: 'nav.buq.approve', to: '#' },
+          { titleKey: 'nav.buq.approve', to: '/buq/approve' },
           { titleKey: 'nav.buq.national-approvals', to: '#' },
         ],
       },

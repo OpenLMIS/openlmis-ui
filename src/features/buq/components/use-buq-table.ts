@@ -1,16 +1,15 @@
 import { type ColumnDef, useTable } from '@tanstack/react-table';
 import { useEffect, useMemo } from 'react';
 import { type DataTableFeatures, dataTableFeatures } from '@/components/data-table/data-table';
-import type { BuqRow } from '@/features/buq/lib/rows';
 import { type BuqTableProps, DEFAULT_BUQ_SORT } from '@/features/buq/lib/search';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { toPaginationState } from '@/lib/table-search';
 
-const getRowId = (row: BuqRow) => row.id;
+const getRowId = (row: { id: string }) => row.id;
 
-export function useBuqTable(
-  rows: readonly BuqRow[],
-  columns: ColumnDef<DataTableFeatures, BuqRow>[],
+export function useBuqTable<Row extends { id: string }>(
+  rows: readonly Row[],
+  columns: ColumnDef<DataTableFeatures, Row>[],
   { search, onSearchChange, cards }: BuqTableProps,
 ) {
   const { pageIndex, pageSize } = toPaginationState(search);
