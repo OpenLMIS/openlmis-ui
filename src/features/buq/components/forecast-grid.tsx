@@ -1,10 +1,12 @@
 import { useStore } from '@tanstack/react-form';
 import { type ColumnDef, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
+import { PackageOpenIcon } from 'lucide-react';
 import { createContext, type ReactNode, useContext, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
+  DataTableEmpty,
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -301,11 +303,21 @@ export function ForecastGrid({
     enableSorting: false,
     ...searchState,
   });
-  const footer = <DataTablePagination isPageInvalid={isPageInvalid} table={table} />;
+  const footer = models.length > 0 && (
+    <DataTablePagination isPageInvalid={isPageInvalid} table={table} />
+  );
+  const empty = (
+    <DataTableEmpty
+      description={t('buq.forecast.empty-description')}
+      icon={<PackageOpenIcon />}
+      title={t('buq.forecast.empty-title')}
+    />
+  );
   return (
     <GridContext value={state}>
       {state.cards ? (
         <TableCards
+          empty={empty}
           footer={footer}
           heading={headingOf}
           listRef={pageStart.ref}
@@ -313,7 +325,7 @@ export function ForecastGrid({
           title="product"
         />
       ) : (
-        <DataTable footer={footer} heading={headingOf} layout="auto" table={table} />
+        <DataTable empty={empty} footer={footer} heading={headingOf} layout="auto" table={table} />
       )}
     </GridContext>
   );

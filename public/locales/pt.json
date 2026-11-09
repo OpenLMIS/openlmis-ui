@@ -36,6 +36,8 @@
   "buq.forecast.crumb": "Previsão",
   "buq.forecast.description": "Verifique o consumo anual de cada produto, introduza a procura prevista e o financiamento, e envie o relatório.",
   "buq.forecast.discard": "As alterações a este relatório não foram guardadas. Descartá-las e sair?",
+  "buq.forecast.empty-description": "Este relatório não tem produtos, por isso não há nada a prever. Prepare um relatório para um período com consumo registado.",
+  "buq.forecast.empty-title": "Sem produtos",
   "buq.forecast.facility-code": "Código da Unidade",
   "buq.forecast.facility-name": "Nome da Unidade",
   "buq.forecast.facility-type": "Tipo de Unidade",

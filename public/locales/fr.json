@@ -36,6 +36,8 @@
   "buq.forecast.crumb": "Prévision",
   "buq.forecast.description": "Vérifiez la consommation annuelle de chaque produit, saisissez la demande prévue et le financement, puis envoyez le rapport.",
   "buq.forecast.discard": "Les modifications de ce rapport n'ont pas été enregistrées. Les abandonner et quitter ?",
+  "buq.forecast.empty-description": "Ce rapport ne contient aucun produit, il n’y a donc rien à prévoir. Préparez un rapport pour une période avec une consommation enregistrée.",
+  "buq.forecast.empty-title": "Aucun produit",
   "buq.forecast.facility-code": "Code de l'établissement",
   "buq.forecast.facility-name": "Nom de l'établissement",
   "buq.forecast.facility-type": "Type d'établissement",
