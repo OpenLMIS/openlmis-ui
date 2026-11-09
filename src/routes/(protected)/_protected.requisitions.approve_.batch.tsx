@@ -534,7 +534,9 @@ function BatchPage() {
         return;
       }
       const checkingMembership =
-        kind === 'approve' && !loaded.cachedMembership
+        kind === 'approve' &&
+        !loaded.cachedMembership &&
+        records.some((record) => !record.modifiedDate)
           ? fetchBatchMembership(ids, scope, search.program).catch((error: unknown) => ({ error }))
           : undefined;
       if (checkingMembership) membershipRevision.current++;
@@ -657,13 +659,15 @@ function BatchPage() {
         setVerifiedOpening(loaded);
         for (const id of found.remaining) failures.set(id, 'requisitions.batch.no-longer-awaiting');
       }
-      const available = new Set(fresh.requisitionDtos?.map((r) => r.id));
+      const available = new Set(fresh.requisitionDtos?.filter(batchApprovable).map((r) => r.id));
       const saved = save.succeeded.filter((id) => available.has(id) && !failures.has(id));
       for (const id of save.succeeded)
         if (!available.has(id))
           failures.set(
             id,
-            parseBatchResult(fresh, [id]).failed.get(id) || t('requisitions.batch.missing'),
+            fresh.requisitionDtos?.some((record) => record.id === id)
+              ? 'requisitions.batch.no-longer-awaiting'
+              : parseBatchResult(fresh, [id]).failed.get(id) || t('requisitions.batch.missing'),
           );
       let approved: string[] = [];
       if (saved.length) {

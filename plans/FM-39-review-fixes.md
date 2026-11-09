@@ -1294,3 +1294,10 @@ Chromium offline suite are recorded in the group C report under
 
 - Sort missing available-product identities before chunking them. Equivalent server lists now share query keys even if their order changes between records.
 - The copy regression captures the same 250 identities in reverse order and verifies it still performs only the original three requests. It failed with six requests before this change.
+
+
+### Round 10 A: T2 fold verification into timestamp-protected save results
+
+- The first paired run showed the parallel membership GET still added about 1.5 seconds after saveAll. Backend master BatchRequisitionController.update validates canSave, current-node approval rights and modifiedDate before returning each successful saved record.
+- For timestamp-protected records, use those save results directly and approve only records still AUTHORIZED or IN_APPROVAL. Returned records in any other state retain No Longer Awaiting Approval and are excluded. Save failures remain excluded as before.
+- Records without modifiedDate retain the parallel membership fallback. Regression coverage verifies both response-based exclusion and the pending fallback.

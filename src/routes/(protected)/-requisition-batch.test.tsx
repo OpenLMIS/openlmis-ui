@@ -1275,18 +1275,18 @@ it('translates a Sync timeout again when the page language changes', async () =>
   }
 });
 
-it('saves while approval membership is pending and excludes departed records from approval', async () => {
+it('uses server-verified save results to approve only records still awaiting approval', async () => {
   renderRoute();
   const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
   await waitFor(() => expect(approve).toBeEnabled());
-  const pending = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
-  vi.mocked(fetchApprovalList).mockReturnValueOnce(pending.promise);
+  const membershipReads = vi.mocked(fetchApprovalList).mock.calls.length;
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [records[0], { ...records[1], status: 'APPROVED' }],
+  });
   await userEvent.click(approve);
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
-  await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
-  expect(approveBatchRequisitions).not.toHaveBeenCalled();
-  await act(() => pending.resolve({ content: [records[0]], totalPages: 1 } as never));
   await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
+  expect(fetchApprovalList).toHaveBeenCalledTimes(membershipReads);
 });
 
 it('starts retrieving the batch while device copy leases are pending', async () => {
@@ -1311,4 +1311,25 @@ it('starts retrieving the batch while device copy leases are pending', async () 
     await loaded;
     client.clear();
   }
+});
+
+it('retains membership verification when a record lacks timestamp protection', async () => {
+  records = records.map((record) => {
+    const copy = { ...record };
+    Reflect.deleteProperty(copy, 'modifiedDate');
+    return copy;
+  });
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  const pending = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
+  vi.mocked(fetchApprovalList).mockReturnValueOnce(pending.promise);
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  expect(approveBatchRequisitions).not.toHaveBeenCalled();
+  await act(() => pending.resolve({ content: [records[0]], totalPages: 1 } as never));
+  await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
 });
