@@ -97,7 +97,10 @@ function Content() {
   const { userId } = Route.useLoaderData();
   const navigate = Route.useNavigate();
   const { data: permissions } = useSuspenseQuery(permissionsOptions(userId));
-  const { data: facilities = [], isPending } = useQuery(minimalFacilitiesOptions());
+  const { data: facilities = [], isPending } = useQuery({
+    ...minimalFacilitiesOptions(),
+    throwOnError: true,
+  });
   const requesting = useMemo(
     () => requestingFacilities(permissions, facilities),
     [permissions, facilities],
