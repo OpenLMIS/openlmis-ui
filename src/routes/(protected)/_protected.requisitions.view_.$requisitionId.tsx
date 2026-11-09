@@ -527,6 +527,7 @@ function RequisitionBody({
     const scope = getSessionScope();
     const saved = response ?? (await fetchRequisition(record.id));
     assertSessionScope(scope);
+    if (finished.current) return saved;
     const next = rebaseRequisitionDraft(saved, latest.current.editor.form.state.values.draft);
     editor.form.setFieldValue('draft', next);
     editor.device.write(next, saved);
@@ -558,6 +559,7 @@ function RequisitionBody({
   };
   const needsReconcile = useRef(false);
   const attemptedSave = useRef<RequisitionRecord | undefined>(undefined);
+  const acceptedDraft = useRef<string | undefined>(undefined);
   const [merge, setMerge] = useState<{
     fresh: RequisitionRecord;
     draft: RequisitionDraft;
@@ -656,12 +658,14 @@ function RequisitionBody({
         throw new PatientsPayloadError();
       }
     }
+    const sentDraft = JSON.stringify(latest.current.editor.form.state.values.draft);
     attemptedSave.current = sent;
     const response = await saveRequisition(
       sent,
       latest.current.editor.draft.addedLines.map((line) => line.id),
     );
     assertSessionScope(scope);
+    acceptedDraft.current = sentDraft;
     refreshPending.current = true;
     await queryClient.invalidateQueries({
       queryKey: [...queryKeys.requisitions.all, 'batch'],
@@ -688,7 +692,12 @@ function RequisitionBody({
     retry: false,
     mutationFn: async (kind: EditorAction | 'update' | 'print') => {
       const scope = getSessionScope();
-      if (kind !== 'update' && (savedRefresh.current || refreshPending.current)) {
+      const reuseSaved =
+        refreshPending.current &&
+        !needsReconcile.current &&
+        ['submit', 'submitAndAuthorize', 'authorize', 'approve', 'reject'].includes(kind) &&
+        acceptedDraft.current === JSON.stringify(latest.current.editor.form.state.values.draft);
+      if (kind !== 'update' && !reuseSaved && (savedRefresh.current || refreshPending.current)) {
         await (savedRefresh.current ?? refreshSaved());
         assertSessionScope(scope);
         requireOnline();
@@ -788,9 +797,9 @@ function RequisitionBody({
         kind === 'authorize' ||
         isApprovalKind(kind)
       ) {
-        saved = await sync(
-          kind === 'sync' ? 'background' : kind === 'print' ? 'wait' : 'lifecycle',
-        );
+        saved = reuseSaved
+          ? attemptedSave.current
+          : await sync(kind === 'sync' ? 'background' : kind === 'print' ? 'wait' : 'lifecycle');
         assertSessionScope(scope);
       }
       requireOnline();
@@ -813,36 +822,49 @@ function RequisitionBody({
             assertSessionScope(scope);
             if (refreshPending.current) {
               try {
-                base = await refreshSaved();
+                const fresh = await (savedRefresh.current ?? refreshSaved());
+                advanced =
+                  kind === 'approve'
+                    ? ['APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER'].includes(fresh.status) ||
+                      (fresh.status === 'IN_APPROVAL' &&
+                        fresh.supervisoryNode !== base.supervisoryNode)
+                    : kind === 'reject'
+                      ? fresh.status === 'REJECTED'
+                      : REQUISITION_STATUSES.slice(kind === 'authorize' ? 3 : 2, 8).includes(
+                          fresh.status,
+                        );
+                base = fresh;
               } catch {
                 assertSessionScope(scope);
                 needsReconcile.current = true;
               }
             }
-            const status = isAxiosError(error) ? error.response?.status : undefined;
-            const locked =
-              isAxiosError(error) &&
-              status === 409 &&
-              error.response?.data?.messageKey === 'requisition.error.approve.inProgress';
-            if (locked && !retry) {
-              updateUncertain(null);
-              attempt.key = randomId();
-              throw new ApprovalInProgress(t('requisitions.edit.approval-in-progress'));
+            if (!advanced) {
+              const status = isAxiosError(error) ? error.response?.status : undefined;
+              const locked =
+                isAxiosError(error) &&
+                status === 409 &&
+                error.response?.data?.messageKey === 'requisition.error.approve.inProgress';
+              if (locked && !retry) {
+                updateUncertain(null);
+                attempt.key = randomId();
+                throw new ApprovalInProgress(t('requisitions.edit.approval-in-progress'));
+              }
+              if (
+                isAxiosError(error) &&
+                (!error.response ||
+                  (isApprovalKind(kind) && (status === 409 || (status ?? 0) >= 500)))
+              )
+                updateUncertain({
+                  kind,
+                  status: base.status,
+                  modifiedDate: needsReconcile.current ? undefined : base.modifiedDate,
+                  node: base.supervisoryNode,
+                  keyUsed: toRequisitionFailure(error).kind === 'key-used',
+                });
+              else updateUncertain(null);
+              throw error;
             }
-            if (
-              isAxiosError(error) &&
-              (!error.response ||
-                (isApprovalKind(kind) && (status === 409 || (status ?? 0) >= 500)))
-            )
-              updateUncertain({
-                kind,
-                status: base.status,
-                modifiedDate: needsReconcile.current ? undefined : base.modifiedDate,
-                node: base.supervisoryNode,
-                keyUsed: toRequisitionFailure(error).kind === 'key-used',
-              });
-            else updateUncertain(null);
-            throw error;
           }
           updateUncertain(null);
         } else if (kind === 'skip') await skipRequisition(record.id, attempt);

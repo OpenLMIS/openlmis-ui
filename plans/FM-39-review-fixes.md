@@ -1244,3 +1244,11 @@ Chromium offline suite are recorded in the group C report under
 
 - Full Supply and Non Full Supply reuse one product-grid panel. Switching product tabs updates its model and columns without remounting the table, toolbar and width observers.
 - Patients retains a separate panel. The editor regression suite verifies edits survive tabs and paging.
+
+
+### Round 10 A: T1/T12 immediate actions and lost responses
+
+- Reuse an unchanged accepted save when its version refresh is pending. Lifecycle actions send no second PUT or stale If-Match, while edits made since that save still wait for a fresh version before another PUT.
+- Ignore late save-refresh persistence after a lifecycle action has completed.
+- If a failed transition's recovery GET proves approval advanced, complete navigation without approving the next level.
+- Focused recovery, version sequencing and immediate-action regressions pass.

@@ -2586,3 +2586,44 @@ it('saves a resolved field conflict with the fresh server version', async () => 
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   queryClient.clear();
 });
+
+it('accepts a lost approval response when recovery already sees the next level', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post').mockImplementation(async () => {
+    vi.mocked(fetchRequisition).mockResolvedValue({
+      ...base,
+      status: 'IN_APPROVAL',
+      supervisoryNode: 'next',
+      modifiedDate: 'accepted',
+    });
+    throw new AxiosError('Lost approval');
+  });
+  await confirmApproval();
+  await screen.findByText('Approval List');
+  expect(post).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('submits an unchanged saved draft while its version refresh is still pending', async () => {
+  const { base, queryClient } = await openEditor(false, true);
+  const pending = Promise.withResolvers<RequisitionRecord>();
+  vi.mocked(fetchRequisition).mockReturnValueOnce(pending.promise);
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
+  const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledOnce());
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' })).toBeEnabled(),
+  );
+  await confirmAction();
+  await screen.findByText('Opening List');
+  expect(post.mock.calls[0][2]).toEqual({
+    timeout: 0,
+    headers: { 'Idempotency-Key': expect.any(String) },
+  });
+  expect(put).toHaveBeenCalledOnce();
+  await act(() => pending.resolve({ ...base, eTag: '"fresh"' }));
+  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
+  queryClient.clear();
+});
