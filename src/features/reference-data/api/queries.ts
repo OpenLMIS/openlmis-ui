@@ -68,7 +68,9 @@ export const LOOKUP_STALE_TIME = 10 * 60 * 1000;
 export const minimalFacilitiesOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
     ...(config?.backgroundDownload && { retry: false }),
-    queryKey: [...queryKeys.facilities.all, 'minimal'] as const,
+    queryKey: config?.backgroundDownload
+      ? ([...[...queryKeys.facilities.all, 'minimal'], 'background-download'] as const)
+      : ([...queryKeys.facilities.all, 'minimal'] as const),
     queryFn: () => fetchMinimalFacilities(config),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
@@ -125,7 +127,9 @@ export const rolesOptions = (config?: AxiosRequestConfig) =>
 export const programsOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
     ...(config?.backgroundDownload && { retry: false }),
-    queryKey: queryKeys.programs.list(),
+    queryKey: config?.backgroundDownload
+      ? ([...queryKeys.programs.list(), 'background-download'] as const)
+      : queryKeys.programs.list(),
     queryFn: () => fetchPrograms(config),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
@@ -438,7 +442,9 @@ export const programLookupOptions = (id: string) =>
 export const currencySettingsOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
     ...(config?.backgroundDownload && { retry: false }),
-    queryKey: [...queryKeys.localeSettings.all, 'currency'] as const,
+    queryKey: config?.backgroundDownload
+      ? ([...[...queryKeys.localeSettings.all, 'currency'], 'background-download'] as const)
+      : ([...queryKeys.localeSettings.all, 'currency'] as const),
     queryFn: () => fetchCurrencySettings(config),
     staleTime: LOOKUP_STALE_TIME,
   });
