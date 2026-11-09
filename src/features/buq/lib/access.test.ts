@@ -1,40 +1,58 @@
 import { expect, it } from 'vitest';
-import { prepareAccess } from '@/features/buq/lib/access';
+import { buqAccess } from '@/features/buq/lib/access';
 import { parsePermissions } from '@/lib/permissions';
 
 const BUQ = { id: 'g1', code: 'BUQ', name: 'BUQ' };
 const HOME = { id: 'f1', name: 'Cuamba', supportedPrograms: [{ id: 'g1', code: 'BUQ' }] };
-const GRANTED = parsePermissions(['PREPARE_BUQ|f1|g1']);
+const PREPARE = ['PREPARE_BUQ'];
 const TODAY = '2026-11-12';
+const FORECASTING = ['CREATE_FORECASTING', 'AUTHORIZE_FORECASTING'];
+const READY = {
+  kind: 'ready',
+  facility: { id: 'f1', name: 'Cuamba' },
+  program: { id: 'g1', name: 'BUQ' },
+};
 
-it('opens for the BUQ program supported and granted at the home facility', () => {
+it.each([
+  ['PREPARE_BUQ', PREPARE, 'PREPARE_BUQ|f1|g1'],
+  ['CREATE_FORECASTING alone', FORECASTING, 'CREATE_FORECASTING|f1|g1'],
+  ['AUTHORIZE_FORECASTING alone', FORECASTING, 'AUTHORIZE_FORECASTING|f1|g1'],
+])('opens with %s granted for BUQ at the home facility', (_, rights, grant) => {
   expect(
-    prepareAccess({ home: HOME, programs: [BUQ], permissions: GRANTED, today: TODAY }),
-  ).toEqual({
-    kind: 'ready',
-    facility: { id: 'f1', name: 'Cuamba' },
-    program: { id: 'g1', name: 'BUQ' },
-  });
+    buqAccess({
+      home: HOME,
+      programs: [BUQ],
+      permissions: parsePermissions([grant]),
+      rights,
+      today: TODAY,
+    }),
+  ).toEqual(READY);
 });
 
 it.each([
-  ['no-home', { home: undefined, programs: [BUQ], permissions: GRANTED }],
-  ['no-program', { home: HOME, programs: [], permissions: GRANTED }],
+  ['no-home', { home: undefined, programs: [BUQ], grants: ['PREPARE_BUQ|f1|g1'] }],
+  ['no-program', { home: HOME, programs: [], grants: ['PREPARE_BUQ|f1|g1'] }],
   [
     'unsupported',
-    { home: { ...HOME, supportedPrograms: [] }, programs: [BUQ], permissions: GRANTED },
+    { home: { ...HOME, supportedPrograms: [] }, programs: [BUQ], grants: ['PREPARE_BUQ|f1|g1'] },
   ],
-  [
-    'no-grant',
-    { home: HOME, programs: [BUQ], permissions: parsePermissions(['PREPARE_BUQ|f2|g1']) },
-  ],
-])('refuses with %s', (kind, sources) => {
-  expect(prepareAccess({ ...sources, today: TODAY })).toEqual({ kind });
+  ['no-grant', { home: HOME, programs: [BUQ], grants: ['PREPARE_BUQ|f2|g1'] }],
+  ['no-grant', { home: HOME, programs: [BUQ], grants: ['CREATE_FORECASTING|f1|g1'] }],
+])('refuses with %s', (kind, { home, programs, grants }) => {
+  expect(
+    buqAccess({
+      home,
+      programs,
+      permissions: parsePermissions(grants),
+      rights: PREPARE,
+      today: TODAY,
+    }),
+  ).toEqual({ kind });
 });
 
 it('picks the BUQ program among the user programs', () => {
   expect(
-    prepareAccess({
+    buqAccess({
       home: {
         ...HOME,
         supportedPrograms: [
@@ -43,30 +61,29 @@ it('picks the BUQ program among the user programs', () => {
         ],
       },
       programs: [{ id: 'g0', code: 'EPI', name: 'EPI' }, BUQ],
-      permissions: GRANTED,
+      permissions: parsePermissions(['PREPARE_BUQ|f1|g1']),
+      rights: PREPARE,
       today: TODAY,
     }),
-  ).toEqual({
-    kind: 'ready',
-    facility: { id: 'f1', name: 'Cuamba' },
-    program: { id: 'g1', name: 'BUQ' },
-  });
+  ).toEqual(READY);
 });
 
 it('refuses a home grant held for another program or another right', () => {
   expect(
-    prepareAccess({
+    buqAccess({
       home: HOME,
       programs: [BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f1|g0']),
+      rights: PREPARE,
       today: TODAY,
     }),
   ).toEqual({ kind: 'no-grant' });
   expect(
-    prepareAccess({
+    buqAccess({
       home: HOME,
       programs: [BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f2|g1', 'APPROVE_BUQ|f1|g1']),
+      rights: PREPARE,
       today: TODAY,
     }),
   ).toEqual({ kind: 'no-grant' });
@@ -78,10 +95,11 @@ it.each([
   ['starting later', { supportActive: true, supportStartDate: '2027-01-01' }],
 ])('refuses BUQ support that is %s', (_, support) => {
   expect(
-    prepareAccess({
+    buqAccess({
       home: { ...HOME, supportedPrograms: [{ id: 'g1', code: 'BUQ', ...support }] },
       programs: [BUQ],
-      permissions: GRANTED,
+      permissions: parsePermissions(['PREPARE_BUQ|f1|g1']),
+      rights: PREPARE,
       today: TODAY,
     }),
   ).toEqual({ kind: 'unsupported' });

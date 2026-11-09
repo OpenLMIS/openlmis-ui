@@ -58,7 +58,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: CalculatorIcon,
         items: [
           { titleKey: 'nav.buq.prepare', to: '/buq/prepare' },
-          { titleKey: 'nav.buq.create-authorize', to: '#' },
+          { titleKey: 'nav.buq.create-authorize', to: '/buq/create' },
           { titleKey: 'nav.buq.approve', to: '#' },
           { titleKey: 'nav.buq.national-approvals', to: '#' },
         ],
