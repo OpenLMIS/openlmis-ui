@@ -1065,7 +1065,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   Reads stay FIFO within each provider; freed slots drain after failed tasks can abort siblings.
   Downloads wait while foreground HTTP requests are active; foreground work never waits on the
   download gate. Upload access checks remain foreground work with ordinary request timeouts.
-- Only background downloads use a 20-second timeout without immediate timeout retries. Run tasks
+- Only background downloads use a 20-second timeout (60 seconds for home stock and the receive
+  catalog, whose server reads can exceed 20) without immediate timeout retries. Run tasks
   serially within each dataset. After a timeout, 5xx or non-JSON gateway response, skip its remaining
   tasks for this run, abort sibling reads, retain complete older bundles and record every skipped
   scope for visible retry with the existing schedule backoff. Other datasets continue.
