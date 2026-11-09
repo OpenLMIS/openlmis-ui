@@ -7,7 +7,7 @@
   "auth.logout-error-title": "Error Al Cerrar Sesión",
   "breadcrumbs.label": "Ruta de navegación",
   "breadcrumbs.show-more": "Mostrar más elementos de la ruta de navegación",
-  "buq.approve.description": "Revise los pronósticos que los establecimientos que supervisa han enviado para su aprobación.",
+  "buq.approve.description": "Revise los pronósticos pendientes de aprobación; el resumen cuenta todos los de sus establecimientos.",
   "buq.approve.district": "Nombre del distrito",
   "buq.approve.empty-description": "Los informes aparecen aquí cuando los establecimientos que supervisa los autorizan.",
   "buq.approve.facility-code": "Código del establecimiento",

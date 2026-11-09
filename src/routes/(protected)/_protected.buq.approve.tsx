@@ -48,7 +48,7 @@ function ApprovePage() {
       <ApproveHeader />
       <WorkspaceContent>
         {access.kind === 'ready' ? (
-          <ApproveBuq onSearchChange={updateSearch} programId={access.program.id} search={search} />
+          <ApproveBuq onSearchChange={updateSearch} programId={access.programId} search={search} />
         ) : (
           <BuqUnavailable kind={access.kind} title={t('buq.approve.unavailable-title')} />
         )}

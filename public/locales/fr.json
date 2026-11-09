@@ -7,7 +7,7 @@
   "auth.logout-error-title": "Échec De La Déconnexion",
   "breadcrumbs.label": "Fil d’Ariane",
   "breadcrumbs.show-more": "Afficher les étapes masquées du fil d’Ariane",
-  "buq.approve.description": "Examinez les prévisions que les établissements que vous supervisez ont envoyées pour approbation.",
+  "buq.approve.description": "Examinez les prévisions à approuver ; le résumé compte toutes celles de vos établissements.",
   "buq.approve.district": "Nom du district",
   "buq.approve.empty-description": "Les rapports apparaissent ici une fois autorisés par les établissements que vous supervisez.",
   "buq.approve.facility-code": "Code de l’établissement",

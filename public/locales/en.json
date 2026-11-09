@@ -7,7 +7,7 @@
   "auth.logout-error-title": "Log Out Failed",
   "breadcrumbs.label": "Breadcrumb",
   "breadcrumbs.show-more": "Show more breadcrumbs",
-  "buq.approve.description": "Review the forecasts that the facilities you supervise have sent for approval.",
+  "buq.approve.description": "Review forecasts waiting for your approval; the summary counts all your facilities' forecasts.",
   "buq.approve.district": "District Name",
   "buq.approve.empty-description": "Reports appear here once the facilities you supervise authorize them.",
   "buq.approve.facility-code": "Facility Code",
