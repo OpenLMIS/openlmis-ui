@@ -10,8 +10,10 @@ import {
   openBuqsOptions,
 } from '@/features/buq/api/queries';
 import { approveAccess, type BuqAccess, buqAccess } from '@/features/buq/lib/access';
+import { approvalFacilityIds } from '@/features/buq/lib/approval-rows';
 import {
   deploymentTimeZoneOptions,
+  facilitiesByIdsOptions,
   homeFacilityOptions,
   userProgramsOptions,
   userRecordOptions,
@@ -25,7 +27,15 @@ import {
 
 type ShownBuqAccess = Exclude<BuqAccess, { kind: 'no-grant' }>;
 
+const noop = () => {};
 const NO_RIGHTS: readonly string[] = [];
+
+function currentUser() {
+  const scope = getSessionScope();
+  const userId = getSessionUserId();
+  if (!userId) throw new SessionEndedError();
+  return { scope, userId };
+}
 
 export async function loadBuqAccess(
   queryClient: QueryClient,
@@ -33,9 +43,7 @@ export async function loadBuqAccess(
   cause: 'enter' | 'stay' | 'preload',
   { activeSupport }: { activeSupport: boolean },
 ): Promise<ShownBuqAccess> {
-  const scope = getSessionScope();
-  const userId = getSessionUserId();
-  if (!userId) throw new SessionEndedError();
+  const { scope, userId } = currentUser();
   const fresh = cause === 'enter' ? { staleTime: 0 } : {};
   const [permissions, user, programs, timeZone] = await Promise.all([
     requirePermissions(queryClient, rights),
@@ -64,9 +72,7 @@ export async function loadBuqAccess(
 }
 
 export async function loadApproveAccess(queryClient: QueryClient) {
-  const scope = getSessionScope();
-  const userId = getSessionUserId();
-  if (!userId) throw new SessionEndedError();
+  const { scope, userId } = currentUser();
   const [, programs] = await Promise.all([
     requireRight(queryClient, RIGHTS.approveBuq),
     queryClient.ensureQueryData(userProgramsOptions(userId)),
@@ -75,8 +81,13 @@ export async function loadApproveAccess(queryClient: QueryClient) {
   const access = approveAccess(programs);
   if (access.kind === 'ready') {
     queryClient.prefetchQuery(buqPeriodsOptions());
-    queryClient.prefetchQuery(buqApproveStatsOptions(access.program.id));
-    queryClient.prefetchQuery(buqsForApprovalOptions(access.program.id));
+    queryClient.prefetchQuery(buqApproveStatsOptions(access.programId));
+    void queryClient
+      .fetchQuery(buqsForApprovalOptions(access.programId))
+      .then(
+        (buqs) => queryClient.prefetchQuery(facilitiesByIdsOptions(approvalFacilityIds(buqs))),
+        noop,
+      );
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
   }
   return access;

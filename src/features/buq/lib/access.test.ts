@@ -153,7 +153,7 @@ it('carries the program setting that lets Submit authorize at once', () => {
 it('approves within the BUQ program from the user programs, without a home facility', () => {
   expect(approveAccess([{ id: 'g2', code: 'EPI', name: 'EPI' }, BUQ])).toEqual({
     kind: 'ready',
-    program: { id: 'g1', name: 'BUQ' },
+    programId: 'g1',
   });
   expect(approveAccess([{ id: 'g2', code: 'EPI', name: 'EPI' }])).toEqual({ kind: 'no-program' });
 });

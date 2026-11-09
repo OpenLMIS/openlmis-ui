@@ -7,7 +7,7 @@
   "auth.logout-error-title": "تعذّر تسجيل الخروج",
   "breadcrumbs.label": "مسار التنقل",
   "breadcrumbs.show-more": "إظهار المزيد من مسار التنقل",
-  "buq.approve.description": "راجع التنبؤات التي أرسلتها المنشآت التي تشرف عليها للاعتماد.",
+  "buq.approve.description": "راجع التنبؤات التي تنتظر اعتمادك؛ يحسب الملخص كل تنبؤات منشآتك.",
   "buq.approve.district": "اسم المنطقة",
   "buq.approve.empty-description": "تظهر التقارير هنا بعد أن تعتمدها المنشآت التي تشرف عليها.",
   "buq.approve.facility-code": "رمز المنشأة",

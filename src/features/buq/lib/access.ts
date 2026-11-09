@@ -73,10 +73,9 @@ export function buqAccess({
   };
 }
 
-export type ApproveAccess = { kind: 'ready'; program: NamedItem } | { kind: 'no-program' };
+export type ApproveAccess = { kind: 'ready'; programId: string } | { kind: 'no-program' };
 
 export function approveAccess(programs: readonly ProgramRecord[]): ApproveAccess {
   const program = programs.find(({ code }) => code === BUQ_CODE);
-  if (!program) return { kind: 'no-program' };
-  return { kind: 'ready', program: { id: program.id, name: program.name ?? program.code } };
+  return program ? { kind: 'ready', programId: program.id } : { kind: 'no-program' };
 }

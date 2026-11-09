@@ -7,7 +7,7 @@
   "auth.logout-error-title": "Falha Ao Terminar Sessão",
   "breadcrumbs.label": "Navegação estrutural",
   "breadcrumbs.show-more": "Mostrar mais elementos do caminho de navegação",
-  "buq.approve.description": "Reveja as previsões que as unidades sanitárias que supervisiona enviaram para aprovação.",
+  "buq.approve.description": "Reveja as previsões a aprovar; o resumo conta todas as das suas unidades sanitárias.",
   "buq.approve.district": "Nome do distrito",
   "buq.approve.empty-description": "Os relatórios aparecem aqui quando as unidades sanitárias que supervisiona os autorizam.",
   "buq.approve.facility-code": "Código da unidade sanitária",

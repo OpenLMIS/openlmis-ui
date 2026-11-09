@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { createColumnHelper } from '@tanstack/react-table';
-import type { TFunction } from 'i18next';
+import { type ColumnVisibilityState, createColumnHelper } from '@tanstack/react-table';
+import type { ParseKeys, TFunction } from 'i18next';
 import { ClipboardCheckIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,17 +11,30 @@ import {
   DataTableSkeleton,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import type { ResponsiveColumn } from '@/components/data-table/responsive-columns';
 import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { formatTimestamp } from '@/components/form/date-value';
 import { buqsForApprovalOptions } from '@/features/buq/api/queries';
 import { useBuqPeriods } from '@/features/buq/components/use-buq-periods';
 import { useBuqTable } from '@/features/buq/components/use-buq-table';
-import { type ApprovalRow, approvalRows } from '@/features/buq/lib/approval-rows';
-import type { BuqListSearch, BuqTableProps } from '@/features/buq/lib/search';
+import {
+  type ApprovalRow,
+  approvalFacilityIds,
+  approvalRows,
+} from '@/features/buq/lib/approval-rows';
+import type { BuqTableProps } from '@/features/buq/lib/search';
 import { facilitiesByIdsOptions } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 
 const columnHelper = createColumnHelper<DataTableFeatures, ApprovalRow>();
+
+type HideableColumn = ResponsiveColumn & { labelKey: ParseKeys };
+
+export const APPROVAL_HIDEABLE_COLUMNS: readonly HideableColumn[] = [
+  { id: 'facilityType', labelKey: 'buq.approve.facility-type', hideBelow: 864 },
+  { id: 'district', labelKey: 'buq.approve.district', hideBelow: 960 },
+  { id: 'region', labelKey: 'buq.approve.region', hideBelow: '3xl' },
+];
 
 const text = (value: string) => (
   <CellText overflow="clamp">
@@ -72,34 +85,34 @@ function createColumns(t: TFunction, locale: string, timeZone: string | undefine
 const NO_ROWS: ApprovalRow[] = [];
 const noop = () => {};
 
-function useApprovalTable(rows: readonly ApprovalRow[], props: BuqTableProps, timeZone?: string) {
+type ApprovalTableProps = BuqTableProps & { visibility: ColumnVisibilityState };
+
+function useApprovalTable(
+  rows: readonly ApprovalRow[],
+  { visibility, ...props }: ApprovalTableProps,
+  timeZone?: string,
+) {
   const { t, i18n } = useTranslation();
   const columns = useMemo(
     () => createColumns(t, i18n.language, timeZone),
     [t, i18n.language, timeZone],
   );
-  return useBuqTable(rows, columns, props);
+  return useBuqTable(rows, columns, props, visibility);
 }
 
 export function ApprovalTableSkeleton({
   cards,
-  search,
-}: {
-  cards: boolean;
-  search: BuqListSearch;
-}) {
-  const { table } = useApprovalTable(NO_ROWS, { search, onSearchChange: noop, cards: false });
+  ...props
+}: Pick<ApprovalTableProps, 'cards' | 'search' | 'visibility'>) {
+  const { table } = useApprovalTable(NO_ROWS, { ...props, onSearchChange: noop, cards: false });
   if (cards) return <TableCardsSkeleton rowCount={1} table={table} title="facilityName" />;
   return <DataTableSkeleton rowCount={1} table={table} />;
 }
 
-export function ApprovalTable({ programId, ...props }: BuqTableProps & { programId: string }) {
+export function ApprovalTable({ programId, ...props }: ApprovalTableProps & { programId: string }) {
   const { t } = useTranslation();
   const { data: buqs } = useSuspenseQuery(buqsForApprovalOptions(programId));
-  const facilityIds = useMemo(
-    () => [...new Set(buqs.map(({ facilityId }) => facilityId))].toSorted(),
-    [buqs],
-  );
+  const facilityIds = useMemo(() => approvalFacilityIds(buqs), [buqs]);
   const { data: facilities } = useSuspenseQuery(facilitiesByIdsOptions(facilityIds));
   const periods = useBuqPeriods();
   const timeZone = useDeploymentTimeZone();
