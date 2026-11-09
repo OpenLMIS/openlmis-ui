@@ -209,10 +209,8 @@ export const requisitionAccessProvider = defineDownloadProvider({
     check();
     const { roles, facilities, programs, nodes, groups } = await requisitionReferences(
       queryClient,
-      access.userId,
-      config,
-      true,
       access.user,
+      config,
     );
     check();
     return {

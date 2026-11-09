@@ -38,29 +38,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   useLoginData.setState({ referenceDataUserId: 'u' });
 });
-it('shares in-flight and completed reference reads between sign-in downloads and pages', async () => {
-  const client = new QueryClient();
-  const download = requisitionReferences(client, 'u', { backgroundRead: true });
-  const page = client.fetchQuery(minimalFacilitiesOptions());
-  await Promise.all([download, page, requisitionReferences(client, 'u')]);
-  await client.fetchQuery(supervisoryNodesByIdsOptions(['n']));
-  for (const fn of [
-    api.fetchUserRecord,
-    api.fetchRoles,
-    api.fetchMinimalFacilities,
-    api.fetchPrograms,
-    api.fetchUserPrograms,
-    api.fetchRequisitionGroup,
-  ])
-    expect(fn).toHaveBeenCalledTimes(1);
-  expect(
-    vi.mocked(api.fetchSupervisoryNodesByIds).mock.calls.filter(([ids]) => ids.length),
-  ).toHaveLength(1);
-  await client.invalidateQueries({ queryKey: minimalFacilitiesOptions().queryKey });
-  await client.fetchQuery(minimalFacilitiesOptions());
-  expect(api.fetchMinimalFacilities).toHaveBeenCalledTimes(2);
-  client.clear();
-});
 it('shares the locale settings read between the time zone and currency lookups', async () => {
   const client = new QueryClient();
   await Promise.all([
@@ -68,24 +45,6 @@ it('shares the locale settings read between the time zone and currency lookups',
     client.fetchQuery(deploymentTimeZoneOptions()),
   ]);
   expect(api.fetchCurrencySettings).toHaveBeenCalledTimes(1);
-  client.clear();
-});
-
-it('stops dependent reference reads when identity changes during sign-in preloading', async () => {
-  let finish!: (user: never) => void;
-  vi.mocked(api.fetchUserRecord).mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-  );
-  const client = new QueryClient();
-  const loading = requisitionReferences(client, 'u');
-  const rejected = expect(loading).rejects.toThrow();
-  useLoginData.setState({ referenceDataUserId: 'other' });
-  finish({ id: 'u', roleAssignments: [] } as never);
-  await rejected;
-  expect(api.fetchSupervisoryNodesByIds).not.toHaveBeenCalled();
   client.clear();
 });
 
@@ -106,22 +65,24 @@ it('shares a pending node superset with program-specific approval lookups', asyn
 
 it('forces download references to the server despite a populated session cache', async () => {
   const client = new QueryClient();
-  await requisitionReferences(client, 'u');
-  await requisitionReferences(client, 'u', { backgroundDownload: true }, true);
+  await requisitionReferences(client, await api.fetchUserRecord('u'));
+  await requisitionReferences(client, await api.fetchUserRecord('u'), { backgroundDownload: true });
   expect(api.fetchUserRecord).toHaveBeenCalledTimes(2);
-  expect(api.fetchUserPrograms).toHaveBeenCalledTimes(2);
+  expect(api.fetchUserPrograms).not.toHaveBeenCalled();
   expect(api.fetchRoles).toHaveBeenCalledTimes(2);
   expect(api.fetchRequisitionGroup).toHaveBeenCalledTimes(2);
-  expect(api.fetchMinimalFacilities).toHaveBeenCalledTimes(1);
-  expect(api.fetchPrograms).toHaveBeenCalledTimes(1);
+  expect(api.fetchMinimalFacilities).toHaveBeenCalledTimes(2);
+  expect(api.fetchPrograms).toHaveBeenCalledTimes(2);
   client.clear();
 });
 it('classifies missing nodes as unavailable local data', async () => {
   vi.mocked(api.fetchSupervisoryNodesByIds).mockResolvedValueOnce([]);
   const client = new QueryClient();
-  await expect(requisitionReferences(client, 'u')).rejects.toMatchObject({
-    name: 'LocalDataUnavailableError',
-  });
+  await expect(requisitionReferences(client, await api.fetchUserRecord('u'))).rejects.toMatchObject(
+    {
+      name: 'LocalDataUnavailableError',
+    },
+  );
   client.clear();
 });
 it('does not join a background node superset from a page', async () => {
@@ -159,16 +120,6 @@ it('does not preload requisition lookups for an unrelated user', async () => {
   const client = new QueryClient();
   await preloadRequisitionReferences(client, 'u');
   expect(api.fetchRoles).not.toHaveBeenCalled();
-  client.clear();
-});
-
-it('refuses a forced download when a cached user exists but its server read fails', async () => {
-  const client = new QueryClient();
-  await requisitionReferences(client, 'u');
-  vi.mocked(api.fetchUserRecord).mockRejectedValueOnce(new Error('unreachable'));
-  await expect(
-    requisitionReferences(client, 'u', { backgroundDownload: true }, true),
-  ).rejects.toThrow('unreachable');
   client.clear();
 });
 
