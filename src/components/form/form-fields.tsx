@@ -1,4 +1,3 @@
-import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox';
 import { useStore } from '@tanstack/react-form';
 import {
   CalendarIcon,
@@ -44,10 +43,10 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  ComboboxStatus,
   ComboboxValue,
   ComboboxVirtualList,
   useComboboxAnchor,
+  useComboboxFilter,
 } from '@/components/ui/combobox';
 import { useDirection } from '@/components/ui/direction';
 import {
@@ -1257,7 +1256,6 @@ type ComboboxFieldProps = FieldProps &
     /** Most matches rendered at once, so a list of thousands stays quick to type into. */
     limit?: number;
     virtualized?: boolean;
-    resultStatus?: (shown: number, count: number) => ReactNode;
     size?: 'default' | 'lg';
   };
 
@@ -1275,16 +1273,13 @@ export function ComboboxField({
   clearLabel,
   invalid,
   describedBy,
-  resultStatus,
   virtualized = false,
   limit = 50,
   size = 'default',
 }: ComboboxFieldProps) {
   const virtual = virtualized && items.length > 50;
   const field = useFieldContext<string | null>();
-  const [search, setSearch] = useState('');
-  const { contains } = ComboboxPrimitive.useFilter();
-  const matches = resultStatus ? items.filter((item) => contains(item.label, search)).length : 0;
+  const { contains } = useComboboxFilter();
   const state = useFieldErrors(description);
   const { isInvalid, describedBy: ariaDescribedBy } = state;
   const selected = useMemo(
@@ -1315,7 +1310,6 @@ export function ComboboxField({
                 contains(item.label, query) || contains(item.description ?? '', query)
             : undefined
         }
-        onInputValueChange={resultStatus ? setSearch : undefined}
         onValueChange={(item, details) => {
           // Base UI clears the field on Escape once the list is closed; let Escape close the dialog instead.
           if (details.reason === 'escape-key' && !item) return details.allowPropagation();
@@ -1338,9 +1332,6 @@ export function ComboboxField({
         />
         <ComboboxContent>
           <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
-          {resultStatus && (
-            <ComboboxStatus>{resultStatus(Math.min(limit, matches), matches)}</ComboboxStatus>
-          )}
           {virtual ? (
             <ComboboxVirtualList<ComboboxFieldItem>
               itemKey={(item) => item.value}

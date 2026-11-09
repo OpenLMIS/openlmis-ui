@@ -447,3 +447,5 @@ export {
   ComboboxValue,
   useComboboxAnchor,
 }
+
+export const useComboboxFilter = ComboboxPrimitive.useFilter

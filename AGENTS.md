@@ -792,9 +792,11 @@ Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/ut
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
 `DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `Field spacing/surface`,
 `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel/size`,
-`ComboboxChip removeLabel`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
+`ComboboxChip removeLabel`, `ComboboxChips size`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
 `Button align/width/variant="warning"`, `PopoverContent width/padding`. Each `lg` size is a plain
 `h-9` className in the registry.
+`ComboboxVirtualList` and `useComboboxFilter` are accepted UI exports for virtualized fields;
+keep their filtering and virtualization dependencies behind `ui/combobox.tsx`.
 The app Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet primitives
 import `@/components/shared/page-visibility`; form-dialog and form-fields inherit this dependency.
 This is an accepted app dependency exception. The context defaults to false, keeping them
@@ -1262,5 +1264,4 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   Put this group above the grid, in the desktop product toolbar or below tabs for cards/Patients.
   Headers contain title, description and actions only. Hide unavailable device statuses on HTTP.
 - Approve and Convert default to ten rows, matching legacy. Keep URL size choices intact.
-- ComboboxField `resultStatus(shown, count)` renders capped filtered counts inside its open list.
-  Reuse a collator and memoize facility sorting rather than constructing locale comparisons per row.
+- Reuse a collator and memoize facility sorting rather than constructing locale comparisons per row.
