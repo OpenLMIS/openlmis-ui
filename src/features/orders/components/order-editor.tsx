@@ -1,6 +1,6 @@
 import { useStore } from '@tanstack/react-form';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ListError } from '@/components/app-shell/list-error';
@@ -474,20 +474,26 @@ function OrderFields({
 }) {
   const { t } = useTranslation();
   const lines = useStore(form.store, (state) => state.values.orders[order.id]);
+  const addedFocus = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!addedFocus.current) return;
+    const index = lines.findIndex((line) => line.key === addedFocus.current);
+    addedFocus.current = null;
+    if (index >= 0)
+      document
+        .querySelector<HTMLElement>(`[name^="orders.${order.id}[${index}].quantity"]`)
+        ?.focus();
+  }, [lines, order.id]);
   const productIds = lines.map((line) => line.product.id).join(',');
   const added = useMemo(() => productIds.split(',').filter(Boolean), [productIds]);
   const onAdd = useCallback(
     (product: DraftLine['product']) => {
+      const key = randomId();
+      addedFocus.current = key;
       form.setFieldValue(`orders.${order.id}`, [
         ...(form.getFieldValue(`orders.${order.id}`) ?? []),
-        { key: randomId(), product, quantity: quantityValue('', product.netContent) },
+        { key, product, quantity: quantityValue('', product.netContent) },
       ]);
-      requestAnimationFrame(() => {
-        const index = (form.getFieldValue(`orders.${order.id}`) ?? []).length - 1;
-        document
-          .querySelector<HTMLElement>(`[name^="orders.${order.id}[${index}].quantity"]`)
-          ?.focus();
-      });
     },
     [form, order.id],
   );

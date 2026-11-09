@@ -150,6 +150,13 @@ describe('order editor workflow', () => {
       'orders.edit.unsaved',
     );
   });
+  it('focuses the added quantity as soon as its row is mounted', async () => {
+    const { user } = setup([{ ...creatingOrder('a'), orderLineItems: [] }]);
+    await user.click(screen.getByRole('combobox', { name: 'orders.edit.select-product' }));
+    await user.click(await screen.findByRole('option', { name: 'Medicine' }));
+    fireEvent.click(screen.getByRole('button', { name: 'orders.add' }));
+    expect(quantity()).toHaveFocus();
+  });
   it('does not attach a saved line id to a product removed and re-added while saving', async () => {
     const response = Promise.withResolvers<Order>();
     vi.mocked(saveOrder).mockReturnValueOnce(response.promise);
