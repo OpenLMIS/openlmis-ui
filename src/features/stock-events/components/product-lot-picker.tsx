@@ -75,7 +75,6 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useFlag } from '@/lib/feature-flags';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { conflictingDeviceLot } from '@/lib/lot-code';
-import { productSearchStatus } from '@/lib/product-search-status';
 
 type BaseProps = EventStockCardsFilter & {
   kind: ConfiguredEventKind;
@@ -109,25 +108,87 @@ type LotLabelItem = {
 };
 
 function useLotLabel() {
-  const { t, i18n } = useTranslation();
-  return (item: LotLabelItem) => (
-    <span className="flex min-w-0 items-center gap-1">
-      <bdi>{item.labelKey ? t(item.labelKey) : item.label}</bdi>
-      {item.lot?.expirationDate && (
-        <>
-          <span>/</span>
-          <bdi>{formatDateValue(item.lot.expirationDate, i18n.language)}</bdi>
-        </>
-      )}
-    </span>
-  );
+  const { t } = useTranslation();
+  return (item: LotLabelItem) => <bdi>{item.labelKey ? t(item.labelKey) : item.label}</bdi>;
 }
 
-function lotItemLabel(item: LotLabelItem, t: TFunction, language: string): string {
-  if (item.labelKey) return t(item.labelKey);
-  return item.lot?.expirationDate
-    ? `${item.label} / ${formatDateValue(item.lot.expirationDate, language)}`
-    : (item.label ?? '');
+function lotItemLabel(item: LotLabelItem, t: TFunction): string {
+  return item.labelKey ? t(item.labelKey) : (item.label ?? '');
+}
+
+function LotPicker({
+  items,
+  value,
+  disabled,
+  onValueChange,
+  id,
+  required,
+  placeholder,
+  children,
+}: {
+  items: { value: string; label: string }[];
+  value: string | null;
+  disabled: boolean;
+  onValueChange: (value: string | null) => void;
+  id: string;
+  required?: boolean;
+  placeholder: string;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  if (items.length >= 10) {
+    return (
+      <Combobox
+        items={items}
+        itemToStringLabel={(item) => item.label}
+        value={items.find((item) => item.value === value) ?? null}
+        onValueChange={(item) => onValueChange(item?.value ?? null)}
+        disabled={disabled}
+      >
+        <ComboboxInput
+          id={id}
+          aria-label={t('stock-events.lot-code')}
+          aria-required={required}
+          size="lg"
+          width="full"
+          placeholder={placeholder}
+          clearLabel={t('stock-events.clear')}
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>{t('stock-events.no-matches-title')}</ComboboxEmpty>
+          <ComboboxList>
+            {(item) => (
+              <ComboboxItem key={item.value} value={item}>
+                <bdi>{item.label}</bdi>
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    );
+  }
+  return (
+    <Select items={items} value={value} disabled={disabled} onValueChange={onValueChange}>
+      <SelectTrigger
+        size="lg"
+        id={id}
+        aria-label={t('stock-events.lot-code')}
+        aria-required={required}
+        width="full"
+      >
+        <SelectValue placeholder={placeholder}>{children}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              <bdi>{item.label}</bdi>
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
 }
 
 function StockCardLotPicker({
@@ -140,7 +201,7 @@ function StockCardLotPicker({
   cardFilter,
   bundleScope,
 }: BaseProps & { cardFilter: EventCardFilter }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const lotLabel = useLotLabel();
   const copy = EVENT_KINDS[kind].copy;
   const id = useId();
@@ -159,7 +220,7 @@ function StockCardLotPicker({
   const lots = eventLotOptions(product?.cards ?? []);
   const lotItems = lots.map((item) => ({
     value: item.value,
-    label: lotItemLabel(item, t, i18n.language),
+    label: lotItemLabel(item, t),
   }));
   const selectedLotId = lots.length === 1 ? lots[0].value : lotId;
   if (lots.length === 1 && selectedLotId !== lotId) setLotId(selectedLotId);
@@ -259,33 +320,17 @@ function StockCardLotPicker({
           <FieldLabel htmlFor={`${id}-lot`}>
             <FieldLabelText label={t('stock-events.lot-code')} required={lotRequired} />
           </FieldLabel>
-          <Select
+          <LotPicker
             items={lotItems}
             value={productHasLots ? selectedLotId : null}
             disabled={disabled || !productHasLots}
             onValueChange={setLotId}
+            id={`${id}-lot`}
+            required={lotRequired || undefined}
+            placeholder={t(lotPlaceholder(product !== undefined, productHasLots))}
           >
-            <SelectTrigger
-              size="lg"
-              id={`${id}-lot`}
-              aria-required={lotRequired || undefined}
-              aria-label={t('stock-events.lot-code')}
-              width="full"
-            >
-              <SelectValue placeholder={t(lotPlaceholder(product !== undefined, productHasLots))}>
-                {productHasLots && pickedLot ? lotLabel(pickedLot) : undefined}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {lots.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {lotLabel(item)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+            {productHasLots && pickedLot ? lotLabel(pickedLot) : undefined}
+          </LotPicker>
         </Field>
       </div>
       <PickerAddSlot>
@@ -454,11 +499,6 @@ function ApprovedProductLotPicker({
       ? [{ value: SHOW_MORE, label: t('stock-events.show-more'), showMore: true } as const]
       : []),
   ];
-  const status =
-    first.data && !searching
-      ? productSearchStatus({ listed: approved.length, total, typed: query !== '' })
-      : undefined;
-
   const tradeItemId = product?.orderable.identifiers?.tradeItem;
   const pageIndex = product ? pageOf.get(product.approvedId) : undefined;
   const pageStockQuery = pageIndex === undefined ? undefined : pageStock[pageIndex];
@@ -533,7 +573,7 @@ function ApprovedProductLotPicker({
     : lotOptions;
   const lotItems = lotChoices.map((item) => ({
     value: item.value,
-    label: lotItemLabel(item, t, i18n.language),
+    label: lotItemLabel(item, t),
   }));
   const shownLot = addingNewLot && typedLot ? typedLot : pickedLot;
   const pickLot = (value: string | null) => {
@@ -664,11 +704,7 @@ function ApprovedProductLotPicker({
               width="full"
             />
             <ComboboxContent>
-              <ComboboxStatus>
-                {failedPage
-                  ? t('stock-events.show-more-error')
-                  : status && t(status.key, { shown: status.shown, count: status.count })}
-              </ComboboxStatus>
+              {failedPage && <ComboboxStatus>{t('stock-events.show-more-error')}</ComboboxStatus>}
               <ComboboxEmpty>
                 {searching
                   ? t('lots.searching')
@@ -706,33 +742,17 @@ function ApprovedProductLotPicker({
           <FieldLabel htmlFor={`${id}-lot`}>
             <FieldLabelText label={t('stock-events.lot-code')} required={!noLots} />
           </FieldLabel>
-          <Select
+          <LotPicker
             items={lotItems}
             value={hasLotChoice ? (shownLot?.value ?? selectedLot) : null}
             disabled={disabled || !hasLotChoice}
             onValueChange={pickLot}
+            id={`${id}-lot`}
+            required={!noLots || undefined}
+            placeholder={t(lotPlaceholder(!!product, !noLots))}
           >
-            <SelectTrigger
-              size="lg"
-              id={`${id}-lot`}
-              aria-required={!noLots || undefined}
-              aria-label={t('stock-events.lot-code')}
-              width="full"
-            >
-              <SelectValue placeholder={t(lotPlaceholder(!!product, !noLots))}>
-                {hasLotChoice && shownLot ? lotLabel(shownLot) : undefined}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {lotChoices.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {lotLabel(item)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+            {hasLotChoice && shownLot ? lotLabel(shownLot) : undefined}
+          </LotPicker>
         </Field>
       </div>
       {addingNewLot && !cards ? (

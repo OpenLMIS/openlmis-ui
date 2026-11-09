@@ -49,11 +49,56 @@ beforeAll(() =>
 const card: EventStockCard = {
   id: 'card',
   stockOnHand: 50,
-  orderable: { id: 'product', productCode: 'C1', fullProductName: 'Aspirin', netContent: 16 },
+  orderable: {
+    id: 'product',
+    productCode: 'C1',
+    fullProductName: 'Aspirin',
+    dispensable: { displayUnit: 'tablet' },
+    netContent: 16,
+  },
   lot: { id: 'lot', lotCode: 'LOT', expirationDate: null },
 };
 
 describe('ProductLotPicker', () => {
+  it('searches long lot lists by lot code without expiry text', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    queryClient.setQueryData(
+      eventStockCardsOptions({ facilityId: 'facility', programId: 'program' }).queryKey,
+      {
+        cards: Array.from({ length: 12 }, (_, index) => ({
+          ...card,
+          lot: { id: `lot-${index}`, lotCode: `BATCH-${index}`, expirationDate: '2030-01-01' },
+        })),
+        device: undefined,
+      },
+    );
+    const onAdd = vi.fn();
+    const user = userEvent.setup();
+    renderPage(
+      <I18nextProvider i18n={i18n}>
+        <ProductLotPicker
+          kind="adjustment"
+          facilityId="facility"
+          programId="program"
+          disabled={false}
+          cardFilter={allEventCards}
+          onAdd={onAdd}
+        />
+      </I18nextProvider>,
+      { queryClient },
+    );
+    const lot = await screen.findByRole('combobox', { name: 'Lot Code' });
+    await user.type(lot, 'BATCH-11');
+    await user.click(await screen.findByRole('option', { name: /^BATCH-11$/ }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lot: expect.objectContaining({ id: 'lot-11' }),
+      }),
+      true,
+    );
+  });
+
   it('keeps the product field label while announcing loading only to screen readers', async () => {
     renderPage(
       <I18nextProvider i18n={i18n}>
@@ -435,11 +480,12 @@ describe('ProductLotPicker with approved products', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('searches by name, reports the count and keeps the picked product across searches', async () => {
+  it('searches by name without a count hint and keeps the picked product across searches', async () => {
     const { user, onAdd } = renderApproved();
     const product = await productBox();
     await user.click(product);
-    expect(await screen.findByText('Showing 2 of 120. Type to search.')).toBeInTheDocument();
+    await screen.findByRole('option', { name: 'Aspirin' });
+    expect(screen.queryByText(/Showing .* of/)).not.toBeInTheDocument();
     await user.click(await screen.findByRole('option', { name: 'Aspirin' }));
     await user.type(product, 'ibu', {
       initialSelectionStart: 0,
