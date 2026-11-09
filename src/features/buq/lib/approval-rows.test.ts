@@ -3,12 +3,19 @@ import { approvalRows } from '@/features/buq/lib/approval-rows';
 import type { BuqForApproval } from '@/features/buq/lib/types';
 
 const REGION = { id: 'z1', code: 'NIA', name: 'Niassa', level: { code: 'Region', name: 'Region' } };
+const PROVINCE = {
+  id: 'z3',
+  code: 'NOR',
+  name: 'North',
+  level: { code: 'Province', name: 'Province' },
+  parent: REGION,
+};
 const DISTRICT = {
   id: 'z2',
   code: 'CUA',
   name: 'Cuamba',
   level: { code: 'District', name: 'District' },
-  parent: REGION,
+  parent: PROVINCE,
 };
 const TYPE = { id: 't1', code: 'health_center', name: 'Health Center' };
 const FACILITIES = [
@@ -49,6 +56,7 @@ it('joins facility, zones and period, dates from the latest authorization, oldes
         { status: 'AUTHORIZED', occurredDate: '2026-09-03T10:00:00Z' },
         { status: 'REJECTED', occurredDate: '2026-09-20T10:00:00Z' },
         { status: 'AUTHORIZED', occurredDate: '2026-11-05T10:00:00Z' },
+        { status: 'IN_APPROVAL', occurredDate: '2026-11-06T10:00:00Z' },
       ]),
       forecast('b2', 'f2', 'p1', [{ status: 'AUTHORIZED', occurredDate: '2026-10-01T08:00:00Z' }]),
     ],
