@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
+import { type QueryClient, type QueryKey, queryOptions } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
 import {
   type ApprovedProductsFilter,
@@ -61,9 +61,24 @@ import {
   userRecordKey,
 } from '@/lib/key-factory';
 import { offlineAccessQuery, readOfflineAccess, withOfflineAccess } from '@/lib/offline-access';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 // Lookups that rarely change, so one fetch serves every screen for a while.
 export const LOOKUP_STALE_TIME = 10 * 60 * 1000;
+
+async function seedForegroundLookup<T>(
+  client: QueryClient,
+  key: QueryKey,
+  read: () => Promise<T>,
+  config?: AxiosRequestConfig,
+) {
+  const scope = getSessionScope();
+  const data = await read();
+  assertSessionScope(scope);
+  if (config?.backgroundDownload && !config.signal?.aborted)
+    client.setQueryData<T>(key, (existing) => existing ?? data);
+  return data;
+}
 
 export const minimalFacilitiesOptions = (config?: AxiosRequestConfig) =>
   queryOptions({
@@ -71,7 +86,13 @@ export const minimalFacilitiesOptions = (config?: AxiosRequestConfig) =>
     queryKey: config?.backgroundDownload
       ? ([...[...queryKeys.facilities.all, 'minimal'], 'background-download'] as const)
       : ([...queryKeys.facilities.all, 'minimal'] as const),
-    queryFn: () => fetchMinimalFacilities(config),
+    queryFn: ({ client }) =>
+      seedForegroundLookup(
+        client,
+        [...queryKeys.facilities.all, 'minimal'],
+        () => fetchMinimalFacilities(config),
+        config,
+      ),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
   });
@@ -130,7 +151,8 @@ export const programsOptions = (config?: AxiosRequestConfig) =>
     queryKey: config?.backgroundDownload
       ? ([...queryKeys.programs.list(), 'background-download'] as const)
       : queryKeys.programs.list(),
-    queryFn: () => fetchPrograms(config),
+    queryFn: ({ client }) =>
+      seedForegroundLookup(client, queryKeys.programs.list(), () => fetchPrograms(config), config),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
   });
@@ -445,7 +467,13 @@ export const currencySettingsOptions = (config?: AxiosRequestConfig) =>
     queryKey: config?.backgroundDownload
       ? ([...[...queryKeys.localeSettings.all, 'currency'], 'background-download'] as const)
       : ([...queryKeys.localeSettings.all, 'currency'] as const),
-    queryFn: () => fetchCurrencySettings(config),
+    queryFn: ({ client }) =>
+      seedForegroundLookup(
+        client,
+        [...queryKeys.localeSettings.all, 'currency'],
+        () => fetchCurrencySettings(config),
+        config,
+      ),
     staleTime: LOOKUP_STALE_TIME,
   });
 export const approvedProductsByIdentitiesOptions = (identities: readonly OrderableIdentity[]) => {

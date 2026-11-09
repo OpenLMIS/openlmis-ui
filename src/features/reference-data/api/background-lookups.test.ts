@@ -64,3 +64,73 @@ it.each(['currency', 'facilities', 'programs'] as const)(
     }
   },
 );
+
+it.each(['currency', 'facilities', 'programs'] as const)(
+  'warms the foreground %s cache only after a completed background lookup',
+  async (kind) => {
+    const original = client.defaults.adapter;
+    const adapter = vi.fn(async (config: InternalAxiosRequestConfig) => ({
+      data:
+        kind === 'currency' ? { timeZoneId: 'UTC' } : kind === 'facilities' ? { content: [] } : [],
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    }));
+    client.defaults.adapter = adapter;
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const options =
+      kind === 'currency'
+        ? currencySettingsOptions
+        : kind === 'facilities'
+          ? minimalFacilitiesOptions
+          : programsOptions;
+    try {
+      const background = await queries.fetchQuery(options({ backgroundDownload: true }) as never);
+      expect(queries.getQueryData(options().queryKey)).toEqual(background);
+      await queries.fetchQuery(options() as never);
+      expect(adapter).toHaveBeenCalledOnce();
+    } finally {
+      queries.clear();
+      client.defaults.adapter = original;
+    }
+  },
+);
+
+it.each(['existing', 'identity'] as const)(
+  'does not replace a foreground lookup after %s changes',
+  async (change) => {
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'original',
+      username: 'u',
+      accessToken: 'token',
+    });
+    const original = client.defaults.adapter;
+    const pending = Promise.withResolvers<void>();
+    const started = Promise.withResolvers<void>();
+    client.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
+      started.resolve();
+      await pending.promise;
+      return { data: [], status: 200, statusText: 'OK', headers: {}, config };
+    };
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const background = queries.fetchQuery(programsOptions({ backgroundDownload: true }));
+    const outcome = background.catch(() => undefined);
+    try {
+      await started.promise;
+      const foreground = [{ id: 'current', name: 'Current', code: 'C', active: true }];
+      if (change === 'existing') queries.setQueryData(programsOptions().queryKey, foreground);
+      else useLoginData.setState({ referenceDataUserId: 'another' });
+      pending.resolve();
+      await outcome;
+      expect(queries.getQueryData(programsOptions().queryKey)).toEqual(
+        change === 'existing' ? foreground : undefined,
+      );
+    } finally {
+      pending.resolve();
+      await outcome;
+      queries.clear();
+      client.defaults.adapter = original;
+    }
+  },
+);
