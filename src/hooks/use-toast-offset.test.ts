@@ -1,9 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { toast } from 'sonner';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
 import { useToastOffset } from '@/hooks/use-toast-offset';
-
-vi.mock('@tanstack/react-router', () => ({ useLocation: () => '/requisitions/r1' }));
 
 afterEach(() => {
   act(() => {
@@ -12,7 +10,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-it('keeps a toast below a header action however low it sits', async () => {
+it('moves an open toast below a header action that appears later, however low', async () => {
   const header = document.createElement('div');
   header.dataset.slot = 'workspace-header';
   const actions = document.createElement('div');
@@ -23,6 +21,7 @@ it('keeps a toast below a header action however low it sits', async () => {
   act(() => {
     toast('Saved');
   });
+  await waitFor(() => expect(result.current.top).toContain(', 0px))'));
   const button = document.createElement('button');
   button.getBoundingClientRect = () => ({ top: 552, bottom: 588, left: 0, right: 100 }) as DOMRect;
   button.getClientRects = () => [button.getBoundingClientRect()] as unknown as DOMRectList;
