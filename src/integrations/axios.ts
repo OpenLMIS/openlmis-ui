@@ -57,7 +57,12 @@ const prepareTransport = (config: InternalAxiosRequestConfig) => {
         if (!request.anonymous) assertSessionScope(request.sessionScope ?? getSessionScope());
         if (request.backgroundDownload) {
           if (useLoginData.getState().expired) throw new Error('The download session expired.');
-          request.timeout = Math.min(request.timeout || 20_000, 20_000);
+          const limit =
+            request.downloadProvider === 'home-stock' ||
+            request.downloadProvider === 'receive-catalog'
+              ? 60_000
+              : 20_000;
+          request.timeout = Math.min(request.timeout || limit, limit);
         }
         return adapter(request);
       },

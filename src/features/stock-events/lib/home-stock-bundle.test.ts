@@ -197,6 +197,25 @@ it('falls back on a timed-out read but never on service refusal or cancellation'
   await expect(getHomeStockBundle(filter)).rejects.toBe(canceled);
 });
 
+it('completes slow stock downloads without retrying or changing foreground read timeouts', async () => {
+  const adapter = client.defaults.adapter as import('axios').AxiosAdapter;
+  const summaryTimeouts: number[] = [];
+  client.defaults.adapter = async (config) => {
+    if (config.url === '/v2/stockCardSummaries') {
+      summaryTimeouts.push(config.timeout ?? 0);
+      if ((config.timeout ?? 0) < 25_000)
+        throw new AxiosError('Timed out', AxiosError.ECONNABORTED);
+    }
+    return adapter(config);
+  };
+  const bundle = await fetchHomeStockBundle(filter);
+  expect(bundle.cards).toHaveLength(2);
+  expect(summaryTimeouts).toEqual([60_000, 60_000]);
+  summaryTimeouts.length = 0;
+  await getHomeStockBundle(filter);
+  expect(summaryTimeouts).toEqual([60_000, 60_000]);
+});
+
 it('bounds timed-out background reads without declaring the browser offline', async () => {
   const adapter = vi.fn(async () => {
     throw new AxiosError('Timed out', AxiosError.ECONNABORTED);

@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
-import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios';
+import { type AxiosAdapter, AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -201,4 +201,17 @@ it('starts GTIN lookup before the independent lots lookup finishes', async () =>
     releaseLots();
     await download;
   }
+});
+
+it('finishes a slow catalog read before publishing a complete set of products', async () => {
+  const adapter = client.defaults.adapter as AxiosAdapter;
+  client.defaults.adapter = async (config) => {
+    if (config.url === '/orderables' && (config.timeout ?? 0) < 25_000)
+      throw new AxiosError('Timed out', AxiosError.ECONNABORTED);
+    return adapter(config);
+  };
+  const record = await fetchReceiveCatalog(scope);
+  expect(record.approved).toEqual([{ id: 'approved', versionNumber: 1 }]);
+  expect(record.products.map((item) => item.id)).toEqual(['fulfiller', 'approved']);
+  expect(requests.filter((request) => request.url === '/orderables')).toHaveLength(2);
 });

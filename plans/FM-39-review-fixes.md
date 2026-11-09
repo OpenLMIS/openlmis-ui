@@ -1200,6 +1200,25 @@ timings were not rerun. Keep those as verification limits, not passing measureme
 The preview server is stopped at handoff. No branch switch, push or other checkout edit.
 
 
+## First Download Timeout Follow-Up (2026-11-09, T7)
+
+Fresh headless Chrome profiles on test reproduced the timing risk: legacy's Essential Meds
+stock-summary download completed successfully in 23.9 seconds, while a new-UI successful read
+already took 18.8 seconds. Two of three baseline first downloads ended incomplete; all three
+updated first downloads reached Offline Data Ready. A 20-second cutoff rejects valid work.
+Home-stock and receive-catalog background requests now allow up to 60 seconds, preserving
+shorter explicit request timeouts. Access and other background reads retain their 20-second
+cap. There are no immediate timeout retries. Dataset fail-fast, complete-generation publication,
+older complete bundles, visible Retry, sign-in trigger priority and foreground transport priority
+remain unchanged. Foreground bundle reads retain their existing renewal and timeout behavior.
+
+Regression tests first reproduce rejection of successful reads needing more than 20 seconds at
+the home-stock and receive-catalog provider boundaries. Focused coordinator and transport tests
+cover cancellation, retained generations and foreground priority. Live paired runs and the
+Chromium offline suite are recorded in the group C report under
+`/home/user/.t3/fm39-opus/review-online/r10/C/report.md`.
+
+
 ### Round 10 A: T1 and T12 lifecycle requests
 
 - Backend master `ff94e2fc` checks timestamps and If-Match only when saving requisitions. Submit, Authorize, Approve, Reject and Skip check status, rights and idempotency without an ETag precondition.
