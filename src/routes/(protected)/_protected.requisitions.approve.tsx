@@ -32,7 +32,7 @@ import {
   rolesOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
-import { approvalListOptions } from '@/features/requisitions/api/queries';
+import { approvalListOptions, hasOnlineApprovalList } from '@/features/requisitions/api/queries';
 import {
   APPROVAL_HIDEABLE_COLUMNS,
   ApprovalTable,
@@ -55,7 +55,7 @@ import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useFlag } from '@/lib/feature-flags';
 import { LocalDataUnavailableError } from '@/lib/local-data';
-import { useOnline } from '@/lib/online';
+import { isOnline, useOnline } from '@/lib/online';
 import { RIGHTS } from '@/lib/rights';
 import { getSessionScope } from '@/lib/session-scope';
 import { searchSort } from '@/lib/table-search';
@@ -69,7 +69,8 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
     await requireRight(queryClient, RIGHTS.requisitionApprove);
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
-    queryClient.prefetchQuery(approvalListOptions(search));
+    if (isOnline() || !hasOnlineApprovalList(queryClient, search))
+      queryClient.prefetchQuery(approvalListOptions(search));
     queryClient.prefetchQuery(userRecordOptions(userId));
     queryClient.prefetchQuery(rolesOptions());
     queryClient.prefetchQuery(programsOptions());

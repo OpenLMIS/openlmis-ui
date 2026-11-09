@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
+import { type QueryClient, queryOptions } from '@tanstack/react-query';
 import {
   currencySettingsOptions,
   processingPeriodOptions,
@@ -31,6 +31,7 @@ import type {
 import { deviceQuery } from '@/lib/device-query';
 import { queryKeys } from '@/lib/key-factory';
 import { onlineOrDevice } from '@/lib/local-data';
+import { isDeviceAccess } from '@/lib/offline-access';
 import { isOnline } from '@/lib/online';
 
 export const requisitionSearchOptions = (
@@ -96,8 +97,8 @@ export const unskipSettingOptions = () =>
     queryFn: fetchUnskipSetting,
   });
 
-export const approvalListOptions = (search: ApprovalSearch, online = isOnline()) =>
-  deviceQuery({
+export const approvalListOptions = (search: ApprovalSearch, online = isOnline()) => ({
+  ...deviceQuery({
     queryKey:
       !online || search.offline
         ? [...LOCAL_LIST_KEY, 'approve', search]
@@ -107,7 +108,15 @@ export const approvalListOptions = (search: ApprovalSearch, online = isOnline())
       search.offline ? localApprovals(search) : fetchApprovalList(toApprovalQuery(search)),
     device: () => localApprovals(search),
     staleTime: 0,
-  });
+  }),
+  ...(online && !search.offline && { gcTime: Infinity }),
+});
+
+export function hasOnlineApprovalList(client: QueryClient, search: ApprovalSearch) {
+  if (search.offline) return false;
+  const page = client.getQueryData(approvalListOptions(search, true).queryKey);
+  return page !== undefined && !isDeviceAccess(page);
+}
 
 export const convertListOptions = (search: ConvertSearch) =>
   queryOptions({

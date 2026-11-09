@@ -5,7 +5,7 @@ import {
   functionalUpdate,
   useTable,
 } from '@tanstack/react-table';
-import { ClipboardListIcon, SearchXIcon } from 'lucide-react';
+import { ClipboardListIcon, SearchXIcon, WifiOffIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,7 +18,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { selectionColumn } from '@/components/data-table/data-table-selection';
 import { Button } from '@/components/ui/button';
-import { approvalListOptions } from '@/features/requisitions/api/queries';
+import { approvalListOptions, hasOnlineApprovalList } from '@/features/requisitions/api/queries';
 import { OfflineMarker } from '@/features/requisitions/components/offline-marker';
 import { RequisitionCopyNotice } from '@/features/requisitions/components/requisition-copy-notice';
 import {
@@ -226,8 +226,9 @@ export function ApprovalTable({
   const timeZone = useDeploymentTimeZone();
   const deferred = useDeferredValue(search);
   const online = useOnline();
-  const sourceOnline = useListConnection(deferred);
+  const connected = useListConnection(deferred);
   const client = useQueryClient();
+  const sourceOnline = connected || (!online && hasOnlineApprovalList(client, deferred));
   const options = approvalListOptions(deferred, sourceOnline);
   const retained = !online && sourceOnline && !deferred.offline;
   const { data: page, dataUpdatedAt } = useSuspenseQuery({
@@ -261,7 +262,8 @@ export function ApprovalTable({
   const empty =
     local && !deferred.program ? (
       <DataTableEmpty
-        title={t('requisitions.filters.program')}
+        icon={<WifiOffIcon />}
+        title={t('requisitions.approve.offline-empty-title')}
         description={t('requisitions.offline.choose-program')}
       />
     ) : local ? (
