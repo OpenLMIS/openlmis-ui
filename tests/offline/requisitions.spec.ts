@@ -279,7 +279,7 @@ test('an incomplete available-product download never publishes offline readiness
     const page = context.pages()[0];
     await login(page, 'download-user', 'View Requisitions', '/requisitions/view');
     await page.goto(`./requisitions/view/${requisition}?tab=fullSupply`);
-    await expect(page.getByText('Copy Not Saved', { exact: true })).toBeVisible();
+    await expect(page.getByRole('alert')).toContainText('Offline Access Unavailable');
     expect(await records(page, 'requisitionCopies')).toEqual([]);
     await waitForOfflineShell(page);
     await context.setOffline(true);
