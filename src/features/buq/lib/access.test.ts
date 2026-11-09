@@ -29,25 +29,23 @@ it.each([
   ).toEqual(READY);
 });
 
+const SUPPORTLESS_HOME = { ...HOME, supportedPrograms: [] };
+
 it.each([
-  ['no-home', { home: undefined, programs: [BUQ], grants: ['PREPARE_BUQ|f1|g1'] }],
-  ['no-program', { home: HOME, programs: [], grants: ['PREPARE_BUQ|f1|g1'] }],
+  ['no home facility', 'no-home', undefined, [BUQ], ['PREPARE_BUQ|f1|g1'], PREPARE],
+  ['no BUQ program', 'no-program', HOME, [], ['PREPARE_BUQ|f1|g1'], PREPARE],
+  ['home without BUQ', 'unsupported', SUPPORTLESS_HOME, [BUQ], ['PREPARE_BUQ|f1|g1'], PREPARE],
+  ['PREPARE_BUQ elsewhere', 'no-grant', HOME, [BUQ], ['PREPARE_BUQ|f2|g1'], PREPARE],
+  ['another right at home', 'no-grant', HOME, [BUQ], ['CREATE_FORECASTING|f1|g1'], PREPARE],
   [
-    'unsupported',
-    { home: { ...HOME, supportedPrograms: [] }, programs: [BUQ], grants: ['PREPARE_BUQ|f1|g1'] },
-  ],
-  ['no-grant', { home: HOME, programs: [BUQ], grants: ['PREPARE_BUQ|f2|g1'] }],
-  ['no-grant', { home: HOME, programs: [BUQ], grants: ['CREATE_FORECASTING|f1|g1'] }],
-  [
+    'forecasting rights elsewhere',
     'no-grant',
-    {
-      home: HOME,
-      programs: [BUQ],
-      grants: ['CREATE_FORECASTING|f2|g1', 'AUTHORIZE_FORECASTING|f1|g2'],
-    },
+    HOME,
+    [BUQ],
+    ['CREATE_FORECASTING|f2|g1', 'AUTHORIZE_FORECASTING|f1|g2'],
     FORECASTING,
   ],
-])('refuses with %s', (kind, { home, programs, grants }, rights = PREPARE) => {
+])('refuses with %s', (_, kind, home, programs, grants, rights) => {
   expect(
     buqAccess({ home, programs, permissions: parsePermissions(grants), rights, today: TODAY }),
   ).toEqual({ kind });

@@ -2,12 +2,11 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
-import { preparedBuqsOptions } from '@/features/buq/api/queries';
+import { openBuqsOptions } from '@/features/buq/api/queries';
 import { BuqHeading, BuqHeadingSkeleton } from '@/features/buq/components/buq-heading';
 import { ForecastsTable, ForecastsTableSkeleton } from '@/features/buq/components/forecasts-table';
 import { useBuqPeriods } from '@/features/buq/components/use-buq-periods';
-import type { BuqListProps } from '@/features/buq/components/use-buq-table';
-import type { BuqListSearch } from '@/features/buq/lib/search';
+import type { BuqListProps, BuqListSearch } from '@/features/buq/lib/search';
 import type { NamedItem } from '@/features/buq/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 
@@ -50,7 +49,7 @@ function LoadedForecasts({
   ...props
 }: BuqListProps & { facility: NamedItem; cards: boolean }) {
   const periods = useBuqPeriods();
-  const { data: buqs } = useSuspenseQuery(preparedBuqsOptions(facility.id));
+  const { data: buqs } = useSuspenseQuery(openBuqsOptions(facility.id));
   return <ForecastsTable {...props} buqs={buqs} periods={periods} />;
 }
 

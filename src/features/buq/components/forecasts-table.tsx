@@ -12,9 +12,9 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { buqStatusBadge } from '@/features/buq/components/buq-status-badge';
-import { type BuqTableProps, useBuqTable } from '@/features/buq/components/use-buq-table';
+import { useBuqTable } from '@/features/buq/components/use-buq-table';
 import { type BuqRow, buqRows, quantificationYears } from '@/features/buq/lib/rows';
-import type { BuqListSearch } from '@/features/buq/lib/search';
+import type { BuqListSearch, BuqTableProps } from '@/features/buq/lib/search';
 import type { Buq, BuqPeriod } from '@/features/buq/lib/types';
 
 const columnHelper = createColumnHelper<DataTableFeatures, BuqRow>();

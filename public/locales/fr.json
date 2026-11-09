@@ -8,7 +8,7 @@
   "breadcrumbs.label": "Fil d’Ariane",
   "breadcrumbs.show-more": "Afficher les étapes masquées du fil d’Ariane",
   "buq.create.description": "Retrouvez les rapports de votre établissement en attente de saisie, d'autorisation ou de correction.",
-  "buq.create.empty-description": "Les rapports apparaissent ici une fois préparés dans Préparer BUQ.",
+  "buq.create.empty-description": "Les rapports apparaissent ici une fois préparés pour votre établissement.",
   "buq.create.list-error": "Les rapports n'ont pas pu être chargés. Veuillez réessayer.",
   "buq.create.period": "Période(s)",
   "buq.create.quantification-year": "Quantification pour l'année",

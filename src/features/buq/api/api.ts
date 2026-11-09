@@ -12,7 +12,7 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
 const PAGE_SIZE = 100;
-const PREPARED_STATUSES = ['DRAFT', 'SUBMITTED', 'REJECTED'];
+const OPEN_STATUSES = ['DRAFT', 'SUBMITTED', 'REJECTED'];
 
 export const BUQ_CSV_FILENAME = 'buq_quantification_preparation_report.csv';
 
@@ -33,9 +33,9 @@ async function fetchEveryPage<T>(path: string, config: AxiosRequestConfig) {
   }
 }
 
-export function fetchPreparedBuqs(facilityId: string) {
+export function fetchOpenBuqs(facilityId: string) {
   return fetchEveryPage<Buq>('/bottomUpQuantifications', {
-    params: { facility: facilityId, status: PREPARED_STATUSES },
+    params: { facility: facilityId, status: OPEN_STATUSES },
     paramsSerializer: { indexes: null },
   });
 }
@@ -66,7 +66,7 @@ export function downloadBuq(id: string) {
 export async function deleteBuq(id: string) {
   const scope = getSessionScope();
   const { data } = await client.get<{ status: string }>(`/bottomUpQuantifications/${id}`);
-  if (!PREPARED_STATUSES.includes(data.status)) throw new BuqMovedError();
+  if (!OPEN_STATUSES.includes(data.status)) throw new BuqMovedError();
   assertSessionScope(scope);
   await client.delete(`/bottomUpQuantifications/${id}`);
 }

@@ -25,15 +25,14 @@ import { Separator } from '@/components/ui/separator';
 import { prepareBuq } from '@/features/buq/api/api';
 import {
   buqPeriodsOptions,
-  preparedBuqsOptions,
+  openBuqsOptions,
   takenPeriodsOptions,
 } from '@/features/buq/api/queries';
 import { BuqHeading, BuqHeadingSkeleton } from '@/features/buq/components/buq-heading';
 import { PreparedTable, PreparedTableSkeleton } from '@/features/buq/components/prepared-table';
 import { useBuqPeriods } from '@/features/buq/components/use-buq-periods';
-import type { BuqListProps } from '@/features/buq/components/use-buq-table';
 import { BUQ_CODE } from '@/features/buq/lib/access';
-import type { BuqListSearch } from '@/features/buq/lib/search';
+import type { BuqListProps, BuqListSearch } from '@/features/buq/lib/search';
 import type { BuqPeriod, NamedItem, TakenPeriod } from '@/features/buq/lib/types';
 import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
 import { useCardLayout } from '@/hooks/use-card-view';
@@ -110,7 +109,7 @@ function LoadedTable({
   ...list
 }: BuqListProps & { facility: NamedItem; cards: boolean }) {
   const periods = usePeriodNames();
-  const { data: buqs } = useSuspenseQuery(preparedBuqsOptions(facility.id));
+  const { data: buqs } = useSuspenseQuery(openBuqsOptions(facility.id));
   if (!periods) return <PreparedTableSkeleton cards={cards} search={list.search} />;
   return (
     <PreparedTable {...list} buqs={buqs} cards={cards} facility={facility} periods={periods} />
@@ -131,7 +130,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
           ? t('buq.prepare.prepared', { period })
           : t('buq.prepare.prepared-empty', { period }),
       });
-      queryClient.setQueryData(preparedBuqsOptions(facility.id).queryKey, (buqs) =>
+      queryClient.setQueryData(openBuqsOptions(facility.id).queryKey, (buqs) =>
         buqs ? [...buqs, buq] : buqs,
       );
       queryClient.setQueryData(takenPeriodsOptions(facility.id).queryKey, (rows) =>

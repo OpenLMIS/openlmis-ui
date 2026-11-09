@@ -1,8 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
-import { useLoginData } from '@/features/auth/store/login-data';
-import { buqPeriodsOptions, preparedBuqsOptions } from '@/features/buq/api/queries';
+import { buqPeriodsOptions, openBuqsOptions } from '@/features/buq/api/queries';
 import { BUQ_CODE, type BuqAccess, buqAccess } from '@/features/buq/lib/access';
 import {
   homeFacilityOptions,
@@ -10,7 +9,12 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
-import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import {
+  assertSessionScope,
+  getSessionScope,
+  getSessionUserId,
+  SessionEndedError,
+} from '@/lib/session-scope';
 
 type ShownBuqAccess = Exclude<BuqAccess, { kind: 'no-grant' }>;
 
@@ -22,15 +26,14 @@ export async function loadBuqAccess(
   cause: 'enter' | 'stay' | 'preload',
 ): Promise<ShownBuqAccess> {
   const scope = getSessionScope();
-  const userId = useLoginData.getState().referenceDataUserId;
-  if (!userId) throw new ForbiddenError(rights);
+  const userId = getSessionUserId();
+  if (!userId) throw new SessionEndedError();
   const fresh = cause === 'enter' ? { staleTime: 0 } : {};
   const [permissions, user, programs] = await Promise.all([
     requirePermissions(queryClient, rights),
     queryClient.fetchQuery({ ...userRecordOptions(userId), ...fresh }),
     queryClient.fetchQuery({ ...userProgramsOptions(userId), ...fresh }),
   ]);
-  if (useLoginData.getState().referenceDataUserId !== userId) throw new ForbiddenError(rights);
   const home = user.homeFacilityId
     ? await queryClient.fetchQuery({ ...homeFacilityOptions(user.homeFacilityId), ...fresh })
     : undefined;
@@ -48,7 +51,7 @@ export async function loadBuqAccess(
       const schedule = schedules.find(({ code }) => code === BUQ_CODE);
       return queryClient.prefetchQuery(buqPeriodsOptions(schedule?.id));
     }, noop);
-    if (cause !== 'preload') queryClient.prefetchQuery(preparedBuqsOptions(access.facility.id));
+    if (cause !== 'preload') queryClient.prefetchQuery(openBuqsOptions(access.facility.id));
   }
   return access;
 }

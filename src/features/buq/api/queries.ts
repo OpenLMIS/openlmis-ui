@@ -1,14 +1,14 @@
 import { queryOptions } from '@tanstack/react-query';
-import { fetchBuqPeriods, fetchPreparedBuqs, fetchTakenPeriods } from '@/features/buq/api/api';
+import { fetchBuqPeriods, fetchOpenBuqs, fetchTakenPeriods } from '@/features/buq/api/api';
 import type { BuqPeriod } from '@/features/buq/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 
 const NO_PERIODS: BuqPeriod[] = [];
 
-export const preparedBuqsOptions = (facilityId: string) =>
+export const openBuqsOptions = (facilityId: string) =>
   queryOptions({
     queryKey: queryKeys.buq.list({ facility: facilityId }),
-    queryFn: () => fetchPreparedBuqs(facilityId),
+    queryFn: () => fetchOpenBuqs(facilityId),
   });
 
 export const takenPeriodsOptions = (facilityId: string) =>

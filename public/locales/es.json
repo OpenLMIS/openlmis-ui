@@ -8,7 +8,7 @@
   "breadcrumbs.label": "Ruta de navegación",
   "breadcrumbs.show-more": "Mostrar más elementos de la ruta de navegación",
   "buq.create.description": "Encuentre los informes de su establecimiento pendientes de completar, autorizar o corregir.",
-  "buq.create.empty-description": "Los informes aparecen aquí una vez preparados en Preparar BUQ.",
+  "buq.create.empty-description": "Los informes aparecen aquí una vez preparados para su establecimiento.",
   "buq.create.list-error": "No se pudieron cargar los informes. Inténtelo de nuevo.",
   "buq.create.period": "Período(s)",
   "buq.create.quantification-year": "Cuantificación para el año",
