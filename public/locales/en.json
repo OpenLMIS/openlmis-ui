@@ -36,6 +36,8 @@
   "buq.forecast.crumb": "Forecast",
   "buq.forecast.description": "Check each product's yearly consumption, enter the expected demand and funding, then send the report on.",
   "buq.forecast.discard": "Your changes to this report have not been saved. Discard them and leave?",
+  "buq.forecast.empty-description": "This report has no products, so there is nothing to forecast. Prepare a report for a period with recorded consumption.",
+  "buq.forecast.empty-title": "No Products",
   "buq.forecast.facility-code": "Facility Code",
   "buq.forecast.facility-name": "Facility Name",
   "buq.forecast.facility-type": "Facility Type",

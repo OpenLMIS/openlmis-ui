@@ -36,6 +36,8 @@
   "buq.forecast.crumb": "التنبؤ",
   "buq.forecast.description": "راجع الاستهلاك السنوي لكل منتج، وأدخل الطلب المتوقع والتمويل، ثم أرسل التقرير.",
   "buq.forecast.discard": "لم تُحفظ تغييراتك على هذا التقرير. هل تريد تجاهلها والمغادرة؟",
+  "buq.forecast.empty-description": "لا يحتوي هذا التقرير على منتجات، لذا لا يوجد ما يمكن التنبؤ به. أعدّ تقريرًا لفترة فيها استهلاك مسجّل.",
+  "buq.forecast.empty-title": "لا توجد منتجات",
   "buq.forecast.facility-code": "رمز المنشأة",
   "buq.forecast.facility-name": "اسم المنشأة",
   "buq.forecast.facility-type": "نوع المنشأة",

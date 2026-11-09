@@ -36,6 +36,8 @@
   "buq.forecast.crumb": "Previsión",
   "buq.forecast.description": "Revise el consumo anual de cada producto, introduzca la demanda prevista y la financiación, y envíe el informe.",
   "buq.forecast.discard": "Los cambios de este informe no se han guardado. ¿Descartarlos y salir?",
+  "buq.forecast.empty-description": "Este informe no tiene productos, por lo que no hay nada que pronosticar. Prepare un informe para un período con consumo registrado.",
+  "buq.forecast.empty-title": "No hay productos",
   "buq.forecast.facility-code": "Código del establecimiento",
   "buq.forecast.facility-name": "Nombre del establecimiento",
   "buq.forecast.facility-type": "Tipo de establecimiento",
