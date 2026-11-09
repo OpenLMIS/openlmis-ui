@@ -13,7 +13,7 @@ import {
   prepareBuq,
 } from '@/features/buq/api/api';
 import { PrepareBuq } from '@/features/buq/components/prepare-buq';
-import type { PrepareSearch } from '@/features/buq/lib/search';
+import type { BuqListSearch } from '@/features/buq/lib/search';
 import type { Buq } from '@/features/buq/lib/types';
 import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
 import { downloadFile } from '@/lib/download-file';
@@ -57,7 +57,7 @@ beforeEach(() => {
 const MONTHLY = { id: 's0', code: 'SCH001', name: 'Monthly' };
 const BUQ_SCHEDULE = { id: 's1', code: 'BUQ', name: 'BUQ' };
 
-function renderPrepare(search: PrepareSearch = {}, schedules = [BUQ_SCHEDULE]) {
+function renderPrepare(search: BuqListSearch = {}, schedules = [BUQ_SCHEDULE]) {
   const onSearchChange = vi.fn();
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -94,7 +94,7 @@ it('prepares a forecast for the home facility and BUQ program once a period is c
   vi.mocked(prepareBuq).mockResolvedValue(prepared('p17', 2018));
   renderPrepare();
 
-  expect(await screen.findByText('buq.prepare.empty')).toBeInTheDocument();
+  expect(await screen.findByText('buq.empty')).toBeInTheDocument();
   const prepare = screen.getByRole('button', { name: 'buq.prepare.prepare' });
   expect(prepare).toBeDisabled();
   await choosePeriod(user, 'July 2017 - June 2018');
@@ -167,7 +167,7 @@ it('deletes a forecast only after confirmation', async () => {
   await user.click(within(dialog).getByRole('button', { name: 'buq.prepare.delete' }));
 
   await waitFor(() => expect(deleteBuq).toHaveBeenCalledWith('b-p16', expect.anything()));
-  expect(await screen.findByText('buq.prepare.empty')).toBeInTheDocument();
+  expect(await screen.findByText('buq.empty')).toBeInTheDocument();
 });
 
 it('returns to the last page that still has forecasts', async () => {
@@ -209,7 +209,7 @@ it('keeps the delete confirmation open until the list no longer shows the report
 
   expect(screen.getByRole('alertdialog')).toBeInTheDocument();
   refreshed([]);
-  expect(await screen.findByText('buq.prepare.empty')).toBeInTheDocument();
+  expect(await screen.findByText('buq.empty')).toBeInTheDocument();
   await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
 });
 
@@ -217,7 +217,7 @@ it('keeps the period picker working when only the report list fails', async () =
   vi.mocked(fetchPreparedBuqs).mockRejectedValue(new Error('list failed'));
   renderPrepare();
 
-  expect(await screen.findByText('buq.prepare.list-error-title')).toBeInTheDocument();
+  expect(await screen.findByText('buq.list-error-title')).toBeInTheDocument();
   await waitFor(() =>
     expect(screen.getByRole('combobox', { name: 'buq.prepare.select-period' })).not.toHaveAttribute(
       'data-disabled',
@@ -250,7 +250,7 @@ it('keeps the period picker disabled until the prepared periods are known', asyn
   vi.mocked(fetchTakenPeriods).mockRejectedValue(new Error('taken failed'));
   renderPrepare();
 
-  expect(await screen.findByText('buq.prepare.empty')).toBeInTheDocument();
+  expect(await screen.findByText('buq.empty')).toBeInTheDocument();
   await waitFor(() => expect(fetchTakenPeriods).toHaveBeenCalled());
   expect(picker()).toHaveAttribute('data-disabled');
 });

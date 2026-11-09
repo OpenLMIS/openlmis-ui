@@ -1,6 +1,5 @@
 import type { NamedItem } from '@/features/buq/lib/types';
 import { hasProgramGrant, type Permissions } from '@/lib/permissions';
-import { RIGHTS } from '@/lib/rights';
 
 export const BUQ_CODE = 'BUQ';
 
@@ -17,24 +16,26 @@ type HomeFacility = {
 
 type ProgramRecord = { id: string; code: string; name: string | null };
 
-export type PrepareAccess =
+export type BuqAccess =
   | { kind: 'ready'; facility: NamedItem; program: NamedItem }
   | { kind: 'no-home' }
   | { kind: 'no-program' }
   | { kind: 'unsupported' }
   | { kind: 'no-grant' };
 
-export function prepareAccess({
+export function buqAccess({
   home,
   programs,
   permissions,
+  rights,
   today,
 }: {
   home: HomeFacility | undefined;
   programs: readonly ProgramRecord[];
   permissions: Permissions;
+  rights: readonly string[];
   today: string;
-}): PrepareAccess {
+}): BuqAccess {
   if (!home) return { kind: 'no-home' };
   const program = programs.find(({ code }) => code === BUQ_CODE);
   if (!program) return { kind: 'no-program' };
@@ -45,7 +46,7 @@ export function prepareAccess({
       (!supportStartDate || supportStartDate.slice(0, 10) < today),
   );
   if (!supported) return { kind: 'unsupported' };
-  if (!hasProgramGrant(permissions, RIGHTS.prepareBuq, home.id, program.id)) {
+  if (!rights.some((right) => hasProgramGrant(permissions, right, home.id, program.id))) {
     return { kind: 'no-grant' };
   }
   return {

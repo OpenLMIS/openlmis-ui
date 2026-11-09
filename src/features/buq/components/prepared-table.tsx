@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { createColumnHelper, useTable } from '@tanstack/react-table';
+import { createColumnHelper } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { CalculatorIcon, DownloadIcon, Loader2Icon, Trash2Icon } from 'lucide-react';
-import { createContext, type RefObject, use, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, type RefObject, use, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -11,7 +11,6 @@ import {
   type DataTableFeatures,
   DataTableHeaderLabel,
   DataTableSkeleton,
-  dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { RowActions } from '@/components/display/card-actions';
@@ -28,20 +27,18 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BUQ_CSV_FILENAME, BuqMovedError, deleteBuq, downloadBuq } from '@/features/buq/api/api';
 import { preparedBuqsOptions, takenPeriodsOptions } from '@/features/buq/api/queries';
+import { BuqStatusBadge } from '@/features/buq/components/buq-status-badge';
+import { type BuqTableProps, useBuqTable } from '@/features/buq/components/use-buq-table';
 import { BUQ_STATUS } from '@/features/buq/lib/buq-status';
-import { DEFAULT_PREPARED_SORT, type PrepareSearch } from '@/features/buq/lib/search';
+import { type BuqRow, buqRows } from '@/features/buq/lib/rows';
+import type { BuqListSearch } from '@/features/buq/lib/search';
 import type { Buq, BuqPeriod, NamedItem } from '@/features/buq/lib/types';
-import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { downloadFile } from '@/lib/download-file';
 import { queryKeys } from '@/lib/key-factory';
-import { type SearchChange, toPaginationState } from '@/lib/table-search';
-
-type BuqRow = Buq & { periodName: string };
 
 type RowHandlers = {
   onDownload: (buq: BuqRow) => void;
@@ -99,15 +96,9 @@ function createColumns(t: TFunction, facility: NamedItem, handlers: RowHandlers)
     }),
     columnHelper.accessor('status', {
       header: t('buq.prepare.status'),
-      cell: ({ getValue }) => {
-        const { labelKey, tone, icon: Icon } = BUQ_STATUS[getValue()];
-        return (
-          <Badge variant={tone}>
-            <Icon data-icon="inline-start" />
-            {t(labelKey)}
-          </Badge>
-        );
-      },
+      cell: ({ getValue }) => (
+        <BuqStatusBadge label={t(BUQ_STATUS[getValue()].labelKey)} status={getValue()} />
+      ),
       meta: { label: t('buq.prepare.status') },
     }),
     columnHelper.display({
@@ -119,49 +110,20 @@ function createColumns(t: TFunction, facility: NamedItem, handlers: RowHandlers)
   ]);
 }
 
-const getRowId = (row: BuqRow) => row.id;
 const NO_ROWS: BuqRow[] = [];
 const IDLE: RowHandlers = { onDownload: () => {}, onDelete: () => {} };
 const SKELETON_FACILITY: NamedItem = { id: '', name: '' };
 const noop = () => {};
 
-type PagedTableProps = {
-  search: PrepareSearch;
-  onSearchChange: SearchChange<PrepareSearch>;
-  cards: boolean;
-};
-
-function useBuqTable(
+function usePreparedTable(
   rows: readonly BuqRow[],
   facility: NamedItem,
   handlers: RowHandlers,
-  { search, onSearchChange, cards }: PagedTableProps,
+  props: BuqTableProps,
 ) {
   const { t } = useTranslation();
   const columns = useMemo(() => createColumns(t, facility, handlers), [t, facility, handlers]);
-  const { pageIndex, pageSize } = toPaginationState(search);
-  const data = useMemo(
-    () => rows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
-    [rows, pageIndex, pageSize],
-  );
-  const { pageStart, searchState } = usePagedTableSearch({
-    search,
-    defaultSort: DEFAULT_PREPARED_SORT,
-    onSearchChange,
-    cards,
-  });
-  const table = useTable({
-    features: dataTableFeatures,
-    columns,
-    data,
-    getRowId,
-    rowCount: rows.length,
-    manualPagination: true,
-    manualSorting: true,
-    enableSorting: false,
-    ...searchState,
-  });
-  return { table, pageStart };
+  return useBuqTable(rows, columns, props);
 }
 
 export function PreparedTableSkeleton({
@@ -169,9 +131,9 @@ export function PreparedTableSkeleton({
   search,
 }: {
   cards: boolean;
-  search: PrepareSearch;
+  search: BuqListSearch;
 }) {
-  const { table } = useBuqTable(NO_ROWS, SKELETON_FACILITY, IDLE, {
+  const { table } = usePreparedTable(NO_ROWS, SKELETON_FACILITY, IDLE, {
     search,
     onSearchChange: noop,
     cards: false,
@@ -189,27 +151,14 @@ export function PreparedTable({
   cards,
   search,
   onSearchChange,
-}: PagedTableProps & {
+}: BuqTableProps & {
   buqs: readonly Buq[];
   periods: readonly BuqPeriod[];
   facility: NamedItem;
 }) {
   const { t } = useTranslation();
   const [deleting, setDeleting] = useState<BuqRow>();
-  const rows = useMemo(() => {
-    const byId = new Map(periods.map((period) => [period.id, period]));
-    return buqs
-      .map((buq) => ({ ...buq, period: byId.get(buq.processingPeriodId) }))
-      .toSorted(
-        (a, b) =>
-          a.targetYear - b.targetYear ||
-          (a.period?.startDate ?? '').localeCompare(b.period?.startDate ?? ''),
-      )
-      .map(({ period, ...buq }) => ({
-        ...buq,
-        periodName: period?.name ?? String(buq.targetYear),
-      }));
-  }, [buqs, periods]);
+  const rows = useMemo(() => buqRows(buqs, periods), [buqs, periods]);
   const download = useSessionMutation({
     mutationFn: downloadBuq,
     onSuccess: (blob, id) => {
@@ -230,24 +179,18 @@ export function PreparedTable({
     () => ({ onDownload: (buq) => download.mutate(buq.id), onDelete: setDeleting }),
     [download.mutate],
   );
-  const { table, pageStart } = useBuqTable(rows, facility, handlers, {
+  const { table, pageStart, isPastLastPage } = usePreparedTable(rows, facility, handlers, {
     search,
     onSearchChange,
     cards,
   });
-  const pageCount = table.getPageCount();
-  const isPastLastPage = rows.length > 0 && toPaginationState(search).pageIndex >= pageCount;
-
-  useEffect(() => {
-    if (isPastLastPage) onSearchChange({ page: pageCount > 1 ? pageCount : undefined }, true);
-  }, [isPastLastPage, pageCount, onSearchChange]);
 
   const footer = !isPastLastPage && rows.length > 0 && <DataTablePagination table={table} />;
   const empty = !isPastLastPage && (
     <DataTableEmpty
       description={t('buq.prepare.empty-description')}
       icon={<CalculatorIcon />}
-      title={t('buq.prepare.empty')}
+      title={t('buq.empty')}
     />
   );
 
