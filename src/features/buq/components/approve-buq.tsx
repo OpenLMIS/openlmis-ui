@@ -15,12 +15,18 @@ import { useCardView } from '@/hooks/use-card-view';
 const VISIBILITY_KEY = 'buq.approve.column-visibility';
 
 function useApprovalView() {
+  return useCardView(APPROVAL_HIDEABLE_COLUMNS, VISIBILITY_KEY);
+}
+
+function ApprovalViewMenu({
+  view,
+  disabled = false,
+}: {
+  view: ReturnType<typeof useApprovalView>;
+  disabled?: boolean;
+}) {
   const { t } = useTranslation();
-  const { measure, cards, columnView, layout } = useCardView(
-    APPROVAL_HIDEABLE_COLUMNS,
-    VISIBILITY_KEY,
-  );
-  const view = (disabled: boolean) => (
+  return (
     <DataTableToolbar align="end">
       <div className="flex-1 @2xl/main:flex-none">
         <DataTableViewOptions
@@ -29,16 +35,15 @@ function useApprovalView() {
             label: t(labelKey),
           }))}
           disabled={disabled}
-          layout={layout}
-          onReset={columnView.onReset}
-          onVisibilityChange={columnView.onVisibilityChange}
+          layout={view.layout}
+          onReset={view.columnView.onReset}
+          onVisibilityChange={view.columnView.onVisibilityChange}
           size="lg"
-          visibility={columnView.visibility}
+          visibility={view.columnView.visibility}
         />
       </div>
     </DataTableToolbar>
   );
-  return { measure, cards, visibility: columnView.visibility, view };
 }
 
 export function ApproveBuq({
@@ -47,7 +52,9 @@ export function ApproveBuq({
   onSearchChange,
 }: BuqListProps & { programId: string }) {
   const { t } = useTranslation();
-  const { measure, cards, visibility, view } = useApprovalView();
+  const view = useApprovalView();
+  const { measure, cards } = view;
+  const visibility = view.columnView.visibility;
   return (
     <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
       <QueryBoundary
@@ -65,7 +72,7 @@ export function ApproveBuq({
         <ApproveSummary programId={programId} />
       </QueryBoundary>
       <div className="flex flex-col gap-4">
-        {view(false)}
+        <ApprovalViewMenu view={view} />
         <QueryBoundary
           errorComponent={({ error, reset }) => (
             <ListError
@@ -94,12 +101,14 @@ export function ApproveBuq({
 }
 
 export function ApproveBuqSkeleton({ search }: { search: BuqListSearch }) {
-  const { measure, cards, visibility, view } = useApprovalView();
+  const view = useApprovalView();
+  const { measure, cards } = view;
+  const visibility = view.columnView.visibility;
   return (
     <div aria-busy className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
       <ApproveSummarySkeleton />
       <div className="flex flex-col gap-4">
-        {view(true)}
+        <ApprovalViewMenu disabled view={view} />
         <ApprovalTableSkeleton cards={cards} search={search} visibility={visibility} />
       </div>
     </div>

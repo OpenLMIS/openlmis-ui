@@ -73,7 +73,7 @@ export function buqAccess({
   };
 }
 
-export type ApproveAccess = { kind: 'ready'; programId: string } | { kind: 'no-program' };
+type ApproveAccess = { kind: 'ready'; programId: string } | { kind: 'no-program' };
 
 export function approveAccess(programs: readonly ProgramRecord[]): ApproveAccess {
   const program = programs.find(({ code }) => code === BUQ_CODE);
