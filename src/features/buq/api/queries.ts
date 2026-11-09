@@ -40,7 +40,7 @@ export const buqsForApprovalOptions = (programId: string) =>
 
 export const buqApproveStatsOptions = (programId: string) =>
   queryOptions({
-    queryKey: [...queryKeys.buq.all, 'approve-stats', programId],
+    queryKey: queryKeys.buq.list({ approveStats: programId }),
     queryFn: () => fetchApproveStats(programId),
   });
 

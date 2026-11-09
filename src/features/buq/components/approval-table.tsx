@@ -28,52 +28,33 @@ import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 
 const columnHelper = createColumnHelper<DataTableFeatures, ApprovalRow>();
 
-type HideableColumn = ResponsiveColumn & { labelKey: ParseKeys };
-
-export const APPROVAL_HIDEABLE_COLUMNS: readonly HideableColumn[] = [
+export const APPROVAL_HIDEABLE_COLUMNS: readonly (ResponsiveColumn & { labelKey: ParseKeys })[] = [
   { id: 'facilityType', labelKey: 'buq.approve.facility-type', hideBelow: 864 },
   { id: 'district', labelKey: 'buq.approve.district', hideBelow: 960 },
   { id: 'region', labelKey: 'buq.approve.region', hideBelow: '3xl' },
 ];
 
-const text = (value: string) => (
-  <CellText overflow="clamp">
-    <bdi>{value}</bdi>
-  </CellText>
-);
+type TextColumn = Exclude<keyof ApprovalRow, 'id' | 'submittedAt'>;
 
 function createColumns(t: TFunction, locale: string, timeZone: string | undefined) {
+  const textColumn = (id: TextColumn, label: ParseKeys, className?: string) =>
+    columnHelper.accessor(id, {
+      header: t(label),
+      cell: ({ getValue }) =>
+        getValue() && (
+          <CellText overflow="clamp">
+            <bdi>{getValue()}</bdi>
+          </CellText>
+        ),
+      meta: { label: t(label), className },
+    });
   return columnHelper.columns([
-    columnHelper.accessor('facilityCode', {
-      header: t('buq.approve.facility-code'),
-      cell: ({ getValue }) => getValue(),
-      meta: { label: t('buq.approve.facility-code'), className: 'w-28' },
-    }),
-    columnHelper.accessor('facilityName', {
-      header: t('buq.approve.facility-name'),
-      cell: ({ getValue }) => text(getValue()),
-      meta: { label: t('buq.approve.facility-name') },
-    }),
-    columnHelper.accessor('facilityType', {
-      header: t('buq.approve.facility-type'),
-      cell: ({ getValue }) => text(getValue()),
-      meta: { label: t('buq.approve.facility-type') },
-    }),
-    columnHelper.accessor('district', {
-      header: t('buq.approve.district'),
-      cell: ({ getValue }) => text(getValue()),
-      meta: { label: t('buq.approve.district') },
-    }),
-    columnHelper.accessor('region', {
-      header: t('buq.approve.region'),
-      cell: ({ getValue }) => text(getValue()),
-      meta: { label: t('buq.approve.region') },
-    }),
-    columnHelper.accessor('periodName', {
-      header: t('buq.approve.period'),
-      cell: ({ getValue }) => text(getValue()),
-      meta: { label: t('buq.approve.period') },
-    }),
+    textColumn('facilityCode', 'buq.approve.facility-code', 'w-28'),
+    textColumn('facilityName', 'buq.approve.facility-name'),
+    textColumn('facilityType', 'buq.approve.facility-type'),
+    textColumn('district', 'buq.approve.district'),
+    textColumn('region', 'buq.approve.region'),
+    textColumn('periodName', 'buq.approve.period', '@4xl/main:w-48'),
     columnHelper.accessor('submittedAt', {
       header: t('buq.approve.submitted'),
       cell: ({ getValue }) => formatTimestamp(getValue(), locale, { timeZone }),
