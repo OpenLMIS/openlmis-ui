@@ -1,10 +1,15 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { toDateValue } from '@/components/form/date-value';
-import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
+import { ForbiddenError, requirePermissions, requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
-import { buqPeriodsOptions, openBuqsOptions } from '@/features/buq/api/queries';
-import { type BuqAccess, buqAccess } from '@/features/buq/lib/access';
+import {
+  buqApproveStatsOptions,
+  buqPeriodsOptions,
+  buqsForApprovalOptions,
+  openBuqsOptions,
+} from '@/features/buq/api/queries';
+import { approveAccess, type BuqAccess, buqAccess } from '@/features/buq/lib/access';
 import {
   deploymentTimeZoneOptions,
   homeFacilityOptions,
@@ -54,6 +59,25 @@ export async function loadBuqAccess(
   if (access.kind === 'ready') {
     queryClient.prefetchQuery(buqPeriodsOptions());
     queryClient.prefetchQuery(openBuqsOptions(access.facility.id));
+  }
+  return access;
+}
+
+export async function loadApproveAccess(queryClient: QueryClient) {
+  const scope = getSessionScope();
+  const userId = getSessionUserId();
+  if (!userId) throw new SessionEndedError();
+  const [, programs] = await Promise.all([
+    requireRight(queryClient, RIGHTS.approveBuq),
+    queryClient.ensureQueryData(userProgramsOptions(userId)),
+  ]);
+  assertSessionScope(scope);
+  const access = approveAccess(programs);
+  if (access.kind === 'ready') {
+    queryClient.prefetchQuery(buqPeriodsOptions());
+    queryClient.prefetchQuery(buqApproveStatsOptions(access.program.id));
+    queryClient.prefetchQuery(buqsForApprovalOptions(access.program.id));
+    queryClient.prefetchQuery(deploymentTimeZoneOptions());
   }
   return access;
 }

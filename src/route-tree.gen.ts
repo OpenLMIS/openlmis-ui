@@ -41,6 +41,7 @@ import { Route as protectedProtectedAdministrationSupplyPartnersRouteImport } fr
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
 import { Route as protectedProtectedAdministrationValidDestinationsRouteImport } from './routes/(protected)/_protected.administration.valid-destinations'
 import { Route as protectedProtectedAdministrationValidSourcesRouteImport } from './routes/(protected)/_protected.administration.valid-sources'
+import { Route as protectedProtectedBuqApproveRouteImport } from './routes/(protected)/_protected.buq.approve'
 import { Route as protectedProtectedBuqCreateRouteImport } from './routes/(protected)/_protected.buq.create'
 import { Route as protectedProtectedBuqPrepareRouteImport } from './routes/(protected)/_protected.buq.prepare'
 import { Route as protectedProtectedCceInventoryRouteImport } from './routes/(protected)/_protected.cce.inventory'
@@ -283,6 +284,12 @@ const protectedProtectedAdministrationValidSourcesRoute =
   protectedProtectedAdministrationValidSourcesRouteImport.update({
     id: '/administration/valid-sources',
     path: '/administration/valid-sources',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedBuqApproveRoute =
+  protectedProtectedBuqApproveRouteImport.update({
+    id: '/buq/approve',
+    path: '/buq/approve',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedBuqCreateRoute =
@@ -672,6 +679,7 @@ export interface FileRoutesByFullPath {
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
+  '/buq/approve': typeof protectedProtectedBuqApproveRoute
   '/buq/create': typeof protectedProtectedBuqCreateRoute
   '/buq/prepare': typeof protectedProtectedBuqPrepareRoute
   '/cce/inventory': typeof protectedProtectedCceInventoryRoute
@@ -761,6 +769,7 @@ export interface FileRoutesByTo {
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
+  '/buq/approve': typeof protectedProtectedBuqApproveRoute
   '/buq/create': typeof protectedProtectedBuqCreateRoute
   '/buq/prepare': typeof protectedProtectedBuqPrepareRoute
   '/cce/inventory': typeof protectedProtectedCceInventoryRoute
@@ -853,6 +862,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/(protected)/_protected/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/(protected)/_protected/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
+  '/(protected)/_protected/buq/approve': typeof protectedProtectedBuqApproveRoute
   '/(protected)/_protected/buq/create': typeof protectedProtectedBuqCreateRoute
   '/(protected)/_protected/buq/prepare': typeof protectedProtectedBuqPrepareRoute
   '/(protected)/_protected/cce/inventory': typeof protectedProtectedCceInventoryRoute
@@ -946,6 +956,7 @@ export interface FileRouteTypes {
     | '/administration/users'
     | '/administration/valid-destinations'
     | '/administration/valid-sources'
+    | '/buq/approve'
     | '/buq/create'
     | '/buq/prepare'
     | '/cce/inventory'
@@ -1035,6 +1046,7 @@ export interface FileRouteTypes {
     | '/administration/users'
     | '/administration/valid-destinations'
     | '/administration/valid-sources'
+    | '/buq/approve'
     | '/buq/create'
     | '/buq/prepare'
     | '/cce/inventory'
@@ -1126,6 +1138,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/users'
     | '/(protected)/_protected/administration/valid-destinations'
     | '/(protected)/_protected/administration/valid-sources'
+    | '/(protected)/_protected/buq/approve'
     | '/(protected)/_protected/buq/create'
     | '/(protected)/_protected/buq/prepare'
     | '/(protected)/_protected/cce/inventory'
@@ -1418,6 +1431,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/valid-sources'
       fullPath: '/administration/valid-sources'
       preLoaderRoute: typeof protectedProtectedAdministrationValidSourcesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/buq/approve': {
+      id: '/(protected)/_protected/buq/approve'
+      path: '/buq/approve'
+      fullPath: '/buq/approve'
+      preLoaderRoute: typeof protectedProtectedBuqApproveRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/buq/create': {
@@ -1922,6 +1942,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
+  protectedProtectedBuqApproveRoute: typeof protectedProtectedBuqApproveRoute
   protectedProtectedBuqCreateRoute: typeof protectedProtectedBuqCreateRoute
   protectedProtectedBuqPrepareRoute: typeof protectedProtectedBuqPrepareRoute
   protectedProtectedCceInventoryRoute: typeof protectedProtectedCceInventoryRoute
@@ -2021,6 +2042,7 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidDestinationsRoute,
   protectedProtectedAdministrationValidSourcesRoute:
     protectedProtectedAdministrationValidSourcesRoute,
+  protectedProtectedBuqApproveRoute: protectedProtectedBuqApproveRoute,
   protectedProtectedBuqCreateRoute: protectedProtectedBuqCreateRoute,
   protectedProtectedBuqPrepareRoute: protectedProtectedBuqPrepareRoute,
   protectedProtectedCceInventoryRoute: protectedProtectedCceInventoryRoute,
