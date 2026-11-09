@@ -29,11 +29,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { BUQ_CSV_FILENAME, BuqMovedError, deleteBuq, downloadBuq } from '@/features/buq/api/api';
-import { preparedBuqsOptions, takenPeriodsOptions } from '@/features/buq/api/queries';
+import { openBuqsOptions, takenPeriodsOptions } from '@/features/buq/api/queries';
 import { buqStatusBadge } from '@/features/buq/components/buq-status-badge';
-import { type BuqTableProps, useBuqTable } from '@/features/buq/components/use-buq-table';
+import { useBuqTable } from '@/features/buq/components/use-buq-table';
 import { type BuqRow, buqRows } from '@/features/buq/lib/rows';
-import type { BuqListSearch } from '@/features/buq/lib/search';
+import type { BuqListSearch, BuqTableProps } from '@/features/buq/lib/search';
 import type { Buq, BuqPeriod, NamedItem } from '@/features/buq/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { downloadFile } from '@/lib/download-file';
@@ -242,7 +242,7 @@ function DeleteBuqDialog({
       toast.success(t('buq.prepare.deleted-title'), {
         description: t('buq.prepare.deleted', { period: shown?.periodName ?? '' }),
       });
-      queryClient.setQueryData(preparedBuqsOptions(facilityId).queryKey, (buqs) =>
+      queryClient.setQueryData(openBuqsOptions(facilityId).queryKey, (buqs) =>
         buqs?.filter((row) => row.id !== id),
       );
       queryClient.setQueryData(takenPeriodsOptions(facilityId).queryKey, (rows) =>

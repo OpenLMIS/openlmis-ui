@@ -2,17 +2,9 @@ import { type ColumnDef, useTable } from '@tanstack/react-table';
 import { useEffect, useMemo } from 'react';
 import { type DataTableFeatures, dataTableFeatures } from '@/components/data-table/data-table';
 import type { BuqRow } from '@/features/buq/lib/rows';
-import { type BuqListSearch, DEFAULT_BUQ_SORT } from '@/features/buq/lib/search';
+import { type BuqTableProps, DEFAULT_BUQ_SORT } from '@/features/buq/lib/search';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
-import { type SearchChange, toPaginationState } from '@/lib/table-search';
-
-export type BuqTableProps = {
-  search: BuqListSearch;
-  onSearchChange: SearchChange<BuqListSearch>;
-  cards: boolean;
-};
-
-export type BuqListProps = Omit<BuqTableProps, 'cards'>;
+import { toPaginationState } from '@/lib/table-search';
 
 const getRowId = (row: BuqRow) => row.id;
 

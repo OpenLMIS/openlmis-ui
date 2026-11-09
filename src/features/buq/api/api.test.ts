@@ -4,7 +4,7 @@ import {
   deleteBuq,
   downloadBuq,
   fetchBuqPeriods,
-  fetchPreparedBuqs,
+  fetchOpenBuqs,
   fetchTakenPeriods,
   prepareBuq,
 } from '@/features/buq/api/api';
@@ -25,13 +25,13 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe('fetchPreparedBuqs', () => {
+describe('fetchOpenBuqs', () => {
   it('reads every page of the facility forecasts that can still be prepared again', async () => {
     get
       .mockResolvedValueOnce(page([{ id: 'b1' }], 2))
       .mockResolvedValueOnce(page([{ id: 'b2' }], 2));
 
-    await expect(fetchPreparedBuqs('f1')).resolves.toEqual([{ id: 'b1' }, { id: 'b2' }]);
+    await expect(fetchOpenBuqs('f1')).resolves.toEqual([{ id: 'b1' }, { id: 'b2' }]);
     expect(get).toHaveBeenNthCalledWith(1, '/bottomUpQuantifications', {
       params: { facility: 'f1', status: ['DRAFT', 'SUBMITTED', 'REJECTED'], page: 0, size: 100 },
       paramsSerializer: { indexes: null },

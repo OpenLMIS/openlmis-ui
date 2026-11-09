@@ -8,7 +8,7 @@
   "breadcrumbs.label": "مسار التنقل",
   "breadcrumbs.show-more": "إظهار المزيد من مسار التنقل",
   "buq.create.description": "اعثر على تقارير منشأتك التي تنتظر الإدخال أو الاعتماد أو التصحيح.",
-  "buq.create.empty-description": "تظهر التقارير هنا بعد إعدادها في إعداد BUQ.",
+  "buq.create.empty-description": "تظهر التقارير هنا بعد إعدادها لمنشأتك.",
   "buq.create.list-error": "تعذّر تحميل التقارير. يُرجى المحاولة مرة أخرى.",
   "buq.create.period": "الفترة (الفترات)",
   "buq.create.quantification-year": "التقدير الكمي للسنة",

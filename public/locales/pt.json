@@ -8,7 +8,7 @@
   "breadcrumbs.label": "Navegação estrutural",
   "breadcrumbs.show-more": "Mostrar mais elementos do caminho de navegação",
   "buq.create.description": "Encontre os relatórios da sua unidade que aguardam preenchimento, autorização ou correção.",
-  "buq.create.empty-description": "Os relatórios aparecem aqui depois de preparados em Preparar BUQ.",
+  "buq.create.empty-description": "Os relatórios aparecem aqui depois de preparados para a sua unidade.",
   "buq.create.list-error": "Não foi possível carregar os relatórios. Tente novamente.",
   "buq.create.period": "Período(s)",
   "buq.create.quantification-year": "Quantificação Para o Ano",
