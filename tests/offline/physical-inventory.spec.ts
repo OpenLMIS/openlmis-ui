@@ -53,6 +53,7 @@ test('inventory counts and new lots survive offline restart and only explicit Sa
     await expect
       .poll(async () => (await records(page, 'physicalInventoryReference')).length)
       .toBe(1);
+    await expect.poll(async () => (await records(page, 'offlineAccess')).length).toBe(1);
     await waitForOfflineShell(page);
     await context.setOffline(true);
     await context.close();
