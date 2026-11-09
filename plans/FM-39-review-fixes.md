@@ -1198,3 +1198,11 @@ Final flag-enabled Home medians were 1,405 / 1,404 ms in the Approve/Convert blo
 Create/Authorize, View and Create Orders entry timings and Submit/Authorize action
 timings were not rerun. Keep those as verification limits, not passing measurements.
 The preview server is stopped at handoff. No branch switch, push or other checkout edit.
+
+
+### Round 10 A: T1 and T12 lifecycle requests
+
+- Backend master `ff94e2fc` checks timestamps and If-Match only when saving requisitions. Submit, Authorize, Approve, Reject and Skip check status, rights and idempotency without an ETag precondition.
+- After lifecycle saves, send the transition immediately and refresh only on failure for recovery. Later PUTs still wait for a fresh GET; never adopt the PUT response ETag.
+- Keep post-action copy capture in the background and invalidate cached requisition lists without refetching active editor queries. Prune rejected records from the approval cache too.
+- Regression coverage holds refresh reads pending, checks lifecycle headers and navigation, and retains failed-approval retry and subsequent-save version checks.

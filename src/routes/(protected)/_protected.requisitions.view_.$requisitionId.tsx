@@ -595,7 +595,7 @@ function RequisitionBody({
     return result.conflicts.length === 0;
   };
   const savedRefresh = useRef<Promise<RequisitionRecord> | undefined>(undefined);
-  const sync = async (refreshMode: 'wait' | 'background' | 'approval' = 'wait') => {
+  const sync = async (refreshMode: 'wait' | 'background' | 'lifecycle' = 'wait') => {
     const scope = getSessionScope();
     await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
@@ -668,6 +668,7 @@ function RequisitionBody({
       refetchType: 'none',
     });
     assertSessionScope(scope);
+    if (refreshMode === 'lifecycle') return response;
     const refresh = refreshSaved();
     if (refreshMode === 'wait') return refresh;
     savedRefresh.current = refresh;
@@ -788,7 +789,7 @@ function RequisitionBody({
         isApprovalKind(kind)
       ) {
         saved = await sync(
-          kind === 'sync' ? 'background' : kind === 'approve' ? 'approval' : 'wait',
+          kind === 'sync' ? 'background' : kind === 'print' ? 'wait' : 'lifecycle',
         );
         assertSessionScope(scope);
       }
@@ -804,25 +805,20 @@ function RequisitionBody({
         ) {
           let base = saved ?? latest.current.record;
           try {
-            if (kind === 'approve') {
-              try {
-                await approveRequisition(record.id, attempt);
-              } finally {
-                try {
-                  base = (await savedRefresh.current) ?? latest.current.record;
-                } catch {
-                  assertSessionScope(scope);
-                  needsReconcile.current = true;
-                } finally {
-                  savedRefresh.current = undefined;
-                }
-              }
-            } else if (kind === 'reject')
-              await rejectRequisition(record.id, attempt, rejectReasons);
+            if (kind === 'approve') await approveRequisition(record.id, attempt);
+            else if (kind === 'reject') await rejectRequisition(record.id, attempt, rejectReasons);
             else if (kind === 'authorize') await authorizeRequisition(record.id, attempt);
             else await submitRequisition(record.id, attempt);
           } catch (error) {
             assertSessionScope(scope);
+            if (refreshPending.current) {
+              try {
+                base = await refreshSaved();
+              } catch {
+                assertSessionScope(scope);
+                needsReconcile.current = true;
+              }
+            }
             const status = isAxiosError(error) ? error.response?.status : undefined;
             const locked =
               isAxiosError(error) &&
@@ -894,8 +890,11 @@ function RequisitionBody({
         });
       queryClient.removeQueries({ queryKey: requisitionOptions(record.id).queryKey });
       queryClient.removeQueries({ queryKey: requisitionStatusMessagesOptions(record.id).queryKey });
-      if (kind === 'approve') removeApprovedFromLists(queryClient, [record.id]);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all });
+      if (isApprovalKind(kind)) removeApprovedFromLists(queryClient, [record.id]);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.requisitions.all,
+        refetchType: 'none',
+      });
       void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
       assertSessionScope(scope);
       if (isSecureOrigin && retired && kind !== 'delete' && kind !== 'skip') {

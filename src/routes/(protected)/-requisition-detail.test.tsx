@@ -606,6 +606,7 @@ it.each(['sync', 'submit'] as const)(
   'releases Save before its GET and serializes the next %s',
   async (kind) => {
     const { base, queryClient } = await openEditor();
+    vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
     const fresh = { ...base, eTag: '"fresh"', modifiedDate: 'fresh' };
     const pending = Promise.withResolvers<typeof fresh>();
     vi.mocked(fetchRequisition).mockReturnValueOnce(pending.promise).mockResolvedValue(fresh);
@@ -2138,10 +2139,7 @@ it.each(['capture', 'clear'] as const)(
     vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
     vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
     await waitFor(() => expect(saveCopy).toHaveBeenCalledOnce());
-    if (failure === 'capture')
-      saveCopy
-        .mockResolvedValueOnce({} as never)
-        .mockRejectedValueOnce(new Error('Storage unavailable'));
+    if (failure === 'capture') saveCopy.mockRejectedValueOnce(new Error('Storage unavailable'));
     await confirmAction();
     await screen.findByText('Opening List');
     expect(toast.error).not.toHaveBeenCalledWith('requisitions.edit.error-title', {
@@ -2406,18 +2404,47 @@ it('reconciles a lost PUT response before saving again with the fresh version', 
   queryClient.clear();
 });
 
-it('starts Approve while the post-save GET is still pending', async () => {
+it('finishes Approve without a post-save refresh GET', async () => {
   const { base, queryClient } = await openApprover();
-  const fresh = Promise.withResolvers<RequisitionRecord>();
   vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
-  vi.mocked(fetchRequisition).mockReturnValueOnce(fresh.promise);
-  const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  const get = vi.mocked(fetchRequisition);
+  const calls = get.mock.calls.length;
+  const pending = Promise.withResolvers<RequisitionRecord>();
+  get.mockReturnValue(pending.promise);
+  const post = vi.spyOn(client, 'post').mockImplementation(async () => {
+    expect(get.mock.calls.length).toBe(calls);
+    return { data: {} };
+  });
   await confirmApproval();
-  await waitFor(() => expect(post).toHaveBeenCalledOnce());
-  await act(() => fresh.resolve({ ...base, eTag: '"fresh"' }));
   await screen.findByText('Approval List');
+  expect(post.mock.calls[0][2]).toEqual({
+    timeout: 0,
+    headers: { 'Idempotency-Key': expect.any(String) },
+  });
+  pending.resolve(base);
   queryClient.clear();
 });
+
+it.each(['submit', 'authorize'] as const)(
+  '%s does not read between save and transition',
+  async (kind) => {
+    const { base, queryClient } = await openEditor(false, true, kind === 'authorize');
+    const get = vi.mocked(fetchRequisition);
+    const calls = get.mock.calls.length;
+    vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
+    const post = vi.spyOn(client, 'post').mockImplementation(async () => {
+      expect(get.mock.calls.length).toBe(calls);
+      return { data: {} };
+    });
+    await confirmAction(kind);
+    await screen.findByText('Opening List');
+    expect(post.mock.calls[0][2]).toEqual({
+      timeout: 0,
+      headers: { 'Idempotency-Key': expect.any(String) },
+    });
+    queryClient.clear();
+  },
+);
 
 it('automatically saves a clean conflict merge once with the fresh date and ETag', async () => {
   const { base, queryClient } = await openEditor();
