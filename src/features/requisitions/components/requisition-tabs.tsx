@@ -303,37 +303,41 @@ const RequisitionTabsView = memo(function RequisitionTabsView({
             )}
           </div>
         )}
-        {tabs.map(({ value }) => (
-          <TabsContent key={value} value={value}>
-            {value === 'patients' ? (
-              <PatientsGrid
-                patients={basePatients}
-                editor={editing?.patientsEditable ? editor : undefined}
-                pending={editing?.pending}
-              />
-            ) : (
-              <RequisitionGridView
-                key={`${record.id}:${record.template.id ?? 'template'}`}
-                record={record}
-                editing={liveEditing}
-                errors={errors}
-                onAddProduct={onAddProduct}
-                models={models}
-                totals={totals}
-                currency={currency}
-                tab={value}
-                search={search}
-                onSearchChange={onSearchChange}
-                onAdjustments={onAdjustments}
-                onCloseAdjustments={onCloseAdjustments}
-                unit={unit}
-                setUnit={setUnit}
-                canSwitch={canSwitch}
-                supplyingStock={supplyingStock}
-              />
-            )}
-          </TabsContent>
-        ))}
+        {(patients ? ['patients', 'products'] : ['products']).map((panel) => {
+          const value =
+            panel === 'patients' ? 'patients' : active === 'nonFullSupply' ? active : 'fullSupply';
+          return (
+            <TabsContent key={panel} value={value}>
+              {value === 'patients' ? (
+                <PatientsGrid
+                  patients={basePatients}
+                  editor={editing?.patientsEditable ? editor : undefined}
+                  pending={editing?.pending}
+                />
+              ) : (
+                <RequisitionGridView
+                  key={`${record.id}:${record.template.id ?? 'template'}`}
+                  record={record}
+                  editing={liveEditing}
+                  errors={errors}
+                  onAddProduct={onAddProduct}
+                  models={models}
+                  totals={totals}
+                  currency={currency}
+                  tab={value}
+                  search={search}
+                  onSearchChange={onSearchChange}
+                  onAdjustments={onAdjustments}
+                  onCloseAdjustments={onCloseAdjustments}
+                  unit={unit}
+                  setUnit={setUnit}
+                  canSwitch={canSwitch}
+                  supplyingStock={supplyingStock}
+                />
+              )}
+            </TabsContent>
+          );
+        })}
       </Tabs>
       <RequisitionTotals
         totals={totals}

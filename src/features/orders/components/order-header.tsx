@@ -1,4 +1,5 @@
 import { FilePenIcon } from 'lucide-react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   RecordSummary,
@@ -14,7 +15,7 @@ import type { Order } from '@/features/orders/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { orEmpty } from '@/lib/empty-value';
 
-export function OrderHeader({ order }: { order: Order }) {
+export const OrderHeader = memo(function OrderHeader({ order }: { order: Order }) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
   return (
@@ -46,7 +47,7 @@ export function OrderHeader({ order }: { order: Order }) {
       </RecordSummaryFields>
     </RecordSummary>
   );
-}
+});
 
 export function OrderHeaderSkeleton() {
   const { t } = useTranslation();

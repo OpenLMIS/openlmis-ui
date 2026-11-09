@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { PackageIcon } from 'lucide-react';
-import { memo, useDeferredValue, useRef, useState } from 'react';
+import { memo, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   PickerAdd,
@@ -44,7 +44,10 @@ export const OrderProductPicker = memo(function OrderProductPicker({
     ...approvedProductsOptions({ programId, facilityId, name, page: 0, size: 100 }),
     enabled: open,
   });
-  const products = query.data?.content.map((item) => item.orderable) ?? [];
+  const products = useMemo(
+    () => query.data?.content.map((item) => item.orderable) ?? [],
+    [query.data],
+  );
   return (
     <div className="flex items-center gap-2 @3xl/main:max-w-xl">
       <PickerAdd>

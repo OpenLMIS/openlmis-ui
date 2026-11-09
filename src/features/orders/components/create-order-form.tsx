@@ -1,7 +1,7 @@
 import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox';
 import { useQuery } from '@tanstack/react-query';
 import { Building2Icon } from 'lucide-react';
-import { useId, useMemo, useState } from 'react';
+import { memo, useCallback, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { serverMessage } from '@/components/display/dialog-parts';
@@ -58,16 +58,16 @@ export function CreateOrderForm({
   );
   const [pickedProgram, setProgram] = useState('');
   const programId = pickedProgram || (programs.length === 1 ? programs[0].id : '');
-  const requestingId = useId();
-  const anchor = useComboboxAnchor();
-  const { contains } = ComboboxPrimitive.useFilter();
   const [ids, setIds] = useState<string[]>([]);
-  const [search, setSearch] = useState('');
   const selectedFacilities = useMemo(
     () => facilities.filter((facility) => ids.includes(facility.id)),
     [facilities, ids],
   );
   const [supplier, setSupplier] = useState('');
+  const changeFacilities = useCallback((next: string[]) => {
+    setIds(next);
+    setSupplier('');
+  }, []);
   const suppliers = useQuery({
     ...supplyingFacilitiesOptions(programId, ids),
     enabled: !!programId && ids.length > 0,
@@ -141,83 +141,12 @@ export function CreateOrderForm({
           />
         </div>
       </FieldGroup>
-      <Field data-disabled={mutation.isPending || facilitiesPending}>
-        <FieldLabel htmlFor={requestingId}>
-          <FieldLabelText label={t('orders.create.requesting-facility')} required />
-        </FieldLabel>
-        <Combobox
-          multiple
-          items={requesting}
-          limit={-1}
-          virtualized={requesting.length > 50}
-          value={selectedFacilities}
-          inputValue={search}
-          onInputValueChange={setSearch}
-          disabled={mutation.isPending || facilitiesPending}
-          filter={(item, query) => contains(item.name, query) || contains(item.code ?? '', query)}
-          itemToStringLabel={(item) => item.name}
-          isItemEqualToValue={(a, b) => a.id === b.id}
-          onOpenChange={(open, details) => {
-            if (!open && details.reason === 'item-press') details.cancel();
-          }}
-          onValueChange={(chosen, details) => {
-            if (details.reason === 'escape-key' && !chosen.length)
-              return details.allowPropagation();
-            setSearch('');
-            setIds(chosen.map((item) => item.id));
-            setSupplier('');
-          }}
-        >
-          <ComboboxChips ref={anchor} size="lg">
-            <Building2Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <ComboboxValue>
-              {(values: MinimalFacility[]) => (
-                <>
-                  {values.map((item) => (
-                    <ComboboxChip
-                      key={item.id}
-                      removeLabel={t('orders.create.remove-facility', { facility: item.name })}
-                    >
-                      <span className="truncate" dir="auto">
-                        {item.name}
-                      </span>
-                    </ComboboxChip>
-                  ))}
-                  <ComboboxChipsInput
-                    id={requestingId}
-                    aria-label={t('orders.create.requesting-facility')}
-                    aria-required
-                    disabled={mutation.isPending || facilitiesPending}
-                    placeholder={
-                      values.length ? undefined : t('orders.create.select-requesting-facility')
-                    }
-                  />
-                </>
-              )}
-            </ComboboxValue>
-          </ComboboxChips>
-          <ComboboxContent anchor={anchor}>
-            <ComboboxEmpty>{t('orders.no-options')}</ComboboxEmpty>
-            {requesting.length > 50 ? (
-              <ComboboxVirtualList<MinimalFacility> itemKey={(item) => item.id}>
-                {(item) => (
-                  <span className="min-w-0 whitespace-normal break-words" dir="auto">
-                    {item.name}
-                  </span>
-                )}
-              </ComboboxVirtualList>
-            ) : (
-              <ComboboxList>
-                {(item: MinimalFacility) => (
-                  <ComboboxItem key={item.id} value={item}>
-                    <span dir="auto">{item.name}</span>
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            )}
-          </ComboboxContent>
-        </Combobox>
-      </Field>
+      <RequestingFacilityPicker
+        options={requesting}
+        selected={selectedFacilities}
+        disabled={mutation.isPending || facilitiesPending}
+        onChange={changeFacilities}
+      />
       <div className="min-w-0">
         <OrderSelect
           required
@@ -263,3 +192,98 @@ export function CreateOrderForm({
     </form>
   );
 }
+
+const RequestingFacilityPicker = memo(function RequestingFacilityPicker({
+  options,
+  selected,
+  disabled,
+  onChange,
+}: {
+  options: MinimalFacility[];
+  selected: MinimalFacility[];
+  disabled: boolean;
+  onChange: (ids: string[]) => void;
+}) {
+  const { t } = useTranslation();
+  const requestingId = useId();
+  const anchor = useComboboxAnchor();
+  const { contains } = ComboboxPrimitive.useFilter();
+  const [search, setSearch] = useState('');
+  return (
+    <Field data-disabled={disabled}>
+      <FieldLabel htmlFor={requestingId}>
+        <FieldLabelText label={t('orders.create.requesting-facility')} required />
+      </FieldLabel>
+      <Combobox
+        multiple
+        items={options}
+        limit={-1}
+        virtualized={options.length > 50}
+        value={selected}
+        inputValue={search}
+        onInputValueChange={setSearch}
+        disabled={disabled}
+        filter={(item, query) => contains(item.name, query) || contains(item.code ?? '', query)}
+        itemToStringLabel={(item) => item.name}
+        isItemEqualToValue={(a, b) => a.id === b.id}
+        onOpenChange={(open, details) => {
+          if (!open && details.reason === 'item-press') details.cancel();
+        }}
+        onValueChange={(chosen, details) => {
+          if (details.reason === 'escape-key' && !chosen.length) return details.allowPropagation();
+          setSearch('');
+          onChange(chosen.map((item) => item.id));
+        }}
+      >
+        <ComboboxChips ref={anchor} size="lg">
+          <Building2Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <ComboboxValue>
+            {(values: MinimalFacility[]) => (
+              <>
+                {values.map((item) => (
+                  <ComboboxChip
+                    key={item.id}
+                    removeLabel={t('orders.create.remove-facility', { facility: item.name })}
+                  >
+                    <span className="truncate" dir="auto">
+                      {item.name}
+                    </span>
+                  </ComboboxChip>
+                ))}
+                <ComboboxChipsInput
+                  id={requestingId}
+                  aria-label={t('orders.create.requesting-facility')}
+                  aria-required
+                  disabled={disabled}
+                  placeholder={
+                    values.length ? undefined : t('orders.create.select-requesting-facility')
+                  }
+                />
+              </>
+            )}
+          </ComboboxValue>
+        </ComboboxChips>
+        <ComboboxContent anchor={anchor}>
+          <ComboboxEmpty>{t('orders.no-options')}</ComboboxEmpty>
+          {options.length > 50 ? (
+            <ComboboxVirtualList<MinimalFacility> itemKey={(item) => item.id}>
+              {(item) => (
+                <span className="min-w-0 whitespace-normal break-words" dir="auto">
+                  {item.name}
+                </span>
+              )}
+            </ComboboxVirtualList>
+          ) : (
+            <ComboboxList>
+              {(item: MinimalFacility) => (
+                <ComboboxItem key={item.id} value={item}>
+                  <span dir="auto">{item.name}</span>
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          )}
+        </ComboboxContent>
+      </Combobox>
+    </Field>
+  );
+});

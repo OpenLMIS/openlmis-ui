@@ -1238,3 +1238,9 @@ Chromium offline suite are recorded in the group C report under
 - Start batch retrieval concurrently with device copy lease acquisition. Membership and copy capture already run outside the loader's critical path.
 - Remove the batch route's default 500 ms minimum pending-screen duration, which can extend navigation after its data is ready.
 - A held-copy-lease regression checks retrieval starts before local storage finishes.
+
+
+### Round 10 A: T11 product tab switch
+
+- Full Supply and Non Full Supply reuse one product-grid panel. Switching product tabs updates its model and columns without remounting the table, toolbar and width observers.
+- Patients retains a separate panel. The editor regression suite verifies edits survive tabs and paging.

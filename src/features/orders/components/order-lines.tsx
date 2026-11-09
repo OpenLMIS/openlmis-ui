@@ -116,7 +116,7 @@ export function OrderLines({
         stock.data?.find((item) => item.orderable.id === line.product.id)?.stockOnHand ??
         cachedOrderBalance(client, filter, line.product.id)
       }
-      loading={stock.isPending}
+      loading={stock.isPending && cachedOrderBalance(client, filter, line.product.id) === undefined}
     />
   );
   const empty = (
