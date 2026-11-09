@@ -568,6 +568,14 @@ function RequisitionBody({
     await editor.device.rebase(draft, fresh);
     assertSessionScope(scope);
     editor.form.setFieldValue('draft', draft);
+    const previous = latest.current.record;
+    if (
+      previous.status !== fresh.status ||
+      previous.supervisoryNode !== fresh.supervisoryNode ||
+      previous.facility.id !== fresh.facility.id ||
+      previous.program.id !== fresh.program.id
+    )
+      accessEpoch.current = undefined;
     setRecord(fresh);
     latest.current = { record: fresh, editor };
     queryClient.setQueryData(requisitionOptions(fresh.id).queryKey, fresh);
@@ -741,17 +749,24 @@ function RequisitionBody({
         return;
       }
       requireOnline();
+      const reconcilePending = needsReconcile.current && !uncertain.current;
+      if (reconcilePending && !(await reconcile())) throw new RequisitionRetryConflict();
+      assertSessionScope(scope);
       let checkedPolicy: ReturnType<typeof requisitionCapabilities> | undefined;
-      if (accessEpoch.current !== uploadAccessEpoch()) {
+      if (reconcilePending || accessEpoch.current !== uploadAccessEpoch()) {
         const epoch = uploadAccessEpoch();
         const access = await freshRequisitionAccess(queryClient);
         assertSessionScope(scope);
-        const nodes = await currentApprovalNodes(queryClient, access, record);
-        assertSessionScope(scope);
-        checkedPolicy = requisitionCapabilities({
-          ...capabilityContext(record, access, program),
-          currentNodeId: nodes[0],
-        });
+        const checkPolicy = async () => {
+          const adopted = latest.current.record;
+          const nodes = await currentApprovalNodes(queryClient, access, adopted);
+          assertSessionScope(scope);
+          return requisitionCapabilities({
+            ...capabilityContext(adopted, access, program),
+            currentNodeId: nodes[0],
+          });
+        };
+        checkedPolicy = await checkPolicy();
         if (!uncertain.current) {
           if (!checkedPolicy.actions.includes(kind))
             throw new ForbiddenError(RIGHTS.requisitionView);
@@ -766,6 +781,9 @@ function RequisitionBody({
             const clean = await reconcile(fresh);
             assertSessionScope(scope);
             if (!clean) throw new RequisitionRetryConflict();
+            checkedPolicy = await checkPolicy();
+            if (!checkedPolicy.actions.includes(kind))
+              throw new ForbiddenError(RIGHTS.requisitionView);
           }
         }
         requireOnline();

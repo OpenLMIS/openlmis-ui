@@ -1102,6 +1102,7 @@ it('confirms Update before discarding a conflicting device draft', async () => {
       name: 'requisitions.edit.update',
     }),
   );
+  const updateReads = vi.mocked(fetchRequisition).mock.calls.length;
   saveCopy.mockImplementation(() => new Promise(() => {}));
   vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: 'fresh' });
   fireEvent.click(
@@ -1109,7 +1110,7 @@ it('confirms Update before discarding a conflicting device draft', async () => {
       name: 'requisitions.edit.actions.update',
     }),
   );
-  await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(reads + 1));
+  await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(updateReads + 1));
   await waitFor(() =>
     expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue(
       '10',
@@ -2726,5 +2727,51 @@ it('reconciles a newer access-check version when Submit is retried', async () =>
   await confirmAction();
   await screen.findByText('Opening List');
   expect(put.mock.calls[0][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  queryClient.clear();
+});
+
+it.each(['submitted', 'node'] as const)(
+  'refuses Sync after adopting a record with changed %s eligibility',
+  async (change) => {
+    const { base, queryClient } = change === 'node' ? await openApprover() : await openEditor();
+    act(() => useLoginData.setState({ accessToken: 'renewed' }));
+    vi.mocked(fetchRequisition).mockResolvedValue({
+      ...base,
+      modifiedDate: 'fresh',
+      ...(change === 'node' ? { supervisoryNode: 'next-node' } : { status: 'SUBMITTED' as const }),
+    });
+    const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+    await screen.findByText('requisitions.edit.error-description');
+    expect(put).not.toHaveBeenCalled();
+    queryClient.clear();
+  },
+);
+
+it('rechecks eligibility after the user resolves a field conflict on a submitted record', async () => {
+  const user = userEvent.setup();
+  const { base, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    status: 'SUBMITTED',
+    modifiedDate: 'fresh',
+    requisitionLineItems: base.requisitionLineItems.map((item) => ({
+      ...item,
+      beginningBalance: 20,
+    })),
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByRole('radio', { name: 'requisitions.merge.yours-value' }));
+  await user.click(within(dialog).getByRole('button', { name: 'requisitions.merge.recover' }));
+  await screen.findByText('requisitions.edit.error-description');
+  expect(put).toHaveBeenCalledOnce();
   queryClient.clear();
 });
