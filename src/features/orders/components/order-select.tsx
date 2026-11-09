@@ -1,6 +1,6 @@
 import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox';
 import { Building2Icon, ChevronDownIcon } from 'lucide-react';
-import { useId } from 'react';
+import { memo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FieldLabelText } from '@/components/form/form-fields';
 import { PickerAddIcon } from '@/components/pickers/picker-add';
@@ -18,7 +18,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { Spinner } from '@/components/ui/spinner';
 
 type Option = { id: string; name: string; code?: string };
-export function OrderSelect({
+export const OrderSelect = memo(function OrderSelect({
   label,
   placeholder,
   options,
@@ -121,4 +121,4 @@ export function OrderSelect({
       )}
     </Field>
   );
-}
+});

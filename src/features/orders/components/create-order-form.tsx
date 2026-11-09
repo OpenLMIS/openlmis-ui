@@ -72,9 +72,17 @@ export function CreateOrderForm({
     ...supplyingFacilitiesOptions(programId, ids),
     enabled: !!programId && ids.length > 0,
   });
-  const options = facilities
-    .filter((f) => suppliers.data?.includes(f.id))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const options = useMemo(
+    () =>
+      facilities
+        .filter((f) => suppliers.data?.includes(f.id))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [facilities, suppliers.data],
+  );
+  const changeProgram = useCallback((id: string) => {
+    setProgram(id);
+    setSupplier('');
+  }, []);
   const supplierId = options.some((f) => f.id === supplier)
     ? supplier
     : options.length === 1
@@ -134,10 +142,7 @@ export function CreateOrderForm({
             options={programOptions}
             value={programId}
             disabled={mutation.isPending || programsPending}
-            onChange={(id) => {
-              setProgram(id);
-              setSupplier('');
-            }}
+            onChange={changeProgram}
           />
         </div>
       </FieldGroup>
