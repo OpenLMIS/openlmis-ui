@@ -291,3 +291,43 @@ it('edits and removes added product cards below the table width threshold', asyn
   expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'physical-inventory.add-items' })).toBeDisabled();
 });
+
+it('searches a long lot list before adding an inventory product', async () => {
+  const user = userEvent.setup();
+  render(
+    <InventoryAddProductsDialog
+      eligible={Array.from({ length: 12 }, (_, index) => ({
+        ...eligible[0],
+        lot: { expirationDate: '2000-01-01', id: `lot-${index}`, lotCode: `BATCH-${index}` },
+      }))}
+      listed={[]}
+      canManageLots={false}
+      unit="DOSES"
+      onClose={vi.fn()}
+      onAdd={vi.fn()}
+    />,
+  );
+  await choose(user, 'stock-events.product', 'Product');
+  await user.type(screen.getByRole('combobox', { name: 'stock-events.lot-code' }), 'BATCH-11');
+  expect(await screen.findByRole('option', { name: /^BATCH-11$/ })).toBeVisible();
+  expect(screen.queryByRole('option', { name: /^BATCH-0$/ })).not.toBeInTheDocument();
+});
+
+it('selects a sole required product and lot so Add is ready', async () => {
+  const user = userEvent.setup();
+  render(
+    <InventoryAddProductsDialog
+      eligible={[eligible[1]]}
+      listed={[]}
+      canManageLots={false}
+      unit="DOSES"
+      onClose={vi.fn()}
+      onAdd={vi.fn()}
+    />,
+  );
+  expect(await screen.findByRole('combobox', { name: 'stock-events.product' })).toHaveValue(
+    'Product',
+  );
+  await user.click(screen.getByRole('button', { name: 'stock-events.add' }));
+  expect(await screen.findByRole('textbox', { name: 'stock-events.field-of' })).toBeVisible();
+});

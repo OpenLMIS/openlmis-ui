@@ -1,6 +1,6 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { Trash2Icon } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LoadError } from '@/components/app-shell/load-error';
@@ -224,6 +224,14 @@ function AddProductsForm({
       label: line.lot?.lotCode ?? t('stock-events.no-lot-defined'),
     })),
   ];
+  const soleProduct = products.length === 1 ? products[0].id : undefined;
+  const soleLot = picked.productId && lotItems.length === 1 ? lotItems[0].value : undefined;
+  useEffect(() => {
+    if (soleProduct) selection.setFieldValue('productId', soleProduct);
+  }, [selection, soleProduct]);
+  useEffect(() => {
+    if (soleLot) selection.setFieldValue('lotId', soleLot);
+  }, [selection, soleLot]);
   const quantityField = (line: InventoryLine, index: number) => (
     <fieldset
       className={cards ? 'min-w-0' : unit === 'PACKS' ? 'w-28' : 'w-20'}
@@ -333,18 +341,31 @@ function AddProductsForm({
                       value: product.id,
                       label: product.fullProductName ?? '',
                     }))}
+                    virtualized
                   />
                 )}
               </selection.AppField>
               <selection.AppField name="lotId">
-                {(field) => (
-                  <field.SelectField
-                    label={t('stock-events.lot-code')}
-                    required
-                    disabled={!picked.productId}
-                    items={lotItems}
-                  />
-                )}
+                {(field) =>
+                  lotItems.length >= 10 ? (
+                    <field.ComboboxField
+                      label={t('stock-events.lot-code')}
+                      clearLabel={t('stock-events.clear')}
+                      emptyMessage={t('stock-events.no-matches-title')}
+                      required
+                      disabled={!picked.productId}
+                      items={lotItems}
+                      virtualized
+                    />
+                  ) : (
+                    <field.SelectField
+                      label={t('stock-events.lot-code')}
+                      required
+                      disabled={!picked.productId}
+                      items={lotItems}
+                    />
+                  )
+                }
               </selection.AppField>
               {picked.lotId === NEW && newAllowed && (
                 <InventoryLotFields form={selection} today={today} newLot />
