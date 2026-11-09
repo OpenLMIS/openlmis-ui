@@ -2,6 +2,9 @@ import { useLocation } from '@tanstack/react-router';
 import { useLayoutEffect, useState } from 'react';
 import { useSonner } from 'sonner';
 
+const shown = (element: Element) =>
+  element.getClientRects().length > 0 && !element.closest('[hidden]');
+
 export function useToastOffset() {
   const pathname = useLocation({ select: (location) => location.pathname });
   const { toasts } = useSonner();
@@ -11,10 +14,12 @@ export function useToastOffset() {
     if (!toasts.length) return;
     const headers = [...document.querySelectorAll<HTMLElement>('[data-slot="workspace-header"]')];
     const update = () => {
-      const visible = headers.filter(
-        (header) => header.getClientRects().length && !header.closest('[hidden]'),
-      );
-      setBottom(Math.max(0, ...visible.map((header) => header.getBoundingClientRect().bottom)));
+      const column = document.querySelector('[data-sonner-toaster]')?.getBoundingClientRect();
+      const covered = [...document.querySelectorAll('[data-slot="workspace-actions"] > *')]
+        .filter(shown)
+        .map((action) => action.getBoundingClientRect())
+        .filter((rect) => !column || (rect.right > column.left && rect.left < column.right));
+      setBottom(Math.max(0, ...covered.map((rect) => rect.bottom)));
     };
     update();
     const observer = new ResizeObserver(update);
