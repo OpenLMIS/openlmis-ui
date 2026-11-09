@@ -318,6 +318,13 @@ function createBatchDrafts(
         notifyRecord(id);
       }
     },
+    releaseCopies(ids: readonly string[]) {
+      assertSessionScope(scope);
+      for (const id of ids) {
+        const entry = entries.get(id);
+        if (entry) entry.lease = undefined;
+      }
+    },
     async mark(ids: readonly string[], unresolved: boolean) {
       await api.flush();
       assertSessionScope(scope);

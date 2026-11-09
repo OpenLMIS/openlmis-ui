@@ -16,7 +16,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   for (const client of clients.splice(0)) client.clear();
 });
-function renderEditor({ adjustments = false } = {}) {
+function renderEditor({ adjustments = false, second = false, remove = false } = {}) {
   const value: RequisitionRecord = {
     ...record({
       template: {
@@ -47,10 +47,19 @@ function renderEditor({ adjustments = false } = {}) {
     facility: { id: 'f' },
     processingPeriod: { id: 'period' },
   };
+  if (second)
+    value.requisitionLineItems = [
+      ...value.requisitionLineItems,
+      {
+        ...value.requisitionLineItems[0],
+        id: 'second',
+        orderable: { id: 'second', versionNumber: 1 },
+      },
+    ];
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   clients.push(client);
   const data = [
-    [product()],
+    [product(), ...(second ? [product({ id: 'second', fullProductName: 'Other Product' })] : [])],
     [],
     { durationInMonths: 1 },
     {
@@ -71,6 +80,11 @@ function renderEditor({ adjustments = false } = {}) {
     const editor = useRequisitionForm(value);
     return (
       <>
+        {remove && (
+          <button type="button" onClick={() => editor.removeLine('line')}>
+            Remove Line
+          </button>
+        )}
         {adjustments && (
           <button
             type="button"
@@ -153,4 +167,35 @@ it('updates skip eligibility from recalculated draft adjustments', async () => {
   expect(skip).toHaveAttribute('aria-disabled', 'true');
   await userEvent.click(screen.getByRole('button', { name: 'Clear Adjustments' }));
   expect(skip).not.toHaveAttribute('aria-disabled', 'true');
+});
+
+it('reuses the edited line calculation for live validation', async () => {
+  const calculations = await import('@/features/requisitions/lib/calculations');
+  const calculate = vi.spyOn(calculations, 'calculateLine');
+  renderEditor();
+  const input = await screen.findByRole('textbox', { name: 'totalConsumedQuantity: Product (P1)' });
+  await userEvent.clear(input);
+  calculate.mockClear();
+  await userEvent.type(input, '1');
+  expect(calculate).toHaveBeenCalledTimes(1);
+});
+
+it('keeps unchanged card rows out of a sibling field update', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(620);
+  const products = await import('@/features/reference-data/lib/products');
+  const label = vi.spyOn(products, 'productLabel');
+  renderEditor({ second: true });
+  const input = await screen.findByRole('textbox', { name: 'totalConsumedQuantity: Product (P1)' });
+  label.mockClear();
+  await userEvent.type(input, '1');
+  expect(
+    label.mock.calls.filter(([product]) => product.fullProductName === 'Other Product'),
+  ).toHaveLength(0);
+});
+
+it('removes a draft line from the cached sorted models and totals', async () => {
+  renderEditor({ remove: true });
+  await screen.findByText('Product');
+  await userEvent.click(screen.getByRole('button', { name: 'Remove Line' }));
+  expect(screen.queryByText('Product')).not.toBeInTheDocument();
 });

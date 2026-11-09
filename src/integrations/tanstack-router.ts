@@ -2,6 +2,8 @@ import { createRouter } from '@tanstack/react-router';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { PendingFallback } from '@/components/app-shell/pending-fallback';
 import { queryClient } from '@/integrations/tanstack-query';
+import { setBackgroundRouteLoading } from '@/lib/background-request-gate';
+import { cancelHomeOnNavigation } from '@/lib/home-navigation';
 import { isOfflineCapable } from '@/lib/offline-pages';
 import { isOnline } from '@/lib/online';
 import { getSessionScope } from '@/lib/session-scope';
@@ -46,3 +48,8 @@ router.preloadRoute = (options) =>
   )
     ? Promise.resolve(undefined)
     : preloadRoute(options);
+
+cancelHomeOnNavigation(router, queryClient);
+
+router.subscribe('onBeforeNavigate', () => setBackgroundRouteLoading(true));
+router.subscribe('onResolved', () => setBackgroundRouteLoading(false));

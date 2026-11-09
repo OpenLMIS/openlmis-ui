@@ -1,7 +1,9 @@
 import { useStore } from '@tanstack/react-form';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
 import { useState } from 'react';
+import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   type GridSearch,
@@ -14,6 +16,7 @@ import { column, line, product, record } from '@/features/requisitions/lib/fixtu
 import { buildLines } from '@/features/requisitions/lib/lines';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { validateRequisition } from '@/features/requisitions/lib/validation';
+import { IsolatingICU } from '@/lib/isolate-values';
 import type { SearchChange } from '@/lib/table-search';
 
 const products = Array.from({ length: 12 }, (_, index) =>
@@ -123,7 +126,11 @@ function Harness({
               editor,
               editable: true,
               pending,
-              editableColumns: ['requestedQuantity', 'totalStockoutDays'],
+              editableColumns: [
+                'requestedQuantity',
+                'totalStockoutDays',
+                'totalLossesAndAdjustments',
+              ],
               skipLines: true,
               addFullSupplyProduct: false,
               addNonFullSupplyProduct: true,
@@ -387,7 +394,7 @@ it.each([1000, 390])(
       />,
     );
     expect(
-      screen.queryByRole('button', { name: /^requisitions.edit.remove-product:/ }),
+      screen.queryByRole('button', { name: /^requisitions.edit.remove-product-label/ }),
     ).not.toBeInTheDocument();
     const label = 'requestedQuantity: Medicine 0 (P0)';
     const input = screen.getByRole('textbox', { name: label });
@@ -447,12 +454,12 @@ it.each([1000, 390])('removes saved non-full supply lines instantly at width %s'
     />,
   );
   await user.click(
-    screen.getByRole('button', { name: 'requisitions.edit.remove-product: Medicine 0' }),
+    screen.getAllByRole('button', { name: 'requisitions.edit.remove-product-label' })[0],
   );
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(
-    screen.getByRole('button', { name: 'requisitions.edit.remove-product: Medicine 1' }),
+    screen.getByRole('button', { name: 'requisitions.edit.remove-product-label' }),
   ).toHaveFocus();
 });
 
@@ -526,38 +533,40 @@ it('includes the visible packs total in editable adjustment button names', async
   ).toBeInTheDocument();
 });
 
-it.each([1000, 390])('keeps stockout-day errors accessible in the %s layout', async (width) => {
-  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
-  render(
-    <Harness
-      editable
-      value={{
-        ...requisition,
-        template: {
-          columnsMap: {
-            'orderable.fullProductName': column('orderable.fullProductName', 0),
-            totalStockoutDays: column('totalStockoutDays', 1, {
-              source: 'USER_INPUT',
-              columnDefinition: { columnType: 'NUMERIC' },
-            }),
+it.each([1000, 390])(
+  'shows stockout-day errors only through the tooltip in the %s layout',
+  async (width) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+    render(
+      <Harness
+        editable
+        value={{
+          ...requisition,
+          template: {
+            columnsMap: {
+              'orderable.fullProductName': column('orderable.fullProductName', 0),
+              totalStockoutDays: column('totalStockoutDays', 1, {
+                source: 'USER_INPUT',
+                columnDefinition: { columnType: 'NUMERIC' },
+              }),
+            },
           },
-        },
-        requisitionLineItems: requisition.requisitionLineItems.slice(0, 1),
-      }}
-    />,
-  );
-  const input = screen.getByRole('textbox', { name: 'totalStockoutDays: Medicine 0 (P0)' });
-  await userEvent.type(input, '31');
-  expect(input).toHaveAttribute('aria-invalid', 'true');
-  expect(input).toHaveAccessibleDescription('requisitions.edit.validation.stockout-days');
-  await userEvent.tab();
-  fireEvent.focus(input);
-  if (width >= 672)
+          requisitionLineItems: requisition.requisitionLineItems.slice(0, 1),
+        }}
+      />,
+    );
+    const input = screen.getByRole('textbox', { name: 'totalStockoutDays: Medicine 0 (P0)' });
+    await userEvent.type(input, '31');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription('requisitions.edit.validation.stockout-days');
+    await userEvent.tab();
+    fireEvent.focus(input);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
       'requisitions.edit.validation.stockout-days',
     );
-  else expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-});
+    expect(screen.getAllByText('requisitions.edit.validation.stockout-days')).toHaveLength(2);
+  },
+);
 
 it('lets editors hide skipped lines on disable templates through Filters and clear the choice', async () => {
   const user = userEvent.setup();
@@ -583,4 +592,114 @@ it('lets editors hide skipped lines on disable templates through Filters and cle
   expect(screen.queryByText('Medicine 0')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
   expect(screen.getByText('Medicine 0')).toBeInTheDocument();
+});
+
+it.each([1000, 390])('interpolates product removal labels in Arabic at width %s', async (width) => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+  const i18n = createInstance();
+  await i18n.use(IsolatingICU).init({
+    lng: 'ar',
+    keySeparator: false,
+    nsSeparator: false,
+    resources: {
+      ar: { translation: { 'requisitions.edit.remove-product-label': 'إزالة {product}' } },
+    },
+  });
+  render(
+    <I18nextProvider i18n={i18n}>
+      <Harness editable tab="nonFullSupply" />
+    </I18nextProvider>,
+  );
+  expect(screen.getByRole('button', { name: 'إزالة ⁨Medicine 0⁩' })).toBeInTheDocument();
+});
+
+it.each([1000, 390])(
+  'reveals an offscreen line when validation requests focus at width %s',
+  async (width) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(48);
+    render(
+      <Harness
+        editable
+        initial={{ detailSize: 100 }}
+        value={{
+          ...requisition,
+          template: {
+            columnsMap: {
+              ...requisition.template.columnsMap,
+              requestedQuantity: column('requestedQuantity', 3, { source: 'USER_INPUT' }),
+            },
+          },
+          requisitionLineItems: Array.from({ length: 100 }, (_, index) => ({
+            ...requisition.requisitionLineItems[0],
+            id: `virtual-${index}`,
+          })),
+        }}
+      />,
+    );
+    const selector = '[name="quantities.virtual-99:requestedQuantity.doses"]';
+    expect(document.querySelector(selector)).toBeNull();
+    fireEvent(
+      document,
+      new CustomEvent('requisition-line-focus', {
+        detail: { requisitionId: requisition.id, lineId: 'virtual-99' },
+      }),
+    );
+    const target = document.querySelector<HTMLInputElement>(selector);
+    expect(target).toBeInTheDocument();
+    if (!target) throw new Error('Validation target was not rendered');
+    await userEvent.click(target);
+    expect(target).toHaveFocus();
+  },
+);
+
+it('exposes the complete product name when a table cell is clamped', () => {
+  render(<Harness />);
+  expect(screen.getByText('Medicine 0')).toHaveAttribute('title', 'Medicine 0');
+});
+
+it('keeps column widths stable across quantity keystrokes', async () => {
+  const context = { font: '', measureText: (text: string) => ({ width: text.length * 8 }) };
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as never);
+  const value = {
+    ...requisition,
+    template: {
+      ...requisition.template,
+      columnsMap: {
+        ...requisition.template.columnsMap,
+        requestedQuantity: column('requestedQuantity', 3),
+      },
+    },
+  };
+  render(<Harness value={value} editable />);
+  const widths = () =>
+    [...screen.getByRole('table').querySelectorAll('col')].map((col) => col.getAttribute('style'));
+  const before = widths();
+  const input = screen.getAllByRole('textbox')[0];
+  await userEvent.clear(input);
+  await userEvent.type(input, '123456789');
+  expect(widths()).toEqual(before);
+});
+
+it('measures product display units when sizing the UoI column', () => {
+  const measureText = vi.fn((text: string) => ({ width: text.length * 8 }));
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    font: '',
+    measureText,
+  } as never);
+  render(
+    <Harness
+      value={{
+        ...requisition,
+        template: {
+          columnsMap: {
+            'orderable.dispensable.displayUnit': column('orderable.dispensable.displayUnit', 0, {
+              label: 'UoI',
+            }),
+          },
+        },
+      }}
+    />,
+  );
+  expect(measureText).toHaveBeenCalledWith('Tablet');
 });

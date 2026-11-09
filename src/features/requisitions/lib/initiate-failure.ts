@@ -12,7 +12,7 @@ const MESSAGES: Record<string, ParseKeys> = {
   'requisition.error.initiate.incorrectSuggestedPeriod':
     'requisitions.initiate.error.no-emergency-period',
   'requisition.error.requisitionTemplateNotFound': 'requisitions.initiate.error.no-template',
-  'requisition.error.validation.idempotencyKey.alreadyUsed': 'requisitions.edit.error.key-used',
+  'requisition.error.validation.idempotencyKey.alreadyUsed': 'requisitions.initiate.error.key-used',
 };
 export function initiateFailureMessage(error: unknown, t: (key: ParseKeys) => string) {
   const key = isAxiosError(error) ? error.response?.data?.messageKey : undefined;

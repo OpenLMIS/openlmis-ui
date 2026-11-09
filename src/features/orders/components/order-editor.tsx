@@ -1,6 +1,6 @@
 import { useStore } from '@tanstack/react-form';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ListError } from '@/components/app-shell/list-error';
@@ -23,7 +23,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   Workspace,
@@ -161,12 +160,13 @@ export function OrderEditor({
           queryClient.setQueryData(orderOptions(outcome.id).queryKey, response);
         }
       }
-      setProblems((previous) => ({
-        ...previous,
-        ...Object.fromEntries(
-          failed.flatMap((item) => (item.problem ? [[item.id, item.problem]] : [])),
-        ),
-      }));
+      if (failed.some((item) => item.problem))
+        setProblems((previous) => ({
+          ...previous,
+          ...Object.fromEntries(
+            failed.flatMap((item) => (item.problem ? [[item.id, item.problem]] : [])),
+          ),
+        }));
       if (failed.length) {
         const facilities = failed
           .map((item) => records[item.id]?.requestingFacility.name ?? item.id)
@@ -192,7 +192,7 @@ export function OrderEditor({
           description: t(`orders.edit.${key}-description`),
         });
       }
-      setSummary(null);
+      if (action.kind !== 'send' || success.length !== entries.length) setSummary(null);
       setDeleting(null);
       if (action.kind !== 'save' && success.length) {
         removed.current = true;
@@ -217,6 +217,7 @@ export function OrderEditor({
     },
   });
   const pending = mutation.isPending;
+  const invalidBatch = !entries.length || status.some((entry) => entry.invalid);
   const guard = useDiscardGuard(
     entries.some((entry) => dirty(entry.id)),
     { pending, allowLeave: () => leaving.current },
@@ -265,7 +266,18 @@ export function OrderEditor({
             }}
           >
             <Tabs value={active?.id ?? ''} onValueChange={(value) => onTab(String(value))}>
-              <OrderTabs entries={entries} dirty={dirty} invalid={invalid} />
+              <OrderTabs
+                entries={entries}
+                active={active?.id}
+                disabled={pending}
+                deletable={(id) => editable.some((entry) => entry.id === id)}
+                onDelete={(id) => {
+                  onTab(id);
+                  setDeleting({ ids: [id], batch: false });
+                }}
+                dirty={dirty}
+                invalid={invalid}
+              />
               <TabsContent value={active?.id ?? ''}>
                 <div className="flex flex-col gap-4">
                   {problem ? (
@@ -287,25 +299,13 @@ export function OrderEditor({
                   ) : (
                     current && (
                       <>
-                        <div className="flex flex-wrap items-start gap-4">
-                          <div className="w-full min-w-0 @2xl/main:w-auto @2xl/main:flex-1">
-                            <QueryBoundary
-                              resetKey={current.id}
-                              errorComponent={HeaderError}
-                              pendingFallback={<OrderHeaderSkeleton />}
-                            >
-                              <OrderHeader order={current} />
-                            </QueryBoundary>
-                          </div>
-                          <Button
-                            size="lg"
-                            variant="destructive"
-                            disabled={pending}
-                            onClick={() => setDeleting({ ids: [active.id], batch: false })}
-                          >
-                            {t('orders.edit.delete-order')}
-                          </Button>
-                        </div>
+                        <QueryBoundary
+                          resetKey={current.id}
+                          errorComponent={HeaderError}
+                          pendingFallback={<OrderHeaderSkeleton />}
+                        >
+                          <OrderHeader order={current} />
+                        </QueryBoundary>
                         <OrderFields
                           key={active.id}
                           form={form}
@@ -325,10 +325,12 @@ export function OrderEditor({
         </WorkspaceContent>
       </Workspace>
       <WorkspaceFooter>
-        <div className="flex flex-wrap gap-2">
+        <div className="self-end">
           <Button size="lg" variant="outline" disabled={pending} onClick={onCancel}>
             {t('orders.edit.cancel')}
           </Button>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
           <Button
             size="lg"
             variant="destructive"
@@ -337,8 +339,6 @@ export function OrderEditor({
           >
             {t('orders.edit.delete-batch')}
           </Button>
-        </div>
-        <div className="flex flex-wrap justify-end gap-2">
           <Button
             size="lg"
             variant="outline"
@@ -353,7 +353,10 @@ export function OrderEditor({
           </Button>
           <Button
             size="lg"
-            disabled={pending}
+            disabled={pending || invalidBatch}
+            aria-description={
+              invalidBatch ? t('orders.edit.create-invalid-description') : undefined
+            }
             onClick={() => {
               const bad = entries.find((entry) => invalid(entry.id));
               setCreatingInvalid(true);
@@ -469,13 +472,25 @@ function OrderFields({
 }) {
   const { t } = useTranslation();
   const lines = useStore(form.store, (state) => state.values.orders[order.id]);
+  const addedFocus = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!addedFocus.current) return;
+    const index = lines.findIndex((line) => line.key === addedFocus.current);
+    addedFocus.current = null;
+    if (index >= 0)
+      document
+        .querySelector<HTMLElement>(`[name^="orders.${order.id}[${index}].quantity"]`)
+        ?.focus();
+  }, [lines, order.id]);
   const productIds = lines.map((line) => line.product.id).join(',');
   const added = useMemo(() => productIds.split(',').filter(Boolean), [productIds]);
   const onAdd = useCallback(
     (product: DraftLine['product']) => {
+      const key = randomId();
+      addedFocus.current = key;
       form.setFieldValue(`orders.${order.id}`, [
         ...(form.getFieldValue(`orders.${order.id}`) ?? []),
-        { key: randomId(), product, quantity: quantityValue('', product.netContent) },
+        { key, product, quantity: quantityValue('', product.netContent) },
       ]);
     },
     [form, order.id],
@@ -501,7 +516,7 @@ function OrderFields({
       >
         {(field) => (
           <field.QuantityField
-            label={`${t('orders.edit.quantity')} ${productName(line)}`}
+            label={t('orders.edit.quantity-label', { product: productName(line) })}
             layout="inline"
             hideErrors
             required
@@ -520,21 +535,20 @@ function OrderFields({
   );
   return (
     <>
-      <OrderProductPicker
-        programId={order.program.id}
-        facilityId={order.requestingFacility.id}
-        added={added}
-        disabled={disabled}
-        onAdd={onAdd}
-      />
-      <Separator />
-      {canSwitch && (
-        <DataTableToolbar align="end">
-          <div className="flex-1 @2xl/main:flex-none">
+      <DataTableToolbar>
+        <OrderProductPicker
+          programId={order.program.id}
+          facilityId={order.requestingFacility.id}
+          added={added}
+          disabled={disabled}
+          onAdd={onAdd}
+        />
+        {canSwitch && (
+          <div className="ms-auto flex-1 @2xl/main:flex-none">
             <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
           </div>
-        </DataTableToolbar>
-      )}
+        )}
+      </DataTableToolbar>
       <OrderLines
         order={order}
         lines={lines ?? []}

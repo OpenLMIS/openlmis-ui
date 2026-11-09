@@ -300,7 +300,7 @@ it('returns immediately with a held download, commits only complete programs and
     .table(LOCAL_TABLES.physicalInventoryDrafts)
     .put({ draftId: 'retained-pi', counted: 4 });
   begin();
-  await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
   expect(getDownloadStatus().phase).toBe('running');
   expect(
     await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1']),
@@ -313,7 +313,7 @@ it('returns immediately with a held download, commits only complete programs and
   onlineManager.setOnline(true);
   await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
   expect(getDownloadStatus().reason).toBe('timeout');
-  expect(getDownloadStatus().incomplete.map((program) => program.id)).toEqual(['p1']);
+  expect(getDownloadStatus().incomplete.map((program) => program.id)).toEqual(['p1', 'p2']);
   expect(await getLocalDb().table(LOCAL_TABLES.homeStockDownloads).get(['home', 'p1'])).toEqual(
     old,
   );
@@ -326,7 +326,7 @@ it('returns immediately with a held download, commits only complete programs and
   download.mockClear();
   retryOfflineDownload();
   await finished();
-  expect(download.mock.calls.map(([filter]) => filter.programId)).toEqual(['p1']);
+  expect(download.mock.calls.map(([filter]) => filter.programId)).toEqual(['p1', 'p2']);
 });
 
 it('restored boot reuses young data and refreshes only missing or 30-minute-stale programs', async () => {
@@ -433,7 +433,7 @@ it('rechecks generations under the shared lock instead of duplicating a complete
       }),
   );
   begin();
-  await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
   const secondDownload = vi.fn(async ({ programId }: { programId: string }) => bundle(programId));
   const secondStop = startCoordinator({
     access: () => raw,
@@ -623,7 +623,7 @@ it('queues a submitted program refresh behind an older in-flight batch', async (
       }),
   );
   begin();
-  await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
   refreshOfflineDownload('home:p1');
   release(bundle('p1'));
   await waitFor(() => expect(download).toHaveBeenCalledTimes(3));
@@ -767,7 +767,7 @@ it('does not cancel or repeat downloads when access queries first populate an em
       }),
   );
   begin();
-  await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
   const signal = download.mock.calls[0][1];
   queryClient.setQueryData(userProgramsKey('downloader'), programs);
   queryClient.setQueryData(
@@ -1285,4 +1285,185 @@ it('counts a failed download once when going offline interrupts the same run', a
   const schedule = downloadSchedule(getLocalDb().name);
   expect(schedule.retryAt('home-stock:["home","p1"]')).toBe(now + 60_000);
   expect(schedule.retryAt('home-stock:["home","p2"]')).toBe(now + 60_000);
+});
+
+it('limits all providers to two HTTP reads and gives foreground work priority', async () => {
+  const releases = new Map<string, () => void>();
+  const sent: string[] = [];
+  let active = 0;
+  let peak = 0;
+  client.defaults.adapter = async (config) => {
+    sent.push(config.url ?? '');
+    if (config.backgroundDownload) peak = Math.max(peak, ++active);
+    if (config.backgroundDownload) expect(config.timeout).toBe(20_000);
+    else expect(config.timeout).toBe(60_000);
+    await new Promise<void>((resolve) => releases.set(config.url ?? '', resolve));
+    if (config.backgroundDownload) active -= 1;
+    return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+  };
+  const requests = Array.from({ length: 6 }, (_, i) =>
+    client.get(`/background-${i}`, {
+      backgroundDownload: true,
+      downloadProvider: `provider-${i % 2}`,
+    }),
+  );
+  await waitFor(() => expect(sent).toHaveLength(2));
+  const foreground = client.put('/foreground', {});
+  await waitFor(() => expect(sent).toContain('/foreground'));
+  releases.get('/background-0')?.();
+  releases.get('/background-1')?.();
+  await Promise.all(requests.slice(0, 2));
+  expect(sent).toHaveLength(3);
+  releases.get('/foreground')?.();
+  await foreground;
+  await waitFor(() => expect(sent).toHaveLength(5));
+  releases.get('/background-2')?.();
+  releases.get('/background-3')?.();
+  await waitFor(() => expect(sent).toHaveLength(7));
+  releases.get('/background-4')?.();
+  releases.get('/background-5')?.();
+  await Promise.all(requests);
+  expect(peak).toBe(2);
+});
+
+it.each(['timeout', 'gateway'] as const)(
+  'skips the remaining dataset after %s, retains old bundles and retries visibly',
+  async (failure) => {
+    begin();
+    await finished();
+    stop?.();
+    const table = getLocalDb().table(LOCAL_TABLES.homeStockDownloads);
+    const old = await table.toArray();
+    download.mockClear();
+    const error =
+      failure === 'timeout'
+        ? new AxiosError('Timed out', AxiosError.ECONNABORTED)
+        : new AxiosError('Bad gateway', AxiosError.ERR_BAD_RESPONSE, undefined, undefined, {
+            status: 502,
+            data: 'Stock Management service is not found',
+          } as never);
+    download.mockRejectedValue(error);
+    const other = vi.fn(async () => ({ ...bundle('other'), programId: 'other' }));
+    const provider = homeStockProvider(download);
+    stop = startCoordinator({
+      access: () => raw,
+      initialTrigger: 'sign-in',
+      providers: [
+        provider,
+        {
+          ...provider,
+          id: 'other',
+          tasks: (access) => [
+            { ...provider.tasks(access)[0], id: 'other', key: ['home', 'other'], fetch: other },
+          ],
+        },
+      ],
+    });
+    await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
+    expect(download).toHaveBeenCalledOnce();
+    expect(other).toHaveBeenCalledOnce();
+    expect(getDownloadStatus()).toMatchObject({
+      reason: failure === 'timeout' ? 'timeout' : 'read',
+    });
+    expect(getDownloadStatus().incomplete.map((item) => item.id)).toEqual(['p1', 'p2']);
+    for (const record of old) {
+      expect(await table.get(['home', record.programId])).toEqual(record);
+      expect(
+        downloadSchedule(getLocalDb().name).retryAt(
+          `home-stock:${JSON.stringify(['home', record.programId])}`,
+        ),
+      ).toBeGreaterThan(Date.now());
+    }
+    download.mockImplementation(async ({ programId }) => bundle(programId));
+    retryOfflineDownload();
+    await finished();
+    expect(download).toHaveBeenCalledTimes(3);
+  },
+);
+
+it('drops an aborted queued read and rejects an old owner before transport', async () => {
+  const held = Promise.withResolvers<void>();
+  const sent: string[] = [];
+  client.defaults.adapter = async (config) => {
+    sent.push(config.url ?? '');
+    await held.promise;
+    return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+  };
+  const foreground = client.get('/foreground');
+  await waitFor(() => expect(sent).toEqual(['/foreground']));
+  const controller = new AbortController();
+  const canceled = expect(
+    client.get('/cancel', {
+      backgroundDownload: true,
+      signal: controller.signal,
+    }),
+  ).rejects.toMatchObject({ code: AxiosError.ERR_CANCELED });
+  const obsolete = expect(
+    client.get('/old-owner', {
+      backgroundDownload: true,
+    }),
+  ).rejects.toThrow();
+  controller.abort();
+  await canceled;
+  useLoginData.getState().clearLoginData();
+  const ended = expect(foreground).rejects.toThrow();
+  held.resolve();
+  await Promise.all([obsolete, ended]);
+  expect(sent).toEqual(['/foreground']);
+});
+
+it('accepts parsed JSON downloads and rejects gateway text before dataset publication', async () => {
+  client.defaults.adapter = async (config) => ({
+    data: config.url === '/json' ? '{"content":[]}' : '<html>Gateway unavailable</html>',
+    status: 200,
+    statusText: 'OK',
+    headers: {},
+    config,
+  });
+  expect((await client.get('/json', { backgroundDownload: true })).data).toEqual({ content: [] });
+  await expect(client.get('/gateway', { backgroundDownload: true })).rejects.toMatchObject({
+    code: AxiosError.ERR_BAD_RESPONSE,
+    response: { status: 200 },
+  });
+});
+
+it('runs without AbortSignal.any and forwards stop to the active task', async () => {
+  vi.spyOn(AbortSignal, 'any').mockImplementation(() => {
+    throw new Error('Unsupported');
+  });
+  let signal: AbortSignal | undefined;
+  download.mockImplementation((_filter, taskSignal) => {
+    signal = taskSignal;
+    return new Promise(() => {});
+  });
+  begin();
+  await waitFor(() => expect(download).toHaveBeenCalledOnce());
+  expect(signal?.aborted).toBe(false);
+  stop?.();
+  expect(signal?.aborted).toBe(true);
+});
+
+it('keeps the deployment time-zone read timeout below the background cap', async () => {
+  const timeouts: number[] = [];
+  client.defaults.adapter = async (config) => {
+    timeouts.push(config.timeout ?? 0);
+    return { data: { timeZoneId: 'UTC' }, status: 200, statusText: 'OK', headers: {}, config };
+  };
+  begin();
+  await finished();
+  expect(timeouts).toEqual([10_000]);
+});
+
+it('reports ETIMEDOUT from access preparation as a timeout', async () => {
+  stop = startCoordinator({
+    access: () => ({
+      ...raw,
+      permissions: async () => {
+        throw new AxiosError('Timed out', AxiosError.ETIMEDOUT);
+      },
+    }),
+    providers: [homeStockProvider(download)],
+  });
+  await waitFor(() => expect(getDownloadStatus().phase).toBe('failed'));
+  expect(getDownloadStatus().reason).toBe('timeout');
 });

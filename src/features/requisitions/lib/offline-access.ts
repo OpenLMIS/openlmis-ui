@@ -1,13 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { AxiosRequestConfig } from 'axios';
 import { liveQuery } from 'dexie';
-import {
-  fetchMinimalFacilities,
-  fetchPrograms,
-  fetchRequisitionGroup,
-  fetchRoles,
-  fetchSupervisoryNodesByIds,
-} from '@/features/reference-data/api/api';
+import { fetchRoles, fetchSupervisoryNodesByIds } from '@/features/reference-data/api/api';
 import {
   LOOKUP_STALE_TIME,
   minimalFacilitiesOptions,
@@ -18,6 +12,7 @@ import {
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { requisitionReferences } from '@/features/reference-data/api/requisition-reference';
 import type {
   MinimalFacility,
   Program,
@@ -32,6 +27,7 @@ import {
   searchFacilityOptions,
 } from '@/features/requisitions/lib/search-facilities';
 import { LOCAL_TABLES } from '@/integrations/local-db';
+import { queryClient } from '@/integrations/tanstack-query';
 import { defineDownloadProvider } from '@/lib/download-provider';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { requireOwnedRecord } from '@/lib/local-records';
@@ -63,7 +59,6 @@ export async function readRequisitionAccess() {
     access.userId,
     {
       formats: [1],
-      accept: (record) => record.generation === access.generation,
     },
   );
   return { access, saved };
@@ -198,6 +193,13 @@ export const requisitionAccessProvider = defineDownloadProvider({
       ? [{ id: access.userId, name: '', key: access.userId }]
       : [],
   fetch: async (_scope, signal): Promise<RequisitionAccess> => {
+    const config = {
+      session: false,
+      backgroundRead: true,
+      backgroundDownload: true,
+      downloadProvider: 'requisition-access',
+      signal,
+    };
     const session = getSessionScope();
     const access = await readOfflineAccess();
     const check = () => {
@@ -205,29 +207,11 @@ export const requisitionAccessProvider = defineDownloadProvider({
       signal.throwIfAborted();
     };
     check();
-    const [roles, facilities, programs] = await Promise.all([
-      fetchRoles({ signal }),
-      fetchMinimalFacilities(),
-      fetchPrograms(),
-    ]);
-    check();
-    const ids = [
-      ...new Set([
-        ...supervisoryNodesWithRight(access.user, roles, RIGHTS.requisitionView),
-        ...supervisoryNodesWithRight(access.user, roles, RIGHTS.requisitionApprove),
-      ]),
-    ];
-    const nodes = await fetchSupervisoryNodesByIds(ids);
-    check();
-    if (ids.some((id) => !nodes.some((node) => node.id === id)))
-      throw new LocalDataUnavailableError();
-    const partnerIds = partnerNodeIds(nodes).filter((id) => !ids.includes(id));
-    const partners = await fetchSupervisoryNodesByIds(partnerIds);
-    if (partnerIds.some((id) => !partners.some((node) => node.id === id)))
-      throw new LocalDataUnavailableError();
-    check();
-    const allNodes = [...nodes, ...partners];
-    const groups = await Promise.all(groupIdsOf(allNodes).map(fetchRequisitionGroup));
+    const { roles, facilities, programs, nodes, groups } = await requisitionReferences(
+      queryClient,
+      access.user,
+      config,
+    );
     check();
     return {
       userId: access.userId,
@@ -237,12 +221,11 @@ export const requisitionAccessProvider = defineDownloadProvider({
       roles,
       facilities,
       programs,
-      nodes: allNodes,
+      nodes,
       groups,
     };
   },
-  accepts: (record, access) =>
-    record.formatVersion === 1 && record.generation === access.generation,
+  accepts: (record, access) => record.formatVersion === 1 && record.userId === access.userId,
   isFresh: (record, access) =>
     !!record &&
     record.generation === access.generation &&

@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -7,15 +7,18 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { fetchPrograms } from '@/features/reference-data/api/api';
 import { fetchApprovalList } from '@/features/requisitions/api/api';
+import { readCopies } from '@/features/requisitions/lib/offline-copies';
 import * as offlineSearch from '@/features/requisitions/lib/offline-search';
 import { useFlag } from '@/lib/feature-flags';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve';
 
 vi.mock('@/lib/feature-flags', () => ({ useFlag: vi.fn(() => false) }));
@@ -34,11 +37,20 @@ vi.mock('@/features/reference-data/api/api', () => ({
   ]),
   fetchMinimalFacilities: vi.fn(async () => [{ id: 'f', name: 'Comfort', code: 'HC01' }]),
 }));
+vi.mock('@/features/requisitions/lib/offline-access', async (original) => ({
+  ...(await original<typeof import('@/features/requisitions/lib/offline-access')>()),
+  prepareRequisitionAccess: vi.fn(async () => {}),
+}));
 vi.mock('@/features/requisitions/api/api', () => ({ fetchApprovalList: vi.fn() }));
+
+vi.mock('@/features/requisitions/lib/offline-copies', async (original) => ({
+  ...(await original<typeof import('@/features/requisitions/lib/offline-copies')>()),
+  readCopies: vi.fn(async () => []),
+}));
 
 function renderRoute(path: string) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    defaultOptions: { queries: { retry: false, staleTime: Infinity, networkMode: 'always' } },
   });
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
@@ -70,6 +82,7 @@ function renderRoute(path: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(readCopies).mockResolvedValue([]);
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     width: 1200,
   } as DOMRect);
@@ -91,12 +104,12 @@ afterEach(() => {
 });
 
 it.each([
-  ['', { page: 0, size: 20, sort: ['emergency,desc', 'authorizedDate,desc'] }],
+  ['', { page: 0, size: 10, sort: ['emergency,desc', 'authorizedDate,desc'] }],
   [
     '?page=3&dir=asc&program=11111111-1111-4111-8111-111111111111',
     {
       page: 2,
-      size: 20,
+      size: 10,
       program: '11111111-1111-4111-8111-111111111111',
       sort: ['emergency,desc', 'authorizedDate,asc'],
     },
@@ -161,7 +174,7 @@ it('explains an empty device list without clearing its required program', async 
   vi.spyOn(offlineSearch, 'localApprovals').mockResolvedValue({
     content: [],
     number: 0,
-    size: 20,
+    size: 10,
     totalElements: 0,
     totalPages: 0,
   });
@@ -175,4 +188,168 @@ it('explains an empty device list without clearing its required program', async 
   expect(router.state.location.search.program).toBe(program);
   expect(fetchApprovalList).not.toHaveBeenCalled();
   queryClient.clear();
+});
+
+it('hides View Selected Requisitions when the approval list is empty', async () => {
+  vi.mocked(useFlag).mockReturnValue(true);
+  const { queryClient } = renderRoute('/requisitions/approve');
+  await screen.findByText('requisitions.approve.empty');
+  expect(
+    screen.queryByRole('button', { name: 'requisitions.approve.view-selected' }),
+  ).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('ticks and clears the page with the header checkbox and sorts oldest first', async () => {
+  vi.mocked(useFlag).mockReturnValue(true);
+  const row = (id: string) => ({
+    id,
+    program: { id: 'a', name: 'Family Planning' },
+    facility: { code: 'HC01', name: 'Comfort' },
+    processingPeriod: { name: id },
+    status: 'AUTHORIZED' as const,
+    emergency: false,
+  });
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: [row('March'), row('April')],
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  const { router, queryClient } = renderRoute('/requisitions/approve');
+  await screen.findAllByText('March');
+  expect(
+    screen.queryByRole('group', { name: 'requisitions.approve.select' }),
+  ).not.toBeInTheDocument();
+  const select = screen.getAllByRole('checkbox')[0];
+  await userEvent.click(select);
+  expect(screen.getAllByRole('checkbox', { checked: true })).toHaveLength(3);
+  expect(
+    screen.getByRole('button', { name: /requisitions\.approve\.view-selected/ }),
+  ).toBeInTheDocument();
+  await userEvent.click(select);
+  expect(screen.queryAllByRole('checkbox', { checked: true })).toHaveLength(0);
+  expect(
+    screen.queryByRole('button', { name: /requisitions\.approve\.view-selected/ }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('combobox', { name: 'data-table.sort-by' }));
+  await userEvent.click(
+    await screen.findByRole('option', { name: 'requisitions.approve.sort-oldest' }),
+  );
+  await waitFor(() =>
+    expect(fetchApprovalList).toHaveBeenLastCalledWith({
+      page: 0,
+      size: 10,
+      sort: ['emergency,desc', 'authorizedDate,asc'],
+    }),
+  );
+  expect(router.state.location.search).toMatchObject({ sort: 'authorizedDate', dir: 'asc' });
+  queryClient.clear();
+});
+
+it('keeps fetched approval rows on disconnect until an offline filter change', async () => {
+  const rows = ['Online Only', 'Saved Copy'].map((name, index) => ({
+    id: `r${index}`,
+    emergency: false,
+    status: 'AUTHORIZED' as const,
+    program: { id: '11111111-1111-4111-8111-111111111111', name: 'Family Planning' },
+    facility: { id: 'f', name: 'Comfort' },
+    processingPeriod: { id: name, name },
+  }));
+  vi.mocked(readCopies).mockResolvedValue([
+    { id: 'r1', fetchedAt: 1700000000000, single: { record: rows[1] } } as never,
+  ]);
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: rows,
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  const local = vi.spyOn(offlineSearch, 'localApprovals').mockResolvedValue({
+    content: [rows[1]],
+    number: 0,
+    size: 10,
+    totalElements: 1,
+    totalPages: 1,
+  });
+  const { queryClient } = renderRoute('/requisitions/approve');
+  await screen.findByText('Online Only');
+  await act(() => onlineManager.setOnline(false));
+  expect(screen.getByText('Online Only')).toBeVisible();
+  const actions = screen.getAllByRole('button', { name: 'requisitions.view.action-name' });
+  expect(actions[0]).toHaveAttribute('aria-disabled', 'true');
+  expect(actions[0]).toHaveAttribute('aria-description', 'offline.unavailable-title');
+  expect(actions[1]).not.toHaveAttribute('aria-disabled', 'true');
+  expect(local).not.toHaveBeenCalled();
+  expect(await screen.findByText('requisitions.offline.online-results')).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+  await userEvent.click(screen.getByRole('combobox', { name: 'requisitions.filters.program' }));
+  await userEvent.click(await screen.findByRole('option', { name: 'Family Planning' }));
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(local).toHaveBeenCalled());
+  await waitFor(() => expect(screen.queryByText('Online Only')).not.toBeInTheDocument());
+  expect(screen.getByText('Saved Copy')).toBeVisible();
+  expect(local).toHaveBeenCalled();
+  queryClient.clear();
+});
+
+it('falls back to local approvals after retained pages are evicted offline', async () => {
+  const program = '11111111-1111-4111-8111-111111111111';
+  const rows = [
+    {
+      id: 'saved',
+      emergency: false,
+      status: 'AUTHORIZED' as const,
+      program: { id: program, name: 'Family Planning' },
+      facility: { id: 'f', name: 'Comfort' },
+      processingPeriod: { id: 'period', name: 'Saved Period' },
+    },
+  ];
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: rows,
+    number: 0,
+    size: 10,
+    totalElements: 1,
+    totalPages: 1,
+  });
+  const local = vi
+    .spyOn(offlineSearch, 'localApprovals')
+    .mockResolvedValue({ content: rows, number: 0, size: 10, totalElements: 1, totalPages: 1 });
+  const { queryClient } = renderRoute(`/requisitions/approve?program=${program}`);
+  await screen.findByText('Saved Period');
+  await act(() => onlineManager.setOnline(false));
+  await act(() => queryClient.resetQueries({ queryKey: ['requisitions', 'approval'] }));
+  await waitFor(() => expect(local).toHaveBeenCalled());
+  expect(screen.getByText('Saved Period')).toBeVisible();
+  queryClient.clear();
+});
+
+it('shows a compact filter note when the saved list is usable', async () => {
+  const program = '11111111-1111-4111-8111-111111111111';
+  vi.mocked(fetchPrograms).mockRejectedValue(new LocalDataUnavailableError());
+  vi.mocked(readCopies).mockResolvedValue([{ id: 'saved', fetchedAt: 1 } as never]);
+  vi.spyOn(offlineSearch, 'localApprovals').mockResolvedValue({
+    content: [
+      {
+        id: 'saved',
+        emergency: false,
+        status: 'AUTHORIZED',
+        program: { id: program },
+        facility: { id: 'f' },
+        processingPeriod: { id: 'period', name: 'Usable Copy' },
+      },
+    ],
+    number: 0,
+    size: 10,
+    totalElements: 1,
+    totalPages: 1,
+  });
+  const { queryClient } = renderRoute(`/requisitions/approve?program=${program}&offline=true`);
+  expect(await screen.findByText('Usable Copy')).toBeVisible();
+  expect(await screen.findByText('requisitions.offline.filter-choices-missing')).toBeVisible();
+  expect(screen.queryByText('offline.not-downloaded-title')).not.toBeInTheDocument();
+  queryClient.clear();
+  vi.mocked(fetchPrograms).mockResolvedValue([{ id: program, name: 'Family Planning' }] as never);
 });

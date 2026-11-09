@@ -80,10 +80,20 @@ const kinds: Record<string, GridColumnKind> = {
   remarks: 'text',
 };
 
+const compiledTemplates = new WeakMap<RequisitionTemplate, Map<string, GridColumn[]>>();
+
 export function compileColumns(
   template: RequisitionTemplate,
   context: ColumnContext,
 ): GridColumn[] {
+  const key = `${context.tab}:${context.status}:${!!context.emergency}:${!!context.supplyingStock}`;
+  let cache = compiledTemplates.get(template);
+  if (!cache) {
+    cache = new Map();
+    compiledTemplates.set(template, cache);
+  }
+  const cached = cache.get(key);
+  if (cached) return cached;
   if (context.tab === 'patients') return [];
   const afterAuthorization = approvalStatuses.has(context.status);
   const approvalColumn = template.patientsTabEnabled ? 'totalReceivedQuantity' : 'approvedQuantity';
@@ -107,7 +117,7 @@ export function compileColumns(
       return true;
     })
     .sort((a, b) => a.displayOrder - b.displayOrder);
-  return columns.flatMap((column) => {
+  const result = columns.flatMap((column) => {
     const compiled = compileColumn(column, template.populateStockOnHandFromStockCards ?? false);
     return column.name === 'orderable.fullProductName'
       ? [
@@ -123,6 +133,8 @@ export function compileColumns(
         ]
       : [compiled];
   });
+  cache.set(key, result);
+  return result;
 }
 
 function compileColumn(column: RequisitionColumn, stockBased: boolean): GridColumn {

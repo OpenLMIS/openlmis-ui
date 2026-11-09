@@ -26,6 +26,7 @@ import {
   countUnsyncedRequisitionDrafts,
 } from '@/features/requisitions/lib/unsynced-device-work';
 import { countUnsyncedDeviceWork } from '@/features/stock-events/lib/unsynced-device-work';
+import { useToastOffset } from '@/hooks/use-toast-offset';
 import type { InitialTrigger } from '@/lib/offline-coordinator';
 import { isSecureOrigin } from '@/lib/secure-context';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
@@ -99,6 +100,18 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   notFoundComponent: NotFoundPage,
 });
 
+function AppToaster() {
+  const { t } = useTranslation();
+  const offset = useToastOffset();
+  return (
+    <Toaster
+      offset={offset}
+      mobileOffset={offset}
+      toastOptions={{ closeButtonAriaLabel: t('toast.close') }}
+    />
+  );
+}
+
 function RootLayout() {
   const { t } = useTranslation();
 
@@ -116,7 +129,7 @@ function RootLayout() {
           </DialogCloseLabelProvider>
         </TranslatedFormMessages>
       </SignedInDeviceWork>
-      <Toaster toastOptions={{ closeButtonAriaLabel: t('toast.close') }} />
+      <AppToaster />
       {import.meta.env.VITE_SHOW_DEVTOOLS === 'true' && (
         <>
           <ReactQueryDevtools initialIsOpen={false} />

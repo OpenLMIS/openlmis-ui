@@ -14,7 +14,7 @@ export type ConvertSelection = ReadonlyMap<string, { label: string }>;
 export type DepotMap = Readonly<Record<string, string>>;
 export type DepotOffers = Pick<ConvertListRow, 'supplyingDepots'> & { requisition: { id: string } };
 export function toConvertQuery(search: ConvertSearch) {
-  const { pageIndex, pageSize } = toPaginationState(search, 20);
+  const { pageIndex, pageSize } = toPaginationState(search, 10);
   return {
     page: pageIndex,
     size: pageSize,

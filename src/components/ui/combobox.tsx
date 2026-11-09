@@ -1,12 +1,14 @@
 "use client"
 
 import * as React from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { usePageGatedOpen } from "@/components/shared/page-visibility"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
+import { ScrollBar } from "@/components/ui/scroll-area"
 import {
   InputGroup,
   InputGroupAddon,
@@ -15,19 +17,34 @@ import {
 } from "@/components/ui/input-group"
 import { ChevronDownIcon, ChevronUpIcon, XIcon, CheckIcon } from "lucide-react"
 
+const VirtualComboboxContext = React.createContext<{
+  selected: unknown
+  multiple: boolean
+  scrollTo: React.RefObject<((item: unknown) => void) | null>
+} | null>(null)
+
 function Combobox<Value, Multiple extends boolean | undefined = false, Item = Value>({
   open,
   defaultOpen,
   onOpenChange,
+  onItemHighlighted,
   ...props
 }: ComboboxPrimitive.Root.Props<Value, Multiple, Item>) {
   const gated = usePageGatedOpen({ open, defaultOpen, onOpenChange })
+  const scrollTo = React.useRef<((item: unknown) => void) | null>(null)
+  const virtual = React.useMemo(() => ({ selected: props.value, multiple: !!props.multiple, scrollTo }), [props.value, props.multiple])
   return (
-    <ComboboxPrimitive.Root
-      {...props}
-      open={gated.open}
-      onOpenChange={gated.onOpenChange}
-    />
+    <VirtualComboboxContext value={virtual}>
+      <ComboboxPrimitive.Root
+        {...props}
+        onItemHighlighted={(item, details) => {
+          if (details.reason === "keyboard") scrollTo.current?.(item)
+          onItemHighlighted?.(item, details)
+        }}
+        open={gated.open}
+        onOpenChange={gated.onOpenChange}
+      />
+    </VirtualComboboxContext>
   )
 }
 
@@ -185,7 +202,77 @@ function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
       >
         <ChevronDownIcon className="size-4" />
       </span>
+      <ScrollBar className="py-1" />
     </ScrollAreaPrimitive.Root>
+  )
+}
+
+function ComboboxVirtualList<Item>({
+  children,
+  itemKey,
+  itemDisabled,
+}: {
+  children: (item: Item) => React.ReactNode
+  itemKey: (item: Item) => string
+  itemDisabled?: (item: Item) => boolean | undefined
+}) {
+  const items = ComboboxPrimitive.useFilteredItems<Item>()
+  const context = React.useContext(VirtualComboboxContext)
+  const viewport = React.useRef<HTMLDivElement>(null)
+  const selected = context?.multiple ? (context.selected as Item[])?.[0] : context?.selected as Item
+  const selectedIndex = items.indexOf(selected as Item)
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => viewport.current,
+    estimateSize: () => 36,
+    getItemKey: (index) => itemKey(items[index]),
+    overscan: 3,
+    initialRect: { width: 0, height: 248 },
+    initialOffset: Math.max(0, selectedIndex) * 36,
+  })
+  const selectedKey = selected == null ? null : itemKey(selected as Item)
+  const previousSelection = React.useRef<string | null | symbol>(Symbol())
+  React.useLayoutEffect(() => {
+    if (previousSelection.current === selectedKey) return
+    const first = typeof previousSelection.current === "symbol"
+    previousSelection.current = selectedKey
+    if (context?.multiple && !first) return
+    virtualizer.scrollToIndex(Math.max(0, selectedIndex), { align: "auto" })
+  }, [context?.multiple, selectedKey, selectedIndex, virtualizer])
+  React.useLayoutEffect(() => {
+    if (!context) return
+    context.scrollTo.current = (item) => {
+      const index = items.indexOf(item as Item)
+      if (index >= 0) virtualizer.scrollToIndex(index, { align: "auto" })
+    }
+    return () => {
+      context.scrollTo.current = null
+    }
+  }, [context, items, virtualizer])
+  return (
+    <ComboboxList ref={viewport}>
+      <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((row) => {
+          const item = items[row.index]
+          return (
+            <ComboboxItem
+              key={row.key}
+              value={item}
+              index={row.index}
+              disabled={itemDisabled?.(item)}
+              aria-posinset={row.index + 1}
+              aria-setsize={items.length}
+              data-index={row.index}
+              ref={virtualizer.measureElement}
+              className="absolute start-0 top-0 min-h-9"
+              style={{ transform: `translateY(${row.start}px)` }}
+            >
+              {children(item)}
+            </ComboboxItem>
+          )
+        })}
+      </div>
+    </ComboboxList>
   )
 }
 
@@ -272,14 +359,16 @@ function ComboboxSeparator({
 
 function ComboboxChips({
   className,
+  size = "default",
   ...props
 }: React.ComponentPropsWithRef<typeof ComboboxPrimitive.Chips> &
-  ComboboxPrimitive.Chips.Props) {
+  ComboboxPrimitive.Chips.Props & { size?: "default" | "lg" }) {
   return (
     <ComboboxPrimitive.Chips
       data-slot="combobox-chips"
+      data-size={size}
       className={cn(
-        "flex min-h-8 flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent bg-clip-padding px-2.5 py-1 text-sm transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20 has-data-[slot=combobox-chip]:px-1 dark:bg-input/30 dark:has-aria-invalid:border-destructive/50 dark:has-aria-invalid:ring-destructive/40",
+        "flex min-h-8 data-[size=lg]:min-h-9 w-full min-w-0 flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent bg-clip-padding px-2.5 py-1 text-sm has-disabled:bg-input/50 has-disabled:opacity-50 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20 has-data-[slot=combobox-chip]:px-1 dark:bg-input/30 dark:has-aria-invalid:border-destructive/50 dark:has-aria-invalid:ring-destructive/40",
         className
       )}
       {...props}
@@ -344,6 +433,7 @@ export {
   ComboboxContent,
   ComboboxStatus,
   ComboboxList,
+  ComboboxVirtualList,
   ComboboxItem,
   ComboboxGroup,
   ComboboxLabel,
@@ -357,3 +447,5 @@ export {
   ComboboxValue,
   useComboboxAnchor,
 }
+
+export const useComboboxFilter = ComboboxPrimitive.useFilter

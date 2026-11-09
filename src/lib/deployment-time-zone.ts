@@ -29,7 +29,11 @@ export async function prepareDeploymentTimeZone(
   onFallback?: () => void,
 ): Promise<string> {
   try {
-    return await fetchDeploymentTimeZone(config);
+    const [{ currencySettingsOptions }, { queryClient }] = await Promise.all([
+      import('@/features/reference-data/api/queries'),
+      import('@/integrations/tanstack-query'),
+    ]);
+    return readDeploymentTimeZone(await queryClient.fetchQuery(currencySettingsOptions(config)));
   } catch (error) {
     if (config?.signal?.aborted) throw error;
     const stored = storedTimeZone();

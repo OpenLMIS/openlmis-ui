@@ -14,3 +14,13 @@ export function availableRejectReasons(
     )
     .toSorted((a, b) => a.name.localeCompare(b.name));
 }
+
+export function availableRejectCategories(
+  categories: readonly RejectionReasonCategory[],
+  available: readonly RejectionReason[],
+) {
+  const ids = new Set(available.map((reason) => reason.rejectionReasonCategory.id));
+  return categories
+    .filter((category) => category.active && ids.has(category.id))
+    .toSorted((a, b) => a.name.localeCompare(b.name));
+}

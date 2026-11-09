@@ -10,6 +10,7 @@ import {
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
+import { Profiler, useId } from 'react';
 import { toast } from 'sonner';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -19,7 +20,7 @@ import {
   fetchProgramLookup,
   fetchSupervisoryNodesByIds,
 } from '@/features/reference-data/api/api';
-import { fetchRequisition } from '@/features/requisitions/api/api';
+import { fetchRequisition, fetchStatusMessages } from '@/features/requisitions/api/api';
 import { buildRequisitionDraft } from '@/features/requisitions/lib/draft';
 import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
@@ -30,7 +31,11 @@ import { Route } from '@/routes/(protected)/_protected.requisitions.view_.$requi
 import { expectRouteWarning } from '@/test-utils/expect-route-warning';
 import { httpError } from '@/test-utils/http-error';
 
-const modelTracking = vi.hoisted(() => ({ enabled: false, models: [] as unknown[][] }));
+const modelTracking = vi.hoisted(() => ({
+  enabled: false,
+  models: [] as unknown[][],
+  rows: [] as string[],
+}));
 vi.mock('@/features/requisitions/components/requisition-grid', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@/features/requisitions/components/requisition-grid')>();
@@ -41,6 +46,27 @@ vi.mock('@/features/requisitions/components/requisition-grid', async (importOrig
     ) => {
       if (modelTracking.enabled) modelTracking.models.push(props.models);
       return <actual.RequisitionGridView {...props} />;
+    },
+  };
+});
+
+vi.mock('@/components/ui/table', async (original) => {
+  const actual = await original<typeof import('@/components/ui/table')>();
+  return {
+    ...actual,
+    TableRow: (props: import('react').ComponentProps<typeof actual.TableRow>) => {
+      const id = useId();
+      return (
+        <Profiler
+          id={id}
+          onRender={(id, phase) => {
+            if (modelTracking.enabled && props.pinned && !props.surface && phase === 'update')
+              modelTracking.rows.push(id);
+          }}
+        >
+          <actual.TableRow {...props} />
+        </Profiler>
+      );
     },
   };
 });
@@ -115,10 +141,15 @@ vi.mock('@/features/requisitions/components/requisition-skeletons', async (impor
   ),
 }));
 
-function renderRoute(path: string, state?: import('@tanstack/react-router').HistoryState) {
+function renderRoute(
+  path: string,
+  state?: import('@tanstack/react-router').HistoryState,
+  seed?: (client: QueryClient) => void,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
+  seed?.(queryClient);
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -171,6 +202,7 @@ function renderRoute(path: string, state?: import('@tanstack/react-router').Hist
 
 afterEach(() => {
   cleanup();
+  modelTracking.enabled = false;
   useLoginData.setState({ referenceDataUserId: null });
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -263,7 +295,7 @@ it('keeps the skipped filter out of the pending default Patients tab', async () 
   vi.mocked(fetchRequisition).mockResolvedValue(patientRecord());
   vi.mocked(fetchOrderablesByIdentities).mockImplementationOnce(() => new Promise(() => {}));
   const { queryClient } = renderRoute('/requisitions/view/r');
-  await screen.findByRole('heading', { name: 'requisitions.requisition.comments' });
+  await screen.findByRole('status', { name: 'pending-products' });
   expect(screen.getByRole('status', { name: 'pending-products' })).toBeInTheDocument();
   expect(screen.queryByRole('status', { name: 'pending-skipped-filter' })).not.toBeInTheDocument();
   queryClient.clear();
@@ -283,10 +315,10 @@ it('keeps header facts and comments when approval group lookup fails', async () 
   const { queryClient } = renderRoute('/requisitions/view/r');
   await screen.findAllByText('requisitions.requisition.section-error-title');
   expect(screen.getByText('HC01 - Comfort')).toBeInTheDocument();
-  expect(screen.getByText('requisitions.requisition.no-comments')).toBeInTheDocument();
+  expect(screen.queryByText('requisitions.requisition.no-comments')).not.toBeInTheDocument();
   expect(
-    screen.getByRole('heading', { name: 'requisitions.requisition.comments' }),
-  ).toBeInTheDocument();
+    screen.queryByRole('heading', { name: 'requisitions.requisition.comments' }),
+  ).not.toBeInTheDocument();
   queryClient.clear();
 });
 
@@ -431,6 +463,11 @@ async function openEditor(
     .getState()
     .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
   await getLocalDb().table('requisitionDrafts').clear();
+  vi.mocked(fetchOrderablesByIdentities).mockResolvedValue([{ ...product(), description: '' }]);
+  vi.mocked(fetchProgramLookup).mockResolvedValue({
+    id: 'program',
+    name: 'Family Planning',
+  } as never);
   vi.mocked(fetchPermissionStrings).mockResolvedValue([
     'REQUISITION_VIEW|f|program',
     'REQUISITION_CREATE|f|program',
@@ -451,6 +488,7 @@ async function openEditor(
   return { ...rendered, base };
 }
 it('syncs with If-Match before submitting with an idempotency key and returns to the list', async () => {
+  const errorToast = vi.spyOn(toast, 'error');
   const { base, router, queryClient } = await openEditor(false, true);
   const calls: string[] = [];
   const put = vi.spyOn(client, 'put').mockImplementation(async () => {
@@ -468,9 +506,13 @@ it('syncs with If-Match before submitting with an idempotency key and returns to
     }),
   );
   await screen.findByText('Opening List');
+  expect(errorToast).not.toHaveBeenCalled();
   expect(calls).toEqual(['put', 'post']);
-  expect(put.mock.calls[0][2]).toEqual({ headers: { 'If-Match': '"base"' } });
-  expect(post.mock.calls[0][2]).toEqual({ headers: { 'Idempotency-Key': expect.any(String) } });
+  expect(put.mock.calls[0][2]).toEqual({ timeout: 0, headers: { 'If-Match': '"base"' } });
+  expect(post.mock.calls[0][2]).toEqual({
+    timeout: 0,
+    headers: { 'Idempotency-Key': expect.any(String) },
+  });
   expect(router.state.location.pathname).toBe('/requisitions/view');
   expect(router.state.location.search).toMatchObject({ facility: 'f', page: 3 });
   expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
@@ -561,10 +603,43 @@ it('locks editing during Sync and uses the refetched ETag next time', async () =
   put.mockResolvedValue({ data: base, headers: { etag: '"next"' } });
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
-  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': '"fresh"' } });
+  expect(put.mock.calls[1][2]).toEqual({ timeout: 0, headers: { 'If-Match': '"fresh"' } });
   expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
   queryClient.clear();
 });
+it.each(['sync', 'submit'] as const)(
+  'releases Save before its GET and serializes the next %s',
+  async (kind) => {
+    const { base, queryClient } = await openEditor();
+    vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+    const fresh = { ...base, eTag: '"fresh"', modifiedDate: 'fresh' };
+    const pending = Promise.withResolvers<typeof fresh>();
+    vi.mocked(fetchRequisition).mockReturnValueOnce(pending.promise).mockResolvedValue(fresh);
+    const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+    fireEvent.change(input, { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+    await waitFor(() => expect(put).toHaveBeenCalledOnce());
+    await waitFor(() => expect(input).toBeEnabled());
+    fireEvent.change(input, { target: { value: '14' } });
+    fireEvent.click(screen.getByRole('button', { name: `requisitions.edit.actions.${kind}` }));
+    if (kind === 'submit') {
+      const dialog = await screen.findByRole('alertdialog');
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'requisitions.edit.actions.submit' }),
+      );
+    }
+    expect(put).toHaveBeenCalledOnce();
+    pending.resolve(fresh);
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+    expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+    expect(put.mock.calls[1][1]).toMatchObject({
+      modifiedDate: 'fresh',
+      requisitionLineItems: [expect.objectContaining({ beginningBalance: 14 }), expect.anything()],
+    });
+    queryClient.clear();
+  },
+);
 it('refetches after a saved PUT loses its GET before sending the next PUT', async () => {
   const { base, queryClient } = await openEditor();
   const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
@@ -598,7 +673,7 @@ it('refetches after a saved PUT loses its GET before sending the next PUT', asyn
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   await waitFor(() => expect(calls).toHaveLength(5));
   expect(calls).toEqual(['put', 'get-failed', 'get', 'put', 'get']);
-  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': '"fresh"' } });
+  expect(put.mock.calls[1][2]).toEqual({ timeout: 0, headers: { 'If-Match': '"fresh"' } });
   expect(put.mock.calls[1][1]).toMatchObject({
     modifiedDate: 'fresh',
     requisitionLineItems: [expect.objectContaining({ beginningBalance: 14 }), expect.anything()],
@@ -608,10 +683,13 @@ it('refetches after a saved PUT loses its GET before sending the next PUT', asyn
   );
   queryClient.clear();
 });
-it('deletes only after confirmation and toasts before returning to the list', async () => {
+it('deletes only after confirmation, removes the saved copy and toasts before returning', async () => {
   const { router, queryClient } = await openEditor();
+  const copies = getLocalDb().table('requisitionCopies');
+  await copies.put({ id: 'r', userId: 'u' });
   const success = vi.spyOn(toast, 'success');
   const navigate = vi.spyOn(router, 'navigate');
+  const messageReads = vi.mocked(fetchStatusMessages).mock.calls.length;
   const remove = vi.spyOn(client, 'delete').mockImplementation(async () => {
     expect(success).not.toHaveBeenCalled();
     return { data: undefined };
@@ -620,8 +698,10 @@ it('deletes only after confirmation and toasts before returning to the list', as
   const dialog = await screen.findByRole('alertdialog');
   expect(remove).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole('button', { name: 'requisitions.edit.actions.delete' }));
-  await screen.findByText('Opening List');
-  expect(remove).toHaveBeenCalledWith('/requisitions/r');
+  await screen.findByText('Create Authorize Search');
+  expect(remove).toHaveBeenCalledWith('/requisitions/r', { timeout: 0 });
+  expect(vi.mocked(fetchStatusMessages).mock.calls).toHaveLength(messageReads);
+  expect(await copies.get('r')).toBeUndefined();
   expect(success).toHaveBeenCalledWith('requisitions.edit.success.delete', {
     description: 'requisitions.edit.success.delete-description',
   });
@@ -791,7 +871,7 @@ it('opens the editable adjustments dialog from its grid button', async () => {
   const base: RequisitionRecord = editingRecord();
   base.template.columnsMap = {
     ...base.template.columnsMap,
-    totalLossesAndAdjustments: column('totalLossesAndAdjustments', 2),
+    totalLossesAndAdjustments: column('totalLossesAndAdjustments', 2, { source: 'USER_INPUT' }),
   };
   useLoginData
     .getState()
@@ -858,7 +938,7 @@ it('locks grid and comment editing while Submit is pending', async () => {
     screen.getByRole('button', { name: 'requisitions.edit.remove-comment', hidden: true }),
   ).toBeDisabled();
   complete({ data: {} });
-  await screen.findByText('Opening List');
+  await screen.findByText('Create Authorize Search');
   queryClient.clear();
 });
 it.each(['submit', 'authorize'] as const)(
@@ -877,8 +957,8 @@ it.each(['submit', 'authorize'] as const)(
     vi.mocked(fetchRequisition).mockResolvedValue(saved);
     const reads = vi.mocked(fetchRequisition).mock.calls.length;
     await confirmAction(kind);
-    await screen.findByText('Opening List');
-    expect(fetchRequisition).toHaveBeenCalledTimes(reads + 1);
+    await screen.findByText('Create Authorize Search');
+    expect(vi.mocked(fetchRequisition).mock.calls.length).toBe(reads + 2);
     expect(put).toHaveBeenCalledOnce();
     expect(post).toHaveBeenCalledTimes(2);
     expect(post.mock.calls[1][2]).toEqual(post.mock.calls[0][2]);
@@ -901,7 +981,7 @@ it.each(['submit', 'authorize'] as const)(
       modifiedDate: 'advanced',
     });
     await confirmAction(kind);
-    await screen.findByText('Opening List');
+    await screen.findByText('Create Authorize Search');
     expect(put).toHaveBeenCalledOnce();
     expect(post).toHaveBeenCalledOnce();
     queryClient.clear();
@@ -922,29 +1002,18 @@ it('refuses a timed-out Submit retry when the server draft changed', async () =>
   expect(post).toHaveBeenCalledOnce();
   queryClient.clear();
 });
-it('refetches permissions and the record and drops edits when closing a forbidden Sync', async () => {
-  const { base, queryClient } = await openEditor();
-  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
-    target: { value: '42' },
-  });
+it('keeps edits and makes no reads when closing a forbidden Sync', async () => {
+  const { queryClient } = await openEditor();
+  const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.change(input, { target: { value: '42' } });
   vi.spyOn(client, 'put').mockRejectedValue(httpError(403));
   fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
   const dialog = await screen.findByRole('alertdialog');
-  await within(dialog).findByText('requisitions.edit.error.forbidden');
   const reads = vi.mocked(fetchRequisition).mock.calls.length;
-  const permissions = vi.mocked(fetchPermissionStrings).mock.calls.length;
-  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
-  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: 'new' });
   fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
-  await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledTimes(permissions + 1));
-  expect(vi.mocked(fetchRequisition).mock.calls.length).toBeGreaterThan(reads);
-  await waitFor(() =>
-    expect(
-      screen.queryByRole('textbox', { name: 'beginningBalance: Product (P1)' }),
-    ).not.toBeInTheDocument(),
-  );
-  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
-  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(input).toHaveValue('42');
+  expect(fetchRequisition).toHaveBeenCalledTimes(reads);
   queryClient.clear();
 });
 
@@ -1009,7 +1078,9 @@ it('disables conflict Update offline with the footer action explanation', async 
 });
 
 it('confirms Update before discarding a conflicting device draft', async () => {
-  const { base, queryClient } = await openEditor();
+  const capture = await import('@/features/requisitions/lib/offline-capture-single');
+  const saveCopy = vi.spyOn(capture, 'captureSingle').mockResolvedValue({} as never);
+  const { base, queryClient } = await openEditor(false, true);
   const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
   fireEvent.change(input, { target: { value: '42' } });
   vi.spyOn(client, 'put').mockRejectedValue(httpError(409));
@@ -1031,13 +1102,15 @@ it('confirms Update before discarding a conflicting device draft', async () => {
       name: 'requisitions.edit.update',
     }),
   );
+  const updateReads = vi.mocked(fetchRequisition).mock.calls.length;
+  saveCopy.mockImplementation(() => new Promise(() => {}));
   vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: 'fresh' });
   fireEvent.click(
     within(screen.getByRole('alertdialog')).getByRole('button', {
       name: 'requisitions.edit.actions.update',
     }),
   );
-  await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(reads + 1));
+  await waitFor(() => expect(fetchRequisition).toHaveBeenCalledTimes(updateReads + 1));
   await waitFor(() =>
     expect(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' })).toHaveValue(
       '10',
@@ -1083,9 +1156,9 @@ it.each(['submit', 'authorize'] as const)('uses the GET base for %s after Sync',
     expect(toast.success).toHaveBeenCalledWith('requisitions.edit.synced-title', expect.anything()),
   );
   await confirmAction(kind);
-  await screen.findByText('Opening List');
+  await screen.findByText('Create Authorize Search');
   expect(post).toHaveBeenCalledOnce();
-  expect(put.mock.calls[1][2]).toEqual({ headers: { 'If-Match': 'W/"2"' } });
+  expect(put.mock.calls[1][2]).toEqual({ timeout: 0, headers: { 'If-Match': 'W/"2"' } });
   expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
   queryClient.clear();
 });
@@ -1296,11 +1369,21 @@ it('returns to Create/Authorize after tab and grid paging changes before finishi
   queryClient.clear();
 });
 
-async function openApprover(invalid = false, reasons = false) {
+async function openApprover(
+  invalid = false,
+  reasons = false,
+  fromList = true,
+  adjustments = false,
+) {
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'u', username: 'u', accessToken: 'token' });
   await getLocalDb().table('requisitionDrafts').clear();
+  vi.mocked(fetchOrderablesByIdentities).mockResolvedValue([{ ...product(), description: '' }]);
+  vi.mocked(fetchProgramLookup).mockResolvedValue({
+    id: 'program',
+    name: 'Family Planning',
+  } as never);
   vi.mocked(fetchPermissionStrings).mockResolvedValue([
     'REQUISITION_VIEW|f|program',
     'REQUISITION_APPROVE|f|program',
@@ -1313,6 +1396,13 @@ async function openApprover(invalid = false, reasons = false) {
       rejectionReasonWindowVisible: reasons,
       columnsMap: {
         ...editingRecord().template.columnsMap,
+        ...(adjustments
+          ? {
+              totalLossesAndAdjustments: column('totalLossesAndAdjustments', 3, {
+                source: 'USER_INPUT',
+              }),
+            }
+          : {}),
         approvedQuantity: column('approvedQuantity', 2, {
           source: 'USER_INPUT',
           columnDefinition: { columnType: 'NUMERIC' },
@@ -1328,9 +1418,14 @@ async function openApprover(invalid = false, reasons = false) {
     ],
   };
   vi.mocked(fetchRequisition).mockResolvedValue(base);
-  const rendered = renderRoute('/requisitions/view/r', {
-    requisitionReturn: { to: '/requisitions/approve', search: { page: 3 } },
-  });
+  const rendered = renderRoute(
+    '/requisitions/view/r',
+    fromList
+      ? {
+          requisitionReturn: { to: '/requisitions/approve', search: { page: 3 } },
+        }
+      : undefined,
+  );
   await waitFor(() =>
     expect(screen.getByRole('textbox', { name: 'approvedQuantity: Product (P1)' })).toBeEnabled(),
   );
@@ -1372,7 +1467,7 @@ it('saves and approves despite creator errors and returns to the approval search
   expect(post).toHaveBeenCalledWith(
     '/requisitions/r/approve',
     {},
-    { headers: { 'Idempotency-Key': expect.any(String) } },
+    { timeout: 0, headers: { 'Idempotency-Key': expect.any(String) } },
   );
   expect(router.state.location.search).toEqual({ page: 3 });
   queryClient.clear();
@@ -1486,11 +1581,23 @@ it('requires a reason before confirming rejection and sends its DTO after saving
   );
   await userEvent.click(await screen.findByRole('option', { name: 'Reason' }));
   await userEvent.click(within(dialog).getByRole('button', { name: 'requisitions.reject.add' }));
+  expect(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.category' }),
+  ).not.toHaveTextContent('Category');
   expect(dialog).toContainElement(document.activeElement as HTMLElement);
   await userEvent.click(within(dialog).getByRole('button', { name: 'requisitions.reject.remove' }));
   expect(
     within(dialog).getByRole('combobox', { name: 'requisitions.reject.category' }),
   ).toHaveFocus();
+  await userEvent.click(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.reason' }),
+  );
+  expect(screen.queryByRole('option', { name: 'Reason' })).not.toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  await userEvent.click(
+    within(dialog).getByRole('combobox', { name: 'requisitions.reject.category' }),
+  );
+  await userEvent.click(await screen.findByRole('option', { name: 'Category' }));
   await userEvent.click(
     within(dialog).getByRole('combobox', { name: 'requisitions.reject.reason' }),
   );
@@ -1518,7 +1625,10 @@ it('requires a reason before confirming rejection and sends its DTO after saving
       },
     },
   ]);
-  expect(put.mock.calls[1][2]).toEqual({ headers: { 'Idempotency-Key': expect.any(String) } });
+  expect(put.mock.calls[1][2]).toEqual({
+    timeout: 0,
+    headers: { 'Idempotency-Key': expect.any(String) },
+  });
   queryClient.clear();
 });
 it('resends a lost approval with the same key when the record is unchanged', async () => {
@@ -1862,3 +1972,806 @@ it.each(['overflowing', 'unreadable'] as const)(
     queryClient.clear();
   },
 );
+
+it.each([false, true])(
+  'shows a refreshed reopened record, or keeps local edits as outdated (edited: %s)',
+  async (edited) => {
+    const { base, router, queryClient } = await openEditor();
+    const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+    if (edited) fireEvent.change(input, { target: { value: '42' } });
+    vi.mocked(fetchRequisition).mockResolvedValue({
+      ...base,
+      modifiedDate: '2026-10-28T11:00:00Z',
+      draftStatusMessage: 'New server comment',
+      requisitionLineItems: base.requisitionLineItems.map((item) => ({
+        ...item,
+        beginningBalance: 12,
+      })),
+    });
+    await queryClient.invalidateQueries({ queryKey: ['requisitions'], refetchType: 'none' });
+    await act(async () => {
+      await router.invalidate();
+    });
+    await waitFor(() => expect(input).toHaveValue(edited ? '42' : '12'));
+    if (!edited) expect(await screen.findByText('New server comment')).toBeVisible();
+    if (edited) {
+      expect(await screen.findByText('requisitions.edit.outdated-title')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'requisitions.edit.actions.submit' }),
+      ).toBeDisabled();
+    }
+    queryClient.clear();
+  },
+);
+
+it('renders only the edited requisition line while typing', async () => {
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1200);
+  const { queryClient, router } = await openEditor();
+  await act(async () => {
+    await router.navigate({
+      to: '/requisitions/view/$requisitionId',
+      params: { requisitionId: 'r' },
+      search: { detailSize: 100 },
+    });
+  });
+  modelTracking.enabled = true;
+  modelTracking.rows = [];
+  fireEvent.change(screen.getAllByRole('textbox', { name: 'beginningBalance: Product (P1)' })[0], {
+    target: { value: '42' },
+  });
+  await waitFor(() => expect(new Set(modelTracking.rows).size).toBe(1));
+  modelTracking.enabled = false;
+  queryClient.clear();
+});
+
+it('preserves approval edits on a conflict after another approver acted and reloads on Update', async () => {
+  const { base, queryClient } = await openApprover();
+  const input = screen.getByRole('textbox', { name: 'approvedQuantity: Product (P1)' });
+  fireEvent.change(input, { target: { value: '27' } });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValue(httpError(409, { messageKey: 'requisition.error.versionMismatch' }));
+  const post = vi.spyOn(client, 'post');
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.error.conflict');
+  expect(post).not.toHaveBeenCalled();
+  expect(put).toHaveBeenCalledOnce();
+  expect(input).toHaveValue('27');
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    status: 'APPROVED',
+    modifiedDate: 'new',
+    supervisoryNode: 'next',
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.update' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'requisitions.edit.actions.update' }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('button', { name: 'requisitions.edit.actions.approve' }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(post).not.toHaveBeenCalled();
+  queryClient.clear();
+});
+
+it.each(['submit', 'approve'] as const)('updates the saved single copy after %s', async (kind) => {
+  useLoginData.setState({ referenceDataUserId: 'u' });
+  const { getLocalDb, LOCAL_TABLES } = await import('@/integrations/local-db');
+  await getLocalDb().table(LOCAL_TABLES.requisitionCopies).clear();
+  const access = await import('@/features/requisitions/lib/offline-access');
+  const references = await import('@/features/reference-data/api/api');
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const { readSingle } = await import('@/features/requisitions/lib/offline-single');
+  const savedAccess = {
+    access: {
+      userId: 'u',
+      permissionStrings: ['REQUISITION_VIEW|f|program'],
+      user: { roleAssignments: [] },
+    },
+    saved: {
+      nodes: [],
+      roles: [],
+      groups: [],
+      facilities: [{ id: 'f', name: 'Comfort' }],
+      programs: [{ id: 'program', name: 'Family Planning' }],
+    },
+  };
+  vi.spyOn(access, 'readRequisitionAccess').mockResolvedValue(savedAccess as never);
+  vi.spyOn(access, 'waitForRequisitionAccess').mockResolvedValue(savedAccess as never);
+  vi.mocked(references.fetchApprovedProductsByIdentities).mockResolvedValue([
+    { id: 'approved', meta: { versionNumber: 1 } },
+  ] as never);
+  const { base, queryClient } =
+    kind === 'submit' ? await openEditor(false, true) : await openApprover();
+  await waitFor(async () =>
+    expect((await copies.readCopy('r'))?.single?.record.status).toBe(base.status),
+  );
+  const status = kind === 'submit' ? 'SUBMITTED' : 'APPROVED';
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"saved"' } });
+  vi.spyOn(client, 'post').mockImplementation(async () => {
+    vi.mocked(fetchRequisition).mockResolvedValue({
+      ...base,
+      status,
+      modifiedDate: '2026-10-28T10:01:00Z',
+    });
+    return { data: {} };
+  });
+  if (kind === 'submit') await confirmAction();
+  else await confirmApproval();
+  await screen.findByText(kind === 'submit' ? 'Opening List' : 'Approval List');
+  await waitFor(async () => expect((await readSingle('r')).single.record.status).toBe(status));
+  queryClient.clear();
+});
+
+it('does not report recapture failure or save a copy in a different session after Submit', async () => {
+  const capture = await import('@/features/requisitions/lib/offline-capture-single');
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const pending = Promise.withResolvers<void>();
+  const captureSingle = capture.captureSingle;
+  const saveCopy = vi.spyOn(capture, 'captureSingle').mockResolvedValue({} as never);
+  const error = vi.spyOn(toast, 'error');
+  const { base, queryClient } = await openEditor(false, true);
+  await waitFor(() => expect(saveCopy).toHaveBeenCalledOnce());
+  saveCopy.mockImplementation(async (...args) => {
+    await pending.promise;
+    return captureSingle(...args);
+  });
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  await confirmAction();
+  await screen.findByText('Opening List');
+  await waitFor(() => expect(saveCopy).toHaveBeenCalledTimes(2));
+  act(() =>
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: 'next-user',
+      username: 'next',
+      accessToken: 'next-token',
+    }),
+  );
+  try {
+    await act(async () => {
+      pending.resolve();
+      await Promise.allSettled(saveCopy.mock.results.map((result) => result.value));
+    });
+    expect(error).not.toHaveBeenCalledWith('requisitions.offline.failed-title', expect.anything());
+    expect(await copies.readCopy('r')).toBeUndefined();
+  } finally {
+    pending.resolve();
+    queryClient.clear();
+  }
+});
+
+it('offers Update after a refreshed loader cannot adopt its device baseline', async () => {
+  const { base, router, queryClient } = await openEditor();
+  const store = await import('@/lib/draft-store');
+  const save = vi
+    .spyOn(store, 'saveRevisionedDraft')
+    .mockRejectedValueOnce(new Error('Storage unavailable'));
+  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: '2026-10-28T11:00:00Z' });
+  await queryClient.invalidateQueries({ queryKey: ['requisitions'], refetchType: 'none' });
+  await act(() => router.invalidate());
+  expect(await screen.findByText('requisitions.edit.outdated-title')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'requisitions.edit.update' })).toBeEnabled();
+  save.mockRestore();
+  queryClient.clear();
+});
+
+it.each(['capture', 'clear'] as const)(
+  'reports terminal device cleanup accurately after a %s failure',
+  async (failure) => {
+    const capture = await import('@/features/requisitions/lib/offline-capture-single');
+    if (failure === 'clear') {
+      const drafts = await import('@/features/requisitions/hooks/use-requisition-draft');
+      const useDraft = drafts.useRequisitionDraft;
+      vi.spyOn(drafts, 'useRequisitionDraft').mockImplementation((...args) => ({
+        ...useDraft(...args),
+        clear: async () => {
+          throw new Error('Storage unavailable');
+        },
+      }));
+    }
+    vi.spyOn(toast, 'error');
+    const saveCopy = vi.spyOn(capture, 'captureSingle').mockResolvedValue({} as never);
+    const { base, queryClient } = await openEditor(false, true);
+    vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+    await waitFor(() => expect(saveCopy).toHaveBeenCalledOnce());
+    if (failure === 'capture') saveCopy.mockRejectedValueOnce(new Error('Storage unavailable'));
+    await confirmAction();
+    await screen.findByText('Opening List');
+    expect(toast.error).not.toHaveBeenCalledWith('requisitions.edit.error-title', {
+      description: 'requisitions.edit.clear-error',
+    });
+    if (failure === 'capture')
+      expect(toast.error).toHaveBeenCalledWith('requisitions.offline.failed-title', {
+        description: 'requisitions.offline.refresh-failed-description',
+      });
+    queryClient.clear();
+  },
+);
+
+it('blocks Sync until loader adoption finishes and then uses the latest Sync baseline', async () => {
+  vi.spyOn(toast, 'success');
+  const drafts = await import('@/features/requisitions/hooks/use-requisition-draft');
+  const useDraft = drafts.useRequisitionDraft;
+  const adoption = Promise.withResolvers<void>();
+  let adopting = false;
+  vi.spyOn(drafts, 'useRequisitionDraft').mockImplementation((...args) => {
+    const device = useDraft(...args);
+    return {
+      ...device,
+      update: async (base) => {
+        await device.update(base);
+        adopting = true;
+        await adoption.promise;
+      },
+    };
+  });
+  const { base, router, queryClient } = await openEditor();
+  const loaded = { ...base, modifiedDate: '2026-10-28T11:00:00Z' };
+  vi.mocked(fetchRequisition).mockResolvedValue(loaded);
+  await queryClient.invalidateQueries({ queryKey: ['requisitions'], refetchType: 'none' });
+  await act(() => router.invalidate());
+  await waitFor(() => expect(adopting).toBe(true));
+  const synced = { ...base, modifiedDate: '2026-10-28T12:00:00Z', eTag: '"synced"' };
+  vi.mocked(fetchRequisition).mockResolvedValue(synced);
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: synced, headers: {} });
+  expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeDisabled();
+  expect(put).not.toHaveBeenCalled();
+  await act(async () => adoption.resolve());
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() =>
+    expect(toast.success).toHaveBeenCalledWith('requisitions.edit.synced-title', expect.anything()),
+  );
+  await act(async () => adoption.resolve());
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+  expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: synced.modifiedDate });
+  queryClient.clear();
+});
+
+it.each(['submit', 'approve', 'reject'] as const)(
+  'reopens fresh without a removed-copy dialog after its own %s',
+  async (kind) => {
+    const { base, router, queryClient } =
+      kind === 'submit' ? await openEditor(false, true) : await openApprover();
+    vi.spyOn(client, 'put').mockImplementation(async (url) => {
+      if (url === '/requisitions/r/reject') vi.mocked(fetchRequisition).mockResolvedValue(fresh);
+      return { data: base, headers: {} };
+    });
+    const fresh = {
+      ...base,
+      status:
+        kind === 'submit'
+          ? ('SUBMITTED' as const)
+          : kind === 'approve'
+            ? ('APPROVED' as const)
+            : ('REJECTED' as const),
+      modifiedDate: '2026-10-28T12:00:00Z',
+    };
+    vi.spyOn(client, 'post').mockImplementation(async () => {
+      vi.mocked(fetchRequisition).mockResolvedValue(fresh);
+      return { data: {} };
+    });
+    if (kind === 'submit') await confirmAction();
+    else if (kind === 'approve') await confirmApproval();
+    else {
+      fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.reject' }));
+      fireEvent.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: 'requisitions.edit.actions.reject',
+        }),
+      );
+    }
+    await screen.findByText(kind === 'submit' ? 'Opening List' : 'Approval List');
+    const reads = vi.mocked(fetchRequisition).mock.calls.length;
+    await act(async () => {
+      router.history.back();
+    });
+    await waitFor(() =>
+      expect(vi.mocked(fetchRequisition).mock.calls.length).toBeGreaterThan(reads),
+    );
+    await screen.findByText(`requisitions.status.${fresh.status.toLowerCase()}`);
+    expect(screen.queryByText('requisitions.offline.removed-title')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    queryClient.clear();
+  },
+);
+
+it.each(['approve', 'reject'] as const)('returns direct %s to the approval list', async (kind) => {
+  const { base, queryClient } = await openApprover(false, false, false);
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  if (kind === 'approve') await confirmApproval();
+  else {
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.reject' }));
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'requisitions.edit.actions.reject',
+      }),
+    );
+  }
+  await screen.findByText('Approval List');
+  queryClient.clear();
+});
+
+it('starts known period, program and currency reads while the fresh requisition is pending', async () => {
+  const api = await import('@/features/reference-data/api/api');
+  const { queryKeys } = await import('@/lib/key-factory');
+  useLoginData.setState({ referenceDataUserId: 'u' });
+  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
+  let finish!: (value: ReturnType<typeof patientRecord>) => void;
+  vi.mocked(fetchRequisition).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const period = vi.mocked(api.fetchProcessingPeriod).mock.calls.length;
+  const program = vi.mocked(api.fetchProgramLookup).mock.calls.length;
+  const currency = vi.mocked(api.fetchCurrencySettings).mock.calls.length;
+  const { queryClient } = renderRoute('/requisitions/view/r', undefined, (cache) => {
+    cache.setQueryData(queryKeys.requisitions.list({}), { content: [patientRecord()] });
+  });
+  await waitFor(() => {
+    expect(api.fetchProcessingPeriod).toHaveBeenCalledTimes(period + 1);
+    expect(api.fetchProgramLookup).toHaveBeenCalledTimes(program + 1);
+    expect(api.fetchCurrencySettings).toHaveBeenCalledTimes(currency + 1);
+    expect(finish).toBeDefined();
+  });
+  await act(async () => finish(patientRecord()));
+  await screen.findByRole('tab', { name: 'requisitions.requisition.patients', selected: true });
+  queryClient.clear();
+});
+
+it('finishes Sync and Submit while complete copy capture is still pending', async () => {
+  const capture = await import('@/features/requisitions/lib/offline-capture-single');
+  const saveCopy = vi.spyOn(capture, 'captureSingle').mockResolvedValue({} as never);
+  const { base, queryClient } = await openEditor(false, true);
+  await waitFor(() => expect(saveCopy).toHaveBeenCalledOnce());
+  saveCopy.mockImplementation(() => new Promise(() => {}));
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(saveCopy).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' })).toBeEnabled(),
+  );
+  await confirmAction();
+  await screen.findByText('Opening List');
+  expect(post).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('does not open rejection reasons from a direct dialog link when the template disables them', async () => {
+  const { router, queryClient } = await openApprover();
+  await act(() => router.navigate({ to: '.', search: { dialog: 'reject-reasons' } } as never));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('opens adjustments read-only for an approver who can edit approval quantities', async () => {
+  const { queryClient } = await openApprover(false, false, true, true);
+  fireEvent.click(screen.getAllByRole('button', { name: /^totalLossesAndAdjustments:/ })[0]);
+  const dialog = await screen.findByRole('dialog');
+  expect(
+    within(dialog).queryByRole('button', { name: 'requisitions.edit.update' }),
+  ).not.toBeInTheDocument();
+  expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('uses neutral discard wording when device drafts are unavailable', async () => {
+  const drafts = await import('@/features/requisitions/hooks/use-requisition-draft');
+  const useDraft = drafts.useRequisitionDraft;
+  vi.spyOn(drafts, 'useRequisitionDraft').mockImplementation((...args) => ({
+    ...useDraft(...args),
+    deviceAvailable: false,
+  }));
+  const { router, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '42' },
+  });
+  act(() => {
+    void router.navigate({ to: '/requisitions/view' });
+  });
+  const dialog = await screen.findByRole('alertdialog');
+  expect(within(dialog).getByText('orders.edit.discard-description')).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'discard-changes.keep-editing' }));
+  queryClient.clear();
+});
+
+it('uses the GET ETag after a failed Approve before retrying its PUT', async () => {
+  const { base, queryClient } = await openApprover();
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
+  vi.mocked(fetchRequisition).mockResolvedValue({ ...base, eTag: '"fresh"' });
+  vi.spyOn(client, 'post').mockRejectedValueOnce(httpError(400)).mockResolvedValue({ data: {} });
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.error-description');
+  const dialog = screen.getByRole('alertdialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  await confirmApproval();
+  await screen.findByText('Approval List');
+  expect(put.mock.calls[1][2]).toMatchObject({ timeout: 0, headers: { 'If-Match': '"fresh"' } });
+  queryClient.clear();
+});
+
+it('reconciles a lost PUT response before saving again with the fresh version', async () => {
+  const { base, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(new AxiosError('Lost response'))
+    .mockResolvedValue({ data: base, headers: {} });
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    modifiedDate: 'fresh',
+    extraData: { originalRequisition: 'server-recovered' },
+    eTag: '"fresh"',
+    requisitionLineItems: base.requisitionLineItems.map((line, index) =>
+      index ? line : { ...line, beginningBalance: 12 },
+    ),
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeEnabled(),
+  );
+  expect(put.mock.calls[1][1]).toMatchObject({
+    modifiedDate: 'fresh',
+    extraData: { originalRequisition: 'server-recovered' },
+  });
+  expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '14' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(3));
+  expect(put.mock.calls[2][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  expect(put.mock.calls[2][1]).toMatchObject({ modifiedDate: 'fresh' });
+  queryClient.clear();
+});
+
+it.each(['submit', 'authorize', 'approve'] as const)(
+  '%s does not read between save and transition',
+  async (kind) => {
+    const { base, queryClient } =
+      kind === 'approve'
+        ? await openApprover()
+        : await openEditor(false, true, kind === 'authorize');
+    const get = vi.mocked(fetchRequisition);
+    const calls = get.mock.calls.length;
+    vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
+    const post = vi.spyOn(client, 'post').mockImplementation(async () => {
+      expect(get.mock.calls.length).toBe(calls);
+      return { data: {} };
+    });
+    if (kind === 'approve') await confirmApproval();
+    else await confirmAction(kind);
+    await screen.findByText(kind === 'approve' ? 'Approval List' : 'Opening List');
+    expect(post.mock.calls[0][2]).toEqual({
+      timeout: 0,
+      headers: { 'Idempotency-Key': expect.any(String) },
+    });
+    queryClient.clear();
+  },
+);
+
+it('automatically saves a clean conflict merge once with the fresh date and ETag', async () => {
+  const { base, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  const get = vi
+    .mocked(fetchRequisition)
+    .mockResolvedValue({ ...base, modifiedDate: 'fresh', eTag: '"fresh"' });
+  const calls = get.mock.calls.length;
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+  expect(put.mock.calls[1][1]).toMatchObject({ modifiedDate: 'fresh' });
+  expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(get.mock.calls.length - calls).toBe(2);
+  queryClient.clear();
+});
+
+it('keeps typing during conflict recovery and prevents another Sync', async () => {
+  const { base, queryClient } = await openEditor();
+  const fresh = Promise.withResolvers<RequisitionRecord>();
+  vi.spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  const get = vi
+    .mocked(fetchRequisition)
+    .mockReturnValueOnce(fresh.promise)
+    .mockResolvedValue(base);
+  const calls = get.mock.calls.length;
+  const input = screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' });
+  fireEvent.change(input, { target: { value: '12' } });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(get.mock.calls.length).toBe(calls + 1));
+  expect(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' })).toBeDisabled();
+  fireEvent.change(input, { target: { value: '14' } });
+  await act(() => fresh.resolve({ ...base, modifiedDate: 'fresh', eTag: '"fresh"' }));
+  await waitFor(() =>
+    expect(vi.mocked(client.put).mock.calls[1]?.[1]).toMatchObject({
+      requisitionLineItems: expect.arrayContaining([
+        expect.objectContaining({ beginningBalance: 14 }),
+      ]),
+    }),
+  );
+  queryClient.clear();
+});
+
+it.each([true, false])(
+  'preserves Approve outcome when the follow-up GET fails: %s',
+  async (success) => {
+    const { base, queryClient } = await openApprover();
+    vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    vi.mocked(fetchRequisition).mockRejectedValueOnce(new Error('Follow-up failed'));
+    const post = vi.spyOn(client, 'post');
+    if (success) post.mockResolvedValue({ data: {} });
+    else post.mockRejectedValue(httpError(400));
+    await confirmApproval();
+    if (success) await screen.findByText('Approval List');
+    else await screen.findByText('requisitions.edit.error-description');
+    expect(post).toHaveBeenCalledOnce();
+    queryClient.clear();
+  },
+);
+
+it('reconciles an uncertain approval retry only once', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post').mockRejectedValue(new AxiosError('Lost approval'));
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  const dialog = await screen.findByRole('alertdialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  const get = vi.mocked(fetchRequisition).mockResolvedValue({ ...base, modifiedDate: 'newer' });
+  const calls = get.mock.calls.length;
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await screen.findByRole('alertdialog');
+  expect(get.mock.calls.length - calls).toBe(1);
+  expect(post).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('uses the GET modified date to retry an uncertain Approve without another save', async () => {
+  const { base, queryClient } = await openApprover();
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    modifiedDate: 'after-save',
+    eTag: '"fresh"',
+  });
+  const post = vi
+    .spyOn(client, 'post')
+    .mockRejectedValueOnce(new AxiosError('Lost approval'))
+    .mockResolvedValue({ data: {} });
+  await confirmApproval();
+  await screen.findByText('requisitions.edit.reconciling');
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.approve' }));
+  await screen.findByText('Approval List');
+  expect(put).toHaveBeenCalledOnce();
+  expect(post).toHaveBeenCalledTimes(2);
+  queryClient.clear();
+});
+
+it('saves a resolved field conflict with the fresh server version', async () => {
+  const user = userEvent.setup();
+  const { base, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    modifiedDate: 'fresh',
+    eTag: '"fresh"',
+    requisitionLineItems: base.requisitionLineItems.map((item) => ({
+      ...item,
+      beginningBalance: 20,
+    })),
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByRole('radio', { name: 'requisitions.merge.yours-value' }));
+  await user.click(within(dialog).getByRole('button', { name: 'requisitions.merge.recover' }));
+  await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+  expect(put.mock.calls[1][1]).toMatchObject({
+    modifiedDate: 'fresh',
+    requisitionLineItems: expect.arrayContaining([
+      expect.objectContaining({ beginningBalance: 12 }),
+    ]),
+  });
+  expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  queryClient.clear();
+});
+
+it('accepts a lost approval response when recovery already sees the next level', async () => {
+  const { base, queryClient } = await openApprover();
+  vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post').mockImplementation(async () => {
+    vi.mocked(fetchRequisition).mockResolvedValue({
+      ...base,
+      status: 'IN_APPROVAL',
+      supervisoryNode: 'next',
+      modifiedDate: 'accepted',
+    });
+    throw new AxiosError('Lost approval');
+  });
+  await confirmApproval();
+  await screen.findByText('Approval List');
+  expect(post).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('submits an unchanged saved draft while its version refresh is still pending', async () => {
+  const { base, queryClient } = await openEditor(false, true);
+  const pending = Promise.withResolvers<RequisitionRecord>();
+  vi.mocked(fetchRequisition).mockReturnValueOnce(pending.promise);
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: { etag: '"old"' } });
+  const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  await waitFor(() => expect(put).toHaveBeenCalledOnce());
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.edit.actions.submit' })).toBeEnabled(),
+  );
+  await confirmAction();
+  await screen.findByText('Opening List');
+  expect(post.mock.calls[0][2]).toEqual({
+    timeout: 0,
+    headers: { 'Idempotency-Key': expect.any(String) },
+  });
+  expect(put).toHaveBeenCalledOnce();
+  await act(() => pending.resolve({ ...base, eTag: '"fresh"' }));
+  expect(await getLocalDb().table('requisitionDrafts').get('r')).toBeUndefined();
+  queryClient.clear();
+});
+
+it.each(['submit', 'authorize', 'delete'] as const)(
+  'preserves a failed %s action without an unrequested save',
+  async (kind) => {
+    const { base, queryClient } = await openEditor(false, true, kind === 'authorize');
+    const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    const success = vi.spyOn(toast, 'success');
+    const error = httpError(500, { message: 'Action refused by server' });
+    vi.spyOn(client, 'post').mockRejectedValue(error);
+    vi.spyOn(client, 'delete').mockRejectedValue(error);
+    if (kind === 'delete') {
+      fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.delete' }));
+      fireEvent.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: 'requisitions.edit.actions.delete',
+        }),
+      );
+    } else await confirmAction(kind);
+    await screen.findByText('Action refused by server');
+    expect(put).toHaveBeenCalledTimes(kind === 'delete' ? 0 : 1);
+    expect(success).not.toHaveBeenCalled();
+    queryClient.clear();
+  },
+);
+
+it('does not turn a failed Submit save into a successful Save action', async () => {
+  const { base, queryClient } = await openEditor(false, true);
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  const post = vi.spyOn(client, 'post');
+  const success = vi.spyOn(toast, 'success');
+  await confirmAction();
+  await screen.findByText('requisitions.edit.error.conflict');
+  expect(put).toHaveBeenCalledOnce();
+  expect(post).not.toHaveBeenCalled();
+  expect(success).not.toHaveBeenCalled();
+  queryClient.clear();
+});
+
+it.each(['submit', 'authorize', 'approve'] as const)(
+  'reconciles a failed %s save only when the user retries',
+  async (kind) => {
+    const { base, queryClient } =
+      kind === 'approve'
+        ? await openApprover()
+        : await openEditor(false, true, kind === 'authorize');
+    const fresh = { ...base, modifiedDate: 'fresh', eTag: '"fresh"' };
+    const put = vi
+      .spyOn(client, 'put')
+      .mockRejectedValueOnce(httpError(409))
+      .mockResolvedValue({ data: fresh, headers: {} });
+    const post = vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+    if (kind === 'approve') await confirmApproval();
+    else await confirmAction(kind);
+    await screen.findByText('requisitions.edit.error.conflict');
+    expect(put).toHaveBeenCalledOnce();
+    expect(post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+    vi.mocked(fetchRequisition).mockResolvedValue(fresh);
+    if (kind === 'approve') await confirmApproval();
+    else await confirmAction(kind);
+    await screen.findByText(kind === 'approve' ? 'Approval List' : 'Opening List');
+    expect(put.mock.calls[1][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+    queryClient.clear();
+  },
+);
+
+it('reconciles a newer access-check version when Submit is retried', async () => {
+  const { base, queryClient } = await openEditor(false, true);
+  act(() => useLoginData.setState({ accessToken: 'renewed' }));
+  const fresh = { ...base, modifiedDate: 'fresh', eTag: '"fresh"' };
+  vi.mocked(fetchRequisition).mockResolvedValue(fresh);
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: fresh, headers: {} });
+  vi.spyOn(client, 'post').mockResolvedValue({ data: {} });
+  await confirmAction();
+  await screen.findByText('requisitions.edit.error.conflict');
+  expect(put).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await confirmAction();
+  await screen.findByText('Opening List');
+  expect(put.mock.calls[0][2]).toMatchObject({ headers: { 'If-Match': '"fresh"' } });
+  queryClient.clear();
+});
+
+it.each(['submitted', 'node'] as const)(
+  'refuses Sync after adopting a record with changed %s eligibility',
+  async (change) => {
+    const { base, queryClient } = change === 'node' ? await openApprover() : await openEditor();
+    act(() => useLoginData.setState({ accessToken: 'renewed' }));
+    vi.mocked(fetchRequisition).mockResolvedValue({
+      ...base,
+      modifiedDate: 'fresh',
+      ...(change === 'node' ? { supervisoryNode: 'next-node' } : { status: 'SUBMITTED' as const }),
+    });
+    const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
+    fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+    await screen.findByText('requisitions.edit.error-description');
+    expect(put).not.toHaveBeenCalled();
+    queryClient.clear();
+  },
+);
+
+it('rechecks eligibility after the user resolves a field conflict on a submitted record', async () => {
+  const user = userEvent.setup();
+  const { base, queryClient } = await openEditor();
+  fireEvent.change(screen.getByRole('textbox', { name: 'beginningBalance: Product (P1)' }), {
+    target: { value: '12' },
+  });
+  const put = vi
+    .spyOn(client, 'put')
+    .mockRejectedValueOnce(httpError(409))
+    .mockResolvedValue({ data: base, headers: {} });
+  vi.mocked(fetchRequisition).mockResolvedValue({
+    ...base,
+    status: 'SUBMITTED',
+    modifiedDate: 'fresh',
+    requisitionLineItems: base.requisitionLineItems.map((item) => ({
+      ...item,
+      beginningBalance: 20,
+    })),
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByRole('radio', { name: 'requisitions.merge.yours-value' }));
+  await user.click(within(dialog).getByRole('button', { name: 'requisitions.merge.recover' }));
+  await screen.findByText('requisitions.edit.error-description');
+  expect(put).toHaveBeenCalledOnce();
+  queryClient.clear();
+});

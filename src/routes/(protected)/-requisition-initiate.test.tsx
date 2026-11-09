@@ -119,6 +119,7 @@ it.each([1200, 390])(
       {
         params: { program: p, facility: f, emergency: false },
         headers: { 'Idempotency-Key': expect.any(String) },
+        timeout: 0,
       },
     );
     expect(router.state.location.pathname).toBe('/requisitions/view/new');
@@ -286,5 +287,19 @@ it('shows a translated unsupported-program failure and retries the period query'
   expect(screen.queryByText('Raw facility and program IDs')).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
   await screen.findByText('January');
+  queryClient.clear();
+});
+
+it('opens the initiated requisition without waiting for a periods refetch', async () => {
+  const { router, queryClient } = renderRoute();
+  const proceed = await screen.findByRole('button', {
+    name: 'requisitions.initiate.proceed-label',
+  });
+  const reads = vi.mocked(client.get).mock.calls.length;
+  vi.mocked(client.get).mockImplementation(() => new Promise(() => {}));
+  await userEvent.click(proceed);
+  await screen.findByText('Opened requisition');
+  expect(router.state.location.pathname).toBe('/requisitions/view/new');
+  expect(client.get).toHaveBeenCalledTimes(reads);
   queryClient.clear();
 });

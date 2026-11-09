@@ -14,6 +14,7 @@ export type BatchLine = {
   skipped: boolean;
 };
 export type BatchRequisition = {
+  approvalAvailable?: boolean;
   id: string;
   status: string;
   modifiedDate: string;
@@ -22,6 +23,7 @@ export type BatchRequisition = {
   requisitionLineItems: BatchLine[];
 };
 type BatchError = {
+  label?: string;
   requisitionId: string;
   errorMessage?: { message?: string; messageKey?: string } | null;
   fieldErrors?: Record<string, { message?: string; messageKey?: string }> | null;

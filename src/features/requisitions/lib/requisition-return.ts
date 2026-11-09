@@ -26,5 +26,6 @@ declare module '@tanstack/react-router' {
     requisitionReturn?: RequisitionReturn;
     requisitionBatchLabels?: Record<string, string>;
     requisitionBatchRecords?: ApprovalListRow[];
+    requisitionBatchSession?: number;
   }
 }

@@ -90,3 +90,23 @@ describe('fetchSystemNotifications', () => {
     ]);
   });
 });
+
+it('cancels every status request when the dashboard query is cancelled', async () => {
+  const { QueryClient } = await import('@tanstack/react-query');
+  const { requisitionStatusCountsOptions, approvalsOptions } = await import('./queries');
+  const { queryKeys } = await import('@/lib/key-factory');
+  const cache = new QueryClient();
+  get.mockImplementation(() => new Promise(() => {}));
+  const loading = Promise.all([
+    cache.prefetchQuery(requisitionStatusCountsOptions()),
+    cache.prefetchQuery(approvalsOptions()),
+  ]);
+  expect(get).toHaveBeenCalledTimes(6);
+  const signals = get.mock.calls.map(([, config]) => config?.signal);
+  expect(signals.every((signal) => signal && !signal.aborted)).toBe(true);
+  await cache.cancelQueries({ queryKey: queryKeys.home.all });
+  await loading;
+  expect(signals.every((signal) => signal?.aborted)).toBe(true);
+  for (const [, config] of get.mock.calls) expect(config).not.toHaveProperty('backgroundDownload');
+  cache.clear();
+});

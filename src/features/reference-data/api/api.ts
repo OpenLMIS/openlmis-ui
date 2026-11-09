@@ -42,8 +42,10 @@ import type { Page } from '@/lib/types';
 import type { UserRecord } from '@/lib/user-types';
 
 /** Every facility in one request; the endpoint is meant for pickers and has no paging worth using. */
-export async function fetchMinimalFacilities(): Promise<MinimalFacility[]> {
-  const { data } = await client.get<Page<MinimalFacility>>('/facilities/minimal');
+export async function fetchMinimalFacilities(
+  config?: AxiosRequestConfig,
+): Promise<MinimalFacility[]> {
+  const { data } = await client.get<Page<MinimalFacility>>('/facilities/minimal', config);
   return data.content;
 }
 
@@ -62,8 +64,8 @@ export async function fetchRoles(config?: AxiosRequestConfig): Promise<Role[]> {
   return data;
 }
 
-export async function fetchPrograms(): Promise<Program[]> {
-  const { data } = await client.get<Program[]>('/programs');
+export async function fetchPrograms(config?: AxiosRequestConfig): Promise<Program[]> {
+  const { data } = await client.get<Program[]>('/programs', config);
   return data;
 }
 
@@ -73,8 +75,8 @@ export async function fetchSupervisoryNodes(): Promise<SupervisoryNode[]> {
   return data.content;
 }
 
-export function fetchSupervisoryNodesByIds(ids: readonly string[]) {
-  return fetchByIds<SupervisoryNode>('/supervisoryNodes', ids);
+export function fetchSupervisoryNodesByIds(ids: readonly string[], config?: AxiosRequestConfig) {
+  return fetchByIds<SupervisoryNode>('/supervisoryNodes', ids, 'id', config);
 }
 
 export type SupervisedFacilitiesFilter = { parentNodeId: string; programId: string };
@@ -441,8 +443,11 @@ export async function fetchProgramOrderables(
   return products;
 }
 
-export async function fetchRequisitionGroup(id: string): Promise<RequisitionGroup> {
-  const { data } = await client.get<RequisitionGroup>(`/requisitionGroups/${id}`);
+export async function fetchRequisitionGroup(
+  id: string,
+  config?: AxiosRequestConfig,
+): Promise<RequisitionGroup> {
+  const { data } = await client.get<RequisitionGroup>(`/requisitionGroups/${id}`, config);
   return data;
 }
 
@@ -456,10 +461,11 @@ export async function fetchProgramLookup(id: string) {
   return data;
 }
 
-export async function fetchCurrencySettings() {
+export async function fetchCurrencySettings(config?: AxiosRequestConfig) {
   const { data } = await client.get<CurrencySettings & { timeZoneId?: string | null }>(
     '/localeSettings',
     {
+      ...config,
       baseURL: '/',
       anonymous: true,
       connectionStatus: false,

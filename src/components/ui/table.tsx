@@ -11,7 +11,7 @@ function Table({
 }: React.ComponentProps<"table"> & {
   density?: "default" | "comfortable" | "compact"
   layout?: "auto" | "fixed"
-  width?: "full" | "measured"
+  width?: "full" | "measured" | "columns"
   scroll?: "x" | "both"
 }) {
   return (
@@ -19,7 +19,7 @@ function Table({
       data-slot="table-container"
       className={cn(
         "relative w-full",
-        scroll === "x" ? "overflow-x-auto" : "h-full overflow-auto"
+        scroll === "x" ? "overflow-x-auto" : "h-full overflow-auto scroll-pb-(--table-footer-height)"
       )}
     >
       <table
@@ -27,12 +27,13 @@ function Table({
         className={cn(
           "w-full caption-bottom text-sm [&_th:not(:last-child)]:border-e [&_td:not(:last-child)]:border-e",
           width === "measured" && "min-w-(--table-width)",
+          width === "columns" && "w-(--table-width) min-w-(--table-width)",
           density === "comfortable" &&
             "[&_td]:h-12 [&_td]:px-4 [&_td]:py-1.5 [&_th]:h-10 [&_th]:px-4",
           density === "compact" && "[&_td]:px-1.5 [&_th]:px-1.5",
           layout === "fixed" && "table-fixed [&_td]:truncate",
           scroll === "both" &&
-            "border-separate border-spacing-0 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_thead_tr]:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))] [&_thead_th]:border-b [&_tbody_tr:not(:last-child)>*]:border-b [&_tfoot_tr:first-child>*]:border-t",
+            "border-separate border-spacing-0 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_thead_tr]:bg-[color-mix(in_srgb,var(--muted)_50%,var(--card))] [&_thead_th]:shadow-[inset_0_-1px_0_var(--color-border)] [&_tbody_tr:not(:last-child)>*]:shadow-[inset_0_-1px_0_var(--color-border)] [&_tfoot_tr:first-child>*]:shadow-[0_-1px_0_var(--color-border)]",
           className
         )}
         {...props}
@@ -116,7 +117,7 @@ const stickyClasses = (sticky: boolean | "end") =>
   sticky &&
   cn(
     "sticky bg-inherit after:pointer-events-none after:absolute after:inset-y-0 after:w-px after:bg-border",
-    sticky === "end" ? "border-s-0! after:start-0" : "border-e-0! after:end-0"
+    sticky === "end" ? "border-s-0! after:-start-px" : "border-e-0! after:end-0"
   )
 
 function TableHead({
@@ -126,7 +127,7 @@ function TableHead({
   stickyOffset = 0,
   style,
   ...props
-}: React.ComponentProps<"th"> & { width?: "default" | "icon" | "fit"; sticky?: boolean | "end"; stickyOffset?: number | string }) {
+}: React.ComponentProps<"th"> & { width?: "default" | "icon" | "fit" | "patient"; sticky?: boolean | "end"; stickyOffset?: number | string }) {
   return (
     <th
       data-slot="table-head"
@@ -134,6 +135,7 @@ function TableHead({
       style={sticky ? { ...style, ...(sticky === "end" ? { insetInlineEnd: stickyOffset } : { insetInlineStart: stickyOffset }) } : style}
       className={cn(
         "h-10 px-2 text-start align-middle font-medium whitespace-nowrap text-foreground",
+        width === "patient" && "w-52 max-w-52 whitespace-normal",
         width === "icon" && "w-16",
         width === "fit" && "w-px",
         stickyClasses(sticky),

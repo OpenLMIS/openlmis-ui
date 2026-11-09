@@ -129,6 +129,16 @@ plus the zone filter (`toZoneOption`) and program filter (`toProgramFilter`) hel
 their list uses a lookup's endpoint, reuse that query and widen its type, as Roles and
 Reasons do.
 
+- Sign-in requisition preloads use normal foreground request handling, gated by the download's
+  requisition rights or supervision eligibility. Failed reads never abort sibling page lookups.
+  Warm only user, roles, minimal facilities, programs and user programs at sign-in. Leave node/group
+  reads to their page or the gated download. Warm route chunks at idle without running loaders.
+- Cancel Home queries on navigation start; visible dashboard reads use normal foreground handling.
+- Requisition pages and background access downloads share reference-data query options through
+  `requisitionReferences`. Roles, minimal facilities, programs, user records/programs, nodes and
+  groups stay fresh for the session; administrative saves still invalidate their keys. Foreground
+  sign-in preloading fills the page cache, including on insecure origins. Keep exact grants and
+  fresh upload authorization separate from cached picker references.
 - Requisition lookups include requisition groups, processing periods, a program, currency settings
   and products and approved products by id and version.
 
@@ -254,6 +264,7 @@ fits odd tab counts; `wrap="md"` fits short labels. Page tabs use `TabsList size
 dialogs keep the default. `Button variant="destructive-solid"` and
 `"destructive-outline"` mark the current and other invalid pages in the pager.
 `Button variant="warning"` and `"info"` match notice actions to their Alert tones.
+`Button variant="warning-ghost"` marks Back To Legacy.
 `DialogContent size="2xl"` (64rem) fits a one-line summary table of six columns;
 `size="table"` (36rem) fits a short form above a compact five-column table.
 
@@ -274,22 +285,27 @@ edits, which have no prop for TypeScript to detect:
 | `dropdown-menu.tsx` | Preserve the warning item variant for Back To Legacy |
 | `command.tsx` | Keep disabled items muted without lowering their explanation opacity |
 | `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
-| `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled` |
+| `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled`; `surface="background"` keeps an opaque box on tinted card rows |
 | `skeleton.tsx` | Keep `inline`, which renders a span so placeholders can sit inside text such as `WorkspaceDescription` |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus; keep `components` parts module-level and memoize DayButton, so re-renders never remount the calendar mid-click |
 | `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
-| `button.tsx` | Keep warning tint on hover with `tone="sidebar"` |
+| `button.tsx` | Keep warning and `warning-ghost` tints on hover with `tone="sidebar"` |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
+| `button.tsx` | Preserve `align="between"` for labels with end-aligned values |
+| `alert.tsx` | Preserve `actionLayout="flow"` for wrapping actions below long alert text |
+| `badge.tsx` | Preserve `wrap="normal"` for wrapping badge labels |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
 | `sidebar.tsx` | Keep both menu button variants free of `aria-disabled:pointer-events-none` so connection-dependent entries remain clickable offline |
 | `table.tsx` | Keep TableFooter `sticky`, opaque headers and zero-spacing separate cell borders with `scroll="both"` so sticky dividers and measured end offsets stay gapless, TableCell `rowHeader`, and TableHead/TableCell `sticky="end"` with CSS-variable logical offsets and end-pin data attributes |
+| `table.tsx` | Preserve `width="columns"` with explicit colgroup sizing, `TableHead width="patient"`, footer scroll padding and single-pixel sticky dividers |
 | `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `data-[invalid]:bg-destructive/10` for invalid draft lines |
-| `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate |
+| `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate. Preserve full-width wrapping `ComboboxChips`, disabled styling and `size="lg"` (36px minimum); virtual lists accept single or multiple values and scroll keyboard highlights into view. Keep the ScrollArea `ScrollBar` in `ComboboxList` |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
+| `tabs.tsx` | Keep `TabsItem` and `TabsClose`: a closable tab's button sits beside its trigger, which reserves end padding, never nested inside it |
 
 ### Integrations
 
@@ -385,6 +401,7 @@ App-shell pages compose `src/components/workspace/workspace.tsx`:
   one-sentence `WorkspaceDescription`; omit unused icons/actions. Below `@xl/main` the
   description is screen-reader only and the title centres on the icon. `Workspace` and
   `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
+  `width="form"` (42rem) for one-column forms such as Create Orders,
   `width="large"` (84rem) for tables slightly wider than the default, such as Supervisory
   Nodes, and `width="wide"` for uncapped tables.
 - Stock event pending views use the real icon, description, cached title or title-height placeholder,
@@ -402,7 +419,8 @@ App-shell pages compose `src/components/workspace/workspace.tsx`:
   Use `WorkspaceFooterPortal` (`src/components/workspace/workspace-tabs.tsx`): `narrow` by default,
   `width="default"` for full-width editors. Tab switches must not remount the header.
   Tab-specific actions use `WorkspaceActionsPortal` into `WorkspaceActionsSlot`.
-- Toasts appear below the header at the top end corner, tinted by kind.
+- Toasts appear below the page header and its actions at the top end corner, tinted by kind.
+  Keep `WorkspaceHeader`'s `data-slot="workspace-header"` so `useToastOffset` can measure it.
 
 `Workspace` derives breadcrumbs from `NAV_GROUPS` through `getNavTrail()`:
 
@@ -447,7 +465,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 **Responsive tables:**
 
 - Requisition grids pin Skip, product code and name at the inline start, with matching opaque header, body
-  and category surfaces.
+  and category surfaces. Requisition editor cards end-align Skip and Losses And Adjustments like other
+  values, show errors only through tooltips and put the draft status directly below the tabs.
 - `TableRow`, `TableCards` and `CardListItem` accept per-row `tone`: `skipped` keeps full-strength
   text on grey; pair `shortfall` warning tint with a labelled icon. `CardListItem` also accepts
   `invalid`, which takes precedence over other row tones.
@@ -471,8 +490,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 
 - Tables draw vertical column dividers by default.
 
-- Exception to one-line headers: the requisition grid wraps header labels between words, up to
-  three lines, with an info icon tooltip for template definitions.
+- Exception to one-line headers: the requisition and batch approval grids wrap header labels
+  between words, up to three lines, with an info icon tooltip for template definitions.
 
 - Yes/no and active/inactive cells use `FlagBadge` (`src/components/shared/flag-badge.tsx`): a
   success check or destructive cross, always with its label.
@@ -587,6 +606,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 **Selection and reports:**
 
 - Convert To Order keeps ticks across filter changes, as legacy; filters close only its dialogs.
+- Approve Requisitions uses the header checkbox to select or clear the page, with no separate
+  Select All / None control. Keep the toolbar Newest/Oldest Authorized select.
 
 - Use `selectionColumn()` (`src/components/data-table/data-table-selection.tsx`); the header
   picks the page. Preserve selection across pages by id and name for confirmations.
@@ -595,7 +616,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   distinguishing row detail.
 - Render `DataTableSelectionBar` after the table with count, Clear and actions: one line, info
   tint, outline Clear; actions label through `SelectionBarLabel` with `full` and `short` text so
-  the bar stays on one line on phones. Selection
+  the bar stays on one line on phones. `placement="footer"` renders it after `Workspace` instead:
+  a muted sticky band aligned with the default page width, shown only while rows are selected,
+  with `lg` buttons and a default-variant main action, as on Approve Requisitions. Selection
   stays out of the URL. Bulk delete awaits every request, reports failures and focuses the
   list after rows/bar disappear; see Valid Destinations.
 - PDF actions use `usePrintReport` (`src/hooks/use-print-report.ts`) for permission checks,
@@ -613,10 +636,12 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Import only stock `@/components/ui/` primitives, `@/lib/utils`, `@tanstack/react-table`,
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
-  `Table density/layout/width/scroll`, `TableHeader surface`, `DropdownMenuContent width`, `Button width`,
+  `Table density/layout/width/scroll`, `TableCell rowHeader`, `TableHeader surface`,
+  `DropdownMenuContent width`, `Button width`,
   `ComboboxInput width/clearLabel`, `InputGroup size="lg"`, `PopoverContent width`, `Skeleton fill`,
-  `Button variant="destructive-solid"` and `"destructive-outline"`. These become plain
-  `className`s in the registry; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
+  `Button variant="destructive-solid"` and `"destructive-outline"`. `TableCell rowHeader` becomes
+  `<th scope="row">` in the registry. Other exceptions become plain `className`s;
+  `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
 - Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet import the app
   `@/components/shared/page-visibility` gate. Its context defaults to false, keeping these
@@ -670,6 +695,9 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
 - Dialog state belongs in the URL (`?user=new` / `?user=<id>`). Opening adds history; closing
   steps back, or replaces for a directly linked dialog. Use
   `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
+- Create Orders uses one required Requesting Facility multi-select with removable chips.
+  Picked options stay ticked; picking clears the search and keeps the list open. Use the 42rem
+  form with Create Order at its bottom end; Enter never creates orders.
 - Inline add forms with one picker, where picking reveals no further field, drop the label
   and card: a picker with a leading icon and a placeholder naming the choice, then a separate
   Add button beside it (never attached). The row sits above the toolbar, capped at
@@ -766,9 +794,11 @@ Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/ut
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
 `DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `Field spacing/surface`,
 `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel/size`,
-`ComboboxChip removeLabel`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
+`ComboboxChip removeLabel`, `ComboboxChips size`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
 `Button align/width/variant="warning"`, `PopoverContent width/padding`. Each `lg` size is a plain
 `h-9` className in the registry.
+`ComboboxVirtualList` and `useComboboxFilter` are accepted UI exports for virtualized fields;
+keep their filtering and virtualization dependencies behind `ui/combobox.tsx`.
 The app Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet primitives
 import `@/components/shared/page-visibility`; form-dialog and form-fields inherit this dependency.
 This is an accepted app dependency exception. The context defaults to false, keeping them
@@ -1031,6 +1061,19 @@ Keep business data in Dexie, server cache in Query and app assets in the service
   download Web Lock. Foreground reads never persist partial generations. Recheck shared schedule
   deadlines under that lock; keep upload locks separate and retain complete older bundles.
 - Upload access reads bypass the download lock without publishing, reusing current-epoch access.
+- Pause new background reads during route loading and for 1.8 seconds after navigation settles.
+  Start home-stock datasets after lighter dataset workers finish; keep complete generations and
+  visible failures. Foreground requests bypass this gate.
+- All background dataset, access and time-zone HTTP reads share a two-request transport limit,
+  admitting queued reads from the provider with the fewest held slots and rotating among ties.
+  Reads stay FIFO within each provider; freed slots drain after failed tasks can abort siblings.
+  Downloads wait while foreground HTTP requests are active; foreground work never waits on the
+  download gate. Upload access checks remain foreground work with ordinary request timeouts.
+- Only background downloads use a 20-second timeout (60 seconds for home stock and the receive
+  catalog, whose server reads can exceed 20) without immediate timeout retries. Run tasks
+  serially within each dataset. After a timeout, 5xx or non-JSON gateway response, skip its remaining
+  tasks for this run, abort sibling reads, retain complete older bundles and record every skipped
+  scope for visible retry with the existing schedule backoff. Other datasets continue.
 - Foreground bundle reads retain ordinary renewal behavior; only background downloads fail fast.
   Accepted events request scoped refreshes. Preserve trigger priority and visible retry feedback.
 - Keep business payloads, access snapshots, drafts and queues out of localStorage. The deployment
@@ -1038,6 +1081,14 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 
 ### Data, session and identity
 
+- Download access refreshes read user/program assignments directly from the server, without device
+  fallback. Requisition download references use an isolated fresh query cache so neither session
+  freshness nor a pending page request can substitute an older grant generation. Keep background
+  facilities/programs on separate query keys and reuse the fresh user from the current access generation.
+  Keep background
+  fail-fast handling, two transport slots, foreground priority and provider fairness.
+- Node subset reuse prefers completed data; pages never await a background superset. Forced node
+  authorization refreshes explicitly bypass covering caches.
 - `getLocalDb()` opens one database per deployment/user. Close on identity change without
   deleting records. Use `LOCAL_TABLES` and `localTable`; use `local-records.ts` for owned records.
   Add one new schema version per PR, never reuse a number, and rebase before merge. Preserve
@@ -1082,7 +1133,10 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 ### Drafts, queue and recovery
 
 - Requisition device drafts retain their server modified date and ETag; Sync rebases concurrent
-  edits and conflicts keep the local copy until a confirmed Update. Store baseline comment/date
+  edits through a three-way field merge. Persist changed-field base values in the v17
+  draft shape; only fields changed differently on both sides need a choice. Ambiguous PUTs
+  reconcile through GET before another write; requisition writes have no client timeout.
+  Close never discards edits; Update remains explicit and confirmed. Store baseline comment/date
   values for unsynced draft counting; register feature counters through route composition.
 - Enable downloads/drafts through kind policy. Use the shared revisioned draft store and serial
   writer; inventory supplies revision-aware write/clear callbacks. Stage immediately for leave
@@ -1186,3 +1240,31 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Run pnpm test:offline for Chromium and pnpm test:offline:browsers for installed engines.
   Missing engines and known interception gaps are coverage limits, not passing checks.
   Reproduction recipes belong in the plan. Unit tests cover the no-Web-Locks fallback.
+
+### Requisition Performance And Device Status
+
+- Batch routes render retrieved rows while membership verifies. Rows picked on the approval list
+  or its recent matching cache verify list openings immediately. Opening membership reads only
+  use background transport and govern offline capture for these openings; approveAll reports rows no longer approvable.
+  Direct links verify before approval. Ignore opening results superseded by Sync, preserve record
+  identity when availability is unchanged, and discard route cache on exit to preserve warm typing.
+- Recent batch retrieveAll results stay fresh for 60 seconds; mutations invalidate them. Never
+  remount the active grid through a background refresh on warm opening.
+- Batch Sync uses the saveAll response and retains failed rows and reasons. Refresh membership
+  afterwards without delaying success feedback. Remove confirmed approvals from every cached
+  approval list before returning, then invalidate. Single Approve refreshes its baseline through GET after PUT, in parallel with Approve.
+  Never adopt the PUT response ETag: the backend can return its pre-save version.
+- Approval editor rows/cards subscribe to their own draft line. Keep aggregate tab/grid work deferred
+  so keystrokes do not synchronously rebuild unrelated rows.
+- Grid widths use baseline formatted values and uppercase header fonts, independent of typing.
+  Reserve ten quantity digits and let larger input text scroll internally. Virtual card spacers
+  use list padding and item margins, never extra list items; expose item positions and total size.
+
+- Batch grids virtualize against window scrolling, retaining focused rows and fixed colgroup widths.
+  The header follows page scroll beneath the app header; Code/Name and totals pin horizontally.
+  Total stays at the end of the table, reachable through page scroll, with single-pixel dividers.
+- Group offline-copy status before draft status with `flex flex-wrap items-center justify-end gap-2`.
+  Put this group above the grid, in the desktop product toolbar or below tabs for cards/Patients.
+  Headers contain title, description and actions only. Hide unavailable device statuses on HTTP.
+- Approve and Convert default to ten rows, matching legacy. Keep URL size choices intact.
+- Reuse a collator and memoize facility sorting rather than constructing locale comparisons per row.

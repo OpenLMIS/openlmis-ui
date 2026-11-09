@@ -112,7 +112,7 @@ export function deviceAccessReaders(
   purpose: 'download' | 'upload' = 'download',
 ) {
   const read = <T,>(task: () => Promise<T>) =>
-    purpose === 'download' ? retryDownloadRead(task, check) : task();
+    purpose === 'download' ? retryDownloadRead(task, check, 1) : task();
   return {
     permissions: (id: string) => read(() => fetchPermissionStrings(id, config)),
     user: (id: string) => read(() => fetchUserRecord(id, config)),

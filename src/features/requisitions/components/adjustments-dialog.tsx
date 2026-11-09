@@ -92,16 +92,22 @@ export function AdjustmentsDialog({
             {cards ? (
               <div className="shrink-0 overflow-hidden rounded-xl border bg-card">
                 <CardRows>
-                  <SettingsItem label={<strong>{t('requisitions.requisition.total')}</strong>}>
-                    <strong>{quantity(model.line.totalLossesAndAdjustments)}</strong>
+                  <SettingsItem
+                    label={<span className="text-base">{t('requisitions.requisition.total')}</span>}
+                  >
+                    <span className="font-semibold text-base">
+                      {quantity(model.line.totalLossesAndAdjustments)}
+                    </span>
                   </SettingsItem>
                 </CardRows>
               </div>
             ) : (
-              <div className="flex shrink-0 flex-wrap justify-end gap-2 text-sm">
+              <div className="flex shrink-0 flex-wrap justify-end gap-2 text-base">
                 <span>
-                  <strong>{t('requisitions.requisition.total')}</strong>{' '}
-                  {quantity(model.line.totalLossesAndAdjustments)}
+                  <span className="text-base">{t('requisitions.requisition.total')}</span>{' '}
+                  <span className="font-semibold">
+                    {quantity(model.line.totalLossesAndAdjustments)}
+                  </span>
                 </span>
               </div>
             )}

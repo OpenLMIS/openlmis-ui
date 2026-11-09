@@ -61,12 +61,11 @@ export function searchFacilityOptions(
         });
     }
   }
-  return [...result.values()].sort((a, b) =>
-    (a.name ?? '').localeCompare(b.name ?? '', undefined, { sensitivity: 'base' }),
-  );
+  const collator = new Intl.Collator(undefined, { sensitivity: 'base' });
+  return [...result.values()].sort((a, b) => collator.compare(a.name ?? '', b.name ?? ''));
 }
 
-export const REQUISITIONS_PAGE_SIZE = 20;
+export const REQUISITIONS_PAGE_SIZE = 10;
 export const REQUISITIONS_SORT = { id: 'createdDate', desc: true };
 export const requisitionSearchSchema = tableSearchSchema(['createdDate']).extend({
   offline: z.boolean().optional().catch(undefined),

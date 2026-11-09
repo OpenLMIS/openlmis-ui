@@ -138,7 +138,9 @@ export function AdjustmentsEditorDialog({
           <form.AppField name={`adjustments[${row.original.index}].quantity`}>
             {(field) => (
               <field.QuantityField
-                label={`${t('requisitions.adjustments.quantity')}: ${reasonName(row.original.reasonId)}`}
+                label={t('requisitions.adjustments.quantity-label', {
+                  reason: reasonName(row.original.reasonId),
+                })}
                 layout="inline"
                 hideErrors={!cards}
                 sizing={cards ? 'fill' : undefined}
@@ -155,7 +157,7 @@ export function AdjustmentsEditorDialog({
       }),
       helper.display({
         id: 'actions',
-        header: t('stock-events.actions'),
+        header: () => <span className="sr-only">{t('stock-events.actions')}</span>,
         cell: ({ row }) => {
           const name = reasonName(row.original.reasonId);
           const removeName = t('stock-events.field-of', {
@@ -194,15 +196,17 @@ export function AdjustmentsEditorDialog({
               ]}
             />
           ) : (
-            <Button
-              type="button"
-              variant="destructive-ghost"
-              size="icon-sm"
-              aria-label={removeName}
-              onClick={remove}
-            >
-              <Trash2Icon />
-            </Button>
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="destructive-ghost"
+                size="icon-sm"
+                aria-label={removeName}
+                onClick={remove}
+              >
+                <Trash2Icon />
+              </Button>
+            </div>
           );
         },
       }),
@@ -310,15 +314,19 @@ export function AdjustmentsEditorDialog({
               {cards ? (
                 <div className="shrink-0 overflow-hidden rounded-xl border bg-card">
                   <CardRows>
-                    <SettingsItem label={<strong>{t('requisitions.requisition.total')}</strong>}>
-                      <strong>{total}</strong>
+                    <SettingsItem
+                      label={
+                        <span className="text-base">{t('requisitions.requisition.total')}</span>
+                      }
+                    >
+                      <span className="font-semibold text-base">{total}</span>
                     </SettingsItem>
                   </CardRows>
                 </div>
               ) : (
-                <div className="flex justify-end gap-2 text-sm">
-                  <strong>{t('requisitions.requisition.total')}</strong>
-                  {total}
+                <div className="flex justify-end gap-2 text-base">
+                  <span className="text-base">{t('requisitions.requisition.total')}</span>
+                  <span className="font-semibold">{total}</span>
                 </div>
               )}
             </div>

@@ -49,6 +49,7 @@ export type RequisitionRecord = Omit<Requisition, 'requisitionLineItems'> & {
   supplyingFacilityAccessDenied?: boolean;
   statusChanges?: Partial<Record<RequisitionStatus, { changeDate?: string }>>;
   statusHistory?: {
+    authorId?: string;
     status: RequisitionStatus;
     createdDate: string;
     statusMessageDto?: RequisitionStatusMessage | null;
@@ -60,6 +61,7 @@ export type RequisitionRecord = Omit<Requisition, 'requisitionLineItems'> & {
 };
 export type RequisitionStatusMessage = {
   id?: string;
+  authorId?: string;
   status: RequisitionStatus;
   body?: string | null;
   createdDate: string;

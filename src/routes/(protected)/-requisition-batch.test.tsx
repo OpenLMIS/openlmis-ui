@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -8,9 +8,12 @@ import {
   type HistoryState,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
+import { createInstance } from 'i18next';
+import { I18nextProvider } from 'react-i18next';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
@@ -24,9 +27,28 @@ import {
 import * as batchMarkers from '@/features/requisitions/lib/batch-session-markers';
 import fp from '@/features/requisitions/lib/fixtures/batch/retrieveall-fp.json';
 import * as savedBatches from '@/features/requisitions/lib/offline-batch';
+import * as copies from '@/features/requisitions/lib/offline-copies';
 import { getLocalDb } from '@/integrations/local-db';
+import { IsolatingICU } from '@/lib/isolate-values';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve_.batch';
 import { generateBatch } from '@/test-utils/batch-fixtures';
+import en from '../../../public/locales/en.json';
+
+const labels = createInstance();
+await labels.use(IsolatingICU).init({
+  lng: 'en',
+  keySeparator: false,
+  nsSeparator: false,
+  resources: {
+    en: {
+      translation: {
+        'requisitions.batch.errors': en['requisitions.batch.errors'],
+        'requisitions.batch.quantity-label': en['requisitions.batch.quantity-label'],
+        'requisitions.batch.failure-line': en['requisitions.batch.failure-line'],
+      },
+    },
+  },
+});
 
 const security = vi.hoisted(() => ({ secure: true }));
 vi.mock('@/lib/secure-context', () => ({
@@ -68,6 +90,8 @@ function renderRoute(ids = records.map((r) => r.id).join(','), state?: HistorySt
     loader: Route.options.loader as never,
     component: Route.options.component as never,
     pendingComponent: Route.options.pendingComponent as never,
+    gcTime: Route.options.gcTime,
+    staleTime: Route.options.staleTime,
   } as never);
   const list = createRoute({
     getParentRoute: () => layout,
@@ -91,7 +115,9 @@ function renderRoute(ids = records.map((r) => r.id).join(','), state?: HistorySt
   } as never) as AnyRouter;
   render(
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <I18nextProvider i18n={labels}>
+        <RouterProvider router={router} />
+      </I18nextProvider>
     </QueryClientProvider>,
   );
   return { router, queryClient };
@@ -128,6 +154,15 @@ beforeEach(() => {
     requisitionDtos: records,
     requisitionErrors: [],
   });
+  vi.mocked(fetchApprovalList).mockImplementation(async () => {
+    const response = await vi.mocked(fetchBatchRequisitions).mock.results.at(-1)?.value;
+    return {
+      content: (response?.requisitionDtos ?? records).map((record: { id: string }) => ({
+        id: record.id,
+      })),
+      totalPages: 1,
+    } as never;
+  });
   vi.mocked(saveBatchRequisitions).mockResolvedValue({
     requisitionDtos: records,
     requisitionErrors: [],
@@ -139,6 +174,8 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  document.documentElement.dir = 'ltr';
+  onlineManager.setOnline(true);
   vi.restoreAllMocks();
 });
 it('checks approve rights before loading any batch', async () => {
@@ -169,6 +206,74 @@ it('validates, confirms, saves then approves and returns to the approval list', 
   expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
   expect(approveBatchRequisitions).toHaveBeenCalledWith(records.map((r) => r.id));
 });
+it('returns to the list before device confirmation and finishes cleanup after unmount', async () => {
+  await publishBatchAccess();
+  const confirm = copies.confirmBatchApproval;
+  const pending = Promise.withResolvers<void>();
+  const confirmation = vi
+    .spyOn(copies, 'confirmBatchApproval')
+    .mockImplementation(async (...args) => {
+      await pending.promise;
+      return confirm(...args);
+    });
+  vi.mocked(approveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: records.map((record) => ({ ...record, status: 'APPROVED' })),
+  });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  try {
+    await screen.findByText('Approval List');
+    await waitFor(() => expect(confirmation).toHaveBeenCalledTimes(records.length));
+  } finally {
+    await act(async () => pending.resolve());
+  }
+  await waitFor(async () => {
+    for (const record of records) {
+      expect((await copies.readCopy(record.id))?.batch?.confirmedApproval?.status).toBe('APPROVED');
+      expect(await getLocalDb().table('requisitionBatchDrafts').get(record.id)).toBeUndefined();
+    }
+  });
+});
+it('does not finish device cleanup or report its failure in a different session', async () => {
+  await publishBatchAccess();
+  const warning = vi.spyOn(toast, 'warning');
+  const pending = Promise.withResolvers<void>();
+  const confirm = copies.confirmBatchApproval;
+  const confirmation = vi
+    .spyOn(copies, 'confirmBatchApproval')
+    .mockImplementation(async (...args) => {
+      await pending.promise;
+      return confirm(...args);
+    });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await screen.findByText('Approval List');
+  await waitFor(() => expect(confirmation).toHaveBeenCalledTimes(records.length));
+  act(() =>
+    useLoginData.getState().setLoginData({
+      referenceDataUserId: crypto.randomUUID(),
+      username: 'next',
+      accessToken: 'next-token',
+    }),
+  );
+  const table = getLocalDb().table('requisitionBatchDrafts');
+  await table.put({ draftId: records[0].id, sentinel: true });
+  await act(async () => {
+    pending.resolve();
+    await Promise.allSettled(confirmation.mock.results.map((result) => result.value));
+  });
+  expect(await table.get(records[0].id)).toMatchObject({ sentinel: true });
+  expect(warning).not.toHaveBeenCalledWith(
+    'requisitions.offline.unavailable-label',
+    expect.anything(),
+  );
+});
 it('keeps only partial failures and shows the server reason', async () => {
   vi.mocked(approveBatchRequisitions).mockResolvedValue({
     requisitionDtos: [records[0]],
@@ -190,6 +295,7 @@ it('keeps only partial failures and shows the server reason', async () => {
   await waitFor(() => expect(router.state.location.search).toMatchObject({ ids: records[1].id }));
 });
 it('refetches a lost approval response and blocks a resend after reload', async () => {
+  const warning = vi.spyOn(toast, 'warning');
   vi.mocked(approveBatchRequisitions).mockRejectedValue(
     new AxiosError('Lost response', '500', undefined, undefined, {
       status: 500,
@@ -213,6 +319,13 @@ it('refetches a lost approval response and blocks a resend after reload', async 
   renderRoute();
   await screen.findAllByText('requisitions.batch.uncertain');
   expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeDisabled();
+  warning.mockClear();
+  await userEvent.click(screen.getAllByRole('button', { name: 'requisitions.batch.check' })[0]);
+  await waitFor(() =>
+    expect(warning).toHaveBeenCalledWith('requisitions.batch.status-uncertain', {
+      description: 'requisitions.batch.uncertain',
+    }),
+  );
   await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledOnce());
 });
 
@@ -225,7 +338,7 @@ it('orders columns by ids and names refused and missing records above the grid',
   });
   renderRoute(`${records[0].id},${records[1].id},refused,missing`);
   await screen.findByText('Permission refused');
-  await screen.findByText('missing');
+  expect(await screen.findAllByText('requisitions.requisition-label')).toHaveLength(2);
   const headers = await screen.findAllByRole('columnheader');
   const groupLabels = headers.filter((h) => h.textContent?.includes('requisitions.batch.group'));
   expect(groupLabels).toHaveLength(2);
@@ -255,8 +368,10 @@ it('never approves a failed save and keeps its reason alongside approval failure
   await waitFor(() =>
     expect(router.state.location.search).toMatchObject({ ids: records.map((r) => r.id).join(',') }),
   );
-  expect(screen.getByRole('alertdialog').textContent).toMatch(
-    /No facility permission[\s\S]*Modified elsewhere/,
+  await waitFor(() =>
+    expect(screen.getByRole('alertdialog').textContent).toMatch(
+      /No facility permission[\s\S]*Modified elsewhere/,
+    ),
   );
   await screen.findAllByText(/No facility permission/);
   expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]);
@@ -370,6 +485,19 @@ it.each([true, false])('stores approval markers before the POST on secure=%s', a
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
   await screen.findByText('Approval List');
   expect(approveBatchRequisitions).toHaveBeenCalledOnce();
+  await waitFor(async () => {
+    for (const record of records) {
+      if (secure)
+        expect(await getLocalDb().table('requisitionBatchDrafts').get(record.id)).toBeUndefined();
+      else
+        expect(
+          batchMarkers.readBatchSessionMarker(
+            useLoginData.getState().referenceDataUserId as string,
+            record.id,
+          ),
+        ).toBeUndefined();
+    }
+  });
 });
 it('keeps the failed record typed quantity when other records synchronize', async () => {
   vi.mocked(saveBatchRequisitions).mockResolvedValue({
@@ -415,20 +543,18 @@ it('refreshes after a failed Sync and names only affected records for review', a
   expect(description).toContain(records[0].periodName);
   expect(description).not.toContain(records[1].periodName);
 });
-it('keeps a refusal reason after the Sync refetch', async () => {
-  vi.mocked(fetchBatchRequisitions)
-    .mockResolvedValueOnce({ requisitionDtos: records })
-    .mockResolvedValue({
-      requisitionDtos: [records[0]],
-      requisitionErrors: [
-        { requisitionId: records[1].id, errorMessage: { message: 'Access revoked' } },
-      ],
-    });
+it('keeps a refusal reason from the Sync response', async () => {
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [records[0]],
+    requisitionErrors: [
+      { requisitionId: records[1].id, errorMessage: { message: 'Access revoked' } },
+    ],
+  });
   renderRoute();
   const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
   await waitFor(() => expect(sync).toBeEnabled());
   await userEvent.click(sync);
-  await screen.findByText('Access revoked');
+  await screen.findAllByText('Access revoked');
   expect(screen.queryByText('requisitions.batch.missing')).not.toBeInTheDocument();
 });
 it('unlocks Approve only after confirming Approve Anyway for an opening marker', async () => {
@@ -456,6 +582,30 @@ it('unlocks Approve only after confirming Approve Anyway for an opening marker',
   expect(approveBatchRequisitions).not.toHaveBeenCalled();
 });
 
+it('keeps Approve Anyway disabled offline for an opening marker', async () => {
+  await getLocalDb()
+    .table('requisitionBatchDrafts')
+    .put({
+      draftId: records[0].id,
+      userId: useLoginData.getState().referenceDataUserId,
+      formatVersion: 1,
+      revision: 1,
+      baselineModifiedDate: records[0].modifiedDate,
+      baselineStatus: records[0].status,
+      approvedQuantities: {},
+      unresolvedApproval: { attemptedAt: 'now' },
+    });
+  renderRoute();
+  await screen.findByText('requisitions.batch.uncertain');
+  act(() => onlineManager.setOnline(false));
+  expect(screen.getByRole('button', { name: 'requisitions.batch.anyway' })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.anyway' }));
+  expect(screen.queryByText('requisitions.batch.anyway-confirm')).not.toBeInTheDocument();
+});
+
 it('shows missing product placeholders, invalid markers and save failure reasons on phone cards', async () => {
   vi.mocked(fetchBatchRequisitions).mockResolvedValue({
     requisitionDtos: [
@@ -480,7 +630,7 @@ it('shows missing product placeholders, invalid markers and save failure reasons
   expect(screen.getAllByText('requisitions.batch.invalid-requisition').length).toBeGreaterThan(0);
   await userEvent.type(inputs[1], '12');
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
-  await screen.findAllByText(/Card save refused/);
+  await screen.findByRole('button', { name: 'dialog.close' });
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
   expect(screen.getAllByText('Card save refused').length).toBeGreaterThan(0);
 });
@@ -517,7 +667,8 @@ it('does not show removed approved ids as missing while URL replacement is loadi
   );
 });
 
-it('does not classify a confirmed POST as uncertain when local marker removal fails', async () => {
+it('reports marker cleanup failure after returning without classifying approval as uncertain', async () => {
+  const warning = vi.spyOn(toast, 'warning');
   security.secure = false;
   vi.mocked(approveBatchRequisitions).mockImplementation(async () => {
     vi.spyOn(batchMarkers, 'writeBatchSessionMarker').mockImplementation(() => {
@@ -530,8 +681,13 @@ it('does not classify a confirmed POST as uncertain when local marker removal fa
   await waitFor(() => expect(approve).toBeEnabled());
   await userEvent.click(approve);
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
-  await screen.findByText('Marker removal failed');
-  expect(screen.getByRole('alertdialog').textContent).not.toContain('requisitions.batch.uncertain');
+  await screen.findByText('Approval List');
+  await waitFor(() =>
+    expect(warning).toHaveBeenCalledWith('requisitions.offline.unavailable-label', {
+      description: 'requisitions.offline.unavailable-description',
+    }),
+  );
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
 });
 
@@ -555,7 +711,6 @@ it.each(['ltr', 'rtl'])(
     expect(document.activeElement).toHaveAttribute('id', `batch-requisition-0-line-0-${nextRow}`);
     await userEvent.tab({ shift: true });
     expect(last).toHaveFocus();
-    document.documentElement.dir = 'ltr';
   },
 );
 it('reveals and focuses an off-screen invalid quantity after closing the invalid dialog', async () => {
@@ -796,3 +951,468 @@ it.each(['missing', 'timeout', 'refused'] as const)(
     else expect(draft?.unresolvedApproval).toEqual({ attemptedAt: expect.any(String) });
   },
 );
+
+it('labels and tabs past a requisition no longer awaiting approval', async () => {
+  const batch = generateBatch(3, 2);
+  batch[1].status = 'APPROVED';
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: batch });
+  renderRoute(batch.map((r) => r.id).join(','));
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  expect(screen.getByText('requisitions.batch.no-longer-awaiting')).toBeInTheDocument();
+  act(() => inputs[0].focus());
+  await userEvent.tab();
+  expect(inputs[2]).toHaveFocus();
+  await userEvent.tab({ shift: true });
+  expect(inputs[0]).toHaveFocus();
+});
+
+it('shows the saved batch response before its device copy finishes', async () => {
+  const capture = vi.spyOn(savedBatches, 'captureBatch').mockResolvedValueOnce(undefined);
+  renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  await userEvent.clear(inputs[0]);
+  await userEvent.type(inputs[0], '77');
+  const saved = records.map((record) => ({
+    ...record,
+    modifiedDate: 'new',
+    requisitionLineItems: record.requisitionLineItems.map((line) => ({
+      ...line,
+      approvedQuantity: 88,
+    })),
+  }));
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({ requisitionDtos: saved });
+  const copy = Promise.withResolvers<void>();
+  capture.mockImplementation(() => copy.promise);
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  await waitFor(() => expect(inputs[0]).toHaveValue('88'));
+  await act(async () => copy.resolve());
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.sync' })).toBeEnabled(),
+  );
+});
+
+it('sends one approval when the confirmation is double clicked', async () => {
+  security.secure = false;
+  const response = Promise.withResolvers<Awaited<ReturnType<typeof approveBatchRequisitions>>>();
+  vi.mocked(approveBatchRequisitions).mockReturnValue(response.promise);
+  const { queryClient } = renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await userEvent.click(approve);
+  const confirm = await screen.findByRole('button', { name: 'requisitions.batch.confirm' });
+  fireEvent.click(confirm);
+  fireEvent.click(confirm);
+  await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledOnce());
+  expect(saveBatchRequisitions).toHaveBeenCalledOnce();
+  await act(async () => response.resolve({ requisitionDtos: records }));
+  await screen.findByText('Approval List');
+  expect(approveBatchRequisitions).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('blocks a requisition moved to another node while still in approval', async () => {
+  const batch = generateBatch(2, 1);
+  batch[1].status = 'IN_APPROVAL';
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: batch });
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: [{ id: batch[0].id }],
+    totalPages: 1,
+  } as never);
+  renderRoute(batch.map((r) => r.id).join(','));
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  expect(inputs[1]).toBeDisabled();
+  expect(screen.getByText('requisitions.batch.no-longer-awaiting')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  expect(
+    within(await screen.findByRole('alertdialog')).getByText(
+      /requisitions.batch.no-longer-awaiting/,
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/requisitions.batch.possibly-approved/)).not.toBeInTheDocument();
+});
+
+it('fetches membership once in parallel with the batch and reuses it for capture', async () => {
+  await publishBatchAccess();
+  const pending = Promise.withResolvers<Awaited<ReturnType<typeof fetchBatchRequisitions>>>();
+  vi.mocked(fetchBatchRequisitions).mockReturnValue(pending.promise);
+  const loader = Route.options.loader as (
+    arg: unknown,
+  ) => Promise<{ copyResult?: Promise<unknown> }>;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const loaded = loader({
+    context: { queryClient: client },
+    deps: { ids: records.map((r) => r.id) },
+  });
+  await waitFor(() => expect(fetchBatchRequisitions).toHaveBeenCalledOnce());
+  expect(fetchApprovalList).toHaveBeenCalledOnce();
+  pending.resolve({ requisitionDtos: records });
+  await (await loaded).copyResult;
+  expect(fetchApprovalList).toHaveBeenCalledOnce();
+  const { readCopy } = await import('@/features/requisitions/lib/offline-copies');
+  expect((await readCopy(records[0].id))?.batch?.approvalVerified).toBe(true);
+  client.clear();
+});
+it('keeps the batch usable when approval membership returns a service error', async () => {
+  vi.mocked(fetchApprovalList).mockRejectedValue(
+    new AxiosError('Unavailable', undefined, undefined, undefined, {
+      status: 500,
+      data: {},
+    } as never),
+  );
+  const { queryClient } = renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  expect(
+    await screen.findByText('requisitions.offline.unavailable-description'),
+  ).toBeInTheDocument();
+  expect(fetchApprovalList).toHaveBeenCalledOnce();
+  queryClient.clear();
+});
+
+it('accepts an old saved approval flag after fresh access and membership checks', async () => {
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const access = await import('@/routes/-requisition-access');
+  await publishBatchAccess();
+  const leases = await Promise.all(records.map((record) => copies.beginCopy(record.id)));
+  await savedBatches.captureBatch(leases, { requisitionDtos: records }, {} as never, 'read');
+  vi.mocked(fetchBatchRequisitions).mockRejectedValueOnce(
+    new AxiosError('Timeout', AxiosError.ECONNABORTED),
+  );
+  vi.spyOn(access, 'freshRequisitionAccess').mockResolvedValue({
+    user: { roleAssignments: [{ roleId: 'approver', programId: 'p', supervisoryNodeId: 'node' }] },
+    roles: [{ id: 'approver', rights: [{ name: 'REQUISITION_APPROVE' }] }],
+  } as never);
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  await userEvent.click(sync);
+  await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  expect(screen.queryByText('requisitions.batch.review-refreshed')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it.each(['request', 'record'] as const)(
+  'retires saved copies and draft when a failed approval reveals another approver acted (%s)',
+  async (failure) => {
+    await publishBatchAccess();
+    const { readCopy } = await import('@/features/requisitions/lib/offline-copies');
+    const id = records[0].id;
+    const { queryClient } = renderRoute(id);
+    const input = (await screen.findAllByRole('textbox'))[0];
+    await waitFor(() => expect(input).toBeEnabled());
+    await waitFor(async () => expect(await readCopy(id)).toBeDefined());
+    vi.mocked(approveBatchRequisitions).mockImplementation(async () => {
+      vi.mocked(fetchBatchRequisitions).mockResolvedValue({
+        requisitionDtos: [{ ...records[0], status: 'APPROVED', modifiedDate: 'changed' }],
+      });
+      if (failure === 'record')
+        return {
+          requisitionErrors: [
+            {
+              requisitionId: id,
+              errorMessage: { messageKey: 'requisition.error.approve.requisitionMustBeAuthorized' },
+            },
+          ],
+        };
+      throw new AxiosError('Already approved', '409', undefined, undefined, {
+        status: 409,
+        data: {},
+      } as never);
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.approve' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'requisitions.batch.confirm' }),
+    );
+    await waitFor(async () => expect(await readCopy(id)).toBeUndefined());
+    expect(await getLocalDb().table('requisitionBatchDrafts').get(id)).toBeUndefined();
+    expect(screen.queryByText('requisitions.offline.removed-title')).not.toBeInTheDocument();
+    queryClient.clear();
+  },
+);
+
+it('does not offer Update for a draft no longer awaiting approval', async () => {
+  const hooks = await import('@/features/requisitions/hooks/use-batch-drafts');
+  const useDrafts = hooks.useBatchDrafts;
+  vi.spyOn(hooks, 'useBatchDrafts').mockImplementation((records) => ({
+    ...useDrafts(records),
+    outdated: () => true,
+  }));
+  const id = records[0].id;
+  await getLocalDb()
+    .table('requisitionBatchDrafts')
+    .put({
+      draftId: id,
+      userId: useLoginData.getState().referenceDataUserId,
+      formatVersion: 1,
+      revision: 1,
+      baselineModifiedDate: 'old',
+      baselineStatus: 'AUTHORIZED',
+      approvedQuantities: { [records[0].requisitionLineItems[0].id]: '12' },
+    });
+  vi.mocked(fetchApprovalList).mockResolvedValue({ content: [], totalPages: 1 } as never);
+  const { queryClient } = renderRoute(id);
+  await screen.findAllByRole('textbox');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.revert' })).toBeEnabled(),
+  );
+  expect(
+    screen.queryByRole('button', { name: 'requisitions.edit.update' }),
+  ).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('sends Sync while the opening offline capture is pending', async () => {
+  const copy = Promise.withResolvers<void>();
+  vi.spyOn(savedBatches, 'captureBatch').mockReturnValueOnce(copy.promise);
+  renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  try {
+    await userEvent.click(sync);
+    await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  } finally {
+    await act(async () => copy.resolve());
+  }
+});
+
+it('renders batch rows while membership is pending and enables approval only after verification', async () => {
+  let finish!: (result: never) => void;
+  vi.mocked(fetchApprovalList).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.verifying' });
+  await screen.findByRole('table', { name: 'requisitions.batch.title' });
+  expect(approve).toBeDisabled();
+  await act(async () =>
+    finish({ content: records.map((r) => ({ id: r.id })), totalPages: 1 } as never),
+  );
+  await waitFor(() => expect(approve).toBeEnabled());
+});
+
+it('counts a multiline request failure once instead of counting message lines', async () => {
+  vi.mocked(saveBatchRequisitions).mockRejectedValueOnce(new Error('First line\nSecond line'));
+  renderRoute();
+  const inputs = await screen.findAllByRole('textbox');
+  await waitFor(() => expect(inputs[0]).toBeEnabled());
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  expect(await screen.findByRole('heading', { name: 'There Was 1 Error' })).toBeInTheDocument();
+});
+
+it('keeps Sync membership when the opening read finishes later', async () => {
+  const opening = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
+  vi.mocked(fetchApprovalList).mockReturnValueOnce(opening.promise);
+  renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  await userEvent.click(sync);
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  await act(async () => opening.resolve({ content: [], totalPages: 1 } as never));
+  expect(approve).toBeEnabled();
+  expect(screen.queryByText('requisitions.batch.no-longer-awaiting')).not.toBeInTheDocument();
+});
+
+it('uses the saveAll response for Sync without retrieving the batch again', async () => {
+  security.secure = false;
+  renderRoute();
+  const input = (await screen.findAllByRole('textbox'))[0];
+  await waitFor(() => expect(input).toBeEnabled());
+  await userEvent.clear(input);
+  await userEvent.type(input, '123');
+  await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
+  await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.sync' })).toBeEnabled(),
+  );
+  expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
+});
+
+it('keeps focus and every keystroke when reopening a warm batch', async () => {
+  security.secure = false;
+  const { router } = renderRoute();
+  await screen.findAllByRole('textbox');
+  await act(() => router.navigate({ to: '/requisitions/approve' }));
+  await screen.findByText('Approval List');
+  const opening = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
+  vi.mocked(fetchApprovalList).mockReturnValueOnce(opening.promise);
+  await act(() =>
+    router.navigate({
+      to: '/requisitions/approve/batch',
+      search: { ids: records.map((r) => r.id).join(',') },
+    }),
+  );
+  const input = (await screen.findAllByRole('textbox'))[0];
+  await waitFor(() => expect(input).toBeEnabled());
+  await userEvent.clear(input);
+  await userEvent.type(input, '987');
+  await act(() =>
+    opening.resolve({ content: records.map((r) => ({ id: r.id })), totalPages: 1 } as never),
+  );
+  await userEvent.type(input, '6543', { skipClick: true });
+  expect(input).toHaveFocus();
+  expect(input).toHaveValue('9876543');
+  expect(fetchBatchRequisitions).toHaveBeenCalledOnce();
+});
+
+it('retrieves a trusted list opening before starting its offline membership scan', async () => {
+  const response = Promise.withResolvers<Awaited<ReturnType<typeof fetchBatchRequisitions>>>();
+  vi.mocked(fetchBatchRequisitions).mockReturnValueOnce(response.promise);
+  vi.spyOn(savedBatches, 'cachedBatchMembership').mockReturnValue({
+    found: [],
+    remaining: new Set(),
+  });
+  renderRoute();
+  await waitFor(() => expect(fetchBatchRequisitions).toHaveBeenCalledOnce());
+  expect(fetchApprovalList).not.toHaveBeenCalled();
+  await act(() => response.resolve({ requisitionDtos: records }));
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  expect(fetchApprovalList).toHaveBeenCalledWith(expect.anything(), {
+    backgroundDownload: true,
+    downloadProvider: 'requisition-copy',
+  });
+});
+
+it('settles a timed out membership read and allows retry without technical text', async () => {
+  vi.mocked(fetchApprovalList).mockRejectedValueOnce(
+    new AxiosError('timeout of 60000ms exceeded', 'ECONNABORTED'),
+  );
+  const { queryClient } = renderRoute();
+  await screen.findByText('requisitions.batch.verification-failed');
+  expect(
+    screen.queryByRole('button', { name: 'requisitions.batch.verifying' }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeDisabled();
+  expect(screen.queryByText(/60000ms/)).not.toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('button', { name: 'error.try-again' })[0]);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeEnabled(),
+  );
+  queryClient.clear();
+});
+
+it('finishes Sync before copy capture and preserves a newer capture failure', async () => {
+  const first = Promise.withResolvers<void>();
+  const capture = vi
+    .spyOn(savedBatches, 'captureBatch')
+    .mockResolvedValueOnce(undefined)
+    .mockReturnValueOnce(first.promise)
+    .mockRejectedValueOnce(new Error('Latest copy failed'));
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(capture).toHaveBeenCalledOnce());
+  await waitFor(() => expect(sync).toBeEnabled());
+  try {
+    await userEvent.click(sync);
+    await waitFor(() => expect(capture).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(sync).toBeEnabled());
+    await userEvent.click(sync);
+    const failure = await screen.findByText('requisitions.offline.unavailable-description');
+    await act(async () => first.resolve());
+    expect(failure).toBeInTheDocument();
+  } finally {
+    await act(async () => first.resolve());
+    queryClient.clear();
+  }
+});
+
+it('shows the offline connection reason beside batch Sync and Approve', async () => {
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  act(() => onlineManager.setOnline(false));
+  expect(sync).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'requisitions.batch.approve' })).toBeDisabled();
+  expect(screen.getByText('offline.action-description')).toBeVisible();
+  queryClient.clear();
+});
+
+it('translates a Sync timeout again when the page language changes', async () => {
+  labels.addResource(
+    'fr',
+    'translation',
+    'requisitions.batch.verification-failed',
+    'Vérification impossible',
+  );
+  vi.mocked(saveBatchRequisitions).mockRejectedValueOnce(
+    new AxiosError('timeout of 60000ms exceeded', 'ECONNABORTED'),
+  );
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  await userEvent.click(sync);
+  await screen.findByText('requisitions.batch.verification-failed');
+  try {
+    await act(() => labels.changeLanguage('fr'));
+    expect(screen.getByText('Vérification impossible')).toBeVisible();
+  } finally {
+    await act(() => labels.changeLanguage('en'));
+    queryClient.clear();
+  }
+});
+
+it('uses server-verified save results to approve only records still awaiting approval', async () => {
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  const membershipReads = vi.mocked(fetchApprovalList).mock.calls.length;
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({
+    requisitionDtos: [records[0], { ...records[1], status: 'APPROVED' }],
+  });
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
+  expect(fetchApprovalList).toHaveBeenCalledTimes(membershipReads);
+});
+
+it('starts retrieving the batch while device copy leases are pending', async () => {
+  await publishBatchAccess();
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const begin = copies.beginCopy;
+  const pending = Promise.withResolvers<void>();
+  vi.spyOn(copies, 'beginCopy').mockImplementation(async (id) => {
+    await pending.promise;
+    return begin(id);
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const loader = Route.options.loader as (arg: unknown) => Promise<unknown>;
+  const loaded = loader({
+    context: { queryClient: client },
+    deps: { ids: records.map((record) => record.id) },
+  });
+  try {
+    await waitFor(() => expect(fetchBatchRequisitions).toHaveBeenCalledOnce());
+  } finally {
+    pending.resolve();
+    await loaded;
+    client.clear();
+  }
+});
+
+it('retains membership verification when a record lacks timestamp protection', async () => {
+  records = records.map((record) => {
+    const copy = { ...record };
+    Reflect.deleteProperty(copy, 'modifiedDate');
+    return copy;
+  });
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  const pending = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
+  vi.mocked(fetchApprovalList).mockReturnValueOnce(pending.promise);
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
+  expect(approveBatchRequisitions).not.toHaveBeenCalled();
+  await act(() => pending.resolve({ content: [records[0]], totalPages: 1 } as never));
+  await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
+});

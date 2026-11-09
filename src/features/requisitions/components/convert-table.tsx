@@ -162,13 +162,14 @@ function DepotCell({ row }: { row: ConvertListRow }) {
 }
 function useResultsTable(
   props: Omit<Props, 'onRows' | 'listRef'> & {
+    timeZone: string;
     rows: ConvertListRow[];
     total: number;
     stale: boolean;
   },
 ) {
   const { t, i18n } = useTranslation();
-  const timeZone = useDeploymentTimeZone();
+  const { timeZone } = props;
   const {
     search,
     columns,
@@ -221,7 +222,7 @@ function useResultsTable(
     cards,
     search,
     defaultSort: { id: 'unused', desc: false },
-    defaultPageSize: 20,
+    defaultPageSize: 10,
     onSearchChange,
   });
   const table = useTable({
@@ -257,6 +258,7 @@ function useResultsTable(
   return { table, pageStart };
 }
 export function ConvertTable(props: Props) {
+  const timeZone = useDeploymentTimeZone();
   const { t } = useTranslation();
   const deferred = useDeferredValue(props.search);
   const { data: page } = useSuspenseQuery(convertListOptions(deferred));
@@ -266,6 +268,7 @@ export function ConvertTable(props: Props) {
     if (!stale) onRows(page.content);
   }, [page, stale, onRows]);
   const { table, pageStart } = useResultsTable({
+    timeZone,
     ...props,
     search: deferred,
     rows: page.content,
@@ -348,6 +351,7 @@ export function ConvertTableSkeleton({
     invalid: false,
     pending: true,
     rows: EMPTY,
+    timeZone: 'UTC',
     total: 0,
     stale: false,
   });
@@ -355,7 +359,7 @@ export function ConvertTableSkeleton({
     <RequisitionListSkeleton
       cards={cards}
       actions={0}
-      rowCount={toPaginationState(search, 20).pageSize}
+      rowCount={toPaginationState(search, 10).pageSize}
       table={table}
     />
   );

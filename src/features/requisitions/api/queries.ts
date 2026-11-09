@@ -47,7 +47,7 @@ export const requisitionSearchOptions = (
     online: online && !offline,
     server: () => (offline ? localRequisitions(params, timeZone) : searchRequisitions(params)),
     device: () => localRequisitions(params, timeZone),
-    staleTime: 0,
+    staleTime: 30_000,
   });
 
 export const requisitionOptions = (id: string) =>
@@ -119,5 +119,5 @@ export const batchRequisitionsOptions = (ids: readonly string[]) =>
   queryOptions({
     queryKey: [...queryKeys.requisitions.all, 'batch', ids] as const,
     queryFn: () => fetchBatchRequisitions(ids),
-    staleTime: 0,
+    staleTime: 60_000,
   });

@@ -21,7 +21,7 @@ it('uses the three legacy batch operations and retains partial 400 payloads', as
   const body = batchSaveBody(records);
   const put = vi.spyOn(client, 'put').mockResolvedValue({ data: fp });
   await saveBatchRequisitions(body);
-  expect(put).toHaveBeenCalledWith('/requisitions', body, { params: { saveAll: '' } });
+  expect(put).toHaveBeenCalledWith('/requisitions', body, { params: { saveAll: '' }, timeout: 0 });
   const partial = {
     requisitionDtos: [records[0]],
     requisitionErrors: [{ requisitionId: ids[0], errorMessage: { message: 'Refused' } }],
@@ -35,7 +35,7 @@ it('uses the three legacy batch operations and retains partial 400 payloads', as
   expect(post).toHaveBeenCalledWith(
     '/requisitions',
     {},
-    { params: { approveAll: '', id: ids.join(',') } },
+    { params: { approveAll: '', id: ids.join(',') }, timeout: 0 },
   );
 });
 it('does not treat an exception-style 400 as success or retry a 5xx', async () => {

@@ -66,6 +66,9 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
       queryClient.prefetchQuery(requisitionStatusCountsOptions());
     }
   },
+  onLeave: ({ context: { queryClient } }) => {
+    void queryClient.cancelQueries({ queryKey: queryKeys.home.all });
+  },
   pendingComponent: HomePending,
   component: HomePage,
 });

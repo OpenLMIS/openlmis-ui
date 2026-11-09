@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { PackageIcon } from 'lucide-react';
-import { memo, useDeferredValue, useRef, useState } from 'react';
+import { memo, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   PickerAdd,
@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/combobox';
 import type { OrderProduct } from '@/features/orders/lib/types';
 import { approvedProductsOptions } from '@/features/reference-data/api/queries';
-import { productSearchStatus } from '@/lib/product-search-status';
 
 export const OrderProductPicker = memo(function OrderProductPicker({
   programId,
@@ -42,15 +41,13 @@ export const OrderProductPicker = memo(function OrderProductPicker({
   const name = useDeferredValue(search);
   const [selected, setSelected] = useState<OrderProduct | null>(null);
   const query = useQuery({
-    ...approvedProductsOptions({ programId, facilityId, name, page: 0, size: 50 }),
+    ...approvedProductsOptions({ programId, facilityId, name, page: 0, size: 100 }),
     enabled: open,
   });
-  const products = query.data?.content.map((item) => item.orderable) ?? [];
-  const status = productSearchStatus({
-    listed: products.length,
-    total: query.data?.totalElements ?? 0,
-    typed: !!name.trim(),
-  });
+  const products = useMemo(
+    () => query.data?.content.map((item) => item.orderable) ?? [],
+    [query.data],
+  );
   return (
     <div className="flex items-center gap-2 @3xl/main:max-w-xl">
       <PickerAdd>
@@ -95,18 +92,13 @@ export const OrderProductPicker = memo(function OrderProductPicker({
                   <ComboboxItem key={item.id} value={item} disabled={added.includes(item.id)}>
                     <span>{item.fullProductName ?? item.productCode}</span>
                     {added.includes(item.id) && (
-                      <span className="text-muted-foreground text-xs">
+                      <span className="text-muted-foreground text-xs italic">
                         {t('orders.edit.already-added')}
                       </span>
                     )}
                   </ComboboxItem>
                 )}
               </ComboboxList>
-              {status && (
-                <ComboboxStatus>
-                  {t(status.key, { shown: status.shown, count: status.count })}
-                </ComboboxStatus>
-              )}
               {query.isError && (
                 <ComboboxStatus>
                   <Button variant="outline" onClick={() => query.refetch()}>

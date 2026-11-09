@@ -126,7 +126,7 @@ describe('server display calculations', () => {
         .packsToShip,
     ).toBe(0);
   });
-  it('preserves stock-card/user input and skipped/emergency/non-full calculations but still prices non-skipped lines', () => {
+  it('preserves stock-card/user input and emergency/non-full calculations', () => {
     const t = {
       populateStockOnHandFromStockCards: true,
       columnsMap: Object.fromEntries(
@@ -149,10 +149,6 @@ describe('server display calculations', () => {
         { programs: [{ programId: 'program', fullSupply: false, pricePerPack: 2 }] },
       ),
     ).toMatchObject({ adjustedConsumption: 99, totalCost: 4 });
-    expect(calculate({ skipped: true, totalCost: 100, adjustedConsumption: 99 })).toMatchObject({
-      totalCost: 100,
-      adjustedConsumption: 99,
-    });
   });
   it('takes the last duplicate program price and excludes skipped lines from raw subtotals', () => {
     const r = record({
@@ -506,3 +502,29 @@ it.each(['AUTHORIZED', 'IN_APPROVAL', 'APPROVED', 'RELEASED', 'RELEASED_WITHOUT_
     ).toBe(17);
   },
 );
+
+it('calculates skipped display fields and product prices while excluding their totals', () => {
+  const result = calculate({
+    skipped: true,
+    beginningBalance: null,
+    totalReceivedQuantity: null,
+    totalConsumedQuantity: null,
+    stockOnHand: null,
+    requestedQuantity: null,
+    approvedQuantity: null,
+    previousAdjustedConsumptions: [],
+    idealStockAmount: 100,
+  });
+  expect(result).toMatchObject({
+    pricePerPack: 2,
+    totalConsumedQuantity: 0,
+    stockOnHand: 0,
+    adjustedConsumption: 0,
+    averageConsumption: 0,
+    maximumStockQuantity: 0,
+    calculatedOrderQuantity: 0,
+    calculatedOrderQuantityIsa: 100,
+    packsToShip: 0,
+    totalCost: 0,
+  });
+});

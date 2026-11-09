@@ -12,9 +12,17 @@ type CardListProps = {
   busy?: boolean;
   listRef?: Ref<HTMLUListElement>;
   children?: ReactNode;
+  padding?: { start: number; end: number };
 };
 
-export function CardList({ empty, footer, busy = false, listRef, children }: CardListProps) {
+export function CardList({
+  empty,
+  footer,
+  busy = false,
+  listRef,
+  children,
+  padding,
+}: CardListProps) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div aria-busy={busy || undefined} className="transition-opacity aria-busy:opacity-60">
@@ -22,7 +30,14 @@ export function CardList({ empty, footer, busy = false, listRef, children }: Car
           <DataTableCard>{empty}</DataTableCard>
         ) : (
           <ul
-            className="flex scroll-mt-page-start flex-col gap-4 outline-none"
+            className="flex scroll-mt-page-start flex-col gap-4 pb-(--card-padding-end) pt-(--card-padding-start) outline-none"
+            style={
+              padding &&
+              ({
+                '--card-padding-start': `${padding.start}px`,
+                '--card-padding-end': `${padding.end}px`,
+              } as CSSProperties)
+            }
             ref={listRef}
             tabIndex={-1}
           >
@@ -40,12 +55,14 @@ export function CardListItem({
   tone,
   itemRef,
   drag,
+  virtual,
   children,
 }: {
   surface?: 'raised' | 'flat';
   tone?: 'skipped' | 'shortfall' | 'invalid';
   itemRef?: Ref<HTMLLIElement>;
   drag?: { y: number; animate: boolean; dragging: boolean };
+  virtual?: { gap: number; position: number; size: number };
   children: ReactNode;
 }) {
   const content = (
@@ -63,12 +80,16 @@ export function CardListItem({
   return (
     <li
       className={cn(
-        'scroll-mt-page-start',
+        'scroll-mt-page-start mt-(--card-gap)',
         drag && 'relative translate-y-(--card-y)',
         drag?.animate && 'transition-transform duration-150 ease-out',
       )}
       ref={itemRef}
-      style={drag && ({ '--card-y': `${drag.y}px` } as CSSProperties)}
+      aria-posinset={virtual?.position}
+      aria-setsize={virtual?.size}
+      style={
+        { '--card-y': `${drag?.y ?? 0}px`, '--card-gap': `${virtual?.gap ?? 0}px` } as CSSProperties
+      }
     >
       {surface === 'flat' ? (
         <div className="min-w-0 overflow-hidden rounded-xl border bg-card">{content}</div>

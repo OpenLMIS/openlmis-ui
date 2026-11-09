@@ -1,3 +1,5 @@
+import { Agent as HttpAgent } from 'node:http';
+import { Agent as HttpsAgent } from 'node:https';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
@@ -18,8 +20,12 @@ export default defineConfig(({ mode }) => {
   const prefix = (env.VITE_BASE_PATH ?? '').replace(/^\/+|\/+$/g, '');
   const base = prefix ? `/${prefix}/` : '/';
 
+  const target = env.VITE_API_PROXY_TARGET || 'http://localhost:8080';
   const backend = {
-    target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+    target,
+    agent: target.startsWith('https:')
+      ? new HttpsAgent({ keepAlive: true })
+      : new HttpAgent({ keepAlive: true }),
     changeOrigin: true,
     secure: false,
   };

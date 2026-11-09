@@ -1,9 +1,10 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { createFileRoute, type ErrorComponentProps, useNavigate } from '@tanstack/react-router';
-import { ClipboardCheckIcon } from 'lucide-react';
+import { ClipboardCheckIcon, InfoIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import {
   DataTableSelectionBar,
@@ -11,6 +12,7 @@ import {
 } from '@/components/data-table/data-table-selection';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useFilterScoped } from '@/components/valid-assignments/selection';
 import {
@@ -37,22 +39,25 @@ import {
   ApprovalTableSkeleton,
 } from '@/features/requisitions/components/approval-table';
 import { ApprovalToolbar } from '@/features/requisitions/components/approval-toolbar';
+import { useOfflineCopies } from '@/features/requisitions/hooks/use-offline-copies';
 import {
   APPROVAL_SORT,
   type ApprovalSearch,
   type ApprovalSelection,
+  approvalProgramsMixed,
   approvalScope,
   approvalSearchSchema,
   approvalSelectedIds,
-  approvalSelectionError,
 } from '@/features/requisitions/lib/approval-search';
 import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
 import { returnState } from '@/features/requisitions/lib/requisition-return';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useFlag } from '@/lib/feature-flags';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { useOnline } from '@/lib/online';
 import { RIGHTS } from '@/lib/rights';
+import { getSessionScope } from '@/lib/session-scope';
 import { searchSort } from '@/lib/table-search';
 
 const NOTHING_PICKED: ApprovalSelection = new Map();
@@ -62,7 +67,6 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   loader: async ({ context: { queryClient }, deps: { search } }) => {
     await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
-    await prepareRequisitionAccess(queryClient);
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
     queryClient.prefetchQuery(approvalListOptions(search));
@@ -91,11 +95,19 @@ function ApprovalHeader() {
 }
 function ApprovalError(props: ErrorComponentProps) {
   const { t } = useTranslation();
+  const copies = useOfflineCopies();
+  useOfflineFailure(props.error, props.reset);
+  if (props.error instanceof LocalDataUnavailableError && copies?.length)
+    return (
+      <p role="note" className="text-muted-foreground text-sm">
+        {t('requisitions.offline.filter-choices-missing')}
+      </p>
+    );
   return (
     <ListError
       {...props}
-      title={t('requisitions.view.error-title')}
-      description={t('requisitions.view.error-description')}
+      title={t('requisitions.approve.error-title')}
+      description={t('requisitions.approve.error-description')}
     />
   );
 }
@@ -141,17 +153,21 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
   const online = useOnline();
   const scope = approvalScope(search, online);
   const [picked, setPicked] = useFilterScoped(scope, NOTHING_PICKED);
-  const [error, setError] = useFilterScoped<'none' | 'mixed' | null>(scope, null);
+  const [mixed, setMixed] = useFilterScoped(scope, false);
   const navigate = useNavigate();
+  const sort = searchSort(search, APPROVAL_SORT, updateSearch);
   const viewSelected = () => {
-    const problem = approvalSelectionError([...picked.values()]);
-    if (problem) setError(problem, scope);
+    if (approvalProgramsMixed([...picked.values()])) setMixed(true, scope);
     else
       void navigate({
         to: '/requisitions/approve/batch',
-        search: { ids: approvalSelectedIds(picked).join(',') },
+        search: {
+          ids: approvalSelectedIds(picked).join(','),
+          program: [...picked.values()][0]?.programId,
+        },
         state: {
           ...returnState({ to: '/requisitions/approve', search }),
+          requisitionBatchSession: getSessionScope(),
           requisitionBatchRecords: [...picked.values()].flatMap((value) =>
             value.record ? [value.record] : [],
           ),
@@ -171,7 +187,7 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
       onVisibilityChange={view.columnView.onVisibilityChange}
       visibility={view.columnView.visibility}
       sort={{
-        ...searchSort(search, APPROVAL_SORT, updateSearch),
+        ...sort,
         columns: [{ id: 'authorizedDate', label: t('requisitions.approve.date-authorized') }],
       }}
     />
@@ -183,6 +199,8 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
       disabled={pending}
       view={columnsMenu}
       onFilterChange={updateSearch}
+      newestFirst={sort.value.desc}
+      onOrderChange={(desc) => sort.onValueChange({ ...sort.value, desc })}
     />
   );
   const skeleton = (
@@ -194,78 +212,75 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
     />
   );
   return (
-    <Workspace>
-      <ApprovalHeader />
-      <WorkspaceContent>
-        <div className="flex flex-col gap-4" ref={view.measure}>
-          {batch && (
-            <p className="text-muted-foreground text-sm">{t('requisitions.approve.note')}</p>
-          )}
-          {userId ? (
-            <QueryBoundary
-              resetKey={userId}
-              pendingFallback={toolbar()}
-              errorComponent={ApprovalError}
-            >
-              <ApprovalPrograms userId={userId}>{toolbar}</ApprovalPrograms>
-            </QueryBoundary>
-          ) : (
-            toolbar()
-          )}
-          {pending ? (
-            skeleton
-          ) : (
-            <QueryBoundary
-              resetKey={JSON.stringify(search)}
-              pendingFallback={skeleton}
-              errorComponent={ApprovalError}
-            >
-              <ApprovalTable
-                cards={view.cards}
-                columns={view.columnView.visibility}
-                search={search}
-                onSearchChange={updateSearch}
-                batch={batch}
-                picked={picked}
-                onSelection={setPicked}
-              />
-            </QueryBoundary>
-          )}
-          {batch && (
-            <>
-              {!picked.size && (
-                <div>
-                  <Button size="lg" variant="outline" disabled={pending} onClick={viewSelected}>
-                    {t('requisitions.approve.view-selected')}
-                  </Button>
-                </div>
-              )}
-              <DataTableSelectionBar
-                count={picked.size}
-                onClear={() => setPicked(NOTHING_PICKED, scope)}
+    <>
+      <Workspace>
+        <ApprovalHeader />
+        <WorkspaceContent>
+          <div className="flex flex-col gap-4" ref={view.measure}>
+            {batch && (
+              <Alert variant="info">
+                <InfoIcon />
+                <AlertDescription>{t('requisitions.approve.note')}</AlertDescription>
+              </Alert>
+            )}
+            {userId ? (
+              <QueryBoundary
+                resetKey={userId}
+                pendingFallback={toolbar()}
+                errorComponent={ApprovalError}
               >
-                <Button size="sm" onClick={viewSelected}>
-                  <SelectionBarLabel
-                    full={t('requisitions.approve.view-selected')}
-                    short={t('requisitions.approve.view-selected-short')}
-                  />
-                </Button>
-              </DataTableSelectionBar>
-            </>
-          )}
-          {error && (
-            <InvalidSubmitDialog
-              open
-              title={t(`requisitions.approve.select-${error}-title`)}
-              description={t(`requisitions.approve.select-${error}-description`)}
-              closeLabel={t('dialog.close')}
-              onOpenChange={(open) => {
-                if (!open) setError(null, scope);
-              }}
+                <ApprovalPrograms userId={userId}>{toolbar}</ApprovalPrograms>
+              </QueryBoundary>
+            ) : (
+              toolbar()
+            )}
+            {pending ? (
+              skeleton
+            ) : (
+              <QueryBoundary
+                resetKey={JSON.stringify(search)}
+                pendingFallback={skeleton}
+                errorComponent={ApprovalError}
+              >
+                <ApprovalTable
+                  cards={view.cards}
+                  columns={view.columnView.visibility}
+                  search={search}
+                  onSearchChange={updateSearch}
+                  batch={batch}
+                  picked={picked}
+                  onSelection={setPicked}
+                />
+              </QueryBoundary>
+            )}
+            {mixed && (
+              <InvalidSubmitDialog
+                open
+                title={t('requisitions.approve.select-mixed-title')}
+                description={t('requisitions.approve.select-mixed-description')}
+                closeLabel={t('dialog.close')}
+                onOpenChange={(open) => {
+                  if (!open) setMixed(false, scope);
+                }}
+              />
+            )}
+          </div>
+        </WorkspaceContent>
+      </Workspace>
+      {batch && (
+        <DataTableSelectionBar
+          placement="footer"
+          count={picked.size}
+          onClear={() => setPicked(NOTHING_PICKED, scope)}
+        >
+          <Button size="lg" disabled={pending} onClick={viewSelected}>
+            <SelectionBarLabel
+              full={t('requisitions.approve.view-selected')}
+              short={t('requisitions.approve.view-selected-short')}
             />
-          )}
-        </div>
-      </WorkspaceContent>
-    </Workspace>
+          </Button>
+        </DataTableSelectionBar>
+      )}
+    </>
   );
 }

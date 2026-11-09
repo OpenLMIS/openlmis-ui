@@ -1,5 +1,5 @@
+import { useQueries } from '@tanstack/react-query';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTableEmpty,
@@ -18,6 +18,7 @@ import {
   FormDialogHeader,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { userRecordOptions } from '@/features/reference-data/api/queries';
 import { messageAuthor, StatusBadge } from '@/features/requisitions/components/status-message';
 import type { RequisitionStatusMessage } from '@/features/requisitions/lib/types';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
@@ -48,25 +49,43 @@ export function RequisitionHistoryDialog({
         if (!value) onClose();
       }}
     >
-      <HistoryContent messages={messages} />
+      <HistoryContent messages={messages} open={open} />
     </FormDialog>
   );
 }
 
-function HistoryContent({ messages }: { messages: readonly RequisitionStatusMessage[] }) {
+function HistoryContent({
+  messages,
+  open,
+}: {
+  messages: readonly RequisitionStatusMessage[];
+  open: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
-  const { measure, cards } = useDialogCardLayout('xl');
-  const data = useMemo(
-    () =>
-      messages.map((message) => ({
-        status: message.status,
-        author: messageAuthor(message),
-        date: formatTimestamp(message.createdDate, i18n.language, { time: true, timeZone }),
-        comment: message.body ?? '',
-      })),
-    [messages, i18n.language, timeZone],
+  const authorIds = [
+    ...new Set(
+      messages.flatMap((message) =>
+        message.authorId && !messageAuthor(message) ? [message.authorId] : [],
+      ),
+    ),
+  ];
+  const authors = useQueries({
+    queries: authorIds.map((id) => ({ ...userRecordOptions(id), enabled: open })),
+  });
+  const authorNames = authors.map(({ data }) =>
+    data ? [data.firstName, data.lastName].filter(Boolean).join(' ') : '',
   );
+  const { measure, cards } = useDialogCardLayout('xl');
+  const data = messages.map((message) => ({
+    status: message.status,
+    author:
+      messageAuthor(message) ||
+      (message.authorId ? authorNames[authorIds.indexOf(message.authorId)] : '') ||
+      '',
+    date: formatTimestamp(message.createdDate, i18n.language, { time: true, timeZone }),
+    comment: message.body ?? '',
+  }));
   const table = useTable({
     features: dataTableFeatures,
     columns: helper.columns([
@@ -114,7 +133,7 @@ function HistoryContent({ messages }: { messages: readonly RequisitionStatusMess
           title="status"
           density="compact"
           layout="auto"
-          empty={<DataTableEmpty title={t('requisitions.requisition.no-comments')} />}
+          empty={<DataTableEmpty title={t('requisitions.requisition.no-history')} />}
         />
       </FormDialogBody>
       <FormDialogFooter>

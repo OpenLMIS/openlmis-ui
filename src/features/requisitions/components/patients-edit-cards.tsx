@@ -56,15 +56,14 @@ export const PatientEditRow = memo(function PatientEditRow({
     for (const month of overflowMonths.split(','))
       errors[patientFieldId(disease, row.key, Number(month))] = 'stock-events.number-too-large';
   const label = patientRowLabel(t, row.key);
-  const skip = (
-    <div className="flex size-7 items-center justify-center rounded-md bg-background">
-      <Checkbox
-        checked={row.isSkipped}
-        disabled={pending || (!row.isSkipped && patientRowHasValues(row))}
-        aria-label={`${t('requisitions.patients.skip')}: ${label}`}
-        onCheckedChange={(skipped) => editor.setPatientSkip(disease, row.key, skipped)}
-      />
-    </div>
+  const checkbox = (
+    <Checkbox
+      surface={cards ? 'background' : 'default'}
+      checked={row.isSkipped}
+      disabled={pending || (!row.isSkipped && patientRowHasValues(row))}
+      aria-label={t('requisitions.patients.skip-label', { row: label })}
+      onCheckedChange={(skipped) => editor.setPatientSkip(disease, row.key, skipped)}
+    />
   );
   const cell = (index: number) => (
     <PatientEditCell
@@ -86,7 +85,9 @@ export const PatientEditRow = memo(function PatientEditRow({
           <bdi>{label}</bdi>
         </CardBand>
         <CardRows>
-          <CardControlRow label={t('requisitions.patients.skip')}>{skip}</CardControlRow>
+          <CardControlRow label={t('requisitions.patients.skip')} width="fit">
+            {checkbox}
+          </CardControlRow>
           {PATIENT_MONTHS.filter((index) => !row.data[index].disabled).map((index) => (
             <CardControlRow
               key={index}
@@ -107,10 +108,14 @@ export const PatientEditRow = memo(function PatientEditRow({
       tone={row.isSkipped ? 'skipped' : undefined}
     >
       <TableCell sticky>
-        <div className="flex justify-center">{skip}</div>
+        <div className="flex justify-center">
+          <div className="flex size-7 items-center justify-center rounded-md bg-background">
+            {checkbox}
+          </div>
+        </div>
       </TableCell>
       <TableCell sticky stickyOffset={skipWidth}>
-        <bdi>{label}</bdi>
+        <bdi className="line-clamp-2 w-48 max-w-48 whitespace-normal">{label}</bdi>
       </TableCell>
       {PATIENT_MONTHS.map((index) => (
         <TableCell key={`month${index + 1}`}>{!row.data[index].disabled && cell(index)}</TableCell>
@@ -165,7 +170,7 @@ const PatientEditCell = memo(function PatientEditCell({
                 month: new Intl.NumberFormat(i18n.language).format(month + 1),
               })}
               layout="inline"
-              hideErrors={!cards}
+              hideErrors
               controlSize={cards ? 'default' : 'sm'}
               disabled={pending || row.isSkipped}
             />

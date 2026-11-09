@@ -1,6 +1,7 @@
-import axios, { isAxiosError } from 'axios';
+import axios, { AxiosError, type InternalAxiosRequestConfig, isAxiosError } from 'axios';
 import { SessionEndedError, waitForSession } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { withRequestPriority } from '@/lib/background-request-gate';
 import {
   getConnectionFailureGeneration,
   reportConnectionFailure,
@@ -15,6 +16,9 @@ declare module 'axios' {
     /** `false` for signing in and out, whose refusal is never an expired session. */
     session?: boolean;
     backgroundRead?: boolean;
+    backgroundDownload?: boolean;
+    downloadProvider?: string;
+    downloadTimeout?: number;
     connectionGeneration?: number;
     connectionStatus?: boolean;
     queueTransport?: QueueTransport;
@@ -42,6 +46,28 @@ useLoginData.subscribe(() => {
 });
 
 const bearer = (token: string | null) => (token ? `Bearer ${token}` : undefined);
+
+const prepareTransport = (config: InternalAxiosRequestConfig) => {
+  const adapter = axios.getAdapter(config.adapter ?? client.defaults.adapter);
+  config.adapter = async (request) => {
+    request.adapter = adapter;
+    return withRequestPriority(
+      !!request.backgroundDownload,
+      request.signal,
+      async () => {
+        if (!request.anonymous) assertSessionScope(request.sessionScope ?? getSessionScope());
+        if (request.backgroundDownload) {
+          if (useLoginData.getState().expired) throw new Error('The download session expired.');
+          const limit = request.downloadTimeout ?? 20_000;
+          request.timeout = Math.min(request.timeout || limit, limit);
+        }
+        return adapter(request);
+      },
+      request.downloadProvider,
+    );
+  };
+  return config;
+};
 
 // While the session is expired a request waits for the user to sign in again rather than fail.
 client.interceptors.request.use(async (config) => {
@@ -72,7 +98,7 @@ client.interceptors.request.use(async (config) => {
   if (config.backgroundRead && expired) throw new Error('The download session expired.');
   if (config.headers.Authorization || config.anonymous) {
     config.connectionGeneration = getConnectionFailureGeneration();
-    return config;
+    return prepareTransport(config);
   }
 
   const token =
@@ -84,12 +110,20 @@ client.interceptors.request.use(async (config) => {
   if (authorization) config.headers.Authorization = authorization;
 
   config.connectionGeneration = getConnectionFailureGeneration();
-  return config;
+  return prepareTransport(config);
 });
 
 // A refused token keeps the page as it is: the request waits for a new session, then is sent again.
 client.interceptors.response.use(
   (response) => {
+    if (response.config.backgroundDownload && typeof response.data === 'string')
+      throw new AxiosError(
+        'Non-JSON download response',
+        AxiosError.ERR_BAD_RESPONSE,
+        response.config,
+        undefined,
+        response,
+      );
     if (
       response.config.connectionStatus !== false &&
       (typeof response.data !== 'string' ||

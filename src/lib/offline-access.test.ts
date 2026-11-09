@@ -195,7 +195,8 @@ describe('durable access', () => {
   it('refreshes device access before a route can reuse revoked rights after reconnect', async () => {
     await saveAccess(readers());
     const client = queryClient();
-    client.setQueryData(userProgramsOptions('ada').queryKey, programs, { updatedAt: 1 });
+    client.setQueryData(userProgramsOptions('ada').queryKey, programs);
+    await client.invalidateQueries({ queryKey: userProgramsOptions('ada').queryKey });
     onlineManager.setOnline(false);
     await requireRight(client, 'STOCK_ADJUST');
     await client.fetchQuery(userRecordOptions('ada'));

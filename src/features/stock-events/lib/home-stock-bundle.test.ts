@@ -197,15 +197,36 @@ it('falls back on a timed-out read but never on service refusal or cancellation'
   await expect(getHomeStockBundle(filter)).rejects.toBe(canceled);
 });
 
+it('completes slow stock downloads without retrying or changing foreground read timeouts', async () => {
+  const adapter = client.defaults.adapter as import('axios').AxiosAdapter;
+  const summaryTimeouts: number[] = [];
+  client.defaults.adapter = async (config) => {
+    if (config.url === '/v2/stockCardSummaries') {
+      summaryTimeouts.push(config.timeout ?? 0);
+      if ((config.timeout ?? 0) < 25_000)
+        throw new AxiosError('Timed out', AxiosError.ECONNABORTED);
+    }
+    return adapter(config);
+  };
+  const bundle = await fetchHomeStockBundle(filter);
+  expect(bundle.cards).toHaveLength(2);
+  expect(summaryTimeouts).toEqual([60_000, 60_000]);
+  summaryTimeouts.length = 0;
+  await getHomeStockBundle(filter);
+  expect(summaryTimeouts).toEqual([60_000, 60_000]);
+});
+
 it('bounds timed-out background reads without declaring the browser offline', async () => {
   const adapter = vi.fn(async () => {
     throw new AxiosError('Timed out', AxiosError.ECONNABORTED);
   });
   client.defaults.adapter = adapter;
-  await expect(fetchHomeStockBundle(filter)).rejects.toMatchObject({
+  const controller = new AbortController();
+  await expect(fetchHomeStockBundle(filter, controller.signal)).rejects.toMatchObject({
     code: AxiosError.ECONNABORTED,
   });
-  expect(adapter).toHaveBeenCalledTimes(8);
+  controller.abort();
+  expect(adapter).toHaveBeenCalledTimes(2);
   expect(onlineManager.isOnline()).toBe(true);
 });
 
@@ -274,7 +295,7 @@ it.each(['axios', 'abort'] as const)(
     await downloading;
     const foreground = getHomeStockBundle(filter);
     await Promise.resolve();
-    expect(foregroundReads).toBe(0);
+    await waitFor(() => expect(foregroundReads).toBeGreaterThan(0));
     controller.abort();
     await rejected;
     expect((await foreground).cards).toHaveLength(2);
@@ -307,9 +328,7 @@ it.each(['foreground', 'coordinator'] as const)(
     };
     const background =
       source === 'coordinator'
-        ? expect(fetchHomeStockBundle(filter)).rejects.toMatchObject({
-            code: AxiosError.ERR_CANCELED,
-          })
+        ? expect(fetchHomeStockBundle(filter)).rejects.toBeInstanceOf(AxiosError)
         : undefined;
     const result = getHomeStockBundle(filter);
     await waitFor(() => expect(useLoginData.getState().expired).toBe(true));
@@ -324,14 +343,15 @@ it.each(['foreground', 'coordinator'] as const)(
   },
 );
 
-it('joins a coordinator download and retains scanning mappings without duplicating stock reads', async () => {
+it('reads foreground stock independently while coordinator scanning references download', async () => {
   const background = fetchHomeStockBundle(filter);
   const foreground = getHomeStockBundle(filter);
   const [downloaded, read] = await Promise.all([background, foreground]);
-  expect(read).toBe(downloaded);
+  expect(read.cards).toEqual(downloaded.cards);
+  expect(read.scanning).toBe(false);
   expect(downloaded.scanning).toBe(true);
   expect(downloaded.tradeItems).toEqual([{ id: 'trade', gtin: '123' }]);
-  expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(2);
+  expect(requests.filter((path) => path.startsWith('/v2/'))).toHaveLength(4);
   expect(requests.filter((path) => path.startsWith('/tradeItems'))).toHaveLength(2);
 });
 

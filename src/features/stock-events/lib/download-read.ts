@@ -3,7 +3,11 @@ import { OFFLINE_FRESH_FOR } from '@/lib/offline-freshness';
 import { isOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope, isSessionExpired } from '@/lib/session-scope';
 
-export async function retryDownloadRead<T>(read: () => Promise<T>, check: () => void): Promise<T> {
+export async function retryDownloadRead<T>(
+  read: () => Promise<T>,
+  check: () => void,
+  attempts = 2,
+): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     check();
     try {
@@ -12,7 +16,7 @@ export async function retryDownloadRead<T>(read: () => Promise<T>, check: () => 
       return result;
     } catch (error) {
       check();
-      if (attempt >= 1 || !isAxiosError(error) || error.code !== AxiosError.ECONNABORTED)
+      if (attempt + 1 >= attempts || !isAxiosError(error) || error.code !== AxiosError.ECONNABORTED)
         throw error;
     }
   }
@@ -31,5 +35,9 @@ export function downloadReader(config: AxiosRequestConfig & { signal?: AbortSign
     if (config.backgroundRead && (!isOnline() || isSessionExpired()))
       throw new AxiosError('Download stopped.', AxiosError.ERR_CANCELED);
   };
-  return { check, read: <T>(task: () => Promise<T>) => retryDownloadRead(task, check) };
+  return {
+    check,
+    read: <T>(task: () => Promise<T>) =>
+      retryDownloadRead(task, check, config.backgroundDownload ? 1 : 2),
+  };
 }

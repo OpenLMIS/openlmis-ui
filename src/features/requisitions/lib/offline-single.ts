@@ -17,16 +17,10 @@ import {
   processingPeriodOptions,
   programLookupOptions,
 } from '@/features/reference-data/api/queries';
-import { fetchStatusMessages, fetchUnskipSetting } from '@/features/requisitions/api/api';
+import type { fetchStatusMessages, fetchUnskipSetting } from '@/features/requisitions/api/api';
+import { mayViewCopy, readRequisitionAccess } from '@/features/requisitions/lib/offline-access';
 import {
-  mayViewCopy,
-  readRequisitionAccess,
-  waitForRequisitionAccess,
-} from '@/features/requisitions/lib/offline-access';
-import {
-  type CopyLease,
   type CopySummary,
-  commitCopy,
   completeSingle,
   newerServerRecord,
   readCopy,
@@ -35,7 +29,6 @@ import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { readDeploymentTimeZone } from '@/lib/deployment-time-zone';
 import { queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
-import { assertSessionScope } from '@/lib/session-scope';
 
 export type SingleReferences = {
   products: Awaited<ReturnType<typeof fetchOrderablesByIdentities>>;
@@ -75,57 +68,6 @@ export function singleSummary(
       ),
     extraData: record.extraData ?? undefined,
   };
-}
-export async function captureSingle(
-  client: QueryClient,
-  lease: CopyLease,
-  record: RequisitionRecord,
-  accessMode: 'wait' | 'read' = 'wait',
-) {
-  const [products, approved, facility, period, currency, program, messages, unskip] =
-    await Promise.all([
-      client.fetchQuery(
-        orderablesByIdentitiesOptions([
-          ...record.requisitionLineItems.map((l) => l.orderable),
-          ...(record.availableProducts ?? []),
-        ]),
-      ),
-      client.fetchQuery(
-        approvedProductsByIdentitiesOptions(
-          record.requisitionLineItems.flatMap((l) =>
-            l.approvedProduct ? [l.approvedProduct] : [],
-          ),
-        ),
-      ),
-      client.fetchQuery(facilityOptions(record.facility.id)),
-      client.fetchQuery(processingPeriodOptions(record.processingPeriod.id)),
-      client.fetchQuery(currencySettingsOptions()),
-      client.fetchQuery(programLookupOptions(record.program.id)),
-      fetchStatusMessages(record.id),
-      ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status)
-        ? fetchUnskipSetting()
-        : Promise.resolve(undefined),
-    ]);
-  assertSessionScope(lease.session);
-  const references = { products, approved, facility, period, currency, program, messages, unskip };
-  if (!singleComplete(record, references)) throw new LocalDataUnavailableError();
-  const access = await (accessMode === 'wait'
-    ? waitForRequisitionAccess()
-    : readRequisitionAccess());
-  assertSessionScope(lease.session);
-  if (!mayViewCopy(access, facility.id, program.id)) throw new LocalDataUnavailableError();
-  await commitCopy(lease, {
-    id: record.id,
-    userId: lease.userId,
-    formatVersion: 1,
-    generation: lease.generation,
-    revision: 0,
-    fetchedAt: Date.now(),
-    summary: singleSummary(record, references),
-    single: { record, references, fetchedAt: Date.now() },
-  });
-  assertSessionScope(lease.session);
-  return references;
 }
 export async function readSingle(id: string) {
   const copy = await readCopy(id);

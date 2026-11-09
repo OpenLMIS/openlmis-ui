@@ -22,6 +22,12 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { Route } from '@/routes/(protected)/_protected';
 import { expectRouteWarning } from '@/test-utils/expect-route-warning';
 
+vi.mock('@/routes/-requisition-preload', () => ({
+  preloadRequisitionReferences: vi.fn(async () => {}),
+  hasRequisitionReferences: vi.fn(async () => false),
+  warmRequisitionChunks: vi.fn(() => () => {}),
+}));
+
 vi.mock('@/components/app-shell/device-work', () => ({
   useDeviceWork: () => ({ hasDeviceEvents: false, countUnsyncedWork: async () => 0 }),
 }));

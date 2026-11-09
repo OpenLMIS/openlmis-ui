@@ -181,8 +181,10 @@ test('removal rejects a stale dirty warning and stops the other tab from recreat
     const list = await context.newPage();
     await list.goto(`./requisitions/view?facility=${home}&offline=true`);
     const openRemoval = async () => {
-      await list.getByRole('button', { name: /Actions For/i }).click();
-      await list.getByRole('menuitem', { name: 'Remove From This Device' }).click();
+      await list
+        .getByRole('group', { name: /^Actions For/ })
+        .getByRole('button', { name: 'Remove From This Device', exact: true })
+        .click();
       await expect(list.getByRole('alertdialog')).toContainText('unsynced changes');
     };
     await openRemoval();
@@ -225,7 +227,11 @@ test('reconnect rechecks the server version and rights before sending saved loca
   const directory = await mkdtemp(join(tmpdir(), 'openlmis-requisition-reconnect-'));
   const context = await persistentContext(directory);
   const mutations: string[] = [];
-  const controls: { modifiedDate?: string; noCreate?: boolean } = {};
+  const controls: { modifiedDate?: string; requestedQuantity?: number; noCreate?: boolean } = {};
+  const sequence: string[] = [];
+  context.on('request', (request) => {
+    sequence.push(`${request.method()} ${new URL(request.url()).pathname}`);
+  });
   try {
     await requisitionStubs(context, mutations, controls);
     const page = context.pages()[0];
@@ -239,17 +245,30 @@ test('reconnect rechecks the server version and rights before sending saved loca
     await expect(
       page.getByRole('button', { name: 'Save/Sync With Server', exact: true }),
     ).toBeDisabled();
+    sequence.length = 0;
     controls.modifiedDate = '2026-11-04T10:00:00Z';
+    controls.requestedQuantity = 3;
     await context.setOffline(false);
     await page.getByRole('button', { name: 'Save/Sync With Server', exact: true }).click();
-    await expect(page.getByRole('alertdialog')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Resolve Changed Fields' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Your Values: 5', exact: true })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Server Values: 3', exact: true })).toBeVisible();
+    expect(sequence).toContain('GET /api/users/download-user/permissionStrings');
+    expect(sequence).toContain(`GET /api/v2/requisitions/${requisition}`);
     expect(mutations).toEqual([]);
     expect((await records(page, 'requisitionDrafts'))[0]).toMatchObject({
       modifiedDate: '2026-11-03T10:00:00Z',
     });
+    await page
+      .getByRole('dialog', { name: 'Resolve Changed Fields' })
+      .getByRole('button', { name: 'Close', exact: true })
+      .first()
+      .click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Close', exact: true }).click();
     controls.modifiedDate = undefined;
+    controls.requestedQuantity = undefined;
     controls.noCreate = true;
+    sequence.length = 0;
     await context.setOffline(true);
     await expect(
       page.getByRole('button', { name: 'Save/Sync With Server', exact: true }),
@@ -258,6 +277,7 @@ test('reconnect rechecks the server version and rights before sending saved loca
     await page.getByRole('button', { name: 'Save/Sync With Server', exact: true }).click();
     await expect(page.getByRole('alertdialog')).toBeVisible();
     expect(mutations).toEqual([]);
+    expect(sequence).toContain('GET /api/users/download-user/permissionStrings');
     expect(await records(page, 'requisitionDrafts')).toHaveLength(1);
   } finally {
     await context.unrouteAll({ behavior: 'ignoreErrors' });
@@ -277,7 +297,7 @@ test('an incomplete available-product download never publishes offline readiness
     const page = context.pages()[0];
     await login(page, 'download-user', 'View Requisitions', '/requisitions/view');
     await page.goto(`./requisitions/view/${requisition}?tab=fullSupply`);
-    await expect(page.getByText('Copy Not Saved', { exact: true })).toBeVisible();
+    await expect(page.getByRole('alert')).toContainText('Offline Access Unavailable');
     expect(await records(page, 'requisitionCopies')).toEqual([]);
     await waitForOfflineShell(page);
     await context.setOffline(true);

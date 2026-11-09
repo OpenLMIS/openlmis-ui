@@ -1,4 +1,4 @@
-import { isAxiosError } from 'axios';
+import { type AxiosRequestConfig, isAxiosError } from 'axios';
 import type { RejectionReason } from '@/features/reference-data/lib/types';
 import type { toApprovalQuery } from '@/features/requisitions/lib/approval-search';
 import { type batchSaveBody, orderBatch } from '@/features/requisitions/lib/batch';
@@ -52,7 +52,7 @@ export async function saveRequisition(
   const { data, headers } = await client.put<RequisitionRecord>(
     `/v2/requisitions/${record.id}`,
     transformRequisition(record, addedLineIds),
-    { headers: record.eTag ? { 'If-Match': record.eTag } : {} },
+    { timeout: 0, headers: record.eTag ? { 'If-Match': record.eTag } : {} },
   );
   assertSessionScope(scope);
   return { ...data, eTag: headers.etag as string | undefined };
@@ -71,7 +71,7 @@ async function transition(
 ) {
   assertSessionScope(attempt.sessionScope);
   try {
-    const config = { headers: { 'Idempotency-Key': attempt.key } };
+    const config = { timeout: 0, headers: { 'Idempotency-Key': attempt.key } };
     const path = `/requisitions/${id}/${action}`;
     const response =
       action === 'reject'
@@ -105,7 +105,7 @@ export const skipRequisition = (id: string, attempt: RequisitionActionAttempt) =
   transition(id, 'skip', attempt);
 export async function deleteRequisition(id: string) {
   const scope = getSessionScope();
-  await client.delete(`/requisitions/${id}`);
+  await client.delete(`/requisitions/${id}`, { timeout: 0 });
   assertSessionScope(scope);
 }
 
@@ -131,6 +131,7 @@ export async function initiateRequisition(
         emergency: params.emergency,
       },
       headers: { 'Idempotency-Key': attempt.key },
+      timeout: 0,
     },
   );
   assertSessionScope(attempt.sessionScope);
@@ -151,10 +152,13 @@ export async function fetchUnskipSetting() {
   return data;
 }
 
-export async function fetchApprovalList(params: ReturnType<typeof toApprovalQuery>) {
+export async function fetchApprovalList(
+  params: ReturnType<typeof toApprovalQuery>,
+  config?: AxiosRequestConfig,
+) {
   const { data } = await client.get<Page<ApprovalListRow>>(
     '/requisitions/requisitionsForApproval',
-    { params, paramsSerializer: { indexes: null } },
+    { ...config, params, paramsSerializer: { indexes: null } },
   );
   return data;
 }
@@ -177,6 +181,7 @@ export async function releaseRequisitions(body: ReleaseBody) {
   const scope = getSessionScope();
   await client.post('/requisitions/batchReleases', body, {
     headers: { 'Idempotency-Key': randomId() },
+    timeout: 0,
   });
   assertSessionScope(scope);
 }
@@ -207,8 +212,8 @@ export async function fetchBatchRequisitions(ids: readonly string[]) {
   return orderBatch(data, ids);
 }
 export const saveBatchRequisitions = (body: ReturnType<typeof batchSaveBody>) =>
-  batchRequest(() => client.put('/requisitions', body, { params: { saveAll: '' } }));
+  batchRequest(() => client.put('/requisitions', body, { params: { saveAll: '' }, timeout: 0 }));
 export const approveBatchRequisitions = (ids: readonly string[]) =>
   batchRequest(() =>
-    client.post('/requisitions', {}, { params: { approveAll: '', id: ids.join(',') } }),
+    client.post('/requisitions', {}, { params: { approveAll: '', id: ids.join(',') }, timeout: 0 }),
   );

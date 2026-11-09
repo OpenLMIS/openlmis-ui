@@ -34,7 +34,10 @@ import {
   rejectionReasonsOptions,
 } from '@/features/reference-data/api/queries';
 import type { RejectionReason } from '@/features/reference-data/lib/types';
-import { availableRejectReasons } from '@/features/requisitions/lib/reject-reasons';
+import {
+  availableRejectCategories,
+  availableRejectReasons,
+} from '@/features/requisitions/lib/reject-reasons';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 
 const helper = createColumnHelper<DataTableFeatures, RejectionReason>();
@@ -142,10 +145,10 @@ function LoadedRejectReasonsDialog({
                 <field.SelectField
                   label={t('requisitions.reject.category')}
                   placeholder={t('requisitions.reject.category')}
-                  items={categories
-                    .filter((c) => c.active)
-                    .toSorted((a, b) => a.name.localeCompare(b.name))
-                    .map((c) => ({ value: c.id, label: c.name }))}
+                  items={availableRejectCategories(categories, available).map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                  }))}
                 />
               )}
             </form.AppField>
@@ -169,7 +172,15 @@ function LoadedRejectReasonsDialog({
             variant="outline"
             onClick={() => {
               const reason = available.find((reason) => reason.id === reasonId);
-              if (reason) setSelected((current) => [...current, reason]);
+              if (reason) {
+                setSelected((current) => [...current, reason]);
+                if (
+                  !available.some(
+                    (item) => item.id !== reason.id && item.rejectionReasonCategory.id === category,
+                  )
+                )
+                  form.setFieldValue('category', '');
+              }
               form.setFieldValue('reason', '');
             }}
           >

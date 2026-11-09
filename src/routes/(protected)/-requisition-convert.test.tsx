@@ -19,12 +19,13 @@ import {
   fetchRequisition,
   releaseRequisitions,
 } from '@/features/requisitions/api/api';
+import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
 import { reportCaughtError } from '@/lib/report-error';
 import { Route } from '@/routes/(protected)/_protected.requisitions.convert';
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/local-data', async (original) => ({
   ...(await original<typeof import('@/lib/local-data')>()),
   requireOnline: vi.fn(),
@@ -106,12 +107,12 @@ afterEach(() => {
 });
 
 it.each([
-  ['', { page: 0, size: 20 }],
+  ['', { page: 0, size: 10 }],
   [
     '?page=3&dir=asc&programId=11111111-1111-4111-8111-111111111111',
     {
       page: 2,
-      size: 20,
+      size: 10,
       programId: '11111111-1111-4111-8111-111111111111',
     },
   ],
@@ -172,9 +173,11 @@ async function confirm() {
   );
 }
 it.each([true, false])(
-  'sends one batch with current depots and refreshes on success (%s)',
+  'sends one batch with current depots, removes saved copies and refreshes (%s)',
   async (createOrder) => {
     rows();
+    const copies = getLocalDb().table(LOCAL_TABLES.requisitionCopies);
+    await copies.put({ id: 'March', userId: 'u' });
     vi.mocked(releaseRequisitions).mockImplementation(async () => {
       rows([row('April')]);
     });
@@ -190,6 +193,7 @@ it.each([true, false])(
       }),
     );
     await screen.findAllByText('April');
+    expect(await copies.get('March')).toBeUndefined();
     await waitFor(() =>
       expect(screen.getByRole('region', { name: 'requisitions.convert.title' })).toHaveFocus(),
     );
@@ -225,23 +229,6 @@ it('requires a depot before confirming and focuses it after closing validation',
       screen.getByRole('combobox', { name: 'requisitions.convert.depot-label' }),
     ).toHaveFocus(),
   );
-  queryClient.clear();
-});
-it('shows a 400 server message while retaining ticks for correction', async () => {
-  rows();
-  vi.mocked(releaseRequisitions).mockRejectedValue(
-    new AxiosError('Bad', undefined, undefined, undefined, {
-      status: 400,
-      data: { message: 'Approved quantity must be displayed' },
-    } as never),
-  );
-  const { queryClient } = renderRoute('/requisitions/convert');
-  await selectRow();
-  await action();
-  await confirm();
-  await screen.findByText('Approved quantity must be displayed');
-  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
-  expect(screen.getAllByRole('checkbox').at(-1)).toBeChecked();
   queryClient.clear();
 });
 it.each([502, 400, undefined])(
@@ -370,25 +357,29 @@ it('checks every submitted status and clears all ticks after a 502', async () =>
   expect(boxes[2]).not.toBeChecked();
   queryClient.clear();
 });
-it.each([true, false])(
-  'validates empty selection for action %s without a request',
-  async (createOrder) => {
-    rows();
-    const { queryClient } = renderRoute('/requisitions/convert');
-    await screen.findAllByText('March');
-    await action(createOrder);
-    await screen.findByText(
-      createOrder
-        ? 'requisitions.convert.select-none-convert'
-        : 'requisitions.convert.select-none-release',
-    );
-    expect(
-      screen.getByRole('heading', { name: 'requisitions.convert.select-none' }),
-    ).toBeInTheDocument();
-    expect(releaseRequisitions).not.toHaveBeenCalled();
-    queryClient.clear();
-  },
-);
+it('shows release actions only in the selection footer', async () => {
+  rows();
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await screen.findAllByText('March');
+  expect(
+    screen.queryByRole('button', { name: /^requisitions.convert.release/ }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: /^requisitions.convert.convert/ }),
+  ).not.toBeInTheDocument();
+  await selectRow();
+  expect(
+    screen
+      .getByRole('button', { name: /^requisitions.convert.convert/ })
+      .closest('[data-slot="selection-footer"]'),
+  ).toBeInTheDocument();
+  expect(
+    screen
+      .getByRole('button', { name: /^requisitions.convert.release/ })
+      .closest('[data-slot="selection-footer"]'),
+  ).toBeInTheDocument();
+  queryClient.clear();
+});
 
 it('closes confirmation on a filter change while retaining the selected requisition', async () => {
   rows();
@@ -634,5 +625,77 @@ it('allows release of a reselected unresolved row with only the normal release c
   await action(false);
   await screen.findByText('requisitions.convert.release-confirm');
   expect(screen.queryByText('requisitions.convert.retry-confirm')).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('reports successful release even when local copy retirement fails', async () => {
+  const { toast } = await import('sonner');
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  vi.spyOn(copies, 'retireCopy').mockRejectedValueOnce(new Error('Storage unavailable'));
+  rows();
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action(false);
+  await confirm();
+  await waitFor(() =>
+    expect(toast.success).toHaveBeenCalledWith(
+      'requisitions.convert.release-success',
+      expect.anything(),
+    ),
+  );
+  expect(screen.queryByText('requisitions.convert.release-unknown')).not.toBeInTheDocument();
+  expect(toast.error).toHaveBeenCalledWith('requisitions.offline.failed-title', {
+    description: 'requisitions.offline.failed-description',
+  });
+  queryClient.clear();
+});
+
+it('retires later released copies when the first retirement fails', async () => {
+  const copies = await import('@/features/requisitions/lib/offline-copies');
+  const retire = vi
+    .spyOn(copies, 'retireCopy')
+    .mockRejectedValueOnce(new Error('Storage unavailable'));
+  rows([row('March'), row('April')], 2);
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await screen.findAllByText('March');
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  await action(false);
+  await confirm();
+  await waitFor(() => expect(releaseRequisitions).toHaveBeenCalledOnce());
+  await waitFor(() => expect(retire).toHaveBeenCalledTimes(2));
+  expect(retire.mock.calls.map(([lease]) => lease.id)).toEqual(['March', 'April']);
+  queryClient.clear();
+});
+
+it('clears a definite refused selection and restores list focus after closing its error', async () => {
+  rows();
+  vi.mocked(releaseRequisitions).mockRejectedValueOnce(
+    new AxiosError('Refused', undefined, undefined, undefined, {
+      status: 400,
+      data: { message: 'Refused March' },
+    } as never),
+  );
+  const { queryClient } = renderRoute('/requisitions/convert');
+  await selectRow();
+  await action();
+  await confirm();
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'Refused Family Planning - HC01 - Comfort - March',
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() =>
+    expect(screen.getByRole('region', { name: 'requisitions.convert.title' })).toHaveFocus(),
+  );
+  expect(screen.getAllByRole('checkbox').at(-1)).not.toBeChecked();
+  expect(screen.queryByText('requisitions.convert.uncertain')).not.toBeInTheDocument();
+  vi.mocked(releaseRequisitions).mockResolvedValueOnce(undefined);
+  await selectRow();
+  await action(false);
+  await confirm();
+  await waitFor(() =>
+    expect(releaseRequisitions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ createOrder: false }),
+    ),
+  );
   queryClient.clear();
 });

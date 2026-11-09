@@ -36,9 +36,11 @@ export const BatchQuantity = memo(function BatchQuantity({
   const id = batchFieldId(record.id, line.id);
   return (
     <Field spacing="tight" surface="background" data-invalid={!!error}>
-      <span className="sr-only" id={`${id}-error`}>
-        {error ? t(error) : ''}
-      </span>
+      <div className="contents">
+        <span className="sr-only" id={`${id}-error`}>
+          {error ? t(error) : ''}
+        </span>
+      </div>
       <Tooltip disabled={!error} open={!!error && open} onOpenChange={setOpen}>
         <TooltipTrigger
           render={<div className="min-w-24" />}
@@ -48,7 +50,10 @@ export const BatchQuantity = memo(function BatchQuantity({
         >
           <Input
             id={id}
-            aria-label={`${batchLabel(record)}: ${line.orderable.productCode}: ${t('requisitions.batch.approved-quantity')}`}
+            aria-label={t('requisitions.batch.quantity-label', {
+              facility: batchLabel(record),
+              code: line.orderable.productCode,
+            })}
             aria-invalid={!!error}
             aria-describedby={error ? `${id}-error` : undefined}
             controlSize={controlSize}

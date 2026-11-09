@@ -7,11 +7,17 @@ import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { OfflineNotice } from '@/components/app-shell/offline-notice';
 import { PageVisibility } from '@/components/shared/page-visibility';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { queryClient } from '@/integrations/tanstack-query';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { canRetainPageOffline, isOfflineCapable } from '@/lib/offline-pages';
 import { isOnline, seedOnline, useOnline } from '@/lib/online';
 import { loginSearch } from '@/lib/redirect';
 import { getSessionScope, useSessionScope } from '@/lib/session-scope';
+import {
+  hasRequisitionReferences,
+  preloadRequisitionReferences,
+  warmRequisitionChunks,
+} from '@/routes/-requisition-preload';
 
 export const Route = createFileRoute('/(protected)/_protected')({
   beforeLoad: ({ location, context }) => {
@@ -24,10 +30,17 @@ export const Route = createFileRoute('/(protected)/_protected')({
       location.pathname !== context.getResolvedPathname?.()
     )
       throw new OfflinePageUnavailableError();
+    const userId = useLoginData.getState().referenceDataUserId;
+    if (userId && isOnline())
+      void preloadRequisitionReferences(context.queryClient, userId).catch(() => {});
     return { sessionScope: getSessionScope() };
   },
   component: ProtectedLayout,
-  pendingComponent: AppShellSkeleton,
+  pendingComponent: () => (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  ),
   errorComponent: (props) => (
     <AppShell>
       <ErrorFallback {...props} />
@@ -37,12 +50,30 @@ export const Route = createFileRoute('/(protected)/_protected')({
 
 function ProtectedLayout() {
   const online = useOnline();
+  const userId = useLoginData((state) => state.referenceDataUserId);
   const { pathname } = useLocation();
   const available = online || canRetainPageOffline(pathname);
   const scope = useSessionScope();
   const context = Route.useRouteContext();
   const [loadedScope, setLoadedScope] = useState(context.sessionScope);
   const router = useRouter();
+  useEffect(() => {
+    if (!userId || !online) return;
+    let active = true;
+    let stop: (() => void) | undefined;
+    void hasRequisitionReferences(queryClient, userId)
+      .then((allowed) => {
+        if (active && allowed && scope === getSessionScope()) {
+          stop = warmRequisitionChunks(router);
+          void preloadRequisitionReferences(queryClient, userId).catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      stop?.();
+    };
+  }, [router, userId, online, scope]);
   const contentRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);

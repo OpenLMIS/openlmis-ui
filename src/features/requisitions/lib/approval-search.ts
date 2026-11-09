@@ -9,7 +9,7 @@ export const approvalSearchSchema = tableSearchSchema(['authorizedDate']).extend
 });
 export type ApprovalSearch = z.infer<typeof approvalSearchSchema>;
 export function toApprovalQuery(search: ApprovalSearch) {
-  const { pageIndex, pageSize } = toPaginationState(search, 20);
+  const { pageIndex, pageSize } = toPaginationState(search, 10);
   return {
     page: pageIndex,
     size: pageSize,
@@ -21,10 +21,8 @@ export type ApprovalSelection = ReadonlyMap<
   string,
   { programId: string; label: string; rowIndex: number; record?: ApprovalListRow }
 >;
-export function approvalSelectionError(selected: readonly { programId: string }[]) {
-  if (!selected.length) return 'none';
-  if (new Set(selected.map(({ programId }) => programId)).size !== 1) return 'mixed';
-}
+export const approvalProgramsMixed = (selected: readonly { programId: string }[]) =>
+  new Set(selected.map(({ programId }) => programId)).size > 1;
 export const approvalScope = (search: ApprovalSearch, online = true) =>
   JSON.stringify([search.program, search.offline || !online || undefined, search.sort, search.dir]);
 

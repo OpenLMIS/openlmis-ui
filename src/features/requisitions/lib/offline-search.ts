@@ -46,9 +46,12 @@ export function searchCopies(
     );
 }
 export async function localRequisitions(search: RequisitionsQuery, timeZone: string) {
-  const access = await readRequisitionAccess();
-  const copies = (await readCopies()).filter((copy) =>
-    mayViewCopy(access, copy.summary.facility.id, copy.summary.program.id),
+  const access = await readRequisitionAccess().catch((error: unknown) => {
+    if (!(error instanceof LocalDataUnavailableError)) throw error;
+    return undefined;
+  });
+  const copies = (await readCopies()).filter(
+    (copy) => !access || mayViewCopy(access, copy.summary.facility.id, copy.summary.program.id),
   );
   return localPage(
     searchCopies(copies, search, timeZone).map((copy) => copy.summary),
@@ -57,7 +60,7 @@ export async function localRequisitions(search: RequisitionsQuery, timeZone: str
   );
 }
 export async function localApprovals(search: ApprovalSearch) {
-  if (!search.program) throw new LocalDataUnavailableError();
+  if (!search.program) return localPage([], (search.page ?? 1) - 1, search.size ?? 20);
   const access = await readRequisitionAccess();
   const direction = search.dir === 'asc' ? 1 : -1;
   const copies = (await readCopies()).filter(

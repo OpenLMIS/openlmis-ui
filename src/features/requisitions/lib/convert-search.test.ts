@@ -40,7 +40,7 @@ it('validates every ticked row and builds both actions from current depots acros
   }
 });
 it('always sends size and never sends sort', () => {
-  expect(toConvertQuery({})).toEqual({ page: 0, size: 20 });
+  expect(toConvertQuery({})).toEqual({ page: 0, size: 10 });
   expect(toConvertQuery({ page: 3, size: 2, programId: 'p', facilityId: 'f' })).toEqual({
     page: 2,
     size: 2,

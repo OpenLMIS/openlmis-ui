@@ -10,6 +10,7 @@ import {
   readCopy,
   removalDecision,
   removeCopy,
+  retireCopy,
 } from './offline-copies';
 import type { SingleReferences } from './offline-single';
 
@@ -337,3 +338,208 @@ it('keeps confirmed status when an older clean capture finishes later, but accep
     batch: { confirmedApproval: { status: 'APPROVED' } },
   });
 });
+
+it('retires both representations after an action and prevents an old capture restoring them', async () => {
+  const lease = await beginCopy('r');
+  await commitCopy(lease, ready(lease));
+  for (const name of [LOCAL_TABLES.requisitionDrafts, LOCAL_TABLES.requisitionBatchDrafts]) {
+    await getLocalDb()
+      .table(name)
+      .bulkPut([{ draftId: 'r' }, { draftId: 'other' }]);
+  }
+  await retireCopy(lease);
+  for (const name of [LOCAL_TABLES.requisitionDrafts, LOCAL_TABLES.requisitionBatchDrafts]) {
+    expect(await getLocalDb().table(name).get('r')).toBeUndefined();
+    expect(await getLocalDb().table(name).get('other')).toBeDefined();
+  }
+  expect(await readCopy('r')).toBeUndefined();
+  await expect(commitCopy(lease, ready(lease))).rejects.toThrow();
+});
+
+it('refreshes the list status while retaining dirty batch values and their baseline', async () => {
+  const lease = await beginCopy('r');
+  const first = ready(lease);
+  await commitCopy(lease, first);
+  await getLocalDb()
+    .table(LOCAL_TABLES.requisitionBatchDrafts)
+    .put({
+      draftId: 'r',
+      userId: lease.userId,
+      formatVersion: 1,
+      revision: 1,
+      approvedQuantities: { line: 12 },
+    });
+  await commitCopy(lease, {
+    ...first,
+    summary: { ...first.summary, status: 'APPROVED' },
+    batch: {
+      ...first.batch,
+      record: { ...first.batch.record, status: 'APPROVED', modifiedDate: 'new' },
+    },
+  });
+  const copy = await readCopy('r');
+  expect(copy?.summary.status).toBe('APPROVED');
+  expect(copy?.batch?.record.status).toBe('AUTHORIZED');
+  expect(await getLocalDb().table(LOCAL_TABLES.requisitionBatchDrafts).get('r')).toMatchObject({
+    approvedQuantities: { line: 12 },
+  });
+});
+
+it('retains the retired facility and period label on sibling batch errors', async () => {
+  const first = await beginCopy('r');
+  const sibling = await beginCopy('other');
+  await commitCopy(first, ready(first));
+  const copy = ready(sibling);
+  copy.batch.requestedIds = ['r', 'other'];
+  copy.summary.id = 'other';
+  await commitCopy(sibling, copy);
+  await retireCopy(first);
+  expect((await readCopy('other'))?.batch?.errors[0]).toMatchObject({
+    requisitionId: 'r',
+    label: 'Clinic - November',
+  });
+});
+
+it('checks large product identity sets without quadratic scans', async () => {
+  const { completeSingle } = await import('./offline-copies');
+  const { record, product } = await import('./fixtures/builders');
+  const base = { ...record(), id: 'r', facility: { id: 'f' }, processingPeriod: { id: 'period' } };
+  const products = Array.from({ length: 10003 }, (_, index) => ({
+    ...product(),
+    id: String(index),
+  }));
+  let reads = 0;
+  const counted = products.map((product) => ({
+    ...product,
+    get id() {
+      reads++;
+      return product.id;
+    },
+  }));
+  const refs = {
+    products: counted,
+    approved: [],
+    messages: [],
+    currency: {},
+    facility: base.facility,
+    program: base.program,
+    period: base.processingPeriod,
+  } as unknown as SingleReferences;
+  expect(
+    completeSingle(
+      {
+        ...base,
+        requisitionLineItems: [],
+        availableProducts: products.map((p) => ({ id: p.id, versionNumber: 1 })),
+      },
+      refs,
+    ),
+  ).toBe(true);
+  expect(reads).toBeLessThan(products.length * 20);
+});
+
+it.each(['Sync', 'Approve'])(
+  'retains newer single and batch records when opening capture finishes after %s',
+  async (action) => {
+    const { record } = await import('./fixtures/builders');
+    const lease = await beginCopy('r');
+    const copy = ready(lease);
+    const singleRecord = {
+      ...record(),
+      id: 'r',
+      status: 'AUTHORIZED' as RequisitionStatus,
+      modifiedDate: '2026-11-04T10:00:00.000001Z',
+      facility: { id: 'f' },
+      program: { id: 'p' },
+      processingPeriod: { id: 'period' },
+      requisitionLineItems: [],
+    };
+    const single = {
+      record: singleRecord,
+      fetchedAt: 1,
+      references: {
+        facility: {
+          id: 'f',
+          code: 'F',
+          name: 'Clinic',
+          active: true,
+          enabled: true,
+          type: { id: 'type', code: 'T', name: 'Type' },
+          geographicZone: { id: 'zone', code: 'Z', name: 'Zone', level: { name: 'Level' } },
+        },
+        program: { id: 'p', code: 'P', name: 'Program', active: true },
+        period: {
+          id: 'period',
+          name: 'November',
+          startDate: '2026-11-01',
+          endDate: '2026-11-30',
+          durationInMonths: 1,
+        },
+        products: [],
+        approved: [],
+        messages: [],
+        currency: copy.batch.currency,
+        unskip: { unskipRequisition: true },
+      } satisfies SingleReferences,
+    };
+
+    copy.batch.record.modifiedDate = singleRecord.modifiedDate;
+    const opening = { ...copy, single };
+    await commitCopy(lease, opening);
+    const fresh = {
+      ...opening,
+      fetchedAt: 2,
+      summary: {
+        ...opening.summary,
+        status: action === 'Approve' ? ('APPROVED' as const) : ('AUTHORIZED' as const),
+      },
+      single: {
+        ...single,
+        record: { ...singleRecord, modifiedDate: '2026-11-04T10:00:00.000002Z' },
+      },
+      batch: {
+        ...copy.batch,
+        approvalNodes: ['new-node'],
+        approvalVerified: false,
+        errors: [{ requisitionId: 'r', errorMessage: { message: 'New failure' } }],
+        record: {
+          ...copy.batch.record,
+          modifiedDate: '2026-11-04T10:00:00.000002Z',
+          requisitionLineItems: [
+            {
+              id: 'saved-line',
+              approvedQuantity: 25,
+              skipped: false,
+              orderable: {
+                id: 'product',
+                productCode: 'P',
+                fullProductName: 'Product',
+                netContent: 1,
+                roundToZero: false,
+              },
+            },
+          ],
+        },
+      },
+    };
+    fresh.single.record.status = fresh.summary.status;
+    fresh.batch.record.status = fresh.summary.status;
+    const access = Promise.withResolvers<void>();
+    const openingCapture = access.promise.then(() => commitCopy(lease, opening));
+    await commitCopy(lease, fresh);
+    if (action === 'Approve') await confirmBatchApproval(lease, fresh.batch.record);
+    access.resolve();
+    await openingCapture;
+    expect(await readCopy('r')).toMatchObject({
+      single: fresh.single,
+      batch: {
+        record: fresh.batch.record,
+        approvalNodes: fresh.batch.approvalNodes,
+        approvalVerified: false,
+        errors: fresh.batch.errors,
+      },
+      fetchedAt: fresh.fetchedAt,
+      summary: fresh.summary,
+    });
+  },
+);

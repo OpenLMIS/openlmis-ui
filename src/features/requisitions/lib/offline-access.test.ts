@@ -11,7 +11,7 @@ import {
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import type { OfflineAccess } from '@/lib/offline-access';
 import { captureBatch, readBatch } from './offline-batch';
-import { beginCopy, readCopy } from './offline-copies';
+import { beginCopy, readCopy, retireCopy } from './offline-copies';
 
 vi.mock('@/features/requisitions/api/api', () => ({ fetchApprovalList: vi.fn() }));
 
@@ -83,7 +83,7 @@ it('uses exact saved VIEW pairs and APPROVE program/node assignments independent
   expect(mayApproveCopy(data, 'f', 'p')).toBe(true);
   expect(mayApproveCopy(data, 'another', 'p')).toBe(false);
 });
-it('requires a complete choices generation matching generic access and the current owner', async () => {
+it('retains the last complete choices after a newer general access download', async () => {
   const data = access();
   await getLocalDb().table(LOCAL_TABLES.offlineAccess).put(data.access);
   await getLocalDb().table(LOCAL_TABLES.requisitionAccess).put(data.saved);
@@ -91,11 +91,7 @@ it('requires a complete choices generation matching generic access and the curre
   await getLocalDb()
     .table(LOCAL_TABLES.offlineAccess)
     .put({ ...data.access, generation: 'renewed' });
-  await expect(readRequisitionAccess()).rejects.toThrow();
-  await getLocalDb()
-    .table(LOCAL_TABLES.requisitionAccess)
-    .put({ ...data.saved, generation: 'renewed', userId: 'foreign' });
-  await expect(readRequisitionAccess()).rejects.toThrow();
+  expect((await readRequisitionAccess()).saved.generation).toBe('access');
 });
 it('waits for the coordinator to publish matching choices when a record opens during sign-in', async () => {
   const { waitForRequisitionAccess } = await import('./offline-access');
@@ -229,9 +225,7 @@ it('reads fresh approval membership through later pages, rejects absent ids and 
   expect(vi.mocked(fetchApprovalList).mock.calls.map(([query]) => query.page)).toEqual([0, 1]);
   const previous = await readCopy('r');
   vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([]));
-  await expect(
-    captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read'),
-  ).rejects.toThrow();
+  await captureBatch([lease], { requisitionDtos: [batchRecord] }, currency, 'read');
   expect(await readCopy('r')).toMatchObject({
     fetchedAt: previous?.fetchedAt,
     batch: { record: batchRecord },
@@ -243,9 +237,7 @@ it('does not certify a VIEW-only batch read from stale history and an unrelated 
   data.saved.groups[0].memberFacilities = [];
   await publish(data);
   vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([]));
-  await expect(
-    captureBatch([await beginCopy('r')], { requisitionDtos: [batchRecord] }, currency, 'read'),
-  ).rejects.toThrow();
+  await captureBatch([await beginCopy('r')], { requisitionDtos: [batchRecord] }, currency, 'read');
   expect(await readCopy('r')).toBeUndefined();
 });
 it('recertifies dirty batch access after grant removal without changing quantities, baseline or unknown evidence', async () => {
@@ -329,4 +321,84 @@ it('does not retain approval certification after a per-record batch read refusal
     batch: { record: batchRecord },
   });
   await expect(readBatch(['r'])).rejects.toThrow();
+});
+
+it('saves the remaining approval copies when one record has left the approval list', async () => {
+  await publish(access());
+  vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([summary]));
+  const leases = await Promise.all(['gone', 'r'].map(beginCopy));
+  await captureBatch(
+    leases,
+    { requisitionDtos: [{ ...batchRecord, id: 'gone', status: 'APPROVED' }, batchRecord] },
+    currency,
+    'read',
+  );
+  expect((await readCopy('r'))?.batch?.record.id).toBe('r');
+  expect(await readCopy('gone')).toBeUndefined();
+  const saved = await readBatch(['gone', 'r']);
+  expect(saved.response.requisitionDtos?.map((r) => r.id)).toEqual(['r']);
+  expect(saved.response.requisitionErrors).toEqual([
+    expect.objectContaining({ requisitionId: 'gone' }),
+  ]);
+});
+
+it('reopens sibling batch copies after one saved requisition is retired', async () => {
+  await publish(access());
+  vi.mocked(fetchApprovalList).mockResolvedValue(
+    approvalPage([summary, { ...summary, id: 'other' }]),
+  );
+  const leases = await Promise.all(['r', 'other'].map(beginCopy));
+  await captureBatch(
+    leases,
+    { requisitionDtos: [batchRecord, { ...batchRecord, id: 'other' }] },
+    currency,
+    'read',
+  );
+  await retireCopy(leases[0]);
+  const saved = await readBatch(['r', 'other']);
+  expect(saved.response.requisitionDtos?.map((r) => r.id)).toEqual(['other']);
+  expect(saved.response.requisitionErrors).toEqual([
+    expect.objectContaining({ requisitionId: 'r' }),
+  ]);
+});
+
+it('reopens siblings when an existing copy loses its approval-list membership', async () => {
+  await publish(access());
+  const leases = await Promise.all(['r', 'gone'].map(beginCopy));
+  const response = { requisitionDtos: [batchRecord, { ...batchRecord, id: 'gone' }] };
+  vi.mocked(fetchApprovalList).mockResolvedValue(
+    approvalPage([summary, { ...summary, id: 'gone' }]),
+  );
+  await captureBatch(leases, response, currency, 'read');
+  await getLocalDb()
+    .table(LOCAL_TABLES.requisitionBatchDrafts)
+    .put({
+      draftId: 'r',
+      userId: leases[0].userId,
+      formatVersion: 1,
+      revision: 1,
+      approvedQuantities: { line: '5' },
+    });
+  vi.mocked(fetchApprovalList).mockResolvedValue(approvalPage([summary]));
+  await captureBatch(leases, response, currency, 'read');
+  await captureBatch([leases[0]], { requisitionDtos: [batchRecord] }, currency, 'read');
+  const saved = await readBatch(['r', 'gone']);
+  expect(saved.response.requisitionDtos?.map((r) => r.id)).toEqual(['r']);
+  expect(saved.response.requisitionErrors).toEqual([
+    expect.objectContaining({ requisitionId: 'gone' }),
+  ]);
+});
+
+it('filters batch membership by program and stops as soon as all requested ids are found', async () => {
+  const { fetchBatchMembership } = await import('./offline-batch');
+  const { getSessionScope } = await import('@/lib/session-scope');
+  vi.mocked(fetchApprovalList).mockResolvedValueOnce(approvalPage([summary], 0, 50));
+  const result = await fetchBatchMembership(['r'], getSessionScope(), 'p');
+  expect(result).toMatchObject({ found: [summary], remaining: new Set() });
+  expect(fetchApprovalList).toHaveBeenCalledExactlyOnceWith({
+    page: 0,
+    size: 100,
+    sort: ['id,asc'],
+    program: 'p',
+  });
 });

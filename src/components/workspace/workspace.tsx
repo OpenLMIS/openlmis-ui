@@ -16,6 +16,7 @@ type WorkspaceWidthProps = WorkspaceProps & {
 const MAX_WIDTH = {
   default: 'max-w-6xl',
   narrow: 'max-w-4xl',
+  form: 'max-w-2xl',
   large: 'max-w-336',
   wide: 'max-w-none',
 } as const;
@@ -36,7 +37,10 @@ export function Workspace({ children, width = 'default' }: WorkspaceWidthProps) 
 
 export function WorkspaceHeader({ children }: WorkspaceProps) {
   return (
-    <div className="flex flex-col gap-3 @2xl/main:flex-row @2xl/main:items-start @2xl/main:justify-between">
+    <div
+      data-slot="workspace-header"
+      className="flex flex-col gap-3 @2xl/main:flex-row @2xl/main:items-start @2xl/main:justify-between"
+    >
       {children}
     </div>
   );

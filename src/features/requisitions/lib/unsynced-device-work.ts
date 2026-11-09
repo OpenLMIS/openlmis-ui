@@ -3,7 +3,10 @@ import type { RequisitionLocalDraft } from '@/features/requisitions/hooks/use-re
 import { getLocalDb, getLocalDbUserId, LOCAL_TABLES } from '@/integrations/local-db';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
-export function hasUnsyncedRequisitionDraft({ draft, baseHeaders }: RequisitionLocalDraft) {
+export function hasUnsyncedRequisitionDraft({
+  draft,
+  baseHeaders,
+}: Pick<RequisitionLocalDraft, 'draft' | 'baseHeaders'>) {
   return (
     Object.values(draft.lines).some((changes) => Object.keys(changes).length > 0) ||
     Object.keys(draft.patients ?? {}).length > 0 ||

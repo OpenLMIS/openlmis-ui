@@ -16,10 +16,10 @@ import {
 } from '@/features/requisitions/lib/patients';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 
-export function useRequisitionForm(record: RequisitionRecord) {
+export function useRequisitionForm(record: RequisitionRecord, loaderRecord = record) {
   const basePatients = useMemo(() => parsePatients(record.patientsData), [record.patientsData]);
   const adopt = useRef<(draft: RequisitionDraft) => void>(() => {});
-  const device = useRequisitionDraft(record, (draft) => adopt.current(draft));
+  const device = useRequisitionDraft(record, (draft) => adopt.current(draft), loaderRecord);
   const staged = useRef<RequisitionDraft | undefined>(undefined);
   const defaults = useRef({
     draft: buildRequisitionDraft(record),

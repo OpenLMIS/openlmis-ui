@@ -8,7 +8,15 @@ import {
 import { createFileRoute, type ErrorComponentProps, useRouter } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardListIcon, PrinterIcon } from 'lucide-react';
-import { type ComponentProps, type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -39,6 +47,7 @@ import {
 } from '@/features/auth/lib/requisition-access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
+  currencySettingsOptions,
   deploymentTimeZoneOptions,
   facilityOptions,
   orderablesByIdentitiesOptions,
@@ -74,10 +83,14 @@ import {
   RequisitionValidationDialog,
 } from '@/features/requisitions/components/requisition-action-dialogs';
 import { RequisitionComments } from '@/features/requisitions/components/requisition-comments';
-import { RequisitionCopyNotice } from '@/features/requisitions/components/requisition-copy-notice';
+import {
+  RequisitionCopyContext,
+  RequisitionCopyNotice,
+} from '@/features/requisitions/components/requisition-copy-notice';
 import { RequisitionError } from '@/features/requisitions/components/requisition-error';
 import { RequisitionFooter } from '@/features/requisitions/components/requisition-footer';
 import { RequisitionHeader } from '@/features/requisitions/components/requisition-header';
+import { RequisitionMergeDialog } from '@/features/requisitions/components/requisition-merge-dialog';
 import { RequisitionOutdatedAlert } from '@/features/requisitions/components/requisition-outdated-alert';
 import {
   type PendingEditing,
@@ -88,12 +101,19 @@ import {
 import { RequisitionTabs } from '@/features/requisitions/components/requisition-tabs';
 import { StockCountDateDialog } from '@/features/requisitions/components/stock-count-date-dialog';
 import { useRequisitionForm } from '@/features/requisitions/hooks/use-requisition-form';
+import { removeApprovedFromLists } from '@/features/requisitions/lib/approval-cache';
 import { isApprovalKind, requisitionCapabilities } from '@/features/requisitions/lib/capabilities';
 import {
   applyRequisitionDraft,
   buildRequisitionDraft,
+  type RequisitionDraft,
   rebaseRequisitionDraft,
 } from '@/features/requisitions/lib/draft';
+import {
+  type DraftFieldConflict,
+  draftBaseValues,
+  mergeRequisitionDraft,
+} from '@/features/requisitions/lib/draft-merge';
 import {
   ApprovalInProgress,
   type RequisitionFailure,
@@ -105,12 +125,14 @@ import {
   prepareRequisitionAccess,
   requisitionNodesOptions,
 } from '@/features/requisitions/lib/offline-access';
-import { attachCopyLease, beginCopy } from '@/features/requisitions/lib/offline-copies';
+import { captureSingle } from '@/features/requisitions/lib/offline-capture-single';
 import {
-  captureSingle,
-  hydrateSingle,
-  readSingle,
-} from '@/features/requisitions/lib/offline-single';
+  attachCopyLease,
+  beginCopy,
+  newerServerRecord,
+  retireCopy,
+} from '@/features/requisitions/lib/offline-copies';
+import { hydrateSingle, readSingle } from '@/features/requisitions/lib/offline-single';
 import {
   applyPatientChanges,
   parsePatients,
@@ -122,6 +144,7 @@ import { requisitionReturnTarget } from '@/features/requisitions/lib/requisition
 import { requisitionSearchSchema } from '@/features/requisitions/lib/search-facilities';
 import { defaultRequisitionTab, hidesSkipped } from '@/features/requisitions/lib/template';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import { hasUnsyncedRequisitionDraft } from '@/features/requisitions/lib/unsynced-device-work';
 import { validateRequisition } from '@/features/requisitions/lib/validation';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
@@ -131,7 +154,7 @@ import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
-import { onlineOrDevice, requireOnline } from '@/lib/local-data';
+import { LocalDataUnavailableError, onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isDeviceAccess } from '@/lib/offline-access';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
@@ -194,6 +217,21 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
     const lease = isSecureOrigin ? await beginCopy(params.requisitionId) : undefined;
     let copyResult: Promise<unknown> | undefined;
     const serverOptions = requisitionOptions(params.requisitionId);
+    queryClient.prefetchQuery(currencySettingsOptions());
+    const known = queryClient
+      .getQueriesData<{
+        content?: { id: string; program: { id: string }; processingPeriod?: { id: string } }[];
+      }>({ queryKey: queryKeys.requisitions.all })
+      .flatMap(([, data]) => data?.content ?? [])
+      .find((row) => row.id === params.requisitionId);
+    const previous = queryClient.getQueryData(serverOptions.queryKey);
+    const reference = previous ?? known;
+    if (reference) {
+      queryClient.prefetchQuery(programLookupOptions(reference.program.id));
+      if (reference.processingPeriod)
+        queryClient.prefetchQuery(processingPeriodOptions(reference.processingPeriod.id));
+    }
+
     const options = {
       ...serverOptions,
       queryFn: () =>
@@ -223,15 +261,6 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
         throw error;
       })) ?? [];
     if (!userId || userChanged() || !access || !record) return;
-    if (lease) {
-      attachCopyLease(record, lease);
-      if (isOnline() && !isDeviceAccess(record)) {
-        copyResult = captureSingle(queryClient, lease, record).then(
-          () => undefined,
-          (error: unknown) => error,
-        );
-      }
-    }
     if (needsUnskipSetting(record)) queryClient.prefetchQuery(unskipSettingOptions());
     queryClient.prefetchQuery(requisitionStatusMessagesOptions(record.id));
     queryClient.prefetchQuery(facilityOptions(record.facility.id));
@@ -241,6 +270,15 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
     queryClient.prefetchQuery(period);
     queryClient.prefetchQuery(currency);
     queryClient.prefetchQuery(program);
+    if (lease) {
+      attachCopyLease(record, lease);
+      if (isOnline() && !isDeviceAccess(record)) {
+        copyResult = captureSingle(queryClient, lease, record).then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+      }
+    }
     shownRequisitionId = record.id;
     return {
       record,
@@ -366,6 +404,16 @@ function RequisitionReadShell({
   );
 }
 
+function lifecycleLanded(kind: EditorAction, fresh: RequisitionRecord, node?: string | null) {
+  if (kind === 'approve')
+    return (
+      ['APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER'].includes(fresh.status) ||
+      (fresh.status === 'IN_APPROVAL' && fresh.supervisoryNode !== node)
+    );
+  if (kind === 'reject') return fresh.status === 'REJECTED';
+  return REQUISITION_STATUSES.slice(kind === 'authorize' ? 3 : 2, 8).includes(fresh.status);
+}
+
 class PatientsPayloadError extends Error {}
 
 function RequisitionBody({
@@ -376,15 +424,20 @@ function RequisitionBody({
   quantity: ReturnType<typeof useQuantityUnit>;
 }) {
   const [record, setRecord] = useState(data.record);
+  const [loaderOutdated, setLoaderOutdated] = useState(false);
   const [copyFailure, setCopyFailure] = useState<unknown>();
+  const [copyResult, setCopyResult] = useState(data.copyResult);
+  const captureVersion = useRef(0);
   const copyOpening = useRef(data.copyResult);
   if (copyOpening.current !== data.copyResult) {
     copyOpening.current = data.copyResult;
+    captureVersion.current++;
     setCopyFailure(undefined);
+    setCopyResult(data.copyResult);
   }
   const accessEpoch = useRef(data.accessEpoch);
   const currentData = { ...data, record };
-  const editor = useRequisitionForm(record);
+  const editor = useRequisitionForm(record, data.record);
   const addedLines = useStore(editor.form.store, (state) => state.values.draft.addedLines);
   const gridRecord = useMemo(
     () => ({
@@ -397,6 +450,7 @@ function RequisitionBody({
   const search = Route.useSearch();
   const { unit, setUnit, canSwitch } = quantity;
   const { t } = useTranslation();
+  const online = useOnline();
   const router = useRouter();
   const queryClient = useQueryClient();
   const policy = useRequisitionPolicy(currentData);
@@ -444,6 +498,23 @@ function RequisitionBody({
   const [opening] = useState(() =>
     requisitionReturnTarget(router.state.location.state, router.state.location.search),
   );
+  const startCapture = async (fresh: RequisitionRecord, scope: number) => {
+    const lease = await beginCopy(fresh.id);
+    assertSessionScope(scope);
+    attachCopyLease(fresh, lease);
+    const version = ++captureVersion.current;
+    const result = captureSingle(queryClient, lease, fresh, 'read').then(
+      () => {
+        if (scope === getSessionScope() && version === captureVersion.current) setCopyFailure(null);
+      },
+      (error: unknown) => {
+        if (scope === getSessionScope() && version === captureVersion.current)
+          setCopyFailure(error);
+        return error;
+      },
+    );
+    setCopyResult(result);
+  };
   const reload = async (keepKey = false) => {
     const scope = getSessionScope();
     requireOnline();
@@ -451,17 +522,8 @@ function RequisitionBody({
     assertSessionScope(scope);
     await editor.device.update(fresh);
     assertSessionScope(scope);
-    if (isSecureOrigin) {
-      const lease = await beginCopy(fresh.id);
-      try {
-        await captureSingle(queryClient, lease, fresh, 'read');
-        setCopyFailure(null);
-      } catch (error) {
-        assertSessionScope(scope);
-        setCopyFailure(error);
-      }
-      attachCopyLease(fresh, lease);
-    }
+    if (isSecureOrigin) await startCapture(fresh, scope);
+    setLoaderOutdated(false);
     setRecord(fresh);
     queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
     setFailure(null);
@@ -476,6 +538,7 @@ function RequisitionBody({
     const scope = getSessionScope();
     const saved = await fetchRequisition(record.id);
     assertSessionScope(scope);
+    if (finished.current) return saved;
     const next = rebaseRequisitionDraft(saved, latest.current.editor.form.state.values.draft);
     editor.form.setFieldValue('draft', next);
     editor.device.write(next, saved);
@@ -486,26 +549,70 @@ function RequisitionBody({
     queryClient.setQueryData(requisitionOptions(saved.id).queryKey, saved);
     await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
-    if (isSecureOrigin) {
-      const lease = await beginCopy(saved.id);
-      try {
-        await captureSingle(queryClient, lease, saved, 'read');
-        setCopyFailure(null);
-      } catch (error) {
-        assertSessionScope(scope);
-        setCopyFailure(error);
-      }
-      attachCopyLease(saved, lease);
-    }
+    if (isSecureOrigin) await startCapture(saved, scope);
     return saved;
   };
-  const sync = async () => {
+  const needsReconcile = useRef(false);
+  const saveFailed = useRef(false);
+  const attemptedSave = useRef<RequisitionRecord | undefined>(undefined);
+  const acceptedDraft = useRef<string | undefined>(undefined);
+  const [merge, setMerge] = useState<{
+    fresh: RequisitionRecord;
+    draft: RequisitionDraft;
+    base: ReturnType<typeof draftBaseValues>;
+    original: RequisitionRecord;
+    conflicts: DraftFieldConflict[];
+  } | null>(null);
+  const reconciliationVersion = useRef(0);
+  const adoptMerge = async (draft: RequisitionDraft, fresh: RequisitionRecord, scope: number) => {
+    await editor.device.rebase(draft, fresh);
+    assertSessionScope(scope);
+    editor.form.setFieldValue('draft', draft);
+    const previous = latest.current.record;
+    if (
+      previous.status !== fresh.status ||
+      previous.supervisoryNode !== fresh.supervisoryNode ||
+      previous.facility.id !== fresh.facility.id ||
+      previous.program.id !== fresh.program.id
+    )
+      accessEpoch.current = undefined;
+    setRecord(fresh);
+    latest.current = { record: fresh, editor };
+    queryClient.setQueryData(requisitionOptions(fresh.id).queryKey, fresh);
+    setLoaderOutdated(false);
+    needsReconcile.current = false;
+    refreshPending.current = false;
+  };
+  const reconcile = async (server?: RequisitionRecord) => {
+    const scope = getSessionScope();
+    requireOnline();
+    const original = latest.current.record;
+    reconciliationVersion.current += 1;
+    const fresh = server ?? (await fetchRequisition(original.id));
+    assertSessionScope(scope);
+    const draft = editor.device.recoveryDraft() ?? latest.current.editor.form.state.values.draft;
+    const base = {
+      ...(editor.device.outdated ? {} : draftBaseValues(original, draft)),
+      ...editor.device.baseValues(),
+    };
+    const result = mergeRequisitionDraft(fresh, draft, base, original, {}, attemptedSave.current);
+    if (result.conflicts.length) {
+      setMerge({ fresh, draft, base, original, conflicts: result.conflicts });
+    } else {
+      await adoptMerge(result.draft, fresh, scope);
+    }
+    return result.conflicts.length === 0;
+  };
+  const savedRefresh = useRef<Promise<RequisitionRecord> | undefined>(undefined);
+  const settleSavedRefresh = () => savedRefresh.current ?? refreshSaved();
+  const sync = async (refreshMode: 'wait' | 'background' | 'lifecycle' = 'wait') => {
     const scope = getSessionScope();
     await editor.device.flush({ allowFailure: true });
     assertSessionScope(scope);
     requireOnline();
-    if (refreshPending.current) {
-      await refreshSaved();
+    if (needsReconcile.current && !(await reconcile())) throw new RequisitionRetryConflict();
+    if (savedRefresh.current || refreshPending.current) {
+      await settleSavedRefresh();
       assertSessionScope(scope);
       requireOnline();
     }
@@ -523,8 +630,15 @@ function RequisitionBody({
       setValidation({ allSkipped: false, patient: Object.keys(patientErrors)[0] });
       throw new PatientsPayloadError();
     }
+    const needsPatientModels =
+      sent.template.patientsTabEnabled ||
+      (policy.patientsEditable &&
+        sent.template.columnsMap.numberOfPatientsOnTreatmentNextMonth?.source === 'CALCULATED');
     const models = new Map(
-      buildLines(sent, products, approved).map((model) => [model.line.id, model]),
+      (needsPatientModels ? buildLines(sent, products, approved) : []).map((model) => [
+        model.line.id,
+        model,
+      ]),
     );
     if (
       policy.patientsEditable &&
@@ -559,19 +673,58 @@ function RequisitionBody({
         throw new PatientsPayloadError();
       }
     }
-    await saveRequisition(
-      sent,
-      latest.current.editor.draft.addedLines.map((line) => line.id),
-    );
+    const sentDraft = JSON.stringify(latest.current.editor.form.state.values.draft);
+    attemptedSave.current = sent;
+    let response: RequisitionRecord;
+    try {
+      response = await saveRequisition(
+        sent,
+        latest.current.editor.draft.addedLines.map((line) => line.id),
+      );
+    } catch (error) {
+      saveFailed.current = true;
+      if (toRequisitionFailure(error).kind === 'conflict') needsReconcile.current = true;
+      throw error;
+    }
     assertSessionScope(scope);
+    acceptedDraft.current = sentDraft;
     refreshPending.current = true;
-    return refreshSaved();
+    void queryClient.invalidateQueries({
+      queryKey: [...queryKeys.requisitions.all, 'batch'],
+      refetchType: 'none',
+    });
+    if (refreshMode === 'lifecycle') return response;
+    const refresh = refreshSaved();
+    if (refreshMode === 'wait') return refresh;
+    savedRefresh.current = refresh;
+    void refresh.catch((error: unknown) => {
+      if (scope === getSessionScope()) setFailure(toRequisitionFailure(error));
+    });
+    void refresh
+      .finally(() => {
+        if (savedRefresh.current === refresh) savedRefresh.current = undefined;
+      })
+      .catch(() => undefined);
+    setSynced(true);
+    return response;
   };
   const mutation = useSessionMutation({
     retry: false,
     mutationFn: async (kind: EditorAction | 'update' | 'print') => {
       const scope = getSessionScope();
+      const reuseSaved =
+        refreshPending.current &&
+        !needsReconcile.current &&
+        ['submit', 'submitAndAuthorize', 'authorize', 'approve', 'reject'].includes(kind) &&
+        acceptedDraft.current === JSON.stringify(latest.current.editor.form.state.values.draft);
+      if (kind !== 'update' && !reuseSaved && (savedRefresh.current || refreshPending.current)) {
+        await settleSavedRefresh();
+        assertSessionScope(scope);
+        requireOnline();
+      }
       if (kind === 'update') {
+        await savedRefresh.current?.catch(() => undefined);
+        assertSessionScope(scope);
         if (failure?.kind === 'forbidden') {
           await queryClient.invalidateQueries({
             queryKey: permissionsOptions(data.userId).queryKey,
@@ -596,24 +749,42 @@ function RequisitionBody({
         return;
       }
       requireOnline();
+      const reconcilePending = needsReconcile.current && !uncertain.current;
+      if (reconcilePending && !(await reconcile())) throw new RequisitionRetryConflict();
+      assertSessionScope(scope);
       let checkedPolicy: ReturnType<typeof requisitionCapabilities> | undefined;
-      if (accessEpoch.current !== uploadAccessEpoch()) {
+      if (reconcilePending || accessEpoch.current !== uploadAccessEpoch()) {
         const epoch = uploadAccessEpoch();
         const access = await freshRequisitionAccess(queryClient);
         assertSessionScope(scope);
-        const nodes = await currentApprovalNodes(queryClient, access, record);
-        assertSessionScope(scope);
-        checkedPolicy = requisitionCapabilities({
-          ...capabilityContext(record, access, program),
-          currentNodeId: nodes[0],
-        });
+        const checkPolicy = async () => {
+          const adopted = latest.current.record;
+          const nodes = await currentApprovalNodes(queryClient, access, adopted);
+          assertSessionScope(scope);
+          return requisitionCapabilities({
+            ...capabilityContext(adopted, access, program),
+            currentNodeId: nodes[0],
+          });
+        };
+        checkedPolicy = await checkPolicy();
         if (!uncertain.current) {
           if (!checkedPolicy.actions.includes(kind))
             throw new ForbiddenError(RIGHTS.requisitionView);
           const fresh = await fetchRequisition(record.id);
           assertSessionScope(scope);
-          if (fresh.modifiedDate !== record.modifiedDate || fresh.status !== record.status)
-            throw new RequisitionRetryConflict();
+          const baseline = latest.current.record;
+          if (fresh.modifiedDate !== baseline.modifiedDate || fresh.status !== baseline.status) {
+            if (kind !== 'sync' && !needsReconcile.current) {
+              needsReconcile.current = true;
+              throw new RequisitionRetryConflict();
+            }
+            const clean = await reconcile(fresh);
+            assertSessionScope(scope);
+            if (!clean) throw new RequisitionRetryConflict();
+            checkedPolicy = await checkPolicy();
+            if (!checkedPolicy.actions.includes(kind))
+              throw new ForbiddenError(RIGHTS.requisitionView);
+          }
         }
         requireOnline();
         if (epoch !== uploadAccessEpoch()) throw new RequisitionRetryConflict();
@@ -627,14 +798,7 @@ function RequisitionBody({
         const fresh = await fetchRequisition(record.id);
         assertSessionScope(scope);
         const approval = isApprovalKind(retry.kind);
-        const progressed = REQUISITION_STATUSES.slice(retry.kind === 'authorize' ? 3 : 2, 8);
-        advanced =
-          retry.kind === 'approve'
-            ? ['APPROVED', 'RELEASED', 'RELEASED_WITHOUT_ORDER'].includes(fresh.status) ||
-              (fresh.status === 'IN_APPROVAL' && fresh.supervisoryNode !== retry.node)
-            : retry.kind === 'reject'
-              ? fresh.status === 'REJECTED'
-              : progressed.includes(fresh.status);
+        advanced = lifecycleLanded(retry.kind, fresh, retry.node);
         if (advanced) {
           setRecord(fresh);
           queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
@@ -645,10 +809,8 @@ function RequisitionBody({
           fresh.modifiedDate !== retry.modifiedDate
         ) {
           if (approval) {
-            await editor.device.update(fresh);
+            await reconcile(fresh);
             assertSessionScope(scope);
-            setRecord(fresh);
-            queryClient.setQueryData(requisitionOptions(record.id).queryKey, fresh);
             updateUncertain(null);
             attempt.key = randomId();
           }
@@ -665,7 +827,9 @@ function RequisitionBody({
         kind === 'authorize' ||
         isApprovalKind(kind)
       ) {
-        saved = await sync();
+        saved = reuseSaved
+          ? attemptedSave.current
+          : await sync(kind === 'sync' ? 'background' : kind === 'print' ? 'wait' : 'lifecycle');
         assertSessionScope(scope);
       }
       requireOnline();
@@ -678,7 +842,7 @@ function RequisitionBody({
           kind === 'authorize' ||
           isApprovalKind(kind)
         ) {
-          const base = saved ?? latest.current.record;
+          let base = saved ?? latest.current.record;
           try {
             if (kind === 'approve') await approveRequisition(record.id, attempt);
             else if (kind === 'reject') await rejectRequisition(record.id, attempt, rejectReasons);
@@ -686,30 +850,42 @@ function RequisitionBody({
             else await submitRequisition(record.id, attempt);
           } catch (error) {
             assertSessionScope(scope);
-            const status = isAxiosError(error) ? error.response?.status : undefined;
-            const locked =
-              isAxiosError(error) &&
-              status === 409 &&
-              error.response?.data?.messageKey === 'requisition.error.approve.inProgress';
-            if (locked && !retry) {
-              updateUncertain(null);
-              attempt.key = randomId();
-              throw new ApprovalInProgress(t('requisitions.edit.approval-in-progress'));
+            if (refreshPending.current) {
+              try {
+                const fresh = await settleSavedRefresh();
+                advanced = lifecycleLanded(kind, fresh, base.supervisoryNode);
+                base = fresh;
+              } catch {
+                assertSessionScope(scope);
+                needsReconcile.current = true;
+              }
             }
-            if (
-              isAxiosError(error) &&
-              (!error.response ||
-                (isApprovalKind(kind) && (status === 409 || (status ?? 0) >= 500)))
-            )
-              updateUncertain({
-                kind,
-                status: base.status,
-                modifiedDate: base.modifiedDate,
-                node: base.supervisoryNode,
-                keyUsed: toRequisitionFailure(error).kind === 'key-used',
-              });
-            else updateUncertain(null);
-            throw error;
+            if (!advanced) {
+              const status = isAxiosError(error) ? error.response?.status : undefined;
+              const locked =
+                isAxiosError(error) &&
+                status === 409 &&
+                error.response?.data?.messageKey === 'requisition.error.approve.inProgress';
+              if (locked && !retry) {
+                updateUncertain(null);
+                attempt.key = randomId();
+                throw new ApprovalInProgress(t('requisitions.edit.approval-in-progress'));
+              }
+              if (
+                isAxiosError(error) &&
+                (!error.response ||
+                  (isApprovalKind(kind) && (status === 409 || (status ?? 0) >= 500)))
+              )
+                updateUncertain({
+                  kind,
+                  status: base.status,
+                  modifiedDate: needsReconcile.current ? undefined : base.modifiedDate,
+                  node: base.supervisoryNode,
+                  keyUsed: toRequisitionFailure(error).kind === 'key-used',
+                });
+              else updateUncertain(null);
+              throw error;
+            }
           }
           updateUncertain(null);
         } else if (kind === 'skip') await skipRequisition(record.id, attempt);
@@ -724,20 +900,54 @@ function RequisitionBody({
         return;
       }
       finished.current = true;
+      let clearFailed = false;
+      let retired = false;
       try {
         await editor.device.clear();
       } catch {
         assertSessionScope(scope);
+        clearFailed = true;
+      }
+      assertSessionScope(scope);
+      if (isSecureOrigin) {
+        try {
+          await retireCopy(await beginCopy(record.id));
+          assertSessionScope(scope);
+          retired = true;
+        } catch (error) {
+          assertSessionScope(scope);
+          if (!(error instanceof LocalDataUnavailableError))
+            toast.error(t('requisitions.offline.failed-title'), {
+              description: t('requisitions.offline.failed-description'),
+            });
+        }
+      }
+      assertSessionScope(scope);
+      if (clearFailed && !retired)
         toast.error(t('requisitions.edit.error-title'), {
           description: t('requisitions.edit.clear-error'),
         });
+      queryClient.removeQueries({ queryKey: requisitionOptions(record.id).queryKey });
+      queryClient.removeQueries({ queryKey: requisitionStatusMessagesOptions(record.id).queryKey });
+      if (isApprovalKind(kind)) removeApprovedFromLists(queryClient, [record.id]);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.requisitions.all,
+        refetchType: 'none',
+      });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.home.all });
+      if (isSecureOrigin && retired && kind !== 'delete' && kind !== 'skip') {
+        void (async () => {
+          const fresh = await fetchRequisition(record.id);
+          assertSessionScope(scope);
+          const lease = await beginCopy(record.id);
+          await captureSingle(queryClient, lease, fresh, 'read', { freshMessages: true });
+        })().catch((error: unknown) => {
+          if (scope !== getSessionScope() || error instanceof LocalDataUnavailableError) return;
+          toast.error(t('requisitions.offline.failed-title'), {
+            description: t('requisitions.offline.refresh-failed-description'),
+          });
+        });
       }
-      assertSessionScope(scope);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.requisitions.all }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),
-      ]);
-      assertSessionScope(scope);
       toast.success(
         t(
           `requisitions.edit.success.${kind === 'submitAndAuthorize' ? 'submit-and-authorize' : kind}`,
@@ -748,7 +958,20 @@ function RequisitionBody({
           ),
         },
       );
-      await router.navigate(opening);
+      const direct = !router.state.location.state.requisitionReturn && !search.facility;
+      await router.navigate(
+        direct
+          ? {
+              to: isApprovalKind(kind) ? '/requisitions/approve' : '/requisitions/initiate',
+              search: {},
+            }
+          : opening,
+      );
+      assertSessionScope(scope);
+      router.clearCache({
+        filter: (match) =>
+          'requisitionId' in match.params && match.params.requisitionId === record.id,
+      });
       assertSessionScope(scope);
     },
   });
@@ -756,6 +979,8 @@ function RequisitionBody({
     if (posting.current || finished.current) return false;
     posting.current = true;
     setBusy(true);
+    saveFailed.current = false;
+    const reconciledBefore = reconciliationVersion.current;
     try {
       await mutation.mutateAsync(kind);
       if (!mutation.isCurrent()) return false;
@@ -769,6 +994,30 @@ function RequisitionBody({
         uncertain.current && isApprovalKind(uncertain.current.kind)
           ? { kind: 'reconciling' as const }
           : toRequisitionFailure(error);
+      if (
+        kind === 'sync' &&
+        saveFailed.current &&
+        reconciliationVersion.current === reconciledBefore &&
+        !refreshPending.current &&
+        !uncertain.current &&
+        (failure.kind === 'conflict' ||
+          (isAxiosError(error) && (!error.response || error.response.status >= 500)))
+      ) {
+        needsReconcile.current = true;
+        try {
+          const clean = await reconcile();
+          if (!mutation.isCurrent()) return false;
+          if (clean) {
+            setFailure(null);
+            await mutation.mutateAsync('sync');
+            return mutation.isCurrent();
+          }
+        } catch (recoveryError) {
+          if (!mutation.isCurrent()) return false;
+          setFailure(toRequisitionFailure(recoveryError));
+          return false;
+        }
+      }
       if (failure.kind === 'key-used') {
         const fresh = await fetchRequisition(record.id).catch(() => undefined);
         if (!mutation.isCurrent()) return false;
@@ -803,12 +1052,37 @@ function RequisitionBody({
     refusedDescription: t('requisitions.requisition.print-refused'),
   });
   const pending = busy || print.isPending;
-  const editingBlocked = pending || !!uncertainty;
-  const baseline = useMemo(() => JSON.stringify(buildRequisitionDraft(record)), [record]);
-  const dirty = useStore(
-    editor.form.store,
-    (state) => JSON.stringify(state.values.draft) !== baseline,
+  const adoptingLoader = newerServerRecord(data.record, record);
+  const editingBlocked = pending || !!uncertainty || loaderOutdated || adoptingLoader;
+  const baseline = useMemo(() => buildRequisitionDraft(record), [record]);
+  const dirty = useStore(editor.form.store, (state) =>
+    hasUnsyncedRequisitionDraft({ draft: state.values.draft, baseHeaders: baseline }),
   );
+  const loaderRecord = useRef(data.record);
+  useEffect(() => {
+    if (loaderRecord.current === data.record) return;
+    loaderRecord.current = data.record;
+    if (!newerServerRecord(data.record, record)) return;
+    if (dirty) {
+      setLoaderOutdated(true);
+      return;
+    }
+    const scope = getSessionScope();
+    const next = data.record;
+    void editor.device.update(next).then(
+      () => {
+        if (loaderRecord.current !== next || scope !== getSessionScope()) return;
+        if (!newerServerRecord(next, latest.current.record)) return;
+        setRecord(next);
+        accessEpoch.current = data.accessEpoch;
+        setLoaderOutdated(false);
+      },
+      () => {
+        if (loaderRecord.current !== next || scope !== getSessionScope()) return;
+        setLoaderOutdated(true);
+      },
+    );
+  }, [data.record, data.accessEpoch, record, dirty, editor]);
   const guard = useDiscardGuard(dirty, {
     pending,
     allowLeave: () => finished.current,
@@ -928,7 +1202,15 @@ function RequisitionBody({
     });
   };
   return (
-    <>
+    <RequisitionCopyContext
+      value={{
+        representation: 'single',
+        local: isDeviceAccess(record),
+        id: record.id,
+        result: copyResult,
+        failure: copyFailure,
+      }}
+    >
       <Workspace width="wide">
         <WorkspaceHeader>
           <RequisitionHeading record={record} />
@@ -944,7 +1226,7 @@ function RequisitionBody({
             representation="single"
             local={isDeviceAccess(record)}
             id={record.id}
-            result={data.copyResult}
+            result={copyResult}
             failure={copyFailure}
           />
           {serverStatus && (
@@ -971,16 +1253,31 @@ function RequisitionBody({
               {t('requisitions.edit.synced-title')}
             </p>
           )}
-          {editor.device.outdated && (
+          {(editor.device.outdated || loaderOutdated) && (
             <RequisitionOutdatedAlert>
-              <RequisitionUpdate
-                tone="warning"
-                pending={pending}
-                onUpdate={() => {
-                  setFailure(null);
-                  setAction('update');
-                }}
-              />
+              <div className="flex flex-wrap gap-2">
+                <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
+                  <Button
+                    variant="warning"
+                    disabled={pending || !online}
+                    focusableWhenDisabled={!online}
+                    onClick={() => {
+                      needsReconcile.current = true;
+                      void run('sync');
+                    }}
+                  >
+                    {t('requisitions.merge.recover')}
+                  </Button>
+                </ActionTooltip>
+                <RequisitionUpdate
+                  tone="warning"
+                  pending={pending}
+                  onUpdate={() => {
+                    setFailure(null);
+                    setAction('update');
+                  }}
+                />
+              </div>
             </RequisitionOutdatedAlert>
           )}
 
@@ -1059,13 +1356,17 @@ function RequisitionBody({
       <RequisitionFooter
         policy={policy}
         pending={pending}
-        disabled={!!serverStatus || editor.locked}
+        disabled={!!serverStatus || editor.locked || loaderOutdated || adoptingLoader}
         onAction={begin}
         reconciling={uncertainty && isApprovalKind(uncertainty.kind) ? uncertainty.kind : undefined}
       />
       <DiscardChangesDialog
         {...guard.dialog}
-        description={t('requisitions.edit.discard-description')}
+        description={t(
+          editor.device.deviceAvailable
+            ? 'requisitions.edit.discard-description'
+            : 'orders.edit.discard-description',
+        )}
       />
       {action && (
         <RequisitionActionDialog
@@ -1076,6 +1377,7 @@ function RequisitionBody({
         />
       )}
       {search.dialog === 'reject-reasons' &&
+        record.template.rejectionReasonWindowVisible &&
         policy.actions.includes('reject') &&
         !editingBlocked && (
           <RejectReasonsDialog
@@ -1100,7 +1402,47 @@ function RequisitionBody({
           }}
         />
       )}
-      {failure && (
+      {merge && (
+        <RequisitionMergeDialog
+          conflicts={merge.conflicts}
+          record={merge.original}
+          lineLabels={Object.fromEntries(
+            buildLines(
+              {
+                ...merge.original,
+                requisitionLineItems: [
+                  ...merge.original.requisitionLineItems,
+                  ...merge.draft.addedLines,
+                ],
+              },
+              products,
+              approved,
+            ).map((model) => [
+              model.line.id,
+              [model.product?.productCode, model.product?.fullProductName]
+                .filter(Boolean)
+                .join(' - '),
+            ]),
+          )}
+          onClose={() => setMerge(null)}
+          onResolve={async (choices) => {
+            const scope = getSessionScope();
+            const result = mergeRequisitionDraft(
+              merge.fresh,
+              merge.draft,
+              merge.base,
+              merge.original,
+              choices,
+              attemptedSave.current,
+            );
+            await adoptMerge(result.draft, merge.fresh, scope);
+            setMerge(null);
+            setFailure(null);
+            await run('sync');
+          }}
+        />
+      )}
+      {failure && !merge && (
         <RequisitionErrorDialog
           error={failure}
           pending={pending}
@@ -1108,10 +1450,7 @@ function RequisitionBody({
             setFailure(null);
             setAction('update');
           }}
-          onClose={() => {
-            if (failure.kind === 'forbidden') void run('update');
-            else setFailure(null);
-          }}
+          onClose={() => setFailure(null)}
         />
       )}
       {validation && (
@@ -1124,7 +1463,11 @@ function RequisitionBody({
             setValidation(null);
             if (patient) {
               void router
-                .navigate({ to: '.', state: true, search: { ...search, tab: 'patients' } } as never)
+                .navigate({
+                  to: '.',
+                  state: true,
+                  search: { ...search, tab: 'patients' },
+                } as never)
                 .then(() => {
                   requestAnimationFrame(() => {
                     const node = document.querySelector<HTMLElement>(`[name="texts.${patient}"]`);
@@ -1156,19 +1499,25 @@ function RequisitionBody({
                 },
               } as never)
               .then(() => {
+                document.dispatchEvent(
+                  new CustomEvent('requisition-line-focus', {
+                    detail: { requisitionId: record.id, lineId: target.id },
+                  }),
+                );
                 const focus = () => {
                   const node = document.querySelector<HTMLElement>(
                     `[name^="quantities.${target.id}:${target.field}."], [name="texts.${target.id}:${target.field}"], [name^="quantities.${target.id}:"], [name^="texts.${target.id}:"]`,
                   );
                   if (node) revealField(node, !!node.closest('li'));
                 };
-                requestAnimationFrame(focus);
+                requestAnimationFrame(() => requestAnimationFrame(focus));
               });
           }}
         />
       )}
       {search.adjustments &&
         policy.editable &&
+        policy.editableColumns.includes('totalLossesAndAdjustments') &&
         !editingBlocked &&
         !editor.locked &&
         (() => {
@@ -1221,7 +1570,10 @@ function RequisitionBody({
                   );
                   addedLines.push({
                     id: randomId(),
-                    orderable: { id: product.id, versionNumber: product.meta?.versionNumber ?? 1 },
+                    orderable: {
+                      id: product.id,
+                      versionNumber: product.meta?.versionNumber ?? 1,
+                    },
                     pricePerPack: entry?.pricePerPack,
                   });
                 }
@@ -1232,7 +1584,7 @@ function RequisitionBody({
           }}
         />
       )}
-    </>
+    </RequisitionCopyContext>
   );
 }
 
@@ -1342,7 +1694,7 @@ function RequisitionHeading({ record }: { record: RequisitionRecord }) {
         {t('requisitions.requisition.description', {
           facility: facility.name,
           period: period.name,
-        })}
+        })}{' '}
       </WorkspaceDescription>
     </WorkspaceHeading>
   );

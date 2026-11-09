@@ -38,6 +38,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSkipWidth } from '@/features/requisitions/components/patients-grid';
 import { DraftComment } from '@/features/requisitions/components/requisition-comment-field';
+import { cardControlWidth } from '@/features/requisitions/components/requisition-edit-cards';
 import type { GridEditing } from '@/features/requisitions/components/requisition-grid';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
@@ -310,10 +311,13 @@ function RequisitionGridPending({
   const lines = Array.from({ length: lineCount }, (_, index) => index);
   const addProduct =
     editable && (fullSupply ? editing.addFullSupplyProduct : editing.addNonFullSupplyProduct);
+  const status = editable && editing.deviceAvailable && <DraftStatusSkeleton />;
   const cell = (column: GridColumn, cards: boolean) => {
     if (column.kind === 'skip')
       return cards && !editable ? (
         <Block size="h-5 w-12" />
+      ) : cards ? (
+        <Block size="size-4" />
       ) : (
         <div className="flex justify-center">
           <Block size="size-4" />
@@ -321,7 +325,9 @@ function RequisitionGridPending({
       );
     if (column.kind === 'adjustments' && !stockBased)
       return (
-        <div className="flex items-center justify-between gap-2">
+        <div
+          className={cards ? 'flex items-center gap-2' : 'flex items-center justify-between gap-2'}
+        >
           <Block size={cards ? 'size-7' : 'size-6'} />
           <Block size="h-4 w-6" />
         </div>
@@ -331,6 +337,7 @@ function RequisitionGridPending({
   };
   return (
     <div aria-busy ref={view.measure} className="flex min-w-0 flex-col gap-4">
+      {view.cards && status && <div className="flex">{status}</div>}
       <RequisitionGridToolbar
         disabled
         columns={columns}
@@ -347,7 +354,7 @@ function RequisitionGridPending({
             <SkipButtons disabled />
           ) : undefined
         }
-        status={editable && editing.deviceAvailable ? <DraftStatusSkeleton /> : undefined}
+        status={!view.cards && status}
         action={
           addProduct ? (
             <Button size="lg" disabled>
@@ -380,7 +387,7 @@ function RequisitionGridPending({
                       <CardControlRow
                         key={column.name}
                         label={column.label}
-                        width={column.convertsToPacks && unit === 'PACKS' ? 'wide' : 'half'}
+                        width={cardControlWidth(column, unit)}
                       >
                         {cell(column, true)}
                       </CardControlRow>
@@ -503,8 +510,8 @@ function PatientsGridPending() {
                 <bdi>{patientRowLabel(t, row.key)}</bdi>
               </CardBand>
               <CardRows>
-                <CardControlRow label={t('requisitions.patients.skip')}>
-                  <div className="size-7">
+                <CardControlRow label={t('requisitions.patients.skip')} width="fit">
+                  <div className="size-4">
                     <Skeleton fill />
                   </div>
                 </CardControlRow>

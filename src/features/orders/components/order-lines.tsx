@@ -1,9 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTable } from '@tanstack/react-table';
-import { Trash2Icon } from 'lucide-react';
-import { memo, type ReactNode } from 'react';
+import { ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
+import { memo, type ReactNode, useCallback, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  DataTableCard,
+  DataTableEmpty,
   DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
@@ -30,6 +32,7 @@ import {
 } from '@/components/ui/table';
 import { cachedOrderBalance, orderStockOnHandOptions } from '@/features/orders/api/queries';
 import { OrderStockBalance, OrderStockError } from '@/features/orders/components/order-stock';
+import { useRemovalFocus } from '@/features/orders/hooks/use-removal-focus';
 import { type DraftLine, validQuantity } from '@/features/orders/lib/order-draft';
 import type { Order } from '@/features/orders/lib/types';
 import { productLabel } from '@/features/reference-data/lib/products';
@@ -87,6 +90,18 @@ export function OrderLines({
     orderableIds: lines.map((line) => line.product.id),
   };
   const stock = useQuery(orderStockOnHandOptions(filter));
+  const focus = useRemovalFocus(
+    lines.map((line) => line.key),
+    () => document.getElementById('order-product'),
+  );
+  const removal = useRef({ focus, onRemove });
+  useLayoutEffect(() => {
+    removal.current = { focus, onRemove };
+  });
+  const handleRemove = useCallback((key: string) => {
+    removal.current.focus.removing(key);
+    removal.current.onRemove(key);
+  }, []);
   const row = (line: DraftLine, index: number) => (
     <OrderLine
       key={line.key}
@@ -96,53 +111,69 @@ export function OrderLines({
       unit={unit}
       disabled={disabled}
       quantity={quantity}
-      onRemove={onRemove}
+      onRemove={handleRemove}
       stock={
         stock.data?.find((item) => item.orderable.id === line.product.id)?.stockOnHand ??
         cachedOrderBalance(client, filter, line.product.id)
       }
-      loading={stock.isPending}
+      loading={stock.isPending && cachedOrderBalance(client, filter, line.product.id) === undefined}
+    />
+  );
+  const empty = (
+    <DataTableEmpty
+      icon={<ClipboardPenLineIcon />}
+      title={t('orders.edit.empty-title')}
+      description={t('orders.edit.empty-description')}
     />
   );
   return (
-    <div ref={measure}>
+    <div
+      ref={(element) => {
+        measure(element);
+        focus.region.current = element;
+      }}
+    >
       {stock.isError && <OrderStockError error={stock.error} reset={() => stock.refetch()} />}
       {cards ? (
-        <CardList empty={!lines.length && t('orders.create.empty')}>{lines.map(row)}</CardList>
+        <CardList empty={!lines.length && empty}>{lines.map(row)}</CardList>
       ) : (
-        <Table scroll="both" layout="auto">
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <DataTableHeaderLabel>{t('orders.edit.product-code')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead>
-                <DataTableHeaderLabel>{t('orders.edit.product')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead>
-                <DataTableHeaderLabel>{t('orders.edit.pack-size')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead>
-                <DataTableHeaderLabel>{t('orders.edit.stock-on-hand')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead>
-                <QuantityHeaderSizer unit={unit} />
-                <DataTableHeaderLabel>{t('orders.edit.quantity')}</DataTableHeaderLabel>
-              </TableHead>
-              <TableHead width="icon">
-                <DataTableHeaderLabel>{t('orders.edit.actions')}</DataTableHeaderLabel>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {!lines.length && (
+        <DataTableCard>
+          <Table density="compact" layout="auto">
+            <TableHeader surface="muted">
               <TableRow>
-                <TableCell colSpan={6}>{t('orders.create.empty')}</TableCell>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('orders.edit.product-code')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('orders.edit.product')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('orders.edit.pack-size')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <DataTableHeaderLabel>{t('orders.edit.stock-on-hand')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead>
+                  <QuantityHeaderSizer unit={unit} />
+                  <DataTableHeaderLabel>{t('orders.edit.quantity')}</DataTableHeaderLabel>
+                </TableHead>
+                <TableHead width="icon">
+                  <DataTableHeaderLabel>{t('orders.edit.actions')}</DataTableHeaderLabel>
+                </TableHead>
               </TableRow>
-            )}
-            {lines.map(row)}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {!lines.length && (
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    <div className="whitespace-normal">{empty}</div>
+                  </TableCell>
+                </TableRow>
+              )}
+              {lines.map(row)}
+            </TableBody>
+          </Table>
+        </DataTableCard>
       )}
     </div>
   );
@@ -188,19 +219,21 @@ const OrderLine = memo(function OrderLine({
     <CardListItem tone={!validQuantity(line.quantity) ? 'invalid' : undefined}>
       <CardBand>
         <span className="min-w-0 break-words">{productName(line)}</span>
-        <CardActions
-          label={t('orders.edit.actions')}
-          actions={[
-            {
-              id: 'remove',
-              icon: <Trash2Icon />,
-              label: t('orders.edit.remove-line', { product: productName(line) }),
-              destructive: true,
-              disabled,
-              onSelect: () => onRemove(line.key),
-            },
-          ]}
-        />
+        <div data-removal-control>
+          <CardActions
+            label={t('orders.edit.actions')}
+            actions={[
+              {
+                id: 'remove',
+                icon: <Trash2Icon />,
+                label: t('orders.edit.remove-line', { product: productName(line) }),
+                destructive: true,
+                disabled,
+                onSelect: () => onRemove(line.key),
+              },
+            ]}
+          />
+        </div>
       </CardBand>
       <CardRows>
         {[
@@ -230,6 +263,7 @@ const OrderLine = memo(function OrderLine({
       <TableCell>{qty}</TableCell>
       <TableCell>
         <Button
+          data-removal-control
           variant="ghost"
           size="icon-sm"
           aria-label={t('orders.edit.remove-line', { product: productName(line) })}
@@ -254,7 +288,10 @@ export function OrderLinesSkeleton() {
     ).map((key) => ({
       id: key,
       header: t(`orders.edit.${key}`),
-      meta: { label: t(`orders.edit.${key}`) },
+      meta: {
+        label: t(`orders.edit.${key}`),
+        skeleton: key === 'quantity' || key === 'actions' ? ('control' as const) : undefined,
+      },
     })),
   });
   return (
@@ -262,7 +299,13 @@ export function OrderLinesSkeleton() {
       {cards ? (
         <TableCardsSkeleton table={table} title="product" rowCount={2} pagination={false} />
       ) : (
-        <DataTableSkeleton table={table} rowCount={2} pagination="none" layout="auto" />
+        <DataTableSkeleton
+          table={table}
+          rowCount={2}
+          pagination="none"
+          density="compact"
+          layout="auto"
+        />
       )}
     </div>
   );

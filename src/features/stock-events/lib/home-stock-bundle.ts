@@ -20,13 +20,7 @@ import { LOCAL_TABLES } from '@/integrations/local-db';
 import { LocalDataUnavailableError, onlineOrDevice } from '@/lib/local-data';
 import { requireOwnedRecord } from '@/lib/local-records';
 import { randomId } from '@/lib/random-id';
-import {
-  assertSessionScope,
-  getSessionAccessToken,
-  getSessionScope,
-  getSessionUserId,
-  SessionEndedError,
-} from '@/lib/session-scope';
+import { getSessionAccessToken, getSessionScope, getSessionUserId } from '@/lib/session-scope';
 
 export const HOME_STOCK_FORMATS = [4, 5, 6] as const;
 export type HomeStockFormat = (typeof HOME_STOCK_FORMATS)[number];
@@ -229,7 +223,6 @@ async function fetchBundle(
 }
 
 const inFlight = new Map<string, Promise<HomeStockBundle>>();
-const downloads = new Map<string, Promise<HomeStockBundle>>();
 const requestKeyFor = (filter: HomeStockScope) =>
   JSON.stringify([
     getSessionScope(),
@@ -241,21 +234,19 @@ const requestKeyFor = (filter: HomeStockScope) =>
   ]);
 
 export function fetchHomeStockBundle(filter: HomeStockScope, signal?: AbortSignal) {
-  const requestKey = requestKeyFor(filter);
-  const pending = fetchBundle(
+  return fetchBundle(
     filter,
     {
       session: false,
       backgroundRead: true,
+      backgroundDownload: true,
+      downloadProvider: 'home-stock',
+      downloadTimeout: 60_000,
       signal,
       sessionScope: getSessionScope(),
     },
     true,
-  ).finally(() => {
-    if (downloads.get(requestKey) === pending) downloads.delete(requestKey);
-  });
-  downloads.set(requestKey, pending);
-  return pending;
+  );
 }
 
 function fetchForegroundBundle(filter: HomeStockScope) {
@@ -264,16 +255,7 @@ function fetchForegroundBundle(filter: HomeStockScope) {
   if (existing) return existing;
   const scope = getSessionScope();
   const fetch = () => fetchBundle({ ...filter, scanning: false }, { sessionScope: scope }, false);
-  const download = downloads.get(requestKey);
-  const pending = (
-    download
-      ? download.catch((error: unknown) => {
-          assertSessionScope(scope);
-          if (error instanceof SessionEndedError) throw error;
-          return fetch();
-        })
-      : fetch()
-  ).finally(() => {
+  const pending = fetch().finally(() => {
     if (inFlight.get(requestKey) === pending) inFlight.delete(requestKey);
   });
   inFlight.set(requestKey, pending);

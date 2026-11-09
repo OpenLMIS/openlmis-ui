@@ -69,7 +69,10 @@ export async function currentApprovalNodes(
     record.program.id,
   );
   if (record.supervisoryNode) return ids.filter((id) => id === record.supervisoryNode);
-  const nodes = await client.fetchQuery({ ...supervisoryNodesByIdsOptions(ids), staleTime: 0 });
+  const nodes = await client.fetchQuery({
+    ...supervisoryNodesByIdsOptions(ids, undefined, true),
+    staleTime: 0,
+  });
   assertSessionScope(scope);
   const groups = await Promise.all(
     nodes.flatMap((node) =>
