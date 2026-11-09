@@ -3,7 +3,7 @@ import type { ErrorComponentProps, HistoryState } from '@tanstack/react-router';
 import { createFileRoute, useRouterState } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ClipboardCheckIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -309,6 +309,16 @@ function BatchPage() {
     setMembershipFailure(false);
     setResponse(loaded.response);
   }
+  const applyMembership = useCallback(
+    (found: BatchMembership): found is Exclude<BatchMembership, { error: unknown }> => {
+      membership.current = found;
+      const verified = !('error' in found);
+      setMembershipFailure(!verified);
+      if (verified) setVerifiedOpening(loaded);
+      return verified;
+    },
+    [loaded],
+  );
   useEffect(() => {
     let active = true;
     if (!loaded.membership) return;
@@ -317,15 +327,13 @@ function BatchPage() {
     void loaded.membership.then((found) => {
       if (!active || scope !== getSessionScope() || revision !== membershipRevision.current) return;
       if (loaded.cachedMembership) return;
-      setMembershipFailure('error' in found);
-      membership.current = found;
+      applyMembership(found);
       setResponse((current) => orderBatch(verifyBatchMembership(current, found), loaded.ids));
-      if (!('error' in found)) setVerifiedOpening(loaded);
     });
     return () => {
       active = false;
     };
-  }, [loaded]);
+  }, [loaded, applyMembership]);
   const membershipVerified =
     !membershipFailure &&
     (!loaded.membership ||
@@ -396,9 +404,7 @@ function BatchPage() {
       fetchBatchMembership(ids, scope, search.program),
     ]);
     assertSessionScope(scope);
-    membership.current = found;
-    setMembershipFailure('error' in found);
-    if (!('error' in found)) setVerifiedOpening(loaded);
+    applyMembership(found);
     return orderBatch(verifyBatchMembership(result, found), ids);
   };
   const retireUnavailable = async (fresh: BatchResponse) => {
@@ -637,9 +643,7 @@ function BatchPage() {
         void fetchBatchMembership(ids, scope, search.program)
           .then((found) => {
             if (scope !== getSessionScope() || revision !== membershipRevision.current) return;
-            membership.current = found;
-            setMembershipFailure('error' in found);
-            if (!('error' in found)) setVerifiedOpening(loaded);
+            applyMembership(found);
           })
           .catch(() => {});
         report(failures);
@@ -652,11 +656,8 @@ function BatchPage() {
       if (checkingMembership) {
         const found = await checkingMembership;
         assertSessionScope(scope);
-        membership.current = found;
-        setMembershipFailure('error' in found);
-        if ('error' in found) throw found.error;
+        if (!applyMembership(found)) throw found.error;
         setResponse(orderBatch(verifyBatchMembership(fresh, found), ids));
-        setVerifiedOpening(loaded);
         for (const id of found.remaining) failures.set(id, 'requisitions.batch.no-longer-awaiting');
       }
       const available = new Set(fresh.requisitionDtos?.filter(batchApprovable).map((r) => r.id));
@@ -919,12 +920,7 @@ function BatchPage() {
                 <Alert key={id} variant="warning">
                   <AlertTitle>{recordLabel(id)}</AlertTitle>
                   <AlertDescription>
-                    {reason === 'requisitions.batch.no-longer-awaiting'
-                      ? t(reason)
-                      : reason ||
-                        (reasons.has(id)
-                          ? batchReasonText(reasons.get(id), t)
-                          : t('requisitions.batch.missing'))}
+                    {batchReasonText(reason ? batchReason(reason) : reasons.get(id), t)}
                   </AlertDescription>
                 </Alert>
               ))}

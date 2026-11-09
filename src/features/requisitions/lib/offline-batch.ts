@@ -213,7 +213,7 @@ export async function readBatch(ids: readonly string[]) {
   const ready = copies.flatMap((copy) =>
     copy?.batch?.approvalVerified ? [{ ...copy, batch: copy.batch }] : [],
   );
-  if (ready.some((copy) => !copy.batch.approvalVerified || !mayApproveSavedCopy(access, copy)))
+  if (ready.some((copy) => !mayApproveSavedCopy(access, copy)))
     throw new LocalDataUnavailableError();
   const errors = ids.flatMap((id, index) => {
     if (copies[index]?.batch?.approvalVerified) return [];

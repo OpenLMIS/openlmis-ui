@@ -225,23 +225,19 @@ export async function commitCopy(lease: CopyLease, next: RequisitionCopy) {
       confirmedStatus && next.single && newerServerRecord(next.single.record, confirmedStatus)
         ? next.single.record.status
         : confirmedStatus?.status;
+    const keepPrevious = (singleDirty || batchDirty || singleOlder || batchOlder) && previous;
     await table.put({
       ...next,
       single,
       batch,
       summary: {
-        ...((singleDirty || batchDirty || singleOlder || batchOlder) && previous
-          ? previous.summary
-          : next.summary),
+        ...(keepPrevious ? previous.summary : next.summary),
         status: (summaryStatus ??
           ((singleOlder || batchOlder) && previous
             ? previous.summary.status
             : next.summary.status)) as CopySummary['status'],
       },
-      fetchedAt:
-        (singleDirty || batchDirty || singleOlder || batchOlder) && previous
-          ? previous.fetchedAt
-          : next.fetchedAt,
+      fetchedAt: keepPrevious ? previous.fetchedAt : next.fetchedAt,
       revision: (previous?.revision ?? 0) + 1,
     });
     await assertCopyLease(lease);
