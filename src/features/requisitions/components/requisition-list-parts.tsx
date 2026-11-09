@@ -150,7 +150,9 @@ export function ViewRequisition({
             id: 'batch',
             icon: <ClipboardCheckIcon />,
             label: t('requisitions.batch.title'),
-            name: `${t('requisitions.batch.title')}: ${requisitionRowLabel(record, t('requisitions.columns.emergency'))}`,
+            name: t('requisitions.batch.action-label', {
+              requisition: requisitionRowLabel(record, t('requisitions.columns.emergency')),
+            }),
             disabled: rowDisabled,
             link: (
               <Link

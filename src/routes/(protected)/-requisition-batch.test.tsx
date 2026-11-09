@@ -338,7 +338,7 @@ it('orders columns by ids and names refused and missing records above the grid',
   });
   renderRoute(`${records[0].id},${records[1].id},refused,missing`);
   await screen.findByText('Permission refused');
-  await screen.findByText('requisitions.requisition missing');
+  expect(await screen.findAllByText('requisitions.requisition-label')).toHaveLength(2);
   const headers = await screen.findAllByRole('columnheader');
   const groupLabels = headers.filter((h) => h.textContent?.includes('requisitions.batch.group'));
   expect(groupLabels).toHaveLength(2);

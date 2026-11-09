@@ -24,7 +24,7 @@ it('requires a field choice and does not resolve when closed', async () => {
   await user.click(screen.getByRole('button', { name: 'dialog.close' }));
   expect(onClose).toHaveBeenCalledOnce();
   expect(onResolve).not.toHaveBeenCalled();
-  await user.click(screen.getByRole('radio', { name: 'requisitions.merge.yours: Mine' }));
+  await user.click(screen.getByRole('radio', { name: 'requisitions.merge.yours-value' }));
   await user.click(screen.getByRole('button', { name: 'requisitions.merge.recover' }));
   expect(onResolve).toHaveBeenCalledWith({ draftStatusMessage: 'yours' });
 });
@@ -45,7 +45,7 @@ it('clears a server failure while retrying the selected field choices', async ()
       onClose={vi.fn()}
     />,
   );
-  await user.click(screen.getByRole('radio', { name: 'requisitions.merge.yours: Mine' }));
+  await user.click(screen.getByRole('radio', { name: 'requisitions.merge.yours-value' }));
   await user.click(screen.getByRole('button', { name: 'requisitions.merge.recover' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Server refused recovery');
   await user.click(screen.getByRole('button', { name: 'requisitions.merge.recover' }));

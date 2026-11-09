@@ -383,7 +383,7 @@ function BatchPage() {
       ? batchLabel(record)
       : (response.requisitionErrors?.find((error) => error.requisitionId === id)?.label ??
           locationState.requisitionBatchLabels?.[id] ??
-          `${t('requisitions.requisition')} ${id.slice(0, 8)}`);
+          t('requisitions.requisition-label', { id: id.slice(0, 8) }));
   };
   const report = (failures: Map<string, string>) => {
     setReasons(new Map([...failures].map(([id, message]) => [id, batchReason(message)])));
