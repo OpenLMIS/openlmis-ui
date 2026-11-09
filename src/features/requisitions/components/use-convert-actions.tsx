@@ -77,6 +77,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
       client.invalidateQueries({ queryKey: queryKeys.requisitions.all }),
       client.invalidateQueries({ queryKey: queryKeys.home.all }),
       client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] }),
+      client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'requesting-facilities'] }),
     ]);
   };
   const notifySuccess = (body: ReleaseBody) => {

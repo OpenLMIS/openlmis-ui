@@ -8,6 +8,8 @@ import {
 } from '@/lib/table-search';
 
 export const ORDER_SORT_FIELDS = ['orderCode', 'emergency', 'createdDate'] as const;
+export const isOrderSortField = (id: string): id is (typeof ORDER_SORT_FIELDS)[number] =>
+  ORDER_SORT_FIELDS.some((field) => field === id);
 export const ORDER_DEFAULT_SORT = { id: 'createdDate', desc: true };
 const uuidFilter = z.uuid().optional().catch(undefined);
 const statusFilter = <T extends string>(statuses: readonly T[]) =>
@@ -33,13 +35,6 @@ export type FulfillOrdersSearch = z.infer<typeof fulfillOrdersSearchSchema>;
 
 export const invalidDateRange = ({ periodStart, periodEnd }: ViewOrdersSearch) =>
   Boolean(periodStart && periodEnd && periodStart > periodEnd);
-
-export const canSearch = (search: ViewOrdersSearch, suppliers: readonly { id: string }[]) =>
-  Boolean(
-    search.supplyingFacilityId &&
-      suppliers.some((supplier) => supplier.id === search.supplyingFacilityId) &&
-      !invalidDateRange(search),
-  );
 
 export function toOrderParams(search: ViewOrdersSearch, kind: 'view' | 'fulfill' = 'view') {
   const { pageIndex, pageSize } = toPaginationState(search);

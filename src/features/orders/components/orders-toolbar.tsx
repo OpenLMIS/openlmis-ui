@@ -9,8 +9,8 @@ import { DataTableFilters } from '@/components/data-table/data-table-filters-pop
 import { DatePicker } from '@/components/form/form-fields';
 import type { ViewOrdersSearch } from '@/features/orders/lib/order-search';
 import {
+  FULFILL_STATUSES,
   ORDER_STATUS,
-  type OrderStatus,
   VIEW_FILTER_STATUSES,
 } from '@/features/orders/lib/order-status';
 
@@ -42,8 +42,6 @@ export function OrdersToolbar({
   disabled = false,
   facilitiesDisabled = false,
   programsDisabled = false,
-  statuses = VIEW_FILTER_STATUSES,
-  periods = true,
 }: {
   kind?: 'view' | 'fulfill';
   search: ViewOrdersSearch;
@@ -54,10 +52,9 @@ export function OrdersToolbar({
   disabled?: boolean;
   facilitiesDisabled?: boolean;
   programsDisabled?: boolean;
-  statuses?: readonly OrderStatus[];
-  periods?: boolean;
 }) {
   const { t } = useTranslation();
+  const statuses = kind === 'fulfill' ? FULFILL_STATUSES : VIEW_FILTER_STATUSES;
   const change = (patch: Partial<ViewOrdersSearch>) =>
     onFilterChange({ ...patch, page: undefined });
   return (
@@ -96,13 +93,13 @@ export function OrdersToolbar({
             value={search.status ?? ''}
             options={statuses.map((status) => ({
               value: status,
-              label: t(ORDER_STATUS[status].labelKey),
+              label: t(ORDER_STATUS[status]),
             }))}
             onValueChange={(value) =>
               change({ status: value ? (value as ViewOrdersSearch['status']) : undefined })
             }
           />
-          {periods && (
+          {kind === 'view' && (
             <>
               <DatePicker
                 id="orders-period-start"

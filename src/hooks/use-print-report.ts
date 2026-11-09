@@ -87,30 +87,28 @@ export function usePrintReport(options: PrintReportOptions) {
       });
     },
   });
-  const start = (request: PrintReportOptions['request']) => {
-    if (options.device || !isOnline() || print.isPending || !stillSignedIn(options.userId)) return;
-    const delivery = options.onReport();
-    let cancelled = false;
-    const unsubscribe = useLoginData.subscribe((state) => {
-      if (state.referenceDataUserId !== options.userId) {
-        cancelled = true;
-        delivery.close();
-      }
-    });
-    print.mutate({
-      ...options,
-      request,
-      language: i18n.resolvedLanguage ?? i18n.language ?? 'en',
-      delivery,
-      unsubscribe,
-      isCurrent: () => !cancelled && stillSignedIn(options.userId),
-    });
-  };
   return {
     isPending: print.isPending,
     offline: !online || Boolean(options.device),
     disabledReason: online && !options.device ? undefined : t('offline.print-description'),
-    print: () => start(options.request),
-    printWith: ({ request }: Pick<PrintReportOptions, 'request'>) => start(request),
+    print: () => {
+      if (options.device || !isOnline() || print.isPending || !stillSignedIn(options.userId))
+        return;
+      const delivery = options.onReport();
+      let cancelled = false;
+      const unsubscribe = useLoginData.subscribe((state) => {
+        if (state.referenceDataUserId !== options.userId) {
+          cancelled = true;
+          delivery.close();
+        }
+      });
+      print.mutate({
+        ...options,
+        language: i18n.resolvedLanguage ?? i18n.language ?? 'en',
+        delivery,
+        unsubscribe,
+        isCurrent: () => !cancelled && stillSignedIn(options.userId),
+      });
+    },
   };
 }

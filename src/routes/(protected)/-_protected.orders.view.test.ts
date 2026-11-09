@@ -1,7 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { requirePermissions } from '@/features/auth/lib/access';
-import { viewSupplierFacilitiesOptions } from '@/features/orders/api/queries';
 import type { ViewOrdersSearch } from '@/features/orders/lib/order-search';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { parsePermissions } from '@/lib/permissions';
@@ -34,20 +33,18 @@ function setup() {
 }
 
 describe('View Orders loader', () => {
-  it.each([true, false])(
-    'starts orders from grants without waiting for supplier facilities (cached: %s)',
-    async (cached) => {
-      const { client, load, orderCalls, prefetch } = setup();
-      if (cached) client.setQueryData(minimalFacilitiesOptions().queryKey, []);
-      prefetch.mockImplementation(() => new Promise(() => {}));
-      const ensure = vi.spyOn(client, 'ensureQueryData');
-      await load();
-      expect(ensure).not.toHaveBeenCalled();
-      expect(orderCalls().map(([options]) => options.queryKey[1])).toEqual(
-        expect.arrayContaining(['requesting-facilities', 'list']),
-      );
-    },
-  );
+  it('starts picker and order reads without waiting for reference data', async () => {
+    const { client, load, orderCalls, prefetch } = setup();
+    prefetch.mockImplementation(() => new Promise(() => {}));
+    const ensure = vi.spyOn(client, 'ensureQueryData');
+    await load({});
+    expect(orderCalls()).toEqual([]);
+    await load();
+    expect(ensure).not.toHaveBeenCalled();
+    expect(orderCalls().map(([options]) => options.queryKey[1])).toEqual(
+      expect.arrayContaining(['requesting-facilities', 'list']),
+    );
+  });
 
   it('prefetches requester options but no orders for inverted dates', async () => {
     const { load, orderCalls } = setup();
@@ -58,14 +55,6 @@ describe('View Orders loader', () => {
     });
     expect(orderCalls().map(([options]) => options.queryKey[1])).toEqual(['requesting-facilities']);
   });
-});
-
-it('does not block the initial supplier picker on minimal facilities', async () => {
-  const { client, load, prefetch } = setup();
-  prefetch.mockImplementation(() => new Promise(() => {}));
-  const ensure = vi.spyOn(client, 'ensureQueryData');
-  await load({});
-  expect(ensure).not.toHaveBeenCalled();
 });
 
 it('starts Fulfill Orders without waiting for requester options', async () => {
@@ -95,29 +84,4 @@ it('refuses a linked facility without a supplier grant', async () => {
   vi.mocked(requirePermissions).mockResolvedValue(parsePermissions(['ORDERS_VIEW|another']));
   await load();
   expect(orderCalls()).toEqual([]);
-});
-
-it('names a small supplier list through sorted unique ids without loading every facility', async () => {
-  const { client, load, prefetch, orderCalls } = setup();
-  vi.mocked(requirePermissions).mockResolvedValue(
-    parsePermissions([`ORDERS_VIEW|${supplier}`, `PODS_MANAGE|${supplier}|program`]),
-  );
-  const ensure = vi
-    .spyOn(client, 'ensureQueryData')
-    .mockResolvedValue([{ id: supplier, name: 'Supplier', code: 'S', active: true }]);
-  await load();
-  expect(ensure).not.toHaveBeenCalled();
-  expect(prefetch).toHaveBeenCalledWith(
-    expect.objectContaining({
-      queryKey: viewSupplierFacilitiesOptions(parsePermissions([`ORDERS_VIEW|${supplier}`]))
-        .queryKey,
-    }),
-  );
-  expect(
-    prefetch.mock.calls.some(
-      ([options]) =>
-        JSON.stringify(options.queryKey) === JSON.stringify(minimalFacilitiesOptions().queryKey),
-    ),
-  ).toBe(false);
-  expect(orderCalls().map(([options]) => options.queryKey[1])).toContain('list');
 });

@@ -19,6 +19,7 @@ export type CardAction = {
   destructive?: boolean;
   disabled?: boolean;
   focusableWhenDisabled?: boolean;
+  opensDialog?: boolean;
   onSelect?: (trigger: HTMLButtonElement) => void;
   link?: ReactElement;
   data?: { [key: `data-${string}`]: string | boolean };
@@ -112,7 +113,9 @@ function CardActionsMenu({
             key={action.id}
             onClick={
               action.onSelect &&
-              menu.opensDialog(() => trigger.current && action.onSelect?.(trigger.current))
+              (action.opensDialog === false
+                ? () => trigger.current && action.onSelect?.(trigger.current)
+                : menu.opensDialog(() => trigger.current && action.onSelect?.(trigger.current)))
             }
             render={action.link}
             variant={action.destructive ? 'destructive' : 'default'}

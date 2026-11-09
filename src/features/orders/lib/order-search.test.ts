@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canSearch,
   fulfillOrdersSearchSchema,
   toOrderParams,
   viewOrdersSearchSchema,
@@ -61,21 +60,19 @@ describe('order list requests from shared links', () => {
     expect(toOrderParams({}).sort).toEqual(['createdDate,desc', 'id,asc']);
   });
 
-  it('searches only offered suppliers with a valid date range', () => {
-    const suppliers = [{ id: supplier }];
-    expect(canSearch({}, suppliers)).toBe(false);
-    expect(canSearch({ supplyingFacilityId: supplier }, [])).toBe(false);
+  it('forwards valid facility and program ids', () => {
     expect(
-      canSearch(
-        { supplyingFacilityId: supplier, periodStart: '2026-11-10', periodEnd: '2026-11-09' },
-        suppliers,
+      toOrderParams(
+        viewOrdersSearchSchema.parse({
+          supplyingFacilityId: supplier,
+          requestingFacilityId: supplier,
+          programId: supplier,
+        }),
       ),
-    ).toBe(false);
-    expect(
-      canSearch(
-        { supplyingFacilityId: supplier, periodStart: '2026-11-09', periodEnd: '2026-11-09' },
-        suppliers,
-      ),
-    ).toBe(true);
+    ).toMatchObject({
+      supplyingFacilityId: supplier,
+      requestingFacilityId: supplier,
+      programId: supplier,
+    });
   });
 });

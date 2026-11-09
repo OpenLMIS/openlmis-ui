@@ -196,7 +196,13 @@ export function OrderEditor({
       if (action.kind !== 'send' || success.length !== entries.length) setSummary(null);
       setDeleting(null);
       if (action.kind !== 'save') {
-        await queryClient.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] }),
+          queryClient.invalidateQueries({
+            queryKey: [...queryKeys.orders.all, 'requesting-facilities'],
+          }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.home.all }),
+        ]);
         if (!mutation.isCurrent()) return;
       }
       if (action.kind !== 'save' && success.length) {

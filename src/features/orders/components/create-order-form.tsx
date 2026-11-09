@@ -127,6 +127,9 @@ export function CreateOrderForm({
       if (result.done.length) {
         await Promise.all([
           client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] }),
+          client.invalidateQueries({
+            queryKey: [...queryKeys.orders.all, 'requesting-facilities'],
+          }),
           client.invalidateQueries({ queryKey: queryKeys.home.all }),
         ]);
         if (mutation.isCurrent()) onCreated(result.done.map((item) => item.order.id));

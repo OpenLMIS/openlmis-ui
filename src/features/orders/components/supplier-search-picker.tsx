@@ -1,110 +1,29 @@
-import { revalidateLogic } from '@tanstack/react-form';
-import { SearchIcon } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useAppForm } from '@/components/form/form';
 import {
-  SelectorFrame,
-  SelectorSkeletonField,
-} from '@/components/pickers/facility-program-selector/facility-program-selector';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { MinimalFacility } from '@/features/reference-data/lib/types';
-import { recordLabel } from '@/lib/facility-program-selection';
+  FacilitySearchPicker,
+  FacilitySearchPickerSkeleton,
+} from '@/components/pickers/facility-search-picker';
 
-const schema = z.object({
-  facility: z.string().nullable().refine(Boolean, 'facility-program.facility-required'),
-});
-
-export function SupplierSearchPicker({
-  options,
-  applied,
-  onDraftChange,
-  onSearch,
-}: {
-  options: MinimalFacility[];
-  applied?: string;
-  onDraftChange: (facility: string) => void;
-  onSearch: (facility: string) => void;
-}) {
+export function SupplierSearchPicker(
+  props: Omit<
+    ComponentProps<typeof FacilitySearchPicker>,
+    'label' | 'placeholder' | 'clearLabel' | 'emptyMessage'
+  >,
+) {
   const { t } = useTranslation();
-  const formRef = useRef<HTMLFormElement>(null);
-  const start = options.some(({ id }) => id === applied)
-    ? applied
-    : !applied && options.length === 1
-      ? options[0]?.id
-      : '';
-  const form = useAppForm({
-    defaultValues: { facility: (start ?? '') as string | null },
-    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
-    validators: { onDynamic: schema },
-    listeners: { onChange: ({ formApi }) => onDraftChange(formApi.state.values.facility ?? '') },
-    onSubmit: ({ value, formApi }) => {
-      if (!value.facility) return;
-      onSearch(value.facility);
-      formApi.reset(value);
-    },
-    onSubmitInvalid: () =>
-      requestAnimationFrame(() =>
-        formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
-      ),
-  });
-  useEffect(() => {
-    form.reset({ facility: start ?? '' });
-  }, [form, start]);
   return (
-    <form
-      noValidate
-      ref={formRef}
-      onSubmit={(event) => {
-        event.preventDefault();
-        void form.handleSubmit();
-      }}
-    >
-      <SelectorFrame
-        search={
-          <Button disabled={options.length === 0} size="lg" type="submit">
-            <SearchIcon data-icon="inline-start" />
-            {t('facility-program.search')}
-          </Button>
-        }
-      >
-        <form.AppField name="facility">
-          {(field) => (
-            <field.ComboboxField
-              clearLabel={t('orders.view.clear-supplier')}
-              emptyMessage={t('orders.view.no-suppliers')}
-              items={options.map((facility) => ({
-                value: facility.id,
-                label: recordLabel(facility),
-                description: facility.code,
-              }))}
-              label={t('orders.view.supplier')}
-              placeholder={t('orders.view.supplier-placeholder')}
-              required
-              size="lg"
-            />
-          )}
-        </form.AppField>
-      </SelectorFrame>
-    </form>
+    <FacilitySearchPicker
+      {...props}
+      label={t('orders.view.supplier')}
+      placeholder={t('orders.view.supplier-placeholder')}
+      clearLabel={t('orders.view.clear-supplier')}
+      emptyMessage={t('orders.view.no-suppliers')}
+    />
   );
 }
 
 export function SupplierSearchPickerSkeleton() {
   const { t } = useTranslation();
-  return (
-    <div aria-busy>
-      <SelectorFrame
-        search={
-          <div className="h-9 w-full @3xl/main:w-24">
-            <Skeleton fill />
-          </div>
-        }
-      >
-        <SelectorSkeletonField label={t('orders.view.supplier')} />
-      </SelectorFrame>
-    </div>
-  );
+  return <FacilitySearchPickerSkeleton label={t('orders.view.supplier')} />;
 }

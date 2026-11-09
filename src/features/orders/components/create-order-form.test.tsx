@@ -39,6 +39,7 @@ function setup(
     for (const ids of [['0'], ['1'], ['2'], ['0', '1'], ['0', '2'], ['1', '2'], ['0', '1', '2']])
       client.setQueryData(supplyingFacilitiesOptions('program', ids).queryKey, ['2']);
   client.setQueryData(queryKeys.orders.list({}), {});
+  client.setQueryData([...queryKeys.orders.all, 'requesting-facilities', ['supplier']], []);
   client.setQueryData([...queryKeys.home.all, 'counts'], {});
   const onCreated = vi.fn();
   render(
@@ -92,6 +93,10 @@ describe('create order workflow', () => {
     await act(() => finish({ id: 'draft-a' } as Awaited<ReturnType<typeof createOrder>>));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(['draft-a']));
     expect(client.getQueryState(queryKeys.orders.list({}))?.isInvalidated).toBe(true);
+    expect(
+      client.getQueryState([...queryKeys.orders.all, 'requesting-facilities', ['supplier']])
+        ?.isInvalidated,
+    ).toBe(true);
     expect(client.getQueryState([...queryKeys.home.all, 'counts'])?.isInvalidated).toBe(true);
     expect(createOrder).toHaveBeenCalledTimes(2);
     for (const id of ['0', '1'])

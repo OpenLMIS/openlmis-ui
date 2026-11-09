@@ -1,6 +1,6 @@
 import type { ParseKeys } from 'i18next';
 
-export const ORDER_STATUSES = [
+const ORDER_STATUSES = [
   'CREATING',
   'ORDERED',
   'FULFILLING',
@@ -14,17 +14,21 @@ export const ORDER_STATUSES = [
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export const ORDER_STATUS: Record<OrderStatus, { labelKey: ParseKeys }> = {
-  CREATING: { labelKey: 'orders.status.creating' },
-  ORDERED: { labelKey: 'orders.status.ordered' },
-  FULFILLING: { labelKey: 'orders.status.fulfilling' },
-  SHIPPED: { labelKey: 'orders.status.shipped' },
-  RECEIVED: { labelKey: 'orders.status.received' },
-  TRANSFER_FAILED: { labelKey: 'orders.status.transfer-failed' },
-  IN_ROUTE: { labelKey: 'orders.status.in-route' },
-  READY_TO_PACK: { labelKey: 'orders.status.ready-to-pack' },
-  CANCELLED: { labelKey: 'orders.status.cancelled' },
+export const ORDER_STATUS: Record<OrderStatus, ParseKeys> = {
+  CREATING: 'orders.status.creating',
+  ORDERED: 'orders.status.ordered',
+  FULFILLING: 'orders.status.fulfilling',
+  SHIPPED: 'orders.status.shipped',
+  RECEIVED: 'orders.status.received',
+  TRANSFER_FAILED: 'orders.status.transfer-failed',
+  IN_ROUTE: 'orders.status.in-route',
+  READY_TO_PACK: 'orders.status.ready-to-pack',
+  CANCELLED: 'orders.status.cancelled',
 };
 
 export const VIEW_FILTER_STATUSES = ORDER_STATUSES.filter((status) => status !== 'CREATING');
 export const FULFILL_STATUSES = ['ORDERED', 'FULFILLING'] as const;
+
+export function orderStatusKey(status: string): ParseKeys | undefined {
+  return Object.hasOwn(ORDER_STATUS, status) ? ORDER_STATUS[status as OrderStatus] : undefined;
+}

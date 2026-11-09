@@ -35,6 +35,7 @@ export function DeviceEventActions({
       ? [
           {
             id: 'retry',
+            opensDialog: false,
             icon: <RotateCwIcon />,
             label: t('offline-events.retry-refused'),
             disabled: retry.pending || !canSend,

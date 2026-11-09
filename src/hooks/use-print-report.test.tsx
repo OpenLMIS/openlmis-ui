@@ -31,11 +31,9 @@ const grant = ['STOCK_CARDS_VIEW|f1|p1'];
 function ReportButton({
   reportAction,
   serverAuthorized = false,
-  overrideRequest,
 }: {
   reportAction: 'download' | 'open';
   serverAuthorized?: boolean;
-  overrideRequest?: (language: string) => Promise<Blob>;
 }) {
   const print = usePrintReport({
     serverAuthorized,
@@ -58,10 +56,7 @@ function ReportButton({
     refusedDescription: labels.refusedDescription,
   });
   return (
-    <Button
-      disabled={print.isPending}
-      onClick={overrideRequest ? () => print.printWith({ request: overrideRequest }) : print.print}
-    >
+    <Button disabled={print.isPending} onClick={print.print}>
       {print.isPending ? <Spinner /> : <PrinterIcon />}
       {labels.button}
     </Button>
@@ -253,24 +248,4 @@ it('prints a server-authorized requisition for a viewer without a facility grant
   await waitFor(() => expect(tab.location.href).toBe('blob:report'));
   expect(fetchPermissionStrings).not.toHaveBeenCalled();
   expect(request).toHaveBeenCalled();
-});
-
-it('opens delivery synchronously and uses the per-click request', async () => {
-  const response = Promise.withResolvers<Blob>();
-  const blob = new Blob(['override']);
-  const overrideRequest = vi.fn().mockReturnValue(response.promise);
-  const queryClient = new QueryClient();
-  render(
-    <QueryClientProvider client={queryClient}>
-      <ReportButton reportAction="open" serverAuthorized overrideRequest={overrideRequest} />
-    </QueryClientProvider>,
-  );
-  await userEvent.click(screen.getByRole('button', { name: 'Print' }));
-  expect(window.open).toHaveBeenCalledWith('', '_blank');
-  expect(URL.createObjectURL).not.toHaveBeenCalled();
-  await act(async () => response.resolve(blob));
-  await waitFor(() => expect(tab.location.href).toBe('blob:report'));
-  expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
-  expect(overrideRequest).toHaveBeenCalledWith(expect.any(String));
-  expect(request).not.toHaveBeenCalled();
 });

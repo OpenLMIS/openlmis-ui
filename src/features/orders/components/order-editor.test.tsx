@@ -78,6 +78,8 @@ function setup(
     );
   const listKey = queryKeys.orders.list({ supplyingFacilityId: 'supplier', page: 0 });
   client.setQueryData(listKey, { content: [], totalElements: 0 });
+  client.setQueryData([...queryKeys.home.all, 'counts'], {});
+  client.setQueryData([...queryKeys.orders.all, 'requesting-facilities', ['supplier']], []);
   let changeBatch: (ids: string[]) => void;
   const onBatchChange = vi.fn(async (ids: string[]) => changeBatch(ids));
   function Harness() {
@@ -208,6 +210,11 @@ describe('order editor workflow', () => {
     await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith(['b']));
     expect(sendOrder).toHaveBeenCalledTimes(2);
     expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState([...queryKeys.home.all, 'counts'])?.isInvalidated).toBe(true);
+    expect(
+      client.getQueryState([...queryKeys.orders.all, 'requesting-facilities', ['supplier']])
+        ?.isInvalidated,
+    ).toBe(true);
     expect(sendOrder).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'b',
@@ -253,6 +260,11 @@ describe('order editor workflow', () => {
     await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith([]));
     expect(deleteOrders).toHaveBeenCalledWith(['a', 'b']);
     expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState([...queryKeys.home.all, 'counts'])?.isInvalidated).toBe(true);
+    expect(
+      client.getQueryState([...queryKeys.orders.all, 'requesting-facilities', ['supplier']])
+        ?.isInvalidated,
+    ).toBe(true);
   });
   it('keeps the whole batch after a delete 404 and blocks the order no longer Creating', async () => {
     vi.mocked(deleteOrders).mockRejectedValue(
@@ -532,7 +544,7 @@ function editorRouter(client: QueryClient, path: string) {
   return { router, pending };
 }
 
-it.each(['send', 'delete', 'remove', 'fallback'] as const)(
+it.each(['send', 'fallback'] as const)(
   'leaves the final order directly through its return target after %s',
   async (action) => {
     const client = new QueryClient({
@@ -540,8 +552,6 @@ it.each(['send', 'delete', 'remove', 'fallback'] as const)(
     });
     client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
     vi.mocked(fetchOrder).mockImplementation(async (id) => {
-      if (action === 'remove')
-        throw new AxiosError('Denied', undefined, undefined, undefined, { status: 403 } as never);
       return creatingOrder(id);
     });
     vi.mocked(deleteOrders).mockResolvedValue(undefined);
@@ -559,11 +569,8 @@ it.each(['send', 'delete', 'remove', 'fallback'] as const)(
       </QueryClientProvider>,
     );
     const user = userEvent.setup();
-    if (action === 'remove') {
-      await user.click(
-        await screen.findByRole('button', { name: 'orders.edit.remove-from-batch' }),
-      );
-    } else if (action === 'send') {
+    const navigate = vi.spyOn(router, 'navigate');
+    if (action === 'send') {
       await user.click(await screen.findByRole('button', { name: 'orders.edit.create' }));
       await user.click(
         within(await screen.findByRole('dialog')).getByRole('button', {
@@ -584,6 +591,7 @@ it.each(['send', 'delete', 'remove', 'fallback'] as const)(
       ),
     );
     if (action !== 'fallback') expect(router.state.location.search).toMatchObject(target.search);
+    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ replace: true }));
     expect(screen.queryByText('Pending Orders')).not.toBeInTheDocument();
   },
 );

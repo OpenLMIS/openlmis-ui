@@ -458,6 +458,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - **Support backend services on master.** Never depend on branch-only endpoints/parameters.
   Preserve legacy API limits: `GET /orderables` has separate code/name filters, so offer
   Search By Name in the toolbar and Search By Code inside Filters.
+- Loading tables never call `useDeploymentTimeZone` or other suspending hooks; build their
+  columns with a fixed time zone.
 - Keep the toolbar outside `QueryBoundary`. Rows read `useDeferredValue(search)`;
   first load shows `DataTableSkeleton`, later requests keep dimmed existing rows until ready.
   Filter typing replaces history; paging/sorting add entries for Back navigation.
@@ -556,7 +558,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   like the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then
   View) first in `actions`; it sits at the band's end. Up to three show as buttons; four or more
   show two plus a "..." menu holding the rest, destructive last. Server deletes always confirm;
-  draft-row removal is instant. Skeletons pass the same count to `CardActionsSkeleton` or
+  draft-row removal is instant. Set `CardAction.opensDialog` to `false` for callbacks that do
+  not open a dialog so menu focus returns to the trigger; omitted keeps dialog focus handling.
+  Skeletons pass the same count to `CardActionsSkeleton` or
   `TableCardsSkeleton actions`. Editor and dialog tables follow the same rule. Dialogs measure
   with `useDialogCardLayout(size)` (`src/hooks/use-card-view.ts`): below 672px or once the screen
   squeezes a narrower dialog below its own width. `DialogTable` and `DialogTableSkeleton`
@@ -817,6 +821,10 @@ pending results, and abort on unmount. Each screen supplies its own lot policy. 
 scanning follows the kind policy; Unpack keeps it off, as legacy.
 
 ## Facility and program picker
+
+`FacilitySearchPicker` and its skeleton in `src/components/pickers/` share the single-facility
+Search form, validation and virtualized full option list. Callers provide translated copy and
+keep applied selections and drafts. The picker imports no features or auth.
 
 Facility/program screens use `FacilityProgramSelector`
 (`src/components/pickers/facility-program-selector/`).

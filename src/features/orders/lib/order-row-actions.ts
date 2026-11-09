@@ -1,5 +1,5 @@
 type ActionOrder = { status: string; supplyingFacility: { id: string } | null };
-type OrderAccess = { canEdit: boolean; retrySupplierIds: readonly string[] };
+export type OrderAccess = { canEdit: boolean; retrySupplierIds: readonly string[] };
 type ViewOrderAction = 'edit' | 'print' | 'download' | 'retry';
 
 export function viewOrderActions(order: ActionOrder, access: OrderAccess): ViewOrderAction[] {

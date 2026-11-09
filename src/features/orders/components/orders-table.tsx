@@ -21,20 +21,20 @@ import { Button } from '@/components/ui/button';
 import { ordersSearchOptions } from '@/features/orders/api/queries';
 import {
   FulfillOrderButton,
-  type OrderRowAccess,
   OrderRowButtons,
 } from '@/features/orders/components/order-row-buttons';
 import {
   activeOrderFilterCount,
   CLEARED_ORDER_FILTERS,
 } from '@/features/orders/components/orders-toolbar';
+import type { OrderAccess } from '@/features/orders/lib/order-row-actions';
 import {
+  isOrderSortField,
   ORDER_DEFAULT_SORT,
-  ORDER_SORT_FIELDS,
   toOrderParams,
   type ViewOrdersSearch,
 } from '@/features/orders/lib/order-search';
-import { ORDER_STATUS, type OrderStatus } from '@/features/orders/lib/order-status';
+import { orderStatusKey } from '@/features/orders/lib/order-status';
 import type { OrderSummary } from '@/features/orders/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
@@ -42,7 +42,7 @@ import { tableValue } from '@/lib/empty-value';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
 const helper = createColumnHelper<DataTableFeatures, OrderSummary>();
-export const VIEW_ORDER_COLUMNS = [
+const VIEW_ORDER_COLUMNS = [
   ['orderCode', 'orders.view.columns.order-code'],
   ['facility', 'orders.view.columns.facility'],
   ['district', 'orders.view.columns.district'],
@@ -55,7 +55,7 @@ export const VIEW_ORDER_COLUMNS = [
   ['createdDate', 'orders.view.columns.created-date'],
   ['lastUpdatedDate', 'orders.view.columns.last-updated-date'],
 ] as const;
-export const FULFILL_ORDER_COLUMNS = [
+const FULFILL_ORDER_COLUMNS = [
   ['emergency', 'orders.fulfill.columns.emergency'],
   ['orderCode', 'orders.fulfill.columns.order-code'],
   ['status', 'orders.fulfill.columns.status'],
@@ -71,17 +71,14 @@ export const ORDER_HIDEABLE_COLUMNS = VIEW_ORDER_COLUMNS.filter(([id]) => id !==
   ([id, labelKey]) => ({
     id,
     labelKey,
-    ...(['district', 'startDate', 'endDate', 'lastUpdatedDate'].includes(id) && {
-      hideBelow: 1280,
-    }),
   }),
 );
 const NO_ROWS: OrderSummary[] = [];
-const NO_ACCESS: OrderRowAccess = { canEdit: false, retrySupplierIds: [] };
+const NO_ACCESS: OrderAccess = { canEdit: false, retrySupplierIds: [] };
 const noop = () => {};
 const rowId = (order: OrderSummary) => order.id;
 
-export function orderListCell(
+function orderListCell(
   id: string,
   order: OrderSummary,
   language: string,
@@ -109,10 +106,10 @@ export function orderListCell(
     case 'createdDate':
     case 'lastUpdatedDate':
       return text(formatTimestamp(order[id], language, { timeZone }));
-    case 'status':
-      return ORDER_STATUS[order.status as OrderStatus]
-        ? t(ORDER_STATUS[order.status as OrderStatus].labelKey)
-        : tableValue(order.status);
+    case 'status': {
+      const key = orderStatusKey(order.status);
+      return text(key ? t(key) : order.status);
+    }
     case 'emergency':
       return (
         <FlagBadge
@@ -124,30 +121,27 @@ export function orderListCell(
   }
 }
 
-export function orderColumns({
-  columns = VIEW_ORDER_COLUMNS,
+function orderColumns({
+  columns,
   t,
   language,
   timeZone,
   actions,
-  actionsKey = 'orders.view.columns.actions',
+  actionsKey,
 }: {
-  columns?: readonly (readonly [string, ParseKeys])[];
+  columns: readonly (readonly [string, ParseKeys])[];
   t: TFunction;
   language: string;
   timeZone: string;
   actions?: (order: OrderSummary) => ReactNode;
-  actionsKey?: ParseKeys;
+  actionsKey: ParseKeys;
 }) {
   return helper.columns([
     ...columns.map(([id, key]) =>
       helper.display({
         id,
-        ...(ORDER_SORT_FIELDS.includes(id as (typeof ORDER_SORT_FIELDS)[number]) && {
-          accessorFn: (order: OrderSummary) =>
-            order[id as 'orderCode' | 'emergency' | 'createdDate'],
-        }),
-        enableSorting: ORDER_SORT_FIELDS.includes(id as (typeof ORDER_SORT_FIELDS)[number]),
+        ...(isOrderSortField(id) && { accessorFn: (order: OrderSummary) => order[id] }),
+        enableSorting: isOrderSortField(id),
         sortDescFirst: id === 'createdDate',
         meta: { label: t(key) },
         header: ({ column }) => <DataTableColumnHeader column={column} title={t(key)} />,
@@ -174,7 +168,7 @@ type Props<T extends ViewOrdersSearch = ViewOrdersSearch> = {
   columns: ColumnVisibilityState;
   search: T;
   onSearchChange: SearchChange<T>;
-  access?: OrderRowAccess;
+  access?: OrderAccess;
 };
 function useResultsTable<T extends ViewOrdersSearch>(
   {
@@ -272,7 +266,6 @@ export function OrdersTable<T extends ViewOrdersSearch>(props: Props<T>) {
       action={
         filtered && (
           <Button
-            size="lg"
             variant="destructive"
             onClick={() =>
               onSearchChange((previous) => ({ ...previous, ...CLEARED_ORDER_FILTERS }), true)
@@ -319,7 +312,6 @@ export function OrdersTableSkeleton<T extends ViewOrdersSearch>({
       cards,
       columns,
       search,
-      access: NO_ACCESS,
       onSearchChange: noop,
       data: NO_ROWS,
       rowCount: 0,

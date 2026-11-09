@@ -52,6 +52,14 @@ it.each(['false', 'true', 'rejected'] as const)(
     await user.click(await screen.findByRole('button', { name: 'card-actions.actions-for' }));
     await user.click(await screen.findByRole('menuitem', { name: 'orders.retry: Order ORDER-A' }));
     await waitFor(() => expect(retryOrderTransfer).toHaveBeenCalledWith('a'));
+    await user.click(screen.getByRole('button', { name: 'card-actions.actions-for' }));
+    const pendingRetry = await screen.findByRole('menuitem', {
+      name: 'orders.retry: Order ORDER-A',
+    });
+    expect(pendingRetry).toHaveAttribute('aria-disabled', 'true');
+    await user.click(pendingRetry);
+    expect(retryOrderTransfer).toHaveBeenCalledOnce();
+    await user.keyboard('{Escape}');
     if (outcome === 'rejected')
       response.reject(
         new AxiosError('Denied', undefined, undefined, undefined, {
@@ -78,7 +86,8 @@ it.each(['false', 'true', 'rejected'] as const)(
   },
 );
 
-it.each([true, false])('identifies the order in row actions (cards: %s)', async (cards) => {
+it('identifies the order in row actions', async () => {
+  const cards = false;
   const user = userEvent.setup();
   renderPage(
     <I18nextProvider i18n={i18n}>

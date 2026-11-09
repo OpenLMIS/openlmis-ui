@@ -1,9 +1,8 @@
-import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { CalendarX2Icon, PackageIcon, ShieldAlertIcon } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -23,23 +22,22 @@ import {
   ordersSearchOptions,
   viewSupplierFacilitiesOptions,
 } from '@/features/orders/api/queries';
-import type { OrderRowAccess } from '@/features/orders/components/order-row-buttons';
+import { OrdersError } from '@/features/orders/components/orders-error';
 import {
   ORDER_HIDEABLE_COLUMNS,
   OrdersTable,
   OrdersTableSkeleton,
-  VIEW_ORDER_COLUMNS,
 } from '@/features/orders/components/orders-table';
 import { OrdersToolbar } from '@/features/orders/components/orders-toolbar';
+import { OrdersViewOptions } from '@/features/orders/components/orders-view-options';
 import {
   SupplierSearchPicker,
   SupplierSearchPickerSkeleton,
 } from '@/features/orders/components/supplier-search-picker';
+import { useOrderFilterOptions } from '@/features/orders/hooks/use-order-filter-options';
+import type { OrderAccess } from '@/features/orders/lib/order-row-actions';
 import {
-  canSearch,
   invalidDateRange,
-  ORDER_DEFAULT_SORT,
-  ORDER_SORT_FIELDS,
   toOrderParams,
   type ViewOrdersSearch,
   viewOrdersSearchSchema,
@@ -48,17 +46,13 @@ import {
   viewOrderSupplierIds,
   viewOrderSuppliers,
 } from '@/features/orders/lib/supplying-facilities';
-import {
-  deploymentTimeZoneOptions,
-  minimalFacilitiesOptions,
-  programsOptions,
-} from '@/features/reference-data/api/queries';
+import { deploymentTimeZoneOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { queryKeys } from '@/lib/key-factory';
 import { facilityGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
-import { type SearchChange, searchSort } from '@/lib/table-search';
+import type { SearchChange } from '@/lib/table-search';
 
 const NO_DIALOGS = {} satisfies Partial<ViewOrdersSearch>;
 const noop = () => {};
@@ -74,11 +68,14 @@ export const Route = createFileRoute('/(protected)/_protected/orders/view')({
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const facilityOptions = viewSupplierFacilitiesOptions(permissions);
     queryClient.prefetchQuery(facilityOptions);
-    const suppliers = viewOrderSupplierIds(permissions).map((id) => ({ id }));
-    if (search.supplyingFacilityId && suppliers.some(({ id }) => id === search.supplyingFacilityId))
+    if (
+      search.supplyingFacilityId &&
+      viewOrderSupplierIds(permissions).includes(search.supplyingFacilityId)
+    ) {
       queryClient.prefetchQuery(orderRequestingFacilitiesOptions([search.supplyingFacilityId]));
-    if (canSearch(search, suppliers))
-      queryClient.prefetchQuery(ordersSearchOptions(toOrderParams(search)));
+      if (!invalidDateRange(search))
+        queryClient.prefetchQuery(ordersSearchOptions(toOrderParams(search)));
+    }
     return permissions;
   },
   pendingComponent: OrdersPending,
@@ -97,33 +94,6 @@ function OrdersHeader() {
         <WorkspaceDescription>{t('orders.view.description')}</WorkspaceDescription>
       </WorkspaceHeading>
     </WorkspaceHeader>
-  );
-}
-function ColumnsMenu({
-  columnView,
-  search,
-  onSearchChange,
-}: {
-  columnView: ColumnView;
-  search: ViewOrdersSearch;
-  onSearchChange: SearchChange<ViewOrdersSearch>;
-}) {
-  const { t } = useTranslation();
-  return (
-    <DataTableViewOptions
-      size="lg"
-      layout={columnView.layout}
-      columns={ORDER_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))}
-      onReset={columnView.columnView.onReset}
-      onVisibilityChange={columnView.columnView.onVisibilityChange}
-      visibility={columnView.columnView.visibility}
-      sort={{
-        ...searchSort(search, ORDER_DEFAULT_SORT, onSearchChange),
-        columns: VIEW_ORDER_COLUMNS.filter(([id]) =>
-          ORDER_SORT_FIELDS.includes(id as (typeof ORDER_SORT_FIELDS)[number]),
-        ).map(([id, key]) => ({ id, label: t(key) })),
-      }}
-    />
   );
 }
 function Outcome({
@@ -155,7 +125,14 @@ function PageSkeleton({
     <>
       <SupplierSearchPickerSkeleton />
       <fieldset disabled className="min-w-0">
-        <OrdersToolbar search={search} disabled onFilterChange={noop} />
+        <OrdersToolbar
+          search={search}
+          disabled
+          onFilterChange={noop}
+          view={
+            search.supplyingFacilityId ? <DataTableViewOptions size="lg" disabled /> : undefined
+          }
+        />
       </fieldset>
       {search.supplyingFacilityId ? (
         <OrdersTableSkeleton
@@ -188,7 +165,6 @@ function OrdersPending() {
   );
 }
 function OrdersPage() {
-  const { t } = useTranslation();
   const permissions = Route.useLoaderData();
   const search = Route.useSearch();
   const columnView = useCardView(ORDER_HIDEABLE_COLUMNS, 'orders.view.column-visibility');
@@ -208,14 +184,7 @@ function OrdersPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={columnView.measure}>
           <QueryBoundary
-            errorComponent={({ error, reset }) => (
-              <ListError
-                error={error}
-                reset={reset}
-                title={t('orders.view.error-title')}
-                description={t('orders.view.error-description')}
-              />
-            )}
+            errorComponent={OrdersError}
             pendingFallback={<PageSkeleton columnView={columnView} search={search} />}
             resetKey="orders-lookups"
           >
@@ -240,7 +209,7 @@ function OrdersBody({
   onSearchChange,
 }: {
   permissions: Awaited<ReturnType<typeof requirePermissions>>;
-  access: OrderRowAccess;
+  access: OrderAccess;
   search: ViewOrdersSearch;
   columnView: ColumnView;
   onSearchChange: SearchChange<ViewOrdersSearch>;
@@ -248,8 +217,6 @@ function OrdersBody({
   const { t } = useTranslation();
   const client = useQueryClient();
   const { data: facilities } = useSuspenseQuery(viewSupplierFacilitiesOptions(permissions));
-  const programQuery = useQuery(programsOptions());
-  const programs = programQuery.data ?? [];
   const suppliers = useMemo(
     () => viewOrderSuppliers(permissions, facilities),
     [permissions, facilities],
@@ -262,32 +229,20 @@ function OrdersBody({
     setDraft(null);
   }
   const pending = draft !== null && draft !== supplier?.id;
-  const requesters = useQuery(orderRequestingFacilitiesOptions(supplier ? [supplier.id] : []));
-  const requestingIds = new Set(requesters.data ?? []);
-  const requesterFacilities = useQuery({
-    ...minimalFacilitiesOptions(),
-    enabled: requestingIds.size > 0,
-  });
-  const failedLookup = [programQuery, ...(supplier ? [requesters, requesterFacilities] : [])].find(
-    (query) => query.isError,
-  );
+  const { failedLookup, ...filters } = useOrderFilterOptions(supplier ? [supplier.id] : []);
   const toolbar = (
     <OrdersToolbar
       disabled={!supplier || pending}
-      programsDisabled={!programQuery.isSuccess}
-      facilitiesDisabled={!requesters.isSuccess || !requesterFacilities.isSuccess}
       search={search}
-      facilities={(requesterFacilities.data ?? [])
-        .filter(({ id }) => requestingIds.has(id))
-        .map((facility) => ({
-          value: facility.id,
-          label: [facility.code, facility.name].filter(Boolean).join(' - '),
-        }))}
-      programs={programs.map(({ id, name }) => ({ value: id, label: name ?? id }))}
+      {...filters}
       onFilterChange={(patch) => onSearchChange(patch, true)}
       view={
         supplier && !pending ? (
-          <ColumnsMenu columnView={columnView} search={search} onSearchChange={onSearchChange} />
+          <OrdersViewOptions
+            columnView={columnView}
+            search={search}
+            onSearchChange={onSearchChange}
+          />
         ) : undefined
       }
     />
@@ -339,18 +294,13 @@ function OrdersBody({
               previous.supplyingFacilityId === id ? previous.requestingFacilityId : undefined,
             page: undefined,
           }));
-          if (id === search.supplyingFacilityId)
+          if (id === search.supplyingFacilityId && !search.page)
             void client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] });
         }}
       />
       {!pending && toolbar}
       {failedLookup && (
-        <ListError
-          error={failedLookup.error}
-          reset={() => void failedLookup.refetch()}
-          title={t('orders.view.error-title')}
-          description={t('orders.view.error-description')}
-        />
+        <OrdersError error={failedLookup.error} reset={() => void failedLookup.refetch()} />
       )}
       {outcome}
     </>
@@ -363,7 +313,7 @@ function SupplierResults({
   onSearchChange,
 }: {
   search: ViewOrdersSearch;
-  access: OrderRowAccess;
+  access: OrderAccess;
   columnView: ColumnView;
   onSearchChange: SearchChange<ViewOrdersSearch>;
 }) {
@@ -377,7 +327,6 @@ function SupplierResults({
           description={t('orders.view.date-range-description')}
           action={
             <Button
-              size="lg"
               variant="outline"
               onClick={() =>
                 onSearchChange(
@@ -392,14 +341,7 @@ function SupplierResults({
         />
       ) : (
         <QueryBoundary
-          errorComponent={({ error, reset }) => (
-            <ListError
-              error={error}
-              reset={reset}
-              title={t('orders.view.error-title')}
-              description={t('orders.view.error-description')}
-            />
-          )}
+          errorComponent={OrdersError}
           pendingFallback={
             <OrdersTableSkeleton
               cards={columnView.cards}

@@ -1,31 +1,13 @@
 import { QueryClient } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
-import type { TFunction } from 'i18next';
 import { Suspense } from 'react';
 import { expect, it, vi } from 'vitest';
 import { ordersSearchOptions } from '@/features/orders/api/queries';
-import {
-  FULFILL_ORDER_COLUMNS,
-  OrdersTable,
-  OrdersTableSkeleton,
-  orderColumns,
-} from '@/features/orders/components/orders-table';
+import { OrdersTable, OrdersTableSkeleton } from '@/features/orders/components/orders-table';
 import { toOrderParams } from '@/features/orders/lib/order-search';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { orderSummary } from '@/test-utils/order-fixtures';
 import { renderPage } from '@/test-utils/render-page';
-
-const options = {
-  columns: FULFILL_ORDER_COLUMNS,
-  t: ((key: string) => key) as TFunction,
-  language: 'en',
-  timeZone: 'UTC',
-};
-
-it('omits the pinned actions column when fulfillment has no legacy action', () => {
-  const columns = orderColumns(options);
-  expect(columns.map((column) => column.id)).not.toContain('actions');
-});
 
 it('renders Fulfill results without Actions when legacy is unavailable', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });

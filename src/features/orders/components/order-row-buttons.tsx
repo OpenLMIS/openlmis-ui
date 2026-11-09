@@ -20,7 +20,11 @@ import { serverMessage } from '@/components/display/dialog-parts';
 import { Button } from '@/components/ui/button';
 import { fetchOrderCsv, fetchOrderPdf, retryOrderTransfer } from '@/features/orders/api/api';
 import { orderReturnState } from '@/features/orders/lib/order-return';
-import { fulfillAction, viewOrderActions } from '@/features/orders/lib/order-row-actions';
+import {
+  fulfillAction,
+  type OrderAccess,
+  viewOrderActions,
+} from '@/features/orders/lib/order-row-actions';
 import type { ViewOrdersSearch } from '@/features/orders/lib/order-search';
 import type { OrderSummary } from '@/features/orders/lib/types';
 import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
@@ -33,7 +37,6 @@ import { openReport } from '@/lib/open-report';
 import { getSessionUserId } from '@/lib/session-scope';
 
 const RETRY_KEY = [...queryKeys.orders.all, 'retry'];
-export type OrderRowAccess = { canEdit: boolean; retrySupplierIds: readonly string[] };
 export function OrderRowButtons({
   order,
   search,
@@ -42,7 +45,7 @@ export function OrderRowButtons({
 }: {
   order: OrderSummary;
   search: ViewOrdersSearch;
-  access: OrderRowAccess;
+  access: OrderAccess;
   disabled: boolean;
 }) {
   const { t } = useTranslation();
@@ -102,15 +105,14 @@ export function OrderRowButtons({
           t('orders.retry-error-description'),
       }),
   });
+  const named = (action: string) =>
+    t('orders.action-for', { action, order: order.orderCode ?? order.id });
   const actions: Record<ReturnType<typeof viewOrderActions>[number], CardAction> = {
     edit: {
       id: 'edit',
       icon: <PencilIcon />,
       label: t('orders.edit'),
-      name: t('orders.action-for', {
-        action: t('orders.edit'),
-        order: order.orderCode ?? order.id,
-      }),
+      name: named(t('orders.edit')),
       disabled,
       link: (
         <Link
@@ -122,34 +124,28 @@ export function OrderRowButtons({
     },
     print: {
       id: 'print',
+      opensDialog: false,
       icon: <PrinterIcon />,
       label: t('orders.print'),
-      name: t('orders.action-for', {
-        action: t('orders.print'),
-        order: order.orderCode ?? order.id,
-      }),
+      name: named(t('orders.print')),
       disabled: disabled || print.isPending || print.offline,
-      onSelect: () => print.printWith({ request: (language) => fetchOrderPdf(order.id, language) }),
+      onSelect: print.print,
     },
     download: {
       id: 'download',
+      opensDialog: false,
       icon: <DownloadIcon />,
       label: t('orders.download'),
-      name: t('orders.action-for', {
-        action: t('orders.download'),
-        order: order.orderCode ?? order.id,
-      }),
+      name: named(t('orders.download')),
       disabled: disabled || download.isPending,
       onSelect: () => download.mutate(),
     },
     retry: {
       id: 'retry',
+      opensDialog: false,
       icon: <RefreshCwIcon />,
       label: t('orders.retry'),
-      name: t('orders.action-for', {
-        action: t('orders.retry'),
-        order: order.orderCode ?? order.id,
-      }),
+      name: named(t('orders.retry')),
       disabled: disabled || retryPending,
       onSelect: () => {
         if (!client.isMutating({ mutationKey: RETRY_KEY })) retry.mutate();
@@ -172,16 +168,15 @@ export function FulfillOrderButton({
   disabled: boolean;
 }) {
   const { t } = useTranslation();
-  const legacy = useBackToLegacy();
+  const legacy = useBackToLegacy(`#!/orders/${order.id}/shipment`);
   const cards = useInCards();
-  if (!legacy.available) return null;
   const label = t(
     fulfillAction(order) === 'continue'
       ? 'orders.continue-fulfillment'
       : 'orders.start-fulfillment',
   );
   const name = t('orders.action-for', { action: label, order: order.orderCode ?? order.id });
-  const open = () => legacy.open(`#!/orders/${order.id}/shipment`);
+  const open = legacy.onClick;
   return cards ? (
     <CardActions
       label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}

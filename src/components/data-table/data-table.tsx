@@ -91,6 +91,7 @@ export function DataTable<TData extends RowData>({
 }: DataTableProps<TData>) {
   const rows = table.getRowModel().rows;
   const columns = table.getVisibleLeafColumns();
+  const pinned = columns.some((column) => column.columnDef.meta?.sticky);
   const tableRef = useRef<HTMLTableElement>(null);
   const pageIndex = table.state.pagination.pageIndex;
   const previousPage = useRef(pageIndex);
@@ -136,7 +137,7 @@ export function DataTable<TData extends RowData>({
                   </TableRow>
                 ) : (
                   <TableRow
-                    pinned={columns.some((column) => column.columnDef.meta?.sticky)}
+                    pinned={pinned}
                     data-invalid={isRowInvalid?.(row.original) || undefined}
                     data-state={row.getIsSelected() ? 'selected' : undefined}
                     key={row.id}
@@ -326,6 +327,7 @@ export function DataTableSkeleton<TData extends RowData>({
   pagination = 'default',
 }: DataTableSkeletonProps<TData>) {
   const columns = table.getVisibleLeafColumns();
+  const pinned = columns.some((column) => column.columnDef.meta?.sticky);
   const rows = Array.from({ length: rowCount }, (_, index) => index);
 
   return (
@@ -336,10 +338,7 @@ export function DataTableSkeleton<TData extends RowData>({
             <DataTableHeader table={table} />
             <TableBody>
               {rows.map((row) => (
-                <TableRow
-                  key={row}
-                  pinned={columns.some((column) => column.columnDef.meta?.sticky)}
-                >
+                <TableRow key={row} pinned={pinned}>
                   {columns.map((column) => (
                     <TableCell key={column.id} sticky={column.columnDef.meta?.sticky}>
                       {column.id === 'select' ? (

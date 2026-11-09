@@ -7,16 +7,15 @@ export function useBackToLegacy(hash = '') {
   const { t } = useTranslation();
   const appName = useAppName();
   const home = legacyHome(import.meta.env.BASE_URL);
-  const open = (targetHash: string) =>
-    whenLeaveAllowed(() => {
-      allowUnload();
-      window.location.assign(`${home}${targetHash}`);
-    }, 'leave');
+  const url = `${home}${hash}`;
   return {
     available: home !== import.meta.env.BASE_URL,
     label: t('legacy.label'),
     description: t('legacy.description', { appName }),
-    onClick: () => open(hash),
-    open,
+    onClick: () =>
+      whenLeaveAllowed(() => {
+        allowUnload();
+        window.location.assign(url);
+      }, 'leave'),
   };
 }

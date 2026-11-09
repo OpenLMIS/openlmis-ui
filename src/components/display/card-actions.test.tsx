@@ -1,8 +1,8 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PencilIcon, ShieldIcon, Trash2Icon, UsersIcon } from 'lucide-react';
 import { expect, it, vi } from 'vitest';
-import { type CardAction, CardActions } from '@/components/display/card-actions';
+import { type CardAction, CardActions, RowActions } from '@/components/display/card-actions';
 
 const edit: CardAction = { id: 'edit', icon: <PencilIcon />, label: 'Edit', onSelect: vi.fn() };
 const roles: CardAction = { id: 'roles', icon: <ShieldIcon />, label: 'Roles', onSelect: vi.fn() };
@@ -40,4 +40,19 @@ it('keeps the main action and one other as buttons and moves the rest, destructi
   expect(items.map((item) => item.textContent)).toEqual(['Members', 'Remove']);
   await user.click(screen.getByRole('menuitem', { name: 'Remove Admin' }));
   expect(remove.onSelect).toHaveBeenCalledOnce();
+});
+
+it('returns keyboard focus to the menu trigger after a non-dialog action', async () => {
+  const user = userEvent.setup();
+  const onSelect = vi.fn();
+  render(
+    <RowActions label="Order Actions" actions={[{ ...edit, opensDialog: false, onSelect }]} />,
+  );
+  const trigger = screen.getByRole('button', { name: 'Order Actions' });
+  trigger.focus();
+  await user.keyboard('{Enter}');
+  await screen.findByRole('menuitem', { name: 'Edit' });
+  await user.keyboard('{ArrowDown}{Enter}');
+  expect(onSelect).toHaveBeenCalledOnce();
+  await waitFor(() => expect(trigger).toHaveFocus());
 });
