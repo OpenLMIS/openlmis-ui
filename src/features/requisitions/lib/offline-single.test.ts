@@ -117,7 +117,7 @@ it('waits for grid products before requesting missing available products', async
   client.clear();
 });
 
-it('waits for idle before fetching extra products and limits requests to one batch', async () => {
+it('waits for idle and foreground requests before fetching extra products in batches', async () => {
   const { requisitionGridQueries, requisitionStatusMessagesOptions } = await import(
     '../api/queries'
   );
@@ -161,16 +161,26 @@ it('waits for idle before fetching extra products and limits requests to one bat
     base,
     'read',
   );
+  const { withRequestPriority } = await import('@/lib/background-request-gate');
+  const pending = Promise.withResolvers<void>();
+  const foreground = withRequestPriority(false, undefined, () => pending.promise);
   try {
     const { waitFor } = await import('@testing-library/react');
     await waitFor(() => expect(idle).toBeDefined());
     expect(fetchOrderablesByIdentities).not.toHaveBeenCalled();
     idle?.();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(fetchOrderablesByIdentities).not.toHaveBeenCalled();
+    pending.resolve();
+    await foreground;
     await capture;
     expect(vi.mocked(fetchOrderablesByIdentities).mock.calls.map(([ids]) => ids.length)).toEqual([
       100, 100, 50,
     ]);
   } finally {
+    pending.resolve();
+    await foreground;
+    await capture;
     vi.unstubAllGlobals();
     client.clear();
   }

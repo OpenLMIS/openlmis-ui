@@ -16,6 +16,7 @@ import {
 import { type CopyLease, commitCopy } from '@/features/requisitions/lib/offline-copies';
 import { singleComplete, singleSummary } from '@/features/requisitions/lib/offline-single';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import { withRequestPriority } from '@/lib/background-request-gate';
 import { BY_IDS_BATCH } from '@/lib/fetch-by-ids';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { assertSessionScope } from '@/lib/session-scope';
@@ -64,8 +65,16 @@ export async function captureSingle(
     assertSessionScope(lease.session);
     for (let start = 0; start < missing.length; start += BY_IDS_BATCH) {
       availableProducts.push(
-        ...(await client.ensureQueryData(
-          orderablesByIdentitiesOptions(missing.slice(start, start + BY_IDS_BATCH)),
+        ...(await withRequestPriority(
+          true,
+          undefined,
+          () => {
+            assertSessionScope(lease.session);
+            return client.ensureQueryData(
+              orderablesByIdentitiesOptions(missing.slice(start, start + BY_IDS_BATCH)),
+            );
+          },
+          'requisition-copy',
         )),
       );
       assertSessionScope(lease.session);

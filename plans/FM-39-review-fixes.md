@@ -1281,3 +1281,10 @@ Chromium offline suite are recorded in the group C report under
 - Build patient-validation models only when the template needs them. Other saves no longer allocate a full line-model map that is immediately discarded.
 - Invalidate batch query keys without awaiting the already non-refetching invalidation, keeping the save completion path synchronous until its background version read starts.
 - All 103 requisition detail tests pass, including patient validation, stale versions and lifecycle recovery.
+
+
+### Round 10 A: T1/T12 copy reads yield to writes
+
+- Large-editor waterfalls found extra available-product reads continuing during lifecycle writes. These reads belong to single-copy capture and do not feed the visible grid.
+- Each extra-product batch now uses the shared background-priority gate, including a session check after waiting, so foreground requests and navigation take precedence.
+- The existing copy batching regression now holds a foreground request open and verifies extra product requests remain queued. It failed before this change and passes afterward.
