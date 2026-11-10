@@ -1,33 +1,56 @@
 import { expect, it } from 'vitest';
 import {
+  canEditForecast,
   canViewRejection,
   type ForecastAction,
-  type ForecastRights,
+  type ForecastMode,
   forecastActions,
 } from '@/features/buq/lib/forecast-actions';
 import type { BuqStatus } from '@/features/buq/lib/types';
 
-const CREATE = { create: true, authorize: false };
-const AUTHORIZE = { create: false, authorize: true };
+const create = (create: boolean, authorize: boolean, skipAuthorization = false): ForecastMode => ({
+  kind: 'create',
+  rights: { create, authorize },
+  skipAuthorization,
+});
 
-const CASES: [string, BuqStatus, ForecastRights, boolean, ForecastAction[]][] = [
-  ['Draft with create', 'DRAFT', CREATE, false, ['save', 'submit']],
-  ['Rejected with create', 'REJECTED', CREATE, false, ['save', 'submit']],
-  ['Submitted with authorize', 'SUBMITTED', AUTHORIZE, false, ['save', 'authorize']],
-  ['Submitted with create only', 'SUBMITTED', CREATE, false, []],
-  ['Draft with authorize only', 'DRAFT', AUTHORIZE, false, []],
-  ['skip, Draft with create', 'DRAFT', CREATE, true, ['save', 'submitAndAuthorize']],
-  ['skip, Submitted with create', 'SUBMITTED', CREATE, true, ['save', 'submitAndAuthorize']],
-  ['skip, Submitted with authorize only', 'SUBMITTED', AUTHORIZE, true, []],
-  ['Authorized with both', 'AUTHORIZED', { create: true, authorize: true }, false, []],
+const CREATE = create(true, false);
+const AUTHORIZE = create(false, true);
+const APPROVE: ForecastMode = { kind: 'approve' };
+
+const CASES: [string, BuqStatus, ForecastMode, ForecastAction[]][] = [
+  ['Draft with create', 'DRAFT', CREATE, ['save', 'submit']],
+  ['Rejected with create', 'REJECTED', CREATE, ['save', 'submit']],
+  ['Submitted with authorize', 'SUBMITTED', AUTHORIZE, ['save', 'authorize']],
+  ['Submitted with create only', 'SUBMITTED', CREATE, []],
+  ['Draft with authorize only', 'DRAFT', AUTHORIZE, []],
+  ['skip, Draft with create', 'DRAFT', create(true, false, true), ['save', 'submitAndAuthorize']],
+  [
+    'skip, Submitted with create',
+    'SUBMITTED',
+    create(true, false, true),
+    ['save', 'submitAndAuthorize'],
+  ],
+  ['skip, Submitted with authorize only', 'SUBMITTED', create(false, true, true), []],
+  ['Authorized with both', 'AUTHORIZED', create(true, true), []],
+  ['approve, Authorized', 'AUTHORIZED', APPROVE, ['approve', 'reject']],
+  ['approve, In Approval', 'IN_APPROVAL', APPROVE, ['approve', 'reject']],
+  ['approve, Submitted', 'SUBMITTED', APPROVE, []],
+  ['approve, Approved', 'APPROVED', APPROVE, []],
 ];
 
-it.each(CASES)('%s', (_, status, rights, skip, actions) => {
-  expect(forecastActions(status, rights, skip)).toEqual(actions);
+it.each(CASES)('%s', (_, status, mode, actions) => {
+  expect(forecastActions(status, mode)).toEqual(actions);
+});
+
+it('lets only a saving user change the forecast', () => {
+  expect(canEditForecast(['save', 'submit'])).toBe(true);
+  expect(canEditForecast(['approve', 'reject'])).toBe(false);
 });
 
 it('shows the rejection reasons only to a creator of a Rejected forecast', () => {
   expect(canViewRejection('REJECTED', CREATE)).toBe(true);
   expect(canViewRejection('REJECTED', AUTHORIZE)).toBe(false);
   expect(canViewRejection('DRAFT', CREATE)).toBe(false);
+  expect(canViewRejection('REJECTED', APPROVE)).toBe(false);
 });

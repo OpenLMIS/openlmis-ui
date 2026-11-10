@@ -39,7 +39,7 @@ const NO_ACTIONS: RowActionContext = {
 function ForecastRowAction({ row, context }: { row: BuqRow; context: RowActionContext }) {
   const { t } = useTranslation();
   const cards = useInCards();
-  if (!forecastActions(row.status, context.rights, context.skipAuthorization).length) return null;
+  if (!forecastActions(row.status, { kind: 'create', ...context }).length) return null;
   const link = (
     <Link
       params={{ id: row.id }}

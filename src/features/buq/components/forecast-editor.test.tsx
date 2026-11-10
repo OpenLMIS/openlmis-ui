@@ -4,15 +4,19 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import {
+  approveBuqForecast,
   authorizeBuqForecast,
   fetchBuqForecast,
+  rejectBuqForecast,
   saveBuqForecast,
   submitBuqForecast,
 } from '@/features/buq/api/api';
 import { ForecastForm } from '@/features/buq/components/forecast-editor';
 import type { ProductInfo } from '@/features/buq/lib/forecast';
+import type { ForecastMode } from '@/features/buq/lib/forecast-actions';
 import type { ForecastSearch } from '@/features/buq/lib/search';
 import type { BuqForecast, BuqLineItem } from '@/features/buq/lib/types';
+import { rejectionReasonsOptions } from '@/features/reference-data/api/queries';
 import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
 
@@ -22,6 +26,8 @@ vi.mock('@/features/buq/api/api', () => ({
   saveBuqForecast: vi.fn(),
   submitBuqForecast: vi.fn(),
   authorizeBuqForecast: vi.fn(),
+  approveBuqForecast: vi.fn(),
+  rejectBuqForecast: vi.fn(),
 }));
 
 const NAMES = 'ABCDEFGHIJKL'.split('').map((letter) => `Product ${letter}`);
@@ -72,7 +78,29 @@ beforeEach(() => {
   vi.mocked(fetchBuqForecast).mockResolvedValue(FORECAST);
 });
 
-function Harness({ skipAuthorization = false }: { skipAuthorization?: boolean }) {
+const AUTHORIZED: BuqForecast = {
+  ...FORECAST,
+  status: 'AUTHORIZED',
+  bottomUpQuantificationLineItems: NAMES.map((_, index) =>
+    line(index, { verifiedAnnualAdjustedConsumption: 10, forecastedDemand: 10, totalCost: 10 }),
+  ),
+};
+
+const CREATE: ForecastMode = {
+  kind: 'create',
+  rights: { create: true, authorize: false },
+  skipAuthorization: false,
+};
+
+function Harness({
+  forecast = FORECAST,
+  mode = CREATE,
+  onDone = vi.fn(),
+}: {
+  forecast?: BuqForecast;
+  mode?: ForecastMode;
+  onDone?: () => void;
+}) {
   const [search, setSearch] = useState<ForecastSearch>({});
   return (
     <ForecastForm
@@ -93,10 +121,11 @@ function Harness({ skipAuthorization = false }: { skipAuthorization?: boolean })
         facilityName: 'Cuamba, Cuamba',
         period: 'July 2017 - June 2018',
       }}
-      forecast={FORECAST}
+      forecast={forecast}
       header={null}
       onCloseDialog={() => setSearch((previous) => ({ ...previous, dialog: undefined }))}
-      onDone={vi.fn()}
+      mode={mode}
+      onDone={onDone}
       onOpenDialog={(dialog) => setSearch((previous) => ({ ...previous, dialog }))}
       onSearchChange={(update) =>
         setSearch((previous) => ({
@@ -106,18 +135,27 @@ function Harness({ skipAuthorization = false }: { skipAuthorization?: boolean })
       }
       products={PRODUCTS}
       remarks={[{ id: 'r1', name: 'Outbreaks' }]}
-      rights={{ create: true, authorize: false }}
       search={search}
-      skipAuthorization={skipAuthorization}
       sources={[]}
     />
   );
 }
 
-const renderEditor = async (skipAuthorization = false) => {
-  renderPage(<Harness skipAuthorization={skipAuthorization} />, {
-    queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+const renderEditor = async (props: Parameters<typeof Harness>[0] = {}) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
   });
+  const category = { id: 'c1', code: 'BUQ', name: 'BUQ', active: true };
+  queryClient.setQueryData(rejectionReasonsOptions().queryKey, [
+    {
+      id: 'x1',
+      code: 'x1',
+      name: 'Wrong quantities',
+      active: true,
+      rejectionReasonCategory: category,
+    },
+  ]);
+  renderPage(<Harness {...props} />, { queryClient });
   await screen.findByText('Product A');
 };
 
@@ -207,7 +245,7 @@ it('sends nothing when the report moved on since the page opened', async () => {
 it('sends Submit & Authorize to authorize when the program skips authorization', async () => {
   const user = userEvent.setup();
   vi.mocked(authorizeBuqForecast).mockResolvedValue({ ...FORECAST, status: 'AUTHORIZED' });
-  await renderEditor(true);
+  await renderEditor({ mode: { ...CREATE, skipAuthorization: true } });
   await completeLastLine(user);
 
   await user.click(screen.getByRole('button', { name: 'buq.forecast.submit-and-authorize' }));
@@ -218,4 +256,45 @@ it('sends Submit & Authorize to authorize when the program skips authorization',
 
   await waitFor(() => expect(authorizeBuqForecast).toHaveBeenCalledTimes(1));
   expect(submitBuqForecast).not.toHaveBeenCalled();
+});
+
+it('approves the forecast exactly as loaded, without letting the approver edit it', async () => {
+  const user = userEvent.setup();
+  const onDone = vi.fn();
+  vi.mocked(fetchBuqForecast).mockResolvedValue(AUTHORIZED);
+  vi.mocked(approveBuqForecast).mockResolvedValue({ ...AUTHORIZED, status: 'IN_APPROVAL' });
+  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve' }, onDone });
+
+  expect(verified('Product A')).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'buq.forecast.save' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'buq.approve.approve' }));
+  const confirm = await screen.findByRole('alertdialog');
+  await user.click(within(confirm).getByRole('button', { name: 'buq.approve.approve' }));
+
+  await waitFor(() => expect(onDone).toHaveBeenCalled());
+  expect(approveBuqForecast).toHaveBeenCalledWith(AUTHORIZED);
+});
+
+it('rejects with the chosen reasons and comment once a reason is picked', async () => {
+  const user = userEvent.setup();
+  const onDone = vi.fn();
+  vi.mocked(rejectBuqForecast).mockResolvedValue({ ...AUTHORIZED, status: 'REJECTED' });
+  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve' }, onDone });
+
+  await user.click(screen.getByRole('button', { name: 'buq.approve.reject' }));
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByRole('button', { name: 'buq.approve.reject' }));
+  expect(await within(dialog).findByText('buq.approve.reject-reasons-required')).toBeVisible();
+  expect(rejectBuqForecast).not.toHaveBeenCalled();
+
+  await user.click(within(dialog).getByRole('combobox', { name: /buq.approve.reject-reasons/ }));
+  await user.click(await screen.findByRole('option', { name: 'Wrong quantities' }));
+  await user.type(screen.getByLabelText('buq.approve.reject-comments'), 'Too high');
+  await user.click(within(dialog).getByRole('button', { name: 'buq.approve.reject' }));
+
+  await waitFor(() => expect(onDone).toHaveBeenCalled());
+  expect(rejectBuqForecast).toHaveBeenCalledWith('b1', {
+    rejectionReasons: ['x1'],
+    generalComments: 'Too high',
+  });
 });
