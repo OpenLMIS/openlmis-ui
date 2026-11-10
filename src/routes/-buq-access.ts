@@ -1,23 +1,31 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { notFound } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { toDateValue } from '@/components/form/date-value';
 import { ForbiddenError, requirePermissions, requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   buqApproveStatsOptions,
+  buqForecastOptions,
   buqPeriodsOptions,
+  buqRemarksOptions,
+  buqSourcesOfFundsOptions,
   buqsForApprovalOptions,
   openBuqsOptions,
 } from '@/features/buq/api/queries';
 import { approveAccess, type BuqAccess, buqAccess } from '@/features/buq/lib/access';
 import { approvalFacilityIds } from '@/features/buq/lib/approval-rows';
 import {
+  currencySettingsOptions,
   deploymentTimeZoneOptions,
   facilitiesByIdsOptions,
+  facilityOptions,
   homeFacilityOptions,
+  orderablesByIdsOptions,
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { isNotFound } from '@/lib/http';
 import {
   assertSessionScope,
   getSessionScope,
@@ -107,4 +115,31 @@ export function useForecastRights(access: ShownBuqAccess) {
     }),
     [granted],
   );
+}
+
+export async function loadForecast(
+  queryClient: QueryClient,
+  id: string,
+  cause: 'enter' | 'stay' | 'preload',
+) {
+  const detail = buqForecastOptions(id);
+  try {
+    const forecast =
+      cause === 'stay'
+        ? await queryClient.ensureQueryData(detail)
+        : await queryClient.fetchQuery({ ...detail, staleTime: 0 });
+    queryClient.prefetchQuery(
+      orderablesByIdsOptions(
+        forecast.bottomUpQuantificationLineItems.map(({ orderableId }) => orderableId),
+      ),
+    );
+    queryClient.prefetchQuery(facilityOptions(forecast.facilityId));
+    queryClient.prefetchQuery(buqRemarksOptions());
+    queryClient.prefetchQuery(buqSourcesOfFundsOptions());
+    queryClient.prefetchQuery(currencySettingsOptions());
+    return forecast;
+  } catch (error) {
+    if (isNotFound(error)) throw notFound();
+    throw error;
+  }
 }

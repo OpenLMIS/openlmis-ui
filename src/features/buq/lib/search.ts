@@ -21,7 +21,7 @@ export type BuqListProps = Omit<BuqTableProps, 'cards'>;
 export const FORECAST_SORT: DefaultSort = { id: 'product', desc: false };
 
 export const forecastSearchSchema = tableSearchSchema(['product']).extend({
-  dialog: z.enum(['funding', 'rejection']).optional().catch(undefined),
+  dialog: z.enum(['funding', 'rejection', 'reject']).optional().catch(undefined),
 });
 
 export type ForecastSearch = z.infer<typeof forecastSearchSchema>;

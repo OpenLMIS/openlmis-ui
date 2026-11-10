@@ -1,17 +1,28 @@
 import type { BuqStatus } from '@/features/buq/lib/types';
 
-export type ForecastAction = 'save' | 'submit' | 'authorize' | 'submitAndAuthorize';
+export type ForecastAction =
+  | 'save'
+  | 'submit'
+  | 'authorize'
+  | 'submitAndAuthorize'
+  | 'approve'
+  | 'reject';
 
 export type ForecastRights = { create: boolean; authorize: boolean };
 
-const OPEN_FOR_CREATE: readonly BuqStatus[] = ['DRAFT', 'REJECTED'];
+export type ForecastMode =
+  | { kind: 'create'; rights: ForecastRights; skipAuthorization: boolean }
+  | { kind: 'approve' };
 
-export function forecastActions(
-  status: BuqStatus,
-  { create, authorize }: ForecastRights,
-  skipAuthorization: boolean,
-): ForecastAction[] {
-  if (skipAuthorization) {
+const OPEN_FOR_CREATE: readonly BuqStatus[] = ['DRAFT', 'REJECTED'];
+const OPEN_FOR_APPROVAL: readonly BuqStatus[] = ['AUTHORIZED', 'IN_APPROVAL'];
+
+export function forecastActions(status: BuqStatus, mode: ForecastMode): ForecastAction[] {
+  if (mode.kind === 'approve') {
+    return OPEN_FOR_APPROVAL.includes(status) ? ['approve', 'reject'] : [];
+  }
+  const { create, authorize } = mode.rights;
+  if (mode.skipAuthorization) {
     return create && (OPEN_FOR_CREATE.includes(status) || status === 'SUBMITTED')
       ? ['save', 'submitAndAuthorize']
       : [];
@@ -21,5 +32,7 @@ export function forecastActions(
   return [];
 }
 
-export const canViewRejection = (status: BuqStatus, { create }: ForecastRights) =>
-  create && status === 'REJECTED';
+export const canEditForecast = (actions: readonly ForecastAction[]) => actions.includes('save');
+
+export const canViewRejection = (status: BuqStatus, mode: ForecastMode) =>
+  mode.kind === 'create' && mode.rights.create && status === 'REJECTED';
