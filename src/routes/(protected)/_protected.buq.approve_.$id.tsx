@@ -33,7 +33,11 @@ export const Route = createFileRoute('/(protected)/_protected/buq/approve_/$id')
     if (!z.guid().safeParse(params.id).success) throw notFound();
     const access = await loadApproveAccess(queryClient);
     if (access.kind !== 'ready') return access;
-    const waiting = await queryClient.ensureQueryData(buqsForApprovalOptions(access.programId));
+    const list = buqsForApprovalOptions(access.programId);
+    const waiting =
+      cause === 'stay'
+        ? await queryClient.ensureQueryData(list)
+        : await queryClient.fetchQuery({ ...list, staleTime: 0 });
     if (!waiting.some(({ id }) => id === params.id)) throw notFound();
     await loadForecast(queryClient, params.id, cause);
     return access;

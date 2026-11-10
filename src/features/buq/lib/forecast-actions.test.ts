@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest';
 import {
-  canEditForecast,
   canViewRejection,
   type ForecastAction,
   type ForecastMode,
@@ -41,11 +40,6 @@ const CASES: [string, BuqStatus, ForecastMode, ForecastAction[]][] = [
 
 it.each(CASES)('%s', (_, status, mode, actions) => {
   expect(forecastActions(status, mode)).toEqual(actions);
-});
-
-it('lets only a saving user change the forecast', () => {
-  expect(canEditForecast(['save', 'submit'])).toBe(true);
-  expect(canEditForecast(['approve', 'reject'])).toBe(false);
 });
 
 it('shows the rejection reasons only to a creator of a Rejected forecast', () => {

@@ -1,5 +1,5 @@
 import { useStore } from '@tanstack/react-form';
-import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useIsMutating, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import type { ParseKeys } from 'i18next';
 import { Loader2Icon } from 'lucide-react';
 import { type ReactNode, useMemo, useRef, useState } from 'react';
@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
+import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -39,7 +40,7 @@ import {
 } from '@/features/buq/components/forecast-details';
 import { ForecastGrid } from '@/features/buq/components/forecast-grid';
 import { FundingDialog } from '@/features/buq/components/funding-dialog';
-import { RejectDialog } from '@/features/buq/components/reject-dialog';
+import { RejectDialog, rejectKey } from '@/features/buq/components/reject-dialog';
 import { RejectionDialog } from '@/features/buq/components/rejection-dialog';
 import { usePeriodNames } from '@/features/buq/components/use-buq-periods';
 import { useForecastForm } from '@/features/buq/components/use-forecast-form';
@@ -58,7 +59,6 @@ import {
   sortModels,
 } from '@/features/buq/lib/forecast';
 import {
-  canEditForecast,
   canViewRejection,
   type ForecastAction,
   type ForecastMode,
@@ -107,15 +107,12 @@ const invalidPart = (line: LineDraft) =>
 
 const FUNDING_TARGET = 'funding';
 
-const WRITE: Record<
-  WriteAction,
-  (forecast: BuqForecast, body: ForecastBody) => Promise<BuqForecast>
-> = {
-  save: (_, body) => saveBuqForecast(body),
-  submit: (_, body) => submitBuqForecast(body),
-  authorize: (_, body) => authorizeBuqForecast(body),
-  submitAndAuthorize: (_, body) => authorizeBuqForecast(body),
-  approve: (forecast) => approveBuqForecast(forecast),
+const WRITE: Record<WriteAction, (body: ForecastBody) => Promise<BuqForecast>> = {
+  save: saveBuqForecast,
+  submit: submitBuqForecast,
+  authorize: authorizeBuqForecast,
+  submitAndAuthorize: authorizeBuqForecast,
+  approve: approveBuqForecast,
 };
 
 const ACTION_LABEL: Record<SendAction, ParseKeys> = {
@@ -151,12 +148,9 @@ const SEND_FAILED: Message = {
   description: 'buq.forecast.send-error',
 };
 
-const FAILED: Record<WriteAction, Message> = {
-  save: SEND_FAILED,
-  submit: SEND_FAILED,
-  authorize: SEND_FAILED,
-  submitAndAuthorize: SEND_FAILED,
-  approve: { title: 'buq.approve.approve-error-title', description: 'buq.approve.approve-error' },
+const APPROVE_FAILED: Message = {
+  title: 'buq.approve.approve-error-title',
+  description: 'buq.approve.approve-error',
 };
 
 export function ForecastEditor({
@@ -249,12 +243,13 @@ export function ForecastForm({
   const [attempted, setAttempted] = useState(false);
   const [confirming, setConfirming] = useState<SendAction | null>(null);
   const [invalid, setInvalid] = useState<ParseKeys | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{ title: string; description: string } | null>(null);
+  const failureDialog = useDialogTarget(failure ?? undefined, () => setFailure(null));
   const invalidTarget = useRef<string | null>(null);
   const leaving = useRef(false);
 
   const actions = forecastActions(forecast.status, mode);
-  const editable = canEditForecast(actions);
+  const editable = actions.includes('save');
   const send = actions.find(
     (action): action is SendAction => action !== 'save' && action !== 'reject',
   );
@@ -313,7 +308,7 @@ export function ForecastForm({
         staleTime: 0,
       });
       if (!forecastActions(current.status, mode).includes(action)) throw new BuqMovedError();
-      return WRITE[action](current, body);
+      return WRITE[action](body);
     },
     onSuccess: async (saved, { action }) => {
       setConfirming(null);
@@ -328,11 +323,14 @@ export function ForecastForm({
     },
     onError: (error, { action }) => {
       setConfirming(null);
-      setFailure(
-        error instanceof BuqMovedError
-          ? t('buq.forecast.moved')
-          : (serverMessage(error) ?? t(FAILED[action].description)),
-      );
+      const failed = action === 'approve' ? APPROVE_FAILED : SEND_FAILED;
+      setFailure({
+        title: t(failed.title),
+        description:
+          error instanceof BuqMovedError
+            ? t('buq.forecast.moved')
+            : (serverMessage(error) ?? t(failed.description)),
+      });
       void queryClient.invalidateQueries({ queryKey: buqForecastOptions(forecast.id).queryKey });
       void refreshLists();
     },
@@ -345,7 +343,8 @@ export function ForecastForm({
     onDone();
     return refreshLists();
   };
-  const pending = mutation.isPending;
+  const rejecting = useIsMutating({ mutationKey: rejectKey(forecast.id) }) > 0;
+  const pending = mutation.isPending || rejecting;
   const guard = useDiscardGuard(dirty, { pending, allowLeave: () => leaving.current });
 
   const showInvalid = (description: ParseKeys, lineId?: string) => {
@@ -528,11 +527,10 @@ export function ForecastForm({
         title={t('buq.forecast.invalid-title')}
       />
       <InvalidSubmitDialog
+        {...failureDialog.dialogProps()}
         closeLabel={t('dialog.close')}
-        description={failure ?? undefined}
-        onOpenChange={(open) => !open && setFailure(null)}
-        open={failure !== null}
-        title={t(FAILED[mutation.variables?.action ?? 'save'].title)}
+        description={failureDialog.shown?.description}
+        title={failureDialog.shown?.title}
       />
       <DiscardChangesDialog {...guard.dialog} description={t('buq.forecast.discard')} />
     </>

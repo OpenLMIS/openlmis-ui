@@ -82,7 +82,7 @@ const AUTHORIZED: BuqForecast = {
   ...FORECAST,
   status: 'AUTHORIZED',
   bottomUpQuantificationLineItems: NAMES.map((_, index) =>
-    line(index, { verifiedAnnualAdjustedConsumption: 10, forecastedDemand: 10, totalCost: 10 }),
+    line(index, { verifiedAnnualAdjustedConsumption: 10, forecastedDemand: 10, totalCost: 99 }),
   ),
 };
 
@@ -258,7 +258,7 @@ it('sends Submit & Authorize to authorize when the program skips authorization',
   expect(submitBuqForecast).not.toHaveBeenCalled();
 });
 
-it('approves the forecast exactly as loaded, without letting the approver edit it', async () => {
+it('approves the loaded quantities with costs recalculated, without letting the approver edit', async () => {
   const user = userEvent.setup();
   const onDone = vi.fn();
   vi.mocked(fetchBuqForecast).mockResolvedValue(AUTHORIZED);
@@ -272,7 +272,13 @@ it('approves the forecast exactly as loaded, without letting the approver edit i
   await user.click(within(confirm).getByRole('button', { name: 'buq.approve.approve' }));
 
   await waitFor(() => expect(onDone).toHaveBeenCalled());
-  expect(approveBuqForecast).toHaveBeenCalledWith(AUTHORIZED);
+  const body = vi.mocked(approveBuqForecast).mock.calls[0]?.[0];
+  expect(body?.bottomUpQuantificationLineItems).toHaveLength(NAMES.length);
+  expect(body?.bottomUpQuantificationLineItems[0]).toMatchObject({
+    verifiedAnnualAdjustedConsumption: 10,
+    forecastedDemand: 10,
+    totalCost: 10,
+  });
 });
 
 it('rejects with the chosen reasons and comment once a reason is picked', async () => {
@@ -297,4 +303,20 @@ it('rejects with the chosen reasons and comment once a reason is picked', async 
     rejectionReasons: ['x1'],
     generalComments: 'Too high',
   });
+});
+
+it('keeps Approve locked while a rejection is being sent', async () => {
+  const user = userEvent.setup();
+  vi.mocked(rejectBuqForecast).mockReturnValue(new Promise(() => {}));
+  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve' } });
+
+  await user.click(screen.getByRole('button', { name: 'buq.approve.reject' }));
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByRole('combobox', { name: /buq.approve.reject-reasons/ }));
+  await user.click(await screen.findByRole('option', { name: 'Wrong quantities' }));
+  await user.click(screen.getByLabelText('buq.approve.reject-comments'));
+  await user.click(within(dialog).getByRole('button', { name: 'buq.approve.reject' }));
+
+  await waitFor(() => expect(rejectBuqForecast).toHaveBeenCalled());
+  expect(screen.getByRole('button', { name: 'buq.approve.approve', hidden: true })).toBeDisabled();
 });
