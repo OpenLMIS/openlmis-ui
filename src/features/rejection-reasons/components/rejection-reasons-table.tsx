@@ -70,7 +70,7 @@ function createColumns(t: TFunction, listSearch: RejectionReasonsListSearch) {
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('rejection-reasons.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <RejectionReasonActions listSearch={listSearch} reason={row.original} />,
     }),
   ]);

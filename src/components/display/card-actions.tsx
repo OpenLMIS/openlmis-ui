@@ -21,8 +21,10 @@ export type CardAction = {
   focusableWhenDisabled?: boolean;
   onSelect?: (trigger: HTMLButtonElement) => void;
   link?: ReactElement;
-  data?: { [key: `data-${string}`]: string | boolean };
+  data?: DataAttributes;
 };
+
+type DataAttributes = { [key: `data-${string}`]: string | boolean };
 
 const MAX_BUTTONS = 3;
 
@@ -76,13 +78,76 @@ function CardActionButton({ action }: { action: CardAction }) {
   );
 }
 
-export function RowActions({ label, actions }: { label: string; actions: CardAction[] }) {
-  if (useInCards()) return <CardActions actions={actions} label={label} />;
+export function RowActions({
+  label,
+  actions,
+  variant = 'icons',
+  disabled,
+  data,
+}: {
+  label: string;
+  actions: CardAction[];
+  variant?: 'icons' | 'menu';
+  disabled?: boolean;
+  data?: DataAttributes;
+}) {
+  const cards = useInCards();
   if (actions.length === 0) return null;
+  if ((variant === 'icons' && actions.length <= 2) || (variant === 'menu' && cards))
+    return (
+      <div className="flex justify-end">
+        <CardActions
+          actions={disabled ? actions.map((action) => ({ ...action, disabled })) : actions}
+          label={label}
+        />
+      </div>
+    );
   return (
     <div className="flex justify-end">
-      <CardActionsMenu actions={actions} label={label} variant="ghost" />
+      <CardActionsMenu
+        actions={actions}
+        data={data}
+        disabled={disabled}
+        label={label}
+        variant="ghost"
+      />
     </div>
+  );
+}
+
+export function SecondaryRowActions({
+  label,
+  actions,
+  slots = actions.length,
+  disabled,
+  data,
+}: {
+  label: string;
+  actions: CardAction[];
+  slots?: number;
+  disabled?: boolean;
+  data?: DataAttributes;
+}) {
+  const ordered = [
+    ...actions.filter((action) => !action.destructive),
+    ...actions.filter((action) => action.destructive),
+  ];
+  const menu = ordered.length > slots;
+  const shown = menu ? 1 : ordered.length;
+  const empty = Array.from({ length: Math.max(slots - shown, 0) }, (_, index) => index);
+  return (
+    <>
+      {menu ? (
+        <CardActionsMenu actions={ordered} data={data} disabled={disabled} label={label} />
+      ) : (
+        ordered.map((action) => (
+          <CardActionButton action={disabled ? { ...action, disabled } : action} key={action.id} />
+        ))
+      )}
+      {empty.map((slot) => (
+        <div aria-hidden className="size-7 shrink-0" key={slot} />
+      ))}
+    </>
   );
 }
 
@@ -90,17 +155,30 @@ function CardActionsMenu({
   actions,
   label,
   variant = 'outline',
+  disabled,
+  data,
 }: {
   actions: CardAction[];
   label: string;
   variant?: 'outline' | 'ghost';
+  disabled?: boolean;
+  data?: DataAttributes;
 }) {
   const menu = useMenuOpensDialog();
   const trigger = useRef<HTMLButtonElement>(null);
   return (
     <DropdownMenu onOpenChange={menu.onOpenChange}>
       <DropdownMenuTrigger
-        render={<Button aria-label={label} ref={trigger} size="icon-sm" variant={variant} />}
+        render={
+          <Button
+            {...data}
+            aria-label={label}
+            disabled={disabled}
+            ref={trigger}
+            size="icon-sm"
+            variant={variant}
+          />
+        }
       >
         <EllipsisIcon />
       </DropdownMenuTrigger>

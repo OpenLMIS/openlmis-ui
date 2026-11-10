@@ -112,7 +112,7 @@ it.each(['cancel', 'escape'])(
   async (way) => {
     const user = userEvent.setup();
     const router = renderRoute();
-    const view = await screen.findByRole('button', { name: 'supply-lines.view' });
+    const view = await screen.findByRole('button', { name: 'supply-lines.view-label' });
     expect(view.getAttribute('href')).toContain(`supplyLine=${id}`);
     await user.click(view);
     const dialog = await screen.findByRole('dialog');
@@ -126,7 +126,7 @@ it.each(['cancel', 'escape'])(
     else await user.keyboard('{Escape}');
     await waitFor(() => expect(router.state.location.search).toEqual(search));
     expect(router.state.location.pathname).toBe(listPath);
-    expect(await screen.findByRole('button', { name: 'supply-lines.view' })).toBe(view);
+    expect(await screen.findByRole('button', { name: 'supply-lines.view-label' })).toBe(view);
     act(() => router.history.forward());
     await screen.findByRole('dialog');
     await waitFor(() => expect(router.state.location.search.supplyLine).toBe(id));
@@ -216,7 +216,7 @@ it('replaces pending lookup controls and keeps the program usable through a faci
     }),
   );
   renderRoute();
-  await screen.findByRole('button', { name: 'supply-lines.view' });
+  await screen.findByRole('button', { name: 'supply-lines.view-label' });
   await userEvent.click(screen.getByRole('button', { name: /Filters/ }));
   const filters = await screen.findByRole('dialog', { name: 'Filters' });
   expect(

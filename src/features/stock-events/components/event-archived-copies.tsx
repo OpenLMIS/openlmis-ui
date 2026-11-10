@@ -149,6 +149,7 @@ function ArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Pr
         meta: { className: 'w-10' },
         cell: ({ row }) => (
           <RowActions
+            variant="menu"
             label={t('stock-events.draft-copy-actions', { time: savedTime(row.original) })}
             actions={[
               {

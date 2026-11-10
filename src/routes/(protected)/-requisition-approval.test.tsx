@@ -10,6 +10,7 @@ import {
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
+import { getI18n } from 'react-i18next';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { OfflineNavigationProvider } from '@/components/app-shell/offline-navigation';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
@@ -294,6 +295,47 @@ it('keeps fetched approval rows on disconnect until an offline filter change', a
   await waitFor(() => expect(screen.queryByText('Online Only')).not.toBeInTheDocument());
   expect(screen.getByText('Saved Copy')).toBeVisible();
   expect(local).toHaveBeenCalled();
+  queryClient.clear();
+});
+
+it('names each row action group by its facility and emergency', async () => {
+  getI18n().addResource('en', 'translation', 'card-actions.actions-for', 'Actions For {{name}}');
+  const rows = [
+    ['a', 'Comfort', false],
+    ['b', 'Balaka', false],
+    ['c', 'Comfort', true],
+  ].map(([id, name, emergency]) => ({
+    id: String(id),
+    emergency: Boolean(emergency),
+    status: 'AUTHORIZED' as const,
+    program: { id: '11111111-1111-4111-8111-111111111111', name: 'Family Planning' },
+    facility: { id: String(name), code: String(name), name: String(name) },
+    processingPeriod: { id: 'jan', name: 'Jan2017' },
+  }));
+  vi.mocked(readCopies).mockResolvedValue(
+    rows.map((row) => ({ id: row.id, fetchedAt: 1, batch: { record: row } }) as never),
+  );
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: rows,
+    number: 0,
+    size: 10,
+    totalElements: 3,
+    totalPages: 1,
+  });
+  const { queryClient } = renderRoute('/requisitions/approve');
+  await screen.findAllByText('Jan2017');
+  await act(() => onlineManager.setOnline(false));
+  const groups = await screen.findAllByRole('group', { name: /^Actions For/ });
+  expect(new Set(groups.map((group) => group.getAttribute('aria-label'))).size).toBe(3);
+  expect(screen.getAllByRole('button', { name: 'requisitions.batch.action-label' })).toHaveLength(
+    3,
+  );
+  getI18n().addResource(
+    'en',
+    'translation',
+    'card-actions.actions-for',
+    'card-actions.actions-for',
+  );
   queryClient.clear();
 });
 

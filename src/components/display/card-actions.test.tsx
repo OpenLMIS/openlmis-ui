@@ -1,8 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { PencilIcon, ShieldIcon, Trash2Icon, UsersIcon } from 'lucide-react';
+import { EyeIcon, PencilIcon, ShieldIcon, Trash2Icon, UsersIcon } from 'lucide-react';
 import { expect, it, vi } from 'vitest';
-import { type CardAction, CardActions } from '@/components/display/card-actions';
+import { type CardAction, CardActions, RowActions } from '@/components/display/card-actions';
 
 const edit: CardAction = { id: 'edit', icon: <PencilIcon />, label: 'Edit', onSelect: vi.fn() };
 const roles: CardAction = { id: 'roles', icon: <ShieldIcon />, label: 'Roles', onSelect: vi.fn() };
@@ -40,4 +40,39 @@ it('keeps the main action and one other as buttons and moves the rest, destructi
   expect(items.map((item) => item.textContent)).toEqual(['Members', 'Remove']);
   await user.click(screen.getByRole('menuitem', { name: 'Remove Admin' }));
   expect(remove.onSelect).toHaveBeenCalledOnce();
+});
+
+const view: CardAction = {
+  id: 'view',
+  icon: <EyeIcon />,
+  label: 'View',
+  name: 'View Admin',
+  onSelect: vi.fn(),
+};
+
+it('shows one or two reference actions as icons and more than two in a menu', async () => {
+  const user = userEvent.setup();
+  const { rerender } = render(<RowActions actions={[view]} label="Actions For Admin" />);
+  expect(screen.getByRole('button', { name: 'View Admin' })).not.toHaveTextContent('View');
+  rerender(<RowActions actions={[view, edit]} label="Actions For Admin" />);
+  expect(screen.getAllByRole('button')).toHaveLength(2);
+  expect(screen.queryByRole('button', { name: 'Actions For Admin' })).toBeNull();
+  rerender(<RowActions actions={[view, edit, remove]} label="Actions For Admin" />);
+  expect(screen.getAllByRole('button')).toHaveLength(1);
+  await user.click(screen.getByRole('button', { name: 'Actions For Admin' }));
+  expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+    'View',
+    'Edit',
+    'Remove',
+  ]);
+});
+
+it('preserves an explicit menu for stock recovery and disables reference icon actions', () => {
+  const { rerender } = render(
+    <RowActions actions={[view, remove]} label="Recovery" variant="menu" />,
+  );
+  expect(screen.getByRole('button', { name: 'Recovery' })).toHaveAttribute('aria-haspopup', 'menu');
+  rerender(<RowActions actions={[view, remove]} label="Reference" disabled />);
+  expect(screen.getByRole('button', { name: 'View Admin' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Remove Admin' })).toBeDisabled();
 });

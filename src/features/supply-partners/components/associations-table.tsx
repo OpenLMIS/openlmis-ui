@@ -1,5 +1,5 @@
 import { type CellContext, createColumnHelper, useTable } from '@tanstack/react-table';
-import { EllipsisIcon, PencilIcon, Trash2Icon, TruckIcon } from 'lucide-react';
+import { PencilIcon, Trash2Icon, TruckIcon } from 'lucide-react';
 import {
   createContext,
   useCallback,
@@ -18,7 +18,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CardActions, useInCards } from '@/components/display/card-actions';
+import { RowActions } from '@/components/display/card-actions';
 import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import {
   AlertDialog,
@@ -31,13 +31,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   ReferenceName,
   usePartnerReferences,
 } from '@/features/supply-partners/components/supply-partner-references';
@@ -45,7 +38,6 @@ import { associationKey } from '@/features/supply-partners/lib/association';
 import type { SupplyPartnerEditSearch } from '@/features/supply-partners/lib/search';
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
-import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import type { SearchChange } from '@/lib/table-search';
 
@@ -101,78 +93,36 @@ function AssociationActions({
   onRemove: (trigger: HTMLButtonElement | null) => void;
 }) {
   const { t } = useTranslation();
-  const menu = useMenuOpensDialog();
-  const trigger = useRef<HTMLButtonElement>(null);
   const label = t('supply-partners.association-actions-for', { program, node });
-
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          ...(onEdit
-            ? [
-                {
-                  id: 'edit',
-                  icon: <PencilIcon />,
-                  label: t('supply-partners.edit-association'),
-                  disabled: pending,
-                  data: { 'data-association-actions': true },
-                  onSelect: onEdit,
-                },
-              ]
-            : []),
-          {
-            id: 'remove',
-            icon: <Trash2Icon />,
-            label: t('supply-partners.remove'),
-            destructive: true,
-            disabled: pending,
-            data: onEdit ? undefined : { 'data-association-actions': true },
-            onSelect: onRemove,
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu onOpenChange={menu.onOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              ref={trigger}
-              data-association-actions
-              type="button"
-              disabled={pending}
-              variant="ghost"
-              size="icon-sm"
-              aria-label={label}
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto" finalFocus={menu.finalFocus}>
-          <DropdownMenuGroup>
-            {onEdit && (
-              <DropdownMenuItem onClick={menu.opensDialog(() => onEdit(trigger.current))}>
-                <PencilIcon />
-                {t('supply-partners.edit-association')}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={menu.opensDialog(() => onRemove(trigger.current))}
-            >
-              <Trash2Icon />
-              {t('supply-partners.remove')}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      disabled={pending}
+      data={{ 'data-association-actions': true }}
+      actions={[
+        ...(onEdit
+          ? [
+              {
+                id: 'edit',
+                icon: <PencilIcon />,
+                label: t('supply-partners.edit-association'),
+                disabled: pending,
+                data: { 'data-association-actions': true },
+                onSelect: onEdit,
+              },
+            ]
+          : []),
+        {
+          id: 'remove',
+          icon: <Trash2Icon />,
+          label: t('supply-partners.remove'),
+          destructive: true,
+          disabled: pending,
+          data: onEdit ? undefined : { 'data-association-actions': true },
+          onSelect: onRemove,
+        },
+      ]}
+    />
   );
 }
 function useAssociationTable({
@@ -280,7 +230,7 @@ function useAssociationTable({
         helper.display({
           id: 'actions',
           header: () => <span className="sr-only">{t('supply-partners.actions')}</span>,
-          meta: { className: 'w-16' },
+          meta: { className: 'w-24' },
           cell: (context) => <AssociationActionsCell {...context} />,
         }),
       ]),

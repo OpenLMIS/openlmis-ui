@@ -11,7 +11,12 @@ import {
   type DataTableInstance,
   DataTableSkeleton,
 } from '@/components/data-table/data-table';
-import { type CardAction, CardActions, useInCards } from '@/components/display/card-actions';
+import {
+  type CardAction,
+  CardActions,
+  SecondaryRowActions,
+  useInCards,
+} from '@/components/display/card-actions';
 import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { WrappingCell } from '@/components/display/wrapping-cell';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
@@ -23,6 +28,7 @@ import type { RequisitionSearch } from '@/features/requisitions/lib/search-facil
 import type { ApprovalListRow, RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { tableValue } from '@/lib/empty-value';
 import { useOnline } from '@/lib/online';
+import { isSecureOrigin } from '@/lib/secure-context';
 
 type ListRecord = RequisitionSearchResult | Omit<ApprovalListRow, 'status'>;
 export const requisitionRowLabel = (row: ListRecord, emergency: string) =>
@@ -177,12 +183,15 @@ export function ViewRequisition({
       {...linkProps}
     />
   );
+  const groupLabel = t('card-actions.actions-for', {
+    name: includeFacility
+      ? requisitionRowLabel(record, t('requisitions.columns.emergency'))
+      : [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
+  });
   if (cards)
     return (
       <CardActions
-        label={t('card-actions.actions-for', {
-          name: [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
-        })}
+        label={groupLabel}
         actions={[
           {
             id: 'view',
@@ -197,30 +206,48 @@ export function ViewRequisition({
       />
     );
   return (
-    <div className="flex items-center justify-end gap-1">
-      {unavailable ? (
-        <Button
-          aria-label={name}
-          aria-describedby={offline.descriptionId}
-          disabled={disabled}
-          onClick={(event) => offline.show(event.currentTarget)}
-          size="sm"
-          variant="outline"
-        >
-          {label}
+    <fieldset aria-label={groupLabel} className="flex items-center justify-end gap-1">
+      <ViewSlot>
+        {unavailable ? (
+          <Button
+            aria-label={name}
+            aria-describedby={offline.descriptionId}
+            disabled={disabled}
+            onClick={(event) => offline.show(event.currentTarget)}
+            size="sm"
+            variant="outline"
+          >
+            {label}
+            <WifiOffIcon data-icon="inline-end" />
+          </Button>
+        ) : (
+          <Button
+            aria-label={name}
+            disabled={disabled}
+            nativeButton={false}
+            render={link}
+            size="sm"
+          >
+            {label}
+          </Button>
+        )}
+      </ViewSlot>
+      <SecondaryRowActions actions={actions} label={groupLabel} slots={isSecureOrigin ? 1 : 0} />
+    </fieldset>
+  );
+}
+
+function ViewSlot({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid justify-items-end">
+      <div aria-hidden className="invisible col-start-1 row-start-1">
+        <Button nativeButton={false} render={<span />} size="sm" variant="outline">
+          {t('requisitions.view.action')}
           <WifiOffIcon data-icon="inline-end" />
         </Button>
-      ) : (
-        <Button aria-label={name} disabled={disabled} nativeButton={false} render={link} size="sm">
-          {label}
-        </Button>
-      )}
-      <CardActions
-        label={t('card-actions.actions-for', {
-          name: [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
-        })}
-        actions={actions}
-      />
+      </div>
+      <div className="col-start-1 row-start-1">{children}</div>
     </div>
   );
 }
@@ -242,26 +269,30 @@ export function RequisitionListTable<TData extends RowData>({
   listRef: Ref<HTMLUListElement>;
   isRowInvalid?: (row: TData) => boolean;
 }) {
-  return cards ? (
-    <TableCards
-      tone={(row) => (isRowInvalid?.(row) ? 'invalid' : undefined)}
-      busy={stale}
-      empty={empty}
-      footer={footer}
-      listRef={listRef}
-      table={table}
-      title="program"
-    />
-  ) : (
-    <DataTable
-      isRowInvalid={isRowInvalid}
-      density="default"
-      empty={empty}
-      footer={footer}
-      isStale={stale}
-      layout="auto"
-      table={table}
-    />
+  return (
+    <>
+      {cards ? (
+        <TableCards
+          tone={(row) => (isRowInvalid?.(row) ? 'invalid' : undefined)}
+          busy={stale}
+          empty={empty}
+          footer={footer}
+          listRef={listRef}
+          table={table}
+          title="program"
+        />
+      ) : (
+        <DataTable
+          isRowInvalid={isRowInvalid}
+          density="default"
+          empty={empty}
+          footer={footer}
+          isStale={stale}
+          layout="auto"
+          table={table}
+        />
+      )}
+    </>
   );
 }
 
