@@ -62,7 +62,6 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
         helper.display({
           id: 'actions',
           header: () => <span className="sr-only">{t('requisition-templates.action')}</span>,
-          meta: { className: 'w-16' },
           cell: ({ row }) => (
             <RowActions
               label={t('card-actions.actions-for', { name: row.original.name })}
@@ -71,6 +70,7 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
                   id: 'configure',
                   icon: <SettingsIcon />,
                   label: t('requisition-templates.configure'),
+                  primary: true,
                   name: t('requisition-templates.configure-template', {
                     template: row.original.name,
                   }),

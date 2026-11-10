@@ -109,7 +109,7 @@ function SupplyLineActions({
             node: node.supervisoryNode?.code ?? '',
             program: node.program?.name ?? '',
           }),
-          view: true,
+          primary: true,
           link: (
             <Link
               search={{ ...listSearch, supplyLine: node.id }}

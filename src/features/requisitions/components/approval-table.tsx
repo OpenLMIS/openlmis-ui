@@ -28,7 +28,6 @@ import {
   REQUISITION_LIST_COLUMNS,
   RequisitionListSkeleton,
   RequisitionListTable,
-  requisitionActionsMenu,
   requisitionListCell,
   requisitionRowLabel,
   ViewRequisition,
@@ -318,7 +317,6 @@ export function ApprovalTable({
         empty={!pastEnd && empty}
         footer={footer}
         listRef={pageStart.ref}
-        menu={requisitionActionsMenu(page.content, copies, online, false)}
       />
     </RequisitionCopiesContext>
   );

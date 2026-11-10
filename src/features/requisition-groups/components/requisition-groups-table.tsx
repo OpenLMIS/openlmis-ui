@@ -148,6 +148,7 @@ function RequisitionGroupActions({
           id: 'view',
           icon: <EyeIcon />,
           label: t('requisition-groups.view'),
+          primary: true,
           link: (
             <Link
               to="/administration/requisition-groups/$id"

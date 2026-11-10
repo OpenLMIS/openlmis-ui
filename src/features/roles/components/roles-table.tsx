@@ -100,6 +100,7 @@ function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions })
                 id: 'edit',
                 icon: <PencilIcon />,
                 label: t('roles.edit'),
+                primary: true,
                 onSelect: () => onEdit(role.id),
               },
             ]
@@ -111,7 +112,7 @@ function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions })
                 icon: <ListChecksIcon />,
                 label: t('roles.view-rights'),
                 name: t('roles.view-rights-for', { role: role.name }),
-                view: true,
+                primary: !onEdit,
                 onSelect: () => onViewRights(role.id),
               },
             ]

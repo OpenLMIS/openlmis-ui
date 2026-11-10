@@ -39,7 +39,10 @@ import {
   ApprovalTableSkeleton,
 } from '@/features/requisitions/components/approval-table';
 import { ApprovalToolbar } from '@/features/requisitions/components/approval-toolbar';
-import { useOfflineCopies } from '@/features/requisitions/hooks/use-offline-copies';
+import {
+  offlineCopiesOptions,
+  useOfflineCopies,
+} from '@/features/requisitions/hooks/use-offline-copies';
 import {
   APPROVAL_SORT,
   type ApprovalSearch,
@@ -65,6 +68,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   validateSearch: approvalSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
+    queryClient.prefetchQuery(offlineCopiesOptions());
     await prepareRequisitionAccess(queryClient);
     await requireRight(queryClient, RIGHTS.requisitionApprove);
     const userId = useLoginData.getState().referenceDataUserId;

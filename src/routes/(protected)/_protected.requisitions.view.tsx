@@ -43,7 +43,10 @@ import {
   RequisitionsTableSkeleton,
 } from '@/features/requisitions/components/requisitions-table';
 import { RequisitionsToolbar } from '@/features/requisitions/components/requisitions-toolbar';
-import { useOfflineCopies } from '@/features/requisitions/hooks/use-offline-copies';
+import {
+  offlineCopiesOptions,
+  useOfflineCopies,
+} from '@/features/requisitions/hooks/use-offline-copies';
 import { prepareRequisitionAccess } from '@/features/requisitions/lib/offline-access';
 import { readCopies } from '@/features/requisitions/lib/offline-copies';
 import {
@@ -79,6 +82,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view'
   },
   loaderDeps: ({ search }) => ({ search }),
   loader: async ({ context: { queryClient }, deps: { search } }) => {
+    queryClient.prefetchQuery(offlineCopiesOptions());
     if (!isOnline() && (await readCopies()).length)
       return { userId: useLoginData.getState().referenceDataUserId };
     await prepareRequisitionAccess(queryClient);

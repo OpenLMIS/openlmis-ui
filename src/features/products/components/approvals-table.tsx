@@ -119,6 +119,7 @@ function ApprovalActions({ approval, facilityType, actions }: ApprovalActionsPro
                 id: 'edit',
                 icon: <PencilIcon />,
                 label: t('products.approvals.edit'),
+                primary: true,
                 onSelect: () => actions.onEdit(approval.id),
               },
               {
@@ -138,7 +139,7 @@ function ApprovalActions({ approval, facilityType, actions }: ApprovalActionsPro
                   facilityType,
                   program: programName(approval.program),
                 }),
-                view: true,
+                primary: true,
                 onSelect: () => actions.onEdit(approval.id),
               },
             ]

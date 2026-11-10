@@ -13,8 +13,8 @@ import {
 } from '@/components/data-table/data-table';
 import {
   type CardAction,
-  RowActions,
-  RowActionsMenuContext,
+  CardActions,
+  SecondaryRowActions,
   useInCards,
 } from '@/components/display/card-actions';
 import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
@@ -23,12 +23,12 @@ import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
 import { FlagBadge } from '@/components/shared/flag-badge';
 import { Button } from '@/components/ui/button';
 import { RequisitionCopiesContext } from '@/features/requisitions/hooks/use-offline-copies';
-import type { RequisitionCopy } from '@/features/requisitions/lib/offline-copies';
 import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { RequisitionSearch } from '@/features/requisitions/lib/search-facilities';
 import type { ApprovalListRow, RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { tableValue } from '@/lib/empty-value';
 import { useOnline } from '@/lib/online';
+import { isSecureOrigin } from '@/lib/secure-context';
 
 type ListRecord = RequisitionSearchResult | Omit<ApprovalListRow, 'status'>;
 export const requisitionRowLabel = (row: ListRecord, emergency: string) =>
@@ -136,7 +136,6 @@ export function ViewRequisition({
 }) {
   const { t } = useTranslation();
   const cards = useInCards();
-  const menu = use(RowActionsMenuContext);
   const online = useOnline();
   const offline = useOfflineNavigation();
   const copy = use(RequisitionCopiesContext)?.find((copy) => copy.id === record.id);
@@ -184,12 +183,15 @@ export function ViewRequisition({
       {...linkProps}
     />
   );
-  if (cards || menu || actions.length > 0)
+  const groupLabel = t('card-actions.actions-for', {
+    name: includeFacility
+      ? requisitionRowLabel(record, t('requisitions.columns.emergency'))
+      : [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
+  });
+  if (cards)
     return (
-      <RowActions
-        label={t('card-actions.actions-for', {
-          name: [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
-        })}
+      <CardActions
+        label={groupLabel}
         actions={[
           {
             id: 'view',
@@ -204,38 +206,50 @@ export function ViewRequisition({
       />
     );
   return (
-    <div className="flex justify-end">
-      {unavailable ? (
-        <Button
-          aria-label={name}
-          aria-describedby={offline.descriptionId}
-          disabled={disabled}
-          onClick={(event) => offline.show(event.currentTarget)}
-          size="sm"
-          variant="outline"
-        >
-          {label}
-          <WifiOffIcon data-icon="inline-end" />
-        </Button>
-      ) : (
-        <Button aria-label={name} disabled={disabled} nativeButton={false} render={link} size="sm">
-          {label}
-        </Button>
-      )}
-    </div>
+    <fieldset aria-label={groupLabel} className="flex items-center justify-end gap-1">
+      <ViewSlot>
+        {unavailable ? (
+          <Button
+            aria-label={name}
+            aria-describedby={offline.descriptionId}
+            disabled={disabled}
+            onClick={(event) => offline.show(event.currentTarget)}
+            size="sm"
+            variant="outline"
+          >
+            {label}
+            <WifiOffIcon data-icon="inline-end" />
+          </Button>
+        ) : (
+          <Button
+            aria-label={name}
+            disabled={disabled}
+            nativeButton={false}
+            render={link}
+            size="sm"
+          >
+            {label}
+          </Button>
+        )}
+      </ViewSlot>
+      <SecondaryRowActions actions={actions} label={groupLabel} slots={isSecureOrigin ? 1 : 0} />
+    </fieldset>
   );
 }
 
-export function requisitionActionsMenu(
-  rows: readonly { id: string }[],
-  copies: readonly RequisitionCopy[] | undefined,
-  online: boolean,
-  removable: boolean,
-) {
-  return rows.some((row) => {
-    const copy = copies?.find((copy) => copy.id === row.id);
-    return !!copy && (removable || (!online && !!copy.batch));
-  });
+function ViewSlot({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid justify-items-end">
+      <div aria-hidden className="invisible col-start-1 row-start-1">
+        <Button nativeButton={false} render={<span />} size="sm" variant="outline">
+          {t('requisitions.view.action')}
+          <WifiOffIcon data-icon="inline-end" />
+        </Button>
+      </div>
+      <div className="col-start-1 row-start-1">{children}</div>
+    </div>
+  );
 }
 
 export function RequisitionListTable<TData extends RowData>({
@@ -246,10 +260,8 @@ export function RequisitionListTable<TData extends RowData>({
   footer,
   listRef,
   isRowInvalid,
-  menu = false,
 }: {
   cards: boolean;
-  menu?: boolean;
   table: DataTableInstance<TData>;
   stale: boolean;
   empty: ReactNode;
@@ -258,7 +270,7 @@ export function RequisitionListTable<TData extends RowData>({
   isRowInvalid?: (row: TData) => boolean;
 }) {
   return (
-    <RowActionsMenuContext value={menu}>
+    <>
       {cards ? (
         <TableCards
           tone={(row) => (isRowInvalid?.(row) ? 'invalid' : undefined)}
@@ -280,7 +292,7 @@ export function RequisitionListTable<TData extends RowData>({
           table={table}
         />
       )}
-    </RowActionsMenuContext>
+    </>
   );
 }
 

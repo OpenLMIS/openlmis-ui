@@ -113,6 +113,7 @@ function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: 
                 id: 'edit',
                 icon: <PencilIcon />,
                 label: t('products.programs.edit'),
+                primary: true,
                 onSelect: () => actions.onEdit(link.programId),
               },
               {
@@ -129,7 +130,7 @@ function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: 
                 icon: <EyeIcon />,
                 label: t('products.programs.view'),
                 name: t('products.programs.view-label', { program: link.name }),
-                view: true,
+                primary: true,
                 onSelect: () => actions.onEdit(link.programId),
               },
             ]

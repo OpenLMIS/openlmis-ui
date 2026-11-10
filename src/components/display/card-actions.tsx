@@ -21,7 +21,7 @@ export type CardAction = {
   focusableWhenDisabled?: boolean;
   onSelect?: (trigger: HTMLButtonElement) => void;
   link?: ReactElement;
-  view?: boolean;
+  primary?: boolean;
   data?: DataAttributes;
 };
 
@@ -30,8 +30,6 @@ type DataAttributes = { [key: `data-${string}`]: string | boolean };
 const MAX_BUTTONS = 3;
 
 export const InCardContext = createContext(false);
-
-export const RowActionsMenuContext = createContext(false);
 
 export function useInCards() {
   return use(InCardContext);
@@ -84,34 +82,22 @@ function CardActionButton({ action }: { action: CardAction }) {
 export function RowActions({
   label,
   actions,
+  slots,
   disabled,
   data,
 }: {
   label: string;
   actions: CardAction[];
+  slots?: number;
   disabled?: boolean;
   data?: DataAttributes;
 }) {
-  const menu = use(RowActionsMenuContext);
   if (useInCards()) return <CardActions actions={actions} label={label} />;
   if (actions.length === 0) return null;
-  const [only] = actions;
-  return (
-    <div className="flex justify-end">
-      {actions.length === 1 && only.view && !menu ? (
-        <Button
-          {...only.data}
-          aria-label={only.name}
-          disabled={only.disabled}
-          focusableWhenDisabled={only.focusableWhenDisabled}
-          nativeButton={!only.link}
-          onClick={only.onSelect && ((event) => only.onSelect?.(event.currentTarget))}
-          render={only.link}
-          size="sm"
-        >
-          {only.label}
-        </Button>
-      ) : (
+  const primary = actions.find((action) => action.primary);
+  if (!primary)
+    return (
+      <div className="flex justify-end">
         <CardActionsMenu
           actions={actions}
           data={data}
@@ -119,8 +105,66 @@ export function RowActions({
           label={label}
           variant="ghost"
         />
+      </div>
+    );
+  return (
+    <fieldset aria-label={label} className="flex items-center justify-end gap-1">
+      <Button
+        {...primary.data}
+        aria-label={primary.name}
+        disabled={disabled || primary.disabled}
+        focusableWhenDisabled={primary.focusableWhenDisabled}
+        nativeButton={!primary.link}
+        onClick={primary.onSelect && ((event) => primary.onSelect?.(event.currentTarget))}
+        render={primary.link}
+        size="sm"
+      >
+        {primary.label}
+      </Button>
+      <SecondaryRowActions
+        actions={actions.filter((action) => action !== primary)}
+        data={data}
+        disabled={disabled}
+        label={label}
+        slots={slots}
+      />
+    </fieldset>
+  );
+}
+
+export function SecondaryRowActions({
+  label,
+  actions,
+  slots = actions.length,
+  disabled,
+  data,
+}: {
+  label: string;
+  actions: CardAction[];
+  slots?: number;
+  disabled?: boolean;
+  data?: DataAttributes;
+}) {
+  const ordered = [
+    ...actions.filter((action) => !action.destructive),
+    ...actions.filter((action) => action.destructive),
+  ];
+  const menu = ordered.length > slots;
+  const shown = menu ? 1 : ordered.length;
+  const empty = Array.from({ length: Math.max(slots - shown, 0) }, (_, index) => index);
+  return (
+    <>
+      {menu ? (
+        <CardActionsMenu actions={ordered} data={data} disabled={disabled} label={label} />
+      ) : (
+        ordered.map((action) => (
+          <CardActionButton action={disabled ? { ...action, disabled } : action} key={action.id} />
+        ))
       )}
-    </div>
+      {empty.map((slot) => (
+        <div aria-hidden className="size-7 shrink-0" key={slot} />
+      ))}
+    </>
   );
 }
 
