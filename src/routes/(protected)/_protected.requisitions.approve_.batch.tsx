@@ -821,6 +821,7 @@ function BatchPage() {
     mutation.mutate(kind);
   };
   const pending = mutation.isPending;
+  const recoveryRecords = pending ? [] : unresolved;
   const guard = useDiscardGuard(dirty, {
     allowLeave: () => leaving.current,
     pending,
@@ -938,7 +939,7 @@ function BatchPage() {
                   </Button>
                 </RequisitionOutdatedAlert>
               ))}
-              {unresolved.map((r) => (
+              {recoveryRecords.map((r) => (
                 <Alert key={r.id} variant="warning" actionLayout="flow">
                   <AlertTitle>{batchLabel(r)}</AlertTitle>
                   <AlertDescription>{t('requisitions.batch.uncertain')}</AlertDescription>

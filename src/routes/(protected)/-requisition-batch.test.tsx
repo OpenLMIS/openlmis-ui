@@ -993,24 +993,35 @@ it('shows the saved batch response before its device copy finishes', async () =>
   );
 });
 
-it('sends one approval when the confirmation is double clicked', async () => {
-  security.secure = false;
-  const response = Promise.withResolvers<Awaited<ReturnType<typeof approveBatchRequisitions>>>();
-  vi.mocked(approveBatchRequisitions).mockReturnValue(response.promise);
-  const { queryClient } = renderRoute();
-  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
-  await waitFor(() => expect(approve).toBeEnabled());
-  await userEvent.click(approve);
-  const confirm = await screen.findByRole('button', { name: 'requisitions.batch.confirm' });
-  fireEvent.click(confirm);
-  fireEvent.click(confirm);
-  await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledOnce());
-  expect(saveBatchRequisitions).toHaveBeenCalledOnce();
-  await act(async () => response.resolve({ requisitionDtos: records }));
-  await screen.findByText('Approval List');
-  expect(approveBatchRequisitions).toHaveBeenCalledOnce();
-  queryClient.clear();
-});
+it.each([true, false])(
+  'keeps one approval pending without recovery alerts, secure: %s',
+  async (secure) => {
+    security.secure = secure;
+    const response = Promise.withResolvers<Awaited<ReturnType<typeof approveBatchRequisitions>>>();
+    vi.mocked(approveBatchRequisitions).mockReturnValue(response.promise);
+    const { queryClient } = renderRoute();
+    const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+    await waitFor(() => expect(approve).toBeEnabled());
+    await userEvent.click(approve);
+    const confirm = await screen.findByRole('button', { name: 'requisitions.batch.confirm' });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledOnce());
+    expect(saveBatchRequisitions).toHaveBeenCalledOnce();
+    try {
+      expect(confirm).toBeDisabled();
+      expect(
+        within(screen.getByRole('alertdialog')).getByRole('button', { name: 'dialog.cancel' }),
+      ).toBeDisabled();
+      expect(screen.queryAllByText('requisitions.batch.uncertain')).toHaveLength(0);
+    } finally {
+      await act(async () => response.resolve({ requisitionDtos: records }));
+      await screen.findByText('Approval List');
+      expect(approveBatchRequisitions).toHaveBeenCalledOnce();
+      queryClient.clear();
+    }
+  },
+);
 
 it('blocks a requisition moved to another node while still in approval', async () => {
   const batch = generateBatch(2, 1);
