@@ -700,7 +700,8 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   steps back, or replaces for a directly linked dialog. Use
   `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
 - Create Orders uses one required Requesting Facility multi-select with removable chips.
-  Picked options stay ticked; picking clears the search and keeps the list open. Use the 42rem
+  Picked options stay ticked; picking clears the search and closes the list, keeping focus in
+  the input. Use the 42rem
   form with Create Order at its bottom end; Enter never creates orders.
 - Inline add forms with one picker, where picking reveals no further field, drop the label
   and card: a picker with a leading icon and a placeholder naming the choice, then a separate
