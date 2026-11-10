@@ -1359,7 +1359,7 @@ it('translates a Sync timeout again when the page language changes', async () =>
 });
 
 it('uses server-verified save results to approve only records still awaiting approval', async () => {
-  renderRoute();
+  const { router } = renderRoute();
   const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
   await waitFor(() => expect(approve).toBeEnabled());
   vi.mocked(saveBatchRequisitions).mockResolvedValue({
@@ -1368,6 +1368,10 @@ it('uses server-verified save results to approve only records still awaiting app
   await userEvent.click(approve);
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
   await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
+  await waitFor(() => {
+    expect(router.state.location.search).toMatchObject({ ids: records[1].id });
+    expect(router.state.status).toBe('idle');
+  });
   const saved = vi.mocked(saveBatchRequisitions).mock.invocationCallOrder.at(-1) ?? 0;
   const approved = vi.mocked(approveBatchRequisitions).mock.invocationCallOrder.at(-1) ?? 0;
   expect(
@@ -1409,7 +1413,7 @@ it('retains membership verification when a record lacks timestamp protection', a
   });
   vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
   vi.mocked(saveBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
-  renderRoute();
+  const { router } = renderRoute();
   const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
   await waitFor(() => expect(approve).toBeEnabled());
   const pending = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
@@ -1420,4 +1424,8 @@ it('retains membership verification when a record lacks timestamp protection', a
   expect(approveBatchRequisitions).not.toHaveBeenCalled();
   await act(() => pending.resolve({ content: [records[0]], totalPages: 1 } as never));
   await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
+  await waitFor(() => {
+    expect(router.state.location.search).toMatchObject({ ids: records[1].id });
+    expect(router.state.status).toBe('idle');
+  });
 });

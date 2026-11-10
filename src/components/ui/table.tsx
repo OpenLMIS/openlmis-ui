@@ -27,7 +27,7 @@ function Table({
         className={cn(
           "w-full caption-bottom text-sm [&_th:not(:last-child)]:border-e [&_td:not(:last-child)]:border-e",
           width === "measured" && "min-w-(--table-width)",
-          width === "columns" && "w-(--table-width) min-w-(--table-width)",
+          width === "columns" && "min-w-(--table-width)",
           density === "comfortable" &&
             "[&_td]:h-12 [&_td]:px-4 [&_td]:py-1.5 [&_th]:h-10 [&_th]:px-4",
           density === "compact" && "[&_td]:px-1.5 [&_th]:px-1.5",
