@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { FULFILL_STATUSES, VIEW_FILTER_STATUSES } from '@/features/orders/lib/order-status';
+import { ORDER_KINDS, type OrderKind } from '@/features/orders/lib/order-status';
 import {
   dateFilterSchema,
+  type TableSearch,
   tableSearchSchema,
   toPaginationState,
   toSortParam,
@@ -22,28 +23,35 @@ const filters = {
 export const viewOrdersSearchSchema = tableSearchSchema(ORDER_SORT_FIELDS).extend({
   ...filters,
   supplyingFacilityId: uuidFilter,
-  status: statusFilter(VIEW_FILTER_STATUSES),
+  status: statusFilter(ORDER_KINDS.view.filterStatuses),
   periodStart: dateFilterSchema,
   periodEnd: dateFilterSchema,
 });
 export const fulfillOrdersSearchSchema = tableSearchSchema(ORDER_SORT_FIELDS).extend({
   ...filters,
-  status: statusFilter(FULFILL_STATUSES),
+  status: statusFilter(ORDER_KINDS.fulfill.filterStatuses),
 });
 export type ViewOrdersSearch = z.infer<typeof viewOrdersSearchSchema>;
 export type FulfillOrdersSearch = z.infer<typeof fulfillOrdersSearchSchema>;
 
+export type PodListSearch = TableSearch & {
+  sort?: (typeof ORDER_SORT_FIELDS)[number];
+  programId?: string;
+  requestingFacilityId?: string;
+  supplyingFacilityId?: string;
+};
+
 export const invalidDateRange = ({ periodStart, periodEnd }: ViewOrdersSearch) =>
   Boolean(periodStart && periodEnd && periodStart > periodEnd);
 
-export function toOrderParams(search: ViewOrdersSearch, kind: 'view' | 'fulfill' = 'view') {
+export function toOrderParams(search: ViewOrdersSearch, kind: OrderKind = 'view') {
   const { pageIndex, pageSize } = toPaginationState(search);
   const sort = toSortParam(search, ORDER_DEFAULT_SORT);
   return {
     supplyingFacilityId: search.supplyingFacilityId,
     requestingFacilityId: search.requestingFacilityId,
     programId: search.programId,
-    status: search.status ? [search.status] : kind === 'fulfill' ? FULFILL_STATUSES : undefined,
+    status: search.status ? [search.status] : ORDER_KINDS[kind].defaultStatuses,
     periodStartDate: search.periodStart,
     periodEndDate: search.periodEnd,
     page: pageIndex,

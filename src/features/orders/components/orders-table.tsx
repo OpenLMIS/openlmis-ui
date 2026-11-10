@@ -34,7 +34,7 @@ import {
   toOrderParams,
   type ViewOrdersSearch,
 } from '@/features/orders/lib/order-search';
-import { orderStatusKey } from '@/features/orders/lib/order-status';
+import { type OrderKind, orderStatusKey } from '@/features/orders/lib/order-status';
 import type { OrderSummary } from '@/features/orders/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
@@ -64,15 +64,31 @@ const FULFILL_ORDER_COLUMNS = [
   ['period', 'orders.fulfill.columns.period'],
   ['createdDate', 'orders.fulfill.columns.created-date'],
 ] as const;
-export const FULFILL_ORDER_HIDEABLE_COLUMNS = FULFILL_ORDER_COLUMNS.filter(
-  ([id]) => id !== 'orderCode',
-).map(([id, labelKey]) => ({ id, labelKey }));
-export const ORDER_HIDEABLE_COLUMNS = VIEW_ORDER_COLUMNS.filter(([id]) => id !== 'orderCode').map(
-  ([id, labelKey]) => ({
-    id,
-    labelKey,
-  }),
-);
+const ORDER_LIST_KINDS = {
+  view: {
+    columns: VIEW_ORDER_COLUMNS,
+    actionsKey: 'orders.view.columns.actions',
+    emptyDescription: 'orders.view.empty-description',
+  },
+  fulfill: {
+    columns: FULFILL_ORDER_COLUMNS,
+    actionsKey: 'orders.fulfill.columns.actions',
+    emptyDescription: 'orders.fulfill.empty-description',
+  },
+} satisfies Record<
+  OrderKind,
+  {
+    columns: readonly (readonly [string, ParseKeys])[];
+    actionsKey: ParseKeys;
+    emptyDescription: ParseKeys;
+  }
+>;
+const hideableColumns = (kind: OrderKind) =>
+  ORDER_LIST_KINDS[kind].columns
+    .filter(([id]) => id !== 'orderCode')
+    .map(([id, labelKey]) => ({ id, labelKey }));
+export const FULFILL_ORDER_HIDEABLE_COLUMNS = hideableColumns('fulfill');
+export const ORDER_HIDEABLE_COLUMNS = hideableColumns('view');
 const NO_ROWS: OrderSummary[] = [];
 const NO_ACCESS: OrderAccess = { canEdit: false, retrySupplierIds: [] };
 const noop = () => {};
@@ -162,7 +178,7 @@ function orderColumns({
 }
 
 type Props<T extends ViewOrdersSearch = ViewOrdersSearch> = {
-  kind?: 'view' | 'fulfill';
+  kind?: OrderKind;
   legacyAvailable?: boolean;
   cards: boolean;
   columns: ColumnVisibilityState;
@@ -189,12 +205,11 @@ function useResultsTable<T extends ViewOrdersSearch>(
   const defs = useMemo(
     () =>
       orderColumns({
-        columns: kind === 'fulfill' ? FULFILL_ORDER_COLUMNS : VIEW_ORDER_COLUMNS,
+        columns: ORDER_LIST_KINDS[kind].columns,
         t,
         language: i18n.language,
         timeZone,
-        actionsKey:
-          kind === 'fulfill' ? 'orders.fulfill.columns.actions' : 'orders.view.columns.actions',
+        actionsKey: ORDER_LIST_KINDS[kind].actionsKey,
         actions:
           kind === 'fulfill' && !legacyAvailable
             ? undefined
@@ -259,9 +274,7 @@ export function OrdersTable<T extends ViewOrdersSearch>(props: Props<T>) {
       description={t(
         filtered
           ? 'orders.view.no-matches-description'
-          : props.kind === 'fulfill'
-            ? 'orders.fulfill.empty-description'
-            : 'orders.view.empty-description',
+          : ORDER_LIST_KINDS[props.kind ?? 'view'].emptyDescription,
       )}
       action={
         filtered && (

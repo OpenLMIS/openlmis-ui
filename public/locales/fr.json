@@ -2764,8 +2764,6 @@
   "stock-events.source-comments": "Commentaires Sur La Source",
   "stock-events.sources-error-description": "Réessayez de charger les sources de ce programme.",
   "stock-events.sources-error-title": "Impossible De Charger Les Sources",
-  "stock-events.stage-1": "Stade 1",
-  "stock-events.stage-2": "Stade 2",
   "stock-events.stock-on-hand": "Stock disponible",
   "stock-events.stock-on-hand-error-description": "Réessayez de charger le stock disponible de ce produit.",
   "stock-events.stock-on-hand-error-title": "Impossible De Charger Le Stock Disponible",
@@ -2777,7 +2775,6 @@
   "stock-events.unknown-outcome-description": "Vérifiez la fiche de stock avant de renvoyer. Le serveur a peut-être déjà enregistré ce mouvement de stock.",
   "stock-events.unknown-outcome-title": "Résultat de l’envoi inconnu",
   "stock-events.vvm-invalid": "Choisissez le stade 1 ou le stade 2",
-  "stock-events.vvm-none": "Aucun",
   "stock-events.vvm-not-allowed": "Ce produit n’utilise pas de VVM",
   "stock-events.vvm-status": "État VVM",
   "stock-issue.editor-crumb": "Effectuer Une Sortie",
@@ -3480,5 +3477,8 @@
   "valid-assignments.program": "Programme",
   "valid-assignments.row-name": "{name} pour {type} dans {program}",
   "valid-assignments.title": "{kind, select, destinations {Destinations autorisées} other {Sources autorisées}}",
-  "valid-assignments.unknown": "Inconnu"
+  "valid-assignments.unknown": "Inconnu",
+  "vvm.none": "Aucun",
+  "vvm.stage-1": "Stade 1",
+  "vvm.stage-2": "Stade 2"
 }

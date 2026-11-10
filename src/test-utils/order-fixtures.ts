@@ -32,6 +32,7 @@ export function orderSummary(id = 'a'): OrderSummary {
     processingPeriod: null,
     createdDate: '2026-01-01T12:00:00Z',
     lastUpdatedDate: null,
-    supplyingFacility: { id: 'supplier' },
+    requestingFacility: { id: `facility-${id}`, code: 'F', name: `Facility ${id}` },
+    supplyingFacility: { id: 'supplier', name: 'Supplier', code: 'S' },
   };
 }

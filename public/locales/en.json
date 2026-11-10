@@ -2764,8 +2764,6 @@
   "stock-events.source-comments": "Source Comments",
   "stock-events.sources-error-description": "Try again to load the sources for this program.",
   "stock-events.sources-error-title": "Could Not Load Sources",
-  "stock-events.stage-1": "Stage 1",
-  "stock-events.stage-2": "Stage 2",
   "stock-events.stock-on-hand": "Stock On Hand",
   "stock-events.stock-on-hand-error-description": "Try again to load the stock on hand of this product.",
   "stock-events.stock-on-hand-error-title": "Could Not Load Stock On Hand",
@@ -2777,7 +2775,6 @@
   "stock-events.unknown-outcome-description": "Check the stock card before submitting again. The server may already have recorded this stock event.",
   "stock-events.unknown-outcome-title": "Submission Outcome Unknown",
   "stock-events.vvm-invalid": "Choose Stage 1 or Stage 2",
-  "stock-events.vvm-none": "None",
   "stock-events.vvm-not-allowed": "This product does not use VVM",
   "stock-events.vvm-status": "VVM Status",
   "stock-issue.editor-crumb": "Make Issue",
@@ -3480,5 +3477,8 @@
   "valid-assignments.program": "Program",
   "valid-assignments.row-name": "{name} for {type} in {program}",
   "valid-assignments.title": "{kind, select, destinations {Valid Destinations} other {Valid Sources}}",
-  "valid-assignments.unknown": "Unknown"
+  "valid-assignments.unknown": "Unknown",
+  "vvm.none": "None",
+  "vvm.stage-1": "Stage 1",
+  "vvm.stage-2": "Stage 2"
 }

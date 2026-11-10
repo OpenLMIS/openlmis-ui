@@ -2764,8 +2764,6 @@
   "stock-events.source-comments": "Comentarios Del Origen",
   "stock-events.sources-error-description": "Inténtelo de nuevo para cargar los orígenes de este programa.",
   "stock-events.sources-error-title": "No Se Pudieron Cargar Los Orígenes",
-  "stock-events.stage-1": "Etapa 1",
-  "stock-events.stage-2": "Etapa 2",
   "stock-events.stock-on-hand": "Existencias disponibles",
   "stock-events.stock-on-hand-error-description": "Inténtelo de nuevo para cargar las existencias disponibles de este producto.",
   "stock-events.stock-on-hand-error-title": "No Se Pudieron Cargar Las Existencias Disponibles",
@@ -2777,7 +2775,6 @@
   "stock-events.unknown-outcome-description": "Compruebe la ficha de existencias antes de volver a enviar. Es posible que el servidor ya haya registrado este movimiento de existencias.",
   "stock-events.unknown-outcome-title": "Resultado del envío desconocido",
   "stock-events.vvm-invalid": "Seleccione Etapa 1 o Etapa 2",
-  "stock-events.vvm-none": "Ninguno",
   "stock-events.vvm-not-allowed": "Este producto no utiliza VVM",
   "stock-events.vvm-status": "Estado VVM",
   "stock-issue.editor-crumb": "Realizar Salida",
@@ -3480,5 +3477,8 @@
   "valid-assignments.program": "Programa",
   "valid-assignments.row-name": "{name} para {type} en {program}",
   "valid-assignments.title": "{kind, select, destinations {Destinos válidos} other {Orígenes válidos}}",
-  "valid-assignments.unknown": "Desconocido"
+  "valid-assignments.unknown": "Desconocido",
+  "vvm.none": "Ninguno",
+  "vvm.stage-1": "Etapa 1",
+  "vvm.stage-2": "Etapa 2"
 }

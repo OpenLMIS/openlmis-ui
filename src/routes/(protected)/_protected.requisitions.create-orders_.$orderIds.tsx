@@ -1,5 +1,10 @@
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, notFound, useLocation } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  notFound,
+  type RegisteredRouter,
+  useLocation,
+} from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -56,7 +61,10 @@ function Page() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   const state = useLocation({ select: (location) => location.state });
-  const returnTarget = orderReturnTarget(state);
+  const returnTarget = orderReturnTarget(state, {
+    to: '/requisitions/create-orders' as const,
+    search: {},
+  });
   const queryClient = useQueryClient();
   const [batch, setBatch] = useState(() => entries.map((entry) => entry.id));
   if (entries.some((entry) => !batch.includes(entry.id)))
@@ -67,7 +75,7 @@ function Page() {
       entries={entries}
       tab={tab}
       onTab={(id) => navigate({ search: { tab: id }, state: true, replace: true })}
-      onCancel={() => navigate(returnTarget)}
+      onCancel={() => navigate<RegisteredRouter, string, string>(returnTarget)}
       onBatchChange={async (ids) => {
         const scope = getSessionScope();
         const token = randomId();
@@ -81,7 +89,7 @@ function Page() {
                 state: { orderBatchChange: token, orderReturn: state.orderReturn },
                 replace: true,
               })
-            : navigate({ ...returnTarget, replace: true }));
+            : navigate<RegisteredRouter, string, string>({ ...returnTarget, replace: true }));
           assertSessionScope(scope);
           if (!ids.length) {
             const heading = document.querySelector<HTMLElement>('main h1');

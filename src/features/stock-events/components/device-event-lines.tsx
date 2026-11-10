@@ -20,9 +20,9 @@ import {
   type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
 import type { DeviceEvent } from '@/features/stock-events/lib/stock-event-sync';
-import { vvmItems } from '@/features/stock-events/lib/vvm-items';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { orEmpty, tableValue } from '@/lib/empty-value';
+import { vvmItems } from '@/lib/vvm';
 
 export function DeviceEventLines({ event }: { event: DeviceEvent }) {
   const { t, i18n } = useTranslation();

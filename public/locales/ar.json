@@ -2764,8 +2764,6 @@
   "stock-events.source-comments": "ملاحظات المصدر",
   "stock-events.sources-error-description": "حاول مرة أخرى لتحميل مصادر هذا البرنامج.",
   "stock-events.sources-error-title": "تعذر تحميل المصادر",
-  "stock-events.stage-1": "المرحلة 1",
-  "stock-events.stage-2": "المرحلة 2",
   "stock-events.stock-on-hand": "المخزون المتاح",
   "stock-events.stock-on-hand-error-description": "حاول مرة أخرى لتحميل المخزون المتاح لهذا المنتج.",
   "stock-events.stock-on-hand-error-title": "تعذر تحميل المخزون المتاح",
@@ -2777,7 +2775,6 @@
   "stock-events.unknown-outcome-description": "تحقق من بطاقة المخزون قبل الإرسال مرة أخرى. قد يكون الخادم قد سجل حركة المخزون هذه بالفعل.",
   "stock-events.unknown-outcome-title": "نتيجة الإرسال غير معروفة",
   "stock-events.vvm-invalid": "اختر المرحلة 1 أو المرحلة 2",
-  "stock-events.vvm-none": "لا شيء",
   "stock-events.vvm-not-allowed": "هذا المنتج لا يستخدم مؤشر قارورة اللقاح",
   "stock-events.vvm-status": "حالة مؤشر قارورة اللقاح",
   "stock-issue.editor-crumb": "إجراء صرف",
@@ -3480,5 +3477,8 @@
   "valid-assignments.program": "البرنامج",
   "valid-assignments.row-name": "{name} لنوع {type} في {program}",
   "valid-assignments.title": "{kind, select, destinations {الوجهات الصالحة} other {المصادر الصالحة}}",
-  "valid-assignments.unknown": "غير معروف"
+  "valid-assignments.unknown": "غير معروف",
+  "vvm.none": "لا شيء",
+  "vvm.stage-1": "المرحلة 1",
+  "vvm.stage-2": "المرحلة 2"
 }

@@ -2764,8 +2764,6 @@
   "stock-events.source-comments": "Comentários Da Origem",
   "stock-events.sources-error-description": "Tente novamente carregar as origens deste programa.",
   "stock-events.sources-error-title": "Não Foi Possível Carregar As Origens",
-  "stock-events.stage-1": "Fase 1",
-  "stock-events.stage-2": "Fase 2",
   "stock-events.stock-on-hand": "Stock disponível",
   "stock-events.stock-on-hand-error-description": "Tente novamente carregar o stock disponível deste produto.",
   "stock-events.stock-on-hand-error-title": "Não Foi Possível Carregar O Stock Disponível",
@@ -2777,7 +2775,6 @@
   "stock-events.unknown-outcome-description": "Verifique a ficha de stock antes de enviar novamente. O servidor pode já ter registado este movimento de stock.",
   "stock-events.unknown-outcome-title": "Resultado do envio desconhecido",
   "stock-events.vvm-invalid": "Escolha Fase 1 ou Fase 2",
-  "stock-events.vvm-none": "Nenhum",
   "stock-events.vvm-not-allowed": "Este produto não utiliza VVM",
   "stock-events.vvm-status": "Estado VVM",
   "stock-issue.editor-crumb": "Fazer Saída",
@@ -3480,5 +3477,8 @@
   "valid-assignments.program": "Programa",
   "valid-assignments.row-name": "{name} para {type} em {program}",
   "valid-assignments.title": "{kind, select, destinations {Destinos Válidos} other {Origens Válidas}}",
-  "valid-assignments.unknown": "Desconhecido"
+  "valid-assignments.unknown": "Desconhecido",
+  "vvm.none": "Nenhum",
+  "vvm.stage-1": "Fase 1",
+  "vvm.stage-2": "Fase 2"
 }

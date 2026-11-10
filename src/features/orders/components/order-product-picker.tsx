@@ -58,7 +58,7 @@ export const OrderProductPicker = memo(function OrderProductPicker({
             open={open}
             onOpenChange={setOpen}
             value={selected}
-            itemToStringLabel={(item) => item.fullProductName ?? item.productCode}
+            itemToStringLabel={(item) => item.fullProductName ?? item.productCode ?? ''}
             isItemEqualToValue={(a, b) => a.id === b.id}
             onInputValueChange={(value, details) => {
               if (details.reason === 'input-change') setSearch(value);
