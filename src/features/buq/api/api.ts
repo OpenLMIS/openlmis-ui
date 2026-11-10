@@ -105,10 +105,10 @@ export async function authorizeBuqForecast(body: ForecastBody) {
   return data;
 }
 
-export async function approveBuqForecast(forecast: BuqForecast) {
+export async function approveBuqForecast(body: ForecastBody) {
   const { data } = await client.post<BuqForecast>(
-    `/bottomUpQuantifications/${forecast.id}/approve`,
-    forecast,
+    `/bottomUpQuantifications/${body.id}/approve`,
+    body,
   );
   return data;
 }

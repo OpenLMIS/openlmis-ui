@@ -32,7 +32,5 @@ export function forecastActions(status: BuqStatus, mode: ForecastMode): Forecast
   return [];
 }
 
-export const canEditForecast = (actions: readonly ForecastAction[]) => actions.includes('save');
-
 export const canViewRejection = (status: BuqStatus, mode: ForecastMode) =>
   mode.kind === 'create' && mode.rights.create && status === 'REJECTED';
