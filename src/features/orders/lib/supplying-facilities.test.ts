@@ -91,3 +91,22 @@ it('offers no supplier ids without grants', () => {
   expect(fulfillOrderSupplierIds(permissions)).toEqual([]);
   expect(viewOrderSupplierIds(permissions)).toEqual([]);
 });
+
+it('offers POD requesters from scoped POD grants in any program and suppliers from facility shipment grants', async () => {
+  const { podRequestingFacilityIds, podSupplyingFacilityIds } = await import(
+    '@/features/orders/lib/supplying-facilities'
+  );
+  const permissions = parsePermissions([
+    'PODS_MANAGE|a|p',
+    'PODS_VIEW|a|q',
+    'PODS_VIEW|b|q',
+    'PODS_VIEW|c',
+    'SHIPMENTS_EDIT|s',
+    'SHIPMENTS_VIEW|s',
+    'SHIPMENTS_VIEW|t',
+    'SHIPMENTS_EDIT|u|p',
+    'ORDERS_VIEW|v',
+  ]);
+  expect(podRequestingFacilityIds(permissions)).toEqual(['a', 'b']);
+  expect(podSupplyingFacilityIds(permissions)).toEqual(['s', 't']);
+});

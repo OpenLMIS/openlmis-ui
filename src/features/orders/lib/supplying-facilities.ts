@@ -72,3 +72,22 @@ export function viewOrderSupplierIds(permissions: Permissions) {
     ]),
   ].sort();
 }
+
+export function podRequestingFacilityIds(permissions: Permissions) {
+  return [
+    ...new Set(
+      permissions.grants
+        .filter((grant) => grant.right === RIGHTS.podsManage || grant.right === RIGHTS.podsView)
+        .map((grant) => grant.facilityId),
+    ),
+  ].sort();
+}
+export function podSupplyingFacilityIds(permissions: Permissions) {
+  return [
+    ...new Set(
+      [RIGHTS.shipmentsEdit, RIGHTS.shipmentsView].flatMap((right) =>
+        facilityGrants(permissions, right).map((grant) => grant.facilityId),
+      ),
+    ),
+  ].sort();
+}

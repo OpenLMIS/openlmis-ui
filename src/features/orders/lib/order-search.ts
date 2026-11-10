@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { ORDER_KINDS, type OrderKind } from '@/features/orders/lib/order-status';
+import { ORDER_KINDS, type OrderListKind } from '@/features/orders/lib/order-status';
 import {
   dateFilterSchema,
-  type TableSearch,
   tableSearchSchema,
   toPaginationState,
   toSortParam,
@@ -34,17 +33,12 @@ export const fulfillOrdersSearchSchema = tableSearchSchema(ORDER_SORT_FIELDS).ex
 export type ViewOrdersSearch = z.infer<typeof viewOrdersSearchSchema>;
 export type FulfillOrdersSearch = z.infer<typeof fulfillOrdersSearchSchema>;
 
-export type PodListSearch = TableSearch & {
-  sort?: (typeof ORDER_SORT_FIELDS)[number];
-  programId?: string;
-  requestingFacilityId?: string;
-  supplyingFacilityId?: string;
-};
+export type { PodListSearch } from '@/features/orders/lib/pod-search';
 
 export const invalidDateRange = ({ periodStart, periodEnd }: ViewOrdersSearch) =>
   Boolean(periodStart && periodEnd && periodStart > periodEnd);
 
-export function toOrderParams(search: ViewOrdersSearch, kind: OrderKind = 'view') {
+export function toOrderParams(search: ViewOrdersSearch, kind: OrderListKind = 'view') {
   const { pageIndex, pageSize } = toPaginationState(search);
   const sort = toSortParam(search, ORDER_DEFAULT_SORT);
   return {
