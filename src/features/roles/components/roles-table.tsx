@@ -76,7 +76,7 @@ function createColumns(t: TFunction, actions: RoleRowActions) {
           columnHelper.display({
             id: 'actions',
             header: () => <span className="sr-only">{t('roles.actions')}</span>,
-            meta: { className: 'w-16' },
+            meta: { className: 'w-40' },
             cell: ({ row }) => <RoleActions actions={actions} role={row.original} />,
           }),
         ]

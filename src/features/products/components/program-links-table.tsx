@@ -92,7 +92,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('products.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-40' },
       cell: ({ row }) => <ProgramLinkActions actions={actions} link={row.original} />,
     }),
   ]);

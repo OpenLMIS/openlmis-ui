@@ -86,7 +86,7 @@ function createColumns(
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('products.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-40' },
       cell: ({ row }) =>
         row.original.kind === 'approval' && (
           <ApprovalActions

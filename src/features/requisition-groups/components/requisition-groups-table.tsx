@@ -109,7 +109,7 @@ function createColumns(
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('requisition-groups.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-40' },
       cell: ({ row }) => <RequisitionGroupActions group={row.original} search={search} />,
     }),
   ]);
