@@ -4,7 +4,6 @@ import {
   fetchOrderRequestingFacilityIds,
   fetchOrderStockOnHand,
   fetchProofOfDelivery,
-  findProofOfDelivery,
   searchOrders,
 } from '@/features/orders/api/api';
 import type { OrderSearchParams } from '@/features/orders/lib/order-search';
@@ -158,11 +157,6 @@ export const proofOfDeliveryOptions = (id: string) =>
   queryOptions({
     queryKey: queryKeys.proofsOfDelivery.detail(id),
     queryFn: () => fetchProofOfDelivery(id),
-  });
-export const findProofOfDeliveryOptions = (orderId: string) =>
-  queryOptions({
-    queryKey: queryKeys.proofsOfDelivery.list({ orderId }),
-    queryFn: () => findProofOfDelivery(orderId),
   });
 export const podDebitReasons = (assignments: readonly ValidReasonAssignment[]) =>
   assignments

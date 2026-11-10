@@ -4,7 +4,11 @@ import { ClipboardCheckIcon, ShieldAlertIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
-import { DataTableCard, DataTableEmpty } from '@/components/data-table/data-table';
+import {
+  DataTableCard,
+  DataTableEmpty,
+  DataTableToolbar,
+} from '@/components/data-table/data-table';
 import {
   Workspace,
   WorkspaceContent,
@@ -22,7 +26,6 @@ import {
   OrdersTableSkeleton,
   POD_ORDER_HIDEABLE_COLUMNS,
 } from '@/features/orders/components/orders-table';
-import { OrdersToolbar } from '@/features/orders/components/orders-toolbar';
 import { OrdersViewOptions } from '@/features/orders/components/orders-view-options';
 import {
   PodSearchPicker,
@@ -227,19 +230,14 @@ function PodBody({
           />
           {ready ? (
             <>
-              <OrdersToolbar
-                kind="pod"
-                search={search}
-                onFilterChange={() => {}}
-                view={
-                  <OrdersViewOptions
-                    kind="pod"
-                    columnView={columnView}
-                    search={search}
-                    onSearchChange={updateSearch}
-                  />
-                }
-              />
+              <DataTableToolbar align="end">
+                <OrdersViewOptions
+                  kind="pod"
+                  columnView={columnView}
+                  search={search}
+                  onSearchChange={updateSearch}
+                />
+              </DataTableToolbar>
               <QueryBoundary
                 errorComponent={OrdersError}
                 pendingFallback={skeleton}

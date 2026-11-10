@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ORDER_KINDS, type OrderListKind } from '@/features/orders/lib/order-status';
+import { ORDER_KINDS, type OrderKind } from '@/features/orders/lib/order-status';
 import {
   dateFilterSchema,
   tableSearchSchema,
@@ -38,7 +38,7 @@ export type { PodListSearch } from '@/features/orders/lib/pod-search';
 export const invalidDateRange = ({ periodStart, periodEnd }: ViewOrdersSearch) =>
   Boolean(periodStart && periodEnd && periodStart > periodEnd);
 
-export function toOrderParams(search: ViewOrdersSearch, kind: OrderListKind = 'view') {
+export function toOrderParams(search: ViewOrdersSearch, kind: OrderKind = 'view') {
   const { pageIndex, pageSize } = toPaginationState(search);
   const sort = toSortParam(search, ORDER_DEFAULT_SORT);
   return {

@@ -45,8 +45,7 @@ export const ORDER_KINDS = {
   string,
   { filterStatuses: readonly OrderStatus[]; defaultStatuses: readonly OrderStatus[] | undefined }
 >;
-export type OrderKind = 'view' | 'fulfill' | 'pod';
-export type OrderListKind = keyof typeof ORDER_KINDS;
+export type OrderKind = keyof typeof ORDER_KINDS;
 
 export function orderStatusKey(status: string): ParseKeys | undefined {
   return Object.hasOwn(ORDER_STATUS, status) ? ORDER_STATUS[status as OrderStatus] : undefined;

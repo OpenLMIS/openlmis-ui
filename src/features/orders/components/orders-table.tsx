@@ -99,10 +99,10 @@ const ORDER_LIST_KINDS = {
     emptyDescription: ParseKeys;
   }
 >;
+export const viewColumns = (kind: OrderKind) =>
+  ORDER_LIST_KINDS[kind].columns.map(([id, labelKey]) => ({ id, labelKey }));
 const hideableColumns = (kind: OrderKind) =>
-  ORDER_LIST_KINDS[kind].columns
-    .filter(([id]) => id !== 'orderCode')
-    .map(([id, labelKey]) => ({ id, labelKey }));
+  viewColumns(kind).filter(({ id }) => id !== 'orderCode');
 export const FULFILL_ORDER_HIDEABLE_COLUMNS = hideableColumns('fulfill');
 export const POD_ORDER_HIDEABLE_COLUMNS = hideableColumns('pod');
 export const ORDER_HIDEABLE_COLUMNS = hideableColumns('view');

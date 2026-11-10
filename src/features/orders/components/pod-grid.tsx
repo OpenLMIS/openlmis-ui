@@ -66,6 +66,11 @@ export function PodGrid({
   const visible = columns.filter((key) => key !== 'vvm' || useVvm);
   const groupName = (group: PodLineGroup) =>
     group.orderLine?.orderable.fullProductName ?? t('orders.pod.other-products');
+  const firstGroup = new Map<string, PodLineGroup>();
+  for (const group of groups)
+    for (const product of group.products)
+      for (const line of product.lines)
+        if (!firstGroup.has(line.id)) firstGroup.set(line.id, group);
   const rows = (group: PodLineGroup) =>
     group.products.flatMap((product) =>
       product.lines.map((line) => (
@@ -80,7 +85,7 @@ export function PodGrid({
           useVvm={useVvm}
           lot={lots.find((lot) => lot.id === line.lot?.id)?.lotCode ?? t('orders.pod.no-lot')}
           reasons={reasons}
-          editable={editable && line.quantityShipped !== null}
+          editable={editable && line.quantityShipped !== null && firstGroup.get(line.id) === group}
           disabled={disabled}
           attempted={attempted}
         />

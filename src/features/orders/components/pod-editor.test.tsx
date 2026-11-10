@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { saveProofOfDelivery } from '@/features/orders/api/api';
 import { PodEditor } from '@/features/orders/components/pod-editor';
 import type { PodResponse, ProofOfDelivery } from '@/features/orders/lib/pod-types';
+import type { OrderableFulfills } from '@/features/reference-data/lib/types';
 import { creatingOrder, orderProduct } from '@/test-utils/order-fixtures';
 
 const layout = vi.hoisted(() => ({ cards: false }));
@@ -62,7 +63,12 @@ const pod: ProofOfDelivery = {
     },
   ],
 };
-function setup(canEdit = true, initial = pod, products = [orderProduct]) {
+function setup(
+  canEdit = true,
+  initial = pod,
+  products = [orderProduct],
+  fulfills: OrderableFulfills = {},
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -72,7 +78,7 @@ function setup(canEdit = true, initial = pod, products = [orderProduct]) {
         initial={initial}
         products={products}
         lots={[]}
-        fulfills={{}}
+        fulfills={fulfills}
         reasons={[{ id: 'damage', name: 'Damage' }]}
         canEdit={canEdit}
         timeZone="UTC"
@@ -150,3 +156,32 @@ it.each([false, true])('shows the unit of an unmatched fulfilling product in car
   setup(false, initial, [orderProduct, substitute]);
   expect(screen.getByText('bottle')).toBeVisible();
 });
+
+it.each([false, true])(
+  'renders one editable control set for a shared substitute and mirrors its values in cards=%s',
+  async (cards) => {
+    layout.cards = cards;
+    const shared = {
+      ...pod,
+      shipment: {
+        ...pod.shipment,
+        order: {
+          ...pod.shipment.order,
+          orderLineItems: [
+            ...pod.shipment.order.orderLineItems,
+            {
+              orderable: { ...orderProduct, id: 'alternate', fullProductName: 'Other Medicine' },
+              orderedQuantity: 2,
+            },
+          ],
+        },
+      },
+    };
+    setup(true, shared, [orderProduct], { alternate: { canFulfillForMe: ['product'] } });
+    const ids = Array.from(document.querySelectorAll('[id]'), (node) => node.id);
+    expect(ids).toHaveLength(new Set(ids).size);
+    const accepted = screen.getByRole('textbox', { name: 'orders.pod.accepted-for' });
+    fireEvent.change(accepted, { target: { value: '8' } });
+    await waitFor(() => expect(screen.getAllByText('8')).toHaveLength(3));
+  },
+);

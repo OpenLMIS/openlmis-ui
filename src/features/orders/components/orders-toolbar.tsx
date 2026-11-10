@@ -8,6 +8,7 @@ import {
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DatePicker } from '@/components/form/form-fields';
 import type { ViewOrdersSearch } from '@/features/orders/lib/order-search';
+import type { OrderKind } from '@/features/orders/lib/order-status';
 import {
   FULFILL_STATUSES,
   ORDER_STATUS,
@@ -43,7 +44,7 @@ export function OrdersToolbar({
   facilitiesDisabled = false,
   programsDisabled = false,
 }: {
-  kind?: 'view' | 'fulfill' | 'pod';
+  kind?: Exclude<OrderKind, 'pod'>;
   search: ViewOrdersSearch;
   facilities?: FilterOption[];
   programs?: FilterOption[];
@@ -54,12 +55,6 @@ export function OrdersToolbar({
   programsDisabled?: boolean;
 }) {
   const { t } = useTranslation();
-  if (kind === 'pod')
-    return (
-      <DataTableToolbar>
-        <div className="ms-auto">{view}</div>
-      </DataTableToolbar>
-    );
   const statuses = kind === 'fulfill' ? FULFILL_STATUSES : VIEW_FILTER_STATUSES;
   const change = (patch: Partial<ViewOrdersSearch>) =>
     onFilterChange({ ...patch, page: undefined });
