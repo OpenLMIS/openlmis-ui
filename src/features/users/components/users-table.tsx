@@ -68,7 +68,7 @@ function createColumns(t: TFunction, actions: UserRowActions) {
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('users.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => (
         <UserActions
           listSearch={actions.listSearch}

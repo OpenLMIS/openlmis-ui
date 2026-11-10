@@ -92,7 +92,7 @@ function createColumns(
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('reasons.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <ReasonActions listSearch={listSearch} reason={row.original} />,
     }),
   ]);

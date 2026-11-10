@@ -30,7 +30,7 @@ beforeEach(() => {
 });
 
 describe('ProductsTable', () => {
-  it("opens a product's General tab from its row menu, keeping the list search", async () => {
+  it("opens a product's General tab from its row icon, keeping the list search", async () => {
     const router = renderPage(
       <ProductsTable
         cards={false}
@@ -41,8 +41,7 @@ describe('ProductsTable', () => {
     );
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'products.actions-for' }));
-    const edit = await screen.findByRole('menuitem', { name: 'products.edit' });
+    const edit = await screen.findByRole('button', { name: 'products.edit' });
     expect(edit).toHaveAttribute('href', '/administration/products/o1/general');
     await user.click(edit);
 

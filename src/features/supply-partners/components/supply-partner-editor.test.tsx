@@ -115,11 +115,15 @@ it('removes the chosen association on the last page and keeps every remaining dr
   renderPage(<Harness />, { queryClient });
   await user.clear(await screen.findByRole('textbox', { name: 'Name' }));
   await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Edited Supplier');
-  await user.click(screen.getByRole('button', { name: 'Actions for Program, Node 11' }));
-  await user.click(await screen.findByRole('menuitem', { name: 'Remove' }));
+  await user.click(
+    within(screen.getByRole('group', { name: 'Actions for Program, Node 11' })).getByRole(
+      'button',
+      { name: 'Remove' },
+    ),
+  );
   const confirmation = await screen.findByRole('alertdialog', { name: 'Remove Association' });
   await user.click(within(confirmation).getByRole('button', { name: 'Remove' }));
-  await screen.findByRole('button', { name: 'Actions for Program, Node 10' });
+  await screen.findByRole('group', { name: 'Actions for Program, Node 10' });
   await user.click(screen.getByRole('button', { name: 'Update Supply Partner' }));
   await screen.findByRole('alertdialog', { name: 'Could Not Save Supply Partner' });
   expect(saveSupplyPartner).toHaveBeenCalledWith(saved, {

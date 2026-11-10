@@ -357,7 +357,7 @@ function createColumns(
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('supervisory-nodes.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => (
         <NodeLinkActions node={row.original} kind={kind} disabled={disabled} onRemove={onRemove} />
       ),

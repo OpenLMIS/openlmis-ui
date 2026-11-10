@@ -70,7 +70,7 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
                   id: 'configure',
                   icon: <SettingsIcon />,
                   label: t('requisition-templates.configure'),
-                  primary: true,
+
                   name: t('requisition-templates.configure-template', {
                     template: row.original.name,
                   }),

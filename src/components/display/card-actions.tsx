@@ -21,7 +21,6 @@ export type CardAction = {
   focusableWhenDisabled?: boolean;
   onSelect?: (trigger: HTMLButtonElement) => void;
   link?: ReactElement;
-  primary?: boolean;
   data?: DataAttributes;
 };
 
@@ -82,53 +81,37 @@ function CardActionButton({ action }: { action: CardAction }) {
 export function RowActions({
   label,
   actions,
-  slots,
+  variant = 'icons',
   disabled,
   data,
 }: {
   label: string;
   actions: CardAction[];
-  slots?: number;
+  variant?: 'icons' | 'menu';
   disabled?: boolean;
   data?: DataAttributes;
 }) {
-  if (useInCards()) return <CardActions actions={actions} label={label} />;
+  const cards = useInCards();
   if (actions.length === 0) return null;
-  const primary = actions.find((action) => action.primary);
-  if (!primary)
+  if ((variant === 'icons' && actions.length <= 2) || (variant === 'menu' && cards))
     return (
       <div className="flex justify-end">
-        <CardActionsMenu
-          actions={actions}
-          data={data}
-          disabled={disabled}
+        <CardActions
+          actions={disabled ? actions.map((action) => ({ ...action, disabled })) : actions}
           label={label}
-          variant="ghost"
         />
       </div>
     );
   return (
-    <fieldset aria-label={label} className="flex items-center justify-end gap-1">
-      <Button
-        {...primary.data}
-        aria-label={primary.name}
-        disabled={disabled || primary.disabled}
-        focusableWhenDisabled={primary.focusableWhenDisabled}
-        nativeButton={!primary.link}
-        onClick={primary.onSelect && ((event) => primary.onSelect?.(event.currentTarget))}
-        render={primary.link}
-        size="sm"
-      >
-        {primary.label}
-      </Button>
-      <SecondaryRowActions
-        actions={actions.filter((action) => action !== primary)}
+    <div className="flex justify-end">
+      <CardActionsMenu
+        actions={actions}
         data={data}
         disabled={disabled}
         label={label}
-        slots={slots}
+        variant="ghost"
       />
-    </fieldset>
+    </div>
   );
 }
 

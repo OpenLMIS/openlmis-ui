@@ -47,34 +47,32 @@ const view: CardAction = {
   icon: <EyeIcon />,
   label: 'View',
   name: 'View Admin',
-  primary: true,
   onSelect: vi.fn(),
 };
 
-it('keeps the main row action one click away and only secondaries in the menu', async () => {
+it('shows one or two reference actions as icons and more than two in a menu', async () => {
   const user = userEvent.setup();
-  const { rerender } = render(<RowActions actions={[edit, view]} label="Actions For Admin" />);
-  const group = screen.getByRole('group', { name: 'Actions For Admin' });
-  expect(within(group).getByRole('button', { name: 'View Admin' })).toHaveTextContent('View');
-  expect(buttonNames(group)).toEqual(['View Admin', 'Edit']);
-
-  rerender(<RowActions actions={[view, edit, remove]} label="Actions For Admin" slots={1} />);
-  expect(buttonNames(screen.getByRole('group'))).toEqual(['View Admin', 'Actions For Admin']);
+  const { rerender } = render(<RowActions actions={[view]} label="Actions For Admin" />);
+  expect(screen.getByRole('button', { name: 'View Admin' })).not.toHaveTextContent('View');
+  rerender(<RowActions actions={[view, edit]} label="Actions For Admin" />);
+  expect(screen.getAllByRole('button')).toHaveLength(2);
+  expect(screen.queryByRole('button', { name: 'Actions For Admin' })).toBeNull();
+  rerender(<RowActions actions={[view, edit, remove]} label="Actions For Admin" />);
+  expect(screen.getAllByRole('button')).toHaveLength(1);
   await user.click(screen.getByRole('button', { name: 'Actions For Admin' }));
   expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+    'View',
     'Edit',
     'Remove',
   ]);
 });
 
-it('reserves secondary slots so the main action stays aligned across rows', () => {
-  render(
-    <>
-      <RowActions actions={[view]} label="Actions For Admin" slots={1} />
-      <RowActions actions={[view, remove]} label="Actions For Guest" slots={1} />
-    </>,
+it('preserves an explicit menu for stock recovery and disables reference icon actions', () => {
+  const { rerender } = render(
+    <RowActions actions={[view, remove]} label="Recovery" variant="menu" />,
   );
-  const [admin, guest] = screen.getAllByRole('group');
-  expect(admin.children).toHaveLength(2);
-  expect(guest.children).toHaveLength(2);
+  expect(screen.getByRole('button', { name: 'Recovery' })).toHaveAttribute('aria-haspopup', 'menu');
+  rerender(<RowActions actions={[view, remove]} label="Reference" disabled />);
+  expect(screen.getByRole('button', { name: 'View Admin' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Remove Admin' })).toBeDisabled();
 });

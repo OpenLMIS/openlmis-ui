@@ -92,7 +92,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('products.actions')}</span>,
-      meta: { className: 'w-40' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <ProgramLinkActions actions={actions} link={row.original} />,
     }),
   ]);
@@ -113,7 +113,7 @@ function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: 
                 id: 'edit',
                 icon: <PencilIcon />,
                 label: t('products.programs.edit'),
-                primary: true,
+
                 onSelect: () => actions.onEdit(link.programId),
               },
               {
@@ -130,7 +130,7 @@ function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: 
                 icon: <EyeIcon />,
                 label: t('products.programs.view'),
                 name: t('products.programs.view-label', { program: link.name }),
-                primary: true,
+
                 onSelect: () => actions.onEdit(link.programId),
               },
             ]

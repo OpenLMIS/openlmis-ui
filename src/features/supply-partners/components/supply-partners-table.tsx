@@ -46,7 +46,7 @@ function columns(t: TFunction, search: SupplyPartnersSearch) {
     helper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('supply-partners.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <SupplyPartnerActions partner={row.original} search={search} />,
     }),
   ]);

@@ -109,7 +109,7 @@ function createColumns(
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('requisition-groups.actions')}</span>,
-      meta: { className: 'w-40' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <RequisitionGroupActions group={row.original} search={search} />,
     }),
   ]);
@@ -148,7 +148,7 @@ function RequisitionGroupActions({
           id: 'view',
           icon: <EyeIcon />,
           label: t('requisition-groups.view'),
-          primary: true,
+
           link: (
             <Link
               to="/administration/requisition-groups/$id"

@@ -553,9 +553,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds
   history. A `select` column turns the band into `CardSelectBand`, with a Select Page control
   above the cards; `heading` renders group rows as headings, as on product Facility Types.
-  Row action cells render `RowActions` with one `actions` list: `CardActions` in cards; in tables
-  the `primary` action is a labelled one-click button and the rest follow it, otherwise one ghost
-  "..." menu; other cell components read `useInCards()`. Every card band action, Stock included, goes through `CardActions`
+  Administration row action cells render `RowActions` with one `actions` list: one or two actions
+  stay as icon buttons; more than two use one "..." menu, including in cards. Stock recovery
+  keeps `variant="menu"`. Stock and requisition main actions may remain labelled one-click
+  buttons with secondary actions beside them. Other cells read `useInCards()`. Card band actions
+  use `CardActions`
   (`src/components/display/card-actions.tsx`), given as data: outline icon buttons with a tooltip
   and the table's accessible name, tinted `destructive` for destructive ones, inside a group named
   like the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then
@@ -575,12 +577,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
-  may hide. Never add a click to a main action legacy shows as a button: mark it `primary`
-  (View, View Rights, Configure, Proceed, or Edit when it leads) so it stays a labelled table
-  button. Secondary actions follow it as outline icons, or a "..." menu holding only them when
-  more than `slots` remain; `slots` reserves their width on every row, so the main button and
-  column never move. Tables without a main button use an end-of-row "..." menu; cards use
-  `CardActions`. Draft editor line tables whose only row action is Remove use a trash icon button.
+  may hide. Administration (reference data) keeps one or two icon actions and uses a "..." menu
+  for more than two. Give action columns enough width for both icons. Stock and requisitions
+  keep main actions such as View and Proceed one click away; secondary actions follow as icons
+  or a secondary-only menu. Reserve secondary slots so the primary button does not move when
+  device data loads. Draft editor line tables whose only action is Remove keep the trash icon.
 - Approved exceptions: stock program picker cards keep their labelled band button on phones, and
   Physical Inventory saved lines keep the Deactivate icon beside draft lines' trash icon.
 - Put Create at the toolbar's end, after View.

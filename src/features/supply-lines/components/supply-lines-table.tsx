@@ -75,7 +75,7 @@ function createColumns(t: TFunction, listSearch: SupplyLinesSearch) {
     columnHelper.display({
       id: 'actions',
       header: '',
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       enableHiding: false,
       cell: ({ row }) => <SupplyLineActions node={row.original} listSearch={listSearch} />,
     }),
@@ -109,7 +109,7 @@ function SupplyLineActions({
             node: node.supervisoryNode?.code ?? '',
             program: node.program?.name ?? '',
           }),
-          primary: true,
+
           link: (
             <Link
               search={{ ...listSearch, supplyLine: node.id }}

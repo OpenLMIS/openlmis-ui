@@ -230,7 +230,7 @@ function useAssociationTable({
         helper.display({
           id: 'actions',
           header: () => <span className="sr-only">{t('supply-partners.actions')}</span>,
-          meta: { className: 'w-16' },
+          meta: { className: 'w-24' },
           cell: (context) => <AssociationActionsCell {...context} />,
         }),
       ]),

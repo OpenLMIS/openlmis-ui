@@ -72,7 +72,7 @@ describe('LotsTable', () => {
     expect(await screen.findByText('lots.no-product')).toBeInTheDocument();
   });
 
-  it('opens a lot from its row menu', async () => {
+  it('opens a lot from its row icon', async () => {
     vi.mocked(fetchLotRows).mockResolvedValue(page([row()]));
     const onEdit = vi.fn();
     renderPage(
@@ -86,8 +86,7 @@ describe('LotsTable', () => {
     );
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'lots.actions-for' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'lots.edit' }));
+    await user.click(await screen.findByRole('button', { name: 'lots.edit' }));
 
     expect(onEdit).toHaveBeenCalledWith('l1');
   });

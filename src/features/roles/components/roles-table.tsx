@@ -76,7 +76,7 @@ function createColumns(t: TFunction, actions: RoleRowActions) {
           columnHelper.display({
             id: 'actions',
             header: () => <span className="sr-only">{t('roles.actions')}</span>,
-            meta: { className: 'w-40' },
+            meta: { className: 'w-24' },
             cell: ({ row }) => <RoleActions actions={actions} role={row.original} />,
           }),
         ]
@@ -100,7 +100,7 @@ function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions })
                 id: 'edit',
                 icon: <PencilIcon />,
                 label: t('roles.edit'),
-                primary: true,
+
                 onSelect: () => onEdit(role.id),
               },
             ]
@@ -112,7 +112,7 @@ function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions })
                 icon: <ListChecksIcon />,
                 label: t('roles.view-rights'),
                 name: t('roles.view-rights-for', { role: role.name }),
-                primary: !onEdit,
+
                 onSelect: () => onViewRights(role.id),
               },
             ]
