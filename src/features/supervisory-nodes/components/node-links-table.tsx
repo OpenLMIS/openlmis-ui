@@ -212,6 +212,7 @@ export function NodeLinksTable({
               page={page}
               size={size}
               rowCount={Math.min(size, Math.max(0, rows.length - (page - 1) * size))}
+              onRendered={setRenderedRows}
             />
           }
           resetKey={`${selfId}:${kind}`}
@@ -423,6 +424,7 @@ function NodeLinksTableSkeleton({
   page = 1,
   size = 10,
   rowCount,
+  onRendered,
 }: {
   kind: NodeLinkKind;
   cards: boolean;
@@ -430,7 +432,9 @@ function NodeLinksTableSkeleton({
   page?: number;
   size?: number;
   rowCount: number;
+  onRendered?: (rows: readonly LinkRow[]) => void;
 }) {
+  useEffect(() => onRendered?.(NO_ROWS), [onRendered]);
   const { table } = useLinksTable({
     kind,
     cards: false,

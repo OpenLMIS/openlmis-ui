@@ -105,6 +105,34 @@ describe('supervisory node editor', () => {
     expect(client.put).not.toHaveBeenCalled();
   });
 
+  it('focuses the next row only once the row lookup that removal starts has rendered', async () => {
+    const node = {
+      ...saved,
+      childNodes: Array.from({ length: 11 }, (_, index) => ({ id: String(index + 1) })),
+    };
+    let respond = () => {};
+    const content = node.childNodes.map(({ id }) => ({ id, code: id, name: `Child ${id}` }));
+    vi.mocked(client.get).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          respond = () => resolve({ data: { content, totalPages: 1 } });
+        }),
+    );
+    const { user } = renderEditor(node);
+    const section = await screen.findByRole('region', { name: 'Child Nodes' });
+    await user.click(await within(section).findByRole('button', { name: 'Actions For Child 2' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove Child Node Child 2' }));
+    const alert = await screen.findByRole('alertdialog', { name: 'Remove Child Node' });
+    await user.click(within(alert).getByRole('button', { name: 'Remove Child Node' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    await act(() => new Promise(requestAnimationFrame));
+    expect(document.activeElement).toBeVisible();
+    await act(async () => respond());
+    await waitFor(() =>
+      expect(within(section).getByRole('button', { name: 'Actions For Child 3' })).toHaveFocus(),
+    );
+  });
+
   it('requests only the next page and keeps the previous rows visible until it arrives', async () => {
     const node = {
       ...saved,
