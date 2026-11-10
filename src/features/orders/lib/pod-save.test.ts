@@ -42,9 +42,9 @@ it('builds exactly the writable DTO, keeping incomplete footer and null blank ac
   ).toEqual({
     shipment: { id: 'shipment' },
     status: 'INITIATED',
-    receivedBy: '',
-    deliveredBy: '',
-    receivedDate: '',
+    receivedBy: null,
+    deliveredBy: null,
+    receivedDate: null,
     lineItems: [
       {
         id: 'line',

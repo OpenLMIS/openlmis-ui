@@ -13,9 +13,9 @@ export function buildPodBody(pod: ProofOfDelivery, draft: PodDraft, status: PodS
   return {
     shipment: { id: pod.shipment.id },
     status,
-    receivedBy: draft.receivedBy,
-    deliveredBy: draft.deliveredBy,
-    receivedDate: draft.receivedDate,
+    receivedBy: draft.receivedBy || null,
+    deliveredBy: draft.deliveredBy || null,
+    receivedDate: draft.receivedDate || null,
     lineItems: pod.lineItems.map((line) => {
       const saved: PodWritableLine = {
         id: line.id,
