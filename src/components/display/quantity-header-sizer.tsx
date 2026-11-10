@@ -13,8 +13,9 @@ export function QuantityHeaderSizer({
   const { t } = useTranslation();
   return (
     <div
+      data-slot="quantity-header-sizer"
       aria-hidden
-      className="invisible flex h-0 w-max items-center gap-1 overflow-hidden font-normal"
+      className="invisible flex h-0 w-max items-center gap-1 overflow-hidden text-sm font-normal"
       dir="ltr"
     >
       <InputSizer
