@@ -274,7 +274,7 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
   return (
     <div
       ref={frame}
-      className="batch-grid min-w-0 rounded-xl border bg-card"
+      className="batch-grid min-w-0 overflow-clip rounded-xl border bg-card"
       onFocusCapture={(event) => {
         const field = fields.find((field) => field.id === event.target.id);
         if (field) setFocusedRow(field.index);
