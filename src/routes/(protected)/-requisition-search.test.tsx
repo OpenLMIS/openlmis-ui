@@ -468,10 +468,48 @@ it('keeps online results on disconnect until Search requests saved copies', asyn
   queryClient.clear();
 });
 
-it.each([1200, 390])('shows View and separate removal actions at width %i', async (width) => {
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width } as DOMRect);
+it('puts View and saved-copy removal in one menu on every table row', async () => {
   vi.mocked(readCopies).mockResolvedValue([savedCopy()]);
   vi.mocked(removalDecision).mockResolvedValue({ id: 'r1', dirty: true } as never);
+  vi.mocked(searchRequisitions).mockResolvedValue({
+    content: onlineRows,
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  const user = userEvent.setup();
+  const { queryClient } = renderRoute('/requisitions/view?facility=f');
+  await screen.findByText('Online Only');
+  await waitFor(() =>
+    expect(screen.getAllByRole('button', { name: 'card-actions.actions-for' })).toHaveLength(2),
+  );
+  expect(screen.queryByRole('button', { name: 'requisitions.view.action-name' })).toBeNull();
+  const menus = screen.getAllByRole('button', { name: 'card-actions.actions-for' });
+  await user.click(menus[0]);
+  expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+    'requisitions.view.action',
+  ]);
+  await user.keyboard('{Escape}');
+  await user.click(menus[1]);
+  expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+    'requisitions.view.action',
+    'requisitions.offline.remove',
+  ]);
+  await user.click(screen.getByRole('menuitem', { name: 'requisitions.offline.remove' }));
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'requisitions.offline.dirty-warning',
+  );
+  await user.click(screen.getByRole('button', { name: 'dialog.cancel' }));
+  await waitFor(() => expect(menus[1]).toHaveFocus());
+  queryClient.clear();
+});
+
+it('keeps View and saved-copy removal as card buttons on phones', async () => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 390,
+  } as DOMRect);
+  vi.mocked(readCopies).mockResolvedValue([savedCopy()]);
   vi.mocked(searchRequisitions).mockResolvedValue({
     content: onlineRows,
     number: 0,
@@ -484,18 +522,11 @@ it.each([1200, 390])('shows View and separate removal actions at width %i', asyn
   const views = screen.getAllByRole('button', { name: 'requisitions.view.action-name' });
   expect(views).toHaveLength(2);
   const remove = await screen.findByRole('button', { name: 'requisitions.offline.remove' });
-  expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
-  if (width === 390) expect(remove.closest('[data-card-actions]')).toContainElement(views[1]);
-  await userEvent.click(remove);
-  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-    'requisitions.offline.dirty-warning',
-  );
-  await userEvent.click(screen.getByRole('button', { name: 'dialog.cancel' }));
-  await waitFor(() => expect(remove).toHaveFocus());
+  expect(remove.closest('[data-card-actions]')).toContainElement(views[1]);
   queryClient.clear();
 });
 
-it('keeps a separate saved batch action next to View offline', async () => {
+it('offers the saved batch action beside View offline', async () => {
   vi.mocked(readCopies).mockResolvedValue([
     { ...savedCopy(), batch: { record: onlineRows[1] } } as never,
   ]);
@@ -506,14 +537,17 @@ it('keeps a separate saved batch action next to View offline', async () => {
     totalElements: 2,
     totalPages: 1,
   });
+  const user = userEvent.setup();
   const { queryClient } = renderRoute('/requisitions/view?facility=f');
   await screen.findByText('Saved Copy');
   await act(() => onlineManager.setOnline(false));
-  const batch = await screen.findByRole('button', {
-    name: 'requisitions.batch.action-label',
-  });
-  expect(batch).toHaveAttribute('href', expect.stringContaining('/requisitions/approve/batch'));
-  expect(screen.getAllByRole('button', { name: 'requisitions.view.action-name' })).toHaveLength(2);
+  const menus = await screen.findAllByRole('button', { name: 'card-actions.actions-for' });
+  expect(menus).toHaveLength(2);
+  await user.click(menus[1]);
+  expect(
+    await screen.findByRole('menuitem', { name: 'requisitions.batch.action-label' }),
+  ).toHaveAttribute('href', expect.stringContaining('/requisitions/approve/batch'));
+  expect(screen.getByRole('menuitem', { name: 'requisitions.view.action-name' })).toBeVisible();
   queryClient.clear();
 });
 

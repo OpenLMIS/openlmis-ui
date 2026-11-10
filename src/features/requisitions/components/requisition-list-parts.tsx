@@ -11,13 +11,19 @@ import {
   type DataTableInstance,
   DataTableSkeleton,
 } from '@/components/data-table/data-table';
-import { type CardAction, CardActions, useInCards } from '@/components/display/card-actions';
+import {
+  type CardAction,
+  RowActions,
+  RowActionsMenuContext,
+  useInCards,
+} from '@/components/display/card-actions';
 import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { WrappingCell } from '@/components/display/wrapping-cell';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
 import { FlagBadge } from '@/components/shared/flag-badge';
 import { Button } from '@/components/ui/button';
 import { RequisitionCopiesContext } from '@/features/requisitions/hooks/use-offline-copies';
+import type { RequisitionCopy } from '@/features/requisitions/lib/offline-copies';
 import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { RequisitionSearch } from '@/features/requisitions/lib/search-facilities';
 import type { ApprovalListRow, RequisitionSearchResult } from '@/features/requisitions/lib/types';
@@ -130,6 +136,7 @@ export function ViewRequisition({
 }) {
   const { t } = useTranslation();
   const cards = useInCards();
+  const menu = use(RowActionsMenuContext);
   const online = useOnline();
   const offline = useOfflineNavigation();
   const copy = use(RequisitionCopiesContext)?.find((copy) => copy.id === record.id);
@@ -177,9 +184,9 @@ export function ViewRequisition({
       {...linkProps}
     />
   );
-  if (cards)
+  if (cards || menu || actions.length > 0)
     return (
-      <CardActions
+      <RowActions
         label={t('card-actions.actions-for', {
           name: [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
         })}
@@ -197,7 +204,7 @@ export function ViewRequisition({
       />
     );
   return (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex justify-end">
       {unavailable ? (
         <Button
           aria-label={name}
@@ -215,14 +222,20 @@ export function ViewRequisition({
           {label}
         </Button>
       )}
-      <CardActions
-        label={t('card-actions.actions-for', {
-          name: [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
-        })}
-        actions={actions}
-      />
     </div>
   );
+}
+
+export function requisitionActionsMenu(
+  rows: readonly { id: string }[],
+  copies: readonly RequisitionCopy[] | undefined,
+  online: boolean,
+  removable: boolean,
+) {
+  return rows.some((row) => {
+    const copy = copies?.find((copy) => copy.id === row.id);
+    return !!copy && (removable || (!online && !!copy.batch));
+  });
 }
 
 export function RequisitionListTable<TData extends RowData>({
@@ -233,8 +246,10 @@ export function RequisitionListTable<TData extends RowData>({
   footer,
   listRef,
   isRowInvalid,
+  menu = false,
 }: {
   cards: boolean;
+  menu?: boolean;
   table: DataTableInstance<TData>;
   stale: boolean;
   empty: ReactNode;
@@ -242,26 +257,30 @@ export function RequisitionListTable<TData extends RowData>({
   listRef: Ref<HTMLUListElement>;
   isRowInvalid?: (row: TData) => boolean;
 }) {
-  return cards ? (
-    <TableCards
-      tone={(row) => (isRowInvalid?.(row) ? 'invalid' : undefined)}
-      busy={stale}
-      empty={empty}
-      footer={footer}
-      listRef={listRef}
-      table={table}
-      title="program"
-    />
-  ) : (
-    <DataTable
-      isRowInvalid={isRowInvalid}
-      density="default"
-      empty={empty}
-      footer={footer}
-      isStale={stale}
-      layout="auto"
-      table={table}
-    />
+  return (
+    <RowActionsMenuContext value={menu}>
+      {cards ? (
+        <TableCards
+          tone={(row) => (isRowInvalid?.(row) ? 'invalid' : undefined)}
+          busy={stale}
+          empty={empty}
+          footer={footer}
+          listRef={listRef}
+          table={table}
+          title="program"
+        />
+      ) : (
+        <DataTable
+          isRowInvalid={isRowInvalid}
+          density="default"
+          empty={empty}
+          footer={footer}
+          isStale={stale}
+          layout="auto"
+          table={table}
+        />
+      )}
+    </RowActionsMenuContext>
   );
 }
 

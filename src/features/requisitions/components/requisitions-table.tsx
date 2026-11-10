@@ -23,6 +23,7 @@ import {
   REQUISITION_LIST_COLUMNS,
   RequisitionListSkeleton,
   RequisitionListTable,
+  requisitionActionsMenu,
   requisitionListCell,
 } from '@/features/requisitions/components/requisition-list-parts';
 import { RequisitionRowActions } from '@/features/requisitions/components/requisition-row-actions';
@@ -245,6 +246,7 @@ export function RequisitionsTable({ cards, search, columns, onSearchChange, refr
         empty={!pastEnd && empty}
         footer={footer}
         listRef={pageStart.ref}
+        menu={requisitionActionsMenu(page.content, copies, online, true)}
       />
     </RequisitionCopiesContext>
   );

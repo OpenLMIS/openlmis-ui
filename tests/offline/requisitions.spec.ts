@@ -181,10 +181,8 @@ test('removal rejects a stale dirty warning and stops the other tab from recreat
     const list = await context.newPage();
     await list.goto(`./requisitions/view?facility=${home}&offline=true`);
     const openRemoval = async () => {
-      await list
-        .getByRole('group', { name: /^Actions For/ })
-        .getByRole('button', { name: 'Remove From This Device', exact: true })
-        .click();
+      await list.getByRole('button', { name: /^Actions For/ }).click();
+      await list.getByRole('menuitem', { name: 'Remove From This Device', exact: true }).click();
       await expect(list.getByRole('alertdialog')).toContainText('unsynced changes');
     };
     await openRemoval();
