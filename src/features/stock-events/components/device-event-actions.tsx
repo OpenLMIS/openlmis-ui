@@ -69,7 +69,11 @@ export function DeviceEventActions({
   ];
   return (
     <>
-      <RowActions actions={actions} label={t('offline-events.actions-label', { event: label })} />
+      <RowActions
+        variant="menu"
+        actions={actions}
+        label={t('offline-events.actions-label', { event: label })}
+      />
       {removing && (
         <DeviceEventRemoval
           event={removing}

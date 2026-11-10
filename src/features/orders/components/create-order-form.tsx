@@ -244,13 +244,11 @@ const RequestingFacilityPicker = memo(function RequestingFacilityPicker({
         filter={(item, query) => contains(item.name, query) || contains(item.code ?? '', query)}
         itemToStringLabel={(item) => item.name}
         isItemEqualToValue={(a, b) => a.id === b.id}
-        onOpenChange={(open, details) => {
-          if (!open && details.reason === 'item-press') details.cancel();
-          else setOpen(open);
-        }}
+        onOpenChange={setOpen}
         onValueChange={(chosen, details) => {
           if (details.reason === 'escape-key' && !chosen.length) return details.allowPropagation();
           setSearch('');
+          if (details.reason === 'item-press') setOpen(false);
           onChange(chosen.map((item) => item.id));
         }}
       >

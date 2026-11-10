@@ -200,6 +200,7 @@ test('removal rejects a stale dirty warning and stops the other tab from recreat
     await expect(list.getByRole('alertdialog')).toContainText('saved copy changed');
     expect(await records(list, 'requisitionCopies')).toHaveLength(1);
     await list.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(list.getByRole('alertdialog')).not.toBeVisible();
     await openRemoval();
     await list
       .getByRole('alertdialog')

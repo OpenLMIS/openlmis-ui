@@ -68,7 +68,7 @@ function createColumns(t: TFunction, actions: UserRowActions) {
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('users.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => (
         <UserActions
           listSearch={actions.listSearch}
@@ -199,7 +199,7 @@ export function UsersTableSkeleton({
 
   const rowCount = toPaginationState(search).pageSize;
   if (cards)
-    return <TableCardsSkeleton rowCount={rowCount} table={table} title="username" actions={3} />;
+    return <TableCardsSkeleton rowCount={rowCount} table={table} title="username" actions={1} />;
   return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 

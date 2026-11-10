@@ -103,7 +103,7 @@ function createColumns(t: TFunction, listSearch: FacilitiesSearch) {
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('facilities.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <FacilityActions facility={row.original} listSearch={listSearch} />,
     }),
   ]);

@@ -40,7 +40,7 @@ describe('eventProductOptions', () => {
     expect(options).toHaveLength(2);
     expect(options[0]).toEqual({
       value: 'o1',
-      label: 'Acetylsalicylic Acid - 10 tab strip',
+      label: 'Acetylsalicylic Acid',
       orderable: product,
       cards,
     });
@@ -130,7 +130,7 @@ describe('approvedProductOptions', () => {
     ]);
     expect(approvedProductOptions([aspirin].map(approved), undefined, [generic])[0]).toEqual({
       value: 'o1',
-      label: 'Aspirin - each',
+      label: 'Aspirin',
       orderable: aspirin,
       approvedId: 'o1',
     });

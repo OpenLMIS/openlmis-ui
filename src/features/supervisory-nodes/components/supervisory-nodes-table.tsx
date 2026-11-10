@@ -109,7 +109,7 @@ function createColumns(t: TFunction, listSearch: SupervisoryNodesSearch) {
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('supervisory-nodes.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       enableHiding: false,
       cell: ({ row }) => <NodeActions node={row.original} listSearch={listSearch} />,
     }),

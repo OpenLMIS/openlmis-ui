@@ -86,7 +86,7 @@ function createColumns(
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('products.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) =>
         row.original.kind === 'approval' && (
           <ApprovalActions
@@ -119,6 +119,7 @@ function ApprovalActions({ approval, facilityType, actions }: ApprovalActionsPro
                 id: 'edit',
                 icon: <PencilIcon />,
                 label: t('products.approvals.edit'),
+
                 onSelect: () => actions.onEdit(approval.id),
               },
               {
@@ -134,6 +135,11 @@ function ApprovalActions({ approval, facilityType, actions }: ApprovalActionsPro
                 id: 'view',
                 icon: <EyeIcon />,
                 label: t('products.approvals.view'),
+                name: t('products.approvals.view-label', {
+                  facilityType,
+                  program: programName(approval.program),
+                }),
+
                 onSelect: () => actions.onEdit(approval.id),
               },
             ]

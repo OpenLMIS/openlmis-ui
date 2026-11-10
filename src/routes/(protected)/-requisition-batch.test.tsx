@@ -1359,17 +1359,26 @@ it('translates a Sync timeout again when the page language changes', async () =>
 });
 
 it('uses server-verified save results to approve only records still awaiting approval', async () => {
-  renderRoute();
+  const { router } = renderRoute();
   const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
   await waitFor(() => expect(approve).toBeEnabled());
-  const membershipReads = vi.mocked(fetchApprovalList).mock.calls.length;
   vi.mocked(saveBatchRequisitions).mockResolvedValue({
     requisitionDtos: [records[0], { ...records[1], status: 'APPROVED' }],
   });
   await userEvent.click(approve);
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
   await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
-  expect(fetchApprovalList).toHaveBeenCalledTimes(membershipReads);
+  await waitFor(() => {
+    expect(router.state.location.search).toMatchObject({ ids: records[1].id });
+    expect(router.state.status).toBe('idle');
+  });
+  const saved = vi.mocked(saveBatchRequisitions).mock.invocationCallOrder.at(-1) ?? 0;
+  const approved = vi.mocked(approveBatchRequisitions).mock.invocationCallOrder.at(-1) ?? 0;
+  expect(
+    vi
+      .mocked(fetchApprovalList)
+      .mock.invocationCallOrder.filter((order) => order > saved && order < approved),
+  ).toEqual([]);
 });
 
 it('starts retrieving the batch while device copy leases are pending', async () => {
@@ -1404,7 +1413,7 @@ it('retains membership verification when a record lacks timestamp protection', a
   });
   vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
   vi.mocked(saveBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
-  renderRoute();
+  const { router } = renderRoute();
   const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
   await waitFor(() => expect(approve).toBeEnabled());
   const pending = Promise.withResolvers<Awaited<ReturnType<typeof fetchApprovalList>>>();
@@ -1415,4 +1424,8 @@ it('retains membership verification when a record lacks timestamp protection', a
   expect(approveBatchRequisitions).not.toHaveBeenCalled();
   await act(() => pending.resolve({ content: [records[0]], totalPages: 1 } as never));
   await waitFor(() => expect(approveBatchRequisitions).toHaveBeenCalledWith([records[0].id]));
+  await waitFor(() => {
+    expect(router.state.location.search).toMatchObject({ ids: records[1].id });
+    expect(router.state.status).toBe('idle');
+  });
 });

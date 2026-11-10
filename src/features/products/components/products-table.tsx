@@ -64,7 +64,7 @@ function createColumns(t: TFunction, listSearch: ProductsSearch) {
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('products.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <ProductActions listSearch={listSearch} product={row.original} />,
     }),
   ]);

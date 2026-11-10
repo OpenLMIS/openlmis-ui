@@ -108,11 +108,7 @@ export const PatientEditRow = memo(function PatientEditRow({
       tone={row.isSkipped ? 'skipped' : undefined}
     >
       <TableCell sticky>
-        <div className="flex justify-center">
-          <div className="flex size-7 items-center justify-center rounded-md bg-background">
-            {checkbox}
-          </div>
-        </div>
+        <div className="flex justify-center">{checkbox}</div>
       </TableCell>
       <TableCell sticky stickyOffset={skipWidth}>
         <bdi className="line-clamp-2 w-48 max-w-48 whitespace-normal">{label}</bdi>

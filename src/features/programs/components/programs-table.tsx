@@ -54,7 +54,7 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('programs.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <ProgramActions onEdit={onEdit} program={row.original} />,
     }),
   ]);

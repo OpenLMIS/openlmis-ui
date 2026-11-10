@@ -145,20 +145,26 @@ export function OrderLines({
           <Table density="compact" layout="auto">
             <TableHeader surface="muted">
               <TableRow>
-                <TableHead>
+                <TableHead width="fit">
                   <DataTableHeaderLabel>{t('orders.edit.product-code')}</DataTableHeaderLabel>
                 </TableHead>
                 <TableHead>
                   <DataTableHeaderLabel>{t('orders.edit.product')}</DataTableHeaderLabel>
                 </TableHead>
-                <TableHead>
+                <TableHead width="fit">
                   <DataTableHeaderLabel>{t('orders.edit.pack-size')}</DataTableHeaderLabel>
                 </TableHead>
-                <TableHead>
+                <TableHead width="fit">
                   <DataTableHeaderLabel>{t('orders.edit.stock-on-hand')}</DataTableHeaderLabel>
                 </TableHead>
-                <TableHead>
+                <TableHead width="fit">
                   <QuantityHeaderSizer unit={unit} />
+                  <div
+                    aria-hidden
+                    className="invisible h-0 overflow-hidden whitespace-nowrap font-normal text-xs"
+                  >
+                    {t('orders.edit.packs-hint', { packs: 10, doses: 1000 })}
+                  </div>
                   <DataTableHeaderLabel>{t('orders.edit.quantity')}</DataTableHeaderLabel>
                 </TableHead>
                 <TableHead width="icon">
@@ -216,7 +222,9 @@ const OrderLine = memo(function OrderLine({
   const qty = (
     <>
       {quantity(line, index, cards)}
-      <PackHint line={line} />
+      <div className="whitespace-normal break-words contain-inline-size">
+        <PackHint line={line} />
+      </div>
     </>
   );
   return cards ? (

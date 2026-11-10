@@ -22,7 +22,11 @@ import {
   fetchUserRecord,
 } from '@/features/reference-data/api/api';
 import { searchRequisitions } from '@/features/requisitions/api/api';
-import { readCopies, removalDecision } from '@/features/requisitions/lib/offline-copies';
+import {
+  type RequisitionCopy,
+  readCopies,
+  removalDecision,
+} from '@/features/requisitions/lib/offline-copies';
 import { localRequisitions } from '@/features/requisitions/lib/offline-search';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view';
 import { httpError } from '@/test-utils/http-error';
@@ -458,10 +462,6 @@ it('keeps online results on disconnect until Search requests saved copies', asyn
   await screen.findByText('Online Only');
   await act(() => onlineManager.setOnline(false));
   expect(screen.getByText('Online Only')).toBeVisible();
-  const actions = screen.getAllByRole('button', { name: 'requisitions.view.action-name' });
-  expect(actions[0]).toHaveAttribute('aria-disabled', 'true');
-  expect(actions[0]).toHaveAttribute('aria-description', 'offline.unavailable-title');
-  expect(actions[1]).not.toHaveAttribute('aria-disabled', 'true');
   expect(localRequisitions).not.toHaveBeenCalled();
   expect(await screen.findByText('requisitions.offline.online-results')).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: 'facility-program.search' }));
@@ -472,10 +472,40 @@ it('keeps online results on disconnect until Search requests saved copies', asyn
   queryClient.clear();
 });
 
-it.each([1200, 390])('shows View and separate removal actions at width %i', async (width) => {
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width } as DOMRect);
-  vi.mocked(readCopies).mockResolvedValue([savedCopy()]);
+it('keeps View one click away on every row and adds removal beside it once copies load', async () => {
+  let resolveCopies = (_: RequisitionCopy[]) => {};
+  vi.mocked(readCopies).mockReturnValue(new Promise((resolve) => (resolveCopies = resolve)));
   vi.mocked(removalDecision).mockResolvedValue({ id: 'r1', dirty: true } as never);
+  vi.mocked(searchRequisitions).mockResolvedValue({
+    content: onlineRows,
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  const user = userEvent.setup();
+  const { queryClient } = renderRoute('/requisitions/view?facility=f');
+  await screen.findByText('Online Only');
+  const views = screen.getAllByRole('button', { name: 'requisitions.view.action-name' });
+  expect(views).toHaveLength(2);
+  await act(async () => resolveCopies([savedCopy()]));
+  const remove = await screen.findByRole('button', { name: 'requisitions.offline.remove' });
+  expect(screen.getAllByRole('button', { name: 'requisitions.view.action-name' })).toEqual(views);
+  expect(screen.queryByRole('button', { name: 'card-actions.actions-for' })).toBeNull();
+  await user.click(remove);
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'requisitions.offline.dirty-warning',
+  );
+  await user.click(screen.getByRole('button', { name: 'dialog.cancel' }));
+  await waitFor(() => expect(remove).toHaveFocus());
+  queryClient.clear();
+});
+
+it('keeps View and saved-copy removal as card buttons on phones', async () => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    width: 390,
+  } as DOMRect);
+  vi.mocked(readCopies).mockResolvedValue([savedCopy()]);
   vi.mocked(searchRequisitions).mockResolvedValue({
     content: onlineRows,
     number: 0,
@@ -488,18 +518,11 @@ it.each([1200, 390])('shows View and separate removal actions at width %i', asyn
   const views = screen.getAllByRole('button', { name: 'requisitions.view.action-name' });
   expect(views).toHaveLength(2);
   const remove = await screen.findByRole('button', { name: 'requisitions.offline.remove' });
-  expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
-  if (width === 390) expect(remove.closest('[data-card-actions]')).toContainElement(views[1]);
-  await userEvent.click(remove);
-  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-    'requisitions.offline.dirty-warning',
-  );
-  await userEvent.click(screen.getByRole('button', { name: 'dialog.cancel' }));
-  await waitFor(() => expect(remove).toHaveFocus());
+  expect(remove.closest('[data-card-actions]')).toContainElement(views[1]);
   queryClient.clear();
 });
 
-it('keeps a separate saved batch action next to View offline', async () => {
+it('offers the saved batch action and removal after View offline', async () => {
   vi.mocked(readCopies).mockResolvedValue([
     { ...savedCopy(), batch: { record: onlineRows[1] } } as never,
   ]);
@@ -510,14 +533,20 @@ it('keeps a separate saved batch action next to View offline', async () => {
     totalElements: 2,
     totalPages: 1,
   });
+  const user = userEvent.setup();
   const { queryClient } = renderRoute('/requisitions/view?facility=f');
   await screen.findByText('Saved Copy');
   await act(() => onlineManager.setOnline(false));
-  const batch = await screen.findByRole('button', {
-    name: 'requisitions.batch.action-label',
-  });
-  expect(batch).toHaveAttribute('href', expect.stringContaining('/requisitions/approve/batch'));
-  expect(screen.getAllByRole('button', { name: 'requisitions.view.action-name' })).toHaveLength(2);
+  await waitFor(() =>
+    expect(screen.getAllByRole('button', { name: 'requisitions.view.action-name' })).toHaveLength(
+      2,
+    ),
+  );
+  await user.click(await screen.findByRole('button', { name: 'card-actions.actions-for' }));
+  expect(
+    await screen.findByRole('menuitem', { name: 'requisitions.batch.action-label' }),
+  ).toHaveAttribute('href', expect.stringContaining('/requisitions/approve/batch'));
+  expect(screen.getByRole('menuitem', { name: 'requisitions.offline.remove' })).toBeVisible();
   queryClient.clear();
 });
 

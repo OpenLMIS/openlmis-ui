@@ -169,7 +169,7 @@ describe('AssignmentsTable', () => {
       }),
     ).toBeVisible();
     expect(
-      screen.getByRole('button', {
+      screen.getByRole('group', {
         name: 'Actions For Balaka District Hospital for Health Center in EPI',
       }),
     ).toBeVisible();
@@ -183,8 +183,11 @@ describe('AssignmentsTable', () => {
     await user.click(await screen.findByRole('checkbox', { name: `Select ${name}` }));
     expect(onPickedChange).toHaveBeenCalledWith(new Map([['a2', name]]), '|');
 
-    await user.click(screen.getByRole('button', { name: `Actions For ${name}` }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+    await user.click(
+      within(screen.getByRole('group', { name: `Actions For ${name}` })).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
     expect(onDelete).toHaveBeenCalledWith({ id: 'a2', name }, '|');
   });
 

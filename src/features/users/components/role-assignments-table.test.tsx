@@ -84,7 +84,7 @@ describe('RoleAssignmentsTable', () => {
   it('offers no row actions for roles that are shown, not edited', () => {
     renderTable([row], false);
 
-    expect(screen.queryByRole('button', { name: /users.roles.actions-for/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /users.roles.remove-role/ })).toBeNull();
   });
 
   it('heads each card with the role, its rights and Unsaved, and removes it at once', async () => {
@@ -102,7 +102,7 @@ describe('RoleAssignmentsTable', () => {
     );
     expect(within(card).getByRole('button', { name: 'role-rights.title' })).toBeVisible();
 
-    await userEvent.click(within(card).getByRole('button', { name: 'users.roles.remove' }));
+    await userEvent.click(within(card).getByRole('button', { name: /users.roles.remove-role/ }));
     expect(onRemove).toHaveBeenCalledWith(unsaved);
   });
 
@@ -136,12 +136,12 @@ describe('RoleAssignmentsTable', () => {
     expect(screen.getAllByRole('columnheader')).toHaveLength(2);
   });
 
-  it('offers Remove when the roles can be edited', async () => {
-    renderTable([row], true);
+  it('removes an edited role with its trash button at once', async () => {
+    const { onRemove } = renderTable([row], true);
 
-    await userEvent.click(screen.getByRole('button', { name: /users.roles.actions-for/ }));
+    await userEvent.click(screen.getByRole('button', { name: /users.roles.remove-role/ }));
 
-    expect(screen.getByRole('menuitem', { name: 'users.roles.remove' })).toBeInTheDocument();
+    expect(onRemove).toHaveBeenCalledWith(row);
   });
 
   it('points to an administrator, not an Add button, when a shown tab is empty', () => {

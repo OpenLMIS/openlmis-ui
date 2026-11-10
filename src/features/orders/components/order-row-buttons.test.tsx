@@ -87,7 +87,6 @@ it.each(['false', 'true', 'rejected'] as const)(
 );
 
 it('identifies the order in row actions', async () => {
-  const user = userEvent.setup();
   renderPage(
     <I18nextProvider i18n={i18n}>
       <InCardContext value={false}>
@@ -100,9 +99,6 @@ it('identifies the order in row actions', async () => {
       </InCardContext>
     </I18nextProvider>,
   );
-  await user.click(await screen.findByRole('button', { name: 'card-actions.actions-for' }));
-  expect(
-    await screen.findByRole('menuitem', { name: 'orders.print: Order ORDER-B' }),
-  ).toBeVisible();
-  expect(screen.getByRole('menuitem', { name: 'orders.download: Order ORDER-B' })).toBeVisible();
+  expect(await screen.findByRole('button', { name: 'orders.print: Order ORDER-B' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'orders.download: Order ORDER-B' })).toBeVisible();
 });

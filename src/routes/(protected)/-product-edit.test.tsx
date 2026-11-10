@@ -8,7 +8,7 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requireRight } from '@/features/auth/lib/access';
@@ -226,19 +226,11 @@ describe('product edit page', () => {
 
   it('offers only View on facility types to a user who may not manage approvals', async () => {
     await openTab('facility-types');
-    const user = userEvent.setup();
-
-    await user.click(await screen.findByRole('button', { name: 'products.approvals.actions-for' }));
 
     expect(
-      await screen.findByRole('menuitem', { name: 'products.approvals.view' }),
+      await screen.findByRole('button', { name: 'products.approvals.view-label' }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('menuitem', { name: 'products.approvals.edit' }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('menuitem', { name: 'products.approvals.remove' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'products.approvals.actions-for' })).toBeNull();
     expect(
       screen.queryByRole('button', { name: 'products.approvals.add' }),
     ).not.toBeInTheDocument();
@@ -247,17 +239,11 @@ describe('product edit page', () => {
   it('offers Add, Edit and Remove on facility types to a user who manages approvals', async () => {
     vi.mocked(requireRight).mockResolvedValue(new Set(['FACILITY_APPROVED_ORDERABLES_MANAGE']));
     await openTab('facility-types');
-    const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'products.approvals.actions-for' }));
-
-    expect(
-      await screen.findByRole('menuitem', { name: 'products.approvals.edit' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'products.approvals.remove' })).toBeInTheDocument();
-    expect(
-      screen.queryByRole('menuitem', { name: 'products.approvals.view' }),
-    ).not.toBeInTheDocument();
+    const row = await screen.findByRole('group', { name: 'products.approvals.actions-for' });
+    expect(within(row).getByRole('button', { name: 'products.approvals.edit' })).toBeVisible();
+    expect(within(row).getByRole('button', { name: 'products.approvals.remove' })).toBeVisible();
+    expect(within(row).queryByRole('button', { name: 'products.approvals.view' })).toBeNull();
     expect(screen.getByRole('button', { name: 'products.approvals.add' })).toBeInTheDocument();
   });
 });

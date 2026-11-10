@@ -51,7 +51,7 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('processing-schedules.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <ScheduleActions schedule={row.original} onEdit={onEdit} />,
     }),
   ]);

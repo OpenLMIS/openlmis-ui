@@ -301,7 +301,7 @@ edits, which have no prop for TypeScript to detect:
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
 | `sidebar.tsx` | Keep both menu button variants free of `aria-disabled:pointer-events-none` so connection-dependent entries remain clickable offline |
 | `table.tsx` | Keep TableFooter `sticky`, opaque headers and zero-spacing separate cell borders with `scroll="both"` so sticky dividers and measured end offsets stay gapless, TableCell `rowHeader`, and TableHead/TableCell `sticky="end"` with CSS-variable logical offsets and end-pin data attributes |
-| `table.tsx` | Preserve `width="columns"` with explicit colgroup sizing, `TableHead width="patient"`, footer scroll padding and single-pixel sticky dividers |
+| `table.tsx` | Preserve `width="columns"` with explicit colgroup minima and full container width, `TableHead width="patient"`, footer scroll padding and single-pixel sticky dividers |
 | `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `data-[invalid]:bg-destructive/10` for invalid draft lines |
 | `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate. Preserve full-width wrapping `ComboboxChips`, disabled styling and `size="lg"` (36px minimum); virtual lists accept single or multiple values and scroll keyboard highlights into view. Keep the ScrollArea `ScrollBar` in `ComboboxList` |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
@@ -419,8 +419,10 @@ App-shell pages compose `src/components/workspace/workspace.tsx`:
   Use `WorkspaceFooterPortal` (`src/components/workspace/workspace-tabs.tsx`): `narrow` by default,
   `width="default"` for full-width editors. Tab switches must not remount the header.
   Tab-specific actions use `WorkspaceActionsPortal` into `WorkspaceActionsSlot`.
-- Toasts appear below the page header and its actions at the top end corner, tinted by kind.
-  Keep `WorkspaceHeader`'s `data-slot="workspace-header"` so `useToastOffset` can measure it.
+- Toasts appear just below the app top bar at the top end corner, tinted by kind, and move lower
+  only to clear a header action under them. `useToastOffset` (`src/hooks/use-toast-offset.ts`)
+  measures the children of `data-slot="workspace-actions"`, re-measuring when the DOM, headers or
+  window change; keep that slot on `WorkspaceActions` and `workspace-header` on `WorkspaceHeader`.
 
 `Workspace` derives breadcrumbs from `NAV_GROUPS` through `getNavTrail()`:
 
@@ -529,7 +531,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   card per program, with program and action in the band; Physical Inventory adds a Status row.
   Issue, Receive, Adjustments and Unpack editors use one card per line, with the product label
   and Remove trash button in the band. `productLabel` from
-  `src/features/stock-events/lib/products.ts` formats `name - displayUnit (code)`. Read-only
+  `src/features/reference-data/lib/products.ts` formats `name - displayUnit`; bands append `(code)`.
+  Picker options show the name only and lot options the code only, as legacy. Lot pickers
+  become searchable at ten choices. Read-only
   rows show Pack Size, Lot Code with the table's no-lot text, Expiry and Stock On Hand;
   Total Quantity follows Quantity. `CardControlRow` (`src/components/display/card-list.tsx`) pairs
   labels with centred controls for counterparty and comments, reason and comments, VVM and
@@ -551,8 +555,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds
   history. A `select` column turns the band into `CardSelectBand`, with a Select Page control
   above the cards; `heading` renders group rows as headings, as on product Facility Types.
-  Row action cells render `RowActions` with one `actions` list: `CardActions` in cards, the
-  table's ghost "..." menu otherwise; other cell components read `useInCards()`. Every card band action, Stock included, goes through `CardActions`
+  Administration row action cells render `RowActions` with one `actions` list: one or two actions
+  stay as icon buttons; more than two use one "..." menu, including in cards. Stock recovery
+  keeps `variant="menu"`. Stock and requisition main actions may remain labelled one-click
+  buttons with secondary actions beside them. Other cells read `useInCards()`. Card band actions
+  use `CardActions`
   (`src/components/display/card-actions.tsx`), given as data: outline icon buttons with a tooltip
   and the table's accessible name, tinted `destructive` for destructive ones, inside a group named
   like the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then
@@ -574,10 +581,13 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Table cells with no value stay blank. Use `tableValue` (`src/lib/empty-value.ts`) when
   normalizing missing values; `orEmpty`/`EMPTY_VALUE` is for values shown outside tables.
 - Identifying/actions columns stay visible and out of View. Other columns, including status,
-  may hide. Table row actions use an end-of-row "..." menu; cards use `CardActions`. Draft
-  editor line tables whose only row action is Remove use a trash icon button.
-- A single View row action uses a button, as Stock On Hand and Transaction History, with
-  `CardActions` in cards.
+  may hide. Administration (reference data) keeps one or two icon actions and uses a "..." menu
+  for more than two. Give action columns enough width for both icons. Stock and requisitions
+  keep main actions such as View and Proceed one click away; secondary actions follow as icons
+  or a secondary-only menu. Reserve secondary slots so the primary button does not move when
+  device data loads. Draft editor line tables whose only action is Remove keep the trash icon.
+- Approved exceptions: stock program picker cards keep their labelled band button on phones, and
+  Physical Inventory saved lines keep the Deactivate icon beside draft lines' trash icon.
 - Put Create at the toolbar's end, after View.
 
 **Filters and states:**
@@ -702,7 +712,8 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   steps back, or replaces for a directly linked dialog. Use
   `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
 - Create Orders uses one required Requesting Facility multi-select with removable chips.
-  Picked options stay ticked; picking clears the search and keeps the list open. Use the 42rem
+  Picked options stay ticked; picking clears the search and closes the list, keeping focus in
+  the input. Use the 42rem
   form with Create Order at its bottom end; Enter never creates orders.
 - Inline add forms with one picker, where picking reveals no further field, drop the label
   and card: a picker with a leading icon and a placeholder naming the choice, then a separate

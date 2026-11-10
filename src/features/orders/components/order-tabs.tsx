@@ -35,12 +35,7 @@ export function OrderTabs({
               <span className="sr-only">
                 {t(invalid(entry.id) ? 'orders.edit.invalid' : 'orders.edit.valid')}
               </span>
-              {dirty(entry.id) && (
-                <>
-                  <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />
-                  <span className="sr-only">{t('orders.edit.unsaved')}</span>
-                </>
-              )}
+              {dirty(entry.id) && <span className="sr-only">{t('orders.edit.unsaved')}</span>}
             </TabsTrigger>
             <span
               aria-hidden="true"

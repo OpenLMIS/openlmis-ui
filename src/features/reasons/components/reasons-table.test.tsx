@@ -110,11 +110,10 @@ describe('ReasonsTable', () => {
     expect(within(row).getByText('Debit · Adjustment')).toBeVisible();
   });
 
-  it('opens a reason from its row menu, on its own page', async () => {
+  it('opens a reason from its row icon, on its own page', async () => {
     renderTable([reason('r1', 'Damage', 'DEBIT', 'ADJUSTMENT')]);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Actions For Damage' }));
-    expect(await screen.findByRole('menuitem', { name: 'Edit' })).toHaveAttribute(
+    expect(await screen.findByRole('button', { name: 'Edit' })).toHaveAttribute(
       'href',
       '/administration/reasons/r1',
     );

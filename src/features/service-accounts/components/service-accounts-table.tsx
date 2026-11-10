@@ -61,7 +61,7 @@ function createColumns(
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('service-accounts.actions')}</span>,
-      meta: { className: 'w-16' },
+      meta: { className: 'w-24' },
       cell: ({ row }) => <KeyActions onDelete={onDelete} token={row.original.token} />,
     }),
   ]);

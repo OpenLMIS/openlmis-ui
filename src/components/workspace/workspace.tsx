@@ -85,7 +85,10 @@ export function WorkspaceDescription({ children }: WorkspaceProps) {
 // Under a stacked header the actions share the full width; beside it they take their own.
 export function WorkspaceActions({ children }: WorkspaceProps) {
   return (
-    <div className="flex w-full shrink-0 flex-wrap items-center gap-2 *:flex-1 @2xl/main:w-auto @2xl/main:*:flex-none">
+    <div
+      className="flex w-full shrink-0 flex-wrap items-center gap-2 *:flex-1 @2xl/main:w-auto @2xl/main:*:flex-none"
+      data-slot="workspace-actions"
+    >
       {children}
     </div>
   );

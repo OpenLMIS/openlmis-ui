@@ -45,7 +45,7 @@ export function OrderSummaryDialog({
   const wasOpen = useRef(open);
   if (open && !wasOpen.current) confirmed.current = false;
   wasOpen.current = open;
-  const { measure, cards } = useDialogCardLayout('2xl');
+  const { measure, cards } = useDialogCardLayout('xl');
   const client = useQueryClient();
   const stocks = useQueries({
     queries: snapshots.map((snapshot) => ({
@@ -90,7 +90,12 @@ export function OrderSummaryDialog({
         id: 'product',
         header: t('orders.edit.product'),
         meta: { label: t('orders.edit.product') },
-        cell: ({ row }) => (row.original.line ? row.original.line.product.fullProductName : null),
+        cell: ({ row }) =>
+          row.original.line ? (
+            <span className="block min-w-32 whitespace-normal break-words">
+              {row.original.line.product.fullProductName}
+            </span>
+          ) : null,
       },
       {
         id: 'size',
@@ -142,7 +147,7 @@ export function OrderSummaryDialog({
       }}
     >
       <DialogContent
-        size="2xl"
+        size="xl"
         layout="scroll"
         showCloseButton={!pending}
         finalFocus={() => {
@@ -174,6 +179,7 @@ export function OrderSummaryDialog({
             heading={(row) => row.heading}
             title="product"
             empty={t('orders.create.empty')}
+            density="default"
             layout="auto"
           />
         </FormDialogBody>

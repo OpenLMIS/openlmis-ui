@@ -2179,12 +2179,13 @@ it.each(['capture', 'clear'] as const)(
     if (failure === 'capture') saveCopy.mockRejectedValueOnce(new Error('Storage unavailable'));
     await confirmAction();
     await screen.findByText('Opening List');
-    if (failure === 'capture')
-      await waitFor(() =>
+    await waitFor(() => expect(saveCopy).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      if (failure === 'capture')
         expect(toast.error).toHaveBeenCalledWith('requisitions.offline.failed-title', {
           description: 'requisitions.offline.refresh-failed-description',
-        }),
-      );
+        });
+    });
     expect(toast.error).not.toHaveBeenCalledWith('requisitions.edit.error-title', {
       description: 'requisitions.edit.clear-error',
     });
