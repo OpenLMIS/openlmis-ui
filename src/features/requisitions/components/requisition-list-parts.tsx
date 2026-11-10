@@ -2,9 +2,10 @@ import type { HistoryState } from '@tanstack/react-router';
 import { Link } from '@tanstack/react-router';
 import type { RowData } from '@tanstack/react-table';
 import type { ParseKeys, TFunction } from 'i18next';
-import { ClipboardCheckIcon, EyeIcon } from 'lucide-react';
+import { ClipboardCheckIcon, EyeIcon, WifiOffIcon } from 'lucide-react';
 import { type ReactNode, type Ref, use } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOfflineNavigation } from '@/components/app-shell/offline-navigation';
 import {
   DataTable,
   type DataTableInstance,
@@ -130,10 +131,9 @@ export function ViewRequisition({
   const { t } = useTranslation();
   const cards = useInCards();
   const online = useOnline();
+  const offline = useOfflineNavigation();
   const copy = use(RequisitionCopiesContext)?.find((copy) => copy.id === record.id);
-  const rowDisabled = disabled;
   const unavailable = !online && !copy?.single;
-  disabled ||= unavailable;
   const label = t('requisitions.view.action');
   const name = t('requisitions.view.action-name', {
     program: record.program?.name ?? '',
@@ -153,7 +153,7 @@ export function ViewRequisition({
             name: t('requisitions.batch.action-label', {
               requisition: requisitionRowLabel(record, t('requisitions.columns.emergency')),
             }),
-            disabled: rowDisabled,
+            disabled,
             link: (
               <Link
                 to="/requisitions/approve/batch"
@@ -186,11 +186,10 @@ export function ViewRequisition({
         actions={[
           {
             id: 'view',
-            icon: <EyeIcon />,
+            icon: unavailable ? <WifiOffIcon /> : <EyeIcon />,
             label: unavailable ? t('offline.unavailable-title') : label,
             name,
-            focusableWhenDisabled: unavailable,
-            link,
+            ...(unavailable ? { onSelect: offline.show } : { link }),
             disabled,
           },
           ...actions,
@@ -199,18 +198,23 @@ export function ViewRequisition({
     );
   return (
     <div className="flex items-center justify-end gap-1">
-      <Button
-        aria-label={name}
-        title={unavailable ? t('offline.unavailable-title') : undefined}
-        aria-description={unavailable ? t('offline.unavailable-title') : undefined}
-        disabled={disabled}
-        focusableWhenDisabled={unavailable}
-        nativeButton={false}
-        render={link}
-        size="sm"
-      >
-        {label}
-      </Button>
+      {unavailable ? (
+        <Button
+          aria-label={name}
+          aria-describedby={offline.descriptionId}
+          disabled={disabled}
+          onClick={(event) => offline.show(event.currentTarget)}
+          size="sm"
+          variant="outline"
+        >
+          {label}
+          <WifiOffIcon data-icon="inline-end" />
+        </Button>
+      ) : (
+        <Button aria-label={name} disabled={disabled} nativeButton={false} render={link} size="sm">
+          {label}
+        </Button>
+      )}
       <CardActions
         label={t('card-actions.actions-for', {
           name: [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),

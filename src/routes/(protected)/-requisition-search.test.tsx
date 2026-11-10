@@ -458,10 +458,6 @@ it('keeps online results on disconnect until Search requests saved copies', asyn
   await screen.findByText('Online Only');
   await act(() => onlineManager.setOnline(false));
   expect(screen.getByText('Online Only')).toBeVisible();
-  const actions = screen.getAllByRole('button', { name: 'requisitions.view.action-name' });
-  expect(actions[0]).toHaveAttribute('aria-disabled', 'true');
-  expect(actions[0]).toHaveAttribute('aria-description', 'offline.unavailable-title');
-  expect(actions[1]).not.toHaveAttribute('aria-disabled', 'true');
   expect(localRequisitions).not.toHaveBeenCalled();
   expect(await screen.findByText('requisitions.offline.online-results')).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: 'facility-program.search' }));

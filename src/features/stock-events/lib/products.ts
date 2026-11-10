@@ -1,5 +1,3 @@
-import { productLabel } from '@/features/reference-data/lib/products';
-
 import type {
   ApprovedProduct,
   LotSummary,
@@ -42,7 +40,7 @@ export function eventProductOptions(cards: readonly EventStockCard[]): EventProd
     } else {
       products.set(orderable.id, {
         value: orderable.id,
-        label: productLabel(orderable),
+        label: orderable.fullProductName || orderable.productCode,
         orderable,
         cards: [card],
       });
@@ -63,7 +61,7 @@ export function approvedProductOptions(
     if (!options.has(orderable.id))
       options.set(orderable.id, {
         value: orderable.id,
-        label: productLabel(orderable),
+        label: orderable.fullProductName || orderable.productCode,
         orderable,
         approvedId,
       });

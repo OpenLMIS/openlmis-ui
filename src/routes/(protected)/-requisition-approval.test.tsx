@@ -9,7 +9,9 @@ import {
 } from '@tanstack/react-router';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { OfflineNavigationProvider } from '@/components/app-shell/offline-navigation';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -48,10 +50,12 @@ vi.mock('@/features/requisitions/lib/offline-copies', async (original) => ({
   readCopies: vi.fn(async () => []),
 }));
 
-function renderRoute(path: string) {
-  const queryClient = new QueryClient({
+function renderRoute(
+  path: string,
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity, networkMode: 'always' } },
-  });
+  }),
+) {
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -73,7 +77,9 @@ function renderRoute(path: string) {
   } as never) as AnyRouter;
   render(
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <OfflineNavigationProvider>
+        <RouterProvider router={router} />
+      </OfflineNavigationProvider>
     </QueryClientProvider>,
     { onCaughtError: () => {} },
   );
@@ -278,10 +284,6 @@ it('keeps fetched approval rows on disconnect until an offline filter change', a
   await screen.findByText('Online Only');
   await act(() => onlineManager.setOnline(false));
   expect(screen.getByText('Online Only')).toBeVisible();
-  const actions = screen.getAllByRole('button', { name: 'requisitions.view.action-name' });
-  expect(actions[0]).toHaveAttribute('aria-disabled', 'true');
-  expect(actions[0]).toHaveAttribute('aria-description', 'offline.unavailable-title');
-  expect(actions[1]).not.toHaveAttribute('aria-disabled', 'true');
   expect(local).not.toHaveBeenCalled();
   expect(await screen.findByText('requisitions.offline.online-results')).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
@@ -292,6 +294,85 @@ it('keeps fetched approval rows on disconnect until an offline filter change', a
   await waitFor(() => expect(screen.queryByText('Online Only')).not.toBeInTheDocument());
   expect(screen.getByText('Saved Copy')).toBeVisible();
   expect(local).toHaveBeenCalled();
+  queryClient.clear();
+});
+
+it('reopens the last online list offline and explains rows without a saved copy', async () => {
+  await act(() => onlineManager.setOnline(true));
+  const rows = ['Online Only', 'Saved Copy'].map((name, index) => ({
+    id: `r${index}`,
+    emergency: false,
+    status: 'AUTHORIZED' as const,
+    program: { id: '11111111-1111-4111-8111-111111111111', name: 'Family Planning' },
+    facility: { id: 'f', name: 'Comfort' },
+    processingPeriod: { id: name, name },
+  }));
+  vi.mocked(readCopies).mockResolvedValue([
+    { id: 'r1', fetchedAt: 1700000000000, single: { record: rows[1] } } as never,
+  ]);
+  vi.mocked(fetchApprovalList).mockResolvedValue({
+    content: rows,
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  const local = vi.spyOn(offlineSearch, 'localApprovals');
+  const { queryClient } = renderRoute('/requisitions/approve');
+  await screen.findByText('Online Only');
+  cleanup();
+  await act(() => onlineManager.setOnline(false));
+  const { router } = renderRoute('/requisitions/approve', queryClient);
+  expect(await screen.findByText('Online Only')).toBeVisible();
+  expect(await screen.findByText('requisitions.offline.online-results')).toBeVisible();
+  expect(local).not.toHaveBeenCalled();
+  const [unsaved, saved] = screen.getAllByRole('button', {
+    name: 'requisitions.view.action-name',
+  });
+  expect(saved).toHaveAttribute('href', '/requisitions/view/r1');
+  await userEvent.click(unsaved);
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('offline.navigation-title');
+  expect(router.state.location.pathname).toBe('/requisitions/approve');
+  cleanup();
+  queryClient.removeQueries({ queryKey: ['requisitions', 'approval'] });
+  renderRoute('/requisitions/approve', queryClient);
+  expect(await screen.findByText('requisitions.approve.offline-empty-title')).toBeVisible();
+  expect(fetchApprovalList).toHaveBeenCalledTimes(1);
+  queryClient.clear();
+});
+
+it('keeps the online approval list when the server becomes unreachable', async () => {
+  await act(() => onlineManager.setOnline(true));
+  vi.mocked(fetchApprovalList)
+    .mockResolvedValueOnce({
+      content: [
+        {
+          id: 'r0',
+          emergency: false,
+          status: 'AUTHORIZED',
+          program: { id: '11111111-1111-4111-8111-111111111111', name: 'Family Planning' },
+          facility: { id: 'f', name: 'Comfort' },
+          processingPeriod: { id: 'p0', name: 'Online Only' },
+        },
+      ],
+      number: 0,
+      size: 10,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    .mockRejectedValue(new AxiosError('Network Error', AxiosError.ERR_NETWORK));
+  const { queryClient } = renderRoute('/requisitions/approve');
+  await screen.findByText('Online Only');
+  cleanup();
+  renderRoute('/requisitions/approve', queryClient);
+  await waitFor(() => expect(vi.mocked(fetchApprovalList).mock.calls.length).toBeGreaterThan(1));
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(screen.getByText('Online Only')).toBeVisible();
+  cleanup();
+  await act(() => onlineManager.setOnline(false));
+  renderRoute('/requisitions/approve', queryClient);
+  expect(await screen.findByText('Online Only')).toBeVisible();
+  expect(await screen.findByText('requisitions.offline.online-results')).toBeVisible();
   queryClient.clear();
 });
 

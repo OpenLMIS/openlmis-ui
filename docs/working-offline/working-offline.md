@@ -51,9 +51,13 @@ and edits stay intact if a download or device save fails; reconnect and use Try 
 
 View's Offline Only filter searches saved copies. If you disconnect while viewing online results
 in View or Approve, those results stay visible with a notice showing when they loaded online.
-Searching, changing a filter, paging or sorting while disconnected switches to saved copies.
-Facility, program, status, initiated dates and sorting apply before paging. Approve keeps its
-Program filter: select a program to see its saved approvals offline.
+Approve also shows the list it last loaded online in this browser tab when you open it offline.
+In those lists, View on a requisition marked Offline: Yes opens its saved copy; on any other
+requisition it explains that the page needs a connection.
+Searching, changing a filter, paging or sorting while disconnected switches to saved copies,
+unless Approve already loaded that page online in this tab.
+Facility, program, status, initiated dates and sorting apply before paging. If Approve has no
+online list in this tab, select a program in Filters to see its saved approvals offline.
 The saved-time notice describes a snapshot; status and approval rights may have changed since
 it was saved. Saving a batch checks which records are still in your approval list. Eligible
 records are saved even if another record is no longer awaiting your approval. Those columns

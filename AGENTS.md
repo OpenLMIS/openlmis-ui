@@ -419,8 +419,10 @@ App-shell pages compose `src/components/workspace/workspace.tsx`:
   Use `WorkspaceFooterPortal` (`src/components/workspace/workspace-tabs.tsx`): `narrow` by default,
   `width="default"` for full-width editors. Tab switches must not remount the header.
   Tab-specific actions use `WorkspaceActionsPortal` into `WorkspaceActionsSlot`.
-- Toasts appear below the page header and its actions at the top end corner, tinted by kind.
-  Keep `WorkspaceHeader`'s `data-slot="workspace-header"` so `useToastOffset` can measure it.
+- Toasts appear just below the app top bar at the top end corner, tinted by kind, and move lower
+  only to clear a header action under them. `useToastOffset` (`src/hooks/use-toast-offset.ts`)
+  measures the children of `data-slot="workspace-actions"`, re-measuring when the DOM, headers or
+  window change; keep that slot on `WorkspaceActions` and `workspace-header` on `WorkspaceHeader`.
 
 `Workspace` derives breadcrumbs from `NAV_GROUPS` through `getNavTrail()`:
 
@@ -527,7 +529,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   card per program, with program and action in the band; Physical Inventory adds a Status row.
   Issue, Receive, Adjustments and Unpack editors use one card per line, with the product label
   and Remove trash button in the band. `productLabel` from
-  `src/features/stock-events/lib/products.ts` formats `name - displayUnit (code)`. Read-only
+  `src/features/reference-data/lib/products.ts` formats `name - displayUnit`; bands append `(code)`.
+  Picker options show the name only and lot options the code only, as legacy. Lot pickers
+  become searchable at ten choices. Read-only
   rows show Pack Size, Lot Code with the table's no-lot text, Expiry and Stock On Hand;
   Total Quantity follows Quantity. `CardControlRow` (`src/components/display/card-list.tsx`) pairs
   labels with centred controls for counterparty and comments, reason and comments, VVM and
@@ -696,7 +700,8 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   steps back, or replaces for a directly linked dialog. Use
   `useSearchNavigation<PageSearch>(CLOSED_DIALOGS)` (`src/hooks/use-search-navigation.ts`).
 - Create Orders uses one required Requesting Facility multi-select with removable chips.
-  Picked options stay ticked; picking clears the search and keeps the list open. Use the 42rem
+  Picked options stay ticked; picking clears the search and closes the list, keeping focus in
+  the input. Use the 42rem
   form with Create Order at its bottom end; Enter never creates orders.
 - Inline add forms with one picker, where picking reveals no further field, drop the label
   and card: a picker with a leading icon and a placeholder naming the choice, then a separate
