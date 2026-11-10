@@ -25,9 +25,11 @@ import {
   type OrderAccess,
   viewOrderActions,
 } from '@/features/orders/lib/order-row-actions';
-import type { ViewOrdersSearch } from '@/features/orders/lib/order-search';
+import {
+  fulfillOrdersSearchSchema,
+  type ViewOrdersSearch,
+} from '@/features/orders/lib/order-search';
 import type { OrderSummary } from '@/features/orders/lib/types';
-import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { downloadFile } from '@/lib/download-file';
@@ -162,13 +164,14 @@ export function OrderRowButtons({
 
 export function FulfillOrderButton({
   order,
+  search,
   disabled,
 }: {
   order: OrderSummary;
+  search: ViewOrdersSearch;
   disabled: boolean;
 }) {
   const { t } = useTranslation();
-  const legacy = useBackToLegacy(`#!/orders/${order.id}/shipment`);
   const cards = useInCards();
   const label = t(
     fulfillAction(order) === 'continue'
@@ -176,16 +179,23 @@ export function FulfillOrderButton({
       : 'orders.start-fulfillment',
   );
   const name = t('orders.action-for', { action: label, order: order.orderCode ?? order.id });
-  const open = legacy.onClick;
+  const link = (
+    <Link
+      to="/orders/fulfillment/$orderId"
+      params={{ orderId: order.id }}
+      state={orderReturnState({
+        to: '/orders/fulfillment',
+        search: fulfillOrdersSearchSchema.parse(search),
+      })}
+    />
+  );
   return cards ? (
     <CardActions
       label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}
-      actions={[
-        { id: 'fulfill', icon: <PackageOpenIcon />, label, name, disabled, onSelect: open },
-      ]}
+      actions={[{ id: 'fulfill', icon: <PackageOpenIcon />, label, name, disabled, link }]}
     />
   ) : (
-    <Button aria-label={name} size="sm" variant="outline" disabled={disabled} onClick={open}>
+    <Button aria-label={name} size="sm" variant="outline" disabled={disabled} render={link}>
       {label}
     </Button>
   );

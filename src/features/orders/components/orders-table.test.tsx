@@ -9,7 +9,7 @@ import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries
 import { orderSummary } from '@/test-utils/order-fixtures';
 import { renderPage } from '@/test-utils/render-page';
 
-it('renders Fulfill results without Actions when legacy is unavailable', async () => {
+it('opens native shipment links from Fulfill results', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
   client.setQueryData(ordersSearchOptions(toOrderParams({}, 'fulfill')).queryKey, {
@@ -20,18 +20,14 @@ it('renders Fulfill results without Actions when legacy is unavailable', async (
     size: 10,
   });
   renderPage(
-    <OrdersTable
-      kind="fulfill"
-      legacyAvailable={false}
-      cards={false}
-      columns={{}}
-      search={{}}
-      onSearchChange={vi.fn()}
-    />,
+    <OrdersTable kind="fulfill" cards={false} columns={{}} search={{}} onSearchChange={vi.fn()} />,
     { queryClient: client },
   );
   expect(await screen.findByText('ORDER-A')).toBeVisible();
-  expect(screen.queryByRole('columnheader', { name: /actions/i })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'orders.action-for' })).toHaveAttribute(
+    'href',
+    '/orders/fulfillment/a',
+  );
 });
 
 it('renders the loading table while the deployment time zone is pending', async () => {

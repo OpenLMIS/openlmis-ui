@@ -211,7 +211,6 @@ function orderColumns({
 
 type Props<T extends ViewOrdersSearch = ViewOrdersSearch> = {
   kind?: OrderKind;
-  legacyAvailable?: boolean;
   cards: boolean;
   columns: ColumnVisibilityState;
   search: T;
@@ -221,7 +220,6 @@ type Props<T extends ViewOrdersSearch = ViewOrdersSearch> = {
 function useResultsTable<T extends ViewOrdersSearch>(
   {
     kind = 'view',
-    legacyAvailable = true,
     cards,
     columns,
     search,
@@ -243,19 +241,16 @@ function useResultsTable<T extends ViewOrdersSearch>(
         language: i18n.language,
         timeZone,
         actionsKey: ORDER_LIST_KINDS[kind].actionsKey,
-        actions:
-          kind === 'fulfill' && !legacyAvailable
-            ? undefined
-            : (order) =>
-                kind === 'pod' ? (
-                  <PodRowButtons order={order} search={search} disabled={stale} />
-                ) : kind === 'fulfill' ? (
-                  <FulfillOrderButton order={order} disabled={stale} />
-                ) : (
-                  <OrderRowButtons order={order} search={search} access={access} disabled={stale} />
-                ),
+        actions: (order) =>
+          kind === 'pod' ? (
+            <PodRowButtons order={order} search={search} disabled={stale} />
+          ) : kind === 'fulfill' ? (
+            <FulfillOrderButton order={order} search={search} disabled={stale} />
+          ) : (
+            <OrderRowButtons order={order} search={search} access={access} disabled={stale} />
+          ),
       }),
-    [kind, legacyAvailable, t, i18n.language, timeZone, search, access, stale],
+    [kind, t, i18n.language, timeZone, search, access, stale],
   );
   const { pageStart, searchState } = usePagedTableSearch({
     cards,
@@ -354,15 +349,13 @@ export function OrdersTable<T extends ViewOrdersSearch>(props: Props<T>) {
 }
 export function OrdersTableSkeleton<T extends ViewOrdersSearch>({
   kind,
-  legacyAvailable = true,
   cards,
   columns,
   search,
-}: Pick<Props<T>, 'kind' | 'legacyAvailable' | 'cards' | 'columns' | 'search'>) {
+}: Pick<Props<T>, 'kind' | 'cards' | 'columns' | 'search'>) {
   const { table } = useResultsTable(
     {
       kind,
-      legacyAvailable,
       cards,
       columns,
       search,
@@ -376,7 +369,7 @@ export function OrdersTableSkeleton<T extends ViewOrdersSearch>({
   const rowCount = toPaginationState(search).pageSize;
   return cards ? (
     <TableCardsSkeleton
-      actions={kind === 'fulfill' ? (legacyAvailable ? 1 : 0) : 2}
+      actions={kind === 'fulfill' ? 1 : 2}
       rowCount={rowCount}
       table={table}
       title="orderCode"

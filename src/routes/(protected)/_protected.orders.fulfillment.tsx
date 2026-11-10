@@ -33,7 +33,6 @@ import {
 } from '@/features/orders/lib/order-search';
 import { fulfillOrderSupplierIds } from '@/features/orders/lib/supplying-facilities';
 import { deploymentTimeZoneOptions, programsOptions } from '@/features/reference-data/api/queries';
-import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { RIGHTS } from '@/lib/rights';
@@ -76,7 +75,6 @@ function FulfillOrdersHeader() {
 }
 
 function FulfillOrdersPending() {
-  const legacy = useBackToLegacy();
   const search = Route.useSearch();
   const view = useCardView(FULFILL_ORDER_HIDEABLE_COLUMNS, 'orders.fulfill.column-visibility');
   return (
@@ -93,7 +91,6 @@ function FulfillOrdersPending() {
           />
           <OrdersTableSkeleton
             kind="fulfill"
-            legacyAvailable={legacy.available}
             cards={view.cards}
             columns={view.columnView.visibility}
             search={search}
@@ -119,7 +116,6 @@ function FulfillOrdersPage() {
 }
 
 function FulfillOrdersResults({ view }: { view: ReturnType<typeof useCardView<HTMLDivElement>> }) {
-  const legacy = useBackToLegacy();
   const permissions = Route.useLoaderData();
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<FulfillOrdersSearch>(NO_DIALOGS);
@@ -127,7 +123,6 @@ function FulfillOrdersResults({ view }: { view: ReturnType<typeof useCardView<HT
   const skeleton = (
     <OrdersTableSkeleton
       kind="fulfill"
-      legacyAvailable={legacy.available}
       cards={view.cards}
       columns={view.columnView.visibility}
       search={search}
@@ -159,7 +154,6 @@ function FulfillOrdersResults({ view }: { view: ReturnType<typeof useCardView<HT
       >
         <OrdersTable
           kind="fulfill"
-          legacyAvailable={legacy.available}
           cards={view.cards}
           columns={view.columnView.visibility}
           search={search}
