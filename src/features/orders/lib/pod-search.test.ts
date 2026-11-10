@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { POD_STATUSES } from '@/features/orders/lib/order-status';
 import {
   canSearchPods,
   podSearchSchema,
@@ -18,7 +17,13 @@ describe('POD list search', () => {
     const params = toPodParams(
       podSearchSchema.parse({ programId: p, sort: 'orderCode', dir: 'asc' }),
     );
-    expect(params.status).toEqual(POD_STATUSES);
+    expect(params.status).toEqual([
+      'TRANSFER_FAILED',
+      'READY_TO_PACK',
+      'RECEIVED',
+      'SHIPPED',
+      'IN_ROUTE',
+    ]);
     expect(params.sort).toEqual(['orderCode,asc', 'createdDate,desc', 'id,asc']);
     expect(toPodParams({}).sort).toEqual(['createdDate,desc', 'id,asc']);
   });

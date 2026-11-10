@@ -123,7 +123,11 @@ export function PodEditor({
       setBaseline(next);
       setPod(saved);
       client.setQueryData(proofOfDeliveryOptions(pod.id).queryKey, saved);
-      toast.success(t(confirming ? 'orders.pod.confirmed' : 'orders.pod.saved'));
+      toast.success(t(confirming ? 'orders.pod.confirmed' : 'orders.pod.saved'), {
+        description: t(
+          confirming ? 'orders.pod.confirmed-description' : 'orders.pod.saved-description',
+        ),
+      });
       if (confirming) {
         setConfirm(false);
         leaving.current = true;

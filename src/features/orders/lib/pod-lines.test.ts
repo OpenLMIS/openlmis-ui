@@ -53,3 +53,22 @@ it('sorts order groups by product name and retains each lot line once', () => {
   expect(groups.map((g) => g.orderLine?.orderable.id)).toEqual(['a', 'z']);
   expect(groups[0].products[0].lines.map((l) => l.id)).toEqual(['one', 'two']);
 });
+
+it('shows shared substitutes in each ordered group and keeps only unmatched lines in Other Products', () => {
+  const shared = line('substitute-lot', 'substitute', 'lot');
+  const groups = groupPodLines(
+    [
+      { orderable: { id: 'a', fullProductName: 'Alpha' }, orderedQuantity: 1 },
+      { orderable: { id: 'b', fullProductName: 'Beta' }, orderedQuantity: 2 },
+    ],
+    [shared, line('unmatched', 'other')],
+    [{ orderable: { id: 'substitute' }, lot: { id: 'lot' }, quantityShipped: 3 }],
+    { a: { canFulfillForMe: ['substitute'] }, b: { canFulfillForMe: ['substitute'] } },
+    [],
+  );
+  expect(
+    groups.map((group) =>
+      group.products.flatMap((product) => product.lines.map((item) => item.id)),
+    ),
+  ).toEqual([['substitute-lot'], ['substitute-lot'], ['unmatched']]);
+});

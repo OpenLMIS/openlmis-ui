@@ -7,6 +7,10 @@ import { PodEditor } from '@/features/orders/components/pod-editor';
 import type { PodResponse, ProofOfDelivery } from '@/features/orders/lib/pod-types';
 import { creatingOrder, orderProduct } from '@/test-utils/order-fixtures';
 
+const layout = vi.hoisted(() => ({ cards: false }));
+vi.mock('@/hooks/use-card-view', () => ({
+  useCardLayout: () => ({ cards: layout.cards, measure: () => {} }),
+}));
 const print = vi.hoisted(() => ({
   run: vi.fn(),
   before: undefined as undefined | (() => Promise<boolean>),
@@ -25,7 +29,10 @@ vi.mock('@/hooks/use-print-report', () => ({
 }));
 vi.mock('@/features/orders/api/api', () => ({ saveProofOfDelivery: vi.fn() }));
 afterEach(cleanup);
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  layout.cards = false;
+});
 const pod: ProofOfDelivery = {
   id: 'pod',
   status: 'INITIATED',
@@ -55,15 +62,15 @@ const pod: ProofOfDelivery = {
     },
   ],
 };
-function setup(canEdit = true) {
+function setup(canEdit = true, initial = pod, products = [orderProduct]) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
   render(
     <QueryClientProvider client={client}>
       <PodEditor
-        initial={pod}
-        products={[orderProduct]}
+        initial={initial}
+        products={products}
         lots={[]}
         fulfills={{}}
         reasons={[{ id: 'damage', name: 'Damage' }]}
@@ -85,7 +92,7 @@ it('prints directly for a viewer without any writable fields or save', async () 
 it('clears a rejection reason only after a valid accepted quantity leaves nothing returned', async () => {
   setup();
   const accepted = screen.getByRole('textbox', { name: 'orders.pod.accepted-for' });
-  const reason = screen.getByRole('combobox', { name: 'orders.pod.reason' });
+  const reason = screen.getByRole('combobox', { name: 'orders.pod.reason-for' });
   fireEvent.change(accepted, { target: { value: '' } });
   expect(reason).toHaveTextContent('Damage');
   fireEvent.change(accepted, { target: { value: '8' } });
@@ -122,4 +129,24 @@ it('blocks confirmation when required delivery details are missing', async () =>
   await user.click(screen.getByRole('button', { name: 'orders.pod.confirm' }));
   expect(await screen.findByRole('alertdialog')).toHaveTextContent('orders.pod.invalid-form');
   expect(saveProofOfDelivery).not.toHaveBeenCalled();
+});
+
+it.each([false, true])('shows the unit of an unmatched fulfilling product in cards=%s', (cards) => {
+  layout.cards = cards;
+  const substitute = {
+    ...orderProduct,
+    id: 'substitute',
+    fullProductName: 'Substitute',
+    dispensable: { displayUnit: 'bottle' },
+  };
+  const initial = {
+    ...pod,
+    lineItems: [{ ...pod.lineItems[0], orderable: { id: substitute.id, versionNumber: 2 } }],
+    shipment: {
+      ...pod.shipment,
+      lineItems: [{ orderable: { id: substitute.id }, lot: null, quantityShipped: 8 }],
+    },
+  };
+  setup(false, initial, [orderProduct, substitute]);
+  expect(screen.getByText('bottle')).toBeVisible();
 });

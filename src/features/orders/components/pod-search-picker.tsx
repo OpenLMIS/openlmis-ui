@@ -71,7 +71,9 @@ export function PodSearchPicker({
         supplyingFacilityId: value.supplyingFacilityId || undefined,
       }),
     onSubmitInvalid: () => {
-      toast.error(t('orders.pod.invalid-form'));
+      toast.error(t('orders.pod.invalid-form'), {
+        description: t('orders.pod.search-invalid-description'),
+      });
       requestAnimationFrame(() =>
         formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
       );

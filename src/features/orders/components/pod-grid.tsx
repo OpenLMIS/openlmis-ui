@@ -74,6 +74,7 @@ export function PodGrid({
           line={line}
           showName={!product.collapsed}
           name={product.product.fullProductName ?? product.product.id}
+          unit={product.product.dispensable?.displayUnit}
           form={form}
           cards={cards}
           useVvm={useVvm}
@@ -94,7 +95,7 @@ export function PodGrid({
               <CardBand>{groupName(group)}</CardBand>
               <CardRows>
                 <SettingsItem label={t('orders.pod.product-unit')}>
-                  {orEmpty(group.orderLine?.orderable.dispensable?.displayUnit)}
+                  <bdi>{orEmpty(group.orderLine?.orderable.dispensable?.displayUnit)}</bdi>
                 </SettingsItem>
                 <SettingsItem label={t('orders.pod.quantity-ordered')}>
                   {orEmpty(group.orderLine?.orderedQuantity)}
@@ -122,7 +123,7 @@ export function PodGrid({
                   <TableRow tone="skipped">
                     <TableCell rowHeader>{groupName(group)}</TableCell>
                     <TableCell>
-                      {orEmpty(group.orderLine?.orderable.dispensable?.displayUnit)}
+                      <bdi>{orEmpty(group.orderLine?.orderable.dispensable?.displayUnit)}</bdi>
                     </TableCell>
                     <TableCell>{orEmpty(group.orderLine?.orderedQuantity)}</TableCell>
                     <TableCell colSpan={visible.length - 3} />
@@ -149,7 +150,9 @@ function PodRow({
   attempted,
   useVvm,
   showName,
+  unit,
 }: {
+  unit?: string | null;
   showName: boolean;
   form: PodForm;
   line: PodGridLine;
@@ -219,7 +222,7 @@ function PodRow({
             />
           ) : key === 'reason' || key === 'vvm' ? (
             <field.SelectField
-              label={t(`orders.pod.${key}`)}
+              label={t(`orders.pod.${key}-for`, { product: name, lot })}
               layout="inline"
               hideErrors
               disabled={disabled}
@@ -234,7 +237,7 @@ function PodRow({
             />
           ) : (
             <field.TextareaField
-              label={t('orders.pod.notes')}
+              label={t('orders.pod.notes-for', { product: name, lot })}
               layout="inline"
               hideErrors
               disabled={disabled}
@@ -267,6 +270,9 @@ function PodRow({
         {showName && <span>{lot}</span>}
       </CardBand>
       <CardRows>
+        {showName && (
+          <SettingsItem label={t('orders.pod.product-unit')}>{orEmpty(unit)}</SettingsItem>
+        )}
         {details.map(([key, value]) => (
           <CardControlRow key={key} label={t(`orders.pod.${key}`)}>
             {value}
@@ -278,7 +284,7 @@ function PodRow({
   ) : (
     <TableRow>
       <TableCell rowHeader>{showName ? name : <span className="sr-only">{name}</span>}</TableCell>
-      <TableCell />
+      <TableCell>{showName ? <bdi>{orEmpty(unit)}</bdi> : null}</TableCell>
       <TableCell />
       {details.map(([key, value]) => (
         <TableCell key={key}>

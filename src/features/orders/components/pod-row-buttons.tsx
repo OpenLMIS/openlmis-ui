@@ -34,7 +34,8 @@ export function PodRowButtons({
   const client = useQueryClient();
   const navigate = useNavigate();
   const cards = useInCards();
-  const missing = () => toast.error(t('orders.pod.not-found'));
+  const missing = () =>
+    toast.error(t('orders.pod.not-found'), { description: t('orders.pod.not-found-description') });
   const manage = useSessionMutation({
     mutationFn: () => findProofOfDelivery(order.id),
     onSuccess: (pod) => {
