@@ -226,19 +226,11 @@ describe('product edit page', () => {
 
   it('offers only View on facility types to a user who may not manage approvals', async () => {
     await openTab('facility-types');
-    const user = userEvent.setup();
-
-    await user.click(await screen.findByRole('button', { name: 'products.approvals.actions-for' }));
 
     expect(
-      await screen.findByRole('menuitem', { name: 'products.approvals.view' }),
+      await screen.findByRole('button', { name: 'products.approvals.view-label' }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('menuitem', { name: 'products.approvals.edit' }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('menuitem', { name: 'products.approvals.remove' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'products.approvals.actions-for' })).toBeNull();
     expect(
       screen.queryByRole('button', { name: 'products.approvals.add' }),
     ).not.toBeInTheDocument();

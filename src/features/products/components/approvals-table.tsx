@@ -134,6 +134,11 @@ function ApprovalActions({ approval, facilityType, actions }: ApprovalActionsPro
                 id: 'view',
                 icon: <EyeIcon />,
                 label: t('products.approvals.view'),
+                name: t('products.approvals.view-label', {
+                  facilityType,
+                  program: programName(approval.program),
+                }),
+                view: true,
                 onSelect: () => actions.onEdit(approval.id),
               },
             ]

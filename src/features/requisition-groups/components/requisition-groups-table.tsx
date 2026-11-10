@@ -2,7 +2,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { EllipsisIcon, EyeIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
+import { EyeIcon, NetworkIcon, PencilIcon, SearchXIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
@@ -16,16 +16,9 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { CardActions, useInCards } from '@/components/display/card-actions';
+import { RowActions } from '@/components/display/card-actions';
 import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { facilitiesByIdsOptions } from '@/features/reference-data/api/queries';
 import type { RequisitionGroup } from '@/features/reference-data/lib/types';
 import {
@@ -135,76 +128,36 @@ function RequisitionGroupActions({
     code: group.code,
   });
 
-  if (useInCards()) {
-    return (
-      <CardActions
-        label={label}
-        actions={[
-          {
-            id: 'edit',
-            icon: <PencilIcon />,
-            label: t('requisition-groups.edit'),
-            link: (
-              <Link
-                to="/administration/requisition-groups/$id/edit"
-                params={{ id: group.id }}
-                state={{ requisitionGroupsListSearch: search }}
-              />
-            ),
-          },
-          {
-            id: 'view',
-            icon: <EyeIcon />,
-            label: t('requisition-groups.view'),
-            link: (
-              <Link
-                to="/administration/requisition-groups/$id"
-                params={{ id: group.id }}
-                state={{ requisitionGroupsListSearch: search }}
-              />
-            ),
-          },
-        ]}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              render={
-                <Link
-                  to="/administration/requisition-groups/$id"
-                  params={{ id: group.id }}
-                  state={{ requisitionGroupsListSearch: search }}
-                />
-              }
-            >
-              <EyeIcon />
-              {t('requisition-groups.view')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              render={
-                <Link
-                  to="/administration/requisition-groups/$id/edit"
-                  params={{ id: group.id }}
-                  state={{ requisitionGroupsListSearch: search }}
-                />
-              }
-            >
-              <PencilIcon />
-              {t('requisition-groups.edit')}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <RowActions
+      label={label}
+      actions={[
+        {
+          id: 'edit',
+          icon: <PencilIcon />,
+          label: t('requisition-groups.edit'),
+          link: (
+            <Link
+              to="/administration/requisition-groups/$id/edit"
+              params={{ id: group.id }}
+              state={{ requisitionGroupsListSearch: search }}
+            />
+          ),
+        },
+        {
+          id: 'view',
+          icon: <EyeIcon />,
+          label: t('requisition-groups.view'),
+          link: (
+            <Link
+              to="/administration/requisition-groups/$id"
+              params={{ id: group.id }}
+              state={{ requisitionGroupsListSearch: search }}
+            />
+          ),
+        },
+      ]}
+    />
   );
 }
 

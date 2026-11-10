@@ -110,6 +110,8 @@ function RoleActions({ role, actions }: { role: Role; actions: RoleRowActions })
                 id: 'rights',
                 icon: <ListChecksIcon />,
                 label: t('roles.view-rights'),
+                name: t('roles.view-rights-for', { role: role.name }),
+                view: true,
                 onSelect: () => onViewRights(role.id),
               },
             ]

@@ -10,11 +10,9 @@ import {
   type DataTableFeatures,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
-import { CardActions } from '@/components/display/card-actions';
+import { RowActions } from '@/components/display/card-actions';
 import { TableCards } from '@/components/display/table-cards';
 import { FlagBadge } from '@/components/shared/flag-badge';
-import { buttonVariants } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { FacilityType, Program } from '@/features/reference-data/lib/types';
@@ -27,7 +25,7 @@ const helper = createColumnHelper<DataTableFeatures, RequisitionTemplate>();
 const NO_TEMPLATES: RequisitionTemplate[] = [];
 const NO_TYPES: FacilityType[] = [];
 
-export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES, cards = false) {
+export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
   const { t } = useTranslation();
   const columns = useMemo(
     () =>
@@ -65,49 +63,30 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES, ca
           id: 'actions',
           header: () => <span className="sr-only">{t('requisition-templates.action')}</span>,
           meta: { className: 'w-16' },
-          cell: ({ row }) =>
-            cards ? (
-              <CardActions
-                label={t('card-actions.actions-for', { name: row.original.name })}
-                actions={[
-                  {
-                    id: 'configure',
-                    icon: <SettingsIcon />,
-                    label: t('requisition-templates.configure'),
-                    name: t('requisition-templates.configure-template', {
-                      template: row.original.name,
-                    }),
-                    link: (
-                      <Link
-                        to="/administration/requisition-templates/$id"
-                        params={{ id: row.original.id }}
-                      />
-                    ),
-                  },
-                ]}
-              />
-            ) : (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
+          cell: ({ row }) => (
+            <RowActions
+              label={t('card-actions.actions-for', { name: row.original.name })}
+              actions={[
+                {
+                  id: 'configure',
+                  icon: <SettingsIcon />,
+                  label: t('requisition-templates.configure'),
+                  name: t('requisition-templates.configure-template', {
+                    template: row.original.name,
+                  }),
+                  link: (
                     <Link
-                      aria-label={t('requisition-templates.configure-template', {
-                        template: row.original.name,
-                      })}
-                      className={buttonVariants({ size: 'icon-sm', variant: 'ghost' })}
                       to="/administration/requisition-templates/$id"
                       params={{ id: row.original.id }}
                     />
-                  }
-                >
-                  <SettingsIcon />
-                </TooltipTrigger>
-                <TooltipContent>{t('requisition-templates.configure')}</TooltipContent>
-              </Tooltip>
-            ),
+                  ),
+                },
+              ]}
+            />
+          ),
         }),
       ]),
-    [t, types, cards],
+    [t, types],
   );
   return useTable({
     features: dataTableFeatures,
@@ -130,7 +109,7 @@ function ProgramTemplates({
   types: FacilityType[];
 }) {
   const { t } = useTranslation();
-  const table = useTemplatesTable(templates, types, cards);
+  const table = useTemplatesTable(templates, types);
   const empty = (
     <DataTableEmpty
       icon={<ClipboardListIcon />}

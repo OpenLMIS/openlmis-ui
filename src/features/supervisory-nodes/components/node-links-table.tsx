@@ -29,7 +29,7 @@ import {
   type ResponsiveColumn,
   resolveColumnVisibility,
 } from '@/components/data-table/responsive-columns';
-import { CardActions, useInCards } from '@/components/display/card-actions';
+import { RowActions } from '@/components/display/card-actions';
 import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
@@ -281,7 +281,6 @@ function NodeLinkActions({
   onRemove: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const cards = useInCards();
   const listSearch = useLocation({
     select: (location) => location.state.supervisoryNodesListSearch,
   });
@@ -293,57 +292,32 @@ function NodeLinkActions({
       state={{ supervisoryNodesListSearch: listSearch }}
     />
   );
-  if (cards) {
-    return (
-      <CardActions
-        label={t('card-actions.actions-for', { name: label })}
-        actions={[
-          {
-            id: 'edit',
-            icon: <PencilIcon />,
-            label: t('supervisory-nodes.edit'),
-            name: t('supervisory-nodes.edit-node', { node: label }),
-            disabled,
-            link,
-          },
-          {
-            id: 'remove',
-            icon: <Trash2Icon />,
-            label: t(`supervisory-nodes.form.remove-${kind}`),
-            name: t(`supervisory-nodes.form.remove-${kind}-node`, { node: label }),
-            destructive: true,
-            disabled,
-            data: { 'data-node-remove': node.id },
-            onSelect: () => onRemove(node.id),
-          },
-        ]}
-      />
-    );
-  }
   return (
-    <div className="flex justify-center gap-1">
-      <Button
-        aria-label={t('supervisory-nodes.edit-node', { node: label })}
-        disabled={disabled}
-        nativeButton={false}
-        render={link}
-        size="icon-sm"
-        variant="ghost"
-      >
-        <PencilIcon />
-      </Button>
-      <Button
-        aria-label={t(`supervisory-nodes.form.remove-${kind}-node`, { node: label })}
-        data-node-remove={node.id}
-        disabled={disabled}
-        onClick={() => onRemove(node.id)}
-        size="icon-sm"
-        type="button"
-        variant="destructive"
-      >
-        <Trash2Icon />
-      </Button>
-    </div>
+    <RowActions
+      label={t('card-actions.actions-for', { name: label })}
+      disabled={disabled}
+      data={{ 'data-node-remove': node.id }}
+      actions={[
+        {
+          id: 'edit',
+          icon: <PencilIcon />,
+          label: t('supervisory-nodes.edit'),
+          name: t('supervisory-nodes.edit-node', { node: label }),
+          disabled,
+          link,
+        },
+        {
+          id: 'remove',
+          icon: <Trash2Icon />,
+          label: t(`supervisory-nodes.form.remove-${kind}`),
+          name: t(`supervisory-nodes.form.remove-${kind}-node`, { node: label }),
+          destructive: true,
+          disabled,
+          data: { 'data-node-remove': node.id },
+          onSelect: () => onRemove(node.id),
+        },
+      ]}
+    />
   );
 }
 
@@ -382,7 +356,7 @@ function createColumns(
     columnHelper.display({
       id: 'actions',
       header: () => <span className="sr-only">{t('supervisory-nodes.actions')}</span>,
-      meta: { className: 'w-24' },
+      meta: { className: 'w-16' },
       cell: ({ row }) => (
         <NodeLinkActions node={row.original} kind={kind} disabled={disabled} onRemove={onRemove} />
       ),

@@ -104,6 +104,12 @@ function SupplyLineActions({
           id: 'view',
           icon: <EyeIcon />,
           label: t('supply-lines.view'),
+          name: t('supply-lines.view-label', {
+            supplier: node.supplyingFacility?.name ?? '',
+            node: node.supervisoryNode?.code ?? '',
+            program: node.program?.name ?? '',
+          }),
+          view: true,
           link: (
             <Link
               search={{ ...listSearch, supplyLine: node.id }}

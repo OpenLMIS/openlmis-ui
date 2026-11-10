@@ -1,7 +1,6 @@
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import {
-  EllipsisIcon,
   InfoIcon,
   PlusIcon,
   SearchXIcon,
@@ -24,12 +23,6 @@ import { CardActions, useInCards } from '@/components/display/card-actions';
 import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RoleRightsPopover } from '@/features/users/components/role-rights-popover';
 import {
@@ -148,7 +141,14 @@ function createColumns(options: ColumnOptions) {
     cell: ({ row }) => (
       <RoleActions
         onRemove={() => onRemove?.(row.original)}
-        role={row.original.role ?? t('users.roles.unknown')}
+        role={[
+          row.original.program,
+          row.original.node,
+          row.original.facility,
+          row.original.role ?? t('users.roles.unknown'),
+        ]
+          .filter(Boolean)
+          .join(' - ')}
       />
     ),
   });
@@ -205,18 +205,18 @@ function removeAndRefocus(trigger: HTMLButtonElement, onRemove: () => void) {
 
 function RoleActions({ role, onRemove }: { role: string; onRemove: () => void }) {
   const { t } = useTranslation();
-
-  const label = t('users.roles.actions-for', { role });
+  const name = t('users.roles.remove-role', { role });
 
   if (useInCards()) {
     return (
       <CardActions
-        label={label}
+        label={t('users.roles.actions-for', { role })}
         actions={[
           {
             id: 'remove',
             icon: <Trash2Icon />,
             label: t('users.roles.remove'),
+            name,
             destructive: true,
             data: { 'data-remove-role': true },
             onSelect: (trigger) => removeAndRefocus(trigger, onRemove),
@@ -228,17 +228,15 @@ function RoleActions({ role, onRemove }: { role: string; onRemove: () => void })
 
   return (
     <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button aria-label={label} size="icon-sm" variant="ghost" />}>
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width="auto">
-          <DropdownMenuItem onClick={onRemove} variant="destructive">
-            <Trash2Icon />
-            {t('users.roles.remove')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Button
+        aria-label={name}
+        data-remove-role
+        onClick={(event) => removeAndRefocus(event.currentTarget, onRemove)}
+        size="icon-sm"
+        variant="destructive"
+      >
+        <Trash2Icon />
+      </Button>
     </div>
   );
 }

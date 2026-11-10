@@ -128,6 +128,8 @@ function ProgramLinkActions({ link, actions }: { link: ProgramLinkRow; actions: 
                 id: 'view',
                 icon: <EyeIcon />,
                 label: t('products.programs.view'),
+                name: t('products.programs.view-label', { program: link.name }),
+                view: true,
                 onSelect: () => actions.onEdit(link.programId),
               },
             ]
