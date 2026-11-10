@@ -3,6 +3,7 @@ import { DataTableViewOptions } from '@/components/data-table/data-table-view-op
 import {
   FULFILL_ORDER_HIDEABLE_COLUMNS,
   ORDER_HIDEABLE_COLUMNS,
+  POD_ORDER_HIDEABLE_COLUMNS,
 } from '@/features/orders/components/orders-table';
 import {
   isOrderSortField,
@@ -18,7 +19,7 @@ export function OrdersViewOptions<T extends ViewOrdersSearch>({
   search,
   onSearchChange,
 }: {
-  kind?: 'view' | 'fulfill';
+  kind?: 'view' | 'fulfill' | 'pod';
   columnView: ReturnType<typeof useCardView<HTMLDivElement>>;
   search: T;
   onSearchChange: SearchChange<T>;
@@ -28,9 +29,17 @@ export function OrdersViewOptions<T extends ViewOrdersSearch>({
     {
       id: 'orderCode',
       labelKey:
-        kind === 'view' ? 'orders.view.columns.order-code' : 'orders.fulfill.columns.order-code',
+        kind === 'pod'
+          ? 'orders.pod.columns.order-code'
+          : kind === 'view'
+            ? 'orders.view.columns.order-code'
+            : 'orders.fulfill.columns.order-code',
     } as const,
-    ...(kind === 'view' ? ORDER_HIDEABLE_COLUMNS : FULFILL_ORDER_HIDEABLE_COLUMNS),
+    ...(kind === 'pod'
+      ? POD_ORDER_HIDEABLE_COLUMNS
+      : kind === 'view'
+        ? ORDER_HIDEABLE_COLUMNS
+        : FULFILL_ORDER_HIDEABLE_COLUMNS),
   ];
   return (
     <DataTableViewOptions

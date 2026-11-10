@@ -44,6 +44,7 @@ export type OrderSummary = {
     id: string;
     code: string | null;
     name: string | null;
+    type?: { id: string };
     geographicZone: { name: string | null } | null;
   } | null;
   program: { id: string; name: string | null } | null;

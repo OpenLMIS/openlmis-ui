@@ -43,7 +43,7 @@ export function OrdersToolbar({
   facilitiesDisabled = false,
   programsDisabled = false,
 }: {
-  kind?: 'view' | 'fulfill';
+  kind?: 'view' | 'fulfill' | 'pod';
   search: ViewOrdersSearch;
   facilities?: FilterOption[];
   programs?: FilterOption[];
@@ -54,6 +54,12 @@ export function OrdersToolbar({
   programsDisabled?: boolean;
 }) {
   const { t } = useTranslation();
+  if (kind === 'pod')
+    return (
+      <DataTableToolbar>
+        <div className="ms-auto">{view}</div>
+      </DataTableToolbar>
+    );
   const statuses = kind === 'fulfill' ? FULFILL_STATUSES : VIEW_FILTER_STATUSES;
   const change = (patch: Partial<ViewOrdersSearch>) =>
     onFilterChange({ ...patch, page: undefined });

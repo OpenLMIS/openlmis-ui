@@ -53,3 +53,24 @@ it('renders the loading table while the deployment time zone is pending', async 
   expect(screen.queryByText('Escaped loading boundary')).not.toBeInTheDocument();
   expect(client.getQueryState(options.queryKey)?.status).toBe('pending');
 });
+
+it('treats POD picker selections as the search rather than clearable table filters', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+  const search = { programId: 'program', requestingFacilityId: 'clinic' };
+  client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+  client.setQueryData(ordersSearchOptions(toOrderParams(search, 'pod')).queryKey, {
+    content: [],
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: 10,
+  });
+  renderPage(
+    <OrdersTable kind="pod" cards={false} columns={{}} search={search} onSearchChange={vi.fn()} />,
+    { queryClient: client },
+  );
+  expect(await screen.findByText('orders.pod.empty-title')).toBeVisible();
+  expect(
+    screen.queryByRole('button', { name: 'data-table.clear-filters' }),
+  ).not.toBeInTheDocument();
+});
