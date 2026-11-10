@@ -1,6 +1,7 @@
 import { isAxiosError } from 'axios';
 import type { OrderBody } from '@/features/orders/lib/order-draft';
 import type { OrderSearchParams } from '@/features/orders/lib/order-search';
+import type { PodBody, PodResponse, ProofOfDelivery } from '@/features/orders/lib/pod-types';
 import type {
   ShipmentBody,
   ShipmentDraftBody,
@@ -198,4 +199,24 @@ export function fetchOrderCsv(id: string) {
 
 export async function retryOrderTransfer(id: string) {
   return (await client.get<{ result: boolean }>(`/orders/${id}/retry`)).data;
+}
+
+export async function fetchProofOfDelivery(id: string): Promise<ProofOfDelivery> {
+  return (
+    await client.get<ProofOfDelivery>(`/proofsOfDelivery/${id}`, {
+      params: { expand: 'shipment.order' },
+    })
+  ).data;
+}
+export async function findProofOfDelivery(orderId: string): Promise<PodResponse | null> {
+  const { data } = await client.get<Page<PodResponse>>('/proofsOfDelivery', {
+    params: { orderId },
+  });
+  return data.content[0] ?? null;
+}
+export async function saveProofOfDelivery(id: string, body: PodBody): Promise<PodResponse> {
+  return (await client.put<PodResponse>(`/proofsOfDelivery/${id}`, body)).data;
+}
+export function fetchProofOfDeliveryPdf(id: string, lang: string) {
+  return fetchReport(`/proofsOfDelivery/${id}/print`, { format: 'pdf', lang });
 }

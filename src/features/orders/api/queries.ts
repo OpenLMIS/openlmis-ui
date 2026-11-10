@@ -3,6 +3,7 @@ import {
   fetchOrder,
   fetchOrderRequestingFacilityIds,
   fetchOrderStockOnHand,
+  fetchProofOfDelivery,
   fetchShipmentSummaries,
   fetchShipmentVvm,
   findShipment,
@@ -11,6 +12,7 @@ import {
   shipmentVvmCardIds,
 } from '@/features/orders/api/api';
 import type { OrderSearchParams } from '@/features/orders/lib/order-search';
+import type { PodResponse, ProofOfDelivery } from '@/features/orders/lib/pod-types';
 import type {
   ShipmentSavedLine,
   ShipmentStockFilter,
@@ -28,10 +30,16 @@ import {
   LOOKUP_STALE_TIME,
   lotsByIdsOptions,
   minimalFacilitiesOptions,
+  orderableFulfillsOptions,
   orderablesByIdentitiesOptions,
   orderablesByIdsOptions,
   supplyLinesOptions,
+  validReasonsOptions,
 } from '@/features/reference-data/api/queries';
+import type {
+  ValidReasonAssignment,
+  ValidReasonsFilter,
+} from '@/features/reference-data/lib/types';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import type { Permissions } from '@/lib/permissions';
@@ -137,8 +145,8 @@ export const orderRequestingFacilitiesOptions = (ids: readonly string[]) =>
     queryFn: () => fetchOrderRequestingFacilityIds(ids),
   });
 
-export function viewSupplierFacilitiesOptions(permissions: Permissions) {
-  const ids = viewOrderSupplierIds(permissions);
+export function viewSupplierFacilitiesOptions(source: Permissions | readonly string[]) {
+  const ids = [...new Set('grants' in source ? viewOrderSupplierIds(source) : source)].sort();
   return queryOptions({
     queryKey: [...queryKeys.facilities.all, 'order-suppliers', ids],
     staleTime: LOOKUP_STALE_TIME,
@@ -157,6 +165,31 @@ export function viewSupplierFacilitiesOptions(permissions: Permissions) {
   });
 }
 
+export const proofOfDeliveryOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.proofsOfDelivery.detail(id),
+    queryFn: () => fetchProofOfDelivery(id),
+  });
+export const podDebitReasons = (assignments: readonly ValidReasonAssignment[]) =>
+  assignments
+    .filter((assignment) => !assignment.hidden && assignment.reason.reasonType === 'DEBIT')
+    .map((assignment) => assignment.reason);
+export const podReasonsOptions = (filter: ValidReasonsFilter) =>
+  queryOptions({
+    ...validReasonsOptions(filter),
+    select: podDebitReasons,
+  });
+export const podProductOptions = (pod: Pick<PodResponse, 'lineItems'>) =>
+  orderablesByIdentitiesOptions(pod.lineItems.map((line) => line.orderable));
+export const podLotOptions = (pod: Pick<PodResponse, 'lineItems'>) =>
+  lotsByIdsOptions([...new Set(pod.lineItems.flatMap((line) => (line.lot ? [line.lot.id] : [])))]);
+export const podReferenceOptions = (pod: ProofOfDelivery) => ({
+  products: podProductOptions(pod),
+  lots: podLotOptions(pod),
+  fulfills: orderableFulfillsOptions([
+    ...new Set(pod.shipment.order.orderLineItems.map((line) => line.orderable.id)),
+  ]),
+});
 export const shipmentSummariesOptions = (filter: ShipmentStockFilter) =>
   queryOptions({
     queryKey: [

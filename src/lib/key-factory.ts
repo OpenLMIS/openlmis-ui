@@ -30,6 +30,7 @@ export const queryKeys = {
   processingSchedules: createQueryKeys('processingSchedules'),
   profile: createQueryKeys('profile'),
   programs: createQueryKeys('programs'),
+  proofsOfDelivery: createQueryKeys('proofsOfDelivery'),
   reasons: createQueryKeys('reasons'),
   rejectionReasonCategories: createQueryKeys('rejectionReasonCategories'),
   rejectionReasons: createQueryKeys('rejectionReasons'),

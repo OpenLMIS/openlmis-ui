@@ -15,7 +15,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
-import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
+import { formatDateValue, formatTimestamp, toDateValue } from '@/components/form/date-value';
 import { FlagBadge } from '@/components/shared/flag-badge';
 import { Button } from '@/components/ui/button';
 import { ordersSearchOptions } from '@/features/orders/api/queries';
@@ -27,6 +27,7 @@ import {
   activeOrderFilterCount,
   CLEARED_ORDER_FILTERS,
 } from '@/features/orders/components/orders-toolbar';
+import { PodRowButtons } from '@/features/orders/components/pod-row-buttons';
 import type { OrderAccess } from '@/features/orders/lib/order-row-actions';
 import {
   isOrderSortField,
@@ -64,7 +65,22 @@ const FULFILL_ORDER_COLUMNS = [
   ['period', 'orders.fulfill.columns.period'],
   ['createdDate', 'orders.fulfill.columns.created-date'],
 ] as const;
+const POD_ORDER_COLUMNS = [
+  ['orderCode', 'orders.pod.columns.order-code'],
+  ['status', 'orders.pod.columns.status'],
+  ['requestingFacility', 'orders.pod.columns.requesting-facility'],
+  ['supplyingFacility', 'orders.pod.columns.supplying-facility'],
+  ['program', 'orders.pod.columns.program'],
+  ['period', 'orders.pod.columns.period'],
+  ['createdDate', 'orders.pod.columns.created-date'],
+  ['emergency', 'orders.pod.columns.emergency'],
+] as const;
 const ORDER_LIST_KINDS = {
+  pod: {
+    columns: POD_ORDER_COLUMNS,
+    actionsKey: 'orders.pod.columns.actions',
+    emptyDescription: 'orders.pod.empty-description',
+  },
   view: {
     columns: VIEW_ORDER_COLUMNS,
     actionsKey: 'orders.view.columns.actions',
@@ -83,11 +99,12 @@ const ORDER_LIST_KINDS = {
     emptyDescription: ParseKeys;
   }
 >;
+export const viewColumns = (kind: OrderKind) =>
+  ORDER_LIST_KINDS[kind].columns.map(([id, labelKey]) => ({ id, labelKey }));
 const hideableColumns = (kind: OrderKind) =>
-  ORDER_LIST_KINDS[kind].columns
-    .filter(([id]) => id !== 'orderCode')
-    .map(([id, labelKey]) => ({ id, labelKey }));
+  viewColumns(kind).filter(({ id }) => id !== 'orderCode');
 export const FULFILL_ORDER_HIDEABLE_COLUMNS = hideableColumns('fulfill');
+export const POD_ORDER_HIDEABLE_COLUMNS = hideableColumns('pod');
 export const ORDER_HIDEABLE_COLUMNS = hideableColumns('view');
 const NO_ROWS: OrderSummary[] = [];
 const NO_ACCESS: OrderAccess = { canEdit: false, retrySupplierIds: [] };
@@ -100,6 +117,7 @@ function orderListCell(
   language: string,
   timeZone: string,
   t: TFunction,
+  kind: OrderKind,
 ) {
   const text = (value: string | null | undefined) =>
     tableValue(value) === null ? null : <CellText overflow="nowrap">{value}</CellText>;
@@ -110,6 +128,10 @@ function orderListCell(
       return order.facility
         ? text([order.facility.code, order.facility.name].filter(Boolean).join(' - '))
         : null;
+    case 'requestingFacility':
+      return text(order.requestingFacility?.name);
+    case 'supplyingFacility':
+      return text(order.supplyingFacility?.name);
     case 'district':
       return text(order.facility?.geographicZone?.name);
     case 'program':
@@ -120,6 +142,14 @@ function orderListCell(
     case 'endDate':
       return text(formatDateValue(order.processingPeriod?.[id] ?? '', language));
     case 'createdDate':
+      if (kind === 'pod')
+        return text(
+          formatDateValue(
+            order.createdDate ? toDateValue(new Date(order.createdDate), timeZone) : '',
+            language,
+          ),
+        );
+      return text(formatTimestamp(order.createdDate, language, { timeZone }));
     case 'lastUpdatedDate':
       return text(formatTimestamp(order[id], language, { timeZone }));
     case 'status': {
@@ -138,6 +168,7 @@ function orderListCell(
 }
 
 function orderColumns({
+  kind,
   columns,
   t,
   language,
@@ -145,6 +176,7 @@ function orderColumns({
   actions,
   actionsKey,
 }: {
+  kind: OrderKind;
   columns: readonly (readonly [string, ParseKeys])[];
   t: TFunction;
   language: string;
@@ -161,7 +193,7 @@ function orderColumns({
         sortDescFirst: id === 'createdDate',
         meta: { label: t(key) },
         header: ({ column }) => <DataTableColumnHeader column={column} title={t(key)} />,
-        cell: ({ row }) => orderListCell(id, row.original, language, timeZone, t),
+        cell: ({ row }) => orderListCell(id, row.original, language, timeZone, t, kind),
       }),
     ),
     ...(actions
@@ -203,13 +235,16 @@ function useResultsTable<T extends ViewOrdersSearch>(
   const defs = useMemo(
     () =>
       orderColumns({
+        kind,
         columns: ORDER_LIST_KINDS[kind].columns,
         t,
         language: i18n.language,
         timeZone,
         actionsKey: ORDER_LIST_KINDS[kind].actionsKey,
         actions: (order) =>
-          kind === 'fulfill' ? (
+          kind === 'pod' ? (
+            <PodRowButtons order={order} search={search} disabled={stale} />
+          ) : kind === 'fulfill' ? (
             <FulfillOrderButton order={order} search={search} disabled={stale} />
           ) : (
             <OrderRowButtons order={order} search={search} access={access} disabled={stale} />
@@ -261,11 +296,17 @@ export function OrdersTable<T extends ViewOrdersSearch>(props: Props<T>) {
         true,
       );
   }, [pastEnd, page.totalPages, onSearchChange]);
-  const filtered = activeOrderFilterCount(deferred) > 0;
+  const filtered = props.kind !== 'pod' && activeOrderFilterCount(deferred) > 0;
   const empty = !pastEnd && (
     <DataTableEmpty
       icon={filtered ? <SearchXIcon /> : <PackageIcon />}
-      title={t(filtered ? 'orders.view.no-matches-title' : 'orders.view.empty-title')}
+      title={t(
+        props.kind === 'pod'
+          ? 'orders.pod.empty-title'
+          : filtered
+            ? 'orders.view.no-matches-title'
+            : 'orders.view.empty-title',
+      )}
       description={t(
         filtered
           ? 'orders.view.no-matches-description'

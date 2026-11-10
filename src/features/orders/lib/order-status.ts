@@ -29,7 +29,16 @@ export const ORDER_STATUS: Record<OrderStatus, ParseKeys> = {
 export const VIEW_FILTER_STATUSES = ORDER_STATUSES.filter((status) => status !== 'CREATING');
 export const FULFILL_STATUSES = ['ORDERED', 'FULFILLING'] as const;
 
+export const POD_STATUSES = [
+  'TRANSFER_FAILED',
+  'READY_TO_PACK',
+  'RECEIVED',
+  'SHIPPED',
+  'IN_ROUTE',
+] as const;
+
 export const ORDER_KINDS = {
+  pod: { filterStatuses: POD_STATUSES, defaultStatuses: POD_STATUSES },
   view: { filterStatuses: VIEW_FILTER_STATUSES, defaultStatuses: undefined },
   fulfill: { filterStatuses: FULFILL_STATUSES, defaultStatuses: FULFILL_STATUSES },
 } satisfies Record<
