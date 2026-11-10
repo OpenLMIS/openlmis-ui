@@ -1,5 +1,6 @@
 import type {
   CatalogItem,
+  FacilityCceItem,
   InventoryAlert,
   InventoryItem,
   InventoryItemBody,
@@ -7,7 +8,9 @@ import type {
   InventoryQuery,
 } from '@/features/cce-inventory/lib/types';
 import { client } from '@/integrations/axios';
+import { fetchIdBatches } from '@/lib/fetch-by-ids';
 import { fetchReport } from '@/lib/fetch-report';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
 const ALERT_HISTORY_TEMPLATE = '5ccbdfe1-594f-4830-960d-801dabf36566';
@@ -70,4 +73,41 @@ export function fetchAlertHistory(inventoryItemId: string, lang: string) {
 
 export function exportInventoryItems(facilityId: string, programId: string) {
   return fetchReport('/inventoryItems/download', { format: 'csv', facilityId, programId });
+}
+
+export async function fetchFacilityCce(facilityId: string) {
+  const scope = getSessionScope();
+  const items: FacilityCceItem[] = [];
+  for (let page = 0; ; page++) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<FacilityCceItem>>('/inventoryItems', {
+      params: { facilityId, page, size: 100 },
+    });
+    assertSessionScope(scope);
+    items.push(...data.content.filter((item) => item.facility?.id === facilityId));
+    if (page + 1 >= data.totalPages) break;
+  }
+  const batches = await fetchIdBatches(
+    items.map((item) => item.id),
+    async (deviceId) => {
+      const alerts: InventoryAlert[] = [];
+      for (let page = 0; ; page++) {
+        assertSessionScope(scope);
+        const { data } = await client.get<Page<InventoryAlert>>('/cceAlerts', {
+          params: { deviceId, page, size: 100 },
+          paramsSerializer: { indexes: null },
+        });
+        assertSessionScope(scope);
+        alerts.push(
+          ...data.content.filter(
+            (alert) => deviceId.includes(alert.device_id) && !alert.end_ts && !alert.dismissed,
+          ),
+        );
+        if (page + 1 >= data.totalPages) break;
+      }
+      return alerts;
+    },
+  );
+  assertSessionScope(scope);
+  return { items, alerts: batches.flat() };
 }

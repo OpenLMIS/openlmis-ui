@@ -3,19 +3,33 @@ import {
   fetchOrder,
   fetchOrderRequestingFacilityIds,
   fetchOrderStockOnHand,
+  fetchShipmentSummaries,
+  fetchShipmentVvm,
+  findShipment,
+  findShipmentDraft,
   searchOrders,
+  shipmentVvmCardIds,
 } from '@/features/orders/api/api';
 import type { OrderSearchParams } from '@/features/orders/lib/order-search';
+import type {
+  ShipmentSavedLine,
+  ShipmentStockFilter,
+  ShipmentSummary,
+} from '@/features/orders/lib/shipment-types';
 import {
   commonNodeIds,
   supplierIds,
   viewOrderSupplierIds,
 } from '@/features/orders/lib/supplying-facilities';
+import type { OrderProduct } from '@/features/orders/lib/types';
 import {
   facilitiesByIdsOptions,
   facilitySupervisoryNodesOptions,
   LOOKUP_STALE_TIME,
+  lotsByIdsOptions,
   minimalFacilitiesOptions,
+  orderablesByIdentitiesOptions,
+  orderablesByIdsOptions,
   supplyLinesOptions,
 } from '@/features/reference-data/api/queries';
 import { isRefused } from '@/lib/http';
@@ -142,3 +156,59 @@ export function viewSupplierFacilitiesOptions(permissions: Permissions) {
     },
   });
 }
+
+export const shipmentSummariesOptions = (filter: ShipmentStockFilter) =>
+  queryOptions({
+    queryKey: [
+      ...queryKeys.stockCardSummaries.all,
+      'shipment',
+      filter.programId,
+      filter.facilityId,
+      [...new Set(filter.orderableIds)].toSorted(),
+    ],
+    queryFn: () => fetchShipmentSummaries(filter),
+  });
+export const shipmentDraftOptions = (orderId: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.orders.all, 'shipment-draft', orderId],
+    queryFn: () => findShipmentDraft(orderId),
+  });
+export const shipmentOptions = (orderId: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.orders.all, 'shipment', orderId],
+    queryFn: () => findShipment(orderId),
+  });
+export const shipmentProductsOptions = (summaries: readonly ShipmentSummary[]) =>
+  orderablesByIdsOptions([
+    ...new Set(
+      summaries.flatMap((summary) =>
+        (summary.canFulfillForMe ?? []).map((card) => card.orderable.id),
+      ),
+    ),
+  ]);
+export const shipmentSavedProductsOptions = (lines: readonly ShipmentSavedLine[]) =>
+  orderablesByIdentitiesOptions(lines.map((line) => line.orderable));
+export const shipmentLotsOptions = (
+  summaries: readonly ShipmentSummary[],
+  savedLines: readonly ShipmentSavedLine[] = [],
+) =>
+  lotsByIdsOptions([
+    ...new Set([
+      ...summaries.flatMap((summary) =>
+        (summary.canFulfillForMe ?? []).flatMap((card) => (card.lot ? [card.lot.id] : [])),
+      ),
+      ...savedLines.flatMap((line) => (line.lot ? [line.lot.id] : [])),
+    ]),
+  ]);
+export const shipmentVvmOptions = (
+  summaries: readonly ShipmentSummary[],
+  products: readonly OrderProduct[],
+) =>
+  queryOptions({
+    queryKey: [
+      ...queryKeys.stockCardSummaries.all,
+      'shipment-vvm',
+      shipmentVvmCardIds(summaries, products),
+    ],
+    queryFn: () => fetchShipmentVvm(summaries, products),
+  });
