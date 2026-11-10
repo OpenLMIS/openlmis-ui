@@ -159,3 +159,11 @@ it('uses the fulfillment endpoints and report language', async () => {
     { shipmentDraftId: 'draft', lang: 'ar' },
   );
 });
+
+it('shares a completed create across remounts in the same session', async () => {
+  const body = { order: { id: 'remount' }, lineItems: [] };
+  vi.mocked(client.post).mockResolvedValue({ data: { id: 'draft' } });
+  await createShipmentDraftOnce(body);
+  await createShipmentDraftOnce(body);
+  expect(client.post).toHaveBeenCalledOnce();
+});

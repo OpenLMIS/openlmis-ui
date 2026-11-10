@@ -1,5 +1,5 @@
 import { FilePenIcon } from 'lucide-react';
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   RecordSummary,
@@ -16,7 +16,13 @@ import type { Order } from '@/features/orders/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { orEmpty } from '@/lib/empty-value';
 
-export const OrderHeader = memo(function OrderHeader({ order }: { order: Order }) {
+export const OrderHeader = memo(function OrderHeader({
+  order,
+  cceStatus,
+}: {
+  order: Order;
+  cceStatus?: ReactNode;
+}) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
   const statusKey = orderStatusKey(order.status);
@@ -24,13 +30,27 @@ export const OrderHeader = memo(function OrderHeader({ order }: { order: Order }
     <RecordSummary>
       <RecordSummaryHeading>
         <span className="font-normal text-muted-foreground text-xs">
-          {t('orders.edit.requesting-facility')}
+          {t(
+            cceStatus !== undefined
+              ? 'orders.shipment.facility'
+              : 'orders.edit.requesting-facility',
+          )}
         </span>
         <span className="break-words">
           <bdi>{order.requestingFacility.name ?? order.requestingFacility.id}</bdi>
         </span>
       </RecordSummaryHeading>
       <RecordSummaryFields>
+        {order.emergency && (
+          <RecordSummaryField label={t('orders.shipment.emergency')}>
+            <Badge variant="destructive">{t('orders.shipment.emergency')}</Badge>
+          </RecordSummaryField>
+        )}
+        {cceStatus !== undefined && (
+          <RecordSummaryField label={t('orders.shipment.cce-status')}>
+            {cceStatus}
+          </RecordSummaryField>
+        )}
         <RecordSummaryField label={t('orders.edit.status')}>
           <Badge variant="secondary">
             <FilePenIcon data-icon="inline-start" />
