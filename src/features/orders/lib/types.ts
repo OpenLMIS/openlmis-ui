@@ -1,14 +1,23 @@
-import type { Orderable } from '@/features/reference-data/lib/types';
 import type { Page } from '@/lib/types';
 
-export type OrderFacility = { id: string; name?: string | null; code?: string };
-export type OrderProduct = Orderable & {
+export type OrderFacility = { id: string; name?: string | null; code?: string | null };
+export type OrderProduct = {
+  id: string;
+  netContent?: number | null;
+  productCode?: string | null;
+  fullProductName?: string | null;
+  description?: string | null;
+  dispensable?: { displayUnit?: string | null } | null;
+  extraData?: { useVVM?: string | null } | null;
+  meta?: { versionNumber?: number | null } | null;
   packRoundingThreshold?: number | null;
   roundToZero?: boolean | null;
 };
 export type Order = {
   id: string;
   status: string;
+  orderCode?: string | null;
+  emergency?: boolean | null;
   createdDate?: string;
   program: { id: string; name?: string | null };
   requestingFacility: OrderFacility;
@@ -46,6 +55,7 @@ export type OrderSummary = {
   } | null;
   createdDate: string | null;
   lastUpdatedDate: string | null;
-  supplyingFacility: { id: string } | null;
+  requestingFacility: { id: string; code: string | null; name: string | null } | null;
+  supplyingFacility: { id: string; name: string | null; code: string | null } | null;
 };
 export type OrdersPage = Page<OrderSummary>;

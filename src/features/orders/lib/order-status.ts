@@ -29,6 +29,15 @@ export const ORDER_STATUS: Record<OrderStatus, ParseKeys> = {
 export const VIEW_FILTER_STATUSES = ORDER_STATUSES.filter((status) => status !== 'CREATING');
 export const FULFILL_STATUSES = ['ORDERED', 'FULFILLING'] as const;
 
+export const ORDER_KINDS = {
+  view: { filterStatuses: VIEW_FILTER_STATUSES, defaultStatuses: undefined },
+  fulfill: { filterStatuses: FULFILL_STATUSES, defaultStatuses: FULFILL_STATUSES },
+} satisfies Record<
+  string,
+  { filterStatuses: readonly OrderStatus[]; defaultStatuses: readonly OrderStatus[] | undefined }
+>;
+export type OrderKind = keyof typeof ORDER_KINDS;
+
 export function orderStatusKey(status: string): ParseKeys | undefined {
   return Object.hasOwn(ORDER_STATUS, status) ? ORDER_STATUS[status as OrderStatus] : undefined;
 }

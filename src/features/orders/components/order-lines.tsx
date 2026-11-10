@@ -43,7 +43,11 @@ import { toWholeNumber } from '@/lib/whole-number';
 
 export function productName(line: DraftLine) {
   const product = line.product;
-  return `${productLabel(product)} (${product.productCode})`;
+  return `${productLabel({
+    fullProductName: product.fullProductName,
+    productCode: product.productCode ?? '',
+    dispensable: product.dispensable ?? undefined,
+  })} (${product.productCode ?? ''})`;
 }
 export function PackHint({ line }: { line: DraftLine }) {
   const { t } = useTranslation();

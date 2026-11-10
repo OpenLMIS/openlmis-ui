@@ -51,7 +51,7 @@ it.each([
     expect(screen.getByRole('columnheader', { name: header })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: comments })).toBeInTheDocument();
-    expect(screen.getByRole('cell', { name: 'stock-events.stage-1' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'vvm.stage-1' })).toBeInTheDocument();
     expect(screen.queryByText('STAGE_1')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('cell', { name: kind === 'issue' ? 'Source' : 'Destination' }),

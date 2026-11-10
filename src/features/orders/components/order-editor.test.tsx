@@ -24,7 +24,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { queryKeys } from '@/lib/key-factory';
 import { Route } from '@/routes/(protected)/_protected.requisitions.create-orders_.$orderIds';
-import { creatingOrder } from '@/test-utils/order-fixtures';
+import { creatingOrder, orderProduct } from '@/test-utils/order-fixtures';
 
 vi.mock('@/features/auth/lib/access', () => ({ requirePermissions: vi.fn(async () => ({})) }));
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
@@ -66,8 +66,7 @@ function setup(
         content: [
           {
             id: 'approved',
-            orderable: (order.orderLineItems[0] ?? creatingOrder(order.id).orderLineItems[0])
-              .orderable,
+            orderable: orderProduct,
           },
         ],
         totalElements: 1,

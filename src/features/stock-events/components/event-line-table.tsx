@@ -53,12 +53,12 @@ import {
   EVENT_KINDS,
   type EventKindConfig,
 } from '@/features/stock-events/lib/event-kinds';
-import { vvmItems } from '@/features/stock-events/lib/vvm-items';
 import { usePageStart } from '@/hooks/use-page-start';
 import { orEmpty, tableValue } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 import { cn } from '@/lib/utils';
+import { vvmItems } from '@/lib/vvm';
 import { toLatinDigits, toWholeNumber } from '@/lib/whole-number';
 
 const COLUMNS = [
@@ -679,13 +679,7 @@ export function EventLineTable({
                     />
                   )}
                   {measured && id === 'vvm' && (
-                    <SelectSizer
-                      labels={[
-                        t('stock-events.vvm-none'),
-                        t('stock-events.stage-1'),
-                        t('stock-events.stage-2'),
-                      ]}
-                    />
+                    <SelectSizer labels={[t('vvm.none'), t('vvm.stage-1'), t('vvm.stage-2')]} />
                   )}
                   {id === 'product' && <div className={measured ? 'w-48' : 'w-28'} />}
                   {id === 'lotCode' && (
