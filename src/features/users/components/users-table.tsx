@@ -199,7 +199,7 @@ export function UsersTableSkeleton({
 
   const rowCount = toPaginationState(search).pageSize;
   if (cards)
-    return <TableCardsSkeleton rowCount={rowCount} table={table} title="username" actions={3} />;
+    return <TableCardsSkeleton rowCount={rowCount} table={table} title="username" actions={1} />;
   return <DataTableSkeleton rowCount={rowCount} table={table} />;
 }
 
