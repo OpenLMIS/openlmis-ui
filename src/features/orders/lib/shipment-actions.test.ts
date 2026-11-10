@@ -1,7 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { findShipmentDraft, saveShipmentDraft } from '@/features/orders/api/api';
 import {
-  mergeShipmentFills,
   ShipmentDraftExpiredError,
   saveExistingShipmentDraft,
 } from '@/features/orders/lib/shipment-actions';
@@ -57,29 +56,4 @@ it('stops before writing if the session changes during the existence check', asy
   });
   await expect(saveExistingShipmentDraft(draft, [line])).rejects.toThrow('session ended');
   expect(saveShipmentDraft).not.toHaveBeenCalled();
-});
-it('preserves typing during save while adopting persisted ids and unchanged server values', () => {
-  const second = { ...line, key: 'product-none', lot: null, fill: 0 };
-  const response: ShipmentRecord = {
-    ...draft,
-    lineItems: [
-      {
-        id: 'saved-lot',
-        orderable: { id: 'product', versionNumber: 2 },
-        lot: { id: 'lot' },
-        quantityShipped: 3,
-      },
-      {
-        id: 'saved-none',
-        orderable: { id: 'product', versionNumber: 2 },
-        lot: null,
-        quantityShipped: 1,
-      },
-    ],
-  };
-  const merged = mergeShipmentFills([{ ...line, fill: 7 }, second], [line, second], response);
-  expect(merged.map(({ id, fill }) => ({ id, fill }))).toEqual([
-    { id: 'saved-lot', fill: 7 },
-    { id: 'saved-none', fill: 1 },
-  ]);
 });

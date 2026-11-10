@@ -40,7 +40,6 @@ import { ShipmentDialogs } from '@/features/orders/components/shipment-dialogs';
 import { type ShipmentAction, ShipmentFooter } from '@/features/orders/components/shipment-footer';
 import { ShipmentGrid } from '@/features/orders/components/shipment-grid';
 import {
-  mergeShipmentFills,
   ShipmentDraftExpiredError,
   saveExistingShipmentDraft,
 } from '@/features/orders/lib/shipment-actions';
@@ -53,6 +52,7 @@ import {
 import {
   buildShipmentLines,
   type ShipmentLine,
+  shipmentLineKey,
   validateShipmentFill,
 } from '@/features/orders/lib/shipment-lines';
 import type { ShipmentRecord } from '@/features/orders/lib/shipment-types';
@@ -350,26 +350,24 @@ function ShipmentEditor({
       return { submitted, response, notes };
     },
     onSuccess: ({ submitted, response, notes }) => {
-      const merged = mergeShipmentFills(snapshot(), submitted, response);
-      for (const line of merged) {
+      const submittedFills = new Map(submitted.map((line) => [line.key, line.fill]));
+      const savedFills = new Map(
+        response.lineItems.map((line) => [
+          shipmentLineKey(line.orderable.id, line.lot?.id),
+          line.quantityShipped,
+        ]),
+      );
+      const persisted = lines.map((line) => {
+        const fill = savedFills.get(line.key);
+        return { ...line, fill: fill === undefined ? line.fill : fill };
+      });
+      for (const line of persisted) {
         const key = shipmentFieldKey(line.key);
         const raw = form.getFieldValue(`lines.${key}.fill`);
-        const sent = submitted.find((item) => item.key === line.key);
-        if (toOptionalWholeNumber(raw ?? '') === sent?.fill)
+        if (toOptionalWholeNumber(raw ?? '') === submittedFills.get(line.key))
           form.setFieldValue(`lines.${key}`, { fill: String(line.fill ?? '') });
       }
-      setBaseline(
-        shipmentValues(
-          lines.map((line) => ({
-            ...line,
-            fill:
-              response.lineItems.find(
-                (saved) => saved.orderable.id === line.product.id && saved.lot?.id === line.lot?.id,
-              )?.quantityShipped ?? line.fill,
-          })),
-          notes,
-        ),
-      );
+      setBaseline(shipmentValues(persisted, notes));
       client.setQueryData(shipmentDraftOptions(order.id).queryKey, response);
       void client.invalidateQueries({ queryKey: queryKeys.stockCardSummaries.all });
       toast.success(t('orders.shipment.saved'), {
@@ -458,7 +456,7 @@ function ShipmentEditor({
             form={form}
             unit={unit}
             canEdit={access.canEdit}
-            disabled={mutation.isPending || blocked}
+            disabled={mutation.isPending}
             attempted={attempted}
           />
         </form>

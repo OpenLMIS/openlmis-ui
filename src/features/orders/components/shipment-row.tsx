@@ -11,6 +11,7 @@ import {
 import { groupQuantities, lineQuantities } from '@/features/orders/lib/shipment-quantities';
 import type { Order } from '@/features/orders/lib/types';
 import type { QuantityUnit } from '@/lib/quantity';
+import { vvmStages } from '@/lib/vvm';
 import { toLatinDigits } from '@/lib/whole-number';
 
 export const SHIPMENT_COLUMNS = [
@@ -110,7 +111,9 @@ export function useShipmentRow(props: ShipmentGridProps, row: ShipmentDisplayRow
     'product-code': row.hideProduct ? null : product?.productCode,
     product: row.hideProduct ? null : product?.fullProductName,
     'lot-code': line ? (line.lot?.lotCode ?? t('orders.shipment.no-lot')) : null,
-    vvm: line?.vvmStatus ? t(line.vvmStatus === 'STAGE_2' ? 'vvm.stage-2' : 'vvm.stage-1') : null,
+    vvm: line?.vvmStatus
+      ? (vvmStages(t).find((stage) => stage.value === line.vvmStatus)?.label ?? line.vvmStatus)
+      : null,
     expiry: formatDateValue(line?.lot?.expirationDate ?? '', i18n.language),
     ordered: row.ordered == null ? null : quantity.ordered,
     fill: quantity.fill,

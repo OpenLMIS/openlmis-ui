@@ -66,7 +66,7 @@ it('keeps filling stock-card fields and keys shipment summaries under stock inva
   ]);
   expect(shipmentOptions('o').queryKey).toEqual([...queryKeys.orders.all, 'shipment', 'o']);
 });
-it('requests VVM only for VVM products in batches of 100 with an explicit size', async () => {
+it('reads all VVM stock-card pages in batches of 100 and skips non-VVM products', async () => {
   const cards = Array.from({ length: 101 }, (_, i) => ({
     orderable: { id: 'vvm' },
     stockCard: { id: String(i) },
@@ -75,11 +75,15 @@ it('requests VVM only for VVM products in batches of 100 with an explicit size',
   }));
   vi.mocked(client.get).mockImplementation(async (_url, config) => ({
     data: {
-      content: ((config?.params as { id: string[] } | undefined)?.id ?? []).map((id) => ({
-        id,
-        extraData: { vvmStatus: 'STAGE_2' },
-      })),
-      totalPages: 1,
+      content: ((config?.params as { id: string[] } | undefined)?.id ?? [])
+        .slice(
+          ((config?.params as { page: number } | undefined)?.page ?? 0) * 50,
+          (((config?.params as { page: number } | undefined)?.page ?? 0) + 1) * 50,
+        )
+        .map((id) => ({ id, extraData: { vvmStatus: 'STAGE_2' } })),
+      totalPages: Math.ceil(
+        ((config?.params as { id: string[] } | undefined)?.id.length ?? 0) / 50,
+      ),
     },
   }));
   const result = await fetchShipmentVvm(
@@ -97,12 +101,12 @@ it('requests VVM only for VVM products in batches of 100 with an explicit size',
   );
   expect(Object.keys(result)).toHaveLength(101);
   expect(result['0']).toBe('STAGE_2');
-  expect(client.get).toHaveBeenCalledTimes(2);
+  expect(client.get).toHaveBeenCalledTimes(3);
   expect(
     vi
       .mocked(client.get)
       .mock.calls.map(([, config]) => (config?.params as { size: number } | undefined)?.size),
-  ).toEqual([100, 1]);
+  ).toEqual([100, 100, 100]);
 });
 it.each([
   'fulfillment.error.shipmentDraft.order.duplicate',

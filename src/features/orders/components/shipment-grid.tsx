@@ -34,21 +34,17 @@ export function ShipmentGrid(props: ShipmentGridProps) {
       .filter(
         (line) =>
           availableShipmentPacks(line.stockOnHand, line.product.netContent) === 0 &&
-          (Number(state.values.lines[shipmentFieldKey(line.key)]?.fill ?? line.fill) > 0 ||
-            validateShipmentFill(
-              line,
-              state.values.lines[shipmentFieldKey(line.key)]?.fill ?? line.fill,
-            ) !== null),
+          validateShipmentFill(
+            line,
+            state.values.lines[shipmentFieldKey(line.key)]?.fill ?? line.fill,
+          ) !== null,
       )
       .map((line) => line.key)
       .join('|'),
   );
   const groups = useMemo(() => {
     const kept = new Set(retained.split('|'));
-    return shipmentGroups(
-      props.order.orderLineItems,
-      props.lines.map((line) => ({ ...line, fill: kept.has(line.key) ? 1 : 0 })),
-    );
+    return shipmentGroups(props.order.orderLineItems, props.lines, kept);
   }, [props.order.orderLineItems, props.lines, retained]);
   const rows = shipmentDisplayRows(groups);
   return (

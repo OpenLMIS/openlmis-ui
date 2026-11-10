@@ -10,7 +10,7 @@ import type {
 } from '@/features/orders/lib/shipment-types';
 import type { CreateOrderBody, Order, OrderProduct, OrdersPage } from '@/features/orders/lib/types';
 import { client } from '@/integrations/axios';
-import { fetchIdBatches } from '@/lib/fetch-by-ids';
+import { fetchByIds, fetchIdBatches } from '@/lib/fetch-by-ids';
 import { fetchReport, fetchReportFile } from '@/lib/fetch-report';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
@@ -96,20 +96,11 @@ export async function fetchShipmentVvm(
   summaries: readonly ShipmentSummary[],
   products: readonly OrderProduct[],
 ): Promise<Record<string, string | null>> {
-  const scope = getSessionScope();
-  const batches = await fetchIdBatches(shipmentVvmCardIds(summaries, products), async (id) => {
-    assertSessionScope(scope);
-    const { data } = await client.get<
-      Page<{ id: string; extraData?: { vvmStatus?: string | null } }>
-    >('/stockCards', {
-      params: { id, size: id.length },
-      paramsSerializer: { indexes: null },
-    });
-    assertSessionScope(scope);
-    return data.content.map((card) => [card.id, card.extraData?.vvmStatus ?? null] as const);
-  });
-  assertSessionScope(scope);
-  return Object.fromEntries(batches.flat());
+  const cards = await fetchByIds<{ id: string; extraData?: { vvmStatus?: string | null } }>(
+    '/stockCards',
+    shipmentVvmCardIds(summaries, products),
+  );
+  return Object.fromEntries(cards.map((card) => [card.id, card.extraData?.vvmStatus ?? null]));
 }
 
 export async function findShipmentDraft(orderId: string): Promise<ShipmentRecord | null> {

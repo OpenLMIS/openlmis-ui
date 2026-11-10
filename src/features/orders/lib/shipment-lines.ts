@@ -129,6 +129,7 @@ const noStock = (lines: readonly ShipmentLine[]) =>
 export function shipmentGroups(
   orderLines: Order['orderLineItems'],
   lines: readonly ShipmentLine[],
+  retained?: ReadonlySet<string>,
 ): ShipmentGroup[] {
   const ordered = [...orderLines];
   for (const line of lines) {
@@ -142,7 +143,9 @@ export function shipmentGroups(
     const single =
       items.length === 1 && items[0].product.id === order.orderable.id && !items[0].lot;
     const empty = noStock(items);
-    const visible = empty ? items.filter((line) => (line.fill ?? 0) > 0) : items;
+    const visible = empty
+      ? items.filter((line) => (retained ? retained.has(line.key) : (line.fill ?? 0) > 0))
+      : items;
     const ids = [...new Set(visible.map((line) => line.product.id))];
     return {
       kind: single ? 'single' : 'product',

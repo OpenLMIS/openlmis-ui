@@ -263,3 +263,35 @@ it('blocks allocation until named lots load and exposes a retry on lot lookup fa
   expect(await screen.findByRole('textbox')).toHaveValue('2');
   expect(screen.getByText('Lot A')).toBeVisible();
 });
+
+it('keeps quantity typing and focus through Save and the following stock refresh', async () => {
+  const { client, page, record, order, summaries } = fixture('FULFILLING', true);
+  const saved = { ...record, lineItems: [{ ...record.lineItems[0], quantityShipped: 3 }] };
+  const response = Promise.withResolvers<typeof record>();
+  const refresh = Promise.withResolvers<typeof summaries>();
+  vi.mocked(findShipmentDraft).mockResolvedValue(record);
+  vi.mocked(saveShipmentDraft).mockReturnValue(response.promise);
+  vi.mocked(fetchShipmentSummaries).mockReturnValue(refresh.promise);
+  const user = userEvent.setup();
+  renderPage(page, { queryClient: client });
+  const input = await screen.findByRole('textbox');
+  fireEvent.change(input, { target: { value: '3' } });
+  await user.click(screen.getByRole('button', { name: 'orders.shipment.save' }));
+  await waitFor(() => expect(saveShipmentDraft).toHaveBeenCalledOnce());
+  await user.click(input);
+  fireEvent.change(input, { target: { value: '7' } });
+  await act(async () => response.resolve(saved));
+  await waitFor(() =>
+    expect(
+      client.getQueryState(shipmentSummariesOptions(shipmentStockFilter(order)).queryKey)
+        ?.fetchStatus,
+    ).toBe('fetching'),
+  );
+  expect(input).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'orders.shipment.save' })).toBeDisabled();
+  expect(input).toHaveFocus();
+  await user.type(input, '8');
+  expect(input).toHaveValue('78');
+  await act(async () => refresh.resolve(summaries));
+  expect(input).toHaveValue('78');
+});
