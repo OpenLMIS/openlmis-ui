@@ -21,12 +21,17 @@ export type CardAction = {
   focusableWhenDisabled?: boolean;
   onSelect?: (trigger: HTMLButtonElement) => void;
   link?: ReactElement;
-  data?: { [key: `data-${string}`]: string | boolean };
+  view?: boolean;
+  data?: DataAttributes;
 };
+
+type DataAttributes = { [key: `data-${string}`]: string | boolean };
 
 const MAX_BUTTONS = 3;
 
 export const InCardContext = createContext(false);
+
+export const RowActionsMenuContext = createContext(false);
 
 export function useInCards() {
   return use(InCardContext);
@@ -76,12 +81,45 @@ function CardActionButton({ action }: { action: CardAction }) {
   );
 }
 
-export function RowActions({ label, actions }: { label: string; actions: CardAction[] }) {
+export function RowActions({
+  label,
+  actions,
+  disabled,
+  data,
+}: {
+  label: string;
+  actions: CardAction[];
+  disabled?: boolean;
+  data?: DataAttributes;
+}) {
+  const menu = use(RowActionsMenuContext);
   if (useInCards()) return <CardActions actions={actions} label={label} />;
   if (actions.length === 0) return null;
+  const [only] = actions;
   return (
     <div className="flex justify-end">
-      <CardActionsMenu actions={actions} label={label} variant="ghost" />
+      {actions.length === 1 && only.view && !menu ? (
+        <Button
+          {...only.data}
+          aria-label={only.name}
+          disabled={only.disabled}
+          focusableWhenDisabled={only.focusableWhenDisabled}
+          nativeButton={!only.link}
+          onClick={only.onSelect && ((event) => only.onSelect?.(event.currentTarget))}
+          render={only.link}
+          size="sm"
+        >
+          {only.label}
+        </Button>
+      ) : (
+        <CardActionsMenu
+          actions={actions}
+          data={data}
+          disabled={disabled}
+          label={label}
+          variant="ghost"
+        />
+      )}
     </div>
   );
 }
@@ -90,17 +128,30 @@ function CardActionsMenu({
   actions,
   label,
   variant = 'outline',
+  disabled,
+  data,
 }: {
   actions: CardAction[];
   label: string;
   variant?: 'outline' | 'ghost';
+  disabled?: boolean;
+  data?: DataAttributes;
 }) {
   const menu = useMenuOpensDialog();
   const trigger = useRef<HTMLButtonElement>(null);
   return (
     <DropdownMenu onOpenChange={menu.onOpenChange}>
       <DropdownMenuTrigger
-        render={<Button aria-label={label} ref={trigger} size="icon-sm" variant={variant} />}
+        render={
+          <Button
+            {...data}
+            aria-label={label}
+            disabled={disabled}
+            ref={trigger}
+            size="icon-sm"
+            variant={variant}
+          />
+        }
       >
         <EllipsisIcon />
       </DropdownMenuTrigger>

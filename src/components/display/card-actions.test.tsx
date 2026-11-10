@@ -1,8 +1,13 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { PencilIcon, ShieldIcon, Trash2Icon, UsersIcon } from 'lucide-react';
+import { EyeIcon, PencilIcon, ShieldIcon, Trash2Icon, UsersIcon } from 'lucide-react';
 import { expect, it, vi } from 'vitest';
-import { type CardAction, CardActions } from '@/components/display/card-actions';
+import {
+  type CardAction,
+  CardActions,
+  RowActions,
+  RowActionsMenuContext,
+} from '@/components/display/card-actions';
 
 const edit: CardAction = { id: 'edit', icon: <PencilIcon />, label: 'Edit', onSelect: vi.fn() };
 const roles: CardAction = { id: 'roles', icon: <ShieldIcon />, label: 'Roles', onSelect: vi.fn() };
@@ -40,4 +45,30 @@ it('keeps the main action and one other as buttons and moves the rest, destructi
   expect(items.map((item) => item.textContent)).toEqual(['Members', 'Remove']);
   await user.click(screen.getByRole('menuitem', { name: 'Remove Admin' }));
   expect(remove.onSelect).toHaveBeenCalledOnce();
+});
+
+const view: CardAction = {
+  id: 'view',
+  icon: <EyeIcon />,
+  label: 'View',
+  name: 'View Admin',
+  view: true,
+  onSelect: vi.fn(),
+};
+
+it('shows a lone View row action as a button unless the column uses menus', () => {
+  const { rerender } = render(<RowActions actions={[view]} label="Actions For Admin" />);
+  expect(screen.getByRole('button', { name: 'View Admin' })).toHaveTextContent('View');
+
+  rerender(
+    <RowActionsMenuContext value>
+      <RowActions actions={[view]} label="Actions For Admin" />
+    </RowActionsMenuContext>,
+  );
+  expect(screen.getByRole('button', { name: 'Actions For Admin' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'View Admin' })).toBeNull();
+
+  rerender(<RowActions actions={[view, remove]} label="Actions For Admin" />);
+  expect(screen.getByRole('button', { name: 'Actions For Admin' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'View Admin' })).toBeNull();
 });
