@@ -160,10 +160,12 @@ it('uses the fulfillment endpoints and report language', async () => {
   );
 });
 
-it('shares a completed create across remounts in the same session', async () => {
-  const body = { order: { id: 'remount' }, lineItems: [] };
-  vi.mocked(client.post).mockResolvedValue({ data: { id: 'draft' } });
-  await createShipmentDraftOnce(body);
-  await createShipmentDraftOnce(body);
-  expect(client.post).toHaveBeenCalledOnce();
+it('creates again after a completed create and external deletion, sharing only in-flight calls', async () => {
+  const body = { order: { id: 'external-delete' }, lineItems: [] };
+  vi.mocked(client.post)
+    .mockResolvedValueOnce({ data: { id: 'deleted' } })
+    .mockResolvedValueOnce({ data: { id: 'fresh' } });
+  expect(await createShipmentDraftOnce(body)).toMatchObject({ id: 'deleted' });
+  expect(await createShipmentDraftOnce(body)).toMatchObject({ id: 'fresh' });
+  expect(client.post).toHaveBeenCalledTimes(2);
 });

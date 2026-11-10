@@ -22,7 +22,7 @@ import {
   useShipmentRow,
 } from '@/features/orders/components/shipment-row';
 import { shipmentFieldKey } from '@/features/orders/lib/shipment-form';
-import { shipmentGroups } from '@/features/orders/lib/shipment-lines';
+import { shipmentGroups, validateShipmentFill } from '@/features/orders/lib/shipment-lines';
 import { availableShipmentPacks } from '@/features/orders/lib/shipment-quantities';
 import { useCardLayout } from '@/hooks/use-card-view';
 
@@ -34,7 +34,11 @@ export function ShipmentGrid(props: ShipmentGridProps) {
       .filter(
         (line) =>
           availableShipmentPacks(line.stockOnHand, line.product.netContent) === 0 &&
-          Number(state.values.lines[shipmentFieldKey(line.key)]?.fill ?? line.fill) > 0,
+          (Number(state.values.lines[shipmentFieldKey(line.key)]?.fill ?? line.fill) > 0 ||
+            validateShipmentFill(
+              line,
+              state.values.lines[shipmentFieldKey(line.key)]?.fill ?? line.fill,
+            ) !== null),
       )
       .map((line) => line.key)
       .join('|'),

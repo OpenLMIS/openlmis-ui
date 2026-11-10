@@ -152,16 +152,11 @@ export function createShipmentDraftOnce(body: ShipmentBody): Promise<ShipmentRec
       return existing;
     }
   };
-  const request = create().catch((error) => {
+  const request = create().finally(() => {
     draftCreates.delete(key);
-    throw error;
   });
   draftCreates.set(key, request);
   return request;
-}
-
-export function forgetShipmentDraftCreate(orderId: string) {
-  draftCreates.delete(JSON.stringify([getSessionScope(), orderId]));
 }
 
 export async function saveShipmentDraft(body: ShipmentDraftBody) {

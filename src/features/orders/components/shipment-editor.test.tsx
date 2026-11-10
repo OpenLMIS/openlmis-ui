@@ -1,9 +1,15 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StrictMode } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { createShipmentDraftOnce, fetchOrder } from '@/features/orders/api/api';
+import {
+  createShipmentDraftOnce,
+  fetchOrder,
+  fetchShipmentSummaries,
+  findShipmentDraft,
+  saveShipmentDraft,
+} from '@/features/orders/api/api';
 import {
   orderOptions,
   shipmentDraftOptions,
@@ -15,6 +21,7 @@ import {
   shipmentVvmOptions,
 } from '@/features/orders/api/queries';
 import { ShipmentScreen, shipmentStockFilter } from '@/features/orders/components/shipment-editor';
+import { fetchLotsByIds } from '@/features/reference-data/api/api';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { creatingOrder, orderProduct } from '@/test-utils/order-fixtures';
 import { renderPage } from '@/test-utils/render-page';
@@ -23,6 +30,13 @@ vi.mock('@/features/orders/api/api', async (original) => ({
   ...(await original<typeof import('@/features/orders/api/api')>()),
   createShipmentDraftOnce: vi.fn(),
   fetchOrder: vi.fn(),
+  fetchShipmentSummaries: vi.fn(),
+  findShipmentDraft: vi.fn(),
+  saveShipmentDraft: vi.fn(),
+}));
+vi.mock('@/features/reference-data/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/reference-data/api/api')>()),
+  fetchLotsByIds: vi.fn(),
 }));
 vi.mock('@/hooks/use-quantity-unit', () => ({
   useQuantityUnit: () => ({ unit: 'PACKS', canSwitch: false, setUnit: vi.fn() }),
@@ -52,6 +66,8 @@ function fixture(status: string, edit = false) {
       { id: 'line', orderable: { id: 'product', versionNumber: 2 }, lot: null, quantityShipped: 2 },
     ],
   };
+  vi.mocked(fetchOrder).mockResolvedValue(order);
+  vi.mocked(fetchShipmentSummaries).mockResolvedValue(summaries);
   client.setQueryData(orderOptions(order.id).queryKey, order);
   client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
   client.setQueryData(shipmentSummariesOptions(shipmentStockFilter(order)).queryKey, summaries);
@@ -75,7 +91,7 @@ function fixture(status: string, edit = false) {
       />
     </StrictMode>
   );
-  return { client, page, record };
+  return { client, page, record, summaries, order };
 }
 it('creates an Ordered draft after render and keeps StrictMode effects from duplicating it', async () => {
   const { client, page, record } = fixture('ORDERED', true);
@@ -126,4 +142,124 @@ it('keeps fill errors hidden until blur, then follows corrections and blocks inv
   await user.clear(input);
   await user.click(screen.getByRole('button', { name: 'orders.shipment.confirm' }));
   expect(await screen.findByRole('alertdialog')).toHaveTextContent('orders.shipment.invalid');
+});
+
+it('waits for the entry draft refresh before allowing a save of cached quantities', async () => {
+  const { client, page, record } = fixture('FULFILLING', true);
+  const fresh = { ...record, lineItems: [{ ...record.lineItems[0], quantityShipped: 7 }] };
+  const request = Promise.withResolvers<typeof record>();
+  const pending = client.fetchQuery({
+    ...shipmentDraftOptions('a'),
+    staleTime: 0,
+    queryFn: () => request.promise,
+  });
+  vi.mocked(findShipmentDraft).mockResolvedValue(fresh);
+  vi.mocked(saveShipmentDraft).mockResolvedValue(fresh);
+  renderPage(page, { queryClient: client });
+  await screen.findByRole('heading', { name: 'orders.shipment.title' });
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  await act(async () => {
+    request.resolve(fresh);
+    await pending;
+  });
+  expect(await screen.findByRole('textbox')).toHaveValue('7');
+  await userEvent.setup().click(screen.getByRole('button', { name: 'orders.shipment.save' }));
+  await waitFor(() => expect(saveShipmentDraft).toHaveBeenCalledOnce());
+  expect(vi.mocked(saveShipmentDraft).mock.calls[0][0].lineItems[0].quantityShipped).toBe(7);
+});
+
+it('retains typed fills through a failed stock refresh and recovery', async () => {
+  const { client, page, summaries, order } = fixture('FULFILLING', true);
+  renderPage(page, { queryClient: client });
+  const input = await screen.findByRole('textbox');
+  fireEvent.change(input, { target: { value: '7' } });
+  await act(async () => {
+    await client
+      .fetchQuery({
+        ...shipmentSummariesOptions(shipmentStockFilter(order)),
+        staleTime: 0,
+        queryFn: async () => {
+          throw new Error('stock lookup failed');
+        },
+      })
+      .catch(() => {});
+  });
+  expect(screen.getByRole('textbox')).toBe(input);
+  expect(input).toHaveValue('7');
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'orders.shipment.confirm' })).toBeDisabled(),
+  );
+  await act(async () => {
+    client.setQueryData(shipmentSummariesOptions(shipmentStockFilter(order)).queryKey, summaries);
+  });
+  expect(screen.getByRole('textbox')).toHaveValue('7');
+});
+
+it('keeps a zero-stock lot input visible while its fill is blank or malformed', async () => {
+  const { client, page, record, summaries, order } = fixture('FULFILLING', true);
+  const lots = [{ id: 'lot', lotCode: 'Lot A', expirationDate: null }];
+  const zero = [
+    {
+      ...summaries[0],
+      stockOnHand: 0,
+      canFulfillForMe: [{ ...summaries[0].canFulfillForMe[0], lot: { id: 'lot' }, stockOnHand: 0 }],
+    },
+  ];
+  const draft = { ...record, lineItems: [{ ...record.lineItems[0], lot: { id: 'lot' } }] };
+  client.setQueryData(shipmentSummariesOptions(shipmentStockFilter(order)).queryKey, zero);
+  client.setQueryData(shipmentDraftOptions('a').queryKey, draft);
+  client.setQueryData(shipmentSavedProductsOptions(draft.lineItems).queryKey, [orderProduct]);
+  client.setQueryData(shipmentLotsOptions(zero, draft.lineItems).queryKey, lots);
+  client.setQueryData(shipmentLotsOptions(zero).queryKey, lots);
+  renderPage(page, { queryClient: client });
+  const input = await screen.findByRole('textbox');
+  fireEvent.change(input, { target: { value: '' } });
+  expect(screen.getByRole('textbox')).toBe(input);
+  fireEvent.change(input, { target: { value: 'bad' } });
+  expect(screen.getByRole('textbox')).toBe(input);
+  expect(screen.queryAllByText('NaN')).toHaveLength(0);
+  fireEvent.change(input, { target: { value: '0' } });
+  await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
+});
+
+it('blocks allocation until named lots load and exposes a retry on lot lookup failure', async () => {
+  const { client, page, record, summaries, order } = fixture('FULFILLING', true);
+  const stocked = [
+    {
+      ...summaries[0],
+      canFulfillForMe: [{ ...summaries[0].canFulfillForMe[0], lot: { id: 'lot' } }],
+    },
+  ];
+  const draft = { ...record, lineItems: [{ ...record.lineItems[0], lot: { id: 'lot' } }] };
+  client.setQueryData(shipmentSummariesOptions(shipmentStockFilter(order)).queryKey, stocked);
+  client.setQueryData(shipmentDraftOptions('a').queryKey, draft);
+  client.setQueryData(shipmentSavedProductsOptions(draft.lineItems).queryKey, [orderProduct]);
+  const query = shipmentLotsOptions(stocked, draft.lineItems);
+  const request =
+    Promise.withResolvers<
+      {
+        id: string;
+        lotCode: string;
+        expirationDate: null;
+        manufactureDate: null;
+        tradeItemId: string;
+      }[]
+    >();
+  const pending = client.fetchQuery({ ...query, queryFn: () => request.promise });
+  renderPage(page, { queryClient: client });
+  await screen.findByRole('heading', { name: 'orders.shipment.title' });
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  await act(async () => {
+    request.reject(new Error('lots forbidden'));
+    await pending.catch(() => {});
+  });
+  expect(await screen.findByText('orders.shipment.stock-error')).toBeVisible();
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  vi.mocked(fetchLotsByIds).mockResolvedValue([
+    { id: 'lot', lotCode: 'Lot A', expirationDate: null },
+  ]);
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Try Again' }));
+  await waitFor(() => expect(fetchLotsByIds).toHaveBeenCalledWith(['lot']));
+  expect(await screen.findByRole('textbox')).toHaveValue('2');
+  expect(screen.getByText('Lot A')).toBeVisible();
 });

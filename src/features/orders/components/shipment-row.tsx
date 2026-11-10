@@ -11,6 +11,7 @@ import {
 import { groupQuantities, lineQuantities } from '@/features/orders/lib/shipment-quantities';
 import type { Order } from '@/features/orders/lib/types';
 import type { QuantityUnit } from '@/lib/quantity';
+import { toLatinDigits } from '@/lib/whole-number';
 
 export const SHIPMENT_COLUMNS = [
   'product-code',
@@ -64,6 +65,10 @@ export function shipmentDisplayRows(groups: ShipmentGroup[]): ShipmentDisplayRow
     return rows;
   });
 }
+function numericFill(text: string) {
+  const value = Number(toLatinDigits(text));
+  return Number.isFinite(value) ? value : 0;
+}
 export function useShipmentRow(props: ShipmentGridProps, row: ShipmentDisplayRow) {
   const { t, i18n } = useTranslation();
   const selected = useStore(props.form.store, (state) =>
@@ -87,7 +92,7 @@ export function useShipmentRow(props: ShipmentGridProps, row: ShipmentDisplayRow
         row.ordered ?? 0,
         row.group.lines.map((item) => ({
           stockOnHand: item.stockOnHand,
-          fill: Number(values[shipmentFieldKey(item.key)]?.fill ?? 0),
+          fill: numericFill(values[shipmentFieldKey(item.key)]?.fill ?? ''),
           netContent: item.product.netContent,
         })),
         row.group.product.netContent,
@@ -96,7 +101,7 @@ export function useShipmentRow(props: ShipmentGridProps, row: ShipmentDisplayRow
     : lineQuantities(
         row.ordered ?? 0,
         line?.stockOnHand ?? 0,
-        Number(fill),
+        numericFill(fill),
         line?.product.netContent,
         props.unit,
       );

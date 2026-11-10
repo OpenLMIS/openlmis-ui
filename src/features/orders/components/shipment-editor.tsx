@@ -23,7 +23,6 @@ import {
   createShipmentDraftOnce,
   deleteShipmentDraft,
   fetchPickPackList,
-  forgetShipmentDraftCreate,
 } from '@/features/orders/api/api';
 import {
   orderOptions,
@@ -142,6 +141,7 @@ function ShipmentData({
   const { t } = useTranslation();
   const client = useQueryClient();
   const editableStatus = isFulfillable(order);
+  const [opened, setOpened] = useState(false);
   const record = useQuery({
     ...(editableStatus ? shipmentDraftOptions(order.id) : shipmentOptions(order.id)),
     retry: false,
@@ -184,6 +184,8 @@ function ShipmentData({
       order.status === 'ORDERED' &&
       access.canEdit &&
       ready &&
+      !record.isFetching &&
+      !summaries.isFetching &&
       record.isSuccess &&
       !record.data &&
       create.status === 'idle'
@@ -194,10 +196,32 @@ function ShipmentData({
     access.canEdit,
     ready,
     record.isSuccess,
+    record.isFetching,
+    summaries.isFetching,
     record.data,
     create.status,
     create.mutate,
   ]);
+  const error =
+    record.error ??
+    summaries.error ??
+    products.error ??
+    savedProducts.error ??
+    lots.error ??
+    vvm.error ??
+    create.error;
+  const loading =
+    !ready ||
+    record.isPending ||
+    record.isFetching ||
+    summaries.isFetching ||
+    savedProducts.isPending ||
+    lots.isPending ||
+    vvm.isPending ||
+    (editableStatus && access.canEdit && !record.data);
+  useEffect(() => {
+    if (!loading && !error) setOpened(true);
+  }, [loading, error]);
   const notice = (message: string) => (
     <ShipmentFrame order={order} cceStatus={cceStatus}>
       <Alert>
@@ -205,44 +229,36 @@ function ShipmentData({
       </Alert>
     </ShipmentFrame>
   );
-  if (record.isError && isRefused(record.error)) return notice(t('orders.shipment.cannot-view'));
+  if (!opened && record.isError && isRefused(record.error))
+    return notice(t('orders.shipment.cannot-view'));
   if (!editableStatus && record.isSuccess && !record.data)
     return notice(t('orders.shipment.cannot-fulfill'));
-  const error =
-    record.error ?? summaries.error ?? products.error ?? savedProducts.error ?? create.error;
-  if (error)
+  const failure = error ? (
+    <LoadError
+      title={t('orders.shipment.stock-error')}
+      description={t('error.description')}
+      error={error}
+      reset={() => {
+        for (const read of [record, summaries, products, savedProducts, lots, vvm])
+          if (read.isError) void read.refetch();
+        create.reset();
+      }}
+    />
+  ) : null;
+  if (!opened)
     return (
       <ShipmentFrame order={order} cceStatus={cceStatus}>
-        <LoadError
-          title={t('orders.shipment.stock-error')}
-          description={t('error.description')}
-          error={error}
-          reset={() => {
-            void record.refetch();
-            void summaries.refetch();
-            void products.refetch();
-            void savedProducts.refetch();
-            create.reset();
-          }}
-        />
+        {failure ?? <OrderLinesSkeleton />}
       </ShipmentFrame>
     );
-  if (
-    !ready ||
-    record.isPending ||
-    savedProducts.isPending ||
-    (editableStatus && access.canEdit && !record.data)
-  )
-    return (
-      <ShipmentFrame order={order} cceStatus={cceStatus}>
-        <OrderLinesSkeleton />
-      </ShipmentFrame>
-    );
+
   return (
     <ShipmentEditor
       order={order}
       cceStatus={cceStatus}
       lines={lines}
+      loadFailure={failure}
+      blocked={!!error || loading}
       record={record.data ?? null}
       access={editableStatus ? access : { canEdit: false, canCancel: false, canPrint: false }}
       onReturn={onReturn}
@@ -256,11 +272,15 @@ function ShipmentEditor({
   record,
   access,
   onReturn,
+  loadFailure,
+  blocked,
 }: {
   order: Order;
   cceStatus: ReactNode;
   lines: ShipmentLine[];
   record: ShipmentRecord | null;
+  loadFailure: ReactNode;
+  blocked: boolean;
   access: ShipmentAccess;
   onReturn: () => Promise<unknown>;
 }) {
@@ -391,7 +411,6 @@ function ShipmentEditor({
     },
     onSuccess: async (_, kind) => {
       leaving.current = true;
-      forgetShipmentDraftCreate(order.id);
       setAction(null);
       client.removeQueries({ queryKey: shipmentDraftOptions(order.id).queryKey, exact: true });
       await Promise.all([
@@ -414,7 +433,7 @@ function ShipmentEditor({
     },
     onError: (error, kind) => fail(error, kind),
   });
-  const pending = save.isPending || mutation.isPending || print.isPending;
+  const pending = save.isPending || mutation.isPending || print.isPending || blocked;
   const guard = useDiscardGuard(access.canEdit && dirty, {
     pending,
     allowLeave: () => leaving.current,
@@ -422,6 +441,7 @@ function ShipmentEditor({
   return (
     <>
       <ShipmentFrame order={order} cceStatus={cceStatus}>
+        {loadFailure}
         <form
           ref={region}
           onSubmit={(event) => event.preventDefault()}
@@ -438,7 +458,7 @@ function ShipmentEditor({
             form={form}
             unit={unit}
             canEdit={access.canEdit}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || blocked}
             attempted={attempted}
           />
         </form>
