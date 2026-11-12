@@ -8,6 +8,7 @@ import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { RowActions } from '@/components/display/card-actions';
@@ -61,7 +62,9 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
         }),
         helper.display({
           id: 'actions',
-          header: () => <span className="sr-only">{t('requisition-templates.action')}</span>,
+          header: () => (
+            <DataTableHeaderLabel>{t('requisition-templates.action')}</DataTableHeaderLabel>
+          ),
           cell: ({ row }) => (
             <RowActions
               label={t('card-actions.actions-for', { name: row.original.name })}

@@ -180,6 +180,7 @@
   "command.placeholder": "Search pages and actions...",
   "command.search": "Search...",
   "command.title": "Command Palette",
+  "data-table.actions": "Actions",
   "data-table.active-filters": "{count, plural, one {# active filter} other {# active filters}}",
   "data-table.ascending": "Ascending",
   "data-table.clear": "Clear",

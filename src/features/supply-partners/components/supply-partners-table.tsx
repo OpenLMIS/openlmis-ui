@@ -9,6 +9,7 @@ import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -45,7 +46,7 @@ function columns(t: TFunction, search: SupplyPartnersSearch) {
     }),
     helper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('supply-partners.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('supply-partners.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => <SupplyPartnerActions partner={row.original} search={search} />,
     }),

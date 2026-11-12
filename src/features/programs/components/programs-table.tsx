@@ -9,6 +9,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -53,7 +54,7 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('programs.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('programs.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => <ProgramActions onEdit={onEdit} program={row.original} />,
     }),

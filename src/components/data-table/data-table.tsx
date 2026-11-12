@@ -277,8 +277,14 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
         : ChevronsUpDownIcon;
 
   return (
-    <div className="-ms-2">
-      <Button onClick={column.getToggleSortingHandler()} size="xs" variant="ghost">
+    <div className="-ms-2 min-w-0">
+      <Button
+        onClick={column.getToggleSortingHandler()}
+        size="xs"
+        variant="ghost"
+        width="full"
+        align="start"
+      >
         <DataTableHeaderLabel>{title}</DataTableHeaderLabel>
         <SortIcon className="text-muted-foreground" data-icon="inline-end" />
       </Button>
@@ -288,7 +294,10 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
 
 export function DataTableHeaderLabel({ children }: { children: ReactNode }) {
   return (
-    <span className="font-medium text-muted-foreground text-2xs uppercase tracking-table-label">
+    <span
+      className="block min-w-0 truncate font-medium text-muted-foreground text-2xs uppercase tracking-table-label"
+      title={typeof children === 'string' ? children : undefined}
+    >
       {children}
     </span>
   );

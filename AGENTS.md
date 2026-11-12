@@ -491,6 +491,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   minimums do not fit.
 
 - Tables draw vertical column dividers by default.
+- Action columns show a visible translated heading. Single-line table headers truncate within
+  their column with an ellipsis and expose the full label on hover; sort icons remain visible.
 
 - Exception to one-line headers: the requisition and batch approval grids wrap header labels
   between words, up to three lines, with an info icon tooltip for template definitions.

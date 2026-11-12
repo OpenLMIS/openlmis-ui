@@ -9,6 +9,7 @@ import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -108,7 +109,7 @@ function createColumns(t: TFunction, listSearch: SupervisoryNodesSearch) {
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('supervisory-nodes.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('supervisory-nodes.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       enableHiding: false,
       cell: ({ row }) => <NodeActions node={row.original} listSearch={listSearch} />,

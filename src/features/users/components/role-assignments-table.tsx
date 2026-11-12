@@ -15,6 +15,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -136,8 +137,8 @@ function createColumns(options: ColumnOptions) {
   });
   const actions = columnHelper.display({
     id: 'actions',
-    header: () => <span className="sr-only">{t('users.roles.actions')}</span>,
-    meta: { className: 'w-16' },
+    header: () => <DataTableHeaderLabel>{t('users.roles.actions')}</DataTableHeaderLabel>,
+    meta: { className: 'w-24' },
     cell: ({ row }) => (
       <RoleActions
         onRemove={() => onRemove?.(row.original)}

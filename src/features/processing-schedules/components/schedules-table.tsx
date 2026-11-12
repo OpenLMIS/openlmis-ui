@@ -9,6 +9,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -50,7 +51,9 @@ function createColumns(t: TFunction, onEdit: (id: string) => void) {
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('processing-schedules.actions')}</span>,
+      header: () => (
+        <DataTableHeaderLabel>{t('processing-schedules.actions')}</DataTableHeaderLabel>
+      ),
       meta: { className: 'w-24' },
       cell: ({ row }) => <ScheduleActions schedule={row.original} onEdit={onEdit} />,
     }),

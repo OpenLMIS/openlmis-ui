@@ -10,6 +10,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -67,7 +68,7 @@ function createColumns(t: TFunction, actions: UserRowActions) {
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('users.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('users.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => (
         <UserActions

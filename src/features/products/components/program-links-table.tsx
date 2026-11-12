@@ -9,6 +9,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -91,7 +92,7 @@ function createColumns(t: TFunction, formatPrice: (price: number) => string, act
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('products.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('products.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => <ProgramLinkActions actions={actions} link={row.original} />,
     }),

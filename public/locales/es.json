@@ -180,6 +180,7 @@
   "command.placeholder": "Buscar páginas y acciones...",
   "command.search": "Buscar...",
   "command.title": "Paleta de comandos",
+  "data-table.actions": "Acciones",
   "data-table.active-filters": "{count, plural, one {# filtro activo} other {# filtros activos}}",
   "data-table.ascending": "Ascendente",
   "data-table.clear": "Borrar",
