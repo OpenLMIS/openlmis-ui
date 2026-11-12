@@ -30,9 +30,8 @@ export function NationalSearchForm({
   const form = useAppForm({
     defaultValues: start,
     listeners: { onChange: ({ formApi }) => onDraftChange(formApi.state.values) },
-    onSubmit: ({ value, formApi }) => {
+    onSubmit: ({ value }) => {
       if (value.zone && value.period) onSearch({ zone: value.zone, period: value.period });
-      formApi.reset(value);
     },
   });
   useEffect(() => {

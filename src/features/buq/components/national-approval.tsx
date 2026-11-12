@@ -1,21 +1,14 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { SearchIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
-import { DataTableToolbar } from '@/components/data-table/data-table';
+import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
+import { useFilterScoped } from '@/components/valid-assignments/selection';
 import { supervisedZonesOptions } from '@/features/buq/api/queries';
 import {
-  type NationalDraft,
   NationalSearchForm,
   NationalSearchSkeleton,
 } from '@/features/buq/components/national-search';
@@ -72,19 +65,7 @@ function NationalViewMenu({
 }
 
 function Notice({ title, description }: { title: string; description: string }) {
-  return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <SearchIcon />
-        </EmptyMedia>
-        <EmptyTitle>
-          <h2>{title}</h2>
-        </EmptyTitle>
-        <EmptyDescription>{description}</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  );
+  return <DataTableEmpty description={description} icon={<SearchIcon />} title={title} />;
 }
 
 function NationalContent({ programId, search, onSearchChange }: NationalApprovalProps) {
@@ -96,19 +77,15 @@ function NationalContent({ programId, search, onSearchChange }: NationalApproval
   const groups = useMemo(() => groupOptions(tree, zones), [tree, zones]);
   const zone = groups.some(({ value }) => value === search.zone) ? search.zone : undefined;
   const period = periods.some(({ id }) => id === search.period) ? search.period : undefined;
-  const start = useMemo<NationalDraft>(
+  const start = useMemo(
     () => ({
-      zone: zone ?? (!search.zone && groups.length === 1 ? (groups[0]?.value ?? null) : null),
+      zone: zone ?? (search.zone ? null : (groups[0]?.value ?? null)),
       period: period ?? (search.period ? '' : (periods.at(-1)?.id ?? '')),
     }),
     [zone, period, search.zone, search.period, groups, periods],
   );
-  const [draft, setDraft] = useState(start);
-  const [shownFor, setShownFor] = useState(start);
-  if (shownFor !== start) {
-    setShownFor(start);
-    setDraft(start);
-  }
+  const startKey = `${start.zone}|${start.period}`;
+  const [draft, setDraft] = useFilterScoped(startKey, start);
   if (!groups.length) {
     return (
       <Notice
@@ -123,7 +100,7 @@ function NationalContent({ programId, search, onSearchChange }: NationalApproval
     <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={view.measure}>
       <NationalSearchForm
         groups={groups}
-        onDraftChange={setDraft}
+        onDraftChange={(next) => setDraft(next, startKey)}
         onSearch={(next) => onSearchChange({ ...next, page: undefined })}
         periods={periods}
         start={start}
@@ -158,6 +135,12 @@ function NationalContent({ programId, search, onSearchChange }: NationalApproval
               visibility={view.columnView.visibility}
             />
           </QueryBoundary>
+          {!matches && (
+            <Notice
+              description={t('buq.national.choose-description')}
+              title={t('buq.national.choose')}
+            />
+          )}
         </div>
       ) : (
         <Notice

@@ -17,6 +17,7 @@ import {
 } from '@/features/buq/api/queries';
 import { approveAccess, type BuqAccess, buqAccess } from '@/features/buq/lib/access';
 import { approvalFacilityIds } from '@/features/buq/lib/approval-rows';
+import { nationalFacilityIds } from '@/features/buq/lib/national';
 import {
   currencySettingsOptions,
   deploymentTimeZoneOptions,
@@ -135,14 +136,7 @@ export async function loadNationalAccess(
           }),
         )
         .then(
-          (items) =>
-            queryClient.prefetchQuery(
-              facilitiesByIdsOptions(
-                approvalFacilityIds(
-                  items.map(({ bottomUpQuantification }) => bottomUpQuantification),
-                ),
-              ),
-            ),
+          (items) => queryClient.prefetchQuery(facilitiesByIdsOptions(nationalFacilityIds(items))),
           noop,
         );
     }

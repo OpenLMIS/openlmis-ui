@@ -3,11 +3,10 @@ import {
   type ColumnVisibilityState,
   createColumnHelper,
   functionalUpdate,
-  type RowSelectionState,
 } from '@tanstack/react-table';
 import type { ParseKeys, TFunction } from 'i18next';
 import { ClipboardCheckIcon, InfoIcon, Loader2Icon, StampIcon } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { type RefObject, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -48,6 +47,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import {
   NOTHING_PICKED,
   type Picked,
+  toRowSelection,
   useFilterScoped,
   withoutIds,
 } from '@/components/valid-assignments/selection';
@@ -55,7 +55,6 @@ import { type FinalApprovalSearch, finalApproveBuqs } from '@/features/buq/api/a
 import { buqsForFinalApprovalOptions } from '@/features/buq/api/queries';
 import { buqStatusBadge } from '@/features/buq/components/buq-status-badge';
 import { type BuqTableSelection, useBuqTable } from '@/features/buq/components/use-buq-table';
-import { approvalFacilityIds } from '@/features/buq/lib/approval-rows';
 import { formatMoney } from '@/features/buq/lib/money';
 import {
   COST_GROUP_IDS,
@@ -63,6 +62,7 @@ import {
   type CostTotals,
   costTotals,
   type NationalRow,
+  nationalFacilityIds,
   nationalRows,
 } from '@/features/buq/lib/national';
 import type { BuqTableProps } from '@/features/buq/lib/search';
@@ -86,12 +86,12 @@ const GROUP_LABELS: Record<CostGroupId | 'others', ParseKeys> = {
 };
 
 export const NATIONAL_HIDEABLE_COLUMNS: readonly (ResponsiveColumn & { labelKey: ParseKeys })[] = [
-  { id: 'facilityType', labelKey: 'buq.approve.facility-type', hideBelow: 720 },
-  { id: 'pharmaceuticals', labelKey: GROUP_LABELS.pharmaceuticals, hideBelow: 820 },
-  { id: 'medical', labelKey: GROUP_LABELS.medical, hideBelow: 960 },
-  { id: 'radiology', labelKey: GROUP_LABELS.radiology, hideBelow: 1100 },
-  { id: 'diagnostics', labelKey: GROUP_LABELS.diagnostics, hideBelow: 1240 },
-  { id: 'dental', labelKey: GROUP_LABELS.dental, hideBelow: 1380 },
+  { id: 'facilityType', labelKey: 'buq.approve.facility-type', hideBelow: 640 },
+  { id: 'pharmaceuticals', labelKey: GROUP_LABELS.pharmaceuticals, hideBelow: 720 },
+  { id: 'medical', labelKey: GROUP_LABELS.medical, hideBelow: 800 },
+  { id: 'radiology', labelKey: GROUP_LABELS.radiology, hideBelow: 880 },
+  { id: 'diagnostics', labelKey: GROUP_LABELS.diagnostics, hideBelow: 960 },
+  { id: 'dental', labelKey: GROUP_LABELS.dental, hideBelow: 1040 },
 ];
 
 const SUMMARY_IDS: readonly (CostGroupId | 'others')[] = [...COST_GROUP_IDS, 'others'];
@@ -118,7 +118,7 @@ function StatusHeader() {
   );
 }
 
-function createColumns(t: TFunction, currency: CurrencySettings | undefined) {
+function createColumns(t: TFunction, currency: CurrencySettings | undefined, info: boolean) {
   const text = (id: 'facilityName' | 'facilityType', label: ParseKeys) =>
     columnHelper.accessor(id, {
       header: t(label),
@@ -133,7 +133,12 @@ function createColumns(t: TFunction, currency: CurrencySettings | undefined) {
   return columnHelper.columns([
     selectionColumn((row: NationalRow) => rowName(t, row)),
     columnHelper.accessor('status', {
-      header: () => <StatusHeader />,
+      header: () =>
+        info ? (
+          <StatusHeader />
+        ) : (
+          <DataTableHeaderLabel>{t('buq.create.status')}</DataTableHeaderLabel>
+        ),
       cell: ({ getValue }) => buqStatusBadge(t, getValue()),
       meta: { label: t('buq.create.status') },
     }),
@@ -165,7 +170,7 @@ function useNationalTable(
   selection?: BuqTableSelection,
 ) {
   const { t } = useTranslation();
-  const columns = useMemo(() => createColumns(t, currency), [t, currency]);
+  const columns = useMemo(() => createColumns(t, currency, !!selection), [t, currency, selection]);
   return useBuqTable(rows, columns, props, visibility, selection);
 }
 
@@ -199,6 +204,7 @@ export function NationalResultsSkeleton({
           ))}
         </RecordSummaryFields>
       </RecordSummary>
+      {cards && <p className="text-muted-foreground text-sm">{t('buq.national.status-info')}</p>}
       {cards ? (
         <TableCardsSkeleton rowCount={1} table={table} title="facilityName" />
       ) : (
@@ -216,22 +222,21 @@ export function NationalResults({
   const { t } = useTranslation();
   const listOptions = buqsForFinalApprovalOptions(query);
   const { data: items } = useSuspenseQuery(listOptions);
-  const facilityIds = useMemo(
-    () => approvalFacilityIds(items.map(({ bottomUpQuantification }) => bottomUpQuantification)),
-    [items],
-  );
+  const facilityIds = useDeferredValue(useMemo(() => nationalFacilityIds(items), [items]));
   const { data: facilities } = useSuspenseQuery(facilitiesByIdsOptions(facilityIds));
   const { data: currency } = useSuspenseQuery(currencySettingsOptions());
   const rows = useMemo(() => nationalRows(items, facilities), [items, facilities]);
   const totals = useMemo(() => costTotals(items), [items]);
   const scope = JSON.stringify(query);
-  const [picked, setPicked] = useFilterScoped<Picked>(scope, NOTHING_PICKED);
+  const [stored, setPicked] = useFilterScoped<Picked>(scope, NOTHING_PICKED);
   const [confirming, setConfirming] = useState<Picked>();
-  const rowSelection = useMemo<RowSelectionState>(
-    () => Object.fromEntries([...picked.keys()].map((id) => [id, true])),
-    [picked],
-  );
+  const listRef = useRef<HTMLDivElement>(null);
   const names = useMemo(() => new Map(rows.map((row) => [row.id, rowName(t, row)])), [rows, t]);
+  const picked = useMemo(
+    () => new Map([...stored].filter(([id]) => names.has(id))),
+    [stored, names],
+  );
+  const rowSelection = useMemo(() => toRowSelection(picked), [picked]);
   const { table, pageStart, isPastLastPage } = useNationalTable(rows, props, currency, {
     rowSelection,
     onRowSelectionChange: (updater) => {
@@ -250,7 +255,7 @@ export function NationalResults({
   );
   const selectAll = () => setPicked(new Map(names), scope);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 outline-none" ref={listRef} tabIndex={-1}>
       {rows.length > 0 && <NationalSummary currency={currency} totals={totals} />}
       {props.cards && rows.length > 0 && (
         <p className="text-muted-foreground text-sm">{t('buq.national.status-info')}</p>
@@ -276,14 +281,23 @@ export function NationalResults({
       )}
       <DataTableSelectionBar count={picked.size} onClear={() => setPicked(NOTHING_PICKED, scope)}>
         {picked.size < rows.length && (
-          <Button onClick={selectAll} size="sm" variant="outline">
+          <Button
+            aria-label={t('buq.national.select-all', { count: rows.length })}
+            onClick={selectAll}
+            size="sm"
+            variant="outline"
+          >
             <SelectionBarLabel
               full={t('buq.national.select-all', { count: rows.length })}
               short={t('buq.national.select-all-short')}
             />
           </Button>
         )}
-        <Button onClick={() => setConfirming(picked)} size="sm">
+        <Button
+          aria-label={t('buq.national.final-approval')}
+          onClick={() => setConfirming(picked)}
+          size="sm"
+        >
           <SelectionBarLabel
             full={t('buq.national.final-approval')}
             short={t('buq.national.final-approval-short')}
@@ -291,6 +305,7 @@ export function NationalResults({
         </Button>
       </DataTableSelectionBar>
       <FinalApproveDialog
+        focusAfterApproval={listRef}
         listQuery={query}
         onApproved={(ids) => setPicked(withoutIds(picked, ids), scope)}
         onClose={() => setConfirming(undefined)}
@@ -301,11 +316,13 @@ export function NationalResults({
 }
 
 function FinalApproveDialog({
+  focusAfterApproval,
   listQuery,
   targets,
   onClose,
   onApproved,
 }: {
+  focusAfterApproval: RefObject<HTMLElement | null>;
   listQuery: FinalApprovalSearch;
   targets: Picked | undefined;
   onClose: () => void;
@@ -324,27 +341,31 @@ function FinalApproveDialog({
       });
       const listed = new Set(fresh.map(({ bottomUpQuantification }) => bottomUpQuantification.id));
       const waiting = ids.filter((id) => listed.has(id));
-      const result = waiting.length
-        ? await finalApproveBuqs(waiting)
-        : { approved: [], error: undefined };
+      const result = await finalApproveBuqs(waiting);
       return { ...result, skipped: ids.length - waiting.length };
     },
     onSuccess: ({ approved, error, skipped }) => {
       onApproved(approved);
-      for (const id of approved) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.buq.detail(id) });
-      }
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'detail'] });
       if (error) return;
       close();
-      toast.success(t('buq.national.approved-title'), {
-        description: t('buq.national.approved', { count: approved.length, skipped }),
-      });
+      if (approved.length) {
+        toast.success(t('buq.national.approved-title'), {
+          description: t('buq.national.approved', { count: approved.length, skipped }),
+        });
+      } else {
+        toast.info(t('buq.national.none-approved-title'), {
+          description: t('buq.national.none-approved', { count: skipped }),
+        });
+      }
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'list'] });
     },
   });
   const failure = approve.isError ? approve.error : approve.data?.error;
+  const partly = approve.data?.approved.length ?? 0;
+  const reason = serverMessage(failure) ?? t('buq.national.approve-error');
   const props = dialogProps(approve.isPending);
   return (
     <AlertDialog
@@ -354,7 +375,14 @@ function FinalApproveDialog({
         if (!next) approve.reset();
       }}
     >
-      <AlertDialogContent initialFocus={cancelRef}>
+      <AlertDialogContent
+        finalFocus={() => {
+          if (!approve.data?.approved.length) return true;
+          focusAfterApproval.current?.focus();
+          return false;
+        }}
+        initialFocus={cancelRef}
+      >
         <AlertDialogHeader>
           <AlertDialogMedia>
             <StampIcon />
@@ -364,8 +392,14 @@ function FinalApproveDialog({
         </AlertDialogHeader>
         {failure != null && (
           <ErrorAlert
-            description={serverMessage(failure) ?? t('buq.national.approve-error')}
-            title={t('buq.national.approve-error-title')}
+            description={
+              partly ? `${t('buq.national.partly-approved', { count: partly })} ${reason}` : reason
+            }
+            title={
+              partly
+                ? t('buq.national.partly-approved-title')
+                : t('buq.national.approve-error-title')
+            }
           />
         )}
         <AlertDialogFooter>
