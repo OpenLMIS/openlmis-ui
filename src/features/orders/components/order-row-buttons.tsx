@@ -164,11 +164,9 @@ export function FulfillOrderButton({
 }) {
   const { t } = useTranslation();
   const cards = useInCards();
-  const label = t(
-    fulfillAction(order) === 'continue'
-      ? 'orders.continue-fulfillment'
-      : 'orders.start-fulfillment',
-  );
+  const continuing = fulfillAction(order) === 'continue';
+  const variant = continuing ? 'secondary' : 'default';
+  const label = t(continuing ? 'orders.continue-fulfillment' : 'orders.start-fulfillment');
   const name = t('orders.action-for', { action: label, order: order.orderCode ?? order.id });
   const link = (
     <Link
@@ -183,13 +181,13 @@ export function FulfillOrderButton({
   return cards ? (
     <CardActions
       label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}
-      actions={[{ id: 'fulfill', icon: <PackageOpenIcon />, label, name, disabled, link }]}
+      actions={[{ id: 'fulfill', icon: <PackageOpenIcon />, label, name, disabled, link, variant }]}
     />
   ) : (
     <Button
       aria-label={name}
       size="sm"
-      variant="outline"
+      variant={variant}
       disabled={disabled}
       nativeButton={false}
       role="link"

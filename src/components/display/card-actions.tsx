@@ -17,6 +17,7 @@ export type CardAction = {
   label: string;
   name?: string;
   destructive?: boolean;
+  variant?: 'default' | 'secondary';
   disabled?: boolean;
   focusableWhenDisabled?: boolean;
   opensDialog?: boolean;
@@ -68,7 +69,7 @@ function CardActionButton({ action }: { action: CardAction }) {
             onClick={action.onSelect && ((event) => action.onSelect?.(event.currentTarget))}
             render={action.link}
             size="icon-sm"
-            variant={action.destructive ? 'destructive' : 'outline'}
+            variant={action.destructive ? 'destructive' : (action.variant ?? 'outline')}
           />
         }
       >
