@@ -207,7 +207,7 @@ export function PodEditor({
   const guard = useDiscardGuard(editable && dirty, { pending, allowLeave: () => leaving.current });
   return (
     <>
-      <Workspace>
+      <Workspace width="large">
         <WorkspaceHeader>
           <WorkspaceHeading>
             <WorkspaceIcon>
@@ -305,7 +305,7 @@ export function PodEditor({
                 disabled={pending && mutation.variables?.confirming === true}
                 attempted={attempted}
               />
-              <div className="max-w-2xl">
+              <div className="ms-auto w-full max-w-2xl">
                 <SettingsList>
                   {(['deliveredBy', 'receivedBy', 'receivedDate'] as const).map((key) =>
                     editable ? (
@@ -369,7 +369,7 @@ export function PodEditor({
           </div>
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter>
+      <WorkspaceFooter width="large">
         <Button size="lg" variant="outline" disabled={pending} onClick={onCancel}>
           {t('orders.edit.cancel')}
         </Button>
