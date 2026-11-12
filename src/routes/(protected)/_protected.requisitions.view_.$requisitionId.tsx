@@ -480,7 +480,6 @@ function RequisitionBody({
   const finished = useRef(false);
   const [attempt] = useState(createRequisitionActionAttempt);
   const [busy, setBusy] = useState(false);
-  const [synced, setSynced] = useState(false);
   const uncertain = useRef<{
     kind: 'submit' | 'submitAndAuthorize' | 'authorize' | 'approve' | 'reject';
     node?: string | null;
@@ -530,7 +529,6 @@ function RequisitionBody({
     setServerStatus(null);
     updateUncertain(null);
     refreshPending.current = false;
-    setSynced(false);
     if (!keepKey) attempt.key = randomId();
     return fresh;
   };
@@ -543,7 +541,6 @@ function RequisitionBody({
     editor.form.setFieldValue('draft', next);
     editor.device.write(next, saved);
     setRecord(saved);
-    setSynced(true);
     latest.current = { record: saved, editor };
     refreshPending.current = false;
     queryClient.setQueryData(requisitionOptions(saved.id).queryKey, saved);
@@ -705,7 +702,6 @@ function RequisitionBody({
         if (savedRefresh.current === refresh) savedRefresh.current = undefined;
       })
       .catch(() => undefined);
-    setSynced(true);
     return response;
   };
   const mutation = useSessionMutation({
@@ -1247,11 +1243,6 @@ function RequisitionBody({
                 />
               </AlertAction>
             </Alert>
-          )}
-          {synced && !dirty && (
-            <p role="note" className="text-muted-foreground text-sm">
-              {t('requisitions.edit.synced-title')}
-            </p>
           )}
           {(editor.device.outdated || loaderOutdated) && (
             <RequisitionOutdatedAlert>
