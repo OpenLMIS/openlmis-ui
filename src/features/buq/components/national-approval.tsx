@@ -28,6 +28,7 @@ const VISIBILITY_KEY = 'buq.national.column-visibility';
 
 type NationalApprovalProps = {
   programId: string;
+  selectionSlot: HTMLElement | null;
   search: NationalSearch;
   onSearchChange: SearchChange<NationalSearch>;
 };
@@ -68,7 +69,12 @@ function Notice({ title, description }: { title: string; description: string }) 
   return <DataTableEmpty description={description} icon={<SearchIcon />} title={title} />;
 }
 
-function NationalContent({ programId, search, onSearchChange }: NationalApprovalProps) {
+function NationalContent({
+  programId,
+  search,
+  onSearchChange,
+  selectionSlot,
+}: NationalApprovalProps) {
   const { t } = useTranslation();
   const view = useNationalView();
   const queryClient = useQueryClient();
@@ -137,6 +143,7 @@ function NationalContent({ programId, search, onSearchChange }: NationalApproval
             resetKey={`${applied.zone}-${applied.period}`}
           >
             <NationalResults
+              selectionSlot={selectionSlot}
               cards={view.cards}
               onSearchChange={onSearchChange}
               query={{ programId, periodId: applied.period, zoneId: applied.zone }}

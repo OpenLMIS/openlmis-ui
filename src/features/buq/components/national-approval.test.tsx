@@ -86,7 +86,14 @@ let searchFor: (search: NationalSearch) => void = () => {};
 function StatefulNational({ start }: { start: NationalSearch }) {
   const [search, setSearch] = useState(start);
   searchFor = setSearch;
-  return <NationalApproval onSearchChange={setSearch} programId="g1" search={search} />;
+  return (
+    <NationalApproval
+      selectionSlot={document.body}
+      onSearchChange={setSearch}
+      programId="g1"
+      search={search}
+    />
+  );
 }
 
 function renderNational(search: NationalSearch = {}, stateful = false) {
@@ -115,7 +122,12 @@ function renderNational(search: NationalSearch = {}, stateful = false) {
     stateful ? (
       <StatefulNational start={search} />
     ) : (
-      <NationalApproval onSearchChange={onSearchChange} programId="g1" search={search} />
+      <NationalApproval
+        selectionSlot={document.body}
+        onSearchChange={onSearchChange}
+        programId="g1"
+        search={search}
+      />
     ),
     { queryClient },
   );

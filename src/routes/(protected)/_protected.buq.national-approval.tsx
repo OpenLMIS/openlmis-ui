@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { StampIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Workspace,
@@ -47,21 +48,26 @@ function NationalPage() {
   const access = Route.useLoaderData();
   const search = Route.useSearch();
   const { updateSearch } = useSearchNavigation<NationalSearch>({});
+  const [selectionSlot, setSelectionSlot] = useState<HTMLElement | null>(null);
   return (
-    <Workspace width="wide">
-      <NationalHeader />
-      <WorkspaceContent>
-        {access.kind === 'ready' ? (
-          <NationalApproval
-            onSearchChange={updateSearch}
-            programId={access.programId}
-            search={search}
-          />
-        ) : (
-          <BuqUnavailable kind={access.kind} title={t('buq.national.unavailable-title')} />
-        )}
-      </WorkspaceContent>
-    </Workspace>
+    <>
+      <Workspace width="wide">
+        <NationalHeader />
+        <WorkspaceContent>
+          {access.kind === 'ready' ? (
+            <NationalApproval
+              selectionSlot={selectionSlot}
+              onSearchChange={updateSearch}
+              programId={access.programId}
+              search={search}
+            />
+          ) : (
+            <BuqUnavailable kind={access.kind} title={t('buq.national.unavailable-title')} />
+          )}
+        </WorkspaceContent>
+      </Workspace>
+      <div className="contents" ref={setSelectionSlot} />
+    </>
   );
 }
 
