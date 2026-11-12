@@ -23,7 +23,7 @@ export function ShipmentFooter({
   const { t } = useTranslation();
   if (!canEdit && !canCancel) return null;
   return (
-    <WorkspaceFooter width="wide">
+    <WorkspaceFooter>
       <div className="flex flex-wrap gap-2">
         {canEdit && hasDraft && (
           <Button

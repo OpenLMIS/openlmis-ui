@@ -78,7 +78,7 @@ function FulfillOrdersPending() {
   const search = Route.useSearch();
   const view = useCardView(FULFILL_ORDER_HIDEABLE_COLUMNS, 'orders.fulfill.column-visibility');
   return (
-    <Workspace width="wide">
+    <Workspace>
       <FulfillOrdersHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={view.measure}>
@@ -104,7 +104,7 @@ function FulfillOrdersPending() {
 function FulfillOrdersPage() {
   const view = useCardView(FULFILL_ORDER_HIDEABLE_COLUMNS, 'orders.fulfill.column-visibility');
   return (
-    <Workspace width="wide">
+    <Workspace>
       <FulfillOrdersHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={view.measure}>

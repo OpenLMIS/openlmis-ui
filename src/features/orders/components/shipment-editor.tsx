@@ -89,7 +89,7 @@ export function ShipmentFrame({
 }) {
   const { t } = useTranslation();
   return (
-    <Workspace width="wide">
+    <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceTitle>
@@ -523,7 +523,7 @@ function ShipmentEditor({
 export function ShipmentPending() {
   const { t } = useTranslation();
   return (
-    <Workspace width="wide">
+    <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceTitle>{t('orders.shipment.crumb')}</WorkspaceTitle>

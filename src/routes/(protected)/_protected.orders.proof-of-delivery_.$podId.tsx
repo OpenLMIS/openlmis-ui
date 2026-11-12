@@ -107,7 +107,7 @@ function PodContent() {
 function PodPending() {
   const { t } = useTranslation();
   return (
-    <Workspace width="wide">
+    <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceTitle>{t('orders.pod.detail-title')}</WorkspaceTitle>
@@ -125,7 +125,7 @@ function PodLoadError(props: ErrorComponentProps) {
   const { t } = useTranslation();
   if (!isNotFound(props.error) && !isRefused(props.error)) return <OrdersError {...props} />;
   return (
-    <Workspace width="wide">
+    <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
           <WorkspaceTitle>{t('orders.pod.detail-title')}</WorkspaceTitle>

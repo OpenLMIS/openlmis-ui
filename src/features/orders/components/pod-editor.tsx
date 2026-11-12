@@ -208,7 +208,7 @@ export function PodEditor({
   const statusKey = orderStatusKey(order.status);
   return (
     <>
-      <Workspace width="wide">
+      <Workspace>
         <WorkspaceHeader>
           <WorkspaceHeading>
             <WorkspaceIcon>
@@ -370,7 +370,7 @@ export function PodEditor({
           </div>
         </WorkspaceContent>
       </Workspace>
-      <WorkspaceFooter width="wide">
+      <WorkspaceFooter>
         <Button size="lg" variant="outline" disabled={pending} onClick={onCancel}>
           {t('orders.edit.cancel')}
         </Button>
