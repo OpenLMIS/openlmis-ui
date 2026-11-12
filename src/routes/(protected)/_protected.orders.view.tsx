@@ -154,7 +154,7 @@ function OrdersPending() {
   const search = Route.useSearch();
   const columnView = useCardView(ORDER_HIDEABLE_COLUMNS, 'orders.view.column-visibility');
   return (
-    <Workspace>
+    <Workspace width="large">
       <OrdersHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={columnView.measure}>
@@ -179,7 +179,7 @@ function OrdersPage() {
     [permissions],
   );
   return (
-    <Workspace>
+    <Workspace width="large">
       <OrdersHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={columnView.measure}>
