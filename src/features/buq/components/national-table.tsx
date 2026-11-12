@@ -7,6 +7,7 @@ import {
 import type { ParseKeys, TFunction } from 'i18next';
 import { ClipboardCheckIcon, InfoIcon, Loader2Icon, StampIcon } from 'lucide-react';
 import { type RefObject, useDeferredValue, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -217,8 +218,9 @@ export function NationalResultsSkeleton({
 
 export function NationalResults({
   query,
+  selectionSlot,
   ...props
-}: NationalTableProps & { query: FinalApprovalSearch }) {
+}: NationalTableProps & { query: FinalApprovalSearch; selectionSlot: HTMLElement | null }) {
   const { t } = useTranslation();
   const listOptions = buqsForFinalApprovalOptions(query);
   const { data: items } = useSuspenseQuery(listOptions);
@@ -284,20 +286,28 @@ export function NationalResults({
           </Button>
         </div>
       )}
-      <DataTableSelectionBar count={picked.size} onClear={() => setPicked(NOTHING_PICKED, scope)}>
-        <Button onClick={selectAll} size="sm" variant="outline">
-          <SelectionBarLabel
-            full={t('buq.national.select-all', { count: rows.length })}
-            short={t('buq.national.select-all-short')}
-          />
-        </Button>
-        <Button onClick={() => setConfirming(picked, scope)} size="sm">
-          <SelectionBarLabel
-            full={t('buq.national.final-approval')}
-            short={t('buq.national.final-approval-short')}
-          />
-        </Button>
-      </DataTableSelectionBar>
+      {selectionSlot &&
+        createPortal(
+          <DataTableSelectionBar
+            count={picked.size}
+            onClear={() => setPicked(NOTHING_PICKED, scope)}
+            placement="footer"
+          >
+            <Button onClick={selectAll} size="lg" variant="outline">
+              <SelectionBarLabel
+                full={t('buq.national.select-all', { count: rows.length })}
+                short={t('buq.national.select-all-short')}
+              />
+            </Button>
+            <Button onClick={() => setConfirming(picked, scope)} size="lg">
+              <SelectionBarLabel
+                full={t('buq.national.final-approval')}
+                short={t('buq.national.final-approval-short')}
+              />
+            </Button>
+          </DataTableSelectionBar>,
+          selectionSlot,
+        )}
       <FinalApproveDialog
         focusAfterApproval={listRef}
         listQuery={query}
