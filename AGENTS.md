@@ -419,10 +419,8 @@ App-shell pages compose `src/components/workspace/workspace.tsx`:
   Use `WorkspaceFooterPortal` (`src/components/workspace/workspace-tabs.tsx`): `narrow` by default,
   `width="default"` for full-width editors. Tab switches must not remount the header.
   Tab-specific actions use `WorkspaceActionsPortal` into `WorkspaceActionsSlot`.
-- Toasts appear just below the app top bar at the top end corner, tinted by kind, and move lower
-  only to clear a header action under them. `useToastOffset` (`src/hooks/use-toast-offset.ts`)
-  measures the children of `data-slot="workspace-actions"`, re-measuring when the DOM, headers or
-  window change; keep that slot on `WorkspaceActions` and `workspace-header` on `WorkspaceHeader`.
+- Toasts appear just below the app top bar at the top end corner, tinted by kind. Keep the
+  Toaster's fixed header offset on desktop and phones; page actions and scrolling never move it.
 
 `Workspace` derives breadcrumbs from `NAV_GROUPS` through `getNavTrail()`:
 
