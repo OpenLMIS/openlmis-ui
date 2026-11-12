@@ -1,6 +1,8 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import { getI18n } from 'react-i18next';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import {
@@ -79,7 +81,15 @@ beforeEach(() => {
   vi.mocked(fetchFacilitiesByIds).mockResolvedValue(FACILITIES);
 });
 
-function renderNational(search: NationalSearch = {}) {
+let searchFor: (search: NationalSearch) => void = () => {};
+
+function StatefulNational({ start }: { start: NationalSearch }) {
+  const [search, setSearch] = useState(start);
+  searchFor = setSearch;
+  return <NationalApproval onSearchChange={setSearch} programId="g1" search={search} />;
+}
+
+function renderNational(search: NationalSearch = {}, stateful = false) {
   const onSearchChange = vi.fn();
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -101,9 +111,14 @@ function renderNational(search: NationalSearch = {}) {
     groupingSize: 3,
     decimalSeparator: '.',
   });
-  renderPage(<NationalApproval onSearchChange={onSearchChange} programId="g1" search={search} />, {
-    queryClient,
-  });
+  renderPage(
+    stateful ? (
+      <StatefulNational start={search} />
+    ) : (
+      <NationalApproval onSearchChange={onSearchChange} programId="g1" search={search} />
+    ),
+    { queryClient },
+  );
   return onSearchChange;
 }
 
@@ -143,8 +158,8 @@ it('keeps Final Approval off until a row is picked, and Select All picks every p
 
   expect(await screen.findByRole('button', { name: 'buq.national.final-approval' })).toBeDisabled();
   await user.click(await rowBox(0));
-  await user.click(screen.getByRole('button', { name: 'buq.national.select-all' }));
-  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
+  await user.click(screen.getByRole('button', { name: /select-all-short/ }));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
   await user.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
       name: 'buq.national.approve',
@@ -163,7 +178,7 @@ it('sends only the picked reports still waiting in a fresh read of the list', as
   await user.click(await rowBox(0));
   await user.click(await rowBox(1));
   vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue(ITEMS.slice(1));
-  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
   await user.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
       name: 'buq.national.approve',
@@ -171,7 +186,9 @@ it('sends only the picked reports still waiting in a fresh read of the list', as
   );
 
   await waitFor(() => expect(finalApproveBuqs).toHaveBeenCalledWith(['b1']));
-  expect(await screen.findByRole('button', { name: 'buq.national.final-approval' })).toBeDisabled();
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'buq.national.final-approval' })).toBeDisabled(),
+  );
 });
 
 it('tells the user when every picked report had already left the list', async () => {
@@ -181,7 +198,7 @@ it('tells the user when every picked report had already left the list', async ()
 
   await user.click(await rowBox(0));
   vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue(ITEMS.slice(1));
-  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
   await user.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
       name: 'buq.national.approve',
@@ -201,7 +218,7 @@ it('keeps the confirmation open with the server message when approval fails', as
   renderNational({ zone: 'mz', period: 'p17' });
 
   await user.click(await rowBox(0));
-  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
   const dialog = await screen.findByRole('alertdialog');
   await user.click(within(dialog).getByRole('button', { name: 'buq.national.approve' }));
 
@@ -218,14 +235,179 @@ it('keeps the confirmation open and only the unapproved rows picked when a later
 
   await user.click(await rowBox(0));
   await user.click(await rowBox(1));
-  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
   const dialog = await screen.findByRole('alertdialog');
   await user.click(within(dialog).getByRole('button', { name: 'buq.national.approve' }));
 
-  expect(await within(dialog).findByText(/Approval refused by the server\./)).toBeInTheDocument();
+  expect(
+    await within(dialog).findByText('buq.national.partly-approved Approval refused by the server.'),
+  ).toBeInTheDocument();
   expect(within(dialog).getByText('buq.national.partly-approved-title')).toBeInTheDocument();
   await user.click(within(dialog).getByRole('button', { name: 'dialog.cancel' }));
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   expect(await rowBox(0)).not.toBeChecked();
   expect(await rowBox(1)).toBeChecked();
+});
+
+const approveIn = async (user: ReturnType<typeof userEvent.setup>) =>
+  user.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'buq.national.approve',
+    }),
+  );
+
+it('shows the totals of every listed report and each cost under its own group', async () => {
+  vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue([
+    ...ITEMS,
+    {
+      ...item('b12', 'f0'),
+      calculatedGroupsCosts: { 'Medical supplies': '7.00 USD', Vaccines: '1.00 USD' },
+    },
+  ]);
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  const summary = await screen.findByRole('region', { name: 'buq.national.summary' });
+  expect(within(summary).getByText('$120.00')).toBeInTheDocument();
+  expect(within(summary).getByText('$7.00')).toBeInTheDocument();
+  expect(within(summary).getByText('$61.00')).toBeInTheDocument();
+  expect(screen.getAllByText('$10.00')).toHaveLength(10);
+});
+
+it('drops the approved reports from the list and moves focus to it', async () => {
+  const user = userEvent.setup();
+  vi.mocked(finalApproveBuqs).mockResolvedValue({ approved: ['b0'], error: undefined });
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  await user.click(await rowBox(0));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  vi.mocked(fetchBuqsForFinalApproval)
+    .mockResolvedValueOnce(ITEMS)
+    .mockResolvedValue(ITEMS.slice(1));
+  await approveIn(user);
+
+  await waitFor(() => expect(screen.queryByText('Facility 0')).not.toBeInTheDocument());
+  await waitFor(() => expect(document.body).not.toHaveFocus());
+  expect(document.activeElement).toContainElement(
+    screen.getByRole('region', { name: 'buq.national.summary' }),
+  );
+});
+
+it('moves focus to the list when nothing was left to approve', async () => {
+  const user = userEvent.setup();
+  vi.mocked(finalApproveBuqs).mockResolvedValue({ approved: [], error: undefined });
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  await user.click(await rowBox(0));
+  vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue(ITEMS.slice(1));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  await approveIn(user);
+
+  await waitFor(() => expect(toast.info).toHaveBeenCalled());
+  const summary = screen.getByRole('region', { name: 'buq.national.summary' });
+  await waitFor(() => {
+    expect(document.body).not.toHaveFocus();
+    expect(document.activeElement).toContainElement(summary);
+  });
+});
+
+it('keeps the rows on screen while the facilities of a refreshed list load', async () => {
+  const user = userEvent.setup();
+  vi.mocked(finalApproveBuqs).mockResolvedValue({ approved: ['b0'], error: undefined });
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  await user.click(await rowBox(0));
+  vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue(ITEMS.slice(1));
+  vi.mocked(fetchFacilitiesByIds).mockReturnValue(new Promise(() => {}));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  await approveIn(user);
+
+  await waitFor(() => expect(fetchFacilitiesByIds).toHaveBeenCalledTimes(2));
+  expect(screen.getAllByRole('checkbox', { name: /buq\.national\.row/ })).not.toHaveLength(0);
+  expect(screen.getByText('Facility 1')).toBeInTheDocument();
+});
+
+it('asks for Search when the picked group differs from the shown list', async () => {
+  const user = userEvent.setup();
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  await rowBox(0);
+  await user.click(screen.getByRole('combobox', { name: /buq\.national\.group/ }));
+  await user.click(await screen.findByRole('option', { name: /Niassa/ }));
+
+  expect(await screen.findByText('buq.national.choose')).toBeInTheDocument();
+  expect(screen.queryByRole('checkbox', { name: /buq\.national\.row/ })).not.toBeInTheDocument();
+});
+
+it('clears the picks and closes the confirmation when another group is searched', async () => {
+  const user = userEvent.setup();
+  renderNational({ zone: 'ni', period: 'p17' }, true);
+
+  await user.click(await rowBox(0));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  await screen.findByRole('alertdialog');
+  act(() => searchFor({ zone: 'mz', period: 'p17' }));
+
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  await waitFor(() => expect(fetchBuqsForFinalApproval).toHaveBeenCalledTimes(2));
+  expect(await rowBox(0)).not.toBeChecked();
+});
+
+it('retries only the reports a failed batch left, and skips none of them', async () => {
+  const user = userEvent.setup();
+  getI18n().addResourceBundle(
+    'en',
+    'translation',
+    {
+      'buq.national.approved': '{{count}} approved',
+      'buq.national.confirm-title': 'Approve {{count}}',
+    },
+    true,
+    true,
+  );
+  vi.mocked(finalApproveBuqs)
+    .mockResolvedValueOnce({ approved: ['b0'], error: httpError(500) })
+    .mockResolvedValue({ approved: ['b1'], error: undefined });
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  await user.click(await rowBox(0));
+  await user.click(await rowBox(1));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  await approveIn(user);
+  const dialog = await screen.findByRole('alertdialog');
+  expect(await within(dialog).findByText('Approve 1')).toBeInTheDocument();
+  vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue(ITEMS.slice(1));
+  await approveIn(user);
+
+  await waitFor(() =>
+    expect(toast.success).toHaveBeenCalledWith('buq.national.approved-title', {
+      description: '1 approved',
+    }),
+  );
+  expect(toast.info).not.toHaveBeenCalled();
+  expect(finalApproveBuqs).toHaveBeenLastCalledWith(['b1']);
+  getI18n().removeResourceBundle('en', 'translation');
+  getI18n().addResourceBundle('en', 'translation', {});
+});
+
+it('shows the results after Search even when the URL went back to the same choice', async () => {
+  const user = userEvent.setup();
+  renderNational({ zone: 'mz', period: 'p17' }, true);
+
+  await rowBox(0);
+  await user.click(screen.getByRole('combobox', { name: /buq\.national\.group/ }));
+  await user.click(await screen.findByRole('option', { name: /Niassa/ }));
+  act(() => searchFor({}));
+  await user.click(await screen.findByRole('button', { name: 'facility-program.search' }));
+
+  expect(await rowBox(0)).toBeInTheDocument();
+});
+
+it('reads the list again when Search repeats the shown choice', async () => {
+  const user = userEvent.setup();
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  await rowBox(0);
+  await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
+
+  await waitFor(() => expect(fetchBuqsForFinalApproval).toHaveBeenCalledTimes(2));
 });

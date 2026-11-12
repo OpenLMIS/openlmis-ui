@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-table';
 import type { ParseKeys, TFunction } from 'i18next';
 import { ClipboardCheckIcon, InfoIcon, Loader2Icon, StampIcon } from 'lucide-react';
-import { type RefObject, useDeferredValue, useMemo, useRef, useState } from 'react';
+import { type RefObject, useDeferredValue, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -124,7 +124,7 @@ function createColumns(t: TFunction, currency: CurrencySettings | undefined, inf
       header: t(label),
       cell: ({ getValue }) =>
         getValue() && (
-          <CellText overflow="clamp">
+          <CellText overflow="nowrap">
             <bdi>{getValue()}</bdi>
           </CellText>
         ),
@@ -170,7 +170,8 @@ function useNationalTable(
   selection?: BuqTableSelection,
 ) {
   const { t } = useTranslation();
-  const columns = useMemo(() => createColumns(t, currency, !!selection), [t, currency, selection]);
+  const info = !!selection;
+  const columns = useMemo(() => createColumns(t, currency, info), [t, currency, info]);
   return useBuqTable(rows, columns, props, visibility, selection);
 }
 
@@ -181,7 +182,7 @@ function NationalSummary({ totals, currency }: { totals: CostTotals; currency: C
       <RecordSummaryFields>
         {SUMMARY_IDS.map((id) => (
           <RecordSummaryField key={id} label={t(GROUP_LABELS[id])}>
-            <bdi>{formatMoney(totals[id], currency)}</bdi>
+            <bdi className="whitespace-nowrap">{formatMoney(totals[id], currency)}</bdi>
           </RecordSummaryField>
         ))}
       </RecordSummaryFields>
@@ -216,21 +217,21 @@ export function NationalResultsSkeleton({
 
 export function NationalResults({
   query,
-  hidden,
   ...props
-}: NationalTableProps & { query: FinalApprovalSearch; hidden: boolean }) {
+}: NationalTableProps & { query: FinalApprovalSearch }) {
   const { t } = useTranslation();
   const listOptions = buqsForFinalApprovalOptions(query);
   const { data: items } = useSuspenseQuery(listOptions);
-  const facilityIds = useDeferredValue(useMemo(() => nationalFacilityIds(items), [items]));
+  const shownItems = useDeferredValue(items);
+  const facilityIds = useMemo(() => nationalFacilityIds(shownItems), [shownItems]);
   const { data: facilities } = useSuspenseQuery(facilitiesByIdsOptions(facilityIds));
   const { data: currency } = useSuspenseQuery(currencySettingsOptions());
-  const rows = useMemo(() => nationalRows(items, facilities), [items, facilities]);
-  const totals = useMemo(() => costTotals(items), [items]);
+  const rows = useMemo(() => nationalRows(shownItems, facilities), [shownItems, facilities]);
+  const totals = useMemo(() => costTotals(shownItems), [shownItems]);
   const scope = JSON.stringify(query);
   const [stored, setPicked] = useFilterScoped<Picked>(scope, NOTHING_PICKED);
-  const [confirming, setConfirming] = useState<Picked>();
-  const listRef = useRef<HTMLDivElement>(null);
+  const [confirming, setConfirming] = useFilterScoped<Picked | undefined>(scope, undefined);
+  const listRef = useRef<HTMLElement>(null);
   const names = useMemo(() => new Map(rows.map((row) => [row.id, rowName(t, row)])), [rows, t]);
   const picked = useMemo(
     () => new Map([...stored].filter(([id]) => names.has(id))),
@@ -244,7 +245,6 @@ export function NationalResults({
       setPicked(new Map([...names].filter(([id]) => next[id])), scope);
     },
   });
-  if (hidden) return null;
   const footer = !isPastLastPage && rows.length > 0 && <DataTablePagination table={table} />;
   const empty = !isPastLastPage && (
     <DataTableEmpty
@@ -255,7 +255,12 @@ export function NationalResults({
   );
   const selectAll = () => setPicked(new Map(names), scope);
   return (
-    <div className="flex flex-col gap-4 outline-none" ref={listRef} tabIndex={-1}>
+    <section
+      aria-label={t('buq.national.title')}
+      className="flex flex-col gap-4 outline-none"
+      ref={listRef}
+      tabIndex={-1}
+    >
       {rows.length > 0 && <NationalSummary currency={currency} totals={totals} />}
       {props.cards && rows.length > 0 && (
         <p className="text-muted-foreground text-sm">{t('buq.national.status-info')}</p>
@@ -280,24 +285,13 @@ export function NationalResults({
         </div>
       )}
       <DataTableSelectionBar count={picked.size} onClear={() => setPicked(NOTHING_PICKED, scope)}>
-        {picked.size < rows.length && (
-          <Button
-            aria-label={t('buq.national.select-all', { count: rows.length })}
-            onClick={selectAll}
-            size="sm"
-            variant="outline"
-          >
-            <SelectionBarLabel
-              full={t('buq.national.select-all', { count: rows.length })}
-              short={t('buq.national.select-all-short')}
-            />
-          </Button>
-        )}
-        <Button
-          aria-label={t('buq.national.final-approval')}
-          onClick={() => setConfirming(picked)}
-          size="sm"
-        >
+        <Button onClick={selectAll} size="sm" variant="outline">
+          <SelectionBarLabel
+            full={t('buq.national.select-all', { count: rows.length })}
+            short={t('buq.national.select-all-short')}
+          />
+        </Button>
+        <Button onClick={() => setConfirming(picked, scope)} size="sm">
           <SelectionBarLabel
             full={t('buq.national.final-approval')}
             short={t('buq.national.final-approval-short')}
@@ -307,11 +301,14 @@ export function NationalResults({
       <FinalApproveDialog
         focusAfterApproval={listRef}
         listQuery={query}
-        onApproved={(ids) => setPicked(withoutIds(picked, ids), scope)}
-        onClose={() => setConfirming(undefined)}
+        onApproved={(ids, retry) => {
+          setPicked(withoutIds(picked, ids), scope);
+          if (retry && confirming) setConfirming(withoutIds(confirming, ids), scope);
+        }}
+        onClose={() => setConfirming(undefined, scope)}
         targets={confirming}
       />
-    </div>
+    </section>
   );
 }
 
@@ -326,7 +323,7 @@ function FinalApproveDialog({
   listQuery: FinalApprovalSearch;
   targets: Picked | undefined;
   onClose: () => void;
-  onApproved: (ids: string[]) => void;
+  onApproved: (ids: string[], retry: boolean) => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -345,18 +342,20 @@ function FinalApproveDialog({
       return { ...result, skipped: ids.length - waiting.length };
     },
     onSuccess: ({ approved, error, skipped }) => {
-      onApproved(approved);
+      onApproved(approved, !!error);
       void queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'detail'] });
       if (error) return;
       close();
       if (approved.length) {
         toast.success(t('buq.national.approved-title'), {
-          description: t('buq.national.approved', { count: approved.length, skipped }),
+          description: t('buq.national.approved', { count: approved.length }),
         });
-      } else {
-        toast.info(t('buq.national.none-approved-title'), {
-          description: t('buq.national.none-approved', { count: skipped }),
-        });
+      }
+      if (skipped) {
+        toast.info(
+          t(approved.length ? 'buq.national.skipped-title' : 'buq.national.none-approved-title'),
+          { description: t('buq.national.none-approved', { count: skipped }) },
+        );
       }
     },
     onSettled: () => {
@@ -377,7 +376,7 @@ function FinalApproveDialog({
     >
       <AlertDialogContent
         finalFocus={() => {
-          if (!approve.data?.approved.length) return true;
+          if (!approve.isSuccess || approve.data.error) return true;
           focusAfterApproval.current?.focus();
           return false;
         }}
@@ -388,7 +387,9 @@ function FinalApproveDialog({
             <StampIcon />
           </AlertDialogMedia>
           <AlertDialogTitle>{t('buq.national.confirm-title', { count })}</AlertDialogTitle>
-          <AlertDialogDescription>{t('buq.national.confirm', { count })}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {t('buq.national.confirm', { count, name: shown?.values().next().value ?? '' })}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         {failure != null && (
           <ErrorAlert
