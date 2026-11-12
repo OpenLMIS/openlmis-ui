@@ -1045,7 +1045,8 @@ Median seconds, settled / warm. Three runs per cell.
   pending view instead of a second generic heading/body layout. Identity changes still hide
   the previous user's content behind the access skeleton.
 
-- RV11: toast placement accounts for the visible workspace header as well as the app header,
+- RV11 (superseded by the fixed toast placement follow-up below): toast placement accounts
+  for the visible workspace header as well as the app header,
   so desktop header actions remain reachable. The offset follows header resizing and scrolling
   while toasts are present; retained hidden pages do not affect it.
 
@@ -1258,3 +1259,14 @@ Chromium offline suite are recorded in the group C report under
 - Device confirmations run concurrently. The mutation continues after route unmount, retaining copy leases, draft revision checks and session assertions. Successful cleanup clears the approval marker with the draft instead of writing a separate resolved marker first.
 - Partial failures retain their response and recovery flow. Uncertain and possibly-approved outcomes retain their existing markers and reconciliation. Device failures after navigation show the existing offline-copy warning as a toast; session changes suppress obsolete feedback and cleanup.
 - Regression coverage pauses confirmation through navigation, checks durable completion after unmount and refuses cleanup in another session. Existing partial-result, uncertain-approval and saved-copy coverage remains in place.
+
+### Fixed toast placement follow-up (2026-11-12)
+
+- The workspace-action clearance rule placed requisition feedback below Print rather than
+  at the top corner. It also moved toasts for actions far below their normal position.
+- Keep the shared Toaster's fixed offset below the app bar: 16 px on desktop and 12 px on
+  phones. Preserve the inline-end corner, including top-left placement in Arabic.
+- Remove the root offset override and its DOM observers. Remove the obsolete hook test,
+  which required feedback to move below a newly inserted action regardless of its position.
+- This replaces RV11's dynamic placement decision. Page actions may sit behind a toast while
+  it is visible; users can dismiss the toast using its translated close button.
