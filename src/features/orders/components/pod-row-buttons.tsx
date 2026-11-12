@@ -87,6 +87,7 @@ export function PodRowButtons({
   const label = t('card-actions.actions-for', { name: order.orderCode ?? order.id });
   const action: CardAction = {
     id: 'manage',
+    variant: 'default',
     icon: <ClipboardCheckIcon />,
     label: t('orders.pod.manage'),
     name: named(t('orders.pod.manage')),
@@ -107,7 +108,7 @@ export function PodRowButtons({
     <div className="flex items-center justify-end gap-1">
       <Button
         size="sm"
-        variant="outline"
+        variant={action.variant}
         aria-label={action.name}
         disabled={action.disabled}
         onClick={() => manage.mutate()}

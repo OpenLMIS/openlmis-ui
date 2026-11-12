@@ -113,7 +113,7 @@ function PodHeader({ facility, program }: { facility?: string | null; program?: 
 }
 function PodPending() {
   return (
-    <Workspace>
+    <Workspace width="large">
       <PodHeader />
       <WorkspaceContent>
         <PodSearchPickerSkeleton />
@@ -138,7 +138,7 @@ function PodPage() {
   const search = Route.useSearch();
   if (data.refused)
     return (
-      <Workspace>
+      <Workspace width="large">
         <PodHeader />
         <WorkspaceContent>
           <Outcome state="refused" />
@@ -202,7 +202,7 @@ function PodBody({
     />
   );
   return (
-    <Workspace>
+    <Workspace width="large">
       <PodHeader
         facility={facilities.find(({ id }) => id === search.requestingFacilityId)?.name}
         program={data.programs.find(({ id }) => id === search.programId)?.name}
