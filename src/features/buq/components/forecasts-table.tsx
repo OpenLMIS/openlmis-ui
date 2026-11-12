@@ -8,6 +8,7 @@ import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
@@ -89,7 +90,7 @@ function createColumns(t: TFunction, context: RowActionContext) {
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('buq.create.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('buq.create.actions')}</DataTableHeaderLabel>,
       cell: ({ row }) => <ForecastRowAction context={context} row={row.original} />,
       meta: { className: 'w-28', skeleton: 'control' },
     }),
