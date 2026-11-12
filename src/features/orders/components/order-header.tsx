@@ -1,4 +1,3 @@
-import { FilePenIcon } from 'lucide-react';
 import { memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -11,7 +10,7 @@ import {
 import { formatTimestamp } from '@/components/form/date-value';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { orderStatusKey } from '@/features/orders/lib/order-status';
+import { OrderStatusBadge } from '@/features/orders/components/order-status-badge';
 import type { Order } from '@/features/orders/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { orEmpty } from '@/lib/empty-value';
@@ -25,7 +24,6 @@ export const OrderHeader = memo(function OrderHeader({
 }) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
-  const statusKey = orderStatusKey(order.status);
   return (
     <RecordSummary>
       <RecordSummaryHeading>
@@ -52,10 +50,7 @@ export const OrderHeader = memo(function OrderHeader({
           </RecordSummaryField>
         )}
         <RecordSummaryField label={t('orders.edit.status')}>
-          <Badge variant="secondary">
-            <FilePenIcon data-icon="inline-start" />
-            {statusKey ? t(statusKey) : order.status}
-          </Badge>
+          <OrderStatusBadge status={order.status} />
         </RecordSummaryField>
         <RecordSummaryField label={t('orders.edit.date-created')}>
           {orEmpty(formatTimestamp(order.createdDate, i18n.language, { timeZone }))}

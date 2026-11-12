@@ -24,6 +24,7 @@ import {
   FulfillOrderButton,
   OrderRowButtons,
 } from '@/features/orders/components/order-row-buttons';
+import { OrderStatusBadge } from '@/features/orders/components/order-status-badge';
 import {
   activeOrderFilterCount,
   CLEARED_ORDER_FILTERS,
@@ -36,7 +37,7 @@ import {
   toOrderParams,
   type ViewOrdersSearch,
 } from '@/features/orders/lib/order-search';
-import { type OrderKind, orderStatusKey } from '@/features/orders/lib/order-status';
+import type { OrderKind } from '@/features/orders/lib/order-status';
 import type { OrderSummary } from '@/features/orders/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
@@ -162,10 +163,8 @@ function orderListCell(
       return text(formatTimestamp(order.createdDate, language, { timeZone }));
     case 'lastUpdatedDate':
       return text(formatTimestamp(order[id], language, { timeZone }));
-    case 'status': {
-      const key = orderStatusKey(order.status);
-      return text(key ? t(key) : order.status);
-    }
+    case 'status':
+      return <OrderStatusBadge status={order.status} />;
     case 'emergency':
       return (
         <FlagBadge

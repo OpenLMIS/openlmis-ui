@@ -42,8 +42,8 @@ import {
 } from '@/components/workspace/workspace';
 import { fetchProofOfDeliveryPdf, saveProofOfDelivery } from '@/features/orders/api/api';
 import { proofOfDeliveryOptions } from '@/features/orders/api/queries';
+import { OrderStatusBadge } from '@/features/orders/components/order-status-badge';
 import { PodGrid } from '@/features/orders/components/pod-grid';
-import { orderStatusKey } from '@/features/orders/lib/order-status';
 import { mergePodDraft, podDraft } from '@/features/orders/lib/pod-draft';
 import { usePodForm } from '@/features/orders/lib/pod-form';
 import { groupPodLines, shippedQuantity } from '@/features/orders/lib/pod-lines';
@@ -205,7 +205,6 @@ export function PodEditor({
   });
   const pending = mutation.isPending || print.isPending;
   const guard = useDiscardGuard(editable && dirty, { pending, allowLeave: () => leaving.current });
-  const statusKey = orderStatusKey(order.status);
   return (
     <>
       <Workspace>
@@ -248,7 +247,7 @@ export function PodEditor({
               </RecordSummaryHeading>
               <RecordSummaryFields>
                 <RecordSummaryField label={t('orders.pod.columns.status')}>
-                  {statusKey ? t(statusKey) : order.status}
+                  <OrderStatusBadge status={order.status} />
                 </RecordSummaryField>
                 <RecordSummaryField label={t('orders.pod.ordering-facility')}>
                   {[order.facility.code, order.facility.name].filter(Boolean).join(' - ')}
