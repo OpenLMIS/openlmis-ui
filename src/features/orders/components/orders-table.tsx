@@ -14,6 +14,7 @@ import {
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { useInCards } from '@/components/display/card-actions';
 import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { formatDateValue, formatTimestamp, toDateValue } from '@/components/form/date-value';
 import { FlagBadge } from '@/components/shared/flag-badge';
@@ -111,6 +112,15 @@ const NO_ACCESS: OrderAccess = { canEdit: false, retrySupplierIds: [] };
 const noop = () => {};
 const rowId = (order: OrderSummary) => order.id;
 
+function OrderCode({ code }: { code: string }) {
+  const cards = useInCards();
+  return (
+    <span className={cards ? undefined : 'block max-w-56 truncate'} dir="auto" title={code}>
+      {code}
+    </span>
+  );
+}
+
 function orderListCell(
   id: string,
   order: OrderSummary,
@@ -123,7 +133,7 @@ function orderListCell(
     tableValue(value) === null ? null : <CellText overflow="nowrap">{value}</CellText>;
   switch (id) {
     case 'orderCode':
-      return text(order.orderCode);
+      return order.orderCode ? <OrderCode code={order.orderCode} /> : null;
     case 'facility':
       return order.facility
         ? text([order.facility.code, order.facility.name].filter(Boolean).join(' - '))
