@@ -118,6 +118,16 @@ it('enables Search only once a group and a period are chosen', async () => {
   expect(onSearchChange).toHaveBeenCalledWith({ zone: 'ni', period: 'p17', page: undefined });
 });
 
+it('keeps Search off while the period is missing', async () => {
+  const user = userEvent.setup();
+  renderNational({ period: 'gone' });
+
+  await user.click(await screen.findByRole('combobox', { name: /buq\.national\.group/ }));
+  await user.click(await screen.findByRole('option', { name: /Niassa/ }));
+
+  expect(screen.getByRole('button', { name: 'facility-program.search' })).toBeDisabled();
+});
+
 it('keeps Final Approval off until a row is picked, and Select All picks every page', async () => {
   const user = userEvent.setup();
   vi.mocked(finalApproveBuqs).mockResolvedValue({
@@ -171,4 +181,25 @@ it('keeps the confirmation open with the server message when approval fails', as
   await user.click(within(dialog).getByRole('button', { name: 'buq.national.approve' }));
 
   expect(await within(dialog).findByText('Approval refused by the server.')).toBeInTheDocument();
+});
+
+it('keeps the confirmation open and only the unapproved rows picked when a later batch fails', async () => {
+  const user = userEvent.setup();
+  vi.mocked(finalApproveBuqs).mockResolvedValue({
+    approved: ['b0'],
+    error: httpError(400, { messageKey: 'buq.error', message: 'Approval refused by the server.' }),
+  });
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  await user.click(await rowBox(0));
+  await user.click(await rowBox(1));
+  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  const dialog = await screen.findByRole('alertdialog');
+  await user.click(within(dialog).getByRole('button', { name: 'buq.national.approve' }));
+
+  expect(await within(dialog).findByText('Approval refused by the server.')).toBeInTheDocument();
+  await user.click(within(dialog).getByRole('button', { name: 'dialog.cancel' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(await rowBox(0)).not.toBeChecked();
+  expect(await rowBox(1)).toBeChecked();
 });

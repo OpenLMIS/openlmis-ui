@@ -63,7 +63,7 @@ export function groupOptions(tree: SupervisedZones, zones: readonly NamedZone[])
   });
 }
 
-export function parseCost(text: string | undefined) {
+function parseCost(text: string | undefined) {
   const amount = text?.match(/^\s*(-?\d+(?:\.\d+)?)/)?.[1];
   return amount == null ? null : Number(amount);
 }
