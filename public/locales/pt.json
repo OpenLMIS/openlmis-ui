@@ -941,6 +941,8 @@
   "orders.fulfill.empty-description": "Não existem encomendas a aguardar aviamento.",
   "orders.fulfill.filters.facility": "Unidade requisitante",
   "orders.fulfill.filters.status": "Estado da encomenda",
+  "orders.fulfill.sort-newest": "Pedidos Mais Recentes",
+  "orders.fulfill.sort-oldest": "Pedidos Mais Antigos",
   "orders.fulfill.title": "Aviar encomendas",
   "orders.no": "Não",
   "orders.no-options": "Nenhuma Opção Correspondente",

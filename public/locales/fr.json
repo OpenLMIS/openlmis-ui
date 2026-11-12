@@ -941,6 +941,8 @@
   "orders.fulfill.empty-description": "Aucune commande n’est en attente de préparation.",
   "orders.fulfill.filters.facility": "Établissement demandeur",
   "orders.fulfill.filters.status": "Statut de la commande",
+  "orders.fulfill.sort-newest": "Commandes Les Plus Récentes",
+  "orders.fulfill.sort-oldest": "Commandes Les Plus Anciennes",
   "orders.fulfill.title": "Préparer les commandes",
   "orders.no": "Non",
   "orders.no-options": "Aucune Option Correspondante",

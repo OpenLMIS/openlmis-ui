@@ -17,6 +17,7 @@ import {
   orderRequestingFacilitiesOptions,
   ordersSearchOptions,
 } from '@/features/orders/api/queries';
+import { FulfillOrdersSort } from '@/features/orders/components/fulfill-orders-sort';
 import { OrdersError } from '@/features/orders/components/orders-error';
 import {
   FULFILL_ORDER_HIDEABLE_COLUMNS,
@@ -86,6 +87,7 @@ function FulfillOrdersPending() {
             kind="fulfill"
             search={search}
             disabled
+            sort={<FulfillOrdersSort search={search} onSearchChange={noop} disabled />}
             view={<DataTableViewOptions size="lg" disabled />}
             onFilterChange={noop}
           />
@@ -135,6 +137,7 @@ function FulfillOrdersResults({ view }: { view: ReturnType<typeof useCardView<HT
         search={search}
         {...filters}
         onFilterChange={(patch) => updateSearch(fulfillOrdersSearchSchema.parse(patch), true)}
+        sort={<FulfillOrdersSort search={search} onSearchChange={updateSearch} />}
         view={
           <OrdersViewOptions
             kind="fulfill"

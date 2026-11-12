@@ -941,6 +941,8 @@
   "orders.fulfill.empty-description": "No hay pedidos pendientes de preparación.",
   "orders.fulfill.filters.facility": "Establecimiento solicitante",
   "orders.fulfill.filters.status": "Estado del pedido",
+  "orders.fulfill.sort-newest": "Pedidos Más Recientes",
+  "orders.fulfill.sort-oldest": "Pedidos Más Antiguos",
   "orders.fulfill.title": "Preparar pedidos",
   "orders.no": "No",
   "orders.no-options": "No Hay Opciones Coincidentes",

@@ -39,6 +39,7 @@ export function OrdersToolbar({
   facilities = [],
   programs = [],
   onFilterChange,
+  sort,
   view,
   disabled = false,
   facilitiesDisabled = false,
@@ -49,6 +50,7 @@ export function OrdersToolbar({
   facilities?: FilterOption[];
   programs?: FilterOption[];
   onFilterChange: (patch: Partial<ViewOrdersSearch>) => void;
+  sort?: ReactNode;
   view?: ReactNode;
   disabled?: boolean;
   facilitiesDisabled?: boolean;
@@ -60,7 +62,7 @@ export function OrdersToolbar({
     onFilterChange({ ...patch, page: undefined });
   return (
     <DataTableToolbar>
-      <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
+      <div className="flex-1 @2xl/main:flex-none">
         <DataTableFilters
           size="lg"
           activeCount={activeOrderFilterCount(search)}
@@ -128,7 +130,8 @@ export function OrdersToolbar({
           )}
         </DataTableFilters>
       </div>
-      {view && <div className="flex-1 @2xl/main:flex-none">{view}</div>}
+      {sort && <div className="flex-1 @2xl/main:flex-none">{sort}</div>}
+      {view && <div className="flex-1 @2xl/main:ms-auto @2xl/main:flex-none">{view}</div>}
     </DataTableToolbar>
   );
 }

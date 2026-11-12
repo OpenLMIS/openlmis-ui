@@ -941,6 +941,8 @@
   "orders.fulfill.empty-description": "There are no orders awaiting fulfillment.",
   "orders.fulfill.filters.facility": "Ordering Facility",
   "orders.fulfill.filters.status": "Order Status",
+  "orders.fulfill.sort-newest": "Recently Ordered",
+  "orders.fulfill.sort-oldest": "Oldest Orders",
   "orders.fulfill.title": "Fulfill Orders",
   "orders.no": "No",
   "orders.no-options": "No Matching Options",

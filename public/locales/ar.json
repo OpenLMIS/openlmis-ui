@@ -941,6 +941,8 @@
   "orders.fulfill.empty-description": "لا توجد أوامر تنتظر التنفيذ.",
   "orders.fulfill.filters.facility": "المنشأة المُصدِرة للأمر",
   "orders.fulfill.filters.status": "حالة الأمر",
+  "orders.fulfill.sort-newest": "الطلبات الأحدث",
+  "orders.fulfill.sort-oldest": "الطلبات الأقدم",
   "orders.fulfill.title": "تنفيذ الأوامر",
   "orders.no": "لا",
   "orders.no-options": "لا توجد خيارات مطابقة",
