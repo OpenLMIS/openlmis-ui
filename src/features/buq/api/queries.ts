@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
-import { fetchBuqPeriods, fetchPreparedBuqs } from '@/features/buq/api/api';
+import { fetchBuqPeriods, fetchPreparedBuqs, fetchTakenPeriods } from '@/features/buq/api/api';
 import type { BuqPeriod } from '@/features/buq/lib/types';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -9,6 +9,12 @@ export const preparedBuqsOptions = (facilityId: string) =>
   queryOptions({
     queryKey: queryKeys.buq.list({ facility: facilityId }),
     queryFn: () => fetchPreparedBuqs(facilityId),
+  });
+
+export const takenPeriodsOptions = (facilityId: string) =>
+  queryOptions({
+    queryKey: queryKeys.buq.list({ facility: facilityId, every: true }),
+    queryFn: () => fetchTakenPeriods(facilityId),
   });
 
 export const buqPeriodsOptions = (scheduleId: string | undefined) =>

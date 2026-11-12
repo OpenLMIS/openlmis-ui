@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
 import { CalculatorIcon, DownloadIcon, Loader2Icon, Trash2Icon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, type RefObject, use, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -30,7 +30,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BUQ_CSV_FILENAME, deleteBuq, downloadBuq } from '@/features/buq/api/api';
+import { BUQ_CSV_FILENAME, BuqMovedError, deleteBuq, downloadBuq } from '@/features/buq/api/api';
+import { preparedBuqsOptions, takenPeriodsOptions } from '@/features/buq/api/queries';
 import { BUQ_STATUS } from '@/features/buq/lib/buq-status';
 import { DEFAULT_PREPARED_SORT, type PrepareSearch } from '@/features/buq/lib/search';
 import type { Buq, BuqPeriod, NamedItem } from '@/features/buq/lib/types';
@@ -43,12 +44,41 @@ import { type SearchChange, toPaginationState } from '@/lib/table-search';
 type BuqRow = Buq & { periodName: string };
 
 type RowHandlers = {
-  downloading: string | undefined;
   onDownload: (buq: BuqRow) => void;
   onDelete: (buq: BuqRow) => void;
 };
 
+const DownloadingContext = createContext<string | undefined>(undefined);
+
 const columnHelper = createColumnHelper<DataTableFeatures, BuqRow>();
+
+function PreparedRowActions({ row, handlers }: { row: BuqRow; handlers: RowHandlers }) {
+  const { t } = useTranslation();
+  const downloading = use(DownloadingContext);
+  return (
+    <RowActions
+      actions={[
+        {
+          id: 'download',
+          icon:
+            downloading === row.id ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />,
+          label: t('buq.prepare.download'),
+          disabled: downloading !== undefined,
+          focusableWhenDisabled: downloading === row.id,
+          onSelect: () => handlers.onDownload(row),
+        },
+        {
+          id: 'delete',
+          icon: <Trash2Icon />,
+          label: t('buq.prepare.delete'),
+          destructive: true,
+          onSelect: () => handlers.onDelete(row),
+        },
+      ]}
+      label={t('buq.prepare.actions-for', { period: row.periodName, year: row.targetYear })}
+    />
+  );
+}
 
 function createColumns(t: TFunction, facility: NamedItem, handlers: RowHandlers) {
   return columnHelper.columns([
@@ -84,43 +114,14 @@ function createColumns(t: TFunction, facility: NamedItem, handlers: RowHandlers)
       id: 'actions',
       header: () => <DataTableHeaderLabel>{t('buq.prepare.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24', skeleton: 'control' },
-      cell: ({ row }) => (
-        <RowActions
-          actions={[
-            {
-              id: 'download',
-              icon:
-                handlers.downloading === row.original.id ? (
-                  <Loader2Icon className="animate-spin" />
-                ) : (
-                  <DownloadIcon />
-                ),
-              label: t('buq.prepare.download'),
-              disabled: handlers.downloading !== undefined,
-              focusableWhenDisabled: handlers.downloading === row.original.id,
-              onSelect: () => handlers.onDownload(row.original),
-            },
-            {
-              id: 'delete',
-              icon: <Trash2Icon />,
-              label: t('buq.prepare.delete'),
-              destructive: true,
-              onSelect: () => handlers.onDelete(row.original),
-            },
-          ]}
-          label={t('buq.prepare.actions-for', {
-            period: row.original.periodName,
-            year: row.original.targetYear,
-          })}
-        />
-      ),
+      cell: ({ row }) => <PreparedRowActions handlers={handlers} row={row.original} />,
     }),
   ]);
 }
 
 const getRowId = (row: BuqRow) => row.id;
 const NO_ROWS: BuqRow[] = [];
-const IDLE: RowHandlers = { downloading: undefined, onDownload: () => {}, onDelete: () => {} };
+const IDLE: RowHandlers = { onDownload: () => {}, onDelete: () => {} };
 const SKELETON_FACILITY: NamedItem = { id: '', name: '' };
 const noop = () => {};
 
@@ -204,7 +205,10 @@ export function PreparedTable({
           a.targetYear - b.targetYear ||
           (a.period?.startDate ?? '').localeCompare(b.period?.startDate ?? ''),
       )
-      .map(({ period, ...buq }) => ({ ...buq, periodName: period?.name ?? '' }));
+      .map(({ period, ...buq }) => ({
+        ...buq,
+        periodName: period?.name ?? String(buq.targetYear),
+      }));
   }, [buqs, periods]);
   const download = useSessionMutation({
     mutationFn: downloadBuq,
@@ -221,13 +225,10 @@ export function PreparedTable({
         description: serverMessage(error) ?? t('buq.prepare.download-error'),
       }),
   });
+  const listRef = useRef<HTMLElement>(null);
   const handlers = useMemo<RowHandlers>(
-    () => ({
-      downloading: download.isPending ? download.variables : undefined,
-      onDownload: (buq) => download.mutate(buq.id),
-      onDelete: setDeleting,
-    }),
-    [download.isPending, download.variables, download.mutate],
+    () => ({ onDownload: (buq) => download.mutate(buq.id), onDelete: setDeleting }),
+    [download.mutate],
   );
   const { table, pageStart } = useBuqTable(rows, facility, handlers, {
     search,
@@ -251,34 +252,62 @@ export function PreparedTable({
   );
 
   return (
-    <>
-      {cards ? (
-        <TableCards
-          empty={empty}
-          footer={footer}
-          listRef={pageStart.ref}
-          table={table}
-          title="periodName"
-        />
-      ) : (
-        <DataTable empty={empty} footer={footer} table={table} />
-      )}
-      <DeleteBuqDialog buq={deleting} onClose={() => setDeleting(undefined)} />
-    </>
+    <DownloadingContext value={download.isPending ? download.variables : undefined}>
+      <section
+        aria-label={t('buq.prepare.report-list')}
+        className="outline-none"
+        ref={listRef}
+        tabIndex={-1}
+      >
+        {cards ? (
+          <TableCards
+            empty={empty}
+            footer={footer}
+            listRef={pageStart.ref}
+            table={table}
+            title="periodName"
+          />
+        ) : (
+          <DataTable empty={empty} footer={footer} table={table} />
+        )}
+      </section>
+      <DeleteBuqDialog
+        buq={deleting}
+        facilityId={facility.id}
+        focusAfterDelete={listRef}
+        onClose={() => setDeleting(undefined)}
+      />
+    </DownloadingContext>
   );
 }
 
-function DeleteBuqDialog({ buq, onClose }: { buq: BuqRow | undefined; onClose: () => void }) {
+function DeleteBuqDialog({
+  buq,
+  facilityId,
+  focusAfterDelete,
+  onClose,
+}: {
+  buq: BuqRow | undefined;
+  facilityId: string;
+  focusAfterDelete: RefObject<HTMLElement | null>;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { shown, close, dialogProps } = useDialogTarget(buq, onClose);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const remove = useSessionMutation({
     mutationFn: deleteBuq,
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       toast.success(t('buq.prepare.deleted-title'), {
         description: t('buq.prepare.deleted', { period: shown?.periodName ?? '' }),
       });
+      queryClient.setQueryData(preparedBuqsOptions(facilityId).queryKey, (buqs) =>
+        buqs?.filter((row) => row.id !== id),
+      );
+      queryClient.setQueryData(takenPeriodsOptions(facilityId).queryKey, (rows) =>
+        rows?.filter((row) => row.id !== id),
+      );
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'list'] }),
   });
@@ -292,7 +321,14 @@ function DeleteBuqDialog({ buq, onClose }: { buq: BuqRow | undefined; onClose: (
         if (!next) remove.reset();
       }}
     >
-      <AlertDialogContent initialFocus={cancelRef}>
+      <AlertDialogContent
+        finalFocus={() => {
+          if (!remove.isSuccess) return true;
+          focusAfterDelete.current?.focus();
+          return false;
+        }}
+        initialFocus={cancelRef}
+      >
         <AlertDialogHeader>
           <AlertDialogMedia>
             <Trash2Icon />
@@ -304,7 +340,11 @@ function DeleteBuqDialog({ buq, onClose }: { buq: BuqRow | undefined; onClose: (
         </AlertDialogHeader>
         {remove.isError && (
           <ErrorAlert
-            description={serverMessage(remove.error) ?? t('buq.prepare.delete-error')}
+            description={
+              remove.error instanceof BuqMovedError
+                ? t('buq.prepare.delete-moved')
+                : (serverMessage(remove.error) ?? t('buq.prepare.delete-error'))
+            }
             title={t('buq.prepare.delete-error-title')}
           />
         )}

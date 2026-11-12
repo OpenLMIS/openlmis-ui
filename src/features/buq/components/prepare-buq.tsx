@@ -24,11 +24,15 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { prepareBuq } from '@/features/buq/api/api';
-import { buqPeriodsOptions, preparedBuqsOptions } from '@/features/buq/api/queries';
+import {
+  buqPeriodsOptions,
+  preparedBuqsOptions,
+  takenPeriodsOptions,
+} from '@/features/buq/api/queries';
 import { PreparedTable, PreparedTableSkeleton } from '@/features/buq/components/prepared-table';
 import { BUQ_CODE } from '@/features/buq/lib/access';
 import type { PrepareSearch } from '@/features/buq/lib/search';
-import type { Buq, BuqPeriod, NamedItem } from '@/features/buq/lib/types';
+import type { BuqPeriod, NamedItem, TakenPeriod } from '@/features/buq/lib/types';
 import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -40,7 +44,7 @@ type PrepareBuqProps = { facility: NamedItem; program: NamedItem };
 type ListSearchProps = { search: PrepareSearch; onSearchChange: SearchChange<PrepareSearch> };
 
 const NO_PERIODS: BuqPeriod[] = [];
-const NO_BUQS: Buq[] = [];
+const NO_TAKEN: TakenPeriod[] = [];
 const noop = () => {};
 
 export function PrepareBuq({
@@ -53,7 +57,7 @@ export function PrepareBuq({
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-      <h2 className="font-semibold text-base">
+      <h2 className="truncate font-semibold text-base">
         {t('buq.prepare.applied', { facility: facility.name, program: program.name })}
       </h2>
       <QueryBoundary
@@ -65,7 +69,7 @@ export function PrepareBuq({
             title={t('buq.prepare.periods-error')}
           />
         )}
-        pendingFallback={<PeriodPicker disabled periods={NO_PERIODS} prepared={NO_BUQS} />}
+        pendingFallback={<PeriodPicker disabled periods={NO_PERIODS} taken={NO_TAKEN} />}
         resetKey={facility.id}
       >
         <LoadedPeriodPicker facility={facility} program={program} />
@@ -101,13 +105,22 @@ function useBuqPeriods() {
   return useSuspenseQuery(buqPeriodsOptions(schedule?.id)).data;
 }
 
+function usePeriodNames() {
+  const schedules = useQuery(processingSchedulesOptions());
+  const schedule = schedules.data?.find(({ code }) => code === BUQ_CODE);
+  const periods = useQuery({ ...buqPeriodsOptions(schedule?.id), enabled: schedules.isSuccess });
+  const settled = schedules.isError || periods.isError || periods.isSuccess;
+  return settled ? (periods.data ?? NO_PERIODS) : undefined;
+}
+
 function LoadedTable({
   facility,
   cards,
   ...list
 }: ListSearchProps & { facility: NamedItem; cards: boolean }) {
-  const periods = useBuqPeriods();
+  const periods = usePeriodNames();
   const { data: buqs } = useSuspenseQuery(preparedBuqsOptions(facility.id));
+  if (!periods) return <PreparedTableSkeleton cards={cards} search={list.search} />;
   return (
     <PreparedTable {...list} buqs={buqs} cards={cards} facility={facility} periods={periods} />
   );
@@ -117,20 +130,28 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const periods = useBuqPeriods();
-  const list = useQuery(preparedBuqsOptions(facility.id));
+  const taken = useQuery(takenPeriodsOptions(facility.id));
   const prepare = useSessionMutation({
     mutationFn: prepareBuq,
-    onSuccess: async (_, { processingPeriodId }) => {
-      const period = periods.find(({ id }) => id === processingPeriodId);
+    onSuccess: (buq, { processingPeriodId }) => {
+      const period = periods.find(({ id }) => id === processingPeriodId)?.name ?? '';
       toast.success(t('buq.prepare.prepared-title'), {
-        description: t('buq.prepare.prepared', { period: period?.name ?? '' }),
+        description: buq.bottomUpQuantificationLineItems?.length
+          ? t('buq.prepare.prepared', { period })
+          : t('buq.prepare.prepared-empty', { period }),
       });
-      await queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'list'] });
+      queryClient.setQueryData(preparedBuqsOptions(facility.id).queryKey, (buqs) =>
+        buqs ? [...buqs, buq] : buqs,
+      );
+      queryClient.setQueryData(takenPeriodsOptions(facility.id).queryKey, (rows) =>
+        rows ? [...rows, buq] : rows,
+      );
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'list'] }),
   });
   return (
     <PeriodPicker
-      disabled={prepare.isPending || list.isPending}
+      disabled={prepare.isPending || !taken.isSuccess}
       error={
         prepare.isError
           ? (serverMessage(prepare.error) ?? t('buq.prepare.prepare-error'))
@@ -145,7 +166,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
       }
       pending={prepare.isPending}
       periods={periods}
-      prepared={list.data ?? NO_BUQS}
+      taken={taken.data ?? NO_TAKEN}
     />
   );
 }
@@ -154,7 +175,7 @@ type PeriodItem = { value: string; label: string; prepared: boolean };
 
 function PeriodPicker({
   periods,
-  prepared,
+  taken,
   disabled = false,
   pending = false,
   error,
@@ -162,7 +183,7 @@ function PeriodPicker({
   onPrepare = noop,
 }: {
   periods: readonly BuqPeriod[];
-  prepared: readonly Buq[];
+  taken: readonly TakenPeriod[];
   disabled?: boolean;
   pending?: boolean;
   error?: string;
@@ -172,7 +193,7 @@ function PeriodPicker({
   const { t } = useTranslation();
   const field = useRef<HTMLDivElement>(null);
   const [pickedId, setPickedId] = useState<string | null>(null);
-  const preparedIds = new Set(prepared.map(({ processingPeriodId }) => processingPeriodId));
+  const preparedIds = new Set(taken.map(({ processingPeriodId }) => processingPeriodId));
   const items: PeriodItem[] = periods.map(({ id, name }) => ({
     value: id,
     label: name,
@@ -202,7 +223,7 @@ function PeriodPicker({
             <PickerAddField ref={field}>
               <ComboboxInput
                 aria-label={t('buq.prepare.select-period')}
-                placeholder={t('buq.prepare.select-period')}
+                placeholder={t('buq.prepare.period-placeholder')}
                 size="lg"
                 width="full"
               >
@@ -258,7 +279,7 @@ export function PrepareBuqSkeleton({ search }: { search: PrepareSearch }) {
           <Skeleton fill />
         </div>
       </div>
-      <PeriodPicker disabled periods={NO_PERIODS} prepared={NO_BUQS} />
+      <PeriodPicker disabled periods={NO_PERIODS} taken={NO_TAKEN} />
       <Separator />
       <h3 className="font-medium text-sm">{t('buq.prepare.report-list')}</h3>
       <PreparedTableSkeleton cards={cards} search={search} />

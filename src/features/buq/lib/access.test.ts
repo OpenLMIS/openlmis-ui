@@ -28,3 +28,40 @@ it.each([
 ])('refuses with %s', (kind, sources) => {
   expect(prepareAccess(sources)).toEqual({ kind });
 });
+
+it('picks the BUQ program among the user programs', () => {
+  expect(
+    prepareAccess({
+      home: {
+        ...HOME,
+        supportedPrograms: [
+          { id: 'g0', code: 'EPI' },
+          { id: 'g1', code: 'BUQ' },
+        ],
+      },
+      programs: [{ id: 'g0', code: 'EPI', name: 'EPI' }, BUQ],
+      permissions: GRANTED,
+    }),
+  ).toEqual({
+    kind: 'ready',
+    facility: { id: 'f1', name: 'Cuamba' },
+    program: { id: 'g1', name: 'BUQ' },
+  });
+});
+
+it('refuses a home grant held for another program or another right', () => {
+  expect(
+    prepareAccess({
+      home: HOME,
+      programs: [BUQ],
+      permissions: parsePermissions(['PREPARE_BUQ|f1|g0']),
+    }),
+  ).toEqual({ kind: 'no-grant' });
+  expect(
+    prepareAccess({
+      home: HOME,
+      programs: [BUQ],
+      permissions: parsePermissions(['PREPARE_BUQ|f2|g1', 'APPROVE_BUQ|f1|g1']),
+    }),
+  ).toEqual({ kind: 'no-grant' });
+});

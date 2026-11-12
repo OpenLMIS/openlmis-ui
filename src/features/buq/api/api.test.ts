@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchBuqPeriods, fetchPreparedBuqs, prepareBuq } from '@/features/buq/api/api';
+import {
+  BuqMovedError,
+  deleteBuq,
+  downloadBuq,
+  fetchBuqPeriods,
+  fetchPreparedBuqs,
+  fetchTakenPeriods,
+  prepareBuq,
+} from '@/features/buq/api/api';
 import { client } from '@/integrations/axios';
 
 vi.mock('@/integrations/axios', () => ({
@@ -55,6 +63,51 @@ describe('prepareBuq', () => {
     ).resolves.toEqual({ id: 'b1' });
     expect(post).toHaveBeenCalledWith('/bottomUpQuantifications/prepare', null, {
       params: { facilityId: 'f1', programId: 'g1', processingPeriodId: 'p1' },
+    });
+  });
+});
+
+describe('fetchTakenPeriods', () => {
+  it('reads the facility forecasts in every status', async () => {
+    vi.mocked(client.get).mockResolvedValueOnce(page([{ id: 'b1', processingPeriodId: 'p1' }], 1));
+
+    await expect(fetchTakenPeriods('f1')).resolves.toEqual([
+      { id: 'b1', processingPeriodId: 'p1' },
+    ]);
+    expect(get).toHaveBeenCalledWith('/bottomUpQuantifications', {
+      params: { facility: 'f1', page: 0, size: 100 },
+    });
+  });
+});
+
+describe('deleteBuq', () => {
+  it('deletes a forecast still waiting at the facility', async () => {
+    get.mockResolvedValueOnce({ data: { status: 'SUBMITTED' } });
+    vi.mocked(client.delete).mockResolvedValueOnce({});
+
+    await deleteBuq('b1');
+
+    expect(get).toHaveBeenCalledWith('/bottomUpQuantifications/b1');
+    expect(client.delete).toHaveBeenCalledWith('/bottomUpQuantifications/b1');
+  });
+
+  it('refuses a forecast that has moved on in the approval process', async () => {
+    get.mockResolvedValueOnce({ data: { status: 'AUTHORIZED' } });
+
+    await expect(deleteBuq('b1')).rejects.toBeInstanceOf(BuqMovedError);
+    expect(client.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('downloadBuq', () => {
+  it('reads the forecast CSV as a file', async () => {
+    const csv = new Blob(['csv']);
+    get.mockResolvedValueOnce({ data: csv });
+
+    await expect(downloadBuq('b1')).resolves.toBe(csv);
+    expect(get).toHaveBeenCalledWith('/bottomUpQuantifications/b1/download', {
+      params: undefined,
+      responseType: 'blob',
     });
   });
 });

@@ -9,6 +9,10 @@ export type Buq = {
   status: BuqStatus;
 };
 
+export type PreparedBuq = Buq & { bottomUpQuantificationLineItems?: readonly unknown[] };
+
+export type TakenPeriod = { id: string; processingPeriodId: string };
+
 export type BuqPeriod = {
   id: string;
   name: string;

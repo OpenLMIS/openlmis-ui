@@ -1,5 +1,11 @@
 import type { AxiosRequestConfig } from 'axios';
-import type { Buq, BuqPeriod, BuqPreparation } from '@/features/buq/lib/types';
+import type {
+  Buq,
+  BuqPeriod,
+  BuqPreparation,
+  PreparedBuq,
+  TakenPeriod,
+} from '@/features/buq/lib/types';
 import { client } from '@/integrations/axios';
 import { fetchReport } from '@/lib/fetch-report';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -9,6 +15,8 @@ const PAGE_SIZE = 100;
 const PREPARED_STATUSES = ['DRAFT', 'SUBMITTED', 'REJECTED'];
 
 export const BUQ_CSV_FILENAME = 'buq_quantification_preparation_report.csv';
+
+export class BuqMovedError extends Error {}
 
 async function fetchEveryPage<T>(path: string, config: AxiosRequestConfig) {
   const scope = getSessionScope();
@@ -32,6 +40,12 @@ export function fetchPreparedBuqs(facilityId: string) {
   });
 }
 
+export function fetchTakenPeriods(facilityId: string) {
+  return fetchEveryPage<TakenPeriod>('/bottomUpQuantifications', {
+    params: { facility: facilityId },
+  });
+}
+
 export function fetchBuqPeriods(scheduleId: string) {
   return fetchEveryPage<BuqPeriod>('/processingPeriods', {
     params: { processingScheduleId: scheduleId, sort: 'startDate,asc' },
@@ -39,7 +53,7 @@ export function fetchBuqPeriods(scheduleId: string) {
 }
 
 export async function prepareBuq(preparation: BuqPreparation) {
-  const { data } = await client.post<Buq>('/bottomUpQuantifications/prepare', null, {
+  const { data } = await client.post<PreparedBuq>('/bottomUpQuantifications/prepare', null, {
     params: preparation,
   });
   return data;
@@ -50,5 +64,9 @@ export function downloadBuq(id: string) {
 }
 
 export async function deleteBuq(id: string) {
+  const scope = getSessionScope();
+  const { data } = await client.get<{ status: string }>(`/bottomUpQuantifications/${id}`);
+  if (!PREPARED_STATUSES.includes(data.status)) throw new BuqMovedError();
+  assertSessionScope(scope);
   await client.delete(`/bottomUpQuantifications/${id}`);
 }
