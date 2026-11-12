@@ -11,7 +11,9 @@ import {
   buqRemarksOptions,
   buqSourcesOfFundsOptions,
   buqsForApprovalOptions,
+  buqsForFinalApprovalOptions,
   openBuqsOptions,
+  supervisedZonesOptions,
 } from '@/features/buq/api/queries';
 import { approveAccess, type BuqAccess, buqAccess } from '@/features/buq/lib/access';
 import { approvalFacilityIds } from '@/features/buq/lib/approval-rows';
@@ -20,6 +22,7 @@ import {
   deploymentTimeZoneOptions,
   facilitiesByIdsOptions,
   facilityOptions,
+  geographicZonesOptions,
   homeFacilityOptions,
   orderablesByIdsOptions,
   userProgramsOptions,
@@ -102,6 +105,47 @@ export async function loadApproveAccess(
       })
       .catch(noop);
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
+  }
+  return access;
+}
+
+export async function loadNationalAccess(
+  queryClient: QueryClient,
+  { zone, period }: { zone?: string; period?: string },
+) {
+  const { scope, userId } = currentUser();
+  const [, programs] = await Promise.all([
+    requireRight(queryClient, [RIGHTS.mohApproval, RIGHTS.poralgApproval]),
+    queryClient.ensureQueryData(userProgramsOptions(userId)),
+  ]);
+  assertSessionScope(scope);
+  const access = approveAccess(programs);
+  if (access.kind === 'ready') {
+    queryClient.prefetchQuery(buqPeriodsOptions());
+    queryClient.prefetchQuery(supervisedZonesOptions(access.programId));
+    queryClient.prefetchQuery(geographicZonesOptions());
+    queryClient.prefetchQuery(currencySettingsOptions());
+    if (zone && period) {
+      void queryClient
+        .fetchQuery(
+          buqsForFinalApprovalOptions({
+            programId: access.programId,
+            periodId: period,
+            zoneId: zone,
+          }),
+        )
+        .then(
+          (items) =>
+            queryClient.prefetchQuery(
+              facilitiesByIdsOptions(
+                approvalFacilityIds(
+                  items.map(({ bottomUpQuantification }) => bottomUpQuantification),
+                ),
+              ),
+            ),
+          noop,
+        );
+    }
   }
   return access;
 }

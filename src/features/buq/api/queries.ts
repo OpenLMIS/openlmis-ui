@@ -1,13 +1,16 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  type FinalApprovalSearch,
   fetchApproveStats,
   fetchBuqForecast,
   fetchBuqPeriods,
   fetchBuqsForApproval,
+  fetchBuqsForFinalApproval,
   fetchMostRecentRejection,
   fetchOpenBuqs,
   fetchRemarks,
   fetchSourcesOfFunds,
+  fetchSupervisedZones,
   fetchTakenPeriods,
 } from '@/features/buq/api/api';
 import { BUQ_CODE } from '@/features/buq/lib/access';
@@ -42,6 +45,18 @@ export const buqApproveStatsOptions = (programId: string) =>
   queryOptions({
     queryKey: queryKeys.buq.list({ approveStats: programId }),
     queryFn: () => fetchApproveStats(programId),
+  });
+
+export const buqsForFinalApprovalOptions = (search: FinalApprovalSearch) =>
+  queryOptions({
+    queryKey: queryKeys.buq.list({ national: search }),
+    queryFn: () => fetchBuqsForFinalApproval(search),
+  });
+
+export const supervisedZonesOptions = (programId: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.buq.all, 'zones', programId],
+    queryFn: () => fetchSupervisedZones(programId),
   });
 
 export const buqPeriodsOptions = () =>
