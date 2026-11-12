@@ -9,6 +9,7 @@ import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -81,7 +82,7 @@ function createColumns(t: TFunction, facility: NamedItem, handlers: RowHandlers)
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('buq.prepare.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('buq.prepare.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24', skeleton: 'control' },
       cell: ({ row }) => (
         <RowActions
