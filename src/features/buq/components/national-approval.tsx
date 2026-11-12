@@ -1,12 +1,11 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { SearchIcon } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { useFilterScoped } from '@/components/valid-assignments/selection';
 import { supervisedZonesOptions } from '@/features/buq/api/queries';
 import {
   NationalSearchForm,
@@ -22,6 +21,7 @@ import { groupOptions } from '@/features/buq/lib/national';
 import type { NationalSearch } from '@/features/buq/lib/search';
 import { geographicZonesOptions } from '@/features/reference-data/api/queries';
 import { useCardView } from '@/hooks/use-card-view';
+import { queryKeys } from '@/lib/key-factory';
 import type { SearchChange } from '@/lib/table-search';
 
 const VISIBILITY_KEY = 'buq.national.column-visibility';
@@ -71,6 +71,7 @@ function Notice({ title, description }: { title: string; description: string }) 
 function NationalContent({ programId, search, onSearchChange }: NationalApprovalProps) {
   const { t } = useTranslation();
   const view = useNationalView();
+  const queryClient = useQueryClient();
   const { data: tree } = useSuspenseQuery(supervisedZonesOptions(programId));
   const { data: zones } = useSuspenseQuery(geographicZonesOptions());
   const periods = useBuqPeriods();
@@ -84,8 +85,12 @@ function NationalContent({ programId, search, onSearchChange }: NationalApproval
     }),
     [zone, period, search.zone, search.period, groups, periods],
   );
-  const startKey = `${start.zone}|${start.period}`;
-  const [draft, setDraft] = useFilterScoped(startKey, start);
+  const [draft, setDraft] = useState(start);
+  const [draftFor, setDraftFor] = useState(start);
+  if (draftFor !== start) {
+    setDraftFor(start);
+    setDraft(start);
+  }
   if (!groups.length) {
     return (
       <Notice
@@ -100,14 +105,19 @@ function NationalContent({ programId, search, onSearchChange }: NationalApproval
     <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={view.measure}>
       <NationalSearchForm
         groups={groups}
-        onDraftChange={(next) => setDraft(next, startKey)}
-        onSearch={(next) => onSearchChange({ ...next, page: undefined })}
+        onDraftChange={setDraft}
+        onSearch={(next) => {
+          if (next.zone === applied?.zone && next.period === applied.period) {
+            void queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'list'] });
+          }
+          onSearchChange({ ...next, page: undefined });
+        }}
         periods={periods}
         start={start}
       />
-      {applied ? (
+      {applied && matches ? (
         <div className="flex flex-col gap-4">
-          <NationalViewMenu disabled={!matches} view={view} />
+          <NationalViewMenu view={view} />
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
@@ -128,19 +138,12 @@ function NationalContent({ programId, search, onSearchChange }: NationalApproval
           >
             <NationalResults
               cards={view.cards}
-              hidden={!matches}
               onSearchChange={onSearchChange}
               query={{ programId, periodId: applied.period, zoneId: applied.zone }}
               search={search}
               visibility={view.columnView.visibility}
             />
           </QueryBoundary>
-          {!matches && (
-            <Notice
-              description={t('buq.national.choose-description')}
-              title={t('buq.national.choose')}
-            />
-          )}
         </div>
       ) : (
         <Notice

@@ -1,4 +1,5 @@
 import type { BuqStatus, FinalApprovalItem, SupervisedZones } from '@/features/buq/lib/types';
+import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { Facility, GeographicZone } from '@/features/reference-data/lib/types';
 
 type NamedZone = Pick<GeographicZone, 'id' | 'name' | 'level'>;
@@ -33,6 +34,8 @@ export type NationalRow = {
   costs: Record<CostGroupId, number | null>;
 };
 
+const SCALE = 10_000;
+
 export type CostTotals = Record<CostGroupId | 'others', number>;
 
 const byGroup = <T>(value: (id: CostGroupId) => T): Record<CostGroupId, T> => ({
@@ -49,7 +52,7 @@ export function groupOptions(tree: SupervisedZones, zones: readonly NamedZone[])
     ids
       .map((id) => {
         const zone = byId.get(id);
-        const level = zone?.level.name;
+        const level = zone?.level.name || zone?.level.code;
         return {
           value: id,
           name: zone?.name ?? id,
@@ -85,7 +88,7 @@ export function nationalRows(
     return {
       id: buq.id,
       facilityName: facility?.name ?? '',
-      facilityType: facility?.type.name ?? '',
+      facilityType: facility ? facilityTypeName(facility.type) : '',
       status: buq.status,
       costs: byGroup((id) => parseCost(calculatedGroupsCosts[GROUP_NAMES[id]])),
     };
@@ -99,13 +102,13 @@ export const nationalFacilityIds = (items: readonly FinalApprovalItem[]) =>
 
 export function costTotals(items: readonly FinalApprovalItem[]): CostTotals {
   const named = new Map(COST_GROUP_IDS.map((id) => [GROUP_NAMES[id], id]));
-  const cents = new Map<CostGroupId | 'others', number>();
+  const units = new Map<CostGroupId | 'others', number>();
   for (const { calculatedGroupsCosts } of items) {
     for (const [name, text] of Object.entries(calculatedGroupsCosts)) {
       const id = named.get(name) ?? 'others';
-      cents.set(id, (cents.get(id) ?? 0) + Math.round((parseCost(text) ?? 0) * 100));
+      units.set(id, (units.get(id) ?? 0) + Math.round((parseCost(text) ?? 0) * SCALE));
     }
   }
-  const total = (id: CostGroupId | 'others') => (cents.get(id) ?? 0) / 100;
+  const total = (id: CostGroupId | 'others') => (units.get(id) ?? 0) / SCALE;
   return { ...byGroup(total), others: total('others') };
 }
