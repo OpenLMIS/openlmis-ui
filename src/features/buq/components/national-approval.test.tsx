@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import {
   fetchBuqPeriods,
@@ -19,6 +20,8 @@ import {
 } from '@/features/reference-data/api/queries';
 import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
+
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: vi.fn() } }));
 
 vi.mock('@/features/reference-data/api/api', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -104,11 +107,13 @@ function renderNational(search: NationalSearch = {}) {
   return onSearchChange;
 }
 
-it('enables Search only once a group and a period are chosen', async () => {
+it('starts on the first group and latest period, and enables Search only with both', async () => {
   const user = userEvent.setup();
   const onSearchChange = renderNational();
 
   const search = await screen.findByRole('button', { name: 'facility-program.search' });
+  expect(search).toBeEnabled();
+  await user.click(screen.getByRole('button', { name: 'buq.national.clear-group' }));
   expect(search).toBeDisabled();
   await user.click(screen.getByRole('combobox', { name: /buq\.national\.group/ }));
   await user.click(await screen.findByRole('option', { name: /Niassa/ }));
@@ -138,8 +143,8 @@ it('keeps Final Approval off until a row is picked, and Select All picks every p
 
   expect(await screen.findByRole('button', { name: 'buq.national.final-approval' })).toBeDisabled();
   await user.click(await rowBox(0));
-  await user.click(screen.getByRole('button', { name: /select-all-short/ }));
-  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  await user.click(screen.getByRole('button', { name: 'buq.national.select-all' }));
+  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
   await user.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
       name: 'buq.national.approve',
@@ -158,7 +163,7 @@ it('sends only the picked reports still waiting in a fresh read of the list', as
   await user.click(await rowBox(0));
   await user.click(await rowBox(1));
   vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue(ITEMS.slice(1));
-  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
   await user.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
       name: 'buq.national.approve',
@@ -166,6 +171,26 @@ it('sends only the picked reports still waiting in a fresh read of the list', as
   );
 
   await waitFor(() => expect(finalApproveBuqs).toHaveBeenCalledWith(['b1']));
+  expect(await screen.findByRole('button', { name: 'buq.national.final-approval' })).toBeDisabled();
+});
+
+it('tells the user when every picked report had already left the list', async () => {
+  const user = userEvent.setup();
+  vi.mocked(finalApproveBuqs).mockResolvedValue({ approved: [], error: undefined });
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  await user.click(await rowBox(0));
+  vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue(ITEMS.slice(1));
+  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
+  await user.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'buq.national.approve',
+    }),
+  );
+
+  await waitFor(() => expect(toast.info).toHaveBeenCalled());
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(finalApproveBuqs).toHaveBeenCalledWith([]);
 });
 
 it('keeps the confirmation open with the server message when approval fails', async () => {
@@ -176,7 +201,7 @@ it('keeps the confirmation open with the server message when approval fails', as
   renderNational({ zone: 'mz', period: 'p17' });
 
   await user.click(await rowBox(0));
-  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
   const dialog = await screen.findByRole('alertdialog');
   await user.click(within(dialog).getByRole('button', { name: 'buq.national.approve' }));
 
@@ -193,11 +218,12 @@ it('keeps the confirmation open and only the unapproved rows picked when a later
 
   await user.click(await rowBox(0));
   await user.click(await rowBox(1));
-  await user.click(screen.getByRole('button', { name: /final-approval-short/ }));
+  await user.click(screen.getByRole('button', { name: 'buq.national.final-approval' }));
   const dialog = await screen.findByRole('alertdialog');
   await user.click(within(dialog).getByRole('button', { name: 'buq.national.approve' }));
 
-  expect(await within(dialog).findByText('Approval refused by the server.')).toBeInTheDocument();
+  expect(await within(dialog).findByText(/Approval refused by the server\./)).toBeInTheDocument();
+  expect(within(dialog).getByText('buq.national.partly-approved-title')).toBeInTheDocument();
   await user.click(within(dialog).getByRole('button', { name: 'dialog.cancel' }));
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   expect(await rowBox(0)).not.toBeChecked();

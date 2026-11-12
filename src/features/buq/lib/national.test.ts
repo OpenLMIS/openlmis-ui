@@ -20,19 +20,17 @@ describe('groupOptions', () => {
       mz: { ni: { li: ['x'], cu: [] }, ca: {} },
     };
     expect(groupOptions(tree, ZONES)).toEqual([
-      { value: 'mz', label: 'Mozambique', description: 'Country' },
-      { value: 'ca', label: 'Cabo Delgado', description: 'Region' },
-      { value: 'ni', label: 'Niassa', description: 'Region' },
-      { value: 'cu', label: 'Cuamba', description: 'District' },
-      { value: 'li', label: 'Lichinga', description: 'District' },
-      { value: 'ta', label: 'Tanzania', description: 'Country' },
+      { value: 'mz', label: 'Mozambique (Country)' },
+      { value: 'ca', label: 'Cabo Delgado (Region)' },
+      { value: 'ni', label: 'Niassa (Region)' },
+      { value: 'cu', label: 'Cuamba (District)' },
+      { value: 'li', label: 'Lichinga (District)' },
+      { value: 'ta', label: 'Tanzania (Country)' },
     ]);
   });
 
   it('keeps a zone the zone list does not name, under its id', () => {
-    expect(groupOptions({ gone: {} }, ZONES)).toEqual([
-      { value: 'gone', label: 'gone', description: '' },
-    ]);
+    expect(groupOptions({ gone: {} }, ZONES)).toEqual([{ value: 'gone', label: 'gone' }]);
   });
 });
 
@@ -53,8 +51,8 @@ const item = (
 });
 
 const FACILITIES = [
-  { id: 'f1', name: 'Cuamba', type: { name: 'Health Center' } },
-  { id: 'f2', name: 'Lichinga', type: { name: 'District Hospital' } },
+  { id: 'f1', name: 'Cuamba', type: { id: 't1', code: 'hc', name: 'Health Center' } },
+  { id: 'f2', name: 'Lichinga', type: { id: 't2', code: 'dh', name: 'District Hospital' } },
 ];
 
 it('joins each forecast to its facility and reads the five legacy groups', () => {

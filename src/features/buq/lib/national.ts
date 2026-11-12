@@ -1,8 +1,9 @@
 import type { BuqStatus, FinalApprovalItem, SupervisedZones } from '@/features/buq/lib/types';
+import type { Facility, GeographicZone } from '@/features/reference-data/lib/types';
 
-type NamedZone = { id: string; name: string; level: { name: string | null } };
+type NamedZone = Pick<GeographicZone, 'id' | 'name' | 'level'>;
 
-type NationalFacility = { id: string; name: string | null; type?: { name: string | null } | null };
+type NationalFacility = Pick<Facility, 'id' | 'name' | 'type'>;
 
 export type CostGroupId = 'pharmaceuticals' | 'medical' | 'radiology' | 'diagnostics' | 'dental';
 
@@ -22,7 +23,7 @@ const GROUP_NAMES: Record<CostGroupId, string> = {
   dental: 'Dental supplies',
 };
 
-export type GroupOption = { value: string; label: string; description: string };
+export type GroupOption = { value: string; label: string };
 
 export type NationalRow = {
   id: string;
@@ -48,9 +49,15 @@ export function groupOptions(tree: SupervisedZones, zones: readonly NamedZone[])
     ids
       .map((id) => {
         const zone = byId.get(id);
-        return { value: id, label: zone?.name ?? id, description: zone?.level.name ?? '' };
+        const level = zone?.level.name;
+        return {
+          value: id,
+          name: zone?.name ?? id,
+          label: level ? `${zone?.name} (${level})` : id,
+        };
       })
-      .toSorted((a, b) => a.label.localeCompare(b.label));
+      .toSorted((a, b) => a.name.localeCompare(b.name))
+      .map(({ value, label }) => ({ value, label }));
   return sorted(Object.keys(tree)).flatMap((country) => {
     const zonesOf = tree[country.value] ?? {};
     return [
@@ -78,12 +85,17 @@ export function nationalRows(
     return {
       id: buq.id,
       facilityName: facility?.name ?? '',
-      facilityType: facility?.type?.name ?? '',
+      facilityType: facility?.type.name ?? '',
       status: buq.status,
       costs: byGroup((id) => parseCost(calculatedGroupsCosts[GROUP_NAMES[id]])),
     };
   });
 }
+
+export const nationalFacilityIds = (items: readonly FinalApprovalItem[]) =>
+  [
+    ...new Set(items.map(({ bottomUpQuantification }) => bottomUpQuantification.facilityId)),
+  ].toSorted();
 
 export function costTotals(items: readonly FinalApprovalItem[]): CostTotals {
   const named = new Map(COST_GROUP_IDS.map((id) => [GROUP_NAMES[id], id]));

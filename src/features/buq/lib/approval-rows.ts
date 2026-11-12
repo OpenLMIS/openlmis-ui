@@ -17,7 +17,7 @@ export type ApprovalRow = {
 
 const time = (value: string) => Date.parse(value) || 0;
 
-export const approvalFacilityIds = (buqs: readonly Pick<BuqForApproval, 'facilityId'>[]) =>
+export const approvalFacilityIds = (buqs: readonly BuqForApproval[]) =>
   [...new Set(buqs.map(({ facilityId }) => facilityId))].toSorted();
 
 function lastAuthorized(changes: readonly BuqStatusChange[]) {
