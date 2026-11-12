@@ -13,17 +13,13 @@ import {
 } from '@/features/orders/api/api';
 import type { OrderSearchParams } from '@/features/orders/lib/order-search';
 import type { PodResponse, ProofOfDelivery } from '@/features/orders/lib/pod-types';
-import type {
-  ShipmentSavedLine,
-  ShipmentStockFilter,
-  ShipmentSummary,
-} from '@/features/orders/lib/shipment-types';
+import type { ShipmentSavedLine, ShipmentSummary } from '@/features/orders/lib/shipment-types';
 import {
   commonNodeIds,
   supplierIds,
   viewOrderSupplierIds,
 } from '@/features/orders/lib/supplying-facilities';
-import type { OrderProduct } from '@/features/orders/lib/types';
+import type { OrderProduct, OrderStockFilter } from '@/features/orders/lib/types';
 import {
   facilitiesByIdsOptions,
   facilitySupervisoryNodesOptions,
@@ -68,22 +64,21 @@ export const supplyingFacilitiesOptions = (programId: string, facilityIds: reado
 
 export const orderOptions = (id: string) =>
   queryOptions({ queryKey: queryKeys.orders.detail(id), queryFn: () => fetchOrder(id) });
-type StockFilter = { programId: string; facilityId: string; orderableIds: readonly string[] };
 const STOCK_FRESHNESS = 30_000;
-const balanceKey = (filter: StockFilter, id: string) => [
+const balanceKey = (filter: OrderStockFilter, id: string) => [
   ...queryKeys.stockCardSummaries.all,
   'order-balance',
   filter.programId,
   filter.facilityId,
   id,
 ];
-export function cachedOrderBalance(client: QueryClient, filter: StockFilter, id: string) {
+export function cachedOrderBalance(client: QueryClient, filter: OrderStockFilter, id: string) {
   const state = client.getQueryState<number | null>(balanceKey(filter, id));
   return state && !state.isInvalidated && Date.now() - state.dataUpdatedAt < STOCK_FRESHNESS
     ? state.data
     : undefined;
 }
-export const orderStockOnHandOptions = (filter: StockFilter) =>
+export const orderStockOnHandOptions = (filter: OrderStockFilter) =>
   queryOptions({
     queryKey: [
       ...queryKeys.stockCardSummaries.all,
@@ -190,7 +185,7 @@ export const podReferenceOptions = (pod: ProofOfDelivery) => ({
     ...new Set(pod.shipment.order.orderLineItems.map((line) => line.orderable.id)),
   ]),
 });
-export const shipmentSummariesOptions = (filter: ShipmentStockFilter) =>
+export const shipmentSummariesOptions = (filter: OrderStockFilter) =>
   queryOptions({
     queryKey: [
       ...queryKeys.stockCardSummaries.all,

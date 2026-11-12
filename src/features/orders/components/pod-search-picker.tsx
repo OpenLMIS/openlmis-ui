@@ -20,14 +20,14 @@ export type PodSelection = Pick<
 type Option = { id: string; name: string | null };
 const schema = z
   .object({
-    programId: z.string().nullable().refine(Boolean, 'orders.pod.required'),
+    programId: z.string().nullable().refine(Boolean, 'orders.required'),
     requestingFacilityId: z.string().nullable(),
     supplyingFacilityId: z.string().nullable(),
   })
   .superRefine((value, context) => {
     if (!value.requestingFacilityId && !value.supplyingFacilityId)
       for (const path of ['requestingFacilityId', 'supplyingFacilityId'])
-        context.addIssue({ code: 'custom', path: [path], message: 'orders.pod.required' });
+        context.addIssue({ code: 'custom', path: [path], message: 'orders.required' });
   });
 export function PodSearchPicker({
   applied,

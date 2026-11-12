@@ -64,9 +64,6 @@ export function PodRowButtons({
   const print = usePrintReport({
     serverAuthorized: true,
     userId: getSessionUserId() ?? '',
-    facilityId: '',
-    programId: '',
-    right: '',
     beforeRequest: async () => {
       const pod = await findProofOfDelivery(order.id);
       if (!manage.isCurrent()) return false;
@@ -94,7 +91,6 @@ export function PodRowButtons({
     label: t('orders.pod.manage'),
     name: named(t('orders.pod.manage')),
     disabled: disabled || manage.isPending,
-    opensDialog: false,
     onSelect: () => manage.mutate(),
   };
   const printAction: CardAction = {
@@ -103,7 +99,6 @@ export function PodRowButtons({
     label: t('orders.print'),
     name: named(t('orders.print')),
     disabled: disabled || print.isPending || print.offline,
-    opensDialog: false,
     onSelect: print.print,
   };
   return cards ? (

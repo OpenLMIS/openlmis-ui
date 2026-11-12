@@ -1,10 +1,11 @@
+import { ORDER_NUMBER_MESSAGES } from '@/features/orders/lib/order-numbers';
 import {
   availableShipmentPacks,
   invalidShipmentPackSize,
 } from '@/features/orders/lib/shipment-quantities';
 import type { ShipmentSavedLine, ShipmentSummary } from '@/features/orders/lib/shipment-types';
 import type { Order, OrderProduct } from '@/features/orders/lib/types';
-import { MAX_WHOLE_NUMBER, toLatinDigits } from '@/lib/whole-number';
+import { toWholeNumber, wholeNumberError } from '@/lib/whole-number';
 
 export type ShipmentLot = { id: string; lotCode?: string; expirationDate?: string | null };
 export type ShipmentLine = {
@@ -173,11 +174,10 @@ export function shipmentGroups(
 }
 
 export function validateShipmentFill(line: ShipmentLine, fill: string | number | null) {
-  const text = toLatinDigits(String(fill ?? '').trim());
-  if (!text) return 'orders.shipment.fill-required';
-  if (!/^\d+$/.test(text)) return 'orders.shipment.fill-whole-number';
-  if (Number(text) > MAX_WHOLE_NUMBER) return 'orders.shipment.fill-too-large';
-  const value = Number(text);
+  const text = String(fill ?? '');
+  const format = wholeNumberError(text, ORDER_NUMBER_MESSAGES);
+  if (format) return format;
+  const value = toWholeNumber(text);
   if (invalidShipmentPackSize(line.product.netContent, value))
     return 'orders.shipment.invalid-pack-size';
   if (value > availableShipmentPacks(line.stockOnHand, line.product.netContent))

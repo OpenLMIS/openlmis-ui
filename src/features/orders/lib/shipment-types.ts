@@ -28,8 +28,3 @@ export type ShipmentBody = {
   lineItems: ShipmentSavedLine[];
 };
 export type ShipmentDraftBody = ShipmentBody & { id: string };
-export type ShipmentStockFilter = {
-  programId: string;
-  facilityId: string;
-  orderableIds: readonly string[];
-};

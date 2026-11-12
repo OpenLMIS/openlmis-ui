@@ -1,11 +1,14 @@
-import { z } from 'zod';
-import { ORDER_SORT_FIELDS, toOrderParams } from '@/features/orders/lib/order-search';
+import type { z } from 'zod';
+import {
+  ORDER_FILTERS,
+  ORDER_SORT_FIELDS,
+  toOrderParams,
+  uuidFilter,
+} from '@/features/orders/lib/order-search';
 import { tableSearchSchema } from '@/lib/table-search';
 
-const uuidFilter = z.uuid().optional().catch(undefined);
 export const podSearchSchema = tableSearchSchema(ORDER_SORT_FIELDS).extend({
-  programId: uuidFilter,
-  requestingFacilityId: uuidFilter,
+  ...ORDER_FILTERS,
   supplyingFacilityId: uuidFilter,
 });
 export type PodListSearch = z.infer<typeof podSearchSchema>;

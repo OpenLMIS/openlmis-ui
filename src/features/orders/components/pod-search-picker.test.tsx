@@ -33,9 +33,7 @@ it.each(['requestingFacilityId', 'supplyingFacilityId'] as const)(
     });
     expect(onSearch).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'facility-program.search' }));
-    await waitFor(() =>
-      expect(screen.getAllByText('orders.pod.required').length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText('orders.required').length).toBeGreaterThan(0));
     expect(onSearch).not.toHaveBeenCalled();
   },
 );

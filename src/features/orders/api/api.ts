@@ -6,10 +6,15 @@ import type {
   ShipmentBody,
   ShipmentDraftBody,
   ShipmentRecord,
-  ShipmentStockFilter,
   ShipmentSummary,
 } from '@/features/orders/lib/shipment-types';
-import type { CreateOrderBody, Order, OrderProduct, OrdersPage } from '@/features/orders/lib/types';
+import type {
+  CreateOrderBody,
+  Order,
+  OrderProduct,
+  OrderStockFilter,
+  OrdersPage,
+} from '@/features/orders/lib/types';
 import { client } from '@/integrations/axios';
 import { fetchByIds, fetchIdBatches } from '@/lib/fetch-by-ids';
 import { fetchReport, fetchReportFile } from '@/lib/fetch-report';
@@ -32,9 +37,7 @@ export async function sendOrder(body: OrderBody) {
 export async function deleteOrders(ids: readonly string[]) {
   await client.delete('/orders', { data: { ids } });
 }
-export async function fetchShipmentSummaries(
-  filter: ShipmentStockFilter,
-): Promise<ShipmentSummary[]> {
+export async function fetchShipmentSummaries(filter: OrderStockFilter): Promise<ShipmentSummary[]> {
   const scope = getSessionScope();
   const batches = await fetchIdBatches(filter.orderableIds, async (orderableId) => {
     const entries: ShipmentSummary[] = [];
@@ -60,7 +63,7 @@ export async function fetchShipmentSummaries(
   return batches.flat();
 }
 
-export async function fetchOrderStockOnHand(filter: ShipmentStockFilter) {
+export async function fetchOrderStockOnHand(filter: OrderStockFilter) {
   const scope = getSessionScope();
   const summaries = await fetchShipmentSummaries(filter);
   assertSessionScope(scope);

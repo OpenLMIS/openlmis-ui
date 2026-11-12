@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { DeviceWorkContext, EMPTY_DEVICE_WORK } from '@/components/app-shell/device-work';
 import { saveProofOfDelivery } from '@/features/orders/api/api';
 import { PodEditor } from '@/features/orders/components/pod-editor';
 import type { PodResponse, ProofOfDelivery } from '@/features/orders/lib/pod-types';
@@ -63,6 +64,7 @@ const pod: ProofOfDelivery = {
     },
   ],
 };
+const refreshOfflineDownload = vi.fn();
 function setup(
   canEdit = true,
   initial = pod,
@@ -74,16 +76,18 @@ function setup(
   });
   render(
     <QueryClientProvider client={client}>
-      <PodEditor
-        initial={initial}
-        products={products}
-        lots={[]}
-        fulfills={fulfills}
-        reasons={[{ id: 'damage', name: 'Damage' }]}
-        canEdit={canEdit}
-        timeZone="UTC"
-        onCancel={vi.fn()}
-      />
+      <DeviceWorkContext value={{ ...EMPTY_DEVICE_WORK, refreshOfflineDownload }}>
+        <PodEditor
+          initial={initial}
+          products={products}
+          lots={[]}
+          fulfills={fulfills}
+          reasons={[{ id: 'damage', name: 'Damage' }]}
+          canEdit={canEdit}
+          timeZone="UTC"
+          onCancel={vi.fn()}
+        />
+      </DeviceWorkContext>
     </QueryClientProvider>,
   );
   return userEvent.setup();
@@ -103,6 +107,25 @@ it('clears a rejection reason only after a valid accepted quantity leaves nothin
   expect(reason).toHaveTextContent('Damage');
   fireEvent.change(accepted, { target: { value: '8' } });
   expect(reason).toHaveTextContent('orders.pod.select-reason');
+});
+it('drops reason and VVM errors once an accepted change makes them unnecessary', () => {
+  setup(true, {
+    ...pod,
+    lineItems: [{ ...pod.lineItems[0], rejectionReasonId: null, useVvm: true }],
+  });
+  const accepted = screen.getByRole('textbox', { name: 'orders.pod.accepted-for' });
+  const reason = screen.getByRole('combobox', { name: 'orders.pod.reason-for' });
+  const vvm = screen.getByRole('combobox', { name: 'orders.pod.vvm-for' });
+  for (const field of [reason, vvm]) {
+    fireEvent.focus(field);
+    fireEvent.blur(field);
+  }
+  expect(reason).toHaveAttribute('aria-invalid', 'true');
+  expect(vvm).toHaveAttribute('aria-invalid', 'true');
+  fireEvent.change(accepted, { target: { value: '8' } });
+  expect(reason).not.toHaveAttribute('aria-invalid', 'true');
+  fireEvent.change(accepted, { target: { value: '0' } });
+  expect(vvm).not.toHaveAttribute('aria-invalid', 'true');
 });
 it('keeps typing during save dirty and sends the submitted values', async () => {
   const request = Promise.withResolvers<PodResponse>();
@@ -135,6 +158,29 @@ it('blocks confirmation when required delivery details are missing', async () =>
   await user.click(screen.getByRole('button', { name: 'orders.pod.confirm' }));
   expect(await screen.findByRole('alertdialog')).toHaveTextContent('orders.pod.invalid-form');
   expect(saveProofOfDelivery).not.toHaveBeenCalled();
+});
+
+it('requests a refresh of downloaded stock at the receiving facility after Confirm', async () => {
+  vi.mocked(saveProofOfDelivery).mockImplementation(async (_, body) => ({
+    ...pod,
+    ...body,
+    lineItems: pod.lineItems,
+    shipment: { id: 'shipment' },
+  }));
+  const user = setup(true, {
+    ...pod,
+    receivedBy: 'Receiver',
+    deliveredBy: 'Driver',
+    receivedDate: '2026-01-05',
+  });
+  await user.click(screen.getByRole('button', { name: 'orders.pod.confirm' }));
+  const dialog = await screen.findByRole('alertdialog');
+  await user.click(within(dialog).getByRole('button', { name: 'orders.pod.confirm' }));
+  await waitFor(() =>
+    expect(refreshOfflineDownload).toHaveBeenCalledWith(
+      `${pod.shipment.order.receivingFacility.id}:program`,
+    ),
+  );
 });
 
 it.each([false, true])('shows the unit of an unmatched fulfilling product in cards=%s', (cards) => {

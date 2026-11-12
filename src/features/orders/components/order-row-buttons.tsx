@@ -10,12 +10,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  type CardAction,
-  CardActions,
-  RowActions,
-  useInCards,
-} from '@/components/display/card-actions';
+import { type CardAction, CardActions, useInCards } from '@/components/display/card-actions';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { Button } from '@/components/ui/button';
 import { fetchOrderCsv, fetchOrderPdf, retryOrderTransfer } from '@/features/orders/api/api';
@@ -56,9 +51,6 @@ export function OrderRowButtons({
   const print = usePrintReport({
     serverAuthorized: true,
     userId: getSessionUserId() ?? '',
-    facilityId: '',
-    programId: '',
-    right: '',
     request: (language) => fetchOrderPdf(order.id, language),
     onReport: () => openReport(`${order.orderCode ?? order.id}.pdf`, t('orders.print')),
     successTitle: t('orders.print-success-title'),
@@ -126,7 +118,6 @@ export function OrderRowButtons({
     },
     print: {
       id: 'print',
-      opensDialog: false,
       icon: <PrinterIcon />,
       label: t('orders.print'),
       name: named(t('orders.print')),
@@ -135,7 +126,6 @@ export function OrderRowButtons({
     },
     download: {
       id: 'download',
-      opensDialog: false,
       icon: <DownloadIcon />,
       label: t('orders.download'),
       name: named(t('orders.download')),
@@ -144,7 +134,6 @@ export function OrderRowButtons({
     },
     retry: {
       id: 'retry',
-      opensDialog: false,
       icon: <RefreshCwIcon />,
       label: t('orders.retry'),
       name: named(t('orders.retry')),
@@ -155,10 +144,12 @@ export function OrderRowButtons({
     },
   };
   return (
-    <RowActions
-      label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}
-      actions={viewOrderActions(order, access).map((action) => actions[action])}
-    />
+    <div className="flex justify-end">
+      <CardActions
+        label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}
+        actions={viewOrderActions(order, access).map((action) => actions[action])}
+      />
+    </div>
   );
 }
 
@@ -195,7 +186,15 @@ export function FulfillOrderButton({
       actions={[{ id: 'fulfill', icon: <PackageOpenIcon />, label, name, disabled, link }]}
     />
   ) : (
-    <Button aria-label={name} size="sm" variant="outline" disabled={disabled} render={link}>
+    <Button
+      aria-label={name}
+      size="sm"
+      variant="outline"
+      disabled={disabled}
+      nativeButton={false}
+      role="link"
+      render={link}
+    >
       {label}
     </Button>
   );

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-quer
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useDeviceWork } from '@/components/app-shell/device-work';
 import { LoadError } from '@/components/app-shell/load-error';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
@@ -64,9 +65,10 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { openReport } from '@/lib/open-report';
+import { invalidateOrderLists } from '@/lib/order-queries';
 import { revealField } from '@/lib/reveal-field';
-import { RIGHTS } from '@/lib/rights';
 import { getSessionUserId } from '@/lib/session-scope';
+import { homeStockRefreshKey } from '@/lib/stock-programs';
 import { toOptionalWholeNumber } from '@/lib/whole-number';
 
 export const isFulfillable = (order: Order) => ['ORDERED', 'FULFILLING'].includes(order.status);
@@ -142,6 +144,7 @@ function ShipmentData({
   const client = useQueryClient();
   const editableStatus = isFulfillable(order);
   const [opened, setOpened] = useState(false);
+  const closed = useRef(false);
   const record = useQuery({
     ...(editableStatus ? shipmentDraftOptions(order.id) : shipmentOptions(order.id)),
     retry: false,
@@ -172,9 +175,7 @@ function ShipmentData({
       client.setQueryData(shipmentDraftOptions(order.id).queryKey, draft);
       await Promise.all([
         client.invalidateQueries({ queryKey: orderOptions(order.id).queryKey }),
-        client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] }),
-        client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'requesting-facilities'] }),
-        client.invalidateQueries({ queryKey: queryKeys.home.all }),
+        invalidateOrderLists(client),
       ]);
     },
   });
@@ -188,7 +189,8 @@ function ShipmentData({
       !summaries.isFetching &&
       record.isSuccess &&
       !record.data &&
-      create.status === 'idle'
+      create.status === 'idle' &&
+      !closed.current
     )
       create.mutate();
   }, [
@@ -235,7 +237,9 @@ function ShipmentData({
     return notice(t('orders.shipment.cannot-fulfill'));
   const failure = error ? (
     <LoadError
-      title={t('orders.shipment.stock-error')}
+      title={t(
+        error === summaries.error ? 'orders.shipment.stock-error' : 'orders.shipment.load-error',
+      )}
       description={t('error.description')}
       error={error}
       reset={() => {
@@ -262,6 +266,9 @@ function ShipmentData({
       record={record.data ?? null}
       access={editableStatus ? access : { canEdit: false, canCancel: false, canPrint: false }}
       onReturn={onReturn}
+      onClosed={() => {
+        closed.current = true;
+      }}
     />
   );
 }
@@ -274,7 +281,9 @@ function ShipmentEditor({
   onReturn,
   loadFailure,
   blocked,
+  onClosed,
 }: {
+  onClosed: () => void;
   order: Order;
   cceStatus: ReactNode;
   lines: ShipmentLine[];
@@ -286,6 +295,7 @@ function ShipmentEditor({
 }) {
   const { t } = useTranslation();
   const client = useQueryClient();
+  const { refreshOfflineDownload } = useDeviceWork();
   const [initial] = useState(() => shipmentValues(lines, record?.notes));
   const form = useShipmentForm(initial);
   const [baseline, setBaseline] = useState(initial);
@@ -379,9 +389,6 @@ function ShipmentEditor({
   const print = usePrintReport({
     serverAuthorized: true,
     userId: getSessionUserId() ?? '',
-    facilityId: order.supplyingFacility.id,
-    programId: order.program.id,
-    right: RIGHTS.shipmentsEdit,
     beforeRequest: async () => {
       try {
         await save.mutateAsync();
@@ -408,14 +415,15 @@ function ShipmentEditor({
         );
     },
     onSuccess: async (_, kind) => {
+      onClosed();
       leaving.current = true;
       setAction(null);
       client.removeQueries({ queryKey: shipmentDraftOptions(order.id).queryKey, exact: true });
+      if (kind === 'confirm')
+        refreshOfflineDownload(homeStockRefreshKey(order.supplyingFacility.id, order.program.id));
       await Promise.all([
         client.invalidateQueries({ queryKey: orderOptions(order.id).queryKey }),
-        client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] }),
-        client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'requesting-facilities'] }),
-        client.invalidateQueries({ queryKey: queryKeys.home.all }),
+        invalidateOrderLists(client),
         ...(kind === 'confirm'
           ? [
               client.invalidateQueries({ queryKey: shipmentOptions(order.id).queryKey }),

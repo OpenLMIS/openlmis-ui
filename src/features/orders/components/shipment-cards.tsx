@@ -57,19 +57,27 @@ function ShipmentCardRow(
         )}
       {props.row.line && <CardBand>{display['lot-code']}</CardBand>}
       <CardRows>
-        {SHIPMENT_COLUMNS.filter((column) => column !== 'product' && column !== 'lot-code').map(
-          (column) =>
-            column === 'fill' && props.row.line && props.canEdit ? (
-              <CardControlRow key={column} label={t('orders.shipment.fill')}>
-                <ShipmentFill {...props} line={props.row.line} />
-              </CardControlRow>
-            ) : (
-              <SettingsItem key={column} label={t(`orders.shipment.${column}`)}>
-                {orEmpty(display[column])}
-              </SettingsItem>
-            ),
+        {cardColumns(props.row).map((column) =>
+          column === 'fill' && props.row.line && props.canEdit ? (
+            <CardControlRow key={column} label={t('orders.shipment.fill')}>
+              <ShipmentFill {...props} line={props.row.line} />
+            </CardControlRow>
+          ) : (
+            <SettingsItem key={column} label={t(`orders.shipment.${column}`)}>
+              {orEmpty(display[column])}
+            </SettingsItem>
+          ),
         )}
       </CardRows>
     </div>
   );
+}
+function cardColumns(row: ReturnType<typeof shipmentDisplayRows>[number]) {
+  const shown = new Set<(typeof SHIPMENT_COLUMNS)[number]>(['fill', 'available', 'remaining']);
+  if (row.ordered != null) shown.add('ordered');
+  if (row.line) {
+    shown.add('vvm');
+    shown.add('expiry');
+  }
+  return SHIPMENT_COLUMNS.filter((column) => shown.has(column));
 }

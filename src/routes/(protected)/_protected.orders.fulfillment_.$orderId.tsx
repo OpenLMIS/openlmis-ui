@@ -4,8 +4,6 @@ import {
   useLocation,
   useNavigate,
 } from '@tanstack/react-router';
-import { useTranslation } from 'react-i18next';
-import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { requirePermissions } from '@/features/auth/lib/access';
 import { facilityCceOptions } from '@/features/cce-inventory/api/queries';
 import { FacilityCceStatus } from '@/features/cce-inventory/components/facility-cce-status';
@@ -72,10 +70,6 @@ export const Route = createFileRoute('/(protected)/_protected/orders/fulfillment
   pendingComponent: ShipmentPending,
   component: ShipmentPage,
 });
-function CceUnknown() {
-  const { t } = useTranslation();
-  return <span>{t('cce-inventory.facility-status.unknown')}</span>;
-}
 function ShipmentPage() {
   const { order, access, canViewCce } = Route.useLoaderData();
   const navigate = useNavigate();
@@ -90,13 +84,7 @@ function ShipmentPage() {
         )
       }
       cceStatus={
-        <QueryBoundary
-          resetKey={order.requestingFacility.id}
-          pendingFallback={<CceUnknown />}
-          errorComponent={CceUnknown}
-        >
-          <FacilityCceStatus facilityId={order.requestingFacility.id} canView={canViewCce} />
-        </QueryBoundary>
+        <FacilityCceStatus facilityId={order.requestingFacility.id} canView={canViewCce} />
       }
     />
   );

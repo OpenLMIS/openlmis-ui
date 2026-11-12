@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { CircleAlertIcon, CircleCheckIcon, CircleHelpIcon, SnowflakeIcon } from 'lucide-react';
+import {
+  BellRingIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleHelpIcon,
+  SnowflakeIcon,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { facilityCceOptions } from '@/features/cce-inventory/api/queries';
@@ -48,13 +55,7 @@ export function FacilityCceStatus({
             : `cce-inventory.facility-status.${status}`,
         )}
       </span>
-      {alerts.length > 0 && (
-        <span
-          className="size-2 rounded-full bg-destructive"
-          role="img"
-          aria-label={t('cce-inventory.facility-status.alert')}
-        />
-      )}
+      {alerts.length > 0 && <AlertBadge label={t('cce-inventory.facility-status.alert')} />}
       {canView && items.length > 0 && (
         <Popover>
           <PopoverTrigger render={<Button variant="link" size="sm" />}>
@@ -67,11 +68,7 @@ export function FacilityCceStatus({
                 <div key={item.id} className="flex items-center gap-2">
                   <span className="min-w-0 break-words">{item.referenceName}</span>
                   {alerts.some((alert) => alert.device_id === item.id) && (
-                    <span
-                      className="size-2 shrink-0 rounded-full bg-destructive"
-                      role="img"
-                      aria-label={t('cce-inventory.facility-status.alert')}
-                    />
+                    <AlertBadge label={t('cce-inventory.facility-status.alert')} />
                   )}
                 </div>
               ))}
@@ -80,5 +77,14 @@ export function FacilityCceStatus({
         </Popover>
       )}
     </div>
+  );
+}
+
+function AlertBadge({ label }: { label: string }) {
+  return (
+    <Badge variant="destructive">
+      <BellRingIcon data-icon="inline-start" />
+      {label}
+    </Badge>
   );
 }

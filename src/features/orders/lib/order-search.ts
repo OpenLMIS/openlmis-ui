@@ -11,23 +11,23 @@ export const ORDER_SORT_FIELDS = ['orderCode', 'emergency', 'createdDate'] as co
 export const isOrderSortField = (id: string): id is (typeof ORDER_SORT_FIELDS)[number] =>
   ORDER_SORT_FIELDS.some((field) => field === id);
 export const ORDER_DEFAULT_SORT = { id: 'createdDate', desc: true };
-const uuidFilter = z.uuid().optional().catch(undefined);
+export const uuidFilter = z.uuid().optional().catch(undefined);
 const statusFilter = <T extends string>(statuses: readonly T[]) =>
   z.string().toUpperCase().pipe(z.enum(statuses)).optional().catch(undefined);
-const filters = {
+export const ORDER_FILTERS = {
   requestingFacilityId: uuidFilter,
   programId: uuidFilter,
 };
 
 export const viewOrdersSearchSchema = tableSearchSchema(ORDER_SORT_FIELDS).extend({
-  ...filters,
+  ...ORDER_FILTERS,
   supplyingFacilityId: uuidFilter,
   status: statusFilter(ORDER_KINDS.view.filterStatuses),
   periodStart: dateFilterSchema,
   periodEnd: dateFilterSchema,
 });
 export const fulfillOrdersSearchSchema = tableSearchSchema(ORDER_SORT_FIELDS).extend({
-  ...filters,
+  ...ORDER_FILTERS,
   status: statusFilter(ORDER_KINDS.fulfill.filterStatuses),
 });
 export type ViewOrdersSearch = z.infer<typeof viewOrdersSearchSchema>;

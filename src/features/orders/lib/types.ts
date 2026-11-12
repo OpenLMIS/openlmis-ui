@@ -60,3 +60,8 @@ export type OrderSummary = {
   supplyingFacility: { id: string; name: string | null; code: string | null } | null;
 };
 export type OrdersPage = Page<OrderSummary>;
+export type OrderStockFilter = {
+  programId: string;
+  facilityId: string;
+  orderableIds: readonly string[];
+};

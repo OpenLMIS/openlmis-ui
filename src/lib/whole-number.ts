@@ -13,34 +13,35 @@ export function toLatinDigits(text: string) {
   });
 }
 
-type WholeNumberMessages = {
-  required?: ParseKeys;
-  invalid: ParseKeys;
-  tooLarge: ParseKeys;
+type WholeNumberMessages<K extends ParseKeys = ParseKeys> = {
+  required?: K;
+  invalid: K;
+  tooLarge: K;
 };
 
-type WholeNumberRange = {
-  min?: { value: number; tooSmall: ParseKeys } | undefined;
+type WholeNumberRange<K extends ParseKeys = ParseKeys> = {
+  min?: { value: number; tooSmall: K } | undefined;
   max?: number;
   optional?: boolean;
 };
 
-export function wholeNumberText(
-  messages: WholeNumberMessages,
-  { min, max = MAX_WHOLE_NUMBER, optional = false }: WholeNumberRange = {},
-) {
+export function wholeNumberError<K extends ParseKeys>(
+  value: string,
+  messages: WholeNumberMessages<K>,
+  { min, max = MAX_WHOLE_NUMBER, optional = false }: WholeNumberRange<K> = {},
+): K | undefined {
+  const text = toLatinDigits(value.trim());
+  if (!text) return optional ? undefined : (messages.required ?? messages.invalid);
+  if (!/^[0-9]+$/.test(text)) return messages.invalid;
+  if (Number(text) > max) return messages.tooLarge;
+  if (min && Number(text) < min.value) return min.tooSmall;
+  return undefined;
+}
+
+export function wholeNumberText(messages: WholeNumberMessages, range: WholeNumberRange = {}) {
   return z.string().superRefine((value, context) => {
-    const text = toLatinDigits(value.trim());
-    if (!text) {
-      if (!optional) {
-        context.addIssue({ code: 'custom', message: messages.required ?? messages.invalid });
-      }
-    } else if (!/^[0-9]+$/.test(text))
-      context.addIssue({ code: 'custom', message: messages.invalid });
-    else if (Number(text) > max) context.addIssue({ code: 'custom', message: messages.tooLarge });
-    else if (min && Number(text) < min.value) {
-      context.addIssue({ code: 'custom', message: min.tooSmall });
-    }
+    const message = wholeNumberError(value, messages, range);
+    if (message) context.addIssue({ code: 'custom', message });
   });
 }
 

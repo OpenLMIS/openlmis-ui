@@ -111,7 +111,7 @@ const ShipmentTableRow = memo(function ShipmentTableRow(
   if (props.row.noStock)
     return (
       <TableRow>
-        <TableCell colSpan={9}>{t('orders.shipment.no-stock')}</TableCell>
+        <TableCell colSpan={SHIPMENT_COLUMNS.length}>{t('orders.shipment.no-stock')}</TableCell>
       </TableRow>
     );
   return (

@@ -49,7 +49,7 @@ import {
 import { deploymentTimeZoneOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { queryKeys } from '@/lib/key-factory';
+import { ORDER_LISTS_KEY } from '@/lib/order-queries';
 import { facilityGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 import type { SearchChange } from '@/lib/table-search';
@@ -290,7 +290,7 @@ function OrdersBody({
         onSearch={(id) => {
           if (id === search.supplyingFacilityId)
             void client.invalidateQueries({
-              queryKey: [...queryKeys.orders.all, 'list'],
+              queryKey: ORDER_LISTS_KEY,
               refetchType: search.page ? 'none' : 'active',
             });
           onSearchChange((previous) => ({

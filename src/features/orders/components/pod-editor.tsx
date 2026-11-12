@@ -4,6 +4,7 @@ import { ClipboardCheckIcon, PrinterIcon } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useDeviceWork } from '@/components/app-shell/device-work';
 import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
@@ -59,6 +60,7 @@ import { queryKeys } from '@/lib/key-factory';
 import { openReport } from '@/lib/open-report';
 import { revealField } from '@/lib/reveal-field';
 import { getSessionUserId } from '@/lib/session-scope';
+import { homeStockRefreshKey } from '@/lib/stock-programs';
 
 export function PodEditor({
   initial,
@@ -81,6 +83,7 @@ export function PodEditor({
 }) {
   const { t, i18n } = useTranslation();
   const client = useQueryClient();
+  const { refreshOfflineDownload } = useDeviceWork();
   const [pod, setPod] = useState(initial);
   const [baseline, setBaseline] = useState(() => podDraft(initial));
   const form = usePodForm(baseline);
@@ -131,6 +134,8 @@ export function PodEditor({
       if (confirming) {
         setConfirm(false);
         leaving.current = true;
+        if (order.receivingFacility)
+          refreshOfflineDownload(homeStockRefreshKey(order.receivingFacility.id, order.program.id));
         await Promise.all([
           client.invalidateQueries({ queryKey: queryKeys.orders.all }),
           client.invalidateQueries({ queryKey: queryKeys.proofsOfDelivery.all }),
@@ -189,9 +194,6 @@ export function PodEditor({
   const print = usePrintReport({
     serverAuthorized: true,
     userId: getSessionUserId() ?? '',
-    facilityId: order.receivingFacility?.id ?? '',
-    programId: order.program.id,
-    right: '',
     beforeRequest: async () => !editable || !dirty || (await save()),
     request: (language) => fetchProofOfDeliveryPdf(pod.id, language),
     onReport: () => openReport(`${order.orderCode ?? pod.id}.pdf`, t('orders.print')),
@@ -252,16 +254,18 @@ export function PodEditor({
                   {[order.facility.code, order.facility.name].filter(Boolean).join(' - ')}
                 </RecordSummaryField>
                 <RecordSummaryField label={t('orders.pod.columns.created-date')}>
-                  {orEmpty(formatTimestamp(order.createdDate, i18n.language, { timeZone }))}
+                  {orEmpty(
+                    formatTimestamp(order.createdDate, i18n.language, { time: true, timeZone }),
+                  )}
                 </RecordSummaryField>
-                <RecordSummaryField label={t('orders.pod.columns.period')}>
+                <RecordSummaryField label={t('orders.pod.reporting-period')}>
                   {order.processingPeriod
                     ? [order.processingPeriod.startDate, order.processingPeriod.endDate]
                         .map((date) => formatDateValue(date ?? '', i18n.language))
                         .join(' - ')
                     : orEmpty(null)}
                 </RecordSummaryField>
-                <RecordSummaryField label={t('orders.pod.columns.supplying-facility')}>
+                <RecordSummaryField label={t('orders.pod.supplying-facility')}>
                   {order.supplyingFacility.name ?? order.supplyingFacility.id}
                 </RecordSummaryField>
                 <RecordSummaryField label={t('orders.pod.columns.emergency')}>
@@ -310,13 +314,12 @@ export function PodEditor({
                         key={key}
                         name={key}
                         validators={{
-                          onChange: () =>
-                            attempted
+                          onChange: ({ fieldApi }) =>
+                            attempted || fieldApi.state.meta.isBlurred
                               ? validatePodFooter(form.state.values, 'confirm', timeZone)[key]
                               : undefined,
-                          onBlur: () =>
-                            validatePodFooter(form.state.values, 'confirm', timeZone)[key],
                         }}
+                        listeners={{ onBlur: ({ fieldApi }) => void fieldApi.validate('change') }}
                       >
                         {(field) =>
                           key === 'receivedDate' ? (

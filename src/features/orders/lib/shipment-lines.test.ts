@@ -114,10 +114,10 @@ it('sorts no-lot first, then VVM descending, missing VVM as stage one, expiry th
 });
 it('validates required fill, whole numbers, available packs and missing pack sizes', () => {
   const line = build()[0];
-  expect(validateShipmentFill(line, '')).toBe('orders.shipment.fill-required');
+  expect(validateShipmentFill(line, '')).toBe('orders.required');
   expect(validateShipmentFill(line, 0)).toBeNull();
   expect(validateShipmentFill(line, 3)).toBe('orders.shipment.fill-exceeds-stock');
-  expect(validateShipmentFill(line, 1.5)).toBe('orders.shipment.fill-whole-number');
+  expect(validateShipmentFill(line, 1.5)).toBe('orders.whole-number');
   expect(validateShipmentFill({ ...line, product: { id: 'p', netContent: 0 } }, 1)).toBe(
     'orders.shipment.invalid-pack-size',
   );

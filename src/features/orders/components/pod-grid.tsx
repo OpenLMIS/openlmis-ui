@@ -1,5 +1,5 @@
 import { useStore } from '@tanstack/react-form';
-import { Fragment, type ReactNode, useState } from 'react';
+import { Fragment, type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableCard, DataTableHeaderLabel } from '@/components/data-table/data-table';
 import {
@@ -26,7 +26,7 @@ import {
   validatePodLine,
 } from '@/features/orders/lib/pod-validation';
 import { useCardLayout } from '@/hooks/use-card-view';
-import { orEmpty } from '@/lib/empty-value';
+import { orEmpty, tableValue } from '@/lib/empty-value';
 import { vvmStages } from '@/lib/vvm';
 
 const columns = [
@@ -128,9 +128,9 @@ export function PodGrid({
                   <TableRow tone="skipped">
                     <TableCell rowHeader>{groupName(group)}</TableCell>
                     <TableCell>
-                      <bdi>{orEmpty(group.orderLine?.orderable.dispensable?.displayUnit)}</bdi>
+                      <bdi>{group.orderLine?.orderable.dispensable?.displayUnit}</bdi>
                     </TableCell>
-                    <TableCell>{orEmpty(group.orderLine?.orderedQuantity)}</TableCell>
+                    <TableCell>{group.orderLine?.orderedQuantity}</TableCell>
                     <TableCell colSpan={visible.length - 3} />
                   </TableRow>
                   {rows(group)}
@@ -172,13 +172,14 @@ function PodRow({
 }) {
   const { t, i18n } = useTranslation();
   const values = useStore(form.store, (state) => state.values.lines[line.id]);
-  const [revealed, setRevealed] = useState(false);
+  const revealed = useRef(false);
   const path = `lines.${line.id}` as const;
+  const empty = <T,>(value: T | null | undefined) => (cards ? orEmpty(value) : tableValue(value));
   const number = (value: number | null) =>
-    value === null ? orEmpty(null) : value.toLocaleString(i18n.language);
+    empty(value === null ? null : value.toLocaleString(i18n.language));
   const control = (key: 'accepted' | 'vvm' | 'reason' | 'notes') => {
     if (!editable)
-      return orEmpty(
+      return empty(
         key === 'accepted'
           ? values.accepted
           : key === 'reason'
@@ -191,15 +192,16 @@ function PodRow({
       <form.AppField
         name={`${path}.${key}`}
         validators={{
-          onChangeListenTo: [`${path}.accepted`],
           onChange: ({ value }) =>
-            revealed || attempted
+            revealed.current || attempted
               ? validatePodLine({ ...form.getFieldValue(path), [key]: value }, line, 'confirm')[key]
               : undefined,
-          onBlur: () => validatePodLine(form.getFieldValue(path), line, 'confirm')[key],
         }}
         listeners={{
-          onBlur: () => setRevealed(true),
+          onBlur: ({ fieldApi }) => {
+            revealed.current = true;
+            void fieldApi.validate('change');
+          },
           onChange: ({ value }) => {
             if (key !== 'accepted') return;
             const clear = podAutoClear(value, line.quantityShipped);
@@ -213,6 +215,8 @@ function PodRow({
                   vvm: clear.vvm ? '' : previous[line.id].vvm,
                 },
               }));
+            void form.validateField(`${path}.reason`, 'change');
+            void form.validateField(`${path}.vvm`, 'change');
           },
         }}
       >
@@ -224,6 +228,7 @@ function PodRow({
               hideErrors
               required
               disabled={disabled}
+              controlSize={cards ? undefined : 'sm'}
             />
           ) : key === 'reason' || key === 'vvm' ? (
             <field.SelectField
@@ -231,6 +236,7 @@ function PodRow({
               layout="inline"
               hideErrors
               disabled={disabled}
+              size={cards ? undefined : 'sm'}
               items={
                 key === 'reason'
                   ? [
@@ -254,11 +260,11 @@ function PodRow({
   };
   const details: [(typeof columns)[number], ReactNode][] = [
     ['quantity-shipped', number(line.quantityShipped)],
-    ['lot-code', lot],
+    ...(cards ? [] : [['lot-code' as const, lot] as [(typeof columns)[number], ReactNode]]),
     ['accepted', control('accepted')],
     ...(useVvm
       ? [
-          ['vvm' as const, line.useVvm ? control('vvm') : orEmpty(null)] as [
+          ['vvm' as const, line.useVvm ? control('vvm') : empty(null)] as [
             (typeof columns)[number],
             ReactNode,
           ],
@@ -289,7 +295,7 @@ function PodRow({
   ) : (
     <TableRow>
       <TableCell rowHeader>{showName ? name : <span className="sr-only">{name}</span>}</TableCell>
-      <TableCell>{showName ? <bdi>{orEmpty(unit)}</bdi> : null}</TableCell>
+      <TableCell>{showName ? <bdi>{unit}</bdi> : null}</TableCell>
       <TableCell />
       {details.map(([key, value]) => (
         <TableCell key={key}>

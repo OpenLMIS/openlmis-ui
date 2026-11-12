@@ -38,14 +38,20 @@ export function canReadOrders(
   );
 }
 
+const facilityOnlyIds = (permissions: Permissions, rights: readonly string[]) =>
+  rights.flatMap((right) => facilityGrants(permissions, right).map((grant) => grant.facilityId));
+const grantIds = (permissions: Permissions, rights: readonly string[]) =>
+  permissions.grants
+    .filter((grant) => rights.includes(grant.right))
+    .map((grant) => grant.facilityId);
+const sortedIds = (ids: readonly string[]) => [...new Set(ids)].sort();
+
 export function viewOrderSuppliers<T extends { id: string; name: string }>(
   permissions: Permissions,
   facilities: readonly T[],
 ) {
-  const orderIds = new Set(facilityGrants(permissions, RIGHTS.ordersView).map((g) => g.facilityId));
-  const podIds = new Set(
-    permissions.grants.filter((g) => g.right === RIGHTS.podsManage).map((g) => g.facilityId),
-  );
+  const orderIds = new Set(facilityOnlyIds(permissions, [RIGHTS.ordersView]));
+  const podIds = new Set(grantIds(permissions, [RIGHTS.podsManage]));
   const byName = (a: T, b: T) => a.name.localeCompare(b.name);
   return [
     ...facilities.filter((f) => orderIds.has(f.id)).sort(byName),
@@ -53,41 +59,16 @@ export function viewOrderSuppliers<T extends { id: string; name: string }>(
   ];
 }
 
-export function fulfillOrderSupplierIds(permissions: Permissions) {
-  return [
-    ...new Set(
-      [RIGHTS.ordersView, RIGHTS.shipmentsView, RIGHTS.shipmentsEdit].flatMap((right) =>
-        facilityGrants(permissions, right).map((g) => g.facilityId),
-      ),
-    ),
-  ].sort();
-}
-export function viewOrderSupplierIds(permissions: Permissions) {
-  return [
-    ...new Set([
-      ...facilityGrants(permissions, RIGHTS.ordersView).map((grant) => grant.facilityId),
-      ...permissions.grants
-        .filter((grant) => grant.right === RIGHTS.podsManage)
-        .map((grant) => grant.facilityId),
-    ]),
-  ].sort();
-}
-
-export function podRequestingFacilityIds(permissions: Permissions) {
-  return [
-    ...new Set(
-      permissions.grants
-        .filter((grant) => grant.right === RIGHTS.podsManage || grant.right === RIGHTS.podsView)
-        .map((grant) => grant.facilityId),
-    ),
-  ].sort();
-}
-export function podSupplyingFacilityIds(permissions: Permissions) {
-  return [
-    ...new Set(
-      [RIGHTS.shipmentsEdit, RIGHTS.shipmentsView].flatMap((right) =>
-        facilityGrants(permissions, right).map((grant) => grant.facilityId),
-      ),
-    ),
-  ].sort();
-}
+export const fulfillOrderSupplierIds = (permissions: Permissions) =>
+  sortedIds(
+    facilityOnlyIds(permissions, [RIGHTS.ordersView, RIGHTS.shipmentsView, RIGHTS.shipmentsEdit]),
+  );
+export const viewOrderSupplierIds = (permissions: Permissions) =>
+  sortedIds([
+    ...facilityOnlyIds(permissions, [RIGHTS.ordersView]),
+    ...grantIds(permissions, [RIGHTS.podsManage]),
+  ]);
+export const podRequestingFacilityIds = (permissions: Permissions) =>
+  sortedIds(grantIds(permissions, [RIGHTS.podsManage, RIGHTS.podsView]));
+export const podSupplyingFacilityIds = (permissions: Permissions) =>
+  sortedIds(facilityOnlyIds(permissions, [RIGHTS.shipmentsEdit, RIGHTS.shipmentsView]));

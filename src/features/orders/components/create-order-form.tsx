@@ -28,7 +28,7 @@ import { OrderSelect } from '@/features/orders/components/order-select';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
 import type { MinimalFacility, Program } from '@/features/reference-data/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { queryKeys } from '@/lib/key-factory';
+import { invalidateOrderLists } from '@/lib/order-queries';
 import { settleFew } from '@/lib/settle-few';
 
 const EMPTY_PROGRAMS: Program[] = [];
@@ -125,13 +125,7 @@ export function CreateOrderForm({
           });
       }
       if (result.done.length) {
-        await Promise.all([
-          client.invalidateQueries({ queryKey: [...queryKeys.orders.all, 'list'] }),
-          client.invalidateQueries({
-            queryKey: [...queryKeys.orders.all, 'requesting-facilities'],
-          }),
-          client.invalidateQueries({ queryKey: queryKeys.home.all }),
-        ]);
+        await invalidateOrderLists(client);
         if (mutation.isCurrent()) onCreated(result.done.map((item) => item.order.id));
       }
     },

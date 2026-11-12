@@ -1,12 +1,13 @@
 import { parseDateValue, toDateValue } from '@/components/form/date-value';
+import { ORDER_NUMBER_MESSAGES } from '@/features/orders/lib/order-numbers';
 import type { PodFooter, PodLineDraft } from '@/features/orders/lib/pod-types';
-import { MAX_WHOLE_NUMBER, toLatinDigits, toWholeNumber } from '@/lib/whole-number';
+import { toWholeNumber, wholeNumberError } from '@/lib/whole-number';
 export const POD_ERRORS = {
-  required: 'orders.pod.required',
-  invalid: 'orders.pod.whole-number',
-  tooLarge: 'orders.pod.too-large',
+  required: ORDER_NUMBER_MESSAGES.required,
+  invalid: ORDER_NUMBER_MESSAGES.invalid,
+  tooLarge: ORDER_NUMBER_MESSAGES.tooLarge,
   aboveShipped: 'orders.pod.can-not-accept-more-than-shipped',
-  reasonRequired: 'orders.pod.required',
+  reasonRequired: ORDER_NUMBER_MESSAGES.required,
   reasonNotAllowed: 'orders.pod.can-not-specify-reason-for-rejection-if-not-rejecting-anything',
   vvmRequired: 'orders.pod.vvm-status-is-required',
   vvmNotAllowed: 'orders.pod.cannot-select-vvm-status-when-nothing-accepted',
@@ -16,12 +17,8 @@ export const POD_ERRORS = {
 } as const;
 export type PodError = (typeof POD_ERRORS)[keyof typeof POD_ERRORS];
 export type PodValidationMode = 'save' | 'confirm';
-export function acceptedFormatError(value: string): PodError | undefined {
-  const text = toLatinDigits(value.trim());
-  if (!text) return undefined;
-  if (!/^[0-9]+$/.test(text)) return POD_ERRORS.invalid;
-  if (Number(text) > MAX_WHOLE_NUMBER) return POD_ERRORS.tooLarge;
-  return undefined;
+export function acceptedFormatError(value: string) {
+  return wholeNumberError(value, ORDER_NUMBER_MESSAGES, { optional: true });
 }
 export function returnedQuantity(shipped: number, accepted: string) {
   const quantity = toWholeNumber(accepted);

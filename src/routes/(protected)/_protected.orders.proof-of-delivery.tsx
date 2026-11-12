@@ -50,7 +50,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
-import { queryKeys } from '@/lib/key-factory';
+import { ORDER_LISTS_KEY } from '@/lib/order-queries';
 import { RIGHTS } from '@/lib/rights';
 import { getSessionUserId } from '@/lib/session-scope';
 
@@ -222,7 +222,7 @@ function PodBody({
             onSearch={(selection) => {
               if (!pending)
                 void client.invalidateQueries({
-                  queryKey: [...queryKeys.orders.all, 'list'],
+                  queryKey: ORDER_LISTS_KEY,
                   refetchType: search.page ? 'none' : 'active',
                 });
               updateSearch({ ...selection, page: undefined });
@@ -231,12 +231,14 @@ function PodBody({
           {ready ? (
             <>
               <DataTableToolbar align="end">
-                <OrdersViewOptions
-                  kind="pod"
-                  columnView={columnView}
-                  search={search}
-                  onSearchChange={updateSearch}
-                />
+                <div className="flex-1 @2xl/main:flex-none">
+                  <OrdersViewOptions
+                    kind="pod"
+                    columnView={columnView}
+                    search={search}
+                    onSearchChange={updateSearch}
+                  />
+                </div>
               </DataTableToolbar>
               <QueryBoundary
                 errorComponent={OrdersError}

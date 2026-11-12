@@ -1,10 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StrictMode } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import {
   createShipmentDraftOnce,
+  deleteShipmentDraft,
   fetchOrder,
   fetchShipmentSummaries,
   findShipmentDraft,
@@ -29,6 +30,7 @@ import { renderPage } from '@/test-utils/render-page';
 vi.mock('@/features/orders/api/api', async (original) => ({
   ...(await original<typeof import('@/features/orders/api/api')>()),
   createShipmentDraftOnce: vi.fn(),
+  deleteShipmentDraft: vi.fn(),
   fetchOrder: vi.fn(),
   fetchShipmentSummaries: vi.fn(),
   findShipmentDraft: vi.fn(),
@@ -45,7 +47,7 @@ vi.mock('@/hooks/use-print-report', () => ({
   usePrintReport: () => ({ isPending: false, print: vi.fn() }),
 }));
 beforeEach(() => vi.clearAllMocks());
-function fixture(status: string, edit = false) {
+function fixture(status: string, edit = false, onReturn = vi.fn()) {
   const client = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
@@ -87,7 +89,7 @@ function fixture(status: string, edit = false) {
         orderId={order.id}
         cceStatus="Unknown"
         access={{ canEdit: edit, canCancel: false, canPrint: false }}
-        onReturn={vi.fn()}
+        onReturn={onReturn}
       />
     </StrictMode>
   );
@@ -103,6 +105,27 @@ it('creates an Ordered draft after render and keeps StrictMode effects from dupl
   await waitFor(() =>
     expect(client.getQueryData(orderOptions('a').queryKey)?.status).toBe('FULFILLING'),
   );
+});
+it('does not recreate a draft while returning after Delete Draft', async () => {
+  const { client, page } = fixture(
+    'FULFILLING',
+    true,
+    vi.fn(() => new Promise(() => {})),
+  );
+  vi.mocked(deleteShipmentDraft).mockResolvedValue(undefined);
+  vi.mocked(fetchOrder).mockResolvedValue({ ...creatingOrder(), status: 'ORDERED' });
+  vi.mocked(findShipmentDraft).mockResolvedValue(null);
+  const user = userEvent.setup();
+  renderPage(page, { queryClient: client });
+  await user.click(await screen.findByRole('button', { name: 'orders.shipment.delete' }));
+  const dialog = await screen.findByRole('alertdialog');
+  await user.click(within(dialog).getByRole('button', { name: 'orders.shipment.delete' }));
+  await waitFor(() =>
+    expect(client.getQueryData(orderOptions('a').queryKey)?.status).toBe('ORDERED'),
+  );
+  await waitFor(() => expect(findShipmentDraft).toHaveBeenCalled());
+  await act(async () => {});
+  expect(createShipmentDraftOnce).not.toHaveBeenCalled();
 });
 it('gives a view-only user read-only lines and no shipment actions', async () => {
   const { client, page } = fixture('FULFILLING');
@@ -253,7 +276,7 @@ it('blocks allocation until named lots load and exposes a retry on lot lookup fa
     request.reject(new Error('lots forbidden'));
     await pending.catch(() => {});
   });
-  expect(await screen.findByText('orders.shipment.stock-error')).toBeVisible();
+  expect(await screen.findByText('orders.shipment.load-error')).toBeVisible();
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   vi.mocked(fetchLotsByIds).mockResolvedValue([
     { id: 'lot', lotCode: 'Lot A', expirationDate: null },

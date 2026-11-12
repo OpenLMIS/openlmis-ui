@@ -12,13 +12,12 @@ import { isOnline, useOnline } from '@/lib/online';
 import type { ReportDelivery } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 
-type PrintReportOptions = {
-  serverAuthorized?: boolean;
+type PrintAccess =
+  | { serverAuthorized: true; facilityId?: string; programId?: string; right?: string }
+  | { serverAuthorized?: false; facilityId: string; programId: string; right: string };
+type PrintReportOptions = PrintAccess & {
   device?: DeviceSnapshot;
   userId: string;
-  facilityId: string;
-  programId: string;
-  right: string;
   beforeRequest?: () => Promise<boolean>;
   request: (language: string) => Promise<Blob>;
   onReport: () => ReportDelivery;
