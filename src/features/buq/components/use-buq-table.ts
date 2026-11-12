@@ -1,4 +1,10 @@
-import { type ColumnDef, type ColumnVisibilityState, useTable } from '@tanstack/react-table';
+import {
+  type ColumnDef,
+  type ColumnVisibilityState,
+  type OnChangeFn,
+  type RowSelectionState,
+  useTable,
+} from '@tanstack/react-table';
 import { useEffect, useMemo } from 'react';
 import { type DataTableFeatures, dataTableFeatures } from '@/components/data-table/data-table';
 import { type BuqTableProps, DEFAULT_BUQ_SORT } from '@/features/buq/lib/search';
@@ -7,11 +13,17 @@ import { toPaginationState } from '@/lib/table-search';
 
 const getRowId = (row: { id: string }) => row.id;
 
+export type BuqTableSelection = {
+  rowSelection: RowSelectionState;
+  onRowSelectionChange: OnChangeFn<RowSelectionState>;
+};
+
 export function useBuqTable<Row extends { id: string }>(
   rows: readonly Row[],
   columns: ColumnDef<DataTableFeatures, Row>[],
   { search, onSearchChange, cards }: BuqTableProps,
   columnVisibility?: ColumnVisibilityState,
+  selection?: BuqTableSelection,
 ) {
   const { pageIndex, pageSize } = toPaginationState(search);
   const data = useMemo(
@@ -33,8 +45,14 @@ export function useBuqTable<Row extends { id: string }>(
     manualPagination: true,
     manualSorting: true,
     enableSorting: false,
+    enableRowSelection: !!selection,
+    onRowSelectionChange: selection?.onRowSelectionChange,
     ...searchState,
-    state: { ...searchState.state, columnVisibility },
+    state: {
+      ...searchState.state,
+      columnVisibility,
+      ...(selection && { rowSelection: selection.rowSelection }),
+    },
   });
   const pageCount = table.getPageCount();
   const isPastLastPage = rows.length > 0 && pageIndex >= pageCount;

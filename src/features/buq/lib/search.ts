@@ -10,6 +10,13 @@ export const buqListSearchSchema = tableSearchSchema(['targetYear']).omit({
 
 export type BuqListSearch = z.infer<typeof buqListSearchSchema>;
 
+export const nationalSearchSchema = buqListSearchSchema.extend({
+  zone: z.string().optional().catch(undefined),
+  period: z.string().optional().catch(undefined),
+});
+
+export type NationalSearch = z.infer<typeof nationalSearchSchema>;
+
 export type BuqTableProps = {
   search: BuqListSearch;
   onSearchChange: SearchChange<BuqListSearch>;
