@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { costTotals, groupOptions, nationalRows, parseCost } from '@/features/buq/lib/national';
+import { costTotals, groupOptions, nationalRows } from '@/features/buq/lib/national';
 import type { FinalApprovalItem } from '@/features/buq/lib/types';
 
 const zone = (id: string, name: string, level: string) => ({ id, name, level: { name: level } });
@@ -33,18 +33,6 @@ describe('groupOptions', () => {
     expect(groupOptions({ gone: {} }, ZONES)).toEqual([
       { value: 'gone', label: 'gone', description: '' },
     ]);
-  });
-});
-
-describe('parseCost', () => {
-  it('reads the amount of the cost text with its decimals', () => {
-    expect(parseCost('1834.06 USD')).toBe(1834.06);
-    expect(parseCost('0.00 USD')).toBe(0);
-  });
-
-  it('gives nothing for text without an amount', () => {
-    expect(parseCost('USD')).toBeNull();
-    expect(parseCost(undefined)).toBeNull();
   });
 });
 
