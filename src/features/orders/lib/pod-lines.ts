@@ -55,7 +55,8 @@ export function groupPodLines(
       const matches = lines.filter((line) => ids.has(line.orderable.id));
       for (const line of matches) remaining.delete(line);
       return { orderLine, products: groupProducts(matches, orderLine) };
-    });
+    })
+    .filter((group) => group.products.length > 0);
   if (remaining.size)
     groups.push({ orderLine: null, products: groupProducts([...remaining], null) });
   return groups;

@@ -45,13 +45,35 @@ it('sorts order groups by product name and retains each lot line once', () => {
       { orderable: { id: 'z', fullProductName: 'Zulu' }, orderedQuantity: 1 },
       { orderable: { id: 'a', fullProductName: 'Alpha' }, orderedQuantity: 1 },
     ],
-    [line('one', 'a', 'one'), line('two', 'a', 'two')],
+    [line('one', 'a', 'one'), line('two', 'a', 'two'), line('z-line', 'z')],
     [],
     {},
     [],
   );
   expect(groups.map((g) => g.orderLine?.orderable.id)).toEqual(['a', 'z']);
   expect(groups[0].products[0].lines.map((l) => l.id)).toEqual(['one', 'two']);
+});
+
+it('omits order groups without POD lines and retains actual deliveries even when zero was ordered', () => {
+  const groups = groupPodLines(
+    [
+      { orderable: { id: 'empty-zero', fullProductName: 'A' }, orderedQuantity: 0 },
+      { orderable: { id: 'empty-positive', fullProductName: 'B' }, orderedQuantity: 2 },
+      { orderable: { id: 'delivered-zero', fullProductName: 'C' }, orderedQuantity: 0 },
+      { orderable: { id: 'delivered', fullProductName: 'D' }, orderedQuantity: 1 },
+    ],
+    [line('delivery', 'delivered'), line('extra-delivery', 'delivered-zero')],
+    [],
+    {},
+    [],
+  );
+  expect(groups.map((group) => group.orderLine?.orderable.id)).toEqual([
+    'delivered-zero',
+    'delivered',
+  ]);
+  expect(
+    groups.flatMap((group) => group.products.flatMap((product) => product.lines)),
+  ).toHaveLength(2);
 });
 
 it('shows shared substitutes in each ordered group and keeps only unmatched lines in Other Products', () => {
