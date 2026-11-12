@@ -32,6 +32,7 @@
   "buq.prepare.list-error": "تعذّر تحميل التقارير المُعدّة. يُرجى المحاولة مرة أخرى.",
   "buq.prepare.list-error-title": "تعذّر تحميل التقارير",
   "buq.prepare.no-home": "لا توجد منشأة رئيسية لحسابك، لذلك لا توجد منشأة لإعداد تقرير لها.",
+  "buq.prepare.no-matching-periods": "لا توجد فترات مطابقة",
   "buq.prepare.no-periods": "لا توجد فترات تنبؤ",
   "buq.prepare.no-program": "لم يتم تعيين برنامج BUQ لك.",
   "buq.prepare.period-placeholder": "اختر الفترة",

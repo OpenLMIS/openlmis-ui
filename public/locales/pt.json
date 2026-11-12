@@ -32,6 +32,7 @@
   "buq.prepare.list-error": "Não foi possível carregar os relatórios preparados. Tente novamente.",
   "buq.prepare.list-error-title": "Não Foi Possível Carregar os Relatórios",
   "buq.prepare.no-home": "A sua conta não tem unidade principal, por isso não há unidade para a qual preparar um relatório.",
+  "buq.prepare.no-matching-periods": "Nenhum Período Correspondente",
   "buq.prepare.no-periods": "Sem Períodos de Previsão",
   "buq.prepare.no-program": "Não tem o programa BUQ atribuído.",
   "buq.prepare.period-placeholder": "Selecionar Período",

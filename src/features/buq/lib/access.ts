@@ -7,7 +7,12 @@ export const BUQ_CODE = 'BUQ';
 type HomeFacility = {
   id: string;
   name: string | null;
-  supportedPrograms?: readonly { id: string; code: string }[];
+  supportedPrograms?: readonly {
+    id: string;
+    code: string;
+    supportActive?: boolean;
+    supportStartDate?: string | null;
+  }[];
 };
 
 type ProgramRecord = { id: string; code: string; name: string | null };
@@ -23,15 +28,23 @@ export function prepareAccess({
   home,
   programs,
   permissions,
+  today,
 }: {
   home: HomeFacility | undefined;
   programs: readonly ProgramRecord[];
   permissions: Permissions;
+  today: string;
 }): PrepareAccess {
   if (!home) return { kind: 'no-home' };
   const program = programs.find(({ code }) => code === BUQ_CODE);
   if (!program) return { kind: 'no-program' };
-  if (!home.supportedPrograms?.some(({ id }) => id === program.id)) return { kind: 'unsupported' };
+  const supported = home.supportedPrograms?.some(
+    ({ id, supportActive, supportStartDate }) =>
+      id === program.id &&
+      supportActive !== false &&
+      (!supportStartDate || supportStartDate.slice(0, 10) < today),
+  );
+  if (!supported) return { kind: 'unsupported' };
   if (!hasProgramGrant(permissions, RIGHTS.prepareBuq, home.id, program.id)) {
     return { kind: 'no-grant' };
   }

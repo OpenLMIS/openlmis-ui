@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { CalendarIcon, ClipboardPlusIcon, Loader2Icon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ListError } from '@/components/app-shell/list-error';
@@ -193,13 +193,18 @@ function PeriodPicker({
   const { t } = useTranslation();
   const field = useRef<HTMLDivElement>(null);
   const [pickedId, setPickedId] = useState<string | null>(null);
-  const preparedIds = new Set(taken.map(({ processingPeriodId }) => processingPeriodId));
-  const items: PeriodItem[] = periods.map(({ id, name }) => ({
-    value: id,
-    label: name,
-    prepared: preparedIds.has(id),
-  }));
-  const picked = items.find((item) => item.value === pickedId && !item.prepared) ?? null;
+  const items = useMemo<PeriodItem[]>(() => {
+    const preparedIds = new Set(taken.map(({ processingPeriodId }) => processingPeriodId));
+    return periods.map(({ id, name }) => ({
+      value: id,
+      label: name,
+      prepared: preparedIds.has(id),
+    }));
+  }, [periods, taken]);
+  const picked = useMemo(
+    () => items.find((item) => item.value === pickedId && !item.prepared) ?? null,
+    [items, pickedId],
+  );
   const afterPrepare = () => {
     setPickedId(null);
     field.current?.querySelector('input')?.focus();
@@ -223,6 +228,8 @@ function PeriodPicker({
             <PickerAddField ref={field}>
               <ComboboxInput
                 aria-label={t('buq.prepare.select-period')}
+                dir="auto"
+                disabled={disabled}
                 placeholder={t('buq.prepare.period-placeholder')}
                 size="lg"
                 width="full"
@@ -233,7 +240,11 @@ function PeriodPicker({
               </ComboboxInput>
             </PickerAddField>
             <ComboboxContent anchor={field}>
-              <ComboboxEmpty>{t('buq.prepare.no-periods')}</ComboboxEmpty>
+              <ComboboxEmpty>
+                {periods.length
+                  ? t('buq.prepare.no-matching-periods')
+                  : t('buq.prepare.no-periods')}
+              </ComboboxEmpty>
               <ComboboxList>
                 {(item: PeriodItem) => (
                   <ComboboxItem disabled={item.prepared} key={item.value} value={item}>

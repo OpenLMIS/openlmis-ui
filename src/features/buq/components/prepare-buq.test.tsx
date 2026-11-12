@@ -325,3 +325,15 @@ it('refuses to delete a report that has moved on in the approval process', async
 
   expect(await within(dialog).findByText('buq.prepare.delete-moved')).toBeInTheDocument();
 });
+
+it('locks the period input while a report is being prepared', async () => {
+  const user = userEvent.setup();
+  vi.mocked(fetchPreparedBuqs).mockResolvedValue([]);
+  vi.mocked(prepareBuq).mockReturnValue(new Promise(() => {}));
+  renderPrepare();
+
+  await choosePeriod(user, 'July 2017 - June 2018');
+  await user.click(screen.getByRole('button', { name: 'buq.prepare.prepare' }));
+
+  await waitFor(() => expect(picker()).toBeDisabled());
+});

@@ -5,9 +5,12 @@ import { parsePermissions } from '@/lib/permissions';
 const BUQ = { id: 'g1', code: 'BUQ', name: 'BUQ' };
 const HOME = { id: 'f1', name: 'Cuamba', supportedPrograms: [{ id: 'g1', code: 'BUQ' }] };
 const GRANTED = parsePermissions(['PREPARE_BUQ|f1|g1']);
+const TODAY = '2026-11-12';
 
 it('opens for the BUQ program supported and granted at the home facility', () => {
-  expect(prepareAccess({ home: HOME, programs: [BUQ], permissions: GRANTED })).toEqual({
+  expect(
+    prepareAccess({ home: HOME, programs: [BUQ], permissions: GRANTED, today: TODAY }),
+  ).toEqual({
     kind: 'ready',
     facility: { id: 'f1', name: 'Cuamba' },
     program: { id: 'g1', name: 'BUQ' },
@@ -26,7 +29,7 @@ it.each([
     { home: HOME, programs: [BUQ], permissions: parsePermissions(['PREPARE_BUQ|f2|g1']) },
   ],
 ])('refuses with %s', (kind, sources) => {
-  expect(prepareAccess(sources)).toEqual({ kind });
+  expect(prepareAccess({ ...sources, today: TODAY })).toEqual({ kind });
 });
 
 it('picks the BUQ program among the user programs', () => {
@@ -41,6 +44,7 @@ it('picks the BUQ program among the user programs', () => {
       },
       programs: [{ id: 'g0', code: 'EPI', name: 'EPI' }, BUQ],
       permissions: GRANTED,
+      today: TODAY,
     }),
   ).toEqual({
     kind: 'ready',
@@ -55,6 +59,7 @@ it('refuses a home grant held for another program or another right', () => {
       home: HOME,
       programs: [BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f1|g0']),
+      today: TODAY,
     }),
   ).toEqual({ kind: 'no-grant' });
   expect(
@@ -62,6 +67,22 @@ it('refuses a home grant held for another program or another right', () => {
       home: HOME,
       programs: [BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f2|g1', 'APPROVE_BUQ|f1|g1']),
+      today: TODAY,
     }),
   ).toEqual({ kind: 'no-grant' });
+});
+
+it.each([
+  ['inactive', { supportActive: false }],
+  ['starting today', { supportActive: true, supportStartDate: TODAY }],
+  ['starting later', { supportActive: true, supportStartDate: '2027-01-01' }],
+])('refuses BUQ support that is %s', (_, support) => {
+  expect(
+    prepareAccess({
+      home: { ...HOME, supportedPrograms: [{ id: 'g1', code: 'BUQ', ...support }] },
+      programs: [BUQ],
+      permissions: GRANTED,
+      today: TODAY,
+    }),
+  ).toEqual({ kind: 'unsupported' });
 });

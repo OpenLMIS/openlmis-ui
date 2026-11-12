@@ -32,6 +32,7 @@
   "buq.prepare.list-error": "No se pudieron cargar los informes preparados. Inténtelo de nuevo.",
   "buq.prepare.list-error-title": "No se pudieron cargar los informes",
   "buq.prepare.no-home": "Su cuenta no tiene establecimiento principal, por lo que no hay establecimiento para el que preparar un informe.",
+  "buq.prepare.no-matching-periods": "No hay períodos coincidentes",
   "buq.prepare.no-periods": "No hay períodos de previsión",
   "buq.prepare.no-program": "No tiene asignado el programa BUQ.",
   "buq.prepare.period-placeholder": "Seleccionar período",

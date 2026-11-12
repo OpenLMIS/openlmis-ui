@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { format } from 'date-fns';
 import type { ParseKeys } from 'i18next';
 import { CalculatorIcon, LockIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -39,27 +40,34 @@ type ShownAccess = Exclude<PrepareAccess, { kind: 'no-grant' }>;
 
 export const Route = createFileRoute('/(protected)/_protected/buq/prepare')({
   validateSearch: prepareSearchSchema,
-  loader: async ({ context: { queryClient } }): Promise<ShownAccess> => {
+  loader: async ({ context: { queryClient }, cause }): Promise<ShownAccess> => {
     const userId = useLoginData.getState().referenceDataUserId;
-    const permissions = await requirePermissions(queryClient, RIGHTS.prepareBuq);
-    if (!userId || useLoginData.getState().referenceDataUserId !== userId) {
+    if (!userId) throw new ForbiddenError(RIGHTS.prepareBuq);
+    const fresh = cause === 'enter' ? { staleTime: 0 } : {};
+    const [permissions, user, programs] = await Promise.all([
+      requirePermissions(queryClient, RIGHTS.prepareBuq),
+      queryClient.fetchQuery({ ...userRecordOptions(userId), ...fresh }),
+      queryClient.fetchQuery({ ...userProgramsOptions(userId), ...fresh }),
+    ]);
+    if (useLoginData.getState().referenceDataUserId !== userId) {
       throw new ForbiddenError(RIGHTS.prepareBuq);
     }
-    const [user, programs] = await Promise.all([
-      queryClient.ensureQueryData(userRecordOptions(userId)),
-      queryClient.ensureQueryData(userProgramsOptions(userId)),
-    ]);
     const home = user.homeFacilityId
-      ? await queryClient.ensureQueryData(homeFacilityOptions(user.homeFacilityId))
+      ? await queryClient.fetchQuery({ ...homeFacilityOptions(user.homeFacilityId), ...fresh })
       : undefined;
-    const access = prepareAccess({ home, programs, permissions });
+    const access = prepareAccess({
+      home,
+      programs,
+      permissions,
+      today: format(new Date(), 'yyyy-MM-dd'),
+    });
     if (access.kind === 'no-grant') throw new ForbiddenError(RIGHTS.prepareBuq);
     if (access.kind === 'ready') {
       void queryClient.fetchQuery(processingSchedulesOptions()).then((schedules) => {
         const schedule = schedules.find(({ code }) => code === BUQ_CODE);
         return queryClient.prefetchQuery(buqPeriodsOptions(schedule?.id));
       }, noop);
-      queryClient.prefetchQuery(preparedBuqsOptions(access.facility.id));
+      if (cause !== 'preload') queryClient.prefetchQuery(preparedBuqsOptions(access.facility.id));
     }
     return access;
   },
