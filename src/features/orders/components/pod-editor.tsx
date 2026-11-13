@@ -106,7 +106,11 @@ export function PodEditor({
   const [attempted, setAttempted] = useState(false);
   const [invalid, setInvalid] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{
+    title: 'orders.pod.confirm-failed' | 'orders.pod.save-failed';
+    description: string;
+  } | null>(null);
+  const region = useRef<HTMLFormElement>(null);
   const invalidTarget = useRef<string | null>(null);
   const leaving = useRef(false);
   const mutation = useSessionMutation({
@@ -144,9 +148,12 @@ export function PodEditor({
         if (mutation.isCurrent()) onCancel();
       }
     },
-    onError: (error) => {
+    onError: (error, { confirming }) => {
       setConfirm(false);
-      setFailure(serverMessage(error) ?? t('error.description'));
+      setFailure({
+        title: confirming ? 'orders.pod.confirm-failed' : 'orders.pod.save-failed',
+        description: serverMessage(error) ?? t('error.description'),
+      });
     },
   });
   const validate = (mode: 'save' | 'confirm') => {
@@ -281,6 +288,7 @@ export function PodEditor({
               </Alert>
             )}
             <form
+              ref={region}
               id="pod-editor"
               className="flex flex-col gap-4"
               onSubmit={(event) => {
@@ -424,7 +432,9 @@ export function PodEditor({
         closeLabel={t('dialog.close')}
         onOpenChangeComplete={(open) => {
           if (!open && invalidTarget.current) {
-            const field = document.getElementById(invalidTarget.current);
+            const field =
+              region.current?.querySelector<HTMLElement>('[aria-invalid="true"]:not([disabled])') ??
+              document.getElementById(invalidTarget.current);
             if (field) revealField(field, !!field.closest('li'));
           }
         }}
@@ -434,8 +444,8 @@ export function PodEditor({
         onOpenChange={(open) => {
           if (!open) setFailure(null);
         }}
-        title={t('orders.pod.save-failed')}
-        description={failure}
+        title={t(failure?.title ?? 'orders.pod.save-failed')}
+        description={failure?.description ?? null}
         closeLabel={t('dialog.close')}
       />
       <DiscardChangesDialog {...guard.dialog} description={t('orders.pod.discard-description')} />

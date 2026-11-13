@@ -145,8 +145,8 @@ function ArchivedCopies({ kind, facilityId, programId, disabled, onRestore }: Pr
       },
       {
         id: 'actions',
-        header: '',
-        meta: { className: 'w-10' },
+        header: t('stock-events.actions'),
+        meta: { className: 'w-24' },
         cell: ({ row }) => (
           <RowActions
             variant="menu"

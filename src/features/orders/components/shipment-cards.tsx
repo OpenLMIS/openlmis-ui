@@ -19,17 +19,29 @@ import type { ShipmentGroup } from '@/features/orders/lib/shipment-lines';
 import { orEmpty } from '@/lib/empty-value';
 
 export function ShipmentCards(props: ShipmentGridProps & { groups: ShipmentGroup[] }) {
+  const groups = props.groups.map((group) => ({ group, rows: shipmentDisplayRows([group]) }));
+  const firstRows = new Map<string, string>();
+  for (const { rows } of groups)
+    for (const row of rows)
+      if (row.line && !firstRows.has(row.line.key)) firstRows.set(row.line.key, row.key);
   return (
     <CardList>
-      {props.groups.map((group) => (
+      {groups.map(({ group, rows }) => (
         <CardListItem key={group.product.id}>
           <CardBand>
             <span className="min-w-0 break-words">
-              {group.product.fullProductName} ({group.product.productCode})
+              <bdi>
+                {group.product.fullProductName} ({group.product.productCode})
+              </bdi>
             </span>
           </CardBand>
-          {shipmentDisplayRows([group]).map((row) => (
-            <ShipmentCardRow key={row.key} {...props} row={row} />
+          {rows.map((row) => (
+            <ShipmentCardRow
+              key={row.key}
+              {...props}
+              row={row}
+              canEdit={props.canEdit && (!row.line || firstRows.get(row.line.key) === row.key)}
+            />
           ))}
         </CardListItem>
       ))}
@@ -51,14 +63,18 @@ function ShipmentCardRow(
     <div className={error && (touched || props.attempted) ? 'bg-destructive/10' : undefined}>
       {props.row.group?.kind === 'subgroup' && (
         <CardBand>
-          {props.row.group.product.fullProductName} ({props.row.group.product.productCode})
+          <bdi>
+            {props.row.group.product.fullProductName} ({props.row.group.product.productCode})
+          </bdi>
         </CardBand>
       )}
       {props.row.line &&
         !props.row.hideProduct &&
         props.row.line.product.id !== props.row.line.orderedProductId && (
           <CardBand>
-            {props.row.line.product.fullProductName} ({props.row.line.product.productCode})
+            <bdi>
+              {props.row.line.product.fullProductName} ({props.row.line.product.productCode})
+            </bdi>
           </CardBand>
         )}
       {props.row.line && <CardBand>{display['lot-code']}</CardBand>}

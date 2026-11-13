@@ -77,7 +77,7 @@ describe('POD validation', () => {
       Object.keys(
         validatePodFooter(fields, 'confirm', 'Pacific/Honolulu', new Date('2026-11-11T01:00:00Z')),
       ),
-    ).toEqual(['receivedBy', 'deliveredBy', 'receivedDate']);
+    ).toEqual(['deliveredBy', 'receivedBy', 'receivedDate']);
     expect(validatePodFooter(fields, 'save', 'UTC')).toEqual({});
     expect(
       validatePodFooter(

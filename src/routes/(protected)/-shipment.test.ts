@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
 import { requirePermissions } from '@/features/auth/lib/access';
+import { facilityCceOptions } from '@/features/cce-inventory/api/queries';
 import { createShipmentDraftOnce } from '@/features/orders/api/api';
 import { orderOptions, shipmentDraftOptions, shipmentOptions } from '@/features/orders/api/queries';
 import { parsePermissions } from '@/lib/permissions';
@@ -61,3 +62,29 @@ it.each(['ORDERED', 'FULFILLING', 'CANCELLED', 'SHIPPED'])(
     expect(Route.options.preload).toBe(false);
   },
 );
+
+it.each([
+  ['facility-a', true],
+  ['another-facility', false],
+] as const)('uses CCE supervision grants at %s: %s', async (facility, expected) => {
+  const client = new QueryClient();
+  vi.mocked(requirePermissions).mockResolvedValue(
+    parsePermissions(['SHIPMENTS_EDIT|supplier', `CCE_INVENTORY_VIEW|${facility}|another-program`]),
+  );
+  vi.spyOn(client, 'fetchQuery').mockResolvedValue(creatingOrder());
+  const prefetch = vi.spyOn(client, 'prefetchQuery').mockResolvedValue();
+  const loader = Route.options.loader;
+  if (typeof loader !== 'function') throw new Error('Expected shipment loader');
+  const loaded = await loader({
+    context: { queryClient: client },
+    params: { orderId: 'a' },
+    cause: 'enter',
+  } as Parameters<typeof loader>[0]);
+  expect(loaded.canViewCce).toBe(expected);
+  const cceKey = facilityCceOptions('facility-a').queryKey;
+  expect(
+    prefetch.mock.calls.some(
+      ([options]) => JSON.stringify(options.queryKey) === JSON.stringify(cceKey),
+    ),
+  ).toBe(expected);
+});

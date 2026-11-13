@@ -48,6 +48,9 @@ export function ShipmentGrid(props: ShipmentGridProps) {
     return shipmentGroups(props.order.orderLineItems, props.lines, kept);
   }, [props.order.orderLineItems, props.lines, retained]);
   const rows = shipmentDisplayRows(groups);
+  const firstRows = new Map<string, string>();
+  for (const row of rows)
+    if (row.line && !firstRows.has(row.line.key)) firstRows.set(row.line.key, row.key);
   return (
     <div ref={measure}>
       {cards ? (
@@ -95,7 +98,12 @@ export function ShipmentGrid(props: ShipmentGridProps) {
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <ShipmentTableRow key={row.key} {...props} row={row} />
+                <ShipmentTableRow
+                  key={row.key}
+                  {...props}
+                  row={row}
+                  canEdit={props.canEdit && (!row.line || firstRows.get(row.line.key) === row.key)}
+                />
               ))}
             </TableBody>
           </Table>
@@ -126,7 +134,9 @@ const ShipmentTableRow = memo(function ShipmentTableRow(
           {column === 'fill' && props.row.line && props.canEdit ? (
             <ShipmentFill {...props} line={props.row.line} />
           ) : column === 'product' ? (
-            <span className="block min-w-40 whitespace-normal">{display[column]}</span>
+            <span className="block min-w-40 whitespace-normal">
+              <bdi>{display[column]}</bdi>
+            </span>
           ) : (
             display[column]
           )}

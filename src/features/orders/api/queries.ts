@@ -38,6 +38,7 @@ import type {
 } from '@/features/reference-data/lib/types';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import { ORDER_REQUESTING_FACILITIES_KEY } from '@/lib/order-queries';
 import type { Permissions } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
@@ -135,7 +136,7 @@ export const ordersSearchOptions = (params: OrderSearchParams) =>
 
 export const orderRequestingFacilitiesOptions = (ids: readonly string[]) =>
   queryOptions({
-    queryKey: [...queryKeys.orders.all, 'requesting-facilities', ids.toSorted()],
+    queryKey: [...ORDER_REQUESTING_FACILITIES_KEY, ids.toSorted()],
     enabled: ids.length > 0,
     queryFn: () => fetchOrderRequestingFacilityIds(ids),
   });

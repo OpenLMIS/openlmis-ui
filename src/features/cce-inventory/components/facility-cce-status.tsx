@@ -9,7 +9,13 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { facilityCceOptions } from '@/features/cce-inventory/api/queries';
 import { facilityCceStatus } from '@/features/cce-inventory/lib/facility-cce-status';
 
@@ -63,7 +69,11 @@ export function FacilityCceStatus({
           </PopoverTrigger>
           <PopoverContent>
             <div className="flex flex-col gap-3">
-              <strong>{t('cce-inventory.facility-status.items', { count: items.length })}</strong>
+              <PopoverHeader>
+                <PopoverTitle>
+                  {t('cce-inventory.facility-status.items', { count: items.length })}
+                </PopoverTitle>
+              </PopoverHeader>
               {items.map((item) => (
                 <div key={item.id} className="flex items-center gap-2">
                   <span className="min-w-0 break-words">{item.referenceName}</span>

@@ -2,6 +2,7 @@ import { useStore } from '@tanstack/react-form';
 import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateValue } from '@/components/form/date-value';
+import { ORDER_NUMBER_MESSAGES } from '@/features/orders/lib/order-numbers';
 import { type ShipmentForm, shipmentFieldKey } from '@/features/orders/lib/shipment-form';
 import {
   type ShipmentGroup,
@@ -12,7 +13,7 @@ import { groupQuantities, lineQuantities } from '@/features/orders/lib/shipment-
 import type { Order } from '@/features/orders/lib/types';
 import type { QuantityUnit } from '@/lib/quantity';
 import { vvmStages } from '@/lib/vvm';
-import { toLatinDigits } from '@/lib/whole-number';
+import { toWholeNumber, wholeNumberError } from '@/lib/whole-number';
 
 export const SHIPMENT_COLUMNS = [
   'product-code',
@@ -67,8 +68,7 @@ export function shipmentDisplayRows(groups: ShipmentGroup[]): ShipmentDisplayRow
   });
 }
 function numericFill(text: string) {
-  const value = Number(toLatinDigits(text));
-  return Number.isFinite(value) ? value : 0;
+  return wholeNumberError(text, ORDER_NUMBER_MESSAGES) ? 0 : toWholeNumber(text);
 }
 export function useShipmentRow(props: ShipmentGridProps, row: ShipmentDisplayRow) {
   const { t, i18n } = useTranslation();

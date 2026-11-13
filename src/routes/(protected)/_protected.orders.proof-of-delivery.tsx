@@ -147,7 +147,7 @@ function PodPage() {
     );
   return (
     <QueryBoundary
-      errorComponent={OrdersError}
+      errorComponent={PodLookupError}
       pendingFallback={<PodPending />}
       resetKey="pod-lookups"
     >
@@ -161,6 +161,16 @@ function PodPage() {
         data={data}
       />
     </QueryBoundary>
+  );
+}
+function PodLookupError(props: { error: unknown; reset: () => void }) {
+  return (
+    <Workspace width="large">
+      <PodHeader />
+      <WorkspaceContent>
+        <OrdersError {...props} />
+      </WorkspaceContent>
+    </Workspace>
   );
 }
 function PodBody({

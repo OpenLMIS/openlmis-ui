@@ -21,7 +21,7 @@ import {
 } from '@/features/orders/components/shipment-editor';
 import { orderReturnTarget } from '@/features/orders/lib/order-return';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
-import { facilityGrants } from '@/lib/permissions';
+import { facilityGrants, programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 
 export const Route = createFileRoute('/(protected)/_protected/orders/fulfillment_/$orderId')({
@@ -51,7 +51,9 @@ export const Route = createFileRoute('/(protected)/_protected/orders/fulfillment
     const at = (right: string, facility: string) =>
       facilityGrants(permissions, right).some((grant) => grant.facilityId === facility);
     const canEdit = at(RIGHTS.shipmentsEdit, order.supplyingFacility.id);
-    const canViewCce = at(RIGHTS.cceInventoryView, order.requestingFacility.id);
+    const canViewCce = programGrants(permissions, RIGHTS.cceInventoryView).some(
+      (grant) => grant.facilityId === order.requestingFacility.id,
+    );
     if (canViewCce) queryClient.prefetchQuery(facilityCceOptions(order.requestingFacility.id));
     return {
       order,

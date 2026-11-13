@@ -43,8 +43,12 @@ vi.mock('@/features/reference-data/api/api', async (original) => ({
 vi.mock('@/hooks/use-quantity-unit', () => ({
   useQuantityUnit: () => ({ unit: 'PACKS', canSwitch: false, setUnit: vi.fn() }),
 }));
+const print = vi.hoisted(() => ({ before: undefined as undefined | (() => Promise<boolean>) }));
 vi.mock('@/hooks/use-print-report', () => ({
-  usePrintReport: () => ({ isPending: false, print: vi.fn() }),
+  usePrintReport: (options: { beforeRequest: () => Promise<boolean> }) => {
+    print.before = options.beforeRequest;
+    return { isPending: false, print: vi.fn() };
+  },
 }));
 beforeEach(() => vi.clearAllMocks());
 function fixture(status: string, edit = false, onReturn = vi.fn()) {
@@ -317,4 +321,73 @@ it('keeps quantity typing and focus through Save and the following stock refresh
   expect(input).toHaveValue('78');
   await act(async () => refresh.resolve(summaries));
   expect(input).toHaveValue('78');
+});
+
+it('offers recovery when a Fulfilling draft disappeared after the order lookup', async () => {
+  const { client, page } = fixture('FULFILLING', true);
+  const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {});
+  client.setQueryData(shipmentDraftOptions('a').queryKey, null);
+  vi.mocked(findShipmentDraft).mockResolvedValue(null);
+  const user = userEvent.setup();
+  renderPage(page, { queryClient: client });
+  expect(await screen.findByText('orders.shipment.draft-gone')).toBeVisible();
+  expect(createShipmentDraftOnce).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Try Again' }));
+  expect(reload).toHaveBeenCalledOnce();
+});
+
+it('saves the latest fills before allowing the pick pack list to print', async () => {
+  const { client, page, record } = fixture('FULFILLING', true);
+  const request = Promise.withResolvers<typeof record>();
+  vi.mocked(findShipmentDraft).mockResolvedValue(record);
+  vi.mocked(saveShipmentDraft).mockReturnValue(request.promise);
+  renderPage(page, { queryClient: client });
+  fireEvent.change(await screen.findByRole('textbox'), { target: { value: '5' } });
+  let ready = false;
+  const printing = print.before?.().then((result) => {
+    ready = result;
+    return result;
+  });
+  await waitFor(() => expect(saveShipmentDraft).toHaveBeenCalledOnce());
+  expect(vi.mocked(saveShipmentDraft).mock.calls[0][0].lineItems[0].quantityShipped).toBe(5);
+  expect(ready).toBe(false);
+  await act(async () =>
+    request.resolve({ ...record, lineItems: [{ ...record.lineItems[0], quantityShipped: 5 }] }),
+  );
+  expect(await printing).toBe(true);
+});
+it('reveals the first visible invalid lot rather than the saved line order', async () => {
+  const { client, page, record, summaries: original, order } = fixture('FULFILLING', true);
+  const cards = ['later', 'earlier'].map((id) => ({
+    ...original[0].canFulfillForMe[0],
+    lot: { id },
+  }));
+  const summaries = [{ ...original[0], canFulfillForMe: cards }];
+  const draft = {
+    ...record,
+    lineItems: cards.map((card) => ({
+      ...record.lineItems[0],
+      id: card.lot.id,
+      lot: card.lot,
+      quantityShipped: 0,
+    })),
+  };
+  client.setQueryData(shipmentSummariesOptions(shipmentStockFilter(order)).queryKey, summaries);
+  client.setQueryData(shipmentDraftOptions(order.id).queryKey, draft);
+  client.setQueryData(shipmentSavedProductsOptions(draft.lineItems).queryKey, [orderProduct]);
+  client.setQueryData(shipmentLotsOptions(summaries).queryKey, [
+    { id: 'later', lotCode: 'Later', expirationDate: '2028-01-01' },
+    { id: 'earlier', lotCode: 'Earlier', expirationDate: '2027-01-01' },
+  ]);
+  client.setQueryData(shipmentVvmOptions(summaries, [orderProduct]).queryKey, {});
+  const user = userEvent.setup();
+  renderPage(page, { queryClient: client });
+  const inputs = await screen.findAllByRole('textbox');
+  expect(inputs[0].id).toContain('earlier');
+  for (const input of inputs) fireEvent.change(input, { target: { value: '' } });
+  await user.click(screen.getByRole('button', { name: 'orders.shipment.confirm' }));
+  await user.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
+  );
+  await waitFor(() => expect(inputs[0]).toHaveFocus());
 });

@@ -66,7 +66,7 @@ export function validatePodFooter(
 ): Partial<Record<keyof PodFooter, PodError>> {
   const errors: Partial<Record<keyof PodFooter, PodError>> = {};
   if (mode === 'confirm')
-    for (const key of ['receivedBy', 'deliveredBy', 'receivedDate'] as const)
+    for (const key of ['deliveredBy', 'receivedBy', 'receivedDate'] as const)
       if (!fields[key].trim()) errors[key] = POD_ERRORS.required;
   if (fields.receivedDate) {
     if (!parseDateValue(fields.receivedDate)) errors.receivedDate = POD_ERRORS.invalidDate;

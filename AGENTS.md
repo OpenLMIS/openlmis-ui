@@ -491,7 +491,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   minimums do not fit.
 
 - Tables draw vertical column dividers by default.
-- Action columns show a visible translated heading. Single-line table headers truncate within
+- List action columns show a visible translated heading. Remove-only draft editor columns may
+  keep a visually hidden heading. Single-line table headers truncate within
   their column with an ellipsis and expose the full label on hover; sort icons remain visible.
 
 - Exception to one-line headers: the requisition and batch approval grids wrap header labels
@@ -597,8 +598,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   Where the API filters code and name separately (Products, Stock On Hand), Name stays visible
   and Code goes inside. Selects, comboboxes, dates, switches and secondary text such as Lot Code
   go inside too. No search means the button stands alone; no other filters means no button.
-  Physical Inventory is the exception: its progress bar leads the toolbar, so Keywords sits
-  inside Filters there. Wrap toolbars in `DataTableToolbar` (`align="end"` for unit/View rows).
+  Physical Inventory puts Keywords inside Filters because its progress bar leads the toolbar.
+  Fulfill Orders keeps its Recently Ordered / Oldest Orders sort select beside Filters as an
+  approved shortcut for Date Created sorting. Wrap toolbars in `DataTableToolbar` (`align="end"` for unit/View rows).
 - Page-level controls (header actions, toolbars, pickers and Add buttons above child tables)
   pass the `lg` size: 36px at every width, with h-9 skeleton blocks. Controls in table rows
   stay `sm`; those in cards, dialogs and the Filters popover keep the default. Never resize
@@ -653,11 +655,11 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `Table density/layout/width/scroll`, `TableCell rowHeader`, `TableHeader surface`,
   `TableRow pinned/surface`,
   `TableHead`/`TableCell sticky` (end-pinned Actions through `meta.sticky`),
-  `DropdownMenuContent width`, `Button width`,
+  `DropdownMenuContent width`, `Button width/align`,
   `ComboboxInput width/clearLabel`, `InputGroup size="lg"`, `PopoverContent width`, `Skeleton fill`,
   `Button variant="destructive-solid"` and `"destructive-outline"`. `TableCell rowHeader` becomes
   `<th scope="row">` in the registry. Other exceptions become plain `className`s;
-  `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
+  `Button align="start"` becomes `justify-start font-normal`; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
 - Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet import the app
   `@/components/shared/page-visibility` gate. Its context defaults to false, keeping these
@@ -767,8 +769,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   to mark the control invalid and reference an existing visible error instead of rendering another
   error or tooltip. `TextareaField describedBy` adds a description such as a character counter.
   `ComboboxField invalid` and `describedBy` associate a separate selection field error with its picker.
-- Inline `SelectField`, `TextareaField`, `QuantityField` and `DateField` accept `hideErrors`.
-  Editor line tables use it to hide error text, retain `aria-invalid` and
+- Inline and row-layout fields accept `hideErrors`. Editor line tables and delivery forms use it to hide error text, retain `aria-invalid` and
   screen-reader descriptions, and show the message on field hover or focus through Tooltip without
   adding tab stops. Invalid Submit and server failures open an AlertDialog, as Reverse does; closing
   validation focuses the first invalid field on its page. In cards, `revealField`

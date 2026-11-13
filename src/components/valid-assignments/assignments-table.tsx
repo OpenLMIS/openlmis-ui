@@ -141,7 +141,7 @@ function createColumns(
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('valid-assignments.actions')}</span>,
+      header: t('valid-assignments.actions'),
       meta: { className: 'w-24' },
       cell: ({ row }) => (
         <AssignmentActions

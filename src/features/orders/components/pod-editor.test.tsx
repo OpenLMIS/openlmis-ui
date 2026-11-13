@@ -156,8 +156,13 @@ it('keeps typing during save dirty and sends the submitted values', async () => 
 it('blocks confirmation when required delivery details are missing', async () => {
   const user = setup();
   await user.click(screen.getByRole('button', { name: 'orders.pod.confirm' }));
-  expect(await screen.findByRole('alertdialog')).toHaveTextContent('orders.pod.invalid-form');
+  const dialog = await screen.findByRole('alertdialog');
+  expect(dialog).toHaveTextContent('orders.pod.invalid-form');
   expect(saveProofOfDelivery).not.toHaveBeenCalled();
+  await user.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'orders.pod.delivered-by' })).toHaveFocus(),
+  );
 });
 
 it('requests a refresh of downloaded stock at the receiving facility after Confirm', async () => {
@@ -231,3 +236,47 @@ it.each([false, true])(
     await waitFor(() => expect(screen.getAllByText('8')).toHaveLength(3));
   },
 );
+
+it('saves current quantities before allowing an editable POD to print', async () => {
+  const request = Promise.withResolvers<PodResponse>();
+  vi.mocked(saveProofOfDelivery).mockReturnValue(request.promise);
+  setup();
+  fireEvent.change(screen.getByRole('textbox', { name: 'orders.pod.accepted-for' }), {
+    target: { value: '5' },
+  });
+  let ready = false;
+  const printing = print.before?.().then((result) => {
+    ready = result;
+    return result;
+  });
+  await waitFor(() => expect(saveProofOfDelivery).toHaveBeenCalledOnce());
+  expect(vi.mocked(saveProofOfDelivery).mock.calls[0][1].lineItems[0]).toMatchObject({
+    quantityAccepted: 5,
+    quantityRejected: 3,
+  });
+  expect(ready).toBe(false);
+  await act(async () =>
+    request.resolve({
+      ...pod,
+      shipment: { id: 'shipment' },
+      lineItems: [{ ...pod.lineItems[0], quantityAccepted: 5, quantityRejected: 3 }],
+    }),
+  );
+  expect(await printing).toBe(true);
+});
+it('names a failed Confirm as a confirmation failure', async () => {
+  vi.mocked(saveProofOfDelivery).mockRejectedValue(new Error('Refused confirmation'));
+  const user = setup(true, {
+    ...pod,
+    deliveredBy: 'Driver',
+    receivedBy: 'Receiver',
+    receivedDate: '2026-01-05',
+  });
+  await user.click(screen.getByRole('button', { name: 'orders.pod.confirm' }));
+  await user.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'orders.pod.confirm',
+    }),
+  );
+  expect(await screen.findByText('orders.pod.confirm-failed')).toBeVisible();
+});

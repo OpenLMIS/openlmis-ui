@@ -7,9 +7,11 @@ import {
   CardControlRow,
   CardList,
   CardListItem,
+  CardListSkeleton,
   CardRows,
 } from '@/components/display/card-list';
 import { SettingsItem } from '@/components/form/settings-list';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -41,6 +43,45 @@ const columns = [
   'reason',
   'notes',
 ] as const;
+export function PodGridSkeleton() {
+  const { t } = useTranslation();
+  const { measure, cards } = useCardLayout<HTMLDivElement>();
+  const visible = columns.filter((key) => key !== 'vvm');
+  return (
+    <div ref={measure}>
+      {cards ? (
+        <CardListSkeleton count={2} rows={4} pagination={false} />
+      ) : (
+        <DataTableCard>
+          <Table density="compact">
+            <TableHeader surface="muted">
+              <TableRow>
+                {visible.map((key) => (
+                  <TableHead key={key}>
+                    <DataTableHeaderLabel>{t(`orders.pod.${key}`)}</DataTableHeaderLabel>
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[0, 1, 2].map((row) => (
+                <TableRow key={row}>
+                  {visible.map((key) => (
+                    <TableCell key={key}>
+                      <div className="h-4 w-20">
+                        <Skeleton fill />
+                      </div>
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DataTableCard>
+      )}
+    </div>
+  );
+}
 export function PodGrid({
   form,
   groups,
@@ -97,7 +138,9 @@ export function PodGrid({
         <CardList>
           {groups.map((group, index) => (
             <CardListItem key={group.orderLine?.orderable.id ?? index}>
-              <CardBand>{groupName(group)}</CardBand>
+              <CardBand>
+                <bdi>{groupName(group)}</bdi>
+              </CardBand>
               <CardRows>
                 <SettingsItem label={t('orders.pod.product-unit')}>
                   <bdi>{orEmpty(group.orderLine?.orderable.dispensable?.displayUnit)}</bdi>
@@ -113,7 +156,7 @@ export function PodGrid({
       ) : (
         <DataTableCard>
           <Table scroll="both">
-            <TableHeader>
+            <TableHeader surface="muted">
               <TableRow>
                 {visible.map((key) => (
                   <TableHead key={key}>
@@ -126,7 +169,9 @@ export function PodGrid({
               {groups.map((group, index) => (
                 <Fragment key={group.orderLine?.orderable.id ?? index}>
                   <TableRow tone="skipped">
-                    <TableCell rowHeader>{groupName(group)}</TableCell>
+                    <TableCell rowHeader>
+                      <bdi>{groupName(group)}</bdi>
+                    </TableCell>
                     <TableCell>
                       <bdi>{group.orderLine?.orderable.dispensable?.displayUnit}</bdi>
                     </TableCell>
@@ -277,8 +322,8 @@ function PodRow({
   return cards ? (
     <>
       <CardBand>
-        <span>{showName ? name : lot}</span>
-        {showName && <span>{lot}</span>}
+        <bdi>{showName ? name : lot}</bdi>
+        {showName && <bdi>{lot}</bdi>}
       </CardBand>
       <CardRows>
         {showName && (
@@ -294,7 +339,9 @@ function PodRow({
     </>
   ) : (
     <TableRow>
-      <TableCell rowHeader>{showName ? name : <span className="sr-only">{name}</span>}</TableCell>
+      <TableCell rowHeader>
+        {showName ? <bdi>{name}</bdi> : <span className="sr-only">{name}</span>}
+      </TableCell>
       <TableCell>{showName ? <bdi>{unit}</bdi> : null}</TableCell>
       <TableCell />
       {details.map(([key, value]) => (

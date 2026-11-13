@@ -611,9 +611,9 @@ function OfflineEventsTable({
           ]),
       {
         id: 'actions',
-        header: '',
+        header: t('stock-events.actions'),
         cell: ({ row }) => <ActionsCell event={row.original} />,
-        meta: { className: 'w-12', skeleton: 'control' },
+        meta: { className: 'w-24', skeleton: 'control' },
       },
     ],
     [t, tab, defaultSort, i18n.language, timeZone],

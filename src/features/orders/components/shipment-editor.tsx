@@ -10,6 +10,7 @@ import { DiscardChangesDialog } from '@/components/display/discard-changes-dialo
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
   WorkspaceContent,
@@ -204,6 +205,12 @@ function ShipmentData({
     create.status,
     create.mutate,
   ]);
+  const missingDraft =
+    order.status === 'FULFILLING' &&
+    record.isSuccess &&
+    !record.isFetching &&
+    !record.data &&
+    !closed.current;
   const error =
     record.error ??
     summaries.error ??
@@ -211,7 +218,8 @@ function ShipmentData({
     savedProducts.error ??
     lots.error ??
     vvm.error ??
-    create.error;
+    create.error ??
+    (missingDraft ? new ShipmentDraftExpiredError() : null);
   const loading =
     !ready ||
     record.isPending ||
@@ -238,11 +246,23 @@ function ShipmentData({
   const failure = error ? (
     <LoadError
       title={t(
-        error === summaries.error ? 'orders.shipment.stock-error' : 'orders.shipment.load-error',
+        error instanceof ShipmentDraftExpiredError
+          ? 'orders.shipment.draft-gone'
+          : error === summaries.error
+            ? 'orders.shipment.stock-error'
+            : 'orders.shipment.load-error',
       )}
-      description={t('error.description')}
+      description={t(
+        error instanceof ShipmentDraftExpiredError
+          ? 'orders.shipment.draft-gone-description'
+          : 'error.description',
+      )}
       error={error}
       reset={() => {
+        if (error instanceof ShipmentDraftExpiredError) {
+          window.location.reload();
+          return;
+        }
         for (const read of [record, summaries, products, savedProducts, lots, vvm])
           if (read.isError) void read.refetch();
         create.reset();
@@ -508,7 +528,9 @@ function ShipmentEditor({
         closeLabel={t('dialog.close')}
         onOpenChangeComplete={(open) => {
           if (!open && invalidTarget.current) {
-            const target = document.getElementById(invalidTarget.current);
+            const target =
+              region.current?.querySelector<HTMLElement>('[aria-invalid="true"]:not([disabled])') ??
+              document.getElementById(invalidTarget.current);
             if (target) revealField(target, !!target.closest('li'));
           }
         }}
@@ -526,13 +548,19 @@ export function ShipmentPending() {
     <Workspace>
       <WorkspaceHeader>
         <WorkspaceHeading>
-          <WorkspaceTitle>{t('orders.shipment.crumb')}</WorkspaceTitle>
+          <WorkspaceTitle>
+            <span className="block h-5 w-72">
+              <Skeleton fill inline />
+            </span>
+          </WorkspaceTitle>
           <WorkspaceDescription>{t('orders.shipment.description')}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <OrderHeaderSkeleton kind="shipment" />
-        <OrderLinesSkeleton />
+        <div className="flex flex-col gap-4">
+          <OrderHeaderSkeleton kind="shipment" />
+          <OrderLinesSkeleton />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );

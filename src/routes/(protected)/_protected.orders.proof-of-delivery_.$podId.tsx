@@ -2,18 +2,32 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import {
   createFileRoute,
   type ErrorComponentProps,
+  Link,
   useNavigate,
   useRouterState,
 } from '@tanstack/react-router';
+import { ClipboardCheckIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
+import {
+  RecordSummary,
+  RecordSummaryFieldSkeleton,
+  RecordSummaryFields,
+  RecordSummaryHeading,
+} from '@/components/display/record-summary';
+import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Workspace,
+  WorkspaceActions,
   WorkspaceContent,
   WorkspaceDescription,
   WorkspaceHeader,
   WorkspaceHeading,
+  WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { requirePermissions } from '@/features/auth/lib/access';
@@ -22,12 +36,11 @@ import {
   podReferenceOptions,
   proofOfDeliveryOptions,
 } from '@/features/orders/api/queries';
-import { OrderHeaderSkeleton } from '@/features/orders/components/order-header';
-import { OrdersError } from '@/features/orders/components/orders-error';
 import { PodEditor } from '@/features/orders/components/pod-editor';
+import { PodGridSkeleton } from '@/features/orders/components/pod-grid';
 import { orderReturnTarget } from '@/features/orders/lib/order-return';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
-import { isNotFound, isRefused } from '@/lib/http';
+import { isNotFound } from '@/lib/http';
 import { hasProgramGrant } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 
@@ -110,12 +123,61 @@ function PodPending() {
     <Workspace width="large">
       <WorkspaceHeader>
         <WorkspaceHeading>
-          <WorkspaceTitle>{t('orders.pod.detail-title')}</WorkspaceTitle>
+          <WorkspaceIcon>
+            <ClipboardCheckIcon />
+          </WorkspaceIcon>
+          <WorkspaceTitle>
+            <span className="block h-5 w-72">
+              <Skeleton fill inline />
+            </span>
+          </WorkspaceTitle>
           <WorkspaceDescription>{t('orders.pod.detail-description')}</WorkspaceDescription>
         </WorkspaceHeading>
+        <WorkspaceActions>
+          <div className="h-9 w-24">
+            <Skeleton fill />
+          </div>
+        </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <OrderHeaderSkeleton />
+        <div className="flex flex-col gap-4">
+          <RecordSummary aria-busy>
+            <RecordSummaryHeading>
+              <span className="font-normal text-muted-foreground text-xs">
+                {t('orders.pod.columns.order-code')}
+              </span>
+              <div className="h-5 w-40">
+                <Skeleton fill />
+              </div>
+            </RecordSummaryHeading>
+            <RecordSummaryFields>
+              {(
+                [
+                  'columns.status',
+                  'ordering-facility',
+                  'columns.created-date',
+                  'reporting-period',
+                  'supplying-facility',
+                  'columns.emergency',
+                ] as const
+              ).map((key) => (
+                <RecordSummaryFieldSkeleton key={key} label={t(`orders.pod.${key}`)} />
+              ))}
+            </RecordSummaryFields>
+          </RecordSummary>
+          <PodGridSkeleton />
+          <div className="ms-auto w-full max-w-2xl">
+            <SettingsList>
+              {(['delivered-by', 'received-by', 'received-date'] as const).map((key) => (
+                <SettingsItem key={key} label={t(`orders.pod.${key}`)}>
+                  <div className="h-8 w-80 max-w-full">
+                    <Skeleton fill />
+                  </div>
+                </SettingsItem>
+              ))}
+            </SettingsList>
+          </div>
+        </div>
       </WorkspaceContent>
     </Workspace>
   );
@@ -123,20 +185,37 @@ function PodPending() {
 
 function PodLoadError(props: ErrorComponentProps) {
   const { t } = useTranslation();
-  if (!isNotFound(props.error) && !isRefused(props.error)) return <OrdersError {...props} />;
+  if (!isNotFound(props.error))
+    return (
+      <ErrorFallback
+        {...props}
+        title={t('orders.pod.load-error-title')}
+        description={t('error.description')}
+        back={
+          <Button
+            nativeButton={false}
+            render={<Link to="/orders/proof-of-delivery" search={{}} />}
+            size="lg"
+          >
+            {t('orders.pod.title')}
+          </Button>
+        }
+      />
+    );
   return (
     <Workspace width="large">
       <WorkspaceHeader>
         <WorkspaceHeading>
+          <WorkspaceIcon>
+            <ClipboardCheckIcon />
+          </WorkspaceIcon>
           <WorkspaceTitle>{t('orders.pod.detail-title')}</WorkspaceTitle>
           <WorkspaceDescription>{t('orders.pod.detail-description')}</WorkspaceDescription>
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
         <Alert>
-          <AlertDescription>
-            {t(isNotFound(props.error) ? 'orders.pod.not-found' : 'orders.pod.refused-description')}
-          </AlertDescription>
+          <AlertDescription>{t('orders.pod.not-found')}</AlertDescription>
         </Alert>
       </WorkspaceContent>
     </Workspace>
