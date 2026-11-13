@@ -56,7 +56,7 @@ export function groupOptions(tree: SupervisedZones, zones: readonly NamedZone[])
         return {
           value: id,
           name: zone?.name ?? id,
-          label: level ? `${zone?.name} (${level})` : id,
+          label: zone && level ? `${zone.name} (${level})` : (zone?.name ?? id),
         };
       })
       .toSorted((a, b) => a.name.localeCompare(b.name))

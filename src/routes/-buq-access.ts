@@ -113,11 +113,13 @@ export async function loadApproveAccess(
 export async function loadNationalAccess(
   queryClient: QueryClient,
   { zone, period }: { zone?: string; period?: string },
+  cause: 'enter' | 'stay' | 'preload',
 ) {
   const { scope, userId } = currentUser();
+  const fresh = cause === 'enter' ? { staleTime: 0 } : {};
   const [, programs] = await Promise.all([
     requireRight(queryClient, [RIGHTS.mohApproval, RIGHTS.poralgApproval]),
-    queryClient.ensureQueryData(userProgramsOptions(userId)),
+    queryClient.fetchQuery({ ...userProgramsOptions(userId), ...fresh }),
   ]);
   assertSessionScope(scope);
   const access = approveAccess(programs);
@@ -135,10 +137,11 @@ export async function loadNationalAccess(
             zoneId: zone,
           }),
         )
-        .then(
-          (items) => queryClient.prefetchQuery(facilitiesByIdsOptions(nationalFacilityIds(items))),
-          noop,
-        );
+        .then((items) => {
+          assertSessionScope(scope);
+          return queryClient.prefetchQuery(facilitiesByIdsOptions(nationalFacilityIds(items)));
+        })
+        .catch(noop);
     }
   }
   return access;

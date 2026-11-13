@@ -179,6 +179,7 @@
   "buq.national.row": "{facility}, {type}",
   "buq.national.select-all": "Tout sélectionner ({count, number})",
   "buq.national.select-all-short": "Tout sélectionner",
+  "buq.national.skipped": "{count, plural, one {# rapport n'était plus} other {# rapports n'étaient plus}} en attente d'approbation finale et n'ont pas été modifiés.",
   "buq.national.skipped-title": "Certains rapports ignorés",
   "buq.national.status-info": "Tous les établissements ont fait leur rapport pour cette période.",
   "buq.national.summary": "Totaux par groupe de produits",

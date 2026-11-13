@@ -179,6 +179,7 @@
   "buq.national.row": "{facility}, {type}",
   "buq.national.select-all": "Select All ({count, number})",
   "buq.national.select-all-short": "Select All",
+  "buq.national.skipped": "{count, plural, one {# report was} other {# reports were}} no longer waiting for final approval and stayed as they were.",
   "buq.national.skipped-title": "Some Reports Skipped",
   "buq.national.status-info": "All facilities have reported in this period.",
   "buq.national.summary": "Totals by Product Group",
