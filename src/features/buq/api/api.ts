@@ -105,6 +105,22 @@ export async function authorizeBuqForecast(body: ForecastBody) {
   return data;
 }
 
+export async function approveBuqForecast(body: ForecastBody) {
+  const { data } = await client.post<BuqForecast>(
+    `/bottomUpQuantifications/${body.id}/approve`,
+    body,
+  );
+  return data;
+}
+
+export async function rejectBuqForecast(id: string, rejection: BuqRejection) {
+  const { data } = await client.post<BuqForecast>(
+    `/bottomUpQuantifications/${id}/reject`,
+    rejection,
+  );
+  return data;
+}
+
 export async function fetchBuqsForApproval(programId: string) {
   const { data } = await client.get<Page<BuqForApproval>>('/bottomUpQuantifications/forApproval', {
     params: { programId },
