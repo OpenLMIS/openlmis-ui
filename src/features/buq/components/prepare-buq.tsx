@@ -22,26 +22,18 @@ import {
   ComboboxList,
 } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 import { prepareBuq } from '@/features/buq/api/api';
-import {
-  buqPeriodsOptions,
-  preparedBuqsOptions,
-  takenPeriodsOptions,
-} from '@/features/buq/api/queries';
+import { openBuqsOptions, takenPeriodsOptions } from '@/features/buq/api/queries';
+import { BuqHeading, BuqHeadingSkeleton } from '@/features/buq/components/buq-heading';
 import { PreparedTable, PreparedTableSkeleton } from '@/features/buq/components/prepared-table';
-import { BUQ_CODE } from '@/features/buq/lib/access';
-import type { PrepareSearch } from '@/features/buq/lib/search';
+import { useBuqPeriods, usePeriodNames } from '@/features/buq/components/use-buq-periods';
+import type { BuqListProps, BuqListSearch } from '@/features/buq/lib/search';
 import type { BuqPeriod, NamedItem, TakenPeriod } from '@/features/buq/lib/types';
-import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
-import type { SearchChange } from '@/lib/table-search';
 
 type PrepareBuqProps = { facility: NamedItem; program: NamedItem };
-
-type ListSearchProps = { search: PrepareSearch; onSearchChange: SearchChange<PrepareSearch> };
 
 const NO_PERIODS: BuqPeriod[] = [];
 const NO_TAKEN: TakenPeriod[] = [];
@@ -52,14 +44,12 @@ export function PrepareBuq({
   program,
   search,
   onSearchChange,
-}: PrepareBuqProps & ListSearchProps) {
+}: PrepareBuqProps & BuqListProps) {
   const { t } = useTranslation();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-      <h2 className="truncate font-semibold text-base">
-        {t('buq.prepare.applied', { facility: facility.name, program: program.name })}
-      </h2>
+      <BuqHeading facility={facility} program={program} />
       <QueryBoundary
         errorComponent={({ error, reset }) => (
           <LoadError
@@ -82,7 +72,7 @@ export function PrepareBuq({
             description={t('buq.prepare.list-error')}
             error={error}
             reset={reset}
-            title={t('buq.prepare.list-error-title')}
+            title={t('buq.list-error-title')}
           />
         )}
         pendingFallback={<PreparedTableSkeleton cards={cards} search={search} />}
@@ -99,27 +89,13 @@ export function PrepareBuq({
   );
 }
 
-function useBuqPeriods() {
-  const { data: schedules } = useSuspenseQuery(processingSchedulesOptions());
-  const schedule = schedules.find(({ code }) => code === BUQ_CODE);
-  return useSuspenseQuery(buqPeriodsOptions(schedule?.id)).data;
-}
-
-function usePeriodNames() {
-  const schedules = useQuery(processingSchedulesOptions());
-  const schedule = schedules.data?.find(({ code }) => code === BUQ_CODE);
-  const periods = useQuery({ ...buqPeriodsOptions(schedule?.id), enabled: schedules.isSuccess });
-  const settled = schedules.isError || periods.isError || periods.isSuccess;
-  return settled ? (periods.data ?? NO_PERIODS) : undefined;
-}
-
 function LoadedTable({
   facility,
   cards,
   ...list
-}: ListSearchProps & { facility: NamedItem; cards: boolean }) {
+}: BuqListProps & { facility: NamedItem; cards: boolean }) {
   const periods = usePeriodNames();
-  const { data: buqs } = useSuspenseQuery(preparedBuqsOptions(facility.id));
+  const { data: buqs } = useSuspenseQuery(openBuqsOptions(facility.id));
   if (!periods) return <PreparedTableSkeleton cards={cards} search={list.search} />;
   return (
     <PreparedTable {...list} buqs={buqs} cards={cards} facility={facility} periods={periods} />
@@ -140,7 +116,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
           ? t('buq.prepare.prepared', { period })
           : t('buq.prepare.prepared-empty', { period }),
       });
-      queryClient.setQueryData(preparedBuqsOptions(facility.id).queryKey, (buqs) =>
+      queryClient.setQueryData(openBuqsOptions(facility.id).queryKey, (buqs) =>
         buqs ? [...buqs, buq] : buqs,
       );
       queryClient.setQueryData(takenPeriodsOptions(facility.id).queryKey, (rows) =>
@@ -280,16 +256,12 @@ function PeriodPicker({
   );
 }
 
-export function PrepareBuqSkeleton({ search }: { search: PrepareSearch }) {
+export function PrepareBuqSkeleton({ search }: { search: BuqListSearch }) {
   const { t } = useTranslation();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
     <div aria-busy className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-      <div className="flex h-6 items-center">
-        <div className="h-4 w-64 max-w-full">
-          <Skeleton fill />
-        </div>
-      </div>
+      <BuqHeadingSkeleton />
       <PeriodPicker disabled periods={NO_PERIODS} taken={NO_TAKEN} />
       <Separator />
       <h3 className="font-medium text-sm">{t('buq.prepare.report-list')}</h3>

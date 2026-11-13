@@ -1,40 +1,65 @@
 import { expect, it } from 'vitest';
-import { prepareAccess } from '@/features/buq/lib/access';
+import { buqAccess } from '@/features/buq/lib/access';
 import { parsePermissions } from '@/lib/permissions';
 
 const BUQ = { id: 'g1', code: 'BUQ', name: 'BUQ' };
 const HOME = { id: 'f1', name: 'Cuamba', supportedPrograms: [{ id: 'g1', code: 'BUQ' }] };
-const GRANTED = parsePermissions(['PREPARE_BUQ|f1|g1']);
+const PREPARE = ['PREPARE_BUQ'];
 const TODAY = '2026-11-12';
-
-it('opens for the BUQ program supported and granted at the home facility', () => {
-  expect(
-    prepareAccess({ home: HOME, programs: [BUQ], permissions: GRANTED, today: TODAY }),
-  ).toEqual({
-    kind: 'ready',
-    facility: { id: 'f1', name: 'Cuamba' },
-    program: { id: 'g1', name: 'BUQ' },
-  });
-});
+const FORECASTING = ['CREATE_FORECASTING', 'AUTHORIZE_FORECASTING'];
+const READY = {
+  kind: 'ready',
+  facility: { id: 'f1', name: 'Cuamba' },
+  program: { id: 'g1', name: 'BUQ' },
+};
 
 it.each([
-  ['no-home', { home: undefined, programs: [BUQ], permissions: GRANTED }],
-  ['no-program', { home: HOME, programs: [], permissions: GRANTED }],
+  ['PREPARE_BUQ', PREPARE, 'PREPARE_BUQ|f1|g1'],
+  ['CREATE_FORECASTING alone', FORECASTING, 'CREATE_FORECASTING|f1|g1'],
+  ['AUTHORIZE_FORECASTING alone', FORECASTING, 'AUTHORIZE_FORECASTING|f1|g1'],
+])('opens with %s granted for BUQ at the home facility', (_, rights, grant) => {
+  expect(
+    buqAccess({
+      home: HOME,
+      programs: [BUQ],
+      permissions: parsePermissions([grant]),
+      rights,
+      support: { activeOn: TODAY },
+    }),
+  ).toEqual(READY);
+});
+
+const SUPPORTLESS_HOME = { ...HOME, supportedPrograms: [] };
+
+it.each([
+  ['no home facility', 'no-home', undefined, [BUQ], ['PREPARE_BUQ|f1|g1'], PREPARE],
+  ['no BUQ program', 'no-program', HOME, [], ['PREPARE_BUQ|f1|g1'], PREPARE],
+  ['home without BUQ', 'unsupported', SUPPORTLESS_HOME, [BUQ], ['PREPARE_BUQ|f1|g1'], PREPARE],
+  ['PREPARE_BUQ elsewhere', 'no-grant', HOME, [BUQ], ['PREPARE_BUQ|f2|g1'], PREPARE],
+  ['another right at home', 'no-grant', HOME, [BUQ], ['CREATE_FORECASTING|f1|g1'], PREPARE],
   [
-    'unsupported',
-    { home: { ...HOME, supportedPrograms: [] }, programs: [BUQ], permissions: GRANTED },
-  ],
-  [
+    'forecasting rights elsewhere',
     'no-grant',
-    { home: HOME, programs: [BUQ], permissions: parsePermissions(['PREPARE_BUQ|f2|g1']) },
+    HOME,
+    [BUQ],
+    ['CREATE_FORECASTING|f2|g1', 'AUTHORIZE_FORECASTING|f1|g2'],
+    FORECASTING,
   ],
-])('refuses with %s', (kind, sources) => {
-  expect(prepareAccess({ ...sources, today: TODAY })).toEqual({ kind });
+])('refuses with %s', (_, kind, home, programs, grants, rights) => {
+  expect(
+    buqAccess({
+      home,
+      programs,
+      permissions: parsePermissions(grants),
+      rights,
+      support: { activeOn: TODAY },
+    }),
+  ).toEqual({ kind });
 });
 
 it('picks the BUQ program among the user programs', () => {
   expect(
-    prepareAccess({
+    buqAccess({
       home: {
         ...HOME,
         supportedPrograms: [
@@ -43,46 +68,60 @@ it('picks the BUQ program among the user programs', () => {
         ],
       },
       programs: [{ id: 'g0', code: 'EPI', name: 'EPI' }, BUQ],
-      permissions: GRANTED,
-      today: TODAY,
+      permissions: parsePermissions(['PREPARE_BUQ|f1|g1']),
+      rights: PREPARE,
+      support: { activeOn: TODAY },
     }),
-  ).toEqual({
-    kind: 'ready',
-    facility: { id: 'f1', name: 'Cuamba' },
-    program: { id: 'g1', name: 'BUQ' },
-  });
+  ).toEqual(READY);
 });
 
 it('refuses a home grant held for another program or another right', () => {
   expect(
-    prepareAccess({
+    buqAccess({
       home: HOME,
       programs: [BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f1|g0']),
-      today: TODAY,
+      rights: PREPARE,
+      support: { activeOn: TODAY },
     }),
   ).toEqual({ kind: 'no-grant' });
   expect(
-    prepareAccess({
+    buqAccess({
       home: HOME,
       programs: [BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f2|g1', 'APPROVE_BUQ|f1|g1']),
-      today: TODAY,
+      rights: PREPARE,
+      support: { activeOn: TODAY },
     }),
   ).toEqual({ kind: 'no-grant' });
 });
 
-it.each([
+const NOT_YET_SUPPORTED: [string, { supportActive: boolean; supportStartDate?: string }][] = [
   ['inactive', { supportActive: false }],
   ['starting today', { supportActive: true, supportStartDate: TODAY }],
   ['starting later', { supportActive: true, supportStartDate: '2027-01-01' }],
-])('refuses BUQ support that is %s', (_, support) => {
+];
+
+it.each(NOT_YET_SUPPORTED)('refuses preparing BUQ when support is %s', (_, support) => {
   expect(
-    prepareAccess({
+    buqAccess({
       home: { ...HOME, supportedPrograms: [{ id: 'g1', code: 'BUQ', ...support }] },
       programs: [BUQ],
-      permissions: GRANTED,
-      today: TODAY,
+      permissions: parsePermissions(['PREPARE_BUQ|f1|g1']),
+      rights: PREPARE,
+      support: { activeOn: TODAY },
     }),
   ).toEqual({ kind: 'unsupported' });
+});
+
+it.each(NOT_YET_SUPPORTED)('still lists forecasts when support is %s', (_, support) => {
+  expect(
+    buqAccess({
+      home: { ...HOME, supportedPrograms: [{ id: 'g1', code: 'BUQ', ...support }] },
+      programs: [BUQ],
+      permissions: parsePermissions(['CREATE_FORECASTING|f1|g1']),
+      rights: FORECASTING,
+      support: 'listed',
+    }),
+  ).toEqual(READY);
 });

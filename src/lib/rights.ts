@@ -18,6 +18,8 @@ export const RIGHTS = {
   cceInventoryTransfer: 'CCE_INVENTORY_TRANSFER',
   cceManage: 'CCE_MANAGE',
   prepareBuq: 'PREPARE_BUQ',
+  createForecasting: 'CREATE_FORECASTING',
+  authorizeForecasting: 'AUTHORIZE_FORECASTING',
   facilitiesManage: 'FACILITIES_MANAGE',
   supplyLinesManage: 'SUPPLY_LINES_MANAGE',
   geographicZonesManage: 'GEOGRAPHIC_ZONES_MANAGE',

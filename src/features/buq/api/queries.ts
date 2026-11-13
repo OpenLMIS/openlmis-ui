@@ -1,14 +1,19 @@
 import { queryOptions } from '@tanstack/react-query';
-import { fetchBuqPeriods, fetchPreparedBuqs, fetchTakenPeriods } from '@/features/buq/api/api';
+import { fetchBuqPeriods, fetchOpenBuqs, fetchTakenPeriods } from '@/features/buq/api/api';
+import { BUQ_CODE } from '@/features/buq/lib/access';
 import type { BuqPeriod } from '@/features/buq/lib/types';
+import {
+  LOOKUP_STALE_TIME,
+  processingSchedulesOptions,
+} from '@/features/reference-data/api/queries';
 import { queryKeys } from '@/lib/key-factory';
 
 const NO_PERIODS: BuqPeriod[] = [];
 
-export const preparedBuqsOptions = (facilityId: string) =>
+export const openBuqsOptions = (facilityId: string) =>
   queryOptions({
     queryKey: queryKeys.buq.list({ facility: facilityId }),
-    queryFn: () => fetchPreparedBuqs(facilityId),
+    queryFn: () => fetchOpenBuqs(facilityId),
   });
 
 export const takenPeriodsOptions = (facilityId: string) =>
@@ -17,8 +22,13 @@ export const takenPeriodsOptions = (facilityId: string) =>
     queryFn: () => fetchTakenPeriods(facilityId),
   });
 
-export const buqPeriodsOptions = (scheduleId: string | undefined) =>
+export const buqPeriodsOptions = () =>
   queryOptions({
-    queryKey: [...queryKeys.processingPeriods.all, 'buq', scheduleId],
-    queryFn: () => (scheduleId ? fetchBuqPeriods(scheduleId) : NO_PERIODS),
+    queryKey: [...queryKeys.processingPeriods.all, 'buq'],
+    queryFn: async ({ client }) => {
+      const schedules = await client.fetchQuery(processingSchedulesOptions());
+      const schedule = schedules.find(({ code }) => code === BUQ_CODE);
+      return schedule ? fetchBuqPeriods(schedule.id) : NO_PERIODS;
+    },
+    staleTime: LOOKUP_STALE_TIME,
   });

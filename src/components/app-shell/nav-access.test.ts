@@ -91,6 +91,12 @@ describe('canOpen', () => {
     expect(canOpen('/administration/products', new Set(['USERS_MANAGE']))).toBe(false);
   });
 
+  it('opens Create / Authorize Forecasting to someone who may create or authorize', () => {
+    expect(canOpen('/buq/create', new Set(['CREATE_FORECASTING']))).toBe(true);
+    expect(canOpen('/buq/create', new Set(['AUTHORIZE_FORECASTING']))).toBe(true);
+    expect(canOpen('/buq/create', new Set(['PREPARE_BUQ']))).toBe(false);
+  });
+
   it('opens Valid Destinations and Valid Sources each to its own right', () => {
     const destinations = new Set(['STOCK_DESTINATIONS_MANAGE']);
     const sources = new Set(['STOCK_SOURCES_MANAGE']);
