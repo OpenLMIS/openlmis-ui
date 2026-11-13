@@ -21,9 +21,11 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { loadNationalAccess } from '@/routes/-buq-access';
 
 export const Route = createFileRoute('/(protected)/_protected/buq/national-approval')({
+  preload: false,
   validateSearch: nationalSearchSchema,
   loaderDeps: ({ search: { zone, period } }) => ({ zone, period }),
-  loader: ({ context: { queryClient }, deps }) => loadNationalAccess(queryClient, deps),
+  loader: ({ context: { queryClient }, deps, cause }) =>
+    loadNationalAccess(queryClient, deps, cause),
   pendingComponent: NationalPending,
   component: NationalPage,
 });

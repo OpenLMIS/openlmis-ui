@@ -88,11 +88,11 @@ const GROUP_LABELS: Record<CostGroupId | 'others', ParseKeys> = {
 
 export const NATIONAL_HIDEABLE_COLUMNS: readonly (ResponsiveColumn & { labelKey: ParseKeys })[] = [
   { id: 'facilityType', labelKey: 'buq.approve.facility-type', hideBelow: 640 },
-  { id: 'pharmaceuticals', labelKey: GROUP_LABELS.pharmaceuticals, hideBelow: 720 },
-  { id: 'medical', labelKey: GROUP_LABELS.medical, hideBelow: 800 },
-  { id: 'radiology', labelKey: GROUP_LABELS.radiology, hideBelow: 880 },
-  { id: 'diagnostics', labelKey: GROUP_LABELS.diagnostics, hideBelow: 960 },
-  { id: 'dental', labelKey: GROUP_LABELS.dental, hideBelow: 1040 },
+  { id: 'pharmaceuticals', labelKey: GROUP_LABELS.pharmaceuticals, hideBelow: 680 },
+  { id: 'medical', labelKey: GROUP_LABELS.medical, hideBelow: 900 },
+  { id: 'radiology', labelKey: GROUP_LABELS.radiology, hideBelow: 1150 },
+  { id: 'diagnostics', labelKey: GROUP_LABELS.diagnostics, hideBelow: 1400 },
+  { id: 'dental', labelKey: GROUP_LABELS.dental, hideBelow: 1610 },
 ];
 
 const SUMMARY_IDS: readonly (CostGroupId | 'others')[] = [...COST_GROUP_IDS, 'others'];
@@ -120,16 +120,16 @@ function StatusHeader() {
 }
 
 function createColumns(t: TFunction, currency: CurrencySettings | undefined, info: boolean) {
-  const text = (id: 'facilityName' | 'facilityType', label: ParseKeys) =>
+  const text = (id: 'facilityName' | 'facilityType', label: ParseKeys, className: string) =>
     columnHelper.accessor(id, {
       header: t(label),
       cell: ({ getValue }) =>
         getValue() && (
-          <CellText overflow="nowrap">
+          <CellText overflow="clamp">
             <bdi>{getValue()}</bdi>
           </CellText>
         ),
-      meta: { label: t(label) },
+      meta: { label: t(label), className },
     });
   return columnHelper.columns([
     selectionColumn((row: NationalRow) => rowName(t, row)),
@@ -143,8 +143,8 @@ function createColumns(t: TFunction, currency: CurrencySettings | undefined, inf
       cell: ({ getValue }) => buqStatusBadge(t, getValue()),
       meta: { label: t('buq.create.status') },
     }),
-    text('facilityName', 'buq.approve.facility-name'),
-    text('facilityType', 'buq.approve.facility-type'),
+    text('facilityName', 'buq.approve.facility-name', 'min-w-48 w-64'),
+    text('facilityType', 'buq.approve.facility-type', 'min-w-32 w-40'),
     ...COST_GROUP_IDS.map((id) =>
       columnHelper.accessor((row) => row.costs[id], {
         id,
@@ -364,7 +364,12 @@ function FinalApproveDialog({
       if (skipped) {
         toast.info(
           t(approved.length ? 'buq.national.skipped-title' : 'buq.national.none-approved-title'),
-          { description: t('buq.national.none-approved', { count: skipped }) },
+          {
+            description: t(
+              approved.length ? 'buq.national.skipped' : 'buq.national.none-approved',
+              { count: skipped },
+            ),
+          },
         );
       }
     },

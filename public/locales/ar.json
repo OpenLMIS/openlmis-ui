@@ -179,6 +179,7 @@
   "buq.national.row": "{facility}، {type}",
   "buq.national.select-all": "تحديد الكل ({count, number})",
   "buq.national.select-all-short": "تحديد الكل",
+  "buq.national.skipped": "{count, plural, zero {لم يكن أي تقرير} one {تقرير واحد لم يعد} two {تقريران لم يعودا} few {# تقارير لم تعد} many {# تقريرًا لم يعد} other {# تقرير لم يعد}} بانتظار الاعتماد النهائي وبقيت كما هي.",
   "buq.national.skipped-title": "تم تخطي بعض التقارير",
   "buq.national.status-info": "أبلغت جميع المنشآت في هذه الفترة.",
   "buq.national.summary": "الإجماليات حسب مجموعة المنتجات",
