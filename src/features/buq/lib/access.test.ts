@@ -24,7 +24,7 @@ it.each([
       programs: [BUQ],
       permissions: parsePermissions([grant]),
       rights,
-      today: TODAY,
+      support: { activeOn: TODAY },
     }),
   ).toEqual(READY);
 });
@@ -47,7 +47,13 @@ it.each([
   ],
 ])('refuses with %s', (_, kind, home, programs, grants, rights) => {
   expect(
-    buqAccess({ home, programs, permissions: parsePermissions(grants), rights, today: TODAY }),
+    buqAccess({
+      home,
+      programs,
+      permissions: parsePermissions(grants),
+      rights,
+      support: { activeOn: TODAY },
+    }),
   ).toEqual({ kind });
 });
 
@@ -64,7 +70,7 @@ it('picks the BUQ program among the user programs', () => {
       programs: [{ id: 'g0', code: 'EPI', name: 'EPI' }, BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f1|g1']),
       rights: PREPARE,
-      today: TODAY,
+      support: { activeOn: TODAY },
     }),
   ).toEqual(READY);
 });
@@ -76,7 +82,7 @@ it('refuses a home grant held for another program or another right', () => {
       programs: [BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f1|g0']),
       rights: PREPARE,
-      today: TODAY,
+      support: { activeOn: TODAY },
     }),
   ).toEqual({ kind: 'no-grant' });
   expect(
@@ -85,23 +91,37 @@ it('refuses a home grant held for another program or another right', () => {
       programs: [BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f2|g1', 'APPROVE_BUQ|f1|g1']),
       rights: PREPARE,
-      today: TODAY,
+      support: { activeOn: TODAY },
     }),
   ).toEqual({ kind: 'no-grant' });
 });
 
-it.each([
+const NOT_YET_SUPPORTED: [string, { supportActive: boolean; supportStartDate?: string }][] = [
   ['inactive', { supportActive: false }],
   ['starting today', { supportActive: true, supportStartDate: TODAY }],
   ['starting later', { supportActive: true, supportStartDate: '2027-01-01' }],
-])('refuses BUQ support that is %s', (_, support) => {
+];
+
+it.each(NOT_YET_SUPPORTED)('refuses preparing BUQ when support is %s', (_, support) => {
   expect(
     buqAccess({
       home: { ...HOME, supportedPrograms: [{ id: 'g1', code: 'BUQ', ...support }] },
       programs: [BUQ],
       permissions: parsePermissions(['PREPARE_BUQ|f1|g1']),
       rights: PREPARE,
-      today: TODAY,
+      support: { activeOn: TODAY },
     }),
   ).toEqual({ kind: 'unsupported' });
+});
+
+it.each(NOT_YET_SUPPORTED)('still lists forecasts when support is %s', (_, support) => {
+  expect(
+    buqAccess({
+      home: { ...HOME, supportedPrograms: [{ id: 'g1', code: 'BUQ', ...support }] },
+      programs: [BUQ],
+      permissions: parsePermissions(['CREATE_FORECASTING|f1|g1']),
+      rights: FORECASTING,
+      support: 'listed',
+    }),
+  ).toEqual(READY);
 });

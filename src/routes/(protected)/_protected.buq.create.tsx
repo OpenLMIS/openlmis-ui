@@ -23,9 +23,10 @@ import { loadBuqAccess } from '@/routes/-buq-access';
 const FORECASTING_RIGHTS = [RIGHTS.createForecasting, RIGHTS.authorizeForecasting];
 
 export const Route = createFileRoute('/(protected)/_protected/buq/create')({
+  preload: false,
   validateSearch: buqListSearchSchema,
   loader: ({ context: { queryClient }, cause }) =>
-    loadBuqAccess(queryClient, FORECASTING_RIGHTS, cause),
+    loadBuqAccess(queryClient, FORECASTING_RIGHTS, cause, { activeSupport: false }),
   pendingComponent: CreateAuthorizePending,
   component: CreateAuthorizePage,
 });

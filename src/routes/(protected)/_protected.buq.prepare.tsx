@@ -20,9 +20,10 @@ import { loadBuqAccess } from '@/routes/-buq-access';
 const PREPARE_RIGHTS = [RIGHTS.prepareBuq];
 
 export const Route = createFileRoute('/(protected)/_protected/buq/prepare')({
+  preload: false,
   validateSearch: buqListSearchSchema,
   loader: ({ context: { queryClient }, cause }) =>
-    loadBuqAccess(queryClient, PREPARE_RIGHTS, cause),
+    loadBuqAccess(queryClient, PREPARE_RIGHTS, cause, { activeSupport: true }),
   pendingComponent: PrepareBuqPending,
   component: PrepareBuqPage,
 });

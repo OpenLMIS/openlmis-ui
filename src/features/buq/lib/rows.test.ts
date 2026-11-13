@@ -17,12 +17,18 @@ const buq = (id: string, processingPeriodId: string, targetYear: number): Buq =>
 });
 
 it('names each forecast by its period and lists them by period start', () => {
-  const rows = buqRows([buq('b17', 'p17', 2018), buq('b16', 'p16', 2017)], PERIODS);
+  const rows = buqRows([buq('b17', 'p17', 2018), buq('b16', 'p16', 2018)], PERIODS);
 
   expect(rows.map(({ id, periodName }) => [id, periodName])).toEqual([
     ['b16', 'July 2016 - June 2017'],
     ['b17', 'July 2017 - June 2018'],
   ]);
+});
+
+it('lists an earlier target year first, whatever its period', () => {
+  const rows = buqRows([buq('b16', 'p16', 2019), buq('b17', 'p17', 2018)], PERIODS);
+
+  expect(rows.map(({ id }) => id)).toEqual(['b17', 'b16']);
 });
 
 it('quantifies the two years after the target year, as legacy', () => {

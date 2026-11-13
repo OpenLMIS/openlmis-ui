@@ -3,7 +3,10 @@ import { type DefaultSort, type SearchChange, tableSearchSchema } from '@/lib/ta
 
 export const DEFAULT_BUQ_SORT: DefaultSort = { id: 'targetYear', desc: false };
 
-export const buqListSearchSchema = tableSearchSchema(['targetYear']);
+export const buqListSearchSchema = tableSearchSchema(['targetYear']).omit({
+  sort: true,
+  dir: true,
+});
 
 export type BuqListSearch = z.infer<typeof buqListSearchSchema>;
 
