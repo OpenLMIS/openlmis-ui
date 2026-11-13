@@ -399,6 +399,37 @@ function LayoutForm() {
   );
 }
 
+function TooltipErrorForm({ layout }: { layout: 'row' | 'inline' }) {
+  const form = useAppForm({ defaultValues: { driver: '' } });
+  return (
+    <form.AppField
+      name="driver"
+      validators={{ onChange: ({ value }) => (value ? undefined : 'Name Required') }}
+      listeners={{ onBlur: ({ fieldApi }) => void fieldApi.validate('change') }}
+    >
+      {(field) => <field.TextField label="Delivered By" layout={layout} hideErrors required />}
+    </form.AppField>
+  );
+}
+
+it.each(['row', 'inline'] as const)(
+  'shows %s field errors in a tooltip on focus and clears them after correction',
+  async (layout) => {
+    const user = userEvent.setup();
+    render(<TooltipErrorForm layout={layout} />);
+    const input = screen.getByRole('textbox', { name: 'Delivered By' });
+    await user.click(input);
+    await user.tab();
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription('Name Required');
+    await user.tab({ shift: true });
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Name Required');
+    await user.type(input, 'Driver');
+    await waitFor(() => expect(input).not.toHaveAttribute('aria-invalid', 'true'));
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
+  },
+);
+
 describe('field layouts', () => {
   it('reads a row badge out with its field', () => {
     render(<LayoutForm />);

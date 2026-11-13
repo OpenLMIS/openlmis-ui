@@ -323,6 +323,7 @@ export function PodEditor({
                               label={t('orders.pod.received-date')}
                               placeholder={t('orders.pod.received-date')}
                               layout="row"
+                              hideErrors
                               required
                               latest={toDateValue(new Date(), timeZone)}
                               disabled={pending && mutation.variables?.confirming === true}
@@ -335,6 +336,7 @@ export function PodEditor({
                                   : 'orders.pod.received-by',
                               )}
                               layout="row"
+                              hideErrors
                               required
                               disabled={pending && mutation.variables?.confirming === true}
                             />
