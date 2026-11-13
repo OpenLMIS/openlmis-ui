@@ -4,7 +4,7 @@ import {
   CircleAlertIcon,
   CircleCheckIcon,
   CircleHelpIcon,
-  SnowflakeIcon,
+  CircleIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -37,7 +37,7 @@ export function FacilityCceStatus({
       : status === 'unknown'
         ? CircleHelpIcon
         : status === 'no-cce'
-          ? SnowflakeIcon
+          ? CircleIcon
           : CircleAlertIcon;
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -45,14 +45,17 @@ export function FacilityCceStatus({
         className={
           status === 'all-functioning'
             ? 'text-success'
-            : status === 'not-functioning'
+            : status === 'not-functioning' || status === 'no-cce'
               ? 'text-destructive'
               : status === 'not-fully-functioning'
                 ? 'text-warning'
                 : 'text-muted-foreground'
         }
       >
-        <Icon className="size-4" />
+        <Icon
+          aria-hidden="true"
+          className={status === 'no-cce' ? 'size-4 fill-current' : 'size-4'}
+        />
       </span>
       <span>
         {t(
