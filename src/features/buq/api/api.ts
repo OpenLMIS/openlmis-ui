@@ -25,7 +25,7 @@ async function fetchEveryPage<T>(path: string, config: AxiosRequestConfig) {
     assertSessionScope(scope);
     const { data } = await client.get<Page<T>>(path, {
       ...config,
-      params: { ...config.params, page, size: PAGE_SIZE },
+      params: { sort: 'id,asc', ...config.params, page, size: PAGE_SIZE },
     });
     assertSessionScope(scope);
     records.push(...data.content);

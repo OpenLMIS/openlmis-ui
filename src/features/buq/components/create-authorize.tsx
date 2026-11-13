@@ -5,7 +5,7 @@ import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { openBuqsOptions } from '@/features/buq/api/queries';
 import { BuqHeading, BuqHeadingSkeleton } from '@/features/buq/components/buq-heading';
 import { ForecastsTable, ForecastsTableSkeleton } from '@/features/buq/components/forecasts-table';
-import { useBuqPeriods } from '@/features/buq/components/use-buq-periods';
+import { usePeriodNames } from '@/features/buq/components/use-buq-periods';
 import type { BuqListProps, BuqListSearch } from '@/features/buq/lib/search';
 import type { NamedItem } from '@/features/buq/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
@@ -48,8 +48,9 @@ function LoadedForecasts({
   facility,
   ...props
 }: BuqListProps & { facility: NamedItem; cards: boolean }) {
-  const periods = useBuqPeriods();
+  const periods = usePeriodNames();
   const { data: buqs } = useSuspenseQuery(openBuqsOptions(facility.id));
+  if (!periods) return <ForecastsTableSkeleton cards={props.cards} search={props.search} />;
   return <ForecastsTable {...props} buqs={buqs} periods={periods} />;
 }
 

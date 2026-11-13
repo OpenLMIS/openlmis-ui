@@ -18,7 +18,7 @@
   "buq.empty": "لا توجد تقارير متاحة",
   "buq.heading": "{facility} · {program}",
   "buq.list-error-title": "تعذّر تحميل التقارير",
-  "buq.no-home": "لا توجد منشأة رئيسية لحسابك، لذلك لا توجد منشأة لإعداد التنبؤ لها.",
+  "buq.no-home": "لا توجد منشأة رئيسية لحسابك، لذلك لا توجد منشأة لإجراء التنبؤ لها.",
   "buq.no-program": "لم يتم تعيين برنامج BUQ لك.",
   "buq.prepare.actions": "الإجراءات",
   "buq.prepare.actions-for": "إجراءات {period} ({year})",

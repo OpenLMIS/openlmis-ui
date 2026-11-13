@@ -23,18 +23,20 @@ export type BuqAccess =
   | { kind: 'unsupported' }
   | { kind: 'no-grant' };
 
+export type BuqSupport = { activeOn: string } | 'listed';
+
 export function buqAccess({
   home,
   programs,
   permissions,
   rights,
-  today,
+  support,
 }: {
   home: HomeFacility | undefined;
   programs: readonly ProgramRecord[];
   permissions: Permissions;
   rights: readonly string[];
-  today: string;
+  support: BuqSupport;
 }): BuqAccess {
   if (!home) return { kind: 'no-home' };
   const program = programs.find(({ code }) => code === BUQ_CODE);
@@ -42,8 +44,9 @@ export function buqAccess({
   const supported = home.supportedPrograms?.some(
     ({ id, supportActive, supportStartDate }) =>
       id === program.id &&
-      supportActive !== false &&
-      (!supportStartDate || supportStartDate.slice(0, 10) < today),
+      (support === 'listed' ||
+        (supportActive !== false &&
+          (!supportStartDate || supportStartDate.slice(0, 10) < support.activeOn))),
   );
   if (!supported) return { kind: 'unsupported' };
   if (!rights.some((right) => hasProgramGrant(permissions, right, home.id, program.id))) {

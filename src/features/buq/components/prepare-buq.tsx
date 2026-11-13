@@ -23,18 +23,12 @@ import {
 } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
 import { prepareBuq } from '@/features/buq/api/api';
-import {
-  buqPeriodsOptions,
-  openBuqsOptions,
-  takenPeriodsOptions,
-} from '@/features/buq/api/queries';
+import { openBuqsOptions, takenPeriodsOptions } from '@/features/buq/api/queries';
 import { BuqHeading, BuqHeadingSkeleton } from '@/features/buq/components/buq-heading';
 import { PreparedTable, PreparedTableSkeleton } from '@/features/buq/components/prepared-table';
-import { useBuqPeriods } from '@/features/buq/components/use-buq-periods';
-import { BUQ_CODE } from '@/features/buq/lib/access';
+import { useBuqPeriods, usePeriodNames } from '@/features/buq/components/use-buq-periods';
 import type { BuqListProps, BuqListSearch } from '@/features/buq/lib/search';
 import type { BuqPeriod, NamedItem, TakenPeriod } from '@/features/buq/lib/types';
-import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
@@ -93,14 +87,6 @@ export function PrepareBuq({
       </QueryBoundary>
     </div>
   );
-}
-
-function usePeriodNames() {
-  const schedules = useQuery(processingSchedulesOptions());
-  const schedule = schedules.data?.find(({ code }) => code === BUQ_CODE);
-  const periods = useQuery({ ...buqPeriodsOptions(schedule?.id), enabled: schedules.isSuccess });
-  const settled = schedules.isError || periods.isError || periods.isSuccess;
-  return settled ? (periods.data ?? NO_PERIODS) : undefined;
 }
 
 function LoadedTable({

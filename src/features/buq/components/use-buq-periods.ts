@@ -1,10 +1,14 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { buqPeriodsOptions } from '@/features/buq/api/queries';
-import { BUQ_CODE } from '@/features/buq/lib/access';
-import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
+import type { BuqPeriod } from '@/features/buq/lib/types';
+
+const NO_PERIODS: BuqPeriod[] = [];
 
 export function useBuqPeriods() {
-  const { data: schedules } = useSuspenseQuery(processingSchedulesOptions());
-  const schedule = schedules.find(({ code }) => code === BUQ_CODE);
-  return useSuspenseQuery(buqPeriodsOptions(schedule?.id)).data;
+  return useSuspenseQuery(buqPeriodsOptions()).data;
+}
+
+export function usePeriodNames() {
+  const periods = useQuery(buqPeriodsOptions());
+  return periods.isPending ? undefined : (periods.data ?? NO_PERIODS);
 }
