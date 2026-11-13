@@ -28,11 +28,15 @@ export const OrderHeader = memo(function OrderHeader({
   return (
     <RecordSummary aria-label={shipment ? t('orders.shipment.crumb') : undefined}>
       {shipment ? (
-        order.emergency && (
-          <RecordSummaryHeading>
-            <Badge variant="destructive">{t('orders.shipment.emergency')}</Badge>
-          </RecordSummaryHeading>
-        )
+        <RecordSummaryHeading>
+          <span className="font-normal text-muted-foreground text-xs">
+            {t('orders.view.columns.order-code')}
+          </span>
+          <span className="break-words">
+            <bdi>{order.orderCode ?? order.id}</bdi>
+          </span>
+          {order.emergency && <Badge variant="destructive">{t('orders.shipment.emergency')}</Badge>}
+        </RecordSummaryHeading>
       ) : (
         <RecordSummaryHeading>
           <span className="font-normal text-muted-foreground text-xs">
@@ -81,16 +85,18 @@ export function OrderHeaderSkeleton({ kind = 'order' }: { kind?: 'order' | 'ship
   const { t } = useTranslation();
   return (
     <RecordSummary aria-busy>
-      {kind === 'order' && (
-        <RecordSummaryHeading>
-          <span className="font-normal text-muted-foreground text-xs">
-            {t('orders.edit.requesting-facility')}
-          </span>
-          <div className="h-5 w-40">
-            <Skeleton fill />
-          </div>
-        </RecordSummaryHeading>
-      )}
+      <RecordSummaryHeading>
+        <span className="font-normal text-muted-foreground text-xs">
+          {t(
+            kind === 'shipment'
+              ? 'orders.view.columns.order-code'
+              : 'orders.edit.requesting-facility',
+          )}
+        </span>
+        <div className="h-5 w-40">
+          <Skeleton fill />
+        </div>
+      </RecordSummaryHeading>
       <RecordSummaryFields>
         {(['status', 'date-created', 'program'] as const).map((key) => (
           <RecordSummaryFieldSkeleton key={key} label={t(`orders.edit.${key}`)} />
