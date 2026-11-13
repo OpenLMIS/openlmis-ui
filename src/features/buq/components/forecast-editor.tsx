@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Workspace, WorkspaceContent, WorkspaceFooter } from '@/components/workspace/workspace';
 import {
   authorizeBuqForecast,
+  BuqMovedError,
   type ForecastBody,
   saveBuqForecast,
   submitBuqForecast,
@@ -38,7 +39,7 @@ import {
 import { ForecastGrid } from '@/features/buq/components/forecast-grid';
 import { FundingDialog } from '@/features/buq/components/funding-dialog';
 import { RejectionDialog } from '@/features/buq/components/rejection-dialog';
-import { useBuqPeriods } from '@/features/buq/components/use-buq-periods';
+import { usePeriodNames } from '@/features/buq/components/use-buq-periods';
 import { useForecastForm } from '@/features/buq/components/use-forecast-form';
 import {
   type ForecastDraft,
@@ -74,6 +75,7 @@ import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { decimalMark } from '@/lib/decimal';
 import { queryKeys } from '@/lib/key-factory';
 import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
@@ -98,6 +100,8 @@ const invalidPart = (line: LineDraft) =>
     : numberError(line.forecasted)
       ? 'forecasted'
       : 'remarkId';
+
+const FUNDING_TARGET = 'funding';
 
 const WRITE: Record<ForecastAction, (body: ForecastBody) => Promise<BuqForecast>> = {
   save: saveBuqForecast,
@@ -148,11 +152,11 @@ export function ForecastEditor({
   const { data: remarks } = useSuspenseQuery(buqRemarksOptions());
   const { data: sources } = useSuspenseQuery(buqSourcesOfFundsOptions());
   const { data: currency } = useSuspenseQuery(currencySettingsOptions());
-  const periods = useBuqPeriods();
-  const period = periods.find(({ id }) => id === forecast.processingPeriodId);
+  const periods = usePeriodNames();
+  const period = periods?.find(({ id }) => id === forecast.processingPeriodId);
   const fallback = useQuery({
     ...processingPeriodOptions(forecast.processingPeriodId),
-    enabled: !period,
+    enabled: !!periods && !period,
   }).data;
   const products = useMemo(() => {
     const byId = new Map(orderables.map((orderable) => [orderable.id, orderable]));
@@ -216,10 +220,11 @@ export function ForecastForm({
   skipAuthorization: boolean;
   details: ForecastDetails;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
-  const [baseline, setBaseline] = useState(() => initialDraft(forecast, sources));
+  const mark = decimalMark(i18n.language);
+  const [baseline, setBaseline] = useState(() => initialDraft(forecast, sources, mark));
   const form = useForecastForm(baseline);
   const values = useStore(form.store, (state) => state.values);
   const [attempted, setAttempted] = useState(false);
@@ -270,23 +275,33 @@ export function ForecastForm({
     [models, values.lines],
   );
   const shown = (lineId: string) => attempted || changedIds.has(lineId);
+  const isLineInvalid = (lineId: string) => shown(lineId) && invalidIds.has(lineId);
+  const fundingMissing = attempted && !!send && !fundingComplete(values.funding);
   const { pageSize } = toPaginationState(search);
   const isPageInvalid = (page: number) =>
     models
       .slice(page * pageSize, (page + 1) * pageSize)
-      .some(({ lineId }) => shown(lineId) && invalidIds.has(lineId));
+      .some(({ lineId }) => isLineInvalid(lineId));
   const dirty =
     changedIds.size > 0 || JSON.stringify(values.funding) !== JSON.stringify(baseline.funding);
 
   const mutation = useSessionMutation({
-    mutationFn: ({ action, body }: { action: ForecastAction; body: ForecastBody }) =>
-      WRITE[action](body),
+    mutationFn: async ({ action, body }: { action: ForecastAction; body: ForecastBody }) => {
+      const current = await queryClient.fetchQuery({
+        ...buqForecastOptions(body.id),
+        staleTime: 0,
+      });
+      if (!forecastActions(current.status, rights, skipAuthorization).includes(action)) {
+        throw new BuqMovedError();
+      }
+      return WRITE[action](body);
+    },
     onSuccess: async (saved, { action }) => {
       setConfirming(null);
       toast.success(t(DONE[action].title), { description: t(DONE[action].description) });
+      queryClient.setQueryData(buqForecastOptions(saved.id).queryKey, saved);
       if (action === 'save') {
-        queryClient.setQueryData(buqForecastOptions(saved.id).queryKey, saved);
-        const next = initialDraft(saved, sources);
+        const next = initialDraft(saved, sources, mark);
         setBaseline(next);
         form.reset(next);
         setAttempted(false);
@@ -298,7 +313,13 @@ export function ForecastForm({
     },
     onError: (error) => {
       setConfirming(null);
-      setFailure(serverMessage(error) ?? t('buq.forecast.send-error'));
+      setFailure(
+        error instanceof BuqMovedError
+          ? t('buq.forecast.moved')
+          : (serverMessage(error) ?? t('buq.forecast.send-error')),
+      );
+      void queryClient.invalidateQueries({ queryKey: buqForecastOptions(forecast.id).queryKey });
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'list'] });
     },
   });
   const pending = mutation.isPending;
@@ -311,7 +332,7 @@ export function ForecastForm({
       onSearchChange({ page: page ? page + 1 : undefined }, true);
       const line = values.lines[lineId];
       invalidTarget.current = `lines.${lineId}.${line ? invalidPart(line) : 'verified'}`;
-    } else invalidTarget.current = null;
+    } else invalidTarget.current = FUNDING_TARGET;
     setInvalid(description);
   };
   const write = (action: ForecastAction) =>
@@ -350,6 +371,7 @@ export function ForecastForm({
               currency={currency}
               disabled={!editable || pending}
               form={form}
+              isLineInvalid={isLineInvalid}
               isPageInvalid={isPageInvalid}
               models={models}
               onSearchChange={onSearchChange}
@@ -375,7 +397,7 @@ export function ForecastForm({
             disabled={pending}
             onClick={() => onOpenDialog('funding')}
             size="lg"
-            variant="outline"
+            variant={fundingMissing ? 'destructive-outline' : 'outline'}
           >
             {t('buq.forecast.funding')}
           </Button>
@@ -416,13 +438,14 @@ export function ForecastForm({
         onClose={onCloseDialog}
         onSave={setFunding}
         open={search.dialog === 'funding'}
+        required={fundingMissing}
         rows={values.funding}
         totalCost={totals.totalCost}
       />
       <RejectionDialog
         forecastId={forecast.id}
         onClose={onCloseDialog}
-        open={search.dialog === 'rejection'}
+        open={search.dialog === 'rejection' && canViewRejection(forecast.status, rights)}
       />
       <AlertDialog
         onOpenChange={(open) => !open && !pending && setConfirming(null)}
@@ -453,6 +476,10 @@ export function ForecastForm({
         onOpenChangeComplete={(open) => {
           const target = invalidTarget.current;
           if (open || !target) return;
+          if (target === FUNDING_TARGET) {
+            onOpenDialog('funding');
+            return;
+          }
           const field = document.querySelector<HTMLElement>(`[id="${target}"]`);
           if (field) revealField(field, !!field.closest('li'));
         }}

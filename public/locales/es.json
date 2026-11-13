@@ -58,6 +58,7 @@
   "buq.forecast.invalid-title": "El informe tiene errores",
   "buq.forecast.load-error": "No se pudo cargar el informe. Inténtelo de nuevo.",
   "buq.forecast.load-error-title": "No se pudo cargar el informe",
+  "buq.forecast.moved": "Este informe cambió después de abrirlo, por lo que no se envió nada. La página muestra ahora su estado actual.",
   "buq.forecast.not-found-description": "Este informe no existe o pertenece a otro establecimiento.",
   "buq.forecast.not-found-title": "Informe no encontrado",
   "buq.forecast.period": "Período de cuantificación",

@@ -35,6 +35,7 @@ export function RejectionDialog({
     .map(({ name }) => name);
   const error = rejection.error ?? reasons.error;
   const title = t('buq.forecast.rejection-title');
+  const loading = rejection.isPending || reasons.isPending;
 
   return (
     <FormDialog onOpenChange={(next) => !next && onClose()} open={open}>
@@ -54,22 +55,20 @@ export function RejectionDialog({
             <FormDialogTitle>{title}</FormDialogTitle>
           </FormDialogHeader>
           <FormDialogBody>
-            {rejection.isPending || reasons.isPending ? (
-              <div className="h-24">
-                <Skeleton fill />
-              </div>
-            ) : (
-              <SettingsList>
-                <SettingsItem label={t('buq.forecast.rejection-reasons')}>
-                  {orEmpty(names.join(', '))}
-                </SettingsItem>
-                <SettingsItem label={t('buq.forecast.rejection-comments')}>
+            <SettingsList>
+              <SettingsItem label={t('buq.forecast.rejection-reasons')}>
+                {loading ? <ValueSkeleton /> : orEmpty(names.join(', '))}
+              </SettingsItem>
+              <SettingsItem label={t('buq.forecast.rejection-comments')}>
+                {loading ? (
+                  <ValueSkeleton />
+                ) : (
                   <span className="whitespace-pre-line" dir="auto">
                     {orEmpty(rejection.data?.generalComments)}
                   </span>
-                </SettingsItem>
-              </SettingsList>
-            )}
+                )}
+              </SettingsItem>
+            </SettingsList>
           </FormDialogBody>
           <FormDialogFooter>
             <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
@@ -77,5 +76,13 @@ export function RejectionDialog({
         </>
       )}
     </FormDialog>
+  );
+}
+
+function ValueSkeleton() {
+  return (
+    <span aria-hidden className="inline-block h-5 w-32">
+      <Skeleton fill />
+    </span>
   );
 }

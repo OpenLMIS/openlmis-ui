@@ -59,8 +59,10 @@ const lineOf = (row: GridRow) => ('model' in row ? row.model : undefined);
 
 function useCellError(form: ForecastFormApi, name: `lines.${string}`, error: string | undefined) {
   useEffect(() => {
-    form.setFieldMeta(name, (meta) => ({
-      ...meta,
+    const meta = form.getFieldMeta(name);
+    if (meta?.errorMap.onChange === error && meta?.isTouched === !!error) return;
+    form.setFieldMeta(name, (previous) => ({
+      ...previous,
       isTouched: !!error,
       errorMap: { onChange: error },
     }));
@@ -181,7 +183,7 @@ function createColumns(t: TFunction, { products, currency }: GridData) {
           <bdi>{product(row.original)?.name ?? ''}</bdi>
         </CellText>
       ),
-      meta: { label: t('buq.forecast.product') },
+      meta: { label: t('buq.forecast.product'), className: 'min-w-56' },
     }),
     columnHelper.display({
       id: 'unit',
@@ -268,6 +270,7 @@ export function ForecastGrid({
   models,
   products,
   currency,
+  isLineInvalid,
   isPageInvalid,
   search,
   onSearchChange,
@@ -275,6 +278,7 @@ export function ForecastGrid({
 }: GridState &
   GridData & {
     models: readonly GridModel[];
+    isLineInvalid: (lineId: string) => boolean;
     isPageInvalid: (pageIndex: number) => boolean;
     search: ForecastSearch;
     onSearchChange: SearchChange<ForecastSearch>;
@@ -303,10 +307,16 @@ export function ForecastGrid({
     enableSorting: false,
     ...searchState,
   });
-  const footer = models.length > 0 && (
+  const pageCount = Math.ceil(models.length / pageSize);
+  const isPastLastPage = models.length > 0 && pageIndex >= pageCount;
+  useEffect(() => {
+    if (isPastLastPage) onSearchChange({ page: pageCount > 1 ? pageCount : undefined }, true);
+  }, [isPastLastPage, pageCount, onSearchChange]);
+  const invalidRow = (row: GridRow) => 'model' in row && isLineInvalid(row.model.lineId);
+  const footer = models.length > 0 && !isPastLastPage && (
     <DataTablePagination isPageInvalid={isPageInvalid} table={table} />
   );
-  const empty = (
+  const empty = !isPastLastPage && (
     <DataTableEmpty
       description={t('buq.forecast.empty-description')}
       icon={<PackageOpenIcon />}
@@ -323,9 +333,17 @@ export function ForecastGrid({
           listRef={pageStart.ref}
           table={table}
           title="product"
+          tone={(row) => (invalidRow(row) ? 'invalid' : undefined)}
         />
       ) : (
-        <DataTable empty={empty} footer={footer} heading={headingOf} layout="auto" table={table} />
+        <DataTable
+          empty={empty}
+          footer={footer}
+          heading={headingOf}
+          isRowInvalid={invalidRow}
+          layout="auto"
+          table={table}
+        />
       )}
     </GridContext>
   );

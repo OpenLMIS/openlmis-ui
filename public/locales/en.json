@@ -58,6 +58,7 @@
   "buq.forecast.invalid-title": "Report Has Errors",
   "buq.forecast.load-error": "The report could not be loaded. Please try again.",
   "buq.forecast.load-error-title": "Could Not Load The Report",
+  "buq.forecast.moved": "This report changed after you opened it, so nothing was sent. The page now shows its current state.",
   "buq.forecast.not-found-description": "This report does not exist or belongs to another facility.",
   "buq.forecast.not-found-title": "Report Not Found",
   "buq.forecast.period": "Quantification Period",

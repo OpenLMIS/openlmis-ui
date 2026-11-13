@@ -1,7 +1,8 @@
-import { useStore } from '@tanstack/react-form';
+import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import {
   DataTableEmpty,
   type DataTableFeatures,
@@ -22,7 +23,9 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import {
+  FUNDING_AMOUNT,
   type FundingDraft,
+  fundingComplete,
   gapOf,
   OPTIONAL_FUNDING_AMOUNT,
   projectedTotal,
@@ -38,8 +41,19 @@ type FundingDialogProps = {
   totalCost: number;
   currency: CurrencySettings;
   editable: boolean;
+  required: boolean;
   onSave: (rows: FundingDraft[]) => void;
 };
+
+const fundingSchema = (amount: typeof FUNDING_AMOUNT) =>
+  z.object({
+    funding: z.array(
+      z.object({ sourceId: z.string(), name: z.string(), used: amount, projected: amount }),
+    ),
+  });
+
+const REQUIRED_FUNDING = fundingSchema(FUNDING_AMOUNT);
+const OPTIONAL_FUNDING = fundingSchema(OPTIONAL_FUNDING_AMOUNT);
 
 type FundingRow = FundingDraft & { index: number };
 
@@ -52,20 +66,25 @@ export function FundingDialog({
   totalCost,
   currency,
   editable,
+  required,
   onSave,
 }: FundingDialogProps) {
   const { t } = useTranslation();
-  const { measure, cards } = useDialogCardLayout('2xl');
+  const { measure, cards } = useDialogCardLayout('table');
   const form = useAppForm({
     defaultValues: { funding: rows },
+    validators: { onDynamic: required ? REQUIRED_FUNDING : OPTIONAL_FUNDING },
+    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     onSubmit: ({ value }) => {
       onSave(value.funding);
       onClose();
     },
   });
   useEffect(() => {
-    if (open) form.reset({ funding: rows });
-  }, [open, form, rows]);
+    if (!open) return;
+    form.reset({ funding: rows });
+    if (required && editable && rows.length > 0 && !fundingComplete(rows)) void form.handleSubmit();
+  }, [open, form, rows, required, editable]);
   const funding = useStore(form.store, (state) => state.values.funding);
   const data = useMemo(() => funding.map((row, index) => ({ ...row, index })), [funding]);
   const columns = useMemo(() => {
@@ -74,10 +93,7 @@ export function FundingDialog({
         id: part,
         header: t(`buq.forecast.funding-${part}-column`),
         cell: ({ row }) => (
-          <form.AppField
-            name={`funding[${row.original.index}].${part}`}
-            validators={{ onChange: OPTIONAL_FUNDING_AMOUNT }}
-          >
+          <form.AppField name={`funding[${row.original.index}].${part}`}>
             {(field) => (
               <field.DecimalField
                 disabled={!editable}
@@ -109,7 +125,7 @@ export function FundingDialog({
   const money = (value: number) => formatMoney(value, currency);
 
   return (
-    <FormDialog onOpenChange={(next) => !next && onClose()} open={open} size="2xl">
+    <FormDialog onOpenChange={(next) => !next && onClose()} open={open} size="table">
       <div className="flex min-h-0 flex-1 flex-col gap-4" ref={measure}>
         <FormDialogForm onSubmit={() => void form.handleSubmit()}>
           <FormDialogHeader>

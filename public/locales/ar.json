@@ -58,6 +58,7 @@
   "buq.forecast.invalid-title": "التقرير يحتوي على أخطاء",
   "buq.forecast.load-error": "تعذّر تحميل التقرير. يُرجى المحاولة مرة أخرى.",
   "buq.forecast.load-error-title": "تعذّر تحميل التقرير",
+  "buq.forecast.moved": "تغيّر هذا التقرير بعد فتحه، لذلك لم يُرسل أي شيء. تعرض الصفحة الآن حالته الحالية.",
   "buq.forecast.not-found-description": "هذا التقرير غير موجود أو يخص منشأة أخرى.",
   "buq.forecast.not-found-title": "التقرير غير موجود",
   "buq.forecast.period": "فترة التقدير الكمي",

@@ -1,6 +1,6 @@
 import type { BuqForecast, NamedItem } from '@/features/buq/lib/types';
 import type { Orderable } from '@/features/reference-data/lib/types';
-import { decimalText, toDecimal } from '@/lib/decimal';
+import { decimalText, toDecimal, toNumberText } from '@/lib/decimal';
 import { toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
 export type LineDraft = { verified: string; forecasted: string; remarkId: string };
@@ -32,11 +32,13 @@ export const OPTIONAL_FUNDING_AMOUNT = decimalText(AMOUNT_MESSAGES, {
 export const numberError = (value: string) =>
   WHOLE_NUMBER.safeParse(value).error?.issues[0]?.message;
 
-const text = (value: number | null | undefined) => (value == null ? '' : String(value));
-
 const cents = (value: number) => Math.round(value * 100) / 100;
 
-export function initialDraft(forecast: BuqForecast, sources: readonly NamedItem[]): ForecastDraft {
+export function initialDraft(
+  forecast: BuqForecast,
+  sources: readonly NamedItem[],
+  mark = '.',
+): ForecastDraft {
   const lines: Record<string, LineDraft> = {};
   for (const line of forecast.bottomUpQuantificationLineItems) {
     const verified = line.verifiedAnnualAdjustedConsumption ?? line.annualAdjustedConsumption ?? 0;
@@ -51,8 +53,8 @@ export function initialDraft(forecast: BuqForecast, sources: readonly NamedItem[
     ? saved.map((entry) => ({
         sourceId: entry.sourceOfFund.id,
         name: entry.sourceOfFund.name ?? '',
-        used: text(entry.amountUsedInLastFinancialYear),
-        projected: text(entry.projectedFund),
+        used: toNumberText(entry.amountUsedInLastFinancialYear, mark),
+        projected: toNumberText(entry.projectedFund, mark),
       }))
     : sources.map(({ id, name }) => ({ sourceId: id, name, used: '', projected: '' }));
   return { lines, funding };
@@ -66,7 +68,9 @@ export const withVerified = (verified: string): LineDraft => ({
 
 export function withForecasted(line: LineDraft, forecasted: string): LineDraft {
   const next = { ...line, forecasted };
-  return needsRemark(next) ? next : { ...next, remarkId: '' };
+  const matching =
+    numbersValid(next) && toWholeNumber(next.verified) === toWholeNumber(next.forecasted);
+  return matching ? { ...next, remarkId: '' } : next;
 }
 
 export const needsRemark = (line: LineDraft) =>
@@ -101,8 +105,16 @@ export function forecastTotals(draft: ForecastDraft, prices: Record<string, numb
   return { totalCost, totalProjectedFund, gap: gapOf(totalProjectedFund, totalCost) };
 }
 
+const amountOf = (text: string) => {
+  const amount = toDecimal(text) ?? 0;
+  return Number.isFinite(amount) ? amount : 0;
+};
+
 export const projectedTotal = (funding: readonly FundingDraft[]) =>
-  cents(funding.reduce((sum, { projected }) => sum + (toDecimal(projected) ?? 0), 0));
+  cents(funding.reduce((sum, { projected }) => sum + amountOf(projected), 0));
+
+export const fundingEntered = (funding: readonly FundingDraft[]) =>
+  funding.some(({ used, projected }) => used !== '' || projected !== '');
 
 export const gapOf = (totalProjectedFund: number, totalCost: number) =>
   cents(totalProjectedFund - totalCost);
@@ -113,6 +125,7 @@ export function forecastBody(
   prices: Record<string, number>,
 ) {
   const totals = forecastTotals(draft, prices);
+  const entered = fundingEntered(draft.funding);
   return {
     id: forecast.id,
     facilityId: forecast.facilityId,
@@ -133,14 +146,16 @@ export function forecastBody(
     }),
     fundingDetails: {
       id: forecast.fundingDetails?.id,
-      totalProjectedFund: totals.totalProjectedFund,
+      totalProjectedFund: entered ? totals.totalProjectedFund : null,
       totalForecastedCost: totals.totalCost,
-      gap: totals.gap,
-      sourcesOfFunds: draft.funding.map(({ sourceId, used, projected }) => ({
-        sourceOfFund: { id: sourceId },
-        amountUsedInLastFinancialYear: toDecimal(used),
-        projectedFund: toDecimal(projected),
-      })),
+      gap: entered ? totals.gap : null,
+      sourcesOfFunds: entered
+        ? draft.funding.map(({ sourceId, used, projected }) => ({
+            sourceOfFund: { id: sourceId },
+            amountUsedInLastFinancialYear: toDecimal(used),
+            projectedFund: toDecimal(projected),
+          }))
+        : [],
     },
   };
 }
