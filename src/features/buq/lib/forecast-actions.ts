@@ -12,7 +12,7 @@ export type ForecastRights = { create: boolean; authorize: boolean };
 
 export type ForecastMode =
   | { kind: 'create'; rights: ForecastRights; skipAuthorization: boolean }
-  | { kind: 'approve' };
+  | { kind: 'approve'; programId: string };
 
 const OPEN_FOR_CREATE: readonly BuqStatus[] = ['DRAFT', 'REJECTED'];
 const OPEN_FOR_APPROVAL: readonly BuqStatus[] = ['AUTHORIZED', 'IN_APPROVAL'];

@@ -23,29 +23,35 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { FieldGroup } from '@/components/ui/field';
-import { rejectBuqForecast } from '@/features/buq/api/api';
+import { BuqMovedError, rejectBuqForecast } from '@/features/buq/api/api';
 import {
   buqRejectionReasons,
   COMMENTS_MAX,
   type RejectionValues,
   rejectionSchema,
 } from '@/features/buq/lib/rejection';
+import type { BuqForecast } from '@/features/buq/lib/types';
 import { rejectionReasonsOptions } from '@/features/reference-data/api/queries';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 
-type RejectDialogProps = {
+type RejectHandlers = {
+  ensureStillOpen: () => Promise<void>;
+  onRejected: (rejected: BuqForecast) => void;
+  onFailed: () => void;
+};
+
+type RejectDialogProps = RejectHandlers & {
   forecastId: string;
   open: boolean;
   onClose: () => void;
-  onRejected: () => void;
 };
 
 const EMPTY: RejectionValues = { rejectionReasons: [], generalComments: '' };
 
 export const rejectKey = (id: string) => [...queryKeys.buq.detail(id), 'reject'];
 
-export function RejectDialog({ forecastId, open, onClose, onRejected }: RejectDialogProps) {
+export function RejectDialog({ forecastId, open, onClose, ...handlers }: RejectDialogProps) {
   const { t } = useTranslation();
   const rejecting = useIsMutating({ mutationKey: rejectKey(forecastId) }) > 0;
   const { shown, dialogProps } = useDialogTarget(open ? forecastId : undefined, onClose);
@@ -74,7 +80,7 @@ export function RejectDialog({ forecastId, open, onClose, onRejected }: RejectDi
           }
           resetKey={shown}
         >
-          <RejectForm forecastId={shown} onRejected={onRejected} />
+          <RejectForm {...handlers} forecastId={shown} />
         </QueryBoundary>
       )}
     </FormDialog>
@@ -110,14 +116,23 @@ function RejectLayout({
   );
 }
 
-function RejectForm({ forecastId, onRejected }: { forecastId: string; onRejected: () => void }) {
+function RejectForm({
+  forecastId,
+  ensureStillOpen,
+  onRejected,
+  onFailed,
+}: RejectHandlers & { forecastId: string }) {
   const { t } = useTranslation();
   const { data } = useSuspenseQuery(rejectionReasonsOptions());
   const reasons = useMemo(() => buqRejectionReasons(data), [data]);
   const reject = useSessionMutation({
     mutationKey: rejectKey(forecastId),
-    mutationFn: (values: RejectionValues) => rejectBuqForecast(forecastId, values),
+    mutationFn: async (values: RejectionValues) => {
+      await ensureStillOpen();
+      return rejectBuqForecast(forecastId, values);
+    },
     onSuccess: onRejected,
+    onError: onFailed,
   });
   const form = useAppForm({
     defaultValues: EMPTY,
@@ -131,7 +146,11 @@ function RejectForm({ forecastId, onRejected }: { forecastId: string; onRejected
       <RejectLayout pending={reject.isPending}>
         {reject.isError && (
           <ErrorAlert
-            description={serverMessage(reject.error) ?? t('buq.approve.reject-error')}
+            description={
+              reject.error instanceof BuqMovedError
+                ? t('buq.forecast.moved')
+                : (serverMessage(reject.error) ?? t('buq.approve.reject-error'))
+            }
             title={t('buq.approve.reject-error-title')}
           />
         )}

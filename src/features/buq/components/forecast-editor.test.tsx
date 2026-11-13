@@ -7,6 +7,7 @@ import {
   approveBuqForecast,
   authorizeBuqForecast,
   fetchBuqForecast,
+  fetchBuqsForApproval,
   rejectBuqForecast,
   saveBuqForecast,
   submitBuqForecast,
@@ -23,6 +24,7 @@ import { renderPage } from '@/test-utils/render-page';
 vi.mock('@/features/buq/api/api', () => ({
   BuqMovedError: class extends Error {},
   fetchBuqForecast: vi.fn(),
+  fetchBuqsForApproval: vi.fn(),
   saveBuqForecast: vi.fn(),
   submitBuqForecast: vi.fn(),
   authorizeBuqForecast: vi.fn(),
@@ -76,6 +78,7 @@ const PRODUCTS: Record<string, ProductInfo> = Object.fromEntries(
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(fetchBuqForecast).mockResolvedValue(FORECAST);
+  vi.mocked(fetchBuqsForApproval).mockResolvedValue([{ ...AUTHORIZED, statusChanges: [] }]);
 });
 
 const AUTHORIZED: BuqForecast = {
@@ -263,9 +266,9 @@ it('approves the loaded quantities with costs recalculated, without letting the 
   const onDone = vi.fn();
   vi.mocked(fetchBuqForecast).mockResolvedValue(AUTHORIZED);
   vi.mocked(approveBuqForecast).mockResolvedValue({ ...AUTHORIZED, status: 'IN_APPROVAL' });
-  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve' }, onDone });
+  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve', programId: 'g1' }, onDone });
 
-  expect(verified('Product A')).toBeDisabled();
+  expect(card('Product A').queryByRole('textbox')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'buq.forecast.save' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'buq.approve.approve' }));
   const confirm = await screen.findByRole('alertdialog');
@@ -284,8 +287,9 @@ it('approves the loaded quantities with costs recalculated, without letting the 
 it('rejects with the chosen reasons and comment once a reason is picked', async () => {
   const user = userEvent.setup();
   const onDone = vi.fn();
+  vi.mocked(fetchBuqForecast).mockResolvedValue(AUTHORIZED);
   vi.mocked(rejectBuqForecast).mockResolvedValue({ ...AUTHORIZED, status: 'REJECTED' });
-  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve' }, onDone });
+  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve', programId: 'g1' }, onDone });
 
   await user.click(screen.getByRole('button', { name: 'buq.approve.reject' }));
   const dialog = await screen.findByRole('dialog');
@@ -307,8 +311,9 @@ it('rejects with the chosen reasons and comment once a reason is picked', async 
 
 it('keeps Approve locked while a rejection is being sent', async () => {
   const user = userEvent.setup();
+  vi.mocked(fetchBuqForecast).mockResolvedValue(AUTHORIZED);
   vi.mocked(rejectBuqForecast).mockReturnValue(new Promise(() => {}));
-  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve' } });
+  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve', programId: 'g1' } });
 
   await user.click(screen.getByRole('button', { name: 'buq.approve.reject' }));
   const dialog = await screen.findByRole('dialog');
@@ -319,4 +324,34 @@ it('keeps Approve locked while a rejection is being sent', async () => {
 
   await waitFor(() => expect(rejectBuqForecast).toHaveBeenCalled());
   expect(screen.getByRole('button', { name: 'buq.approve.approve', hidden: true })).toBeDisabled();
+});
+
+it("approves nothing once the forecast left this approver's list", async () => {
+  const user = userEvent.setup();
+  vi.mocked(fetchBuqForecast).mockResolvedValue({ ...AUTHORIZED, status: 'IN_APPROVAL' });
+  vi.mocked(fetchBuqsForApproval).mockResolvedValue([]);
+  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve', programId: 'g1' } });
+
+  await user.click(screen.getByRole('button', { name: 'buq.approve.approve' }));
+  const confirm = await screen.findByRole('alertdialog');
+  await user.click(within(confirm).getByRole('button', { name: 'buq.approve.approve' }));
+
+  expect(await screen.findByText('buq.forecast.moved')).toBeInTheDocument();
+  expect(approveBuqForecast).not.toHaveBeenCalled();
+});
+
+it('rejects nothing once the forecast was approved elsewhere', async () => {
+  const user = userEvent.setup();
+  vi.mocked(fetchBuqForecast).mockResolvedValue({ ...AUTHORIZED, status: 'APPROVED' });
+  await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve', programId: 'g1' } });
+
+  await user.click(screen.getByRole('button', { name: 'buq.approve.reject' }));
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByRole('combobox', { name: /buq.approve.reject-reasons/ }));
+  await user.click(await screen.findByRole('option', { name: 'Wrong quantities' }));
+  await user.click(screen.getByLabelText('buq.approve.reject-comments'));
+  await user.click(within(dialog).getByRole('button', { name: 'buq.approve.reject' }));
+
+  expect(await within(dialog).findByText('buq.forecast.moved')).toBeInTheDocument();
+  expect(rejectBuqForecast).not.toHaveBeenCalled();
 });

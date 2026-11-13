@@ -30,8 +30,10 @@ import {
 } from '@/features/buq/api/api';
 import {
   buqForecastOptions,
+  buqRejectionOptions,
   buqRemarksOptions,
   buqSourcesOfFundsOptions,
+  buqsForApprovalOptions,
 } from '@/features/buq/api/queries';
 import { buqStatusBadge } from '@/features/buq/components/buq-status-badge';
 import {
@@ -301,13 +303,25 @@ export function ForecastForm({
   const dirty =
     changedIds.size > 0 || JSON.stringify(values.funding) !== JSON.stringify(baseline.funding);
 
+  const ensureStillOpen = async (action: ForecastAction) => {
+    const [current, waiting] = await Promise.all([
+      queryClient.fetchQuery({ ...buqForecastOptions(forecast.id), staleTime: 0 }),
+      mode.kind === 'approve'
+        ? queryClient.fetchQuery({ ...buqsForApprovalOptions(mode.programId), staleTime: 0 })
+        : undefined,
+    ]);
+    const listed = !waiting || waiting.some(({ id }) => id === forecast.id);
+    if (!listed || !forecastActions(current.status, mode).includes(action)) {
+      throw new BuqMovedError();
+    }
+  };
+  const refreshForecast = () => {
+    void queryClient.invalidateQueries({ queryKey: buqForecastOptions(forecast.id).queryKey });
+    void refreshLists();
+  };
   const mutation = useSessionMutation({
     mutationFn: async ({ action, body }: { action: WriteAction; body: ForecastBody }) => {
-      const current = await queryClient.fetchQuery({
-        ...buqForecastOptions(forecast.id),
-        staleTime: 0,
-      });
-      if (!forecastActions(current.status, mode).includes(action)) throw new BuqMovedError();
+      await ensureStillOpen(action);
       return WRITE[action](body);
     },
     onSuccess: async (saved, { action }) => {
@@ -331,8 +345,7 @@ export function ForecastForm({
             ? t('buq.forecast.moved')
             : (serverMessage(error) ?? t(failed.description)),
       });
-      void queryClient.invalidateQueries({ queryKey: buqForecastOptions(forecast.id).queryKey });
-      void refreshLists();
+      refreshForecast();
     },
   });
   const refreshLists = () =>
@@ -370,7 +383,8 @@ export function ForecastForm({
   };
   const onSend = (action: SendAction) => {
     setAttempted(true);
-    const bad = models.find(({ lineId }) => invalidIds.has(lineId));
+    const bad =
+      mode.kind === 'create' ? models.find(({ lineId }) => invalidIds.has(lineId)) : undefined;
     if (bad) showInvalid('buq.forecast.invalid-lines', bad.lineId);
     else if (!fundingComplete(values.funding)) showInvalid('buq.forecast.invalid-funding');
     else setConfirming(action);
@@ -392,6 +406,7 @@ export function ForecastForm({
               cards={cards}
               currency={currency}
               disabled={!editable || pending}
+              readOnly={!editable}
               form={form}
               isLineInvalid={isLineInvalid}
               isPageInvalid={isPageInvalid}
@@ -483,7 +498,15 @@ export function ForecastForm({
         <RejectDialog
           forecastId={forecast.id}
           onClose={onCloseDialog}
-          onRejected={() => finish('reject')}
+          ensureStillOpen={() => ensureStillOpen('reject')}
+          onFailed={refreshForecast}
+          onRejected={(rejected) => {
+            queryClient.setQueryData(buqForecastOptions(rejected.id).queryKey, rejected);
+            void queryClient.invalidateQueries({
+              queryKey: buqRejectionOptions(rejected.id).queryKey,
+            });
+            return finish('reject');
+          }}
           open={search.dialog === 'reject'}
         />
       )}
