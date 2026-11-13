@@ -6,6 +6,7 @@ import { openBuqsOptions } from '@/features/buq/api/queries';
 import { BuqHeading, BuqHeadingSkeleton } from '@/features/buq/components/buq-heading';
 import { ForecastsTable, ForecastsTableSkeleton } from '@/features/buq/components/forecasts-table';
 import { usePeriodNames } from '@/features/buq/components/use-buq-periods';
+import type { ForecastRights } from '@/features/buq/lib/forecast-actions';
 import type { BuqListProps, BuqListSearch } from '@/features/buq/lib/search';
 import type { NamedItem } from '@/features/buq/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
@@ -13,9 +14,16 @@ import { useCardLayout } from '@/hooks/use-card-view';
 export function CreateAuthorize({
   facility,
   program,
+  rights,
+  skipAuthorization,
   search,
   onSearchChange,
-}: BuqListProps & { facility: NamedItem; program: NamedItem }) {
+}: BuqListProps & {
+  facility: NamedItem;
+  program: NamedItem;
+  rights: ForecastRights;
+  skipAuthorization: boolean;
+}) {
   const { t } = useTranslation();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
@@ -37,7 +45,9 @@ export function CreateAuthorize({
           cards={cards}
           facility={facility}
           onSearchChange={onSearchChange}
+          rights={rights}
           search={search}
+          skipAuthorization={skipAuthorization}
         />
       </QueryBoundary>
     </div>
@@ -47,7 +57,12 @@ export function CreateAuthorize({
 function LoadedForecasts({
   facility,
   ...props
-}: BuqListProps & { facility: NamedItem; cards: boolean }) {
+}: BuqListProps & {
+  facility: NamedItem;
+  rights: ForecastRights;
+  skipAuthorization: boolean;
+  cards: boolean;
+}) {
   const periods = usePeriodNames();
   const { data: buqs } = useSuspenseQuery(openBuqsOptions(facility.id));
   if (!periods) return <ForecastsTableSkeleton cards={props.cards} search={props.search} />;

@@ -14,10 +14,21 @@ type HomeFacility = {
   }[];
 };
 
-type ProgramRecord = { id: string; code: string; name: string | null };
+type ProgramRecord = {
+  id: string;
+  code: string;
+  name: string | null;
+  skipAuthorization?: boolean;
+};
 
 export type BuqAccess =
-  | { kind: 'ready'; facility: NamedItem; program: NamedItem }
+  | {
+      kind: 'ready';
+      facility: NamedItem;
+      program: NamedItem;
+      granted: readonly string[];
+      skipAuthorization: boolean;
+    }
   | { kind: 'no-home' }
   | { kind: 'no-program' }
   | { kind: 'unsupported' }
@@ -49,12 +60,15 @@ export function buqAccess({
           (!supportStartDate || supportStartDate.slice(0, 10) < support.activeOn))),
   );
   if (!supported) return { kind: 'unsupported' };
-  if (!rights.some((right) => hasProgramGrant(permissions, right, home.id, program.id))) {
-    return { kind: 'no-grant' };
-  }
+  const granted = rights.filter((right) =>
+    hasProgramGrant(permissions, right, home.id, program.id),
+  );
+  if (!granted.length) return { kind: 'no-grant' };
   return {
     kind: 'ready',
     facility: { id: home.id, name: home.name ?? '' },
     program: { id: program.id, name: program.name ?? program.code },
+    granted,
+    skipAuthorization: !!program.skipAuthorization,
   };
 }
