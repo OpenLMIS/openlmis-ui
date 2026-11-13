@@ -46,7 +46,7 @@ export function ShipmentFooter({
           {canCancel && (
             <Button
               size="lg"
-              variant="destructive-outline"
+              variant="destructive"
               disabled={pending}
               onClick={() => onAction('cancel')}
             >
