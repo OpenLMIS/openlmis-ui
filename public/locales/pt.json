@@ -996,7 +996,6 @@
   "orders.pod.program": "Programa",
   "orders.pod.quantity-ordered": "Quantidade pedida",
   "orders.pod.quantity-shipped": "Quantidade expedida",
-  "orders.pod.read-only": "Este comprovativo de entrega é só de leitura.",
   "orders.pod.reason": "Motivo de rejeição",
   "orders.pod.reason-for": "Motivo de rejeição de {product}, {lot}",
   "orders.pod.received-by": "Recebido por",

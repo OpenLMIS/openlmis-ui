@@ -273,11 +273,6 @@ export function PodEditor({
                 </RecordSummaryField>
               </RecordSummaryFields>
             </RecordSummary>
-            {!editable && (
-              <Alert>
-                <AlertDescription>{t('orders.pod.read-only')}</AlertDescription>
-              </Alert>
-            )}
             {pod.lineItems.some(
               (line) => shippedQuantity(line, pod.shipment.lineItems) === null,
             ) && (

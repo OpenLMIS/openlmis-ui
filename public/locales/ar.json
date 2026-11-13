@@ -996,7 +996,6 @@
   "orders.pod.program": "البرنامج",
   "orders.pod.quantity-ordered": "الكمية المطلوبة",
   "orders.pod.quantity-shipped": "الكمية المشحونة",
-  "orders.pod.read-only": "إثبات التسليم هذا للقراءة فقط.",
   "orders.pod.reason": "سبب الرفض",
   "orders.pod.reason-for": "سبب رفض {product}، {lot}",
   "orders.pod.received-by": "استلمه",

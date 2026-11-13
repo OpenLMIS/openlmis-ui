@@ -996,7 +996,6 @@
   "orders.pod.program": "Programme",
   "orders.pod.quantity-ordered": "Quantité commandée",
   "orders.pod.quantity-shipped": "Quantité expédiée",
-  "orders.pod.read-only": "Cette preuve de livraison est en lecture seule.",
   "orders.pod.reason": "Motif de rejet",
   "orders.pod.reason-for": "Motif de rejet pour {product}, {lot}",
   "orders.pod.received-by": "Reçu par",
