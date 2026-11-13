@@ -22,7 +22,8 @@ import {
   shipmentSummariesOptions,
   shipmentVvmOptions,
 } from '@/features/orders/api/queries';
-import { ShipmentScreen, shipmentStockFilter } from '@/features/orders/components/shipment-editor';
+import { ShipmentScreen } from '@/features/orders/components/shipment-editor';
+import { shipmentStockFilter } from '@/features/orders/lib/shipment-entry';
 import { fetchLotsByIds } from '@/features/reference-data/api/api';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { creatingOrder, orderProduct } from '@/test-utils/order-fixtures';

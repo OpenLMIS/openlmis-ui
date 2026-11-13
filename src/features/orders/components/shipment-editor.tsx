@@ -46,6 +46,7 @@ import {
   saveExistingShipmentDraft,
 } from '@/features/orders/lib/shipment-actions';
 import { shipmentConfirmBody, shipmentCreateBody } from '@/features/orders/lib/shipment-body';
+import { isFulfillable, shipmentStockFilter } from '@/features/orders/lib/shipment-entry';
 import {
   shipmentFieldKey,
   shipmentValues,
@@ -72,12 +73,6 @@ import { getSessionUserId } from '@/lib/session-scope';
 import { homeStockRefreshKey } from '@/lib/stock-programs';
 import { toOptionalWholeNumber } from '@/lib/whole-number';
 
-export const isFulfillable = (order: Order) => ['ORDERED', 'FULFILLING'].includes(order.status);
-export const shipmentStockFilter = (order: Order) => ({
-  programId: order.program.id,
-  facilityId: order.supplyingFacility.id,
-  orderableIds: order.orderLineItems.map((line) => line.orderable.id),
-});
 export type ShipmentAccess = { canEdit: boolean; canCancel: boolean; canPrint: boolean };
 export function ShipmentFrame({
   order,

@@ -1,7 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
 import { Suspense } from 'react';
 import { expect, it, vi } from 'vitest';
+import { fetchOrder } from '@/features/orders/api/api';
 import { ordersSearchOptions } from '@/features/orders/api/queries';
 import { OrdersTable, OrdersTableSkeleton } from '@/features/orders/components/orders-table';
 import { toOrderParams } from '@/features/orders/lib/order-search';
@@ -9,7 +12,18 @@ import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries
 import { orderSummary } from '@/test-utils/order-fixtures';
 import { renderPage } from '@/test-utils/render-page';
 
-it('opens native shipment links from Fulfill results', async () => {
+vi.mock('@/features/orders/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/orders/api/api')>()),
+  fetchOrder: vi.fn(),
+}));
+
+it('keeps Fulfill results open when shipment entry is refused', async () => {
+  vi.mocked(fetchOrder).mockRejectedValueOnce(
+    new AxiosError('Forbidden', undefined, undefined, undefined, {
+      status: 403,
+      data: { message: 'You cannot view this order.' },
+    } as never),
+  );
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
   client.setQueryData(ordersSearchOptions(toOrderParams({}, 'fulfill')).queryKey, {
@@ -19,15 +33,14 @@ it('opens native shipment links from Fulfill results', async () => {
     number: 0,
     size: 10,
   });
-  renderPage(
+  const router = renderPage(
     <OrdersTable kind="fulfill" cards={false} columns={{}} search={{}} onSearchChange={vi.fn()} />,
     { queryClient: client },
   );
   expect(await screen.findByText('ORDER-A')).toBeVisible();
-  expect(screen.getByRole('link', { name: 'orders.action-for' })).toHaveAttribute(
-    'href',
-    '/orders/fulfillment/a',
-  );
+  await userEvent.setup().click(screen.getByRole('button', { name: 'orders.action-for' }));
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('You cannot view this order.');
+  expect(router.state.location.pathname).toBe('/');
 });
 
 it('renders the loading table while the deployment time zone is pending', async () => {

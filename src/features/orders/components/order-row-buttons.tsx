@@ -1,5 +1,5 @@
 import { useIsMutating, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import {
   DownloadIcon,
@@ -8,10 +8,12 @@ import {
   PrinterIcon,
   RefreshCwIcon,
 } from 'lucide-react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { type CardAction, CardActions, useInCards } from '@/components/display/card-actions';
 import { serverMessage } from '@/components/display/dialog-parts';
+import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { Button } from '@/components/ui/button';
 import { fetchOrderCsv, fetchOrderPdf, retryOrderTransfer } from '@/features/orders/api/api';
 import { orderReturnState } from '@/features/orders/lib/order-return';
@@ -24,6 +26,7 @@ import {
   fulfillOrdersSearchSchema,
   type ViewOrdersSearch,
 } from '@/features/orders/lib/order-search';
+import { loadShipmentEntry } from '@/features/orders/lib/shipment-entry';
 import type { OrderSummary } from '@/features/orders/lib/types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
@@ -34,6 +37,7 @@ import { openReport } from '@/lib/open-report';
 import { getSessionUserId } from '@/lib/session-scope';
 
 const RETRY_KEY = [...queryKeys.orders.all, 'retry'];
+const SHIPMENT_ENTRY_KEY = [...queryKeys.orders.all, 'open-shipment'];
 export function OrderRowButtons({
   order,
   search,
@@ -167,36 +171,75 @@ export function FulfillOrderButton({
 }) {
   const { t } = useTranslation();
   const cards = useInCards();
+  const client = useQueryClient();
+  const navigate = useNavigate();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const pending = useIsMutating({ mutationKey: SHIPMENT_ENTRY_KEY }) > 0;
+  const entry = useSessionMutation({
+    mutationKey: SHIPMENT_ENTRY_KEY,
+    mutationFn: () => loadShipmentEntry(client, order.id),
+    onSuccess: () =>
+      navigate({
+        to: '/orders/fulfillment/$orderId',
+        params: { orderId: order.id },
+        state: orderReturnState({
+          to: '/orders/fulfillment',
+          search: fulfillOrdersSearchSchema.parse(search),
+        }),
+      }),
+  });
+  const openShipment = (button: HTMLButtonElement) => {
+    trigger.current = button;
+    if (!client.isMutating({ mutationKey: SHIPMENT_ENTRY_KEY })) entry.mutate();
+  };
   const continuing = fulfillAction(order) === 'continue';
   const variant = continuing ? 'secondary' : 'default';
   const label = t(continuing ? 'orders.continue-fulfillment' : 'orders.start-fulfillment');
   const name = t('orders.action-for', { action: label, order: order.orderCode ?? order.id });
-  const link = (
-    <Link
-      to="/orders/fulfillment/$orderId"
-      params={{ orderId: order.id }}
-      state={orderReturnState({
-        to: '/orders/fulfillment',
-        search: fulfillOrdersSearchSchema.parse(search),
-      })}
-    />
-  );
-  return cards ? (
-    <CardActions
-      label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}
-      actions={[{ id: 'fulfill', icon: <PackageOpenIcon />, label, name, disabled, link, variant }]}
-    />
-  ) : (
-    <Button
-      aria-label={name}
-      size="sm"
-      variant={variant}
-      disabled={disabled}
-      nativeButton={false}
-      role="link"
-      render={link}
-    >
-      {label}
-    </Button>
+  const refused = isRefused(entry.error);
+  return (
+    <>
+      {cards ? (
+        <CardActions
+          label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}
+          actions={[
+            {
+              id: 'fulfill',
+              icon: <PackageOpenIcon />,
+              label,
+              name,
+              disabled: disabled || pending,
+              onSelect: openShipment,
+              variant,
+            },
+          ]}
+        />
+      ) : (
+        <Button
+          aria-label={name}
+          size="sm"
+          variant={variant}
+          disabled={disabled || pending}
+          onClick={(event) => openShipment(event.currentTarget)}
+        >
+          {label}
+        </Button>
+      )}
+      <InvalidSubmitDialog
+        open={!!entry.error}
+        onOpenChange={(open) => {
+          if (!open) entry.reset();
+        }}
+        finalFocus={trigger}
+        title={t(refused ? 'orders.shipment.not-authorized' : 'orders.shipment.load-error')}
+        description={
+          <bdi>
+            {serverMessage(entry.error) ??
+              t(refused ? 'orders.shipment.cannot-view' : 'error.description')}
+          </bdi>
+        }
+        closeLabel={t('dialog.close')}
+      />
+    </>
   );
 }

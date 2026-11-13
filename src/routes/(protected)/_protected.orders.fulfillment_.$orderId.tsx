@@ -13,13 +13,9 @@ import {
   shipmentOptions,
   shipmentSummariesOptions,
 } from '@/features/orders/api/queries';
-import {
-  isFulfillable,
-  ShipmentPending,
-  ShipmentScreen,
-  shipmentStockFilter,
-} from '@/features/orders/components/shipment-editor';
+import { ShipmentPending, ShipmentScreen } from '@/features/orders/components/shipment-editor';
 import { orderReturnTarget } from '@/features/orders/lib/order-return';
+import { isFulfillable, shipmentStockFilter } from '@/features/orders/lib/shipment-entry';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { facilityGrants, programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
