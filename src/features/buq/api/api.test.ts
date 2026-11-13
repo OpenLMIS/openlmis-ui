@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLoginData } from '@/features/auth/store/login-data';
 import {
   BuqMovedError,
   deleteBuq,
@@ -6,9 +7,11 @@ import {
   fetchBuqPeriods,
   fetchOpenBuqs,
   fetchTakenPeriods,
+  finalApproveBuqs,
   prepareBuq,
 } from '@/features/buq/api/api';
 import { client } from '@/integrations/axios';
+import { SessionEndedError } from '@/lib/session-scope';
 
 vi.mock('@/integrations/axios', () => ({
   client: { get: vi.fn(), post: vi.fn(), delete: vi.fn() },
@@ -121,5 +124,52 @@ describe('downloadBuq', () => {
       params: undefined,
       responseType: 'blob',
     });
+  });
+});
+
+describe('finalApproveBuqs', () => {
+  const ids = Array.from({ length: 150 }, (_, index) => `b${index}`);
+
+  it('approves the ids in batches of 100, one request at a time', async () => {
+    post.mockResolvedValue({ data: [] });
+
+    await expect(finalApproveBuqs(ids)).resolves.toEqual({ approved: ids, error: undefined });
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post).toHaveBeenNthCalledWith(1, '/bottomUpQuantifications/finalApprove', null, {
+      params: { id: ids.slice(0, 100) },
+      paramsSerializer: { indexes: null },
+    });
+    expect(post.mock.calls[1]?.[2]).toEqual({
+      params: { id: ids.slice(100) },
+      paramsSerializer: { indexes: null },
+    });
+  });
+
+  it('reports the batches already approved when a later one fails', async () => {
+    const refused = new Error('refused');
+    post.mockResolvedValueOnce({ data: [] }).mockRejectedValueOnce(refused);
+
+    await expect(finalApproveBuqs(ids)).resolves.toEqual({
+      approved: ids.slice(0, 100),
+      error: refused,
+    });
+  });
+
+  it('stops before the next batch when another user signs in', async () => {
+    post.mockImplementationOnce(async () => {
+      useLoginData.setState({ referenceDataUserId: 'someone-else' });
+      return { data: [] };
+    });
+
+    const result = await finalApproveBuqs(ids);
+
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(result.error).toBeInstanceOf(SessionEndedError);
+  });
+
+  it('fails outright when nothing was approved', async () => {
+    post.mockRejectedValueOnce(new Error('refused'));
+
+    await expect(finalApproveBuqs(ids)).rejects.toThrow('refused');
   });
 });

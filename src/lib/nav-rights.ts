@@ -29,6 +29,7 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/buq/prepare': RIGHTS.prepareBuq,
   '/buq/create': [RIGHTS.createForecasting, RIGHTS.authorizeForecasting],
   '/buq/approve': RIGHTS.approveBuq,
+  '/buq/national-approval': [RIGHTS.mohApproval, RIGHTS.poralgApproval],
   '/stock-management/stock-on-hand': RIGHTS.stockCardsView,
   '/stock-management/transaction-history': RIGHTS.stockCardsView,
   '/stock-management/physical-inventory': RIGHTS.stockInventoriesEdit,

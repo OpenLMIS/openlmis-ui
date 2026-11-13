@@ -21,6 +21,8 @@ export const RIGHTS = {
   createForecasting: 'CREATE_FORECASTING',
   authorizeForecasting: 'AUTHORIZE_FORECASTING',
   approveBuq: 'APPROVE_BUQ',
+  mohApproval: 'MOH_APPROVAL',
+  poralgApproval: 'PORALG_APPROVAL',
   facilitiesManage: 'FACILITIES_MANAGE',
   supplyLinesManage: 'SUPPLY_LINES_MANAGE',
   geographicZonesManage: 'GEOGRAPHIC_ZONES_MANAGE',

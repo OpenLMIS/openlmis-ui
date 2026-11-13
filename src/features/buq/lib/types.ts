@@ -24,6 +24,13 @@ export type BuqStatusChange = { status: BuqStatus; occurredDate: string };
 
 export type BuqForApproval = Buq & { statusChanges: BuqStatusChange[] };
 
+export type FinalApprovalItem = {
+  bottomUpQuantification: Buq;
+  calculatedGroupsCosts: Record<string, string>;
+};
+
+export type SupervisedZones = Record<string, Record<string, Record<string, string[]>>>;
+
 export type BuqApproveStats = {
   totalFacilities: number;
   totalSubmitted: number;

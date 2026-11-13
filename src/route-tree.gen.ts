@@ -42,6 +42,7 @@ import { Route as protectedProtectedAdministrationValidDestinationsRouteImport }
 import { Route as protectedProtectedAdministrationValidSourcesRouteImport } from './routes/(protected)/_protected.administration.valid-sources'
 import { Route as protectedProtectedBuqApproveRouteImport } from './routes/(protected)/_protected.buq.approve'
 import { Route as protectedProtectedBuqCreateRouteImport } from './routes/(protected)/_protected.buq.create'
+import { Route as protectedProtectedBuqNationalApprovalRouteImport } from './routes/(protected)/_protected.buq.national-approval'
 import { Route as protectedProtectedBuqPrepareRouteImport } from './routes/(protected)/_protected.buq.prepare'
 import { Route as protectedProtectedCceInventoryRouteImport } from './routes/(protected)/_protected.cce.inventory'
 import { Route as protectedProtectedProfileIndexRouteImport } from './routes/(protected)/_protected.profile.index'
@@ -284,6 +285,12 @@ const protectedProtectedBuqCreateRoute =
   protectedProtectedBuqCreateRouteImport.update({
     id: '/buq/create',
     path: '/buq/create',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedBuqNationalApprovalRoute =
+  protectedProtectedBuqNationalApprovalRouteImport.update({
+    id: '/buq/national-approval',
+    path: '/buq/national-approval',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedBuqPrepareRoute =
@@ -638,6 +645,7 @@ export interface FileRoutesByFullPath {
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/buq/approve': typeof protectedProtectedBuqApproveRoute
   '/buq/create': typeof protectedProtectedBuqCreateRoute
+  '/buq/national-approval': typeof protectedProtectedBuqNationalApprovalRoute
   '/buq/prepare': typeof protectedProtectedBuqPrepareRoute
   '/cce/inventory': typeof protectedProtectedCceInventoryRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
@@ -722,6 +730,7 @@ export interface FileRoutesByTo {
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/buq/approve': typeof protectedProtectedBuqApproveRoute
   '/buq/create': typeof protectedProtectedBuqCreateRoute
+  '/buq/national-approval': typeof protectedProtectedBuqNationalApprovalRoute
   '/buq/prepare': typeof protectedProtectedBuqPrepareRoute
   '/cce/inventory': typeof protectedProtectedCceInventoryRoute
   '/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
@@ -809,6 +818,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/(protected)/_protected/buq/approve': typeof protectedProtectedBuqApproveRoute
   '/(protected)/_protected/buq/create': typeof protectedProtectedBuqCreateRoute
+  '/(protected)/_protected/buq/national-approval': typeof protectedProtectedBuqNationalApprovalRoute
   '/(protected)/_protected/buq/prepare': typeof protectedProtectedBuqPrepareRoute
   '/(protected)/_protected/cce/inventory': typeof protectedProtectedCceInventoryRoute
   '/(protected)/_protected/profile/notifications': typeof protectedProtectedProfileNotificationsRoute
@@ -897,6 +907,7 @@ export interface FileRouteTypes {
     | '/administration/valid-sources'
     | '/buq/approve'
     | '/buq/create'
+    | '/buq/national-approval'
     | '/buq/prepare'
     | '/cce/inventory'
     | '/profile/notifications'
@@ -981,6 +992,7 @@ export interface FileRouteTypes {
     | '/administration/valid-sources'
     | '/buq/approve'
     | '/buq/create'
+    | '/buq/national-approval'
     | '/buq/prepare'
     | '/cce/inventory'
     | '/profile/notifications'
@@ -1067,6 +1079,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/valid-sources'
     | '/(protected)/_protected/buq/approve'
     | '/(protected)/_protected/buq/create'
+    | '/(protected)/_protected/buq/national-approval'
     | '/(protected)/_protected/buq/prepare'
     | '/(protected)/_protected/cce/inventory'
     | '/(protected)/_protected/profile/notifications'
@@ -1360,6 +1373,13 @@ declare module '@tanstack/react-router' {
       path: '/buq/create'
       fullPath: '/buq/create'
       preLoaderRoute: typeof protectedProtectedBuqCreateRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/buq/national-approval': {
+      id: '/(protected)/_protected/buq/national-approval'
+      path: '/buq/national-approval'
+      fullPath: '/buq/national-approval'
+      preLoaderRoute: typeof protectedProtectedBuqNationalApprovalRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/buq/prepare': {
@@ -1823,6 +1843,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
   protectedProtectedBuqApproveRoute: typeof protectedProtectedBuqApproveRoute
   protectedProtectedBuqCreateRoute: typeof protectedProtectedBuqCreateRoute
+  protectedProtectedBuqNationalApprovalRoute: typeof protectedProtectedBuqNationalApprovalRoute
   protectedProtectedBuqPrepareRoute: typeof protectedProtectedBuqPrepareRoute
   protectedProtectedCceInventoryRoute: typeof protectedProtectedCceInventoryRoute
   protectedProtectedRequisitionsApproveRoute: typeof protectedProtectedRequisitionsApproveRoute
@@ -1917,6 +1938,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidSourcesRoute,
   protectedProtectedBuqApproveRoute: protectedProtectedBuqApproveRoute,
   protectedProtectedBuqCreateRoute: protectedProtectedBuqCreateRoute,
+  protectedProtectedBuqNationalApprovalRoute:
+    protectedProtectedBuqNationalApprovalRoute,
   protectedProtectedBuqPrepareRoute: protectedProtectedBuqPrepareRoute,
   protectedProtectedCceInventoryRoute: protectedProtectedCceInventoryRoute,
   protectedProtectedRequisitionsApproveRoute:
