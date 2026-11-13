@@ -145,9 +145,12 @@ export function OrderRowButtons({
   };
   return (
     <div className="flex justify-end">
+      {/* CardActions puts the first action last; preserve this list's display order. */}
       <CardActions
         label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}
-        actions={viewOrderActions(order, access).map((action) => actions[action])}
+        actions={viewOrderActions(order, access)
+          .toReversed()
+          .map((action) => actions[action])}
       />
     </div>
   );

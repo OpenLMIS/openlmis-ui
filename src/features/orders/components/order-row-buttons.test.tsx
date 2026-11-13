@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { createInstance } from 'i18next';
@@ -81,19 +81,29 @@ it.each(['false', 'true', 'rejected'] as const)(
   },
 );
 
-it('identifies the order in row actions', async () => {
-  renderPage(
-    <I18nextProvider i18n={i18n}>
-      <InCardContext value={false}>
-        <OrderRowButtons
-          order={orderSummary('b')}
-          search={{}}
-          access={{ canEdit: false, retrySupplierIds: [] }}
-          disabled={false}
-        />
-      </InCardContext>
-    </I18nextProvider>,
-  );
-  expect(await screen.findByRole('button', { name: 'orders.print: Order ORDER-B' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'orders.download: Order ORDER-B' })).toBeVisible();
-});
+it.each([false, true])(
+  'keeps Print before Download with named actions (cards: %s)',
+  async (cards) => {
+    renderPage(
+      <I18nextProvider i18n={i18n}>
+        <InCardContext value={cards}>
+          <OrderRowButtons
+            order={orderSummary('b')}
+            search={{}}
+            access={{ canEdit: false, retrySupplierIds: [] }}
+            disabled={false}
+          />
+        </InCardContext>
+      </I18nextProvider>,
+    );
+    expect(
+      await screen.findByRole('button', { name: 'orders.print: Order ORDER-B' }),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'orders.download: Order ORDER-B' })).toBeVisible();
+    expect(
+      within(screen.getByRole('group', { name: 'card-actions.actions-for' }))
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['orders.print: Order ORDER-B', 'orders.download: Order ORDER-B']);
+  },
+);
