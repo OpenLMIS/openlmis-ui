@@ -1072,6 +1072,7 @@
   "orders.shipment.lot-code": "Code du lot",
   "orders.shipment.no-lot": "Aucun lot défini",
   "orders.shipment.no-stock": "Aucun stock disponible",
+  "orders.shipment.not-authorized": "Vous n’êtes pas autorisé à effectuer cette action",
   "orders.shipment.ordered": "Quantité commandée",
   "orders.shipment.print": "Générer la liste de prélèvement",
   "orders.shipment.print-failed": "Échec de la génération de la liste de prélèvement",

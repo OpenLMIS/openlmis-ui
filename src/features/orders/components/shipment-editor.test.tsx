@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { StrictMode } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import {
@@ -51,6 +52,25 @@ vi.mock('@/hooks/use-print-report', () => ({
   },
 }));
 beforeEach(() => vi.clearAllMocks());
+const refusalMessage =
+  'You do not have permission STOCK_CARDS_VIEW for program Family Planning facility Ntcheu District Warehouse to perform this action.';
+function stockRefusal() {
+  return new AxiosError<{ message: string }>(
+    'Request failed with status code 403',
+    'ERR_BAD_REQUEST',
+    undefined,
+    null,
+    {
+      status: 403,
+      statusText: 'Forbidden',
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+      data: {
+        message: refusalMessage,
+      },
+    },
+  );
+}
 function fixture(status: string, edit = false, onReturn = vi.fn()) {
   const client = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
@@ -99,6 +119,58 @@ function fixture(status: string, edit = false, onReturn = vi.fn()) {
   );
   return { client, page, record, summaries, order };
 }
+it.each(['stock', 'draft'] as const)(
+  'explains a refused %s read, stays blocked after Close, and recovers through Try Again',
+  async (read) => {
+    const { client, page, record, summaries, order } = fixture('FULFILLING', true);
+    const options =
+      read === 'stock'
+        ? shipmentSummariesOptions(shipmentStockFilter(order))
+        : shipmentDraftOptions(order.id);
+    const request = Promise.withResolvers<never>();
+    const pending = client
+      .fetchQuery({ queryKey: options.queryKey, staleTime: 0, queryFn: () => request.promise })
+      .catch(() => {});
+    const refusal = stockRefusal();
+    vi.mocked(findShipmentDraft).mockResolvedValue(record);
+    vi.mocked(fetchShipmentSummaries).mockResolvedValue(summaries);
+    const user = userEvent.setup();
+    renderPage(page, { queryClient: client });
+    await screen.findByRole('heading', { name: 'orders.shipment.title' });
+    await act(async () => {
+      request.reject(refusal);
+      await pending;
+    });
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent(refusalMessage);
+    await user.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(screen.getByText(refusalMessage)).toBeVisible();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'orders.shipment.save' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+    expect(await screen.findByRole('textbox')).toHaveValue('2');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  },
+);
+it('does not create an Ordered draft from cached stock after the entry stock read is refused', async () => {
+  const { client, page, order } = fixture('ORDERED', true);
+  const request = Promise.withResolvers<never>();
+  const options = shipmentSummariesOptions(shipmentStockFilter(order));
+  const pending = client
+    .fetchQuery({ ...options, staleTime: 0, queryFn: () => request.promise })
+    .catch(() => {});
+  vi.mocked(createShipmentDraftOnce).mockImplementation(() => new Promise(() => {}));
+  renderPage(page, { queryClient: client });
+  await screen.findByRole('heading', { name: 'orders.shipment.title' });
+  await act(async () => {
+    request.reject(stockRefusal());
+    await pending;
+  });
+  await screen.findByText('orders.shipment.stock-error');
+  expect(createShipmentDraftOnce).not.toHaveBeenCalled();
+  expect(client.getQueryState(options.queryKey)?.status).toBe('error');
+});
 it('creates an Ordered draft after render and keeps StrictMode effects from duplicating it', async () => {
   const { client, page, record } = fixture('ORDERED', true);
   vi.mocked(createShipmentDraftOnce).mockResolvedValue(record);

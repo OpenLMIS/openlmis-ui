@@ -1072,6 +1072,7 @@
   "orders.shipment.lot-code": "Lot Code",
   "orders.shipment.no-lot": "No Lot Defined",
   "orders.shipment.no-stock": "No Stock Available",
+  "orders.shipment.not-authorized": "You Are Not Authorized To Perform This Action",
   "orders.shipment.ordered": "Order Quantity",
   "orders.shipment.print": "Generate Pick Pack List",
   "orders.shipment.print-failed": "Failed To Generate Pick Pack List",

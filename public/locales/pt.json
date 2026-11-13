@@ -1072,6 +1072,7 @@
   "orders.shipment.lot-code": "Código do lote",
   "orders.shipment.no-lot": "Nenhum lote definido",
   "orders.shipment.no-stock": "Sem stock disponível",
+  "orders.shipment.not-authorized": "Você não tem autorização para realizar esta ação",
   "orders.shipment.ordered": "Quantidade pedida",
   "orders.shipment.print": "Gerar lista de preparação",
   "orders.shipment.print-failed": "Falha ao gerar a lista de preparação",

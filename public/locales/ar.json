@@ -1072,6 +1072,7 @@
   "orders.shipment.lot-code": "رمز التشغيلة",
   "orders.shipment.no-lot": "لا توجد تشغيلة محددة",
   "orders.shipment.no-stock": "لا يوجد مخزون متاح",
+  "orders.shipment.not-authorized": "ليس لديك تصريح لتنفيذ هذا الإجراء",
   "orders.shipment.ordered": "الكمية المطلوبة",
   "orders.shipment.print": "إنشاء قائمة التجهيز والتعبئة",
   "orders.shipment.print-failed": "تعذر إنشاء قائمة التجهيز والتعبئة",

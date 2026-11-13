@@ -145,6 +145,7 @@ function ShipmentData({
   const client = useQueryClient();
   const editableStatus = isFulfillable(order);
   const [opened, setOpened] = useState(false);
+  const [dismissedRefusal, setDismissedRefusal] = useState<unknown>(null);
   const closed = useRef(false);
   const record = useQuery({
     ...(editableStatus ? shipmentDraftOptions(order.id) : shipmentOptions(order.id)),
@@ -180,7 +181,7 @@ function ShipmentData({
       ]);
     },
   });
-  const ready = !!summaries.data && !!products.data;
+  const ready = !!summaries.data && !summaries.isError && !!products.data && !products.isError;
   useEffect(() => {
     if (
       order.status === 'ORDERED' &&
@@ -239,35 +240,48 @@ function ShipmentData({
       </Alert>
     </ShipmentFrame>
   );
-  if (!opened && record.isError && isRefused(record.error))
-    return notice(t('orders.shipment.cannot-view'));
   if (!editableStatus && record.isSuccess && !record.data)
     return notice(t('orders.shipment.cannot-fulfill'));
-  const failure = error ? (
-    <LoadError
-      title={t(
-        error instanceof ShipmentDraftExpiredError
-          ? 'orders.shipment.draft-gone'
-          : error === summaries.error
-            ? 'orders.shipment.stock-error'
-            : 'orders.shipment.load-error',
-      )}
-      description={t(
+  const refused = isRefused(error);
+  const description = refused
+    ? (serverMessage(error) ?? t('orders.shipment.cannot-view'))
+    : t(
         error instanceof ShipmentDraftExpiredError
           ? 'orders.shipment.draft-gone-description'
           : 'error.description',
-      )}
-      error={error}
-      reset={() => {
-        if (error instanceof ShipmentDraftExpiredError) {
-          window.location.reload();
-          return;
-        }
-        for (const read of [record, summaries, products, savedProducts, lots, vvm])
-          if (read.isError) void read.refetch();
-        create.reset();
-      }}
-    />
+      );
+  const failure = error ? (
+    <>
+      <LoadError
+        title={t(
+          error instanceof ShipmentDraftExpiredError
+            ? 'orders.shipment.draft-gone'
+            : error === summaries.error
+              ? 'orders.shipment.stock-error'
+              : 'orders.shipment.load-error',
+        )}
+        description={description}
+        error={error}
+        reset={() => {
+          if (error instanceof ShipmentDraftExpiredError) {
+            window.location.reload();
+            return;
+          }
+          for (const read of [record, summaries, products, savedProducts, lots, vvm])
+            if (read.isError) void read.refetch();
+          create.reset();
+        }}
+      />
+      <InvalidSubmitDialog
+        open={refused && dismissedRefusal !== error}
+        onOpenChange={(open) => {
+          if (!open) setDismissedRefusal(error);
+        }}
+        title={t('orders.shipment.not-authorized')}
+        description={<bdi>{description}</bdi>}
+        closeLabel={t('dialog.close')}
+      />
+    </>
   ) : null;
   if (!opened)
     return (
