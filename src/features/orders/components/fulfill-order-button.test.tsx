@@ -29,25 +29,34 @@ beforeEach(() => {
   vi.mocked(findShipmentDraft).mockResolvedValue(null);
 });
 
-it.each(['ORDERED', 'FULFILLING'])(
-  'waits for the %s order reads before navigating and preserves list return state',
-  async (status) => {
+it.each([
+  { status: 'ORDERED', cards: false },
+  { status: 'FULFILLING', cards: true },
+])(
+  'waits for the $status order reads before navigating and preserves list return state (cards: $cards)',
+  async ({ status, cards }) => {
     vi.mocked(fetchOrder).mockResolvedValue({ ...creatingOrder(), status });
     const stock = Promise.withResolvers<[]>();
     vi.mocked(fetchShipmentSummaries).mockReturnValue(stock.promise);
     const router = renderPage(
-      <FulfillOrderButton
-        order={{ ...orderSummary('a'), status }}
-        search={{ page: 3 }}
-        disabled={false}
-      />,
+      <InCardContext value={cards}>
+        <FulfillOrderButton
+          order={{ ...orderSummary('a'), status }}
+          search={{ page: 3 }}
+          disabled={false}
+        />
+        <FulfillOrderButton order={orderSummary('b')} search={{}} disabled={false} />
+      </InCardContext>,
     );
-    const action = await screen.findByLabelText('orders.action-for');
+    const [action, otherAction] = await screen.findAllByLabelText('orders.action-for');
     const user = userEvent.setup();
     await user.click(action);
     expect(router.state.location.pathname).toBe('/');
     await waitFor(() => expect(fetchShipmentSummaries).toHaveBeenCalledOnce());
     expect(action).toBeDisabled();
+    expect(otherAction).toBeDisabled();
+    expect(action.querySelector('[data-slot="spinner"]')).toBeInTheDocument();
+    expect(otherAction.querySelector('[data-slot="spinner"]')).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/');
     await user.click(action);
     expect(fetchOrder).toHaveBeenCalledOnce();
@@ -59,6 +68,9 @@ it.each(['ORDERED', 'FULFILLING'])(
       }),
     );
     expect(router.state.location.pathname).toBe('/orders/fulfillment/a');
+    await waitFor(() =>
+      expect(action.querySelector('[data-slot="spinner"]')).not.toBeInTheDocument(),
+    );
     expect(createShipmentDraftOnce).not.toHaveBeenCalled();
   },
 );

@@ -15,6 +15,7 @@ import { type CardAction, CardActions, useInCards } from '@/components/display/c
 import { serverMessage } from '@/components/display/dialog-parts';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { fetchOrderCsv, fetchOrderPdf, retryOrderTransfer } from '@/features/orders/api/api';
 import { orderReturnState } from '@/features/orders/lib/order-return';
 import {
@@ -205,7 +206,11 @@ export function FulfillOrderButton({
           actions={[
             {
               id: 'fulfill',
-              icon: <PackageOpenIcon />,
+              icon: entry.isPending ? (
+                <Spinner aria-hidden="true" role="presentation" />
+              ) : (
+                <PackageOpenIcon />
+              ),
               label,
               name,
               disabled: disabled || pending,
@@ -217,11 +222,15 @@ export function FulfillOrderButton({
       ) : (
         <Button
           aria-label={name}
+          aria-busy={entry.isPending}
           size="sm"
           variant={variant}
           disabled={disabled || pending}
           onClick={(event) => openShipment(event.currentTarget)}
         >
+          {entry.isPending && (
+            <Spinner aria-hidden="true" data-icon="inline-start" role="presentation" />
+          )}
           {label}
         </Button>
       )}
