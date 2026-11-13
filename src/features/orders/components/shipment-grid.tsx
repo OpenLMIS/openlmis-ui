@@ -21,6 +21,7 @@ import {
   shipmentDisplayRows,
   useShipmentRow,
 } from '@/features/orders/components/shipment-row';
+import { ShipmentStockNotice } from '@/features/orders/components/shipment-stock-notice';
 import { shipmentFieldKey } from '@/features/orders/lib/shipment-form';
 import { shipmentGroups, validateShipmentFill } from '@/features/orders/lib/shipment-lines';
 import { availableShipmentPacks } from '@/features/orders/lib/shipment-quantities';
@@ -106,12 +107,13 @@ export function ShipmentGrid(props: ShipmentGridProps) {
 const ShipmentTableRow = memo(function ShipmentTableRow(
   props: ShipmentGridProps & { row: ShipmentDisplayRow },
 ) {
-  const { t } = useTranslation();
   const { display, error, touched } = useShipmentRow(props, props.row);
   if (props.row.noStock)
     return (
-      <TableRow>
-        <TableCell colSpan={SHIPMENT_COLUMNS.length}>{t('orders.shipment.no-stock')}</TableCell>
+      <TableRow tone="shortfall">
+        <TableCell colSpan={SHIPMENT_COLUMNS.length}>
+          <ShipmentStockNotice />
+        </TableCell>
       </TableRow>
     );
   return (

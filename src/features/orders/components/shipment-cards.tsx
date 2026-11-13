@@ -14,6 +14,7 @@ import {
   shipmentDisplayRows,
   useShipmentRow,
 } from '@/features/orders/components/shipment-row';
+import { ShipmentStockNotice } from '@/features/orders/components/shipment-stock-notice';
 import type { ShipmentGroup } from '@/features/orders/lib/shipment-lines';
 import { orEmpty } from '@/lib/empty-value';
 
@@ -40,7 +41,12 @@ function ShipmentCardRow(
 ) {
   const { t } = useTranslation();
   const { display, error, touched } = useShipmentRow(props, props.row);
-  if (props.row.noStock) return <CardBand>{t('orders.shipment.no-stock')}</CardBand>;
+  if (props.row.noStock)
+    return (
+      <div className="bg-warning/10 px-4 py-2">
+        <ShipmentStockNotice />
+      </div>
+    );
   return (
     <div className={error && (touched || props.attempted) ? 'bg-destructive/10' : undefined}>
       {props.row.group?.kind === 'subgroup' && (

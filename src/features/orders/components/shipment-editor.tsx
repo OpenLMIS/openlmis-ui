@@ -531,7 +531,7 @@ export function ShipmentPending() {
         </WorkspaceHeading>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <OrderHeaderSkeleton />
+        <OrderHeaderSkeleton kind="shipment" />
         <OrderLinesSkeleton />
       </WorkspaceContent>
     </Workspace>

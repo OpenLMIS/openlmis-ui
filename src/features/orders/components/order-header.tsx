@@ -24,29 +24,29 @@ export const OrderHeader = memo(function OrderHeader({
 }) {
   const { t, i18n } = useTranslation();
   const timeZone = useDeploymentTimeZone();
+  const shipment = cceStatus !== undefined;
   return (
-    <RecordSummary>
-      <RecordSummaryHeading>
-        <span className="font-normal text-muted-foreground text-xs">
-          {t(
-            cceStatus !== undefined
-              ? 'orders.shipment.facility'
-              : 'orders.edit.requesting-facility',
-          )}
-        </span>
-        <span className="break-words">
-          <bdi>{order.requestingFacility.name ?? order.requestingFacility.id}</bdi>
-        </span>
-      </RecordSummaryHeading>
+    <RecordSummary aria-label={shipment ? t('orders.shipment.crumb') : undefined}>
+      {shipment ? (
+        order.emergency && (
+          <RecordSummaryHeading>
+            <Badge variant="destructive">{t('orders.shipment.emergency')}</Badge>
+          </RecordSummaryHeading>
+        )
+      ) : (
+        <RecordSummaryHeading>
+          <span className="font-normal text-muted-foreground text-xs">
+            {t('orders.edit.requesting-facility')}
+          </span>
+          <span className="break-words">
+            <bdi>{order.requestingFacility.name ?? order.requestingFacility.id}</bdi>
+          </span>
+        </RecordSummaryHeading>
+      )}
       <RecordSummaryFields>
-        {order.emergency && (
+        {!shipment && order.emergency && (
           <RecordSummaryField label={t('orders.shipment.emergency')}>
             <Badge variant="destructive">{t('orders.shipment.emergency')}</Badge>
-          </RecordSummaryField>
-        )}
-        {cceStatus !== undefined && (
-          <RecordSummaryField label={t('orders.shipment.cce-status')}>
-            {cceStatus}
           </RecordSummaryField>
         )}
         <RecordSummaryField label={t('orders.edit.status')}>
@@ -58,30 +58,51 @@ export const OrderHeader = memo(function OrderHeader({
         <RecordSummaryField label={t('orders.edit.program')}>
           {order.program.name ?? order.program.id}
         </RecordSummaryField>
-        <RecordSummaryField label={t('orders.edit.supplying-facility')}>
-          {order.supplyingFacility.name ?? order.supplyingFacility.id}
-        </RecordSummaryField>
+        {shipment ? (
+          <>
+            <RecordSummaryField label={t('orders.shipment.facility')}>
+              {order.requestingFacility.name ?? order.requestingFacility.id}
+            </RecordSummaryField>
+            <RecordSummaryField label={t('orders.shipment.cce-status')}>
+              {cceStatus}
+            </RecordSummaryField>
+          </>
+        ) : (
+          <RecordSummaryField label={t('orders.edit.supplying-facility')}>
+            {order.supplyingFacility.name ?? order.supplyingFacility.id}
+          </RecordSummaryField>
+        )}
       </RecordSummaryFields>
     </RecordSummary>
   );
 });
 
-export function OrderHeaderSkeleton() {
+export function OrderHeaderSkeleton({ kind = 'order' }: { kind?: 'order' | 'shipment' }) {
   const { t } = useTranslation();
   return (
     <RecordSummary aria-busy>
-      <RecordSummaryHeading>
-        <span className="font-normal text-muted-foreground text-xs">
-          {t('orders.edit.requesting-facility')}
-        </span>
-        <div className="h-5 w-40">
-          <Skeleton fill />
-        </div>
-      </RecordSummaryHeading>
+      {kind === 'order' && (
+        <RecordSummaryHeading>
+          <span className="font-normal text-muted-foreground text-xs">
+            {t('orders.edit.requesting-facility')}
+          </span>
+          <div className="h-5 w-40">
+            <Skeleton fill />
+          </div>
+        </RecordSummaryHeading>
+      )}
       <RecordSummaryFields>
-        {(['status', 'date-created', 'program', 'supplying-facility'] as const).map((key) => (
+        {(['status', 'date-created', 'program'] as const).map((key) => (
           <RecordSummaryFieldSkeleton key={key} label={t(`orders.edit.${key}`)} />
         ))}
+        {kind === 'shipment' ? (
+          <>
+            <RecordSummaryFieldSkeleton label={t('orders.shipment.facility')} />
+            <RecordSummaryFieldSkeleton label={t('orders.shipment.cce-status')} />
+          </>
+        ) : (
+          <RecordSummaryFieldSkeleton label={t('orders.edit.supplying-facility')} />
+        )}
       </RecordSummaryFields>
     </RecordSummary>
   );
