@@ -20,6 +20,7 @@ export const RIGHTS = {
   prepareBuq: 'PREPARE_BUQ',
   createForecasting: 'CREATE_FORECASTING',
   authorizeForecasting: 'AUTHORIZE_FORECASTING',
+  approveBuq: 'APPROVE_BUQ',
   facilitiesManage: 'FACILITIES_MANAGE',
   supplyLinesManage: 'SUPPLY_LINES_MANAGE',
   geographicZonesManage: 'GEOGRAPHIC_ZONES_MANAGE',

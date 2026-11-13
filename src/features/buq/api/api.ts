@@ -2,6 +2,8 @@ import type { AxiosRequestConfig } from 'axios';
 import type { forecastBody } from '@/features/buq/lib/forecast';
 import type {
   Buq,
+  BuqApproveStats,
+  BuqForApproval,
   BuqForecast,
   BuqPeriod,
   BuqPreparation,
@@ -99,6 +101,21 @@ export async function authorizeBuqForecast(body: ForecastBody) {
   const { data } = await client.post<BuqForecast>(
     `/bottomUpQuantifications/${body.id}/authorize`,
     body,
+  );
+  return data;
+}
+
+export async function fetchBuqsForApproval(programId: string) {
+  const { data } = await client.get<Page<BuqForApproval>>('/bottomUpQuantifications/forApproval', {
+    params: { programId },
+  });
+  return data.content;
+}
+
+export async function fetchApproveStats(programId: string) {
+  const { data } = await client.get<BuqApproveStats>(
+    '/bottomUpQuantifications/approveFacilityForecastingStats',
+    { params: { programId } },
   );
   return data;
 }

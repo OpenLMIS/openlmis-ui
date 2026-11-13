@@ -1,7 +1,9 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  fetchApproveStats,
   fetchBuqForecast,
   fetchBuqPeriods,
+  fetchBuqsForApproval,
   fetchMostRecentRejection,
   fetchOpenBuqs,
   fetchRemarks,
@@ -28,6 +30,18 @@ export const takenPeriodsOptions = (facilityId: string) =>
   queryOptions({
     queryKey: queryKeys.buq.list({ facility: facilityId, every: true }),
     queryFn: () => fetchTakenPeriods(facilityId),
+  });
+
+export const buqsForApprovalOptions = (programId: string) =>
+  queryOptions({
+    queryKey: queryKeys.buq.list({ approve: programId }),
+    queryFn: () => fetchBuqsForApproval(programId),
+  });
+
+export const buqApproveStatsOptions = (programId: string) =>
+  queryOptions({
+    queryKey: queryKeys.buq.list({ approveStats: programId }),
+    queryFn: () => fetchApproveStats(programId),
   });
 
 export const buqPeriodsOptions = () =>

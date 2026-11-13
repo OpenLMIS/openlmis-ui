@@ -20,6 +20,16 @@ export type PreparedBuq = Buq & { bottomUpQuantificationLineItems?: readonly unk
 
 export type TakenPeriod = { id: string; processingPeriodId: string };
 
+export type BuqStatusChange = { status: BuqStatus; occurredDate: string };
+
+export type BuqForApproval = Buq & { statusChanges: BuqStatusChange[] };
+
+export type BuqApproveStats = {
+  totalFacilities: number;
+  totalSubmitted: number;
+  percentageSubmitted: number;
+};
+
 export type BuqLineItem = {
   id: string;
   orderableId: string;
