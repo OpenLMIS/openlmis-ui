@@ -13,5 +13,5 @@ const SETTINGS = {
 
 it('formats money with the deployment grouping, decimal mark and symbol side', () => {
   expect(formatMoney(7388.46, SETTINGS)).toBe('7 388,46 $');
-  expect(formatMoney(-1767.5, { ...SETTINGS, currencySymbolSide: 'left' })).toBe('$-1 767,50');
+  expect(formatMoney(-1767.5, { ...SETTINGS, currencySymbolSide: 'left' })).toBe('-$1 767,50');
 });

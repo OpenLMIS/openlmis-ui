@@ -3,7 +3,12 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { submitBuqForecast } from '@/features/buq/api/api';
+import {
+  authorizeBuqForecast,
+  fetchBuqForecast,
+  saveBuqForecast,
+  submitBuqForecast,
+} from '@/features/buq/api/api';
 import { ForecastForm } from '@/features/buq/components/forecast-editor';
 import type { ProductInfo } from '@/features/buq/lib/forecast';
 import type { ForecastSearch } from '@/features/buq/lib/search';
@@ -12,6 +17,8 @@ import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/buq/api/api', () => ({
+  BuqMovedError: class extends Error {},
+  fetchBuqForecast: vi.fn(),
   saveBuqForecast: vi.fn(),
   submitBuqForecast: vi.fn(),
   authorizeBuqForecast: vi.fn(),
@@ -62,9 +69,10 @@ const PRODUCTS: Record<string, ProductInfo> = Object.fromEntries(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(fetchBuqForecast).mockResolvedValue(FORECAST);
 });
 
-function Harness() {
+function Harness({ skipAuthorization = false }: { skipAuthorization?: boolean }) {
   const [search, setSearch] = useState<ForecastSearch>({});
   return (
     <ForecastForm
@@ -100,14 +108,14 @@ function Harness() {
       remarks={[{ id: 'r1', name: 'Outbreaks' }]}
       rights={{ create: true, authorize: false }}
       search={search}
-      skipAuthorization={false}
+      skipAuthorization={skipAuthorization}
       sources={[]}
     />
   );
 }
 
-const renderEditor = async () => {
-  renderPage(<Harness />, {
+const renderEditor = async (skipAuthorization = false) => {
+  renderPage(<Harness skipAuthorization={skipAuthorization} />, {
     queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
   });
   await screen.findByText('Product A');
@@ -175,4 +183,39 @@ it('keeps the draft and shows the server message when Submit is refused', async 
   await waitFor(() => expect(submitBuqForecast).toHaveBeenCalledTimes(1));
   await user.click(within(failure).getByRole('button', { name: 'dialog.close' }));
   expect(card('Product L').getByRole('combobox')).toHaveTextContent('Outbreaks');
+});
+
+const completeLastLine = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(screen.getByRole('button', { name: 'Page 2' }));
+  await screen.findByText('Product L');
+  await user.click(card('Product L').getByRole('combobox'));
+  await user.click(await screen.findByRole('option', { name: 'Outbreaks' }));
+};
+
+it('sends nothing when the report moved on since the page opened', async () => {
+  const user = userEvent.setup();
+  vi.mocked(fetchBuqForecast).mockResolvedValue({ ...FORECAST, status: 'AUTHORIZED' });
+  await renderEditor();
+
+  await user.click(screen.getByRole('button', { name: 'buq.forecast.save' }));
+
+  const failure = await screen.findByRole('alertdialog');
+  expect(failure).toHaveTextContent('buq.forecast.moved');
+  expect(saveBuqForecast).not.toHaveBeenCalled();
+});
+
+it('sends Submit & Authorize to authorize when the program skips authorization', async () => {
+  const user = userEvent.setup();
+  vi.mocked(authorizeBuqForecast).mockResolvedValue({ ...FORECAST, status: 'AUTHORIZED' });
+  await renderEditor(true);
+  await completeLastLine(user);
+
+  await user.click(screen.getByRole('button', { name: 'buq.forecast.submit-and-authorize' }));
+  const confirm = await screen.findByRole('alertdialog');
+  await user.click(
+    within(confirm).getByRole('button', { name: 'buq.forecast.submit-and-authorize' }),
+  );
+
+  await waitFor(() => expect(authorizeBuqForecast).toHaveBeenCalledTimes(1));
+  expect(submitBuqForecast).not.toHaveBeenCalled();
 });

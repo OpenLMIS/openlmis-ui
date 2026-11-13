@@ -137,3 +137,15 @@ it.each(NOT_YET_SUPPORTED)('still lists forecasts when support is %s', (_, suppo
     }),
   ).toEqual({ ...READY, granted: ['CREATE_FORECASTING'] });
 });
+
+it('carries the program setting that lets Submit authorize at once', () => {
+  expect(
+    buqAccess({
+      home: HOME,
+      programs: [{ ...BUQ, skipAuthorization: true }],
+      permissions: parsePermissions(['CREATE_FORECASTING|f1|g1']),
+      rights: FORECASTING,
+      support: 'listed',
+    }),
+  ).toMatchObject({ kind: 'ready', skipAuthorization: true });
+});

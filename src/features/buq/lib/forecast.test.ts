@@ -103,6 +103,14 @@ describe('editing a line', () => {
     });
   });
 
+  it('keeps the chosen remark while Forecasted is retyped, clearing it only when they match', () => {
+    const line = { verified: '20', forecasted: '25', remarkId: 'r1' };
+    const blank = withForecasted(line, '');
+    expect(blank.remarkId).toBe('r1');
+    expect(withForecasted(blank, '30').remarkId).toBe('r1');
+    expect(withForecasted(blank, '20').remarkId).toBe('');
+  });
+
   it('refuses blank, decimal and too large numbers', () => {
     const line = { verified: '1', forecasted: '1', remarkId: '' };
     expect(numbersValid({ ...line, verified: '' })).toBe(false);
@@ -137,6 +145,26 @@ describe('totals', () => {
       true,
     );
     expect(fundingComplete([row, { ...row, sourceId: 's2', projected: '' }])).toBe(false);
+    expect(fundingComplete([row, { ...row, sourceId: 's2', used: '' }])).toBe(false);
+    expect(fundingComplete([])).toBe(false);
+  });
+
+  it('costs a line from Forecasted and counts an unreadable amount as nothing', () => {
+    const draft: ForecastDraft = {
+      lines: {
+        l1: { verified: '20', forecasted: '10', remarkId: 'r1' },
+        l2: { verified: '3', forecasted: '3', remarkId: '' },
+      },
+      funding: [
+        { sourceId: 's1', name: '', used: '1', projected: '1,234' },
+        { sourceId: 's2', name: '', used: '0', projected: '100' },
+      ],
+    };
+    expect(forecastTotals(draft, PRICES)).toEqual({
+      totalCost: 789.1,
+      totalProjectedFund: 100,
+      gap: -689.1,
+    });
   });
 });
 
@@ -155,7 +183,7 @@ describe('write body', () => {
       },
     });
     const draft = initialDraft(stored, SOURCES);
-    draft.lines.l2 = { verified: '6', forecasted: '6', remarkId: '' };
+    draft.lines.l2 = { verified: '6', forecasted: '8', remarkId: 'r2' };
     draft.funding = [{ sourceId: 's1', name: '', used: '1', projected: '2' }];
     const body = forecastBody(stored, draft, PRICES);
 
@@ -175,19 +203,35 @@ describe('write body', () => {
         orderableId: 'o2',
         annualAdjustedConsumption: 3,
         verifiedAnnualAdjustedConsumption: 6,
-        forecastedDemand: 6,
-        totalCost: 6.6,
-        remark: null,
+        forecastedDemand: 8,
+        totalCost: 8.8,
+        remark: { id: 'r2' },
       },
     ]);
     expect(body.fundingDetails).toEqual({
       id: 'fd1',
       totalProjectedFund: 2,
-      totalForecastedCost: 1578.2,
-      gap: -1576.2,
+      totalForecastedCost: 1580.4,
+      gap: -1578.4,
       sourcesOfFunds: [
         { sourceOfFund: { id: 's1' }, amountUsedInLastFinancialYear: 1, projectedFund: 2 },
       ],
+    });
+  });
+});
+
+describe('write body without funding', () => {
+  it('sends no sources and no projected totals while funding was never entered', () => {
+    const stored = forecast();
+    const draft = initialDraft(stored, SOURCES);
+    const body = forecastBody(stored, draft, PRICES);
+
+    expect(body.fundingDetails).toEqual({
+      id: undefined,
+      totalProjectedFund: null,
+      totalForecastedCost: 1577.1,
+      gap: null,
+      sourcesOfFunds: [],
     });
   });
 });

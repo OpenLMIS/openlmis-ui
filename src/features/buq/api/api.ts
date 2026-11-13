@@ -109,7 +109,7 @@ export async function fetchRemarks() {
 }
 
 export function fetchSourcesOfFunds() {
-  return fetchEveryPage<NamedItem>('/sourcesOfFunds', {});
+  return fetchEveryPage<NamedItem>('/sourcesOfFunds', { params: { sort: undefined } });
 }
 
 export async function fetchMostRecentRejection(id: string) {

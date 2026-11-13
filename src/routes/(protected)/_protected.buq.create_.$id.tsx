@@ -5,7 +5,8 @@ import {
   notFound,
   useLocation,
 } from '@tanstack/react-router';
-import { FilePenLineIcon, SearchXIcon } from 'lucide-react';
+import { ArrowLeftIcon, FilePenLineIcon, SearchXIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
@@ -57,6 +58,7 @@ const FORECASTING_RIGHTS = [RIGHTS.createForecasting, RIGHTS.authorizeForecastin
 export const Route = createFileRoute('/(protected)/_protected/buq/create_/$id')({
   staticData: { crumbKey: 'buq.forecast.crumb' },
   preload: false,
+  shouldReload: ({ cause }) => cause === 'enter',
   validateSearch: forecastSearchSchema,
   loader: async ({ context: { queryClient }, params, cause }) => {
     if (!z.guid().safeParse(params.id).success) throw notFound();
@@ -64,13 +66,14 @@ export const Route = createFileRoute('/(protected)/_protected/buq/create_/$id')(
       activeSupport: false,
     });
     if (access.kind !== 'ready') return access;
-    const detail = buqForecastOptions(params.id);
     try {
-      const forecast =
-        cause === 'stay'
-          ? await queryClient.ensureQueryData(detail)
-          : await queryClient.fetchQuery({ ...detail, staleTime: 0 });
-      if (forecast.facilityId !== access.facility.id) throw notFound();
+      const forecast = await queryClient.fetchQuery({
+        ...buqForecastOptions(params.id),
+        staleTime: 0,
+      });
+      if (forecast.facilityId !== access.facility.id || forecast.programId !== access.program.id) {
+        throw notFound();
+      }
       queryClient.prefetchQuery(
         orderablesByIdsOptions(
           forecast.bottomUpQuantificationLineItems.map(({ orderableId }) => orderableId),
@@ -109,9 +112,44 @@ function ForecastHeader() {
 
 function ForecastSkeleton() {
   return (
-    <div aria-busy className="h-96">
-      <Skeleton fill />
+    <div aria-busy className="flex flex-col gap-4 @4xl/main:gap-6">
+      <div className="h-6 w-24">
+        <Skeleton fill />
+      </div>
+      <div className="grid gap-4 @3xl/main:grid-cols-2">
+        <div className="h-28">
+          <Skeleton fill />
+        </div>
+        <div className="h-28">
+          <Skeleton fill />
+        </div>
+      </div>
+      <div className="h-96">
+        <Skeleton fill />
+      </div>
     </div>
+  );
+}
+
+function useListSearch() {
+  const current = useLocation({ select: (location) => location.state.buqListSearch });
+  const [listSearch] = useState(current);
+  return listSearch ?? {};
+}
+
+function BackToList() {
+  const { t } = useTranslation();
+  const listSearch = useListSearch();
+  return (
+    <Button
+      nativeButton={false}
+      render={<Link search={listSearch} to="/buq/create" />}
+      size="lg"
+      variant="outline"
+    >
+      <ArrowLeftIcon className="rtl:rotate-180" data-icon="inline-start" />
+      {t('buq.forecast.back')}
+    </Button>
   );
 }
 
@@ -121,7 +159,7 @@ function ForecastPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const listSearch = useLocation({ select: (location) => location.state.buqListSearch });
+  const listSearch = useListSearch();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<ForecastSearch>(FORECAST_DIALOGS);
   const rights = useForecastRights(access);
@@ -157,7 +195,7 @@ function ForecastPage() {
         forecastId={id}
         header={<ForecastHeader />}
         onCloseDialog={closeDialog}
-        onDone={() => void navigate({ to: '/buq/create', search: listSearch ?? {} })}
+        onDone={() => void navigate({ to: '/buq/create', search: listSearch })}
         onOpenDialog={(dialog) => openDialog({ dialog })}
         onSearchChange={updateSearch}
         rights={rights}
@@ -183,6 +221,7 @@ function ForecastNotFound() {
   const { t } = useTranslation();
   return (
     <Workspace>
+      <ForecastHeader />
       <WorkspaceContent>
         <Empty>
           <EmptyHeader>
@@ -193,9 +232,7 @@ function ForecastNotFound() {
             <EmptyDescription>{t('buq.forecast.not-found-description')}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button nativeButton={false} render={<Link to="/buq/create" />} variant="outline">
-              {t('buq.forecast.back')}
-            </Button>
+            <BackToList />
           </EmptyContent>
         </Empty>
       </WorkspaceContent>
@@ -208,6 +245,7 @@ function ForecastError(props: ErrorComponentProps) {
   return (
     <ErrorFallback
       {...props}
+      back={<BackToList />}
       description={t('buq.forecast.load-error')}
       title={t('buq.forecast.load-error-title')}
     />

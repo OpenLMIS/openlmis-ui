@@ -58,6 +58,7 @@
   "buq.forecast.invalid-title": "Le rapport contient des erreurs",
   "buq.forecast.load-error": "Le rapport n'a pas pu être chargé. Veuillez réessayer.",
   "buq.forecast.load-error-title": "Impossible de charger le rapport",
+  "buq.forecast.moved": "Ce rapport a changé depuis son ouverture, rien n'a donc été envoyé. La page affiche maintenant son état actuel.",
   "buq.forecast.not-found-description": "Ce rapport n'existe pas ou appartient à un autre établissement.",
   "buq.forecast.not-found-title": "Rapport introuvable",
   "buq.forecast.period": "Période de quantification",
