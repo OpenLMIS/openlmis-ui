@@ -111,7 +111,7 @@ export function PodEditor({
     description: string;
   } | null>(null);
   const region = useRef<HTMLFormElement>(null);
-  const invalidTarget = useRef<string | null>(null);
+  const invalidTargets = useRef<string[]>([]);
   const leaving = useRef(false);
   const mutation = useSessionMutation({
     mutationFn: async ({ snapshot, confirming }: { snapshot: PodDraft; confirming: boolean }) => {
@@ -180,7 +180,7 @@ export function PodEditor({
         isTouched: true,
         errorMap: { ...meta.errorMap, onChange: error },
       }));
-    invalidTarget.current = errors[0]?.[0] ?? null;
+    invalidTargets.current = errors.map(([path]) => path);
     if (errors.length) {
       setInvalid(true);
       return null;
@@ -431,10 +431,15 @@ export function PodEditor({
         description={t('orders.pod.correct-errors')}
         closeLabel={t('dialog.close')}
         onOpenChangeComplete={(open) => {
-          if (!open && invalidTarget.current) {
+          if (!open && invalidTargets.current.length) {
+            const blocked = new Set(invalidTargets.current);
             const field =
-              region.current?.querySelector<HTMLElement>('[aria-invalid="true"]:not([disabled])') ??
-              document.getElementById(invalidTarget.current);
+              Array.from(
+                region.current?.querySelectorAll<HTMLElement>(
+                  '[aria-invalid="true"]:not([disabled])',
+                ) ?? [],
+              ).find((control) => blocked.has(control.id)) ??
+              document.getElementById(invalidTargets.current[0]);
             if (field) revealField(field, !!field.closest('li'));
           }
         }}

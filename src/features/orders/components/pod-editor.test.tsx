@@ -280,3 +280,25 @@ it('names a failed Confirm as a confirmation failure', async () => {
   );
   expect(await screen.findByText('orders.pod.confirm-failed')).toBeVisible();
 });
+
+it('focuses the current Save blocker after Confirm left other errors highlighted', async () => {
+  const user = setup(true, { ...pod, receivedDate: '2999-01-01' });
+  fireEvent.change(screen.getByRole('textbox', { name: 'orders.pod.accepted-for' }), {
+    target: { value: '4' },
+  });
+  await user.click(screen.getByRole('button', { name: 'orders.pod.confirm' }));
+  await user.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'orders.pod.delivered-by' })).toHaveFocus(),
+  );
+  await user.click(screen.getByRole('button', { name: 'orders.pod.save' }));
+  await user.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: /orders.pod.received-date/ })).toHaveFocus(),
+  );
+  expect(saveProofOfDelivery).not.toHaveBeenCalled();
+});
