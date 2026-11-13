@@ -37,6 +37,7 @@ type GridState = {
   remarks: readonly NamedItem[];
   shown: (lineId: string) => boolean;
   disabled: boolean;
+  readOnly: boolean;
   cards: boolean;
 };
 
@@ -78,10 +79,11 @@ function NumberCell({
   part: 'verified' | 'forecasted';
   label: string;
 }) {
-  const { form, shown, disabled, cards } = useGrid();
+  const { form, shown, disabled, readOnly, cards } = useGrid();
   const name: `lines.${string}.${'verified' | 'forecasted'}` = `lines.${lineId}.${part}`;
   const value = useStore(form.store, (state) => state.values.lines[lineId]?.[part] ?? '');
   useCellError(form, name, shown(lineId) ? numberError(value) : undefined);
+  if (readOnly) return <span className="tabular-nums">{value}</span>;
   return (
     <Field surface="background">
       <form.AppField
@@ -113,7 +115,7 @@ function NumberCell({
 
 function RemarkCell({ lineId, label }: { lineId: string; label: string }) {
   const { t } = useTranslation();
-  const { form, shown, disabled, remarks, cards } = useGrid();
+  const { form, shown, disabled, readOnly, remarks, cards } = useGrid();
   const line = useStore(form.store, (state) => state.values.lines[lineId]);
   const required = line ? needsRemark(line) : false;
   const missing = required && !line?.remarkId;
@@ -126,6 +128,10 @@ function RemarkCell({ lineId, label }: { lineId: string; label: string }) {
     () => remarks.map(({ id, name }) => ({ value: id, label: name })),
     [remarks],
   );
+  if (readOnly) {
+    const remark = remarks.find(({ id }) => id === line?.remarkId)?.name;
+    return remark ? <CellText overflow="clamp">{remark}</CellText> : null;
+  }
   return (
     <Field surface="background">
       <form.AppField name={`lines.${lineId}.remarkId`}>

@@ -1,9 +1,4 @@
-import {
-  createFileRoute,
-  type ErrorComponentProps,
-  notFound,
-  useLocation,
-} from '@tanstack/react-router';
+import { createFileRoute, type ErrorComponentProps, notFound } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Workspace, WorkspaceContent } from '@/components/workspace/workspace';
@@ -16,6 +11,7 @@ import {
   ForecastHeader,
   ForecastNotFound,
   ForecastPending,
+  useListSearch,
 } from '@/features/buq/components/forecast-page';
 import {
   FORECAST_DIALOGS,
@@ -28,18 +24,17 @@ import { loadApproveAccess, loadForecast } from '@/routes/-buq-access';
 export const Route = createFileRoute('/(protected)/_protected/buq/approve_/$id')({
   staticData: { crumbKey: 'buq.approve.crumb' },
   preload: false,
+  shouldReload: ({ cause }) => cause === 'enter',
   validateSearch: forecastSearchSchema,
   loader: async ({ context: { queryClient }, params, cause }) => {
     if (!z.guid().safeParse(params.id).success) throw notFound();
     const access = await loadApproveAccess(queryClient, cause);
     if (access.kind !== 'ready') return access;
-    const list = buqsForApprovalOptions(access.programId);
-    const waiting =
-      cause === 'stay'
-        ? await queryClient.ensureQueryData(list)
-        : await queryClient.fetchQuery({ ...list, staleTime: 0 });
+    const [waiting] = await Promise.all([
+      queryClient.fetchQuery({ ...buqsForApprovalOptions(access.programId), staleTime: 0 }),
+      loadForecast(queryClient, params.id, cause),
+    ]);
     if (!waiting.some(({ id }) => id === params.id)) throw notFound();
-    await loadForecast(queryClient, params.id, cause);
     return access;
   },
   pendingComponent: ApprovePending,
@@ -59,7 +54,7 @@ function ApproveForecastPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const listSearch = useLocation({ select: (location) => location.state.buqListSearch });
+  const listSearch = useListSearch();
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<ForecastSearch>(FORECAST_DIALOGS);
   if (access.kind !== 'ready') {
@@ -77,9 +72,9 @@ function ApproveForecastPage() {
       <ForecastEditor
         forecastId={id}
         header={<ApproveHeader />}
-        mode={{ kind: 'approve' }}
+        mode={{ kind: 'approve', programId: access.programId }}
         onCloseDialog={closeDialog}
-        onDone={() => void navigate({ to: '/buq/approve', search: listSearch ?? {} })}
+        onDone={() => void navigate({ to: '/buq/approve', search: listSearch })}
         onOpenDialog={(dialog) => openDialog({ dialog })}
         onSearchChange={updateSearch}
         search={search}

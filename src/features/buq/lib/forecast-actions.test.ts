@@ -15,7 +15,7 @@ const create = (create: boolean, authorize: boolean, skipAuthorization = false):
 
 const CREATE = create(true, false);
 const AUTHORIZE = create(false, true);
-const APPROVE: ForecastMode = { kind: 'approve' };
+const APPROVE: ForecastMode = { kind: 'approve', programId: 'g1' };
 
 const CASES: [string, BuqStatus, ForecastMode, ForecastAction[]][] = [
   ['Draft with create', 'DRAFT', CREATE, ['save', 'submit']],
