@@ -1015,8 +1015,6 @@
   "orders.pod.select": "Select {label}",
   "orders.pod.select-reason": "Select Reason",
   "orders.pod.select-status": "Select Status",
-  "orders.pod.status-confirmed": "Confirmed",
-  "orders.pod.status-initiated": "Initiated",
   "orders.pod.supplying-facility": "Supplying Facility",
   "orders.pod.title": "Manage Proof Of Delivery",
   "orders.pod.title-facility": "Manage Proof Of Delivery For {facility}: {program}",

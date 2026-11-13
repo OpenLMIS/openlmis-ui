@@ -1015,8 +1015,6 @@
   "orders.pod.select": "Seleccionar {label}",
   "orders.pod.select-reason": "Seleccionar motivo",
   "orders.pod.select-status": "Seleccionar estado",
-  "orders.pod.status-confirmed": "Confirmado",
-  "orders.pod.status-initiated": "Iniciado",
   "orders.pod.supplying-facility": "Establecimiento proveedor",
   "orders.pod.title": "Gestionar comprobantes de entrega",
   "orders.pod.title-facility": "Gestionar comprobantes de entrega para {facility}: {program}",

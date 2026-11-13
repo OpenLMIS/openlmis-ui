@@ -27,7 +27,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Workspace,
@@ -236,14 +235,12 @@ export function PodEditor({
           <div className="flex flex-col gap-4">
             <RecordSummary>
               <RecordSummaryHeading>
-                {order.orderCode ?? order.id}
-                <Badge variant="secondary">
-                  {t(
-                    pod.status === 'CONFIRMED'
-                      ? 'orders.pod.status-confirmed'
-                      : 'orders.pod.status-initiated',
-                  )}
-                </Badge>
+                <span className="font-normal text-muted-foreground text-xs">
+                  {t('orders.pod.columns.order-code')}
+                </span>
+                <span className="break-words">
+                  <bdi>{order.orderCode ?? order.id}</bdi>
+                </span>
               </RecordSummaryHeading>
               <RecordSummaryFields>
                 <RecordSummaryField label={t('orders.pod.columns.status')}>

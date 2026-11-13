@@ -1015,8 +1015,6 @@
   "orders.pod.select": "اختيار {label}",
   "orders.pod.select-reason": "اختيار السبب",
   "orders.pod.select-status": "اختيار الحالة",
-  "orders.pod.status-confirmed": "مؤكد",
-  "orders.pod.status-initiated": "بدأ",
   "orders.pod.supplying-facility": "المنشأة المورّدة",
   "orders.pod.title": "إدارة إثباتات التسليم",
   "orders.pod.title-facility": "إدارة إثباتات التسليم لـ {facility}: {program}",
