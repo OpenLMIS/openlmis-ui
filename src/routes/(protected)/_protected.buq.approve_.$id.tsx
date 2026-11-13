@@ -31,7 +31,7 @@ export const Route = createFileRoute('/(protected)/_protected/buq/approve_/$id')
   validateSearch: forecastSearchSchema,
   loader: async ({ context: { queryClient }, params, cause }) => {
     if (!z.guid().safeParse(params.id).success) throw notFound();
-    const access = await loadApproveAccess(queryClient);
+    const access = await loadApproveAccess(queryClient, cause);
     if (access.kind !== 'ready') return access;
     const list = buqsForApprovalOptions(access.programId);
     const waiting =
