@@ -46,7 +46,7 @@ export function approvalRows(
         facilityType: facility?.type.name ?? '',
         district: facility?.geographicZone.name ?? '',
         region: regionOf(facility?.geographicZone),
-        periodName: periodById.get(buq.processingPeriodId) ?? '',
+        periodName: periodById.get(buq.processingPeriodId) ?? String(buq.targetYear),
         submittedAt: lastAuthorized(buq.statusChanges),
       };
     })

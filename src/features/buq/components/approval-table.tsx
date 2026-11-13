@@ -30,8 +30,8 @@ const columnHelper = createColumnHelper<DataTableFeatures, ApprovalRow>();
 
 export const APPROVAL_HIDEABLE_COLUMNS: readonly (ResponsiveColumn & { labelKey: ParseKeys })[] = [
   { id: 'facilityType', labelKey: 'buq.approve.facility-type', hideBelow: 864 },
-  { id: 'district', labelKey: 'buq.approve.district', hideBelow: 960 },
-  { id: 'region', labelKey: 'buq.approve.region', hideBelow: '3xl' },
+  { id: 'district', labelKey: 'buq.approve.district', hideBelow: '3xl' },
+  { id: 'region', labelKey: 'buq.approve.region', hideBelow: 960 },
 ];
 
 type TextColumn = Exclude<keyof ApprovalRow, 'id' | 'submittedAt'>;
@@ -49,8 +49,8 @@ function createColumns(t: TFunction, locale: string, timeZone: string | undefine
       meta: { label: t(label), className },
     });
   return columnHelper.columns([
-    textColumn('facilityCode', 'buq.approve.facility-code', 'w-28'),
-    textColumn('facilityName', 'buq.approve.facility-name'),
+    textColumn('facilityCode', 'buq.approve.facility-code', 'w-36'),
+    textColumn('facilityName', 'buq.approve.facility-name', '@4xl/main:w-1/5'),
     textColumn('facilityType', 'buq.approve.facility-type'),
     textColumn('district', 'buq.approve.district'),
     textColumn('region', 'buq.approve.region'),

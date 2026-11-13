@@ -87,3 +87,12 @@ it('joins facility, zones and period, dates from the latest authorization, oldes
     },
   ]);
 });
+
+it('names a forecast whose period is outside the BUQ schedule by its target year, as Create does', () => {
+  const [row] = approvalRows(
+    [forecast('b3', 'f1', 'p9', [{ status: 'AUTHORIZED', occurredDate: '2026-10-01T08:00:00Z' }])],
+    FACILITIES,
+    PERIODS,
+  );
+  expect(row?.periodName).toBe('2017');
+});
