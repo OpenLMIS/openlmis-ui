@@ -71,11 +71,15 @@ export async function loadBuqAccess(
   return access;
 }
 
-export async function loadApproveAccess(queryClient: QueryClient) {
+export async function loadApproveAccess(
+  queryClient: QueryClient,
+  cause: 'enter' | 'stay' | 'preload',
+) {
   const { scope, userId } = currentUser();
+  const fresh = cause === 'enter' ? { staleTime: 0 } : {};
   const [, programs] = await Promise.all([
     requireRight(queryClient, RIGHTS.approveBuq),
-    queryClient.ensureQueryData(userProgramsOptions(userId)),
+    queryClient.fetchQuery({ ...userProgramsOptions(userId), ...fresh }),
   ]);
   assertSessionScope(scope);
   const access = approveAccess(programs);
@@ -84,10 +88,11 @@ export async function loadApproveAccess(queryClient: QueryClient) {
     queryClient.prefetchQuery(buqApproveStatsOptions(access.programId));
     void queryClient
       .fetchQuery(buqsForApprovalOptions(access.programId))
-      .then(
-        (buqs) => queryClient.prefetchQuery(facilitiesByIdsOptions(approvalFacilityIds(buqs))),
-        noop,
-      );
+      .then((buqs) => {
+        assertSessionScope(scope);
+        return queryClient.prefetchQuery(facilitiesByIdsOptions(approvalFacilityIds(buqs)));
+      })
+      .catch(noop);
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
   }
   return access;

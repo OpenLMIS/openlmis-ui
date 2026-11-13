@@ -17,8 +17,9 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { loadApproveAccess } from '@/routes/-buq-access';
 
 export const Route = createFileRoute('/(protected)/_protected/buq/approve')({
+  preload: false,
   validateSearch: buqListSearchSchema,
-  loader: ({ context: { queryClient } }) => loadApproveAccess(queryClient),
+  loader: ({ context: { queryClient }, cause }) => loadApproveAccess(queryClient, cause),
   pendingComponent: ApprovePending,
   component: ApprovePage,
 });
