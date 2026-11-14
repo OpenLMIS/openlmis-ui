@@ -188,11 +188,14 @@ function PodBody({
     refused: boolean;
   };
 }) {
-  const { data: facilities } = useSuspenseQuery(
+  const { data: unsortedFacilities } = useSuspenseQuery(
     viewSupplierFacilitiesOptions([
       ...data.allowed.requestingFacilityIds,
       ...data.allowed.supplyingFacilityIds,
     ]),
+  );
+  const facilities = unsortedFacilities.toSorted((a, b) =>
+    (a.name ?? a.id).localeCompare(b.name ?? b.id),
   );
   const client = useQueryClient();
   const columnView = useCardView(POD_ORDER_HIDEABLE_COLUMNS, 'orders.pod.column-visibility');

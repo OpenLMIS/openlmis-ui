@@ -179,14 +179,17 @@ export function FulfillOrderButton({
   const entry = useSessionMutation({
     mutationKey: SHIPMENT_ENTRY_KEY,
     mutationFn: () => loadShipmentEntry(client, order.id),
-    onSuccess: () =>
+    onSuccess: (shipmentEntry) =>
       navigate({
         to: '/orders/fulfillment/$orderId',
         params: { orderId: order.id },
-        state: orderReturnState({
-          to: '/orders/fulfillment',
-          search: fulfillOrdersSearchSchema.parse(search),
-        }),
+        state: {
+          ...orderReturnState({
+            to: '/orders/fulfillment',
+            search: fulfillOrdersSearchSchema.parse(search),
+          }),
+          shipmentEntry,
+        },
       }),
   });
   const openShipment = (button: HTMLButtonElement) => {

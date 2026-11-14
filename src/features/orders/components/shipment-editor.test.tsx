@@ -464,3 +464,33 @@ it('reveals the first visible invalid lot rather than the saved line order', asy
   );
   await waitFor(() => expect(inputs[0]).toHaveFocus());
 });
+
+it('initializes new lot controls to visible zero after a stock refresh', async () => {
+  const { client, page, order, record, summaries } = fixture('FULFILLING', true);
+  renderPage(page, { queryClient: client });
+  const input = await screen.findByRole('textbox');
+  fireEvent.change(input, { target: { value: '7' } });
+  const next = [
+    {
+      ...summaries[0],
+      canFulfillForMe: [
+        ...summaries[0].canFulfillForMe,
+        { ...summaries[0].canFulfillForMe[0], lot: { id: 'new' }, stockCard: { id: 'new-card' } },
+      ],
+    },
+  ];
+  client.setQueryData(shipmentLotsOptions(next, record.lineItems).queryKey, [
+    { id: 'new', lotCode: 'New Lot', expirationDate: null },
+  ]);
+  await act(async () => {
+    client.setQueryData(shipmentSummariesOptions(shipmentStockFilter(order)).queryKey, next);
+  });
+  await waitFor(() => expect(screen.getAllByRole('textbox')).toHaveLength(2));
+  expect(
+    screen.getAllByRole('textbox').map((control) => (control as HTMLInputElement).value),
+  ).toEqual(['7', '0']);
+  await userEvent.setup().click(screen.getByRole('button', { name: 'orders.shipment.confirm' }));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(dialog).toHaveTextContent('orders.shipment.confirm-description');
+  expect(dialog).not.toHaveTextContent('orders.shipment.invalid-description');
+});

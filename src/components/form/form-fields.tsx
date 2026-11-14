@@ -394,7 +394,7 @@ export function TextField({
         onChange={(event) => field.handleChange(event.target.value)}
         placeholder={placeholder}
         type={type}
-        value={field.state.value}
+        value={field.state.value ?? ''}
       />
     </FieldFrame>
   );

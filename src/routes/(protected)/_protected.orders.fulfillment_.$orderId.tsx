@@ -15,34 +15,49 @@ import {
 } from '@/features/orders/api/queries';
 import { ShipmentPending, ShipmentScreen } from '@/features/orders/components/shipment-editor';
 import { orderReturnTarget } from '@/features/orders/lib/order-return';
-import { isFulfillable, shipmentStockFilter } from '@/features/orders/lib/shipment-entry';
+import {
+  consumeShipmentEntry,
+  isFulfillable,
+  shipmentStockFilter,
+} from '@/features/orders/lib/shipment-entry';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { facilityGrants, programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const Route = createFileRoute('/(protected)/_protected/orders/fulfillment_/$orderId')({
   preload: false,
   staticData: { crumbKey: 'orders.shipment.crumb' },
-  loader: async ({ context: { queryClient }, params: { orderId }, cause }) => {
+  loader: async ({ context: { queryClient }, params: { orderId }, cause, location }) => {
+    const scope = getSessionScope();
+    const checked =
+      cause === 'enter'
+        ? consumeShipmentEntry(queryClient, orderId, location.state.shipmentEntry)
+        : undefined;
     const [permissions, order] = await Promise.all([
       requirePermissions(queryClient, [
         RIGHTS.shipmentsView,
         RIGHTS.shipmentsEdit,
         RIGHTS.ordersView,
       ]),
-      cause === 'enter'
-        ? queryClient.fetchQuery({ ...orderOptions(orderId), staleTime: 0 })
-        : queryClient.ensureQueryData(orderOptions(orderId)),
+      checked
+        ? Promise.resolve(checked)
+        : cause === 'enter'
+          ? queryClient.fetchQuery({ ...orderOptions(orderId), staleTime: 0 })
+          : queryClient.ensureQueryData(orderOptions(orderId)),
     ]);
-    const fresh = cause === 'enter' ? { staleTime: 0 } : {};
-    queryClient.prefetchQuery({
-      ...shipmentSummariesOptions(shipmentStockFilter(order)),
-      ...fresh,
-    });
-    queryClient.prefetchQuery({
-      ...(isFulfillable(order) ? shipmentDraftOptions(orderId) : shipmentOptions(orderId)),
-      ...fresh,
-    });
+    assertSessionScope(scope);
+    if (!checked) {
+      const fresh = cause === 'enter' ? { staleTime: 0 } : {};
+      queryClient.prefetchQuery({
+        ...shipmentSummariesOptions(shipmentStockFilter(order)),
+        ...fresh,
+      });
+      queryClient.prefetchQuery({
+        ...(isFulfillable(order) ? shipmentDraftOptions(orderId) : shipmentOptions(orderId)),
+        ...fresh,
+      });
+    }
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const at = (right: string, facility: string) =>
       facilityGrants(permissions, right).some((grant) => grant.facilityId === facility);
