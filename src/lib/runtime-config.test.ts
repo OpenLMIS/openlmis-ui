@@ -136,3 +136,22 @@ describe('getKitUnpackReasonIds', () => {
     });
   });
 });
+
+describe('getReportingModules', () => {
+  it('loads country-specific modules once and prevents path segments from becoming requests', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            reportingModules:
+              'common, country-reports,common, ../outside, https://elsewhere/reports',
+          }),
+        ),
+      ),
+    );
+    const { loadRuntimeConfig, getReportingModules } = await load();
+    await loadRuntimeConfig();
+    expect(getReportingModules()).toEqual(['common', 'country-reports']);
+  });
+});

@@ -40,6 +40,11 @@ Containers write OAuth credentials, the default Issue and Receive reasons
 (`DEFAULT_ISSUE_REASON_ID`, `DEFAULT_RECEIVE_REASON_ID`), kit unpack reasons
 (`KIT_UNPACK_REASON_ID`, `UNPACKED_FROM_KIT_REASON_ID`) and deployment flags to `config.json`
 at startup. Feature flags have no `.env` fallback.
+
+`REPORTING_SERVICES` selects comma-separated report template modules in the container,
+defaulting to `common,requisitions`. It becomes `reportingModules` in runtime `config.json`.
+For local development, an optional `public/config.json` can supply that same string.
+
 `VITE_BASE_PATH` remains a build input and must match container `BASE_PATH`; see the
 [deployment guide](docs/deployment/deployment.md).
 
