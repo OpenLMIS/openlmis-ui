@@ -10,6 +10,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -91,7 +92,7 @@ function createColumns(
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('reasons.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('reasons.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => <ReasonActions listSearch={listSearch} reason={row.original} />,
     }),

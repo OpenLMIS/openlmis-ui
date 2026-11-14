@@ -36,6 +36,7 @@ import type { ConvertListRow } from '@/features/requisitions/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
+import { invalidateOrderLists } from '@/lib/order-queries';
 import { revealField } from '@/lib/reveal-field';
 import { isSecureOrigin } from '@/lib/secure-context';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -75,7 +76,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
   const refresh = async () => {
     await Promise.allSettled([
       client.invalidateQueries({ queryKey: queryKeys.requisitions.all }),
-      client.invalidateQueries({ queryKey: queryKeys.home.all }),
+      invalidateOrderLists(client),
     ]);
   };
   const notifySuccess = (body: ReleaseBody) => {

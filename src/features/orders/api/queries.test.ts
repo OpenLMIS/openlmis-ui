@@ -2,8 +2,20 @@ import { QueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { fetchOrderStockOnHand } from '@/features/orders/api/api';
-import { orderStockOnHandOptions } from '@/features/orders/api/queries';
+import {
+  orderStockOnHandOptions,
+  viewSupplierFacilitiesOptions,
+} from '@/features/orders/api/queries';
 
+import { fetchFacilitiesByIds, fetchMinimalFacilities } from '@/features/reference-data/api/api';
+import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
+import { parsePermissions } from '@/lib/permissions';
+
+vi.mock('@/features/reference-data/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/reference-data/api/api')>()),
+  fetchFacilitiesByIds: vi.fn(),
+  fetchMinimalFacilities: vi.fn(),
+}));
 vi.mock('@/features/orders/api/api', () => ({ fetchOrderStockOnHand: vi.fn() }));
 beforeEach(() => vi.resetAllMocks());
 const filter = { programId: 'p', facilityId: 'f' };
@@ -47,4 +59,43 @@ it('shares in-flight product reads when another line is added before the balance
   first.resolve([{ orderable: { id: 'a' }, stockOnHand: 10 }]);
   await Promise.all([initial, expanded]);
   expect(fetchOrderStockOnHand).toHaveBeenLastCalledWith({ ...filter, orderableIds: ['b'] });
+});
+
+it('reuses cached minimal facilities and otherwise names sorted unique supplier ids through the small lookup', async () => {
+  const client = new QueryClient();
+  const permissions = parsePermissions(['ORDERS_VIEW|b', 'ORDERS_VIEW|a', 'PODS_MANAGE|b|p']);
+  vi.mocked(fetchFacilitiesByIds).mockResolvedValue([
+    {
+      id: 'a',
+      code: 'A',
+      name: null,
+      active: true,
+      enabled: true,
+      type: { id: 'type', code: 'T', name: 'Type' },
+      geographicZone: { id: 'zone', code: 'Z', name: 'Zone', level: { name: null }, parent: null },
+    },
+  ]);
+  expect(await client.fetchQuery(viewSupplierFacilitiesOptions(permissions))).toEqual([
+    { id: 'a', code: 'A', name: 'A', active: true },
+  ]);
+  expect(fetchFacilitiesByIds).toHaveBeenCalledWith(['a', 'b']);
+  expect(fetchMinimalFacilities).not.toHaveBeenCalled();
+  client.clear();
+  const minimal = [{ id: 'b', code: 'B', name: 'Bee', active: true }];
+  client.setQueryData(minimalFacilitiesOptions().queryKey, minimal);
+  vi.mocked(fetchFacilitiesByIds).mockClear();
+  expect(await client.fetchQuery(viewSupplierFacilitiesOptions(permissions))).toEqual(minimal);
+  expect(fetchFacilitiesByIds).not.toHaveBeenCalled();
+});
+
+it('uses minimal facilities above the 100 supplier cutoff', async () => {
+  const client = new QueryClient();
+  vi.mocked(fetchMinimalFacilities).mockResolvedValue([]);
+  await client.fetchQuery(
+    viewSupplierFacilitiesOptions(
+      parsePermissions(Array.from({ length: 101 }, (_, index) => `ORDERS_VIEW|${index}`)),
+    ),
+  );
+  expect(fetchMinimalFacilities).toHaveBeenCalledOnce();
+  expect(fetchFacilitiesByIds).not.toHaveBeenCalled();
 });

@@ -10,6 +10,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -74,7 +75,7 @@ function createColumns(t: TFunction, listSearch: SupplyLinesSearch) {
     }),
     columnHelper.display({
       id: 'actions',
-      header: '',
+      header: () => <DataTableHeaderLabel>{t('data-table.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       enableHiding: false,
       cell: ({ row }) => <SupplyLineActions node={row.original} listSearch={listSearch} />,

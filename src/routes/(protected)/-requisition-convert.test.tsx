@@ -183,6 +183,8 @@ it.each([true, false])(
     });
     const { queryClient } = renderRoute('/requisitions/convert');
     queryClient.setQueryData([...queryKeys.home.all, 'test-count'], 1);
+    queryClient.setQueryData(queryKeys.orders.list({}), {});
+    queryClient.setQueryData([...queryKeys.orders.all, 'requesting-facilities', ['supplier']], []);
     await selectRow();
     await action(createOrder);
     await confirm();
@@ -194,6 +196,11 @@ it.each([true, false])(
     );
     await screen.findAllByText('April');
     expect(await copies.get('March')).toBeUndefined();
+    expect(queryClient.getQueryState(queryKeys.orders.list({}))?.isInvalidated).toBe(true);
+    expect(
+      queryClient.getQueryState([...queryKeys.orders.all, 'requesting-facilities', ['supplier']])
+        ?.isInvalidated,
+    ).toBe(true);
     await waitFor(() =>
       expect(screen.getByRole('region', { name: 'requisitions.convert.title' })).toHaveFocus(),
     );

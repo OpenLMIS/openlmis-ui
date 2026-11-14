@@ -174,8 +174,10 @@ function ComboboxStatus({ className, ...props }: ComboboxPrimitive.Status.Props)
 }
 
 function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
+  const hasItems = ComboboxPrimitive.useFilteredItems<unknown>().length > 0
   return (
     <ScrollAreaPrimitive.Root
+      key={hasItems ? "options" : "empty"}
       data-slot="combobox-scroll-area"
       className="group/combobox-scroll relative"
     >
@@ -189,19 +191,23 @@ function ComboboxList({ className, ...props }: ComboboxPrimitive.List.Props) {
         )}
         {...props}
       />
-      {/* Hints, not controls: the list already scrolls by wheel, touch and keys. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-1 hidden justify-center text-muted-foreground group-data-overflow-y-start/combobox-scroll:flex"
-      >
-        <ChevronUpIcon className="size-4" />
-      </span>
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-1 hidden justify-center text-muted-foreground group-data-overflow-y-end/combobox-scroll:flex"
-      >
-        <ChevronDownIcon className="size-4" />
-      </span>
+      {hasItems && (
+        <>
+          {/* Hints, not controls: the list already scrolls by wheel, touch and keys. */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-1 hidden justify-center text-muted-foreground group-data-overflow-y-start/combobox-scroll:flex"
+          >
+            <ChevronUpIcon className="size-4" />
+          </span>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-1 hidden justify-center text-muted-foreground group-data-overflow-y-end/combobox-scroll:flex"
+          >
+            <ChevronDownIcon className="size-4" />
+          </span>
+        </>
+      )}
       <ScrollBar className="py-1" />
     </ScrollAreaPrimitive.Root>
   )

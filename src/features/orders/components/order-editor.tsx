@@ -53,6 +53,7 @@ import type { Order } from '@/features/orders/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { invalidateOrderLists } from '@/lib/order-queries';
 import type { QuantityUnit } from '@/lib/quantity';
 import { randomId } from '@/lib/random-id';
 import { revealField } from '@/lib/reveal-field';
@@ -194,6 +195,10 @@ export function OrderEditor({
       }
       if (action.kind !== 'send' || success.length !== entries.length) setSummary(null);
       setDeleting(null);
+      if (action.kind !== 'save') {
+        await invalidateOrderLists(queryClient);
+        if (!mutation.isCurrent()) return;
+      }
       if (action.kind !== 'save' && success.length) {
         removed.current = true;
         for (const outcome of success)

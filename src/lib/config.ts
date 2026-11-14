@@ -72,9 +72,9 @@ export const NAV_GROUPS: NavGroup[] = [
         titleKey: 'nav.orders',
         icon: TruckIcon,
         items: [
-          { titleKey: 'nav.orders.fulfill', to: '#' },
-          { titleKey: 'nav.orders.proof-of-delivery', to: '#' },
-          { titleKey: 'nav.orders.view', to: '#' },
+          { titleKey: 'nav.orders.fulfill', to: '/orders/fulfillment' },
+          { titleKey: 'nav.orders.proof-of-delivery', to: '/orders/proof-of-delivery' },
+          { titleKey: 'nav.orders.view', to: '/orders/view' },
         ],
       },
       {

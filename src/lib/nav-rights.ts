@@ -38,6 +38,9 @@ const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readon
   '/requisitions/convert': RIGHTS.ordersEdit,
   '/requisitions/approve': RIGHTS.requisitionApprove,
   '/requisitions/view': RIGHTS.requisitionView,
+  '/orders/fulfillment': [RIGHTS.shipmentsView, RIGHTS.shipmentsEdit],
+  '/orders/proof-of-delivery': [RIGHTS.podsManage, RIGHTS.podsView, RIGHTS.shipmentsEdit],
+  '/orders/view': [RIGHTS.ordersView, RIGHTS.podsManage],
   '/offline-events': [],
 };
 

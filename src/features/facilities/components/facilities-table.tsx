@@ -10,6 +10,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -102,7 +103,7 @@ function createColumns(t: TFunction, listSearch: FacilitiesSearch) {
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('facilities.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('facilities.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => <FacilityActions facility={row.original} listSearch={listSearch} />,
     }),

@@ -545,8 +545,10 @@ function programColumns(t: TFunction, remove?: (index: number) => void) {
       ? [
           programColumn.display({
             id: 'actions',
-            header: () => <span className="sr-only">{t('requisition-groups.actions')}</span>,
-            meta: { className: 'w-16' },
+            header: () => (
+              <DataTableHeaderLabel>{t('requisition-groups.actions')}</DataTableHeaderLabel>
+            ),
+            meta: { className: 'w-24' },
             cell: ({ row }) => (
               <RemoveButton
                 name={row.original.program.name ?? row.original.program.id}
@@ -723,8 +725,9 @@ function memberColumns(t: TFunction, remove?: (id: string, visible: number) => v
     }),
     memberColumn.display({
       id: 'actions',
-      header: () => remove && <span className="sr-only">{t('requisition-groups.actions')}</span>,
-      meta: { className: 'w-16' },
+      header: () =>
+        remove && <DataTableHeaderLabel>{t('requisition-groups.actions')}</DataTableHeaderLabel>,
+      meta: { className: 'w-24' },
       cell: ({ row }) =>
         remove && (
           <RemoveButton

@@ -17,8 +17,10 @@ export type CardAction = {
   label: string;
   name?: string;
   destructive?: boolean;
+  variant?: 'default' | 'secondary';
   disabled?: boolean;
   focusableWhenDisabled?: boolean;
+  opensDialog?: boolean;
   onSelect?: (trigger: HTMLButtonElement) => void;
   link?: ReactElement;
   data?: DataAttributes;
@@ -67,7 +69,7 @@ function CardActionButton({ action }: { action: CardAction }) {
             onClick={action.onSelect && ((event) => action.onSelect?.(event.currentTarget))}
             render={action.link}
             size="icon-sm"
-            variant={action.destructive ? 'destructive' : 'outline'}
+            variant={action.destructive ? 'destructive' : (action.variant ?? 'outline')}
           />
         }
       >
@@ -190,7 +192,9 @@ function CardActionsMenu({
             key={action.id}
             onClick={
               action.onSelect &&
-              menu.opensDialog(() => trigger.current && action.onSelect?.(trigger.current))
+              (action.opensDialog === false
+                ? () => trigger.current && action.onSelect?.(trigger.current)
+                : menu.opensDialog(() => trigger.current && action.onSelect?.(trigger.current)))
             }
             render={action.link}
             variant={action.destructive ? 'destructive' : 'default'}

@@ -81,3 +81,10 @@ export type InventoryItemRecord = Omit<InventoryItemUpdate, 'equipmentTrackingId
   modifiedDate?: string;
   lastModifier?: { firstName?: string; lastName?: string };
 };
+
+export type FacilityCceItem = {
+  id: string;
+  referenceName: string;
+  functionalStatus: EquipmentStatus | null;
+  facility: { id: string };
+};

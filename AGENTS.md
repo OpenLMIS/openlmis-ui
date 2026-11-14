@@ -303,7 +303,7 @@ edits, which have no prop for TypeScript to detect:
 | `table.tsx` | Keep TableFooter `sticky`, opaque headers and zero-spacing separate cell borders with `scroll="both"` so sticky dividers and measured end offsets stay gapless, TableCell `rowHeader`, and TableHead/TableCell `sticky="end"` with CSS-variable logical offsets and end-pin data attributes |
 | `table.tsx` | Preserve `width="columns"` with explicit colgroup minima and full container width, `TableHead width="patient"`, footer scroll padding and single-pixel sticky dividers |
 | `table.tsx` | Preserve TableRow `drag` with transform/transition from CSS custom properties and `data-[invalid]:bg-destructive/10` for invalid draft lines |
-| `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate. Preserve full-width wrapping `ComboboxChips`, disabled styling and `size="lg"` (36px minimum); virtual lists accept single or multiple values and scroll keyboard highlights into view. Keep the ScrollArea `ScrollBar` in `ComboboxList` |
+| `combobox.tsx` | Keep page-visibility gates and close transient overlays when the page hides. Keep `ComboboxChip` at `max-w-full min-w-0` so long tags truncate. Preserve full-width wrapping `ComboboxChips`, disabled styling and `size="lg"` (36px minimum); virtual lists accept single or multiple values and scroll keyboard highlights into view. Keep the ScrollArea `ScrollBar` in `ComboboxList`; omit scroll hints when there are no filtered options |
 | `tabs.tsx` | Keep TabsList `size="lg"` 36px triggers and the stacked `wrap="column"` list's start-aligned, full-strength labels |
 | `tabs.tsx` | Keep `TabsItem` and `TabsClose`: a closable tab's button sits beside its trigger, which reserves end padding, never nested inside it |
 
@@ -458,6 +458,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - **Support backend services on master.** Never depend on branch-only endpoints/parameters.
   Preserve legacy API limits: `GET /orderables` has separate code/name filters, so offer
   Search By Name in the toolbar and Search By Code inside Filters.
+- Loading tables never call `useDeploymentTimeZone` or other suspending hooks; build their
+  columns with a fixed time zone.
 - Keep the toolbar outside `QueryBoundary`. Rows read `useDeferredValue(search)`;
   first load shows `DataTableSkeleton`, later requests keep dimmed existing rows until ready.
   Filter typing replaces history; paging/sorting add entries for Back navigation.
@@ -489,6 +491,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   minimums do not fit.
 
 - Tables draw vertical column dividers by default.
+- List action columns show a visible translated heading. Remove-only draft editor columns may
+  keep a visually hidden heading. Single-line table headers truncate within
+  their column with an ellipsis and expose the full label on hover; sort icons remain visible.
 
 - Exception to one-line headers: the requisition and batch approval grids wrap header labels
   between words, up to three lines, with an info icon tooltip for template definitions.
@@ -561,7 +566,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   like the table's "..." menu (`label`, required). Pass the main action (Edit, then Configure, then
   View) first in `actions`; it sits at the band's end. Up to three show as buttons; four or more
   show two plus a "..." menu holding the rest, destructive last. Server deletes always confirm;
-  draft-row removal is instant. Skeletons pass the same count to `CardActionsSkeleton` or
+  draft-row removal is instant. Set `CardAction.opensDialog` to `false` for callbacks that do
+  not open a dialog so menu focus returns to the trigger; omitted keeps dialog focus handling.
+  Skeletons pass the same count to `CardActionsSkeleton` or
   `TableCardsSkeleton actions`. Editor and dialog tables follow the same rule. Dialogs measure
   with `useDialogCardLayout(size)` (`src/hooks/use-card-view.ts`): below 672px or once the screen
   squeezes a narrower dialog below its own width. `DialogTable` and `DialogTableSkeleton`
@@ -591,8 +598,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   Where the API filters code and name separately (Products, Stock On Hand), Name stays visible
   and Code goes inside. Selects, comboboxes, dates, switches and secondary text such as Lot Code
   go inside too. No search means the button stands alone; no other filters means no button.
-  Physical Inventory is the exception: its progress bar leads the toolbar, so Keywords sits
-  inside Filters there. Wrap toolbars in `DataTableToolbar` (`align="end"` for unit/View rows).
+  Physical Inventory puts Keywords inside Filters because its progress bar leads the toolbar.
+  Fulfill Orders keeps its Recently Ordered / Oldest Orders sort select beside Filters as an
+  approved shortcut for Date Created sorting. Wrap toolbars in `DataTableToolbar` (`align="end"` for unit/View rows).
 - Page-level controls (header actions, toolbars, pickers and Add buttons above child tables)
   pass the `lg` size: 36px at every width, with h-9 skeleton blocks. Controls in table rows
   stay `sm`; those in cards, dialogs and the Filters popover keep the default. Never resize
@@ -645,11 +653,13 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `lucide-react` and sibling files. No hooks, other lib modules, features or i18next.
 - Avoid app variants such as `Button tone`. Allowed exceptions: `SelectTrigger width`,
   `Table density/layout/width/scroll`, `TableCell rowHeader`, `TableHeader surface`,
-  `DropdownMenuContent width`, `Button width`,
+  `TableRow pinned/surface`,
+  `TableHead`/`TableCell sticky` (end-pinned Actions through `meta.sticky`),
+  `DropdownMenuContent width`, `Button width/align`,
   `ComboboxInput width/clearLabel`, `InputGroup size="lg"`, `PopoverContent width`, `Skeleton fill`,
   `Button variant="destructive-solid"` and `"destructive-outline"`. `TableCell rowHeader` becomes
   `<th scope="row">` in the registry. Other exceptions become plain `className`s;
-  `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
+  `Button align="start"` becomes `justify-start font-normal`; `InputGroup size="lg"` becomes `h-9`. `selectionColumn` ships the checkbox's indeterminate-minus
   customization too.
 - Dialog, AlertDialog, Popover, Select, Combobox, DropdownMenu and Sheet import the app
   `@/components/shared/page-visibility` gate. Its context defaults to false, keeping these
@@ -759,8 +769,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   to mark the control invalid and reference an existing visible error instead of rendering another
   error or tooltip. `TextareaField describedBy` adds a description such as a character counter.
   `ComboboxField invalid` and `describedBy` associate a separate selection field error with its picker.
-- Inline `SelectField`, `TextareaField`, `QuantityField` and `DateField` accept `hideErrors`.
-  Editor line tables use it to hide error text, retain `aria-invalid` and
+- Inline and row-layout fields accept `hideErrors`. Editor line tables and delivery forms use it to hide error text, retain `aria-invalid` and
   screen-reader descriptions, and show the message on field hover or focus through Tooltip without
   adding tab stops. Invalid Submit and server failures open an AlertDialog, as Reverse does; closing
   validation focuses the first invalid field on its page. In cards, `revealField`
@@ -824,6 +833,10 @@ pending results, and abort on unmount. Each screen supplies its own lot policy. 
 scanning follows the kind policy; Unpack keeps it off, as legacy.
 
 ## Facility and program picker
+
+`FacilitySearchPicker` and its skeleton in `src/components/pickers/` share the single-facility
+Search form, validation and virtualized full option list. Callers provide translated copy and
+keep applied selections and drafts. The picker imports no features or auth.
 
 Facility/program screens use `FacilityProgramSelector`
 (`src/components/pickers/facility-program-selector/`).

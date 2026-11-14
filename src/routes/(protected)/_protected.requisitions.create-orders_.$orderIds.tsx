@@ -1,5 +1,10 @@
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, notFound } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  notFound,
+  type RegisteredRouter,
+  useLocation,
+} from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -20,6 +25,7 @@ import { OrderHeaderSkeleton } from '@/features/orders/components/order-header';
 import { OrderLinesSkeleton } from '@/features/orders/components/order-lines';
 import { orderIds } from '@/features/orders/lib/order-draft';
 import { cachedOrders, loadOrders } from '@/features/orders/lib/order-load';
+import { orderReturnTarget } from '@/features/orders/lib/order-return';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { randomId } from '@/lib/random-id';
 import { RIGHTS } from '@/lib/rights';
@@ -54,6 +60,11 @@ function Page() {
   const entries = Route.useLoaderData();
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const state = useLocation({ select: (location) => location.state });
+  const returnTarget = orderReturnTarget(state, {
+    to: '/requisitions/create-orders' as const,
+    search: {},
+  });
   const queryClient = useQueryClient();
   const [batch, setBatch] = useState(() => entries.map((entry) => entry.id));
   if (entries.some((entry) => !batch.includes(entry.id)))
@@ -63,8 +74,8 @@ function Page() {
       key={batch.join(',')}
       entries={entries}
       tab={tab}
-      onTab={(id) => navigate({ search: { tab: id }, replace: true })}
-      onCancel={() => navigate({ to: '/requisitions/create-orders' })}
+      onTab={(id) => navigate({ search: { tab: id }, state: true, replace: true })}
+      onCancel={() => navigate<RegisteredRouter, string, string>(returnTarget)}
       onBatchChange={async (ids) => {
         const scope = getSessionScope();
         const token = randomId();
@@ -75,10 +86,10 @@ function Page() {
                 to: '/requisitions/create-orders/$orderIds',
                 params: { orderIds: ids.join(',') },
                 search: {},
-                state: { orderBatchChange: token },
+                state: { orderBatchChange: token, orderReturn: state.orderReturn },
                 replace: true,
               })
-            : navigate({ to: '/requisitions/create-orders', replace: true }));
+            : navigate<RegisteredRouter, string, string>({ ...returnTarget, replace: true }));
           assertSessionScope(scope);
           if (!ids.length) {
             const heading = document.querySelector<HTMLElement>('main h1');

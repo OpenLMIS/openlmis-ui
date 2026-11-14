@@ -22,8 +22,9 @@ import {
   approvedProductsOptions,
   deploymentTimeZoneOptions,
 } from '@/features/reference-data/api/queries';
+import { queryKeys } from '@/lib/key-factory';
 import { Route } from '@/routes/(protected)/_protected.requisitions.create-orders_.$orderIds';
-import { creatingOrder } from '@/test-utils/order-fixtures';
+import { creatingOrder, orderProduct } from '@/test-utils/order-fixtures';
 
 vi.mock('@/features/auth/lib/access', () => ({ requirePermissions: vi.fn(async () => ({})) }));
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
@@ -65,8 +66,7 @@ function setup(
         content: [
           {
             id: 'approved',
-            orderable: (order.orderLineItems[0] ?? creatingOrder(order.id).orderLineItems[0])
-              .orderable,
+            orderable: orderProduct,
           },
         ],
         totalElements: 1,
@@ -75,6 +75,10 @@ function setup(
         size: 100,
       },
     );
+  const listKey = queryKeys.orders.list({ supplyingFacilityId: 'supplier', page: 0 });
+  client.setQueryData(listKey, { content: [], totalElements: 0 });
+  client.setQueryData([...queryKeys.home.all, 'counts'], {});
+  client.setQueryData([...queryKeys.orders.all, 'requesting-facilities', ['supplier']], []);
   let changeBatch: (ids: string[]) => void;
   const onBatchChange = vi.fn(async (ids: string[]) => changeBatch(ids));
   function Harness() {
@@ -101,7 +105,7 @@ function setup(
       <Harness />
     </QueryClientProvider>,
   );
-  return { user: userEvent.setup(), onBatchChange };
+  return { user: userEvent.setup(), onBatchChange, client, listKey };
 }
 function quantity() {
   return screen.getByRole('textbox', { name: 'orders.edit.quantity-label' });
@@ -181,7 +185,10 @@ describe('order editor workflow', () => {
     ]);
   });
   it('requires every tab to be valid, summarizes both, and removes only a successful send', async () => {
-    const { user, onBatchChange } = setup([creatingOrder('a'), creatingOrder('b', 0)]);
+    const { user, onBatchChange, client, listKey } = setup([
+      creatingOrder('a'),
+      creatingOrder('b', 0),
+    ]);
     const create = screen.getByRole('button', { name: 'orders.edit.create' });
     expect(create).toBeDisabled();
     expect(create).toHaveAttribute('aria-description', 'orders.edit.create-invalid-description');
@@ -201,6 +208,12 @@ describe('order editor workflow', () => {
     await user.click(within(dialog).getByRole('button', { name: 'orders.edit.summary-confirm' }));
     await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith(['b']));
     expect(sendOrder).toHaveBeenCalledTimes(2);
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState([...queryKeys.home.all, 'counts'])?.isInvalidated).toBe(true);
+    expect(
+      client.getQueryState([...queryKeys.orders.all, 'requesting-facilities', ['supplier']])
+        ?.isInvalidated,
+    ).toBe(true);
     expect(sendOrder).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'b',
@@ -236,7 +249,7 @@ describe('order editor workflow', () => {
   });
   it('confirms Delete Batch, deletes every id and leaves the batch', async () => {
     vi.mocked(deleteOrders).mockResolvedValue(undefined);
-    const { user, onBatchChange } = setup();
+    const { user, onBatchChange, client, listKey } = setup();
     await user.click(screen.getByRole('button', { name: 'orders.edit.delete-batch' }));
     await user.click(
       within(screen.getByRole('alertdialog')).getByRole('button', {
@@ -245,6 +258,12 @@ describe('order editor workflow', () => {
     );
     await waitFor(() => expect(onBatchChange).toHaveBeenCalledWith([]));
     expect(deleteOrders).toHaveBeenCalledWith(['a', 'b']);
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState([...queryKeys.home.all, 'counts'])?.isInvalidated).toBe(true);
+    expect(
+      client.getQueryState([...queryKeys.orders.all, 'requesting-facilities', ['supplier']])
+        ?.isInvalidated,
+    ).toBe(true);
   });
   it('keeps the whole batch after a delete 404 and blocks the order no longer Creating', async () => {
     vi.mocked(deleteOrders).mockRejectedValue(
@@ -306,25 +325,12 @@ it.each(['delete', 'remove'] as const)(
       return creatingOrder(id);
     });
     vi.mocked(deleteOrders).mockResolvedValue(undefined);
-    const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
-    const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
-    const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
-    const pending = vi.fn(() => <p>Pending Orders</p>);
-    const page = createRoute({
-      getParentRoute: () => layout,
-      path: 'requisitions/create-orders/$orderIds',
-      validateSearch: Route.options.validateSearch as never,
-      loader: Route.options.loader as never,
-      component: Route.options.component as never,
-      pendingComponent: pending,
-    });
-    const router = createRouter({
-      routeTree: root.addChildren([
-        group.addChildren([layout.addChildren([page] as never)] as never),
-      ] as never),
-      history: createMemoryHistory({ initialEntries: ['/requisitions/create-orders/a,b?tab=b'] }),
-      context: { queryClient: client },
-    } as never) as AnyRouter;
+    const { router, pending } = editorRouter(client, '/requisitions/create-orders/a,b?tab=b');
+    const target = {
+      to: '/orders/view' as const,
+      search: { supplyingFacilityId: 'supplier', page: 2 },
+    };
+    router.history.replace('/requisitions/create-orders/a,b?tab=b', { orderReturn: target });
     render(
       <QueryClientProvider client={client}>
         <RouterProvider router={router} />
@@ -354,6 +360,10 @@ it.each(['delete', 'remove'] as const)(
     );
     expect(pending).toHaveBeenCalledTimes(pendingBefore);
     expect(fetchOrder).toHaveBeenCalledTimes(2);
+    expect(router.state.location.state.orderReturn).toEqual(target);
+    await user.click(screen.getByRole('button', { name: 'orders.edit.cancel' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/orders/view'));
+    expect(router.state.location.search).toMatchObject(target.search);
   },
 );
 
@@ -499,3 +509,88 @@ it('deletes the final order and replaces its history entry with the list', async
   await waitFor(() => expect(router.state.location.pathname).toBe('/previous'));
   client.clear();
 });
+
+function editorRouter(client: QueryClient, path: string) {
+  const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
+  const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
+  const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
+  const pending = vi.fn(() => <p>Pending Orders</p>);
+  const page = createRoute({
+    getParentRoute: () => layout,
+    path: 'requisitions/create-orders/$orderIds',
+    validateSearch: Route.options.validateSearch as never,
+    loader: Route.options.loader as never,
+    component: Route.options.component as never,
+    pendingComponent: pending,
+  });
+  const view = createRoute({
+    getParentRoute: () => layout,
+    path: 'orders/view',
+    component: () => <p>View Orders</p>,
+  });
+  const fallback = createRoute({
+    getParentRoute: () => layout,
+    path: 'requisitions/create-orders',
+    component: () => <p>Create Orders fallback</p>,
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([
+      group.addChildren([layout.addChildren([page, view, fallback] as never)] as never),
+    ] as never),
+    history: createMemoryHistory({ initialEntries: [path] }),
+    context: { queryClient: client },
+  } as never) as AnyRouter;
+  return { router, pending };
+}
+
+it.each(['send', 'fallback'] as const)(
+  'leaves the final order directly through its return target after %s',
+  async (action) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
+    vi.mocked(fetchOrder).mockImplementation(async (id) => {
+      return creatingOrder(id);
+    });
+    vi.mocked(deleteOrders).mockResolvedValue(undefined);
+    vi.mocked(sendOrder).mockResolvedValue(undefined);
+    const { router } = editorRouter(client, '/requisitions/create-orders/a');
+    const target = {
+      to: '/orders/view' as const,
+      search: { supplyingFacilityId: 'supplier', page: 2 },
+    };
+    if (action !== 'fallback')
+      router.history.replace('/requisitions/create-orders/a', { orderReturn: target });
+    render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    const navigate = vi.spyOn(router, 'navigate');
+    if (action === 'send') {
+      await user.click(await screen.findByRole('button', { name: 'orders.edit.create' }));
+      await user.click(
+        within(await screen.findByRole('dialog')).getByRole('button', {
+          name: 'orders.edit.summary-confirm',
+        }),
+      );
+    } else {
+      await user.click(await screen.findByRole('button', { name: 'orders.edit.delete-order-for' }));
+      await user.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: 'orders.edit.delete-order-action',
+        }),
+      );
+    }
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(
+        action === 'fallback' ? '/requisitions/create-orders' : target.to,
+      ),
+    );
+    if (action !== 'fallback') expect(router.state.location.search).toMatchObject(target.search);
+    expect(navigate).toHaveBeenCalledWith(expect.objectContaining({ replace: true }));
+    expect(screen.queryByText('Pending Orders')).not.toBeInTheDocument();
+  },
+);

@@ -1,6 +1,7 @@
 import { type QueryClient, queryOptions } from '@tanstack/react-query';
 import {
   fetchCatalogItems,
+  fetchFacilityCce,
   fetchInventoryAlerts,
   fetchInventoryItem,
   fetchInventoryItems,
@@ -39,3 +40,9 @@ export const listedInventoryItem = (queryClient: QueryClient, id: string) =>
     .getQueriesData<Page<InventoryItem>>({ queryKey: [...queryKeys.inventoryItems.all, 'list'] })
     .flatMap(([, page]) => page?.content ?? [])
     .find((item) => item.id === id);
+
+export const facilityCceOptions = (facilityId: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.inventoryItems.all, 'facility-cce', facilityId],
+    queryFn: () => fetchFacilityCce(facilityId),
+  });

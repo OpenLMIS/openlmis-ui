@@ -12,6 +12,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -108,7 +109,7 @@ function createColumns(
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('requisition-groups.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('requisition-groups.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => <RequisitionGroupActions group={row.original} search={search} />,
     }),

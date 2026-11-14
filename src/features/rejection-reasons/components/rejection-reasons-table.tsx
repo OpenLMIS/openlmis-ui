@@ -10,6 +10,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -69,7 +70,7 @@ function createColumns(t: TFunction, listSearch: RejectionReasonsListSearch) {
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('rejection-reasons.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('rejection-reasons.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => <RejectionReasonActions listSearch={listSearch} reason={row.original} />,
     }),

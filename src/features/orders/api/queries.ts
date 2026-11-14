@@ -1,12 +1,45 @@
 import { type QueryClient, queryOptions } from '@tanstack/react-query';
-import { fetchOrder, fetchOrderStockOnHand } from '@/features/orders/api/api';
-import { commonNodeIds, supplierIds } from '@/features/orders/lib/supplying-facilities';
 import {
+  fetchOrder,
+  fetchOrderRequestingFacilityIds,
+  fetchOrderStockOnHand,
+  fetchProofOfDelivery,
+  fetchShipmentSummaries,
+  fetchShipmentVvm,
+  findShipment,
+  findShipmentDraft,
+  searchOrders,
+  shipmentVvmCardIds,
+} from '@/features/orders/api/api';
+import type { OrderSearchParams } from '@/features/orders/lib/order-search';
+import type { PodResponse, ProofOfDelivery } from '@/features/orders/lib/pod-types';
+import type { ShipmentSavedLine, ShipmentSummary } from '@/features/orders/lib/shipment-types';
+import {
+  commonNodeIds,
+  supplierIds,
+  viewOrderSupplierIds,
+} from '@/features/orders/lib/supplying-facilities';
+import type { OrderProduct, OrderStockFilter } from '@/features/orders/lib/types';
+import {
+  facilitiesByIdsOptions,
   facilitySupervisoryNodesOptions,
+  LOOKUP_STALE_TIME,
+  lotsByIdsOptions,
+  minimalFacilitiesOptions,
+  orderableFulfillsOptions,
+  orderablesByIdentitiesOptions,
+  orderablesByIdsOptions,
   supplyLinesOptions,
+  validReasonsOptions,
 } from '@/features/reference-data/api/queries';
+import type {
+  ValidReasonAssignment,
+  ValidReasonsFilter,
+} from '@/features/reference-data/lib/types';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import { ORDER_REQUESTING_FACILITIES_KEY } from '@/lib/order-queries';
+import type { Permissions } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const supplyingFacilitiesOptions = (programId: string, facilityIds: readonly string[]) =>
@@ -32,22 +65,21 @@ export const supplyingFacilitiesOptions = (programId: string, facilityIds: reado
 
 export const orderOptions = (id: string) =>
   queryOptions({ queryKey: queryKeys.orders.detail(id), queryFn: () => fetchOrder(id) });
-type StockFilter = { programId: string; facilityId: string; orderableIds: readonly string[] };
 const STOCK_FRESHNESS = 30_000;
-const balanceKey = (filter: StockFilter, id: string) => [
+const balanceKey = (filter: OrderStockFilter, id: string) => [
   ...queryKeys.stockCardSummaries.all,
   'order-balance',
   filter.programId,
   filter.facilityId,
   id,
 ];
-export function cachedOrderBalance(client: QueryClient, filter: StockFilter, id: string) {
+export function cachedOrderBalance(client: QueryClient, filter: OrderStockFilter, id: string) {
   const state = client.getQueryState<number | null>(balanceKey(filter, id));
   return state && !state.isInvalidated && Date.now() - state.dataUpdatedAt < STOCK_FRESHNESS
     ? state.data
     : undefined;
 }
-export const orderStockOnHandOptions = (filter: StockFilter) =>
+export const orderStockOnHandOptions = (filter: OrderStockFilter) =>
   queryOptions({
     queryKey: [
       ...queryKeys.stockCardSummaries.all,
@@ -97,4 +129,115 @@ export const orderStockOnHandOptions = (filter: StockFilter) =>
         stockOnHand: client.getQueryData<number | null>(balanceKey(filter, id)) ?? null,
       }));
     },
+  });
+
+export const ordersSearchOptions = (params: OrderSearchParams) =>
+  queryOptions({ queryKey: queryKeys.orders.list(params), queryFn: () => searchOrders(params) });
+
+export const orderRequestingFacilitiesOptions = (ids: readonly string[]) =>
+  queryOptions({
+    queryKey: [...ORDER_REQUESTING_FACILITIES_KEY, ids.toSorted()],
+    enabled: ids.length > 0,
+    queryFn: () => fetchOrderRequestingFacilityIds(ids),
+  });
+
+export function viewSupplierFacilitiesOptions(source: Permissions | readonly string[]) {
+  const ids = [...new Set('grants' in source ? viewOrderSupplierIds(source) : source)].sort();
+  return queryOptions({
+    queryKey: [...queryKeys.facilities.all, 'order-suppliers', ids],
+    staleTime: LOOKUP_STALE_TIME,
+    queryFn: async ({ client }) => {
+      const cached = client.getQueryData(minimalFacilitiesOptions().queryKey);
+      if (cached) return cached;
+      if (ids.length > 100) return client.fetchQuery(minimalFacilitiesOptions());
+      const facilities = await client.fetchQuery(facilitiesByIdsOptions(ids));
+      return facilities.map(({ id, code, name, active }) => ({
+        id,
+        code,
+        name: name ?? code,
+        active,
+      }));
+    },
+  });
+}
+
+export const proofOfDeliveryOptions = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.proofsOfDelivery.detail(id),
+    queryFn: () => fetchProofOfDelivery(id),
+  });
+export const podDebitReasons = (assignments: readonly ValidReasonAssignment[]) =>
+  assignments
+    .filter((assignment) => !assignment.hidden && assignment.reason.reasonType === 'DEBIT')
+    .map((assignment) => assignment.reason);
+export const podReasonsOptions = (filter: ValidReasonsFilter) =>
+  queryOptions({
+    ...validReasonsOptions(filter),
+    select: podDebitReasons,
+  });
+export const podProductOptions = (pod: Pick<PodResponse, 'lineItems'>) =>
+  orderablesByIdentitiesOptions(pod.lineItems.map((line) => line.orderable));
+export const podLotOptions = (pod: Pick<PodResponse, 'lineItems'>) =>
+  lotsByIdsOptions([...new Set(pod.lineItems.flatMap((line) => (line.lot ? [line.lot.id] : [])))]);
+export const podReferenceOptions = (pod: ProofOfDelivery) => ({
+  products: podProductOptions(pod),
+  lots: podLotOptions(pod),
+  fulfills: orderableFulfillsOptions([
+    ...new Set(pod.shipment.order.orderLineItems.map((line) => line.orderable.id)),
+  ]),
+});
+export const shipmentSummariesOptions = (filter: OrderStockFilter) =>
+  queryOptions({
+    queryKey: [
+      ...queryKeys.stockCardSummaries.all,
+      'shipment',
+      filter.programId,
+      filter.facilityId,
+      [...new Set(filter.orderableIds)].toSorted(),
+    ],
+    queryFn: () => fetchShipmentSummaries(filter),
+  });
+export const shipmentDraftOptions = (orderId: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.orders.all, 'shipment-draft', orderId],
+    queryFn: () => findShipmentDraft(orderId),
+  });
+export const shipmentOptions = (orderId: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.orders.all, 'shipment', orderId],
+    queryFn: () => findShipment(orderId),
+  });
+export const shipmentProductsOptions = (summaries: readonly ShipmentSummary[]) =>
+  orderablesByIdsOptions([
+    ...new Set(
+      summaries.flatMap((summary) =>
+        (summary.canFulfillForMe ?? []).map((card) => card.orderable.id),
+      ),
+    ),
+  ]);
+export const shipmentSavedProductsOptions = (lines: readonly ShipmentSavedLine[]) =>
+  orderablesByIdentitiesOptions(lines.map((line) => line.orderable));
+export const shipmentLotsOptions = (
+  summaries: readonly ShipmentSummary[],
+  savedLines: readonly ShipmentSavedLine[] = [],
+) =>
+  lotsByIdsOptions([
+    ...new Set([
+      ...summaries.flatMap((summary) =>
+        (summary.canFulfillForMe ?? []).flatMap((card) => (card.lot ? [card.lot.id] : [])),
+      ),
+      ...savedLines.flatMap((line) => (line.lot ? [line.lot.id] : [])),
+    ]),
+  ]);
+export const shipmentVvmOptions = (
+  summaries: readonly ShipmentSummary[],
+  products: readonly OrderProduct[],
+) =>
+  queryOptions({
+    queryKey: [
+      ...queryKeys.stockCardSummaries.all,
+      'shipment-vvm',
+      shipmentVvmCardIds(summaries, products),
+    ],
+    queryFn: () => fetchShipmentVvm(summaries, products),
   });

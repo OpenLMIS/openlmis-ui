@@ -9,6 +9,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -83,7 +84,7 @@ function createColumns(t: TFunction, language: string, onEdit: (id: string) => v
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('lots.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('lots.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => <LotActions lot={row.original} onEdit={onEdit} />,
     }),

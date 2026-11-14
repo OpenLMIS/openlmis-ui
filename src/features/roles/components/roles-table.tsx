@@ -9,6 +9,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -75,7 +76,7 @@ function createColumns(t: TFunction, actions: RoleRowActions) {
       ? [
           columnHelper.display({
             id: 'actions',
-            header: () => <span className="sr-only">{t('roles.actions')}</span>,
+            header: () => <DataTableHeaderLabel>{t('roles.actions')}</DataTableHeaderLabel>,
             meta: { className: 'w-24' },
             cell: ({ row }) => <RoleActions actions={actions} role={row.original} />,
           }),

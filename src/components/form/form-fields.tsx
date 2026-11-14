@@ -228,6 +228,36 @@ function FieldFrame({
     </>
   );
 
+  const control =
+    hideErrors && layout !== 'stacked' ? (
+      <Tooltip
+        disabled={!isInvalid || externalError}
+        triggerId={`${field.name}-error-trigger`}
+        open={!externalError && isInvalid && errorOpen}
+        onOpenChange={setErrorOpen}
+      >
+        <TooltipTrigger
+          id={`${field.name}-error-trigger`}
+          render={<div className="min-w-0" />}
+          tabIndex={-1}
+          onFocusCapture={() => setErrorOpen(true)}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setErrorOpen(false);
+          }}
+        >
+          {children}
+        </TooltipTrigger>
+        <TooltipContent id={`${field.name}-error-tooltip`} role="tooltip">
+          {errors
+            .map(({ message }) => message)
+            .filter(Boolean)
+            .join(' ')}
+        </TooltipContent>
+      </Tooltip>
+    ) : (
+      children
+    );
+
   if (layout === 'row') {
     return (
       <Field data-disabled={disabled} data-invalid={isInvalid} spacing="tight">
@@ -241,12 +271,18 @@ function FieldFrame({
           }
           value="control"
         >
-          {children}
-          {isInvalid && !externalError && (
-            <div className={errorAlign === 'end' ? 'text-end' : undefined}>
-              <FieldError errors={errors} id={errorId} />
-            </div>
-          )}
+          {control}
+          {isInvalid &&
+            !externalError &&
+            (hideErrors ? (
+              <HiddenFromView>
+                <FieldError errors={errors} id={errorId} />
+              </HiddenFromView>
+            ) : (
+              <div className={errorAlign === 'end' ? 'text-end' : undefined}>
+                <FieldError errors={errors} id={errorId} />
+              </div>
+            ))}
         </SettingsRowFrame>
       </Field>
     );
@@ -259,34 +295,7 @@ function FieldFrame({
             {labelText}
           </label>
         </HiddenFromView>
-        {hideErrors ? (
-          <Tooltip
-            disabled={!isInvalid || externalError}
-            triggerId={`${field.name}-error-trigger`}
-            open={!externalError && isInvalid && errorOpen}
-            onOpenChange={setErrorOpen}
-          >
-            <TooltipTrigger
-              id={`${field.name}-error-trigger`}
-              render={<div className="min-w-0" />}
-              tabIndex={-1}
-              onFocusCapture={() => setErrorOpen(true)}
-              onBlurCapture={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) setErrorOpen(false);
-              }}
-            >
-              {children}
-            </TooltipTrigger>
-            <TooltipContent id={`${field.name}-error-tooltip`} role="tooltip">
-              {errors
-                .map(({ message }) => message)
-                .filter(Boolean)
-                .join(' ')}
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          children
-        )}
+        {control}
         {details}
       </Field>
     );
@@ -385,7 +394,7 @@ export function TextField({
         onChange={(event) => field.handleChange(event.target.value)}
         placeholder={placeholder}
         type={type}
-        value={field.state.value}
+        value={field.state.value ?? ''}
       />
     </FieldFrame>
   );

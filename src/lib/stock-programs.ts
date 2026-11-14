@@ -31,6 +31,9 @@ export type HomeStockAccess = Pick<
   'homeFacility' | 'programs' | 'permissionStrings'
 >;
 
+export const homeStockRefreshKey = (facilityId: string, programId: string) =>
+  `${facilityId}:${programId}`;
+
 export function homeStockScopes(access: HomeStockAccess) {
   const home = access.homeFacility;
   if (!home) return [];
@@ -42,7 +45,7 @@ export function homeStockScopes(access: HomeStockAccess) {
     id: program.id,
     name: recordLabel(program),
     key: [home.id, program.id],
-    refreshKey: `${home.id}:${program.id}`,
+    refreshKey: homeStockRefreshKey(home.id, program.id),
     facilityId: home.id,
     programId: program.id,
     facilityTypeId: home.type.id,

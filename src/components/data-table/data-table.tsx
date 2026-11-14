@@ -43,6 +43,7 @@ export type DataTableColumnMeta = {
   className?: string;
   skeleton?: 'control';
   label?: string;
+  sticky?: 'end';
 };
 
 // The server sorts and pages, so no client row models are registered.
@@ -90,6 +91,7 @@ export function DataTable<TData extends RowData>({
 }: DataTableProps<TData>) {
   const rows = table.getRowModel().rows;
   const columns = table.getVisibleLeafColumns();
+  const pinned = columns.some((column) => column.columnDef.meta?.sticky);
   const tableRef = useRef<HTMLTableElement>(null);
   const pageIndex = table.state.pagination.pageIndex;
   const previousPage = useRef(pageIndex);
@@ -135,12 +137,13 @@ export function DataTable<TData extends RowData>({
                   </TableRow>
                 ) : (
                   <TableRow
+                    pinned={pinned}
                     data-invalid={isRowInvalid?.(row.original) || undefined}
                     data-state={row.getIsSelected() ? 'selected' : undefined}
                     key={row.id}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} sticky={cell.column.columnDef.meta?.sticky}>
                         <FlexRender cell={cell} />
                       </TableCell>
                     ))}
@@ -170,6 +173,7 @@ function DataTableHeader<TData extends RowData>({
   table: DataTableInstance<TData>;
   columnWidths?: Readonly<Record<string, number>>;
 }) {
+  const pinned = table.getVisibleLeafColumns().some((column) => column.columnDef.meta?.sticky);
   return (
     <>
       <colgroup>
@@ -190,9 +194,13 @@ function DataTableHeader<TData extends RowData>({
       </colgroup>
       <TableHeader surface="muted">
         {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
+          <TableRow key={headerGroup.id} pinned={pinned} surface={pinned ? 'muted' : 'default'}>
             {headerGroup.headers.map((header) => (
-              <TableHead aria-sort={ariaSort(header.column)} key={header.id}>
+              <TableHead
+                aria-sort={ariaSort(header.column)}
+                key={header.id}
+                sticky={header.column.columnDef.meta?.sticky}
+              >
                 {header.isPlaceholder ? null : typeof header.column.columnDef.header ===
                   'string' ? (
                   <DataTableHeaderLabel>{header.column.columnDef.header}</DataTableHeaderLabel>
@@ -269,8 +277,14 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
         : ChevronsUpDownIcon;
 
   return (
-    <div className="-ms-2">
-      <Button onClick={column.getToggleSortingHandler()} size="xs" variant="ghost">
+    <div className="-ms-2 min-w-0">
+      <Button
+        onClick={column.getToggleSortingHandler()}
+        size="xs"
+        variant="ghost"
+        width="full"
+        align="start"
+      >
         <DataTableHeaderLabel>{title}</DataTableHeaderLabel>
         <SortIcon className="text-muted-foreground" data-icon="inline-end" />
       </Button>
@@ -280,7 +294,10 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
 
 export function DataTableHeaderLabel({ children }: { children: ReactNode }) {
   return (
-    <span className="font-medium text-muted-foreground text-2xs uppercase tracking-table-label">
+    <span
+      className="block min-w-0 truncate font-medium text-muted-foreground text-2xs uppercase tracking-table-label"
+      title={typeof children === 'string' ? children : undefined}
+    >
       {children}
     </span>
   );
@@ -319,6 +336,7 @@ export function DataTableSkeleton<TData extends RowData>({
   pagination = 'default',
 }: DataTableSkeletonProps<TData>) {
   const columns = table.getVisibleLeafColumns();
+  const pinned = columns.some((column) => column.columnDef.meta?.sticky);
   const rows = Array.from({ length: rowCount }, (_, index) => index);
 
   return (
@@ -329,9 +347,9 @@ export function DataTableSkeleton<TData extends RowData>({
             <DataTableHeader table={table} />
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row}>
+                <TableRow key={row} pinned={pinned}>
                   {columns.map((column) => (
-                    <TableCell key={column.id}>
+                    <TableCell key={column.id} sticky={column.columnDef.meta?.sticky}>
                       {column.id === 'select' ? (
                         <SkeletonBox />
                       ) : column.columnDef.meta?.skeleton === 'control' ? (

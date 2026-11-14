@@ -7,6 +7,7 @@ import {
   DataTable,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
 import { CardActions, useInCards } from '@/components/display/card-actions';
@@ -118,8 +119,8 @@ export function AssociationMembersTable({
         ...memberColumns(t),
         helper.display({
           id: 'actions',
-          header: () => <span className="sr-only">{t('supply-partners.actions')}</span>,
-          meta: { className: 'w-16' },
+          header: () => <DataTableHeaderLabel>{t('supply-partners.actions')}</DataTableHeaderLabel>,
+          meta: { className: 'w-24' },
           cell: (context) => <MemberRemoveCell {...context} />,
         }),
       ]),

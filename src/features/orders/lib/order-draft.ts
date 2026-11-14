@@ -12,7 +12,7 @@ export type DraftLine = {
 export type OrderBody = Omit<Order, 'orderLineItems'> & {
   orderLineItems: {
     id?: string;
-    orderable: { id: string; meta: { versionNumber?: number } };
+    orderable: { id: string; meta: { versionNumber?: number | null } };
     orderedQuantity: number;
   }[];
 };
@@ -40,7 +40,10 @@ export function orderBody(order: Order, lines: readonly DraftLine[]): OrderBody 
     ...order,
     orderLineItems: lines.map((line) => ({
       ...(line.id && { id: line.id }),
-      orderable: { id: line.product.id, meta: { versionNumber: line.product.meta?.versionNumber } },
+      orderable: {
+        id: line.product.id,
+        meta: { versionNumber: line.product.meta?.versionNumber },
+      },
       orderedQuantity: toWholeNumber(line.quantity.doses),
     })),
   };

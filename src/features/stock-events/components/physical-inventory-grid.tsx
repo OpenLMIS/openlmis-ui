@@ -64,10 +64,10 @@ import type {
   InventoryCategoryBand,
   InventoryLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
-import { vvmItems } from '@/features/stock-events/lib/vvm-items';
 import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import type { QuantityUnit } from '@/lib/quantity';
 import { cn } from '@/lib/utils';
+import { vvmItems } from '@/lib/vvm';
 import { toLatinDigits, toOptionalWholeNumber } from '@/lib/whole-number';
 
 const COLUMNS = [

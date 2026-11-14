@@ -9,6 +9,7 @@ import {
   DataTableColumnHeader,
   DataTableEmpty,
   type DataTableFeatures,
+  DataTableHeaderLabel,
   DataTableSkeleton,
   dataTableFeatures,
 } from '@/components/data-table/data-table';
@@ -60,7 +61,7 @@ function createColumns(
     }),
     columnHelper.display({
       id: 'actions',
-      header: () => <span className="sr-only">{t('service-accounts.actions')}</span>,
+      header: () => <DataTableHeaderLabel>{t('service-accounts.actions')}</DataTableHeaderLabel>,
       meta: { className: 'w-24' },
       cell: ({ row }) => <KeyActions onDelete={onDelete} token={row.original.token} />,
     }),
