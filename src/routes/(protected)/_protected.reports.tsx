@@ -17,8 +17,6 @@ import {
   templateReportsOptions,
 } from '@/features/reports/api/queries';
 import { ReportCatalog, ReportCatalogSkeleton } from '@/features/reports/components/report-catalog';
-import { useReloadForUser } from '@/hooks/use-reload-for-user';
-import { queryKeys } from '@/lib/key-factory';
 import { RIGHTS } from '@/lib/rights';
 import { getReportingModules } from '@/lib/runtime-config';
 import {
@@ -62,16 +60,11 @@ function ReportsHeader() {
 
 function ReportsPage() {
   const { userId, modules } = Route.useLoaderData();
-  const currentUser = useReloadForUser(userId, queryKeys.reportTemplates.all);
   return (
     <Workspace>
       <ReportsHeader />
       <WorkspaceContent>
-        {userId === currentUser ? (
-          <ReportCatalog userId={userId} modules={modules} />
-        ) : (
-          <ReportCatalogSkeleton />
-        )}
+        <ReportCatalog userId={userId} modules={modules} />
       </WorkspaceContent>
     </Workspace>
   );

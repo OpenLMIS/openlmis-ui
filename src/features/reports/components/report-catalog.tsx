@@ -1,6 +1,8 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { ArrowRightIcon, ChartColumnIcon, InfoIcon, TriangleAlertIcon } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,10 +25,22 @@ import type { CatalogReport } from '@/features/reports/lib/types';
 import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
 import { isRefused } from '@/lib/http';
 import { legacyHome } from '@/lib/legacy-home';
-import { useOnline } from '@/lib/online';
+import { reportCaughtError } from '@/lib/report-error';
 
 export function ReportCatalog({ userId, modules }: { userId: string; modules: readonly string[] }) {
   const { t } = useTranslation();
+  const catalog = useRef<HTMLDivElement>(null);
+  const focusedReport = useRef<HTMLAnchorElement | null>(null);
+  useLayoutEffect(() => {
+    const previous = focusedReport.current;
+    if (!previous || previous.isConnected) return;
+    focusedReport.current = null;
+    if (document.activeElement !== document.body) return;
+    const replacement = Array.from(
+      catalog.current?.querySelectorAll<HTMLAnchorElement>('[data-report-key]') ?? [],
+    ).find((link) => link.dataset.reportKey === previous.dataset.reportKey);
+    replacement?.focus();
+  });
   const categories = useQuery(reportCategoriesOptions(userId));
   const templates = useQueries({
     queries: modules.map((module) => templateReportsOptions(userId, module)),
@@ -69,7 +83,20 @@ export function ReportCatalog({ userId, modules }: { userId: string; modules: re
   const errors = sources.filter(({ query }) => query.isError);
 
   return (
-    <div className="flex flex-col gap-4" aria-busy={pending}>
+    <div
+      ref={catalog}
+      className="flex flex-col gap-4"
+      aria-busy={pending}
+      onFocusCapture={(event) => {
+        focusedReport.current =
+          event.target instanceof HTMLAnchorElement && event.target.dataset.reportKey
+            ? event.target
+            : null;
+      }}
+      onBlurCapture={() => {
+        focusedReport.current = null;
+      }}
+    >
       <Alert variant="info" role="note">
         <InfoIcon />
         <AlertDescription id="reports-legacy-notice">
@@ -96,10 +123,7 @@ export function ReportCatalog({ userId, modules }: { userId: string; modules: re
             <CardContent>
               <ul className="flex flex-col gap-1">
                 {group.reports.map((report) => (
-                  <li
-                    className="flex min-h-9"
-                    key={`${report.kind}-${report.kind === 'template' ? report.module : ''}-${report.id}`}
-                  >
+                  <li className="flex min-h-9" key={reportKey(report)}>
                     <ReportLink report={report} />
                   </li>
                 ))}
@@ -136,20 +160,21 @@ function CatalogError({
   retry: () => void;
 }) {
   const { t } = useTranslation();
-  const online = useOnline();
+  const offline = useOfflineFailure(error, retry);
+  useEffect(() => reportCaughtError(error, {}), [error]);
   return (
     <Alert variant="destructive" actionLayout="flow">
       <TriangleAlertIcon />
       <AlertTitle>{t('reports.load-error-title', { source })}</AlertTitle>
       <AlertDescription>
-        {!online
+        {offline
           ? t('offline.notice-description')
           : isRefused(error)
             ? t('reports.source-refused')
             : t('reports.load-error-description')}
       </AlertDescription>
       <AlertAction>
-        <Button variant="outline" disabled={pending || !online} onClick={retry}>
+        <Button variant="outline" disabled={pending} onClick={retry}>
           {pending && <Spinner data-icon="inline-start" />}
           {t('error.try-again')}
         </Button>
@@ -158,11 +183,16 @@ function CatalogError({
   );
 }
 
+function reportKey(report: CatalogReport) {
+  return `${report.kind}-${report.kind === 'template' ? report.module : ''}-${report.id}`;
+}
+
 function ReportLink({ report }: { report: CatalogReport }) {
   const hash = reportLegacyHash(report);
   const legacy = useBackToLegacy(hash);
   return (
     <Button
+      data-report-key={reportKey(report)}
       role="link"
       aria-describedby="reports-legacy-notice"
       align="between"
