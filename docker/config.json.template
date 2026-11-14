@@ -1,4 +1,5 @@
 {
+  "reportingModules": "${REPORTING_SERVICES}",
   "defaultIssueReasonId": "${DEFAULT_ISSUE_REASON_ID}",
   "defaultReceiveReasonId": "${DEFAULT_RECEIVE_REASON_ID}",
   "kitUnpackReasonId": "${KIT_UNPACK_REASON_ID}",

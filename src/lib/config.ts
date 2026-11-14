@@ -80,7 +80,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         titleKey: 'nav.reports',
         icon: ChartColumnIcon,
-        items: [{ titleKey: 'nav.reports.view', to: '#' }],
+        items: [{ titleKey: 'nav.reports.view', to: '/reports' }],
       },
       {
         titleKey: 'nav.requisitions',

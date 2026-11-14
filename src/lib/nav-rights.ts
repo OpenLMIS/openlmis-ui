@@ -3,6 +3,7 @@ import type { LiveNavLink } from '@/lib/types';
 
 /** The right a page asks for, or a list of which any one opens it, so the nav only offers pages the user can open. */
 const NAV_RIGHTS: Partial<Record<NonNullable<LiveNavLink['to']>, string | readonly string[]>> = {
+  '/reports': RIGHTS.reportsView,
   '/administration/facilities': RIGHTS.facilitiesManage,
   '/administration/supply-lines': RIGHTS.supplyLinesManage,
   '/administration/geographic-zones': RIGHTS.geographicZonesManage,

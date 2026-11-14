@@ -17,6 +17,7 @@ import { Route as ResetPasswordTokenRouteImport } from './routes/reset-password.
 import { Route as protectedProtectedHomeRouteImport } from './routes/(protected)/_protected.home'
 import { Route as protectedProtectedOfflineEventsRouteImport } from './routes/(protected)/_protected.offline-events'
 import { Route as protectedProtectedProfileRouteImport } from './routes/(protected)/_protected.profile'
+import { Route as protectedProtectedReportsRouteImport } from './routes/(protected)/_protected.reports'
 import { Route as protectedProtectedSettingsRouteImport } from './routes/(protected)/_protected.settings'
 import { Route as protectedProtectedAdministrationEquipmentCatalogRouteImport } from './routes/(protected)/_protected.administration.equipment-catalog'
 import { Route as protectedProtectedAdministrationFacilitiesRouteImport } from './routes/(protected)/_protected.administration.facilities'
@@ -134,6 +135,12 @@ const protectedProtectedProfileRoute =
   protectedProtectedProfileRouteImport.update({
     id: '/profile',
     path: '/profile',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedReportsRoute =
+  protectedProtectedReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedSettingsRoute =
@@ -613,6 +620,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof protectedProtectedHomeRoute
   '/offline-events': typeof protectedProtectedOfflineEventsRoute
   '/profile': typeof protectedProtectedProfileRouteWithChildren
+  '/reports': typeof protectedProtectedReportsRoute
   '/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/administration/equipment-catalog': typeof protectedProtectedAdministrationEquipmentCatalogRoute
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
@@ -698,6 +706,7 @@ export interface FileRoutesByTo {
   '/reset-password/$token': typeof ResetPasswordTokenRoute
   '/home': typeof protectedProtectedHomeRoute
   '/offline-events': typeof protectedProtectedOfflineEventsRoute
+  '/reports': typeof protectedProtectedReportsRoute
   '/administration/equipment-catalog': typeof protectedProtectedAdministrationEquipmentCatalogRoute
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
@@ -784,6 +793,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/home': typeof protectedProtectedHomeRoute
   '/(protected)/_protected/offline-events': typeof protectedProtectedOfflineEventsRoute
   '/(protected)/_protected/profile': typeof protectedProtectedProfileRouteWithChildren
+  '/(protected)/_protected/reports': typeof protectedProtectedReportsRoute
   '/(protected)/_protected/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/(protected)/_protected/administration/equipment-catalog': typeof protectedProtectedAdministrationEquipmentCatalogRoute
   '/(protected)/_protected/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
@@ -872,6 +882,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/offline-events'
     | '/profile'
+    | '/reports'
     | '/settings'
     | '/administration/equipment-catalog'
     | '/administration/facilities'
@@ -957,6 +968,7 @@ export interface FileRouteTypes {
     | '/reset-password/$token'
     | '/home'
     | '/offline-events'
+    | '/reports'
     | '/administration/equipment-catalog'
     | '/administration/facilities'
     | '/administration/facility-types'
@@ -1042,6 +1054,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/home'
     | '/(protected)/_protected/offline-events'
     | '/(protected)/_protected/profile'
+    | '/(protected)/_protected/reports'
     | '/(protected)/_protected/settings'
     | '/(protected)/_protected/administration/equipment-catalog'
     | '/(protected)/_protected/administration/facilities'
@@ -1185,6 +1198,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof protectedProtectedProfileRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/reports': {
+      id: '/(protected)/_protected/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof protectedProtectedReportsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/settings': {
@@ -1798,6 +1818,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedHomeRoute: typeof protectedProtectedHomeRoute
   protectedProtectedOfflineEventsRoute: typeof protectedProtectedOfflineEventsRoute
   protectedProtectedProfileRoute: typeof protectedProtectedProfileRouteWithChildren
+  protectedProtectedReportsRoute: typeof protectedProtectedReportsRoute
   protectedProtectedSettingsRoute: typeof protectedProtectedSettingsRouteWithChildren
   protectedProtectedAdministrationEquipmentCatalogRoute: typeof protectedProtectedAdministrationEquipmentCatalogRoute
   protectedProtectedAdministrationFacilitiesRoute: typeof protectedProtectedAdministrationFacilitiesRoute
@@ -1870,6 +1891,7 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
   protectedProtectedHomeRoute: protectedProtectedHomeRoute,
   protectedProtectedOfflineEventsRoute: protectedProtectedOfflineEventsRoute,
   protectedProtectedProfileRoute: protectedProtectedProfileRouteWithChildren,
+  protectedProtectedReportsRoute: protectedProtectedReportsRoute,
   protectedProtectedSettingsRoute: protectedProtectedSettingsRouteWithChildren,
   protectedProtectedAdministrationEquipmentCatalogRoute:
     protectedProtectedAdministrationEquipmentCatalogRoute,
