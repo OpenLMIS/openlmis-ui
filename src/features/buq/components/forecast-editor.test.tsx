@@ -8,6 +8,8 @@ import {
   authorizeBuqForecast,
   fetchBuqForecast,
   fetchBuqsForApproval,
+  fetchBuqsForFinalApproval,
+  finalApproveBuqForecast,
   rejectBuqForecast,
   saveBuqForecast,
   submitBuqForecast,
@@ -25,6 +27,8 @@ vi.mock('@/features/buq/api/api', () => ({
   BuqMovedError: class extends Error {},
   fetchBuqForecast: vi.fn(),
   fetchBuqsForApproval: vi.fn(),
+  fetchBuqsForFinalApproval: vi.fn(),
+  finalApproveBuqForecast: vi.fn(),
   saveBuqForecast: vi.fn(),
   submitBuqForecast: vi.fn(),
   authorizeBuqForecast: vi.fn(),
@@ -354,4 +358,47 @@ it('rejects nothing once the forecast was approved elsewhere', async () => {
 
   expect(await within(dialog).findByText('buq.forecast.moved')).toBeInTheDocument();
   expect(rejectBuqForecast).not.toHaveBeenCalled();
+});
+
+const APPROVED: BuqForecast = { ...AUTHORIZED, status: 'APPROVED' };
+const NATIONAL: ForecastMode = { kind: 'national', programId: 'g1', zoneIds: ['z1'] };
+
+const giveFinalApproval = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(screen.getByRole('button', { name: 'buq.national.approve' }));
+  const confirm = await screen.findByRole('alertdialog');
+  await user.click(within(confirm).getByRole('button', { name: 'buq.national.approve' }));
+};
+
+it('gives final approval to this forecast only and returns to the summary', async () => {
+  const user = userEvent.setup();
+  const onDone = vi.fn();
+  vi.mocked(fetchBuqForecast).mockResolvedValue(APPROVED);
+  vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue([
+    { bottomUpQuantification: APPROVED, calculatedGroupsCosts: {} },
+  ]);
+  vi.mocked(finalApproveBuqForecast).mockResolvedValue({ ...APPROVED, status: 'APPROVED_BY_NQT' });
+  await renderEditor({ forecast: APPROVED, mode: NATIONAL, onDone });
+
+  expect(card('Product A').queryByRole('textbox')).not.toBeInTheDocument();
+  await giveFinalApproval(user);
+
+  await waitFor(() => expect(onDone).toHaveBeenCalled());
+  expect(vi.mocked(finalApproveBuqForecast).mock.calls[0]?.[0]).toMatchObject({ id: 'b1' });
+  expect(fetchBuqsForFinalApproval).toHaveBeenCalledWith({
+    programId: 'g1',
+    periodId: 'p1',
+    zoneId: 'z1',
+  });
+});
+
+it('gives no final approval once the forecast left the final approval list', async () => {
+  const user = userEvent.setup();
+  vi.mocked(fetchBuqForecast).mockResolvedValue(APPROVED);
+  vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue([]);
+  await renderEditor({ forecast: APPROVED, mode: NATIONAL });
+
+  await giveFinalApproval(user);
+
+  expect(await screen.findByText('buq.forecast.moved')).toBeInTheDocument();
+  expect(finalApproveBuqForecast).not.toHaveBeenCalled();
 });

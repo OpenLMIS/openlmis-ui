@@ -16,6 +16,7 @@ const create = (create: boolean, authorize: boolean, skipAuthorization = false):
 const CREATE = create(true, false);
 const AUTHORIZE = create(false, true);
 const APPROVE: ForecastMode = { kind: 'approve', programId: 'g1' };
+const NATIONAL: ForecastMode = { kind: 'national', programId: 'g1', zoneIds: ['z1'] };
 
 const CASES: [string, BuqStatus, ForecastMode, ForecastAction[]][] = [
   ['Draft with create', 'DRAFT', CREATE, ['save', 'submit']],
@@ -36,6 +37,10 @@ const CASES: [string, BuqStatus, ForecastMode, ForecastAction[]][] = [
   ['approve, In Approval', 'IN_APPROVAL', APPROVE, ['approve', 'reject']],
   ['approve, Submitted', 'SUBMITTED', APPROVE, []],
   ['approve, Approved', 'APPROVED', APPROVE, []],
+  ['national, Approved', 'APPROVED', NATIONAL, ['finalApprove', 'reject']],
+  ['national, Rejected', 'REJECTED', NATIONAL, []],
+  ['national, In Approval', 'IN_APPROVAL', NATIONAL, []],
+  ['national, Approved By NQT', 'APPROVED_BY_NQT', NATIONAL, []],
 ];
 
 it.each(CASES)('%s', (_, status, mode, actions) => {
@@ -47,4 +52,5 @@ it('shows the rejection reasons only to a creator of a Rejected forecast', () =>
   expect(canViewRejection('REJECTED', AUTHORIZE)).toBe(false);
   expect(canViewRejection('DRAFT', CREATE)).toBe(false);
   expect(canViewRejection('REJECTED', APPROVE)).toBe(false);
+  expect(canViewRejection('REJECTED', NATIONAL)).toBe(false);
 });

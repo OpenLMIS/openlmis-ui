@@ -1,11 +1,18 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import {
   type ColumnVisibilityState,
   createColumnHelper,
   functionalUpdate,
 } from '@tanstack/react-table';
 import type { ParseKeys, TFunction } from 'i18next';
-import { ClipboardCheckIcon, InfoIcon, Loader2Icon, StampIcon } from 'lucide-react';
+import {
+  ClipboardCheckIcon,
+  ClipboardListIcon,
+  InfoIcon,
+  Loader2Icon,
+  StampIcon,
+} from 'lucide-react';
 import { type RefObject, useDeferredValue, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +31,7 @@ import {
   selectionColumn,
 } from '@/components/data-table/data-table-selection';
 import type { ResponsiveColumn } from '@/components/data-table/responsive-columns';
+import { CardActions, useInCards } from '@/components/display/card-actions';
 import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
 import {
   RecordSummary,
@@ -66,7 +74,7 @@ import {
   nationalFacilityIds,
   nationalRows,
 } from '@/features/buq/lib/national';
-import type { BuqTableProps } from '@/features/buq/lib/search';
+import type { BuqTableProps, NationalSearch } from '@/features/buq/lib/search';
 import {
   currencySettingsOptions,
   facilitiesByIdsOptions,
@@ -87,12 +95,12 @@ const GROUP_LABELS: Record<CostGroupId | 'others', ParseKeys> = {
 };
 
 export const NATIONAL_HIDEABLE_COLUMNS: readonly (ResponsiveColumn & { labelKey: ParseKeys })[] = [
-  { id: 'facilityType', labelKey: 'buq.approve.facility-type', hideBelow: 640 },
-  { id: 'pharmaceuticals', labelKey: GROUP_LABELS.pharmaceuticals, hideBelow: 680 },
-  { id: 'medical', labelKey: GROUP_LABELS.medical, hideBelow: 900 },
-  { id: 'radiology', labelKey: GROUP_LABELS.radiology, hideBelow: 1150 },
-  { id: 'diagnostics', labelKey: GROUP_LABELS.diagnostics, hideBelow: 1400 },
-  { id: 'dental', labelKey: GROUP_LABELS.dental, hideBelow: 1610 },
+  { id: 'facilityType', labelKey: 'buq.approve.facility-type', hideBelow: 750 },
+  { id: 'pharmaceuticals', labelKey: GROUP_LABELS.pharmaceuticals, hideBelow: 790 },
+  { id: 'medical', labelKey: GROUP_LABELS.medical, hideBelow: 1010 },
+  { id: 'radiology', labelKey: GROUP_LABELS.radiology, hideBelow: 1260 },
+  { id: 'diagnostics', labelKey: GROUP_LABELS.diagnostics, hideBelow: 1510 },
+  { id: 'dental', labelKey: GROUP_LABELS.dental, hideBelow: 1720 },
 ];
 
 const SUMMARY_IDS: readonly (CostGroupId | 'others')[] = [...COST_GROUP_IDS, 'others'];
@@ -119,7 +127,47 @@ function StatusHeader() {
   );
 }
 
-function createColumns(t: TFunction, currency: CurrencySettings | undefined, info: boolean) {
+function ReviewAction({ row, listSearch }: { row: NationalRow; listSearch: NationalSearch }) {
+  const { t } = useTranslation();
+  const cards = useInCards();
+  const link = (
+    <Link
+      params={{ id: row.id }}
+      state={{ buqListSearch: listSearch }}
+      to="/buq/national-approval/$id"
+    />
+  );
+  const names = { facility: row.facilityName, type: row.facilityType };
+  const name = t('buq.national.review-label', names);
+  if (cards) {
+    return (
+      <CardActions
+        actions={[
+          {
+            id: 'review',
+            icon: <ClipboardListIcon />,
+            label: t('buq.approve.review'),
+            name,
+            link,
+          },
+        ]}
+        label={t('buq.national.actions-for', names)}
+      />
+    );
+  }
+  return (
+    <Button aria-label={name} nativeButton={false} render={link} size="sm">
+      {t('buq.approve.review')}
+    </Button>
+  );
+}
+
+function createColumns(
+  t: TFunction,
+  currency: CurrencySettings | undefined,
+  info: boolean,
+  listSearch: NationalSearch,
+) {
   const text = (id: 'facilityName' | 'facilityType', label: ParseKeys, className: string) =>
     columnHelper.accessor(id, {
       header: t(label),
@@ -156,10 +204,19 @@ function createColumns(t: TFunction, currency: CurrencySettings | undefined, inf
         meta: { label: t(GROUP_LABELS[id]) },
       }),
     ),
+    columnHelper.display({
+      id: 'actions',
+      header: () => <DataTableHeaderLabel>{t('buq.approve.actions')}</DataTableHeaderLabel>,
+      cell: ({ row }) => <ReviewAction listSearch={listSearch} row={row.original} />,
+      meta: { className: 'w-28', skeleton: 'control' },
+    }),
   ]);
 }
 
-type NationalTableProps = BuqTableProps & { visibility: ColumnVisibilityState };
+type NationalTableProps = BuqTableProps & {
+  search: NationalSearch;
+  visibility: ColumnVisibilityState;
+};
 
 const NO_ROWS: NationalRow[] = [];
 const noop = () => {};
@@ -172,7 +229,10 @@ function useNationalTable(
 ) {
   const { t } = useTranslation();
   const info = !!selection;
-  const columns = useMemo(() => createColumns(t, currency, info), [t, currency, info]);
+  const columns = useMemo(
+    () => createColumns(t, currency, info, props.search),
+    [t, currency, info, props.search],
+  );
   return useBuqTable(rows, columns, props, visibility, selection);
 }
 

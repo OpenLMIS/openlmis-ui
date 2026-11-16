@@ -423,3 +423,13 @@ it('reads the list again when Search repeats the shown choice', async () => {
 
   await waitFor(() => expect(fetchBuqsForFinalApproval).toHaveBeenCalledTimes(2));
 });
+
+it('opens each forecast from its own row', async () => {
+  renderNational({ zone: 'mz', period: 'p17' });
+
+  const reviews = await screen.findAllByRole('button', { name: 'buq.national.review-label' });
+  expect(reviews[1]).toHaveAttribute(
+    'href',
+    expect.stringMatching(/\/buq\/national-approval\/b1$/),
+  );
+});

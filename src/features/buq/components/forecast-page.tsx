@@ -41,7 +41,7 @@ export function ForecastHeader({ description }: { description: string }) {
   );
 }
 
-type ForecastList = '/buq/create' | '/buq/approve';
+type ForecastList = '/buq/create' | '/buq/approve' | '/buq/national-approval';
 
 export function useListSearch() {
   const current = useLocation({ select: (location) => location.state.buqListSearch });

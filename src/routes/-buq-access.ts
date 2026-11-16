@@ -184,3 +184,38 @@ export async function loadForecast(
     throw error;
   }
 }
+
+const NO_ZONES: readonly string[] = [];
+
+export async function loadNationalForecast(
+  queryClient: QueryClient,
+  id: string,
+  cause: 'enter' | 'stay' | 'preload',
+) {
+  const { scope } = currentUser();
+  const access = await loadNationalAccess(queryClient, {}, cause);
+  if (access.kind !== 'ready') return { ...access, zoneIds: NO_ZONES };
+  const [forecast, zones] = await Promise.all([
+    loadForecast(queryClient, id, cause),
+    queryClient.fetchQuery({ ...supervisedZonesOptions(access.programId), staleTime: 0 }),
+  ]);
+  assertSessionScope(scope);
+  const zoneIds = Object.keys(zones);
+  const lists = await Promise.all(
+    zoneIds.map((zoneId) =>
+      queryClient.fetchQuery({
+        ...buqsForFinalApprovalOptions({
+          programId: access.programId,
+          periodId: forecast.processingPeriodId,
+          zoneId,
+        }),
+        staleTime: 0,
+      }),
+    ),
+  );
+  assertSessionScope(scope);
+  if (!lists.flat().some(({ bottomUpQuantification }) => bottomUpQuantification.id === id)) {
+    throw notFound();
+  }
+  return { ...access, zoneIds };
+}

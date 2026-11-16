@@ -108,6 +108,15 @@ export async function authorizeBuqForecast(body: ForecastBody) {
   return data;
 }
 
+export async function finalApproveBuqForecast(body: ForecastBody) {
+  const { data } = await client.post<BuqForecast[]>('/bottomUpQuantifications/finalApprove', null, {
+    params: { id: [body.id] },
+    paramsSerializer: { indexes: null },
+  });
+  const [approved] = data;
+  return approved ?? fetchBuqForecast(body.id);
+}
+
 export async function approveBuqForecast(body: ForecastBody) {
   const { data } = await client.post<BuqForecast>(
     `/bottomUpQuantifications/${body.id}/approve`,

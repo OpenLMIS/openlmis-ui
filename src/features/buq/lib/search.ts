@@ -38,6 +38,6 @@ export const FORECAST_DIALOGS: Partial<ForecastSearch> = { dialog: undefined };
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: extending the router's type needs interface merging.
   interface HistoryState {
-    buqListSearch?: BuqListSearch;
+    buqListSearch?: NationalSearch;
   }
 }

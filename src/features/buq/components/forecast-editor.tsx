@@ -25,6 +25,7 @@ import {
   authorizeBuqForecast,
   BuqMovedError,
   type ForecastBody,
+  finalApproveBuqForecast,
   saveBuqForecast,
   submitBuqForecast,
 } from '@/features/buq/api/api';
@@ -34,6 +35,7 @@ import {
   buqRemarksOptions,
   buqSourcesOfFundsOptions,
   buqsForApprovalOptions,
+  buqsForFinalApprovalOptions,
 } from '@/features/buq/api/queries';
 import { buqStatusBadge } from '@/features/buq/components/buq-status-badge';
 import {
@@ -115,6 +117,7 @@ const WRITE: Record<WriteAction, (body: ForecastBody) => Promise<BuqForecast>> =
   authorize: authorizeBuqForecast,
   submitAndAuthorize: authorizeBuqForecast,
   approve: approveBuqForecast,
+  finalApprove: finalApproveBuqForecast,
 };
 
 const ACTION_LABEL: Record<SendAction, ParseKeys> = {
@@ -122,6 +125,7 @@ const ACTION_LABEL: Record<SendAction, ParseKeys> = {
   authorize: 'buq.forecast.authorize',
   submitAndAuthorize: 'buq.forecast.submit-and-authorize',
   approve: 'buq.approve.approve',
+  finalApprove: 'buq.national.approve',
 };
 
 const CONFIRM: Record<SendAction, ParseKeys> = {
@@ -129,6 +133,7 @@ const CONFIRM: Record<SendAction, ParseKeys> = {
   authorize: 'buq.forecast.confirm-authorize',
   submitAndAuthorize: 'buq.forecast.confirm-submit-and-authorize',
   approve: 'buq.approve.confirm-approve',
+  finalApprove: 'buq.national.confirm-one',
 };
 
 type Message = { title: ParseKeys; description: ParseKeys };
@@ -142,6 +147,7 @@ const DONE: Record<ForecastAction, Message> = {
     description: 'buq.forecast.submitted-and-authorized',
   },
   approve: { title: 'buq.approve.approved-title', description: 'buq.approve.approved' },
+  finalApprove: { title: 'buq.national.approved-title', description: 'buq.national.approved-one' },
   reject: { title: 'buq.approve.rejected-title', description: 'buq.approve.rejected' },
 };
 
@@ -150,9 +156,16 @@ const SEND_FAILED: Message = {
   description: 'buq.forecast.send-error',
 };
 
-const APPROVE_FAILED: Message = {
-  title: 'buq.approve.approve-error-title',
-  description: 'buq.approve.approve-error',
+const FAILED: Record<WriteAction, Message> = {
+  save: SEND_FAILED,
+  submit: SEND_FAILED,
+  authorize: SEND_FAILED,
+  submitAndAuthorize: SEND_FAILED,
+  approve: { title: 'buq.approve.approve-error-title', description: 'buq.approve.approve-error' },
+  finalApprove: {
+    title: 'buq.national.approve-error-title',
+    description: 'buq.national.approve-one-error',
+  },
 };
 
 export function ForecastEditor({
@@ -303,14 +316,37 @@ export function ForecastForm({
   const dirty =
     changedIds.size > 0 || JSON.stringify(values.funding) !== JSON.stringify(baseline.funding);
 
+  const waitingIds = async () => {
+    if (mode.kind === 'approve') {
+      const waiting = await queryClient.fetchQuery({
+        ...buqsForApprovalOptions(mode.programId),
+        staleTime: 0,
+      });
+      return waiting.map(({ id }) => id);
+    }
+    if (mode.kind === 'national') {
+      const lists = await Promise.all(
+        mode.zoneIds.map((zoneId) =>
+          queryClient.fetchQuery({
+            ...buqsForFinalApprovalOptions({
+              programId: mode.programId,
+              periodId: forecast.processingPeriodId,
+              zoneId,
+            }),
+            staleTime: 0,
+          }),
+        ),
+      );
+      return lists.flat().map(({ bottomUpQuantification }) => bottomUpQuantification.id);
+    }
+    return undefined;
+  };
   const ensureStillOpen = async (action: ForecastAction) => {
     const [current, waiting] = await Promise.all([
       queryClient.fetchQuery({ ...buqForecastOptions(forecast.id), staleTime: 0 }),
-      mode.kind === 'approve'
-        ? queryClient.fetchQuery({ ...buqsForApprovalOptions(mode.programId), staleTime: 0 })
-        : undefined,
+      waitingIds(),
     ]);
-    const listed = !waiting || waiting.some(({ id }) => id === forecast.id);
+    const listed = !waiting || waiting.includes(forecast.id);
     if (!listed || !forecastActions(current.status, mode).includes(action)) {
       throw new BuqMovedError();
     }
@@ -337,7 +373,7 @@ export function ForecastForm({
     },
     onError: (error, { action }) => {
       setConfirming(null);
-      const failed = action === 'approve' ? APPROVE_FAILED : SEND_FAILED;
+      const failed = FAILED[action];
       setFailure({
         title: t(failed.title),
         description:
