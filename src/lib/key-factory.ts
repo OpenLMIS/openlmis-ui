@@ -36,6 +36,7 @@ export const queryKeys = {
   rejectionReasonCategories: createQueryKeys('rejectionReasonCategories'),
   rejectionReasons: createQueryKeys('rejectionReasons'),
   reportCategories: createQueryKeys('reportCategories'),
+  reportParameterOptions: createQueryKeys('reportParameterOptions'),
   reportTemplates: createQueryKeys('reportTemplates'),
   requisitions: createQueryKeys('requisitions'),
   requisitionGroups: createQueryKeys('requisitionGroups'),

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
+import { isAxiosError, isCancel } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { serverMessage } from '@/components/display/dialog-parts';
@@ -26,6 +26,8 @@ type PrintReportOptions = PrintAccess & {
   errorTitle: string;
   errorDescription: string;
   refusedDescription: string;
+  /** A caller's own description for an error it raised, before the server's message. */
+  describeError?: (error: unknown) => string | undefined;
 };
 type PrintRequest = PrintReportOptions & {
   language: string;
@@ -76,13 +78,15 @@ export function usePrintReport(options: PrintReportOptions) {
       toast.success(sent.successTitle, { description: sent.successDescription });
     },
     onError: (error, sent) => {
-      if (!sent.isCurrent()) return;
+      if (!sent.isCurrent() || isCancel(error)) return;
       toast.error(sent.errorTitle, {
         description: !isOnline()
           ? t('offline.print-description')
           : error instanceof ForbiddenError
             ? sent.refusedDescription
-            : (!isServerError(error) && serverMessage(error)) || sent.errorDescription,
+            : sent.describeError?.(error) ||
+              (!isServerError(error) && serverMessage(error)) ||
+              sent.errorDescription,
       });
     },
   });

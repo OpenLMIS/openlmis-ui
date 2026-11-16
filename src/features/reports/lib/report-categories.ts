@@ -24,9 +24,6 @@ export function groupReports(
   return [...groups.values()].filter(({ reports }) => reports.length > 0);
 }
 
-export function reportLegacyHash(report: CatalogReport) {
-  const id = encodeURIComponent(report.id);
-  return report.kind === 'template'
-    ? `#!/reports/list/${encodeURIComponent(report.module)}/${id}/options`
-    : `#!/reports/list/dashboard/${id}`;
-}
+/** Dashboards still open in legacy. */
+export const dashboardLegacyHash = (id: string) =>
+  `#!/reports/list/dashboard/${encodeURIComponent(id)}`;

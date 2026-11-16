@@ -9,6 +9,7 @@ import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
 import { ScrollBar } from "@/components/ui/scroll-area"
+import { Spinner } from "@/components/ui/spinner"
 import {
   InputGroup,
   InputGroupAddon,
@@ -86,6 +87,7 @@ function ComboboxInput({
   className,
   children,
   disabled = false,
+  loading = false,
   showTrigger = true,
   showClear = false,
   clearLabel = "Clear",
@@ -94,6 +96,7 @@ function ComboboxInput({
   ...props
 }: Omit<ComboboxPrimitive.Input.Props, "size"> & {
   showTrigger?: boolean
+  loading?: boolean
   showClear?: boolean
   clearLabel?: string
   width?: "auto" | "full"
@@ -109,7 +112,8 @@ function ComboboxInput({
         {...props}
       />
       <InputGroupAddon align="inline-end">
-        {showTrigger && (
+        {loading && <Spinner aria-hidden="true" />}
+        {!loading && showTrigger && (
           <InputGroupButton
             size="icon-xs"
             variant="ghost"
@@ -119,7 +123,7 @@ function ComboboxInput({
             disabled={disabled}
           />
         )}
-        {showClear && (
+        {!loading && showClear && (
           <ComboboxClear aria-label={clearLabel} disabled={disabled} />
         )}
       </InputGroupAddon>
