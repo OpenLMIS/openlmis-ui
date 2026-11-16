@@ -1,11 +1,18 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { FileDownIcon } from 'lucide-react';
+import { FileDownIcon, Settings2Icon } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { useAppForm } from '@/components/form/form';
 import { FieldLabelText } from '@/components/form/form-fields';
 import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import { FieldDescription, FieldGroup } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
@@ -69,7 +76,15 @@ export function ReportParametersForm({ template, module, userId }: Props) {
     >
       <FieldGroup>
         {fields.length === 0 && (
-          <p className="text-muted-foreground text-sm">{t('reports.generate.no-options')}</p>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Settings2Icon />
+              </EmptyMedia>
+              <EmptyTitle>{t('reports.generate.no-options')}</EmptyTitle>
+              <EmptyDescription>{t('reports.generate.no-options-description')}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
         {fields.map((field) => (
           <ReportParameterField

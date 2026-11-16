@@ -61,7 +61,7 @@ function ReportsHeader() {
 function ReportsPage() {
   const { userId, modules } = Route.useLoaderData();
   return (
-    <Workspace>
+    <Workspace width="form">
       <ReportsHeader />
       <WorkspaceContent>
         <ReportCatalog userId={userId} modules={modules} />
@@ -71,7 +71,7 @@ function ReportsPage() {
 }
 function ReportsPending() {
   return (
-    <Workspace>
+    <Workspace width="form">
       <ReportsHeader />
       <WorkspaceContent>
         <ReportCatalogSkeleton />

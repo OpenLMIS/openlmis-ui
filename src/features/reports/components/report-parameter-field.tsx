@@ -1,11 +1,12 @@
 import { useStore } from '@tanstack/react-form';
 import { useQuery } from '@tanstack/react-query';
+import type { ParseKeys } from 'i18next';
 import { TriangleAlertIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { withForm } from '@/components/form/form';
-import type { ComboboxFieldItem, SelectFieldItem } from '@/components/form/form-fields';
+import type { ComboboxFieldItem } from '@/components/form/form-fields';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -22,6 +23,15 @@ import { reportCaughtError } from '@/lib/report-error';
 type FieldProps = { field: ReportField; fields: readonly ReportField[]; userId: string };
 
 const EMPTY: ReportFormValues = {};
+
+const LOOKUP_LOADING_KEYS: Partial<Record<string, ParseKeys>> = {
+  '/orderables': 'reports.generate.loading-products',
+  '/facilities': 'reports.generate.loading-facilities',
+  '/facilityTypes': 'reports.generate.loading-facility-types',
+  '/geographicZones/search': 'reports.generate.loading-zones',
+  '/programs': 'reports.generate.loading-programs',
+  '/processingPeriods': 'reports.generate.loading-periods',
+};
 
 /** One template parameter, drawn with the control legacy would choose for it. */
 export const ReportParameterField = withForm({
@@ -70,30 +80,31 @@ export const ReportParameterField = withForm({
               return (
                 <control.DateField
                   {...common}
+                  size="lg"
                   placeholder={t('reports.generate.choose-date')}
                   clearLabel={parameter.required ? undefined : t('reports.generate.clear-date')}
                 />
               );
             case 'boolean': {
-              const items: SelectFieldItem[] = [
-                ...(parameter.required
-                  ? []
-                  : [{ value: '', label: t('reports.generate.not-selected') }]),
+              const items: ComboboxFieldItem[] = [
                 { value: 'true', label: t('reports.generate.true') },
                 { value: 'false', label: t('reports.generate.false') },
               ];
               return (
-                <control.SelectField
+                <control.ComboboxField
                   {...common}
+                  size="lg"
                   items={items}
                   placeholder={t('reports.generate.select-option')}
+                  emptyMessage={t('reports.generate.no-matches')}
+                  clearLabel={t('reports.generate.clear-choice', { name: parameter.label })}
                 />
               );
             }
             case 'whole-number':
-              return <control.NumberField {...common} />;
+              return <control.NumberField {...common} controlSize="lg" />;
             default:
-              return <control.TextField {...common} dir="auto" />;
+              return <control.TextField {...common} controlSize="lg" dir="auto" />;
           }
         }}
       </form.AppField>
@@ -143,6 +154,10 @@ const ReportChoiceField = withForm({
       .filter((_, index) => !parents[index])
       .map(({ parentKey }) => fields.find((other) => other.key === parentKey)?.label ?? '');
     const loading = source.type === 'lookup' && Boolean(params) && query.isPending;
+    const loadingKey =
+      field.name === 'district'
+        ? 'reports.generate.loading-districts'
+        : LOOKUP_LOADING_KEYS[lookup?.path ?? ''];
     const failed = source.type === 'lookup' && query.isError;
     const unsupported = source.type === 'unsupported';
     const blocked = unsupported || waitingFor.length > 0 || loading || (failed && !query.data);
@@ -159,12 +174,14 @@ const ReportChoiceField = withForm({
                   ? t('reports.generate.choose-parent-first', { name: waitingFor.join(', ') })
                   : description
               }
-              labelAction={loading ? <Spinner /> : undefined}
+              loading={loading}
               disabled={blocked}
               items={items}
               placeholder={
                 loading
-                  ? t('reports.generate.loading-choices')
+                  ? loadingKey
+                    ? t(loadingKey)
+                    : t('reports.generate.loading-field', { name: field.label })
                   : !blocked && items.length === 0
                     ? t('reports.generate.no-choices')
                     : t('reports.generate.select-option')

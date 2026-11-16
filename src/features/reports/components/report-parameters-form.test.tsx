@@ -12,7 +12,7 @@ import { downloadFile } from '@/lib/download-file';
 import { reportCaughtError } from '@/lib/report-error';
 import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
-import { TIMELINESS } from '@/test-utils/report-templates';
+import { STOCK_ON_HAND, TIMELINESS } from '@/test-utils/report-templates';
 
 vi.mock('@/features/reports/api/api', async (original) => ({
   ...(await original<typeof import('@/features/reports/api/api')>()),
@@ -271,3 +271,24 @@ it.each(['failed', 'loading'])(
     expect(generateReport).not.toHaveBeenCalled();
   },
 );
+
+it('offers only True and False for an optional boolean and clears either choice with its X button', async () => {
+  const user = userEvent.setup();
+  renderPage(<ReportParametersForm template={STOCK_ON_HAND} module="common" userId={USER} />, {
+    queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  });
+  const boolean = await screen.findByRole('combobox', { name: 'Expired Products' });
+  await user.click(boolean);
+  expect(await screen.findAllByRole('option')).toHaveLength(2);
+  expect(
+    screen.queryByRole('option', { name: 'reports.generate.not-selected' }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole('option', { name: 'reports.generate.true' }));
+  expect(boolean).toHaveValue('reports.generate.true');
+  await user.click(screen.getByRole('button', { name: 'reports.generate.clear-choice' }));
+  expect(boolean).toHaveValue('');
+  await choose(user, 'Expired Products', 'reports.generate.false');
+  expect(boolean).toHaveValue('reports.generate.false');
+  await user.click(screen.getByRole('button', { name: 'reports.generate.clear-choice' }));
+  expect(boolean).toHaveValue('');
+});

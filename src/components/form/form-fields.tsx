@@ -336,7 +336,7 @@ function FieldFrame({
 type TextFieldProps = FieldProps &
   Pick<FieldFrameProps, 'badge'> & {
     errorDescriptionId?: string;
-    controlSize?: 'sm' | 'default';
+    controlSize?: 'sm' | 'default' | 'lg';
     type?: 'text' | 'email' | 'tel' | 'time';
     autoComplete?: string;
     placeholder?: string;
@@ -1255,6 +1255,7 @@ export type ComboboxFieldItem = {
 
 type ComboboxFieldProps = FieldProps &
   Pick<FieldFrameProps, 'labelAction'> & {
+    loading?: boolean;
     invalid?: boolean;
     describedBy?: string;
     items: readonly ComboboxFieldItem[];
@@ -1271,6 +1272,7 @@ type ComboboxFieldProps = FieldProps &
 /** Picks one item by typing to filter; the field's value is the item's `value`, or null for none. */
 export function ComboboxField({
   label,
+  loading = false,
   labelAction,
   layout,
   description,
@@ -1327,6 +1329,7 @@ export function ComboboxField({
         value={selected}
       >
         <ComboboxInput
+          loading={loading}
           aria-describedby={[ariaDescribedBy, describedBy].filter(Boolean).join(' ') || undefined}
           aria-invalid={isInvalid || invalid}
           aria-required={required}
@@ -1601,6 +1604,7 @@ export function TagsField({
 }
 
 type DateFieldProps = FieldProps & {
+  size?: 'sm' | 'default' | 'lg';
   placeholder: string;
   clearLabel?: string;
   earliest?: string;
@@ -1623,6 +1627,7 @@ const weekdayName = (date: Date, locale: string) =>
 
 export function DateField({
   label,
+  size,
   layout,
   hideErrors,
   description,
@@ -1647,7 +1652,7 @@ export function DateField({
       state={state}
     >
       <DatePicker
-        size={layout === 'inline' ? 'sm' : 'default'}
+        size={size ?? (layout === 'inline' ? 'sm' : 'default')}
         clearLabel={clearLabel}
         earliest={earliest}
         latest={latest}
