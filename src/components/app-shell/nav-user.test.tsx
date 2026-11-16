@@ -4,7 +4,7 @@ import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DeviceWorkContext } from '@/components/app-shell/device-work';
 import { NavUser } from '@/components/app-shell/nav-user';
 import { permissionsOptions } from '@/features/auth/api/queries';
@@ -15,6 +15,8 @@ import { loadRuntimeConfig } from '@/lib/runtime-config';
 import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/features/profile/api/api', () => ({ fetchProfile: () => new Promise(() => {}) }));
+
+beforeEach(() => vi.stubEnv('VITE_LEGACY_UI_URL', ''));
 
 async function renderMenu(rights: string[], systemSettings = 'true') {
   vi.stubGlobal(
@@ -36,6 +38,7 @@ afterEach(() => {
   cleanup();
   useLoginData.setState({ referenceDataUserId: null, username: null });
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('NavUser', () => {

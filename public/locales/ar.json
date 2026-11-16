@@ -1801,7 +1801,6 @@
   "reports.description": "اختر تقريرًا حسب الفئة لعرض معلماته أو لوحة معلوماته.",
   "reports.empty-description": "لا توجد تقارير متاحة لحسابك.",
   "reports.empty-title": "لا توجد تقارير متاحة",
-  "reports.legacy-description": "تُفتح معلمات التقارير ولوحات المعلومات حاليًا في الواجهة القديمة. قد تحتاج إلى تسجيل الدخول فيها بشكل منفصل.",
   "reports.load-error-description": "يمكنك فتح التقارير الأخرى المتاحة. حاول تحميل هذا القسم مرة أخرى.",
   "reports.load-error-title": "تعذّر تحميل {source}",
   "reports.other": "تقارير أخرى",

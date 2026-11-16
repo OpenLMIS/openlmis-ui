@@ -9,6 +9,7 @@ export function useBackToLegacy(hash = '') {
   const home = legacyHome(import.meta.env.BASE_URL);
   const url = `${home}${hash}`;
   return {
+    href: url,
     available: home !== import.meta.env.BASE_URL,
     label: t('legacy.label'),
     description: t('legacy.description', { appName }),

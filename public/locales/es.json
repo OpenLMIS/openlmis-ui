@@ -1801,7 +1801,6 @@
   "reports.description": "Elija un informe por categoría para ver sus parámetros o panel.",
   "reports.empty-description": "No hay informes disponibles para su cuenta.",
   "reports.empty-title": "No hay informes disponibles",
-  "reports.legacy-description": "Los parámetros de los informes y los paneles se abren actualmente en la interfaz anterior. Es posible que tenga que iniciar sesión allí por separado.",
   "reports.load-error-description": "Puede seguir abriendo los demás informes disponibles. Intente cargar esta sección de nuevo.",
   "reports.load-error-title": "No se pudo cargar {source}",
   "reports.other": "Otros informes",

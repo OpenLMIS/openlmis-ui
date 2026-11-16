@@ -35,6 +35,7 @@ fallbacks when unset, not the example file's values.
 | `VITE_UNPACKED_FROM_KIT_REASON_ID` | - | Kit contents credit reason id, fallback when runtime config omits it |
 | `VITE_SHOW_DEVTOOLS` | - | `true` enables TanStack devtools |
 | `VITE_BASE_PATH` | `/` | App prefix compiled into asset URLs |
+| `VITE_LEGACY_UI_URL` | Parent of app prefix | Legacy UI address for local development or previews on a separate origin |
 
 Containers write OAuth credentials, the default Issue and Receive reasons
 (`DEFAULT_ISSUE_REASON_ID`, `DEFAULT_RECEIVE_REASON_ID`), kit unpack reasons

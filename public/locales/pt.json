@@ -1801,7 +1801,6 @@
   "reports.description": "Escolha um relatório por categoria para ver os seus parâmetros ou painel.",
   "reports.empty-description": "Não existem relatórios disponíveis para a sua conta.",
   "reports.empty-title": "Nenhum relatório disponível",
-  "reports.legacy-description": "Os parâmetros dos relatórios e os painéis abrem atualmente na interface antiga. Poderá ser necessário iniciar sessão separadamente.",
   "reports.load-error-description": "Pode continuar a abrir os outros relatórios disponíveis. Tente carregar esta secção novamente.",
   "reports.load-error-title": "Não foi possível carregar {source}",
   "reports.other": "Outros relatórios",

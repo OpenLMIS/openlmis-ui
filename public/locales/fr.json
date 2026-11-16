@@ -1801,7 +1801,6 @@
   "reports.description": "Choisissez un rapport par catégorie pour afficher ses paramètres ou son tableau de bord.",
   "reports.empty-description": "Aucun rapport n’est disponible pour votre compte.",
   "reports.empty-title": "Aucun rapport disponible",
-  "reports.legacy-description": "Les paramètres des rapports et les tableaux de bord s’ouvrent actuellement dans l’ancienne interface. Vous devrez peut-être vous y connecter séparément.",
   "reports.load-error-description": "Les autres rapports disponibles restent accessibles. Réessayez de charger cette section.",
   "reports.load-error-title": "Impossible de charger {source}",
   "reports.other": "Autres rapports",

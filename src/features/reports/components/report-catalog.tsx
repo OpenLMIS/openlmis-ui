@@ -1,11 +1,11 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ArrowRightIcon, ChartColumnIcon, InfoIcon, TriangleAlertIcon } from 'lucide-react';
+import { ChartColumnIcon, TriangleAlertIcon } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOfflineFailure } from '@/components/app-shell/offline-notice';
+import { DataTableCard } from '@/components/data-table/data-table';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Empty,
   EmptyDescription,
@@ -16,6 +16,14 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   availableDashboardsOptions,
   reportCategoriesOptions,
   templateReportsOptions,
@@ -24,7 +32,6 @@ import { groupReports, reportLegacyHash } from '@/features/reports/lib/report-ca
 import type { CatalogReport } from '@/features/reports/lib/types';
 import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
 import { isRefused } from '@/lib/http';
-import { legacyHome } from '@/lib/legacy-home';
 import { reportCaughtError } from '@/lib/report-error';
 
 export function ReportCatalog({ userId, modules }: { userId: string; modules: readonly string[] }) {
@@ -97,12 +104,6 @@ export function ReportCatalog({ userId, modules }: { userId: string; modules: re
         focusedReport.current = null;
       }}
     >
-      <Alert variant="info" role="note">
-        <InfoIcon />
-        <AlertDescription id="reports-legacy-notice">
-          {t('reports.legacy-description')}
-        </AlertDescription>
-      </Alert>
       {errors.map(({ id, label, query }) => (
         <CatalogError
           key={id}
@@ -112,26 +113,28 @@ export function ReportCatalog({ userId, modules }: { userId: string; modules: re
           retry={() => void query.refetch()}
         />
       ))}
-      <div className="grid items-start gap-4 @3xl/main:grid-cols-2">
-        {groups.map((group) => (
-          <Card key={group.id}>
-            <CardHeader>
-              <CardTitle>
-                <h2>{group.name}</h2>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="flex flex-col gap-1">
-                {group.reports.map((report) => (
-                  <li className="flex min-h-9" key={reportKey(report)}>
+      {groups.map((group) => (
+        <DataTableCard key={group.id}>
+          <Table aria-label={group.name} density="comfortable" layout="fixed">
+            <TableHeader surface="muted">
+              <TableRow>
+                <TableHead scope="col">
+                  <h2 className="whitespace-normal wrap-anywhere">{group.name}</h2>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {group.reports.map((report) => (
+                <TableRow key={reportKey(report)}>
+                  <TableCell>
                     <ReportLink report={report} />
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DataTableCard>
+      ))}
       {pending && <ReportCatalogSkeleton />}
       {!pending && errors.length === 0 && reports.length === 0 && (
         <Empty>
@@ -194,13 +197,13 @@ function ReportLink({ report }: { report: CatalogReport }) {
     <Button
       data-report-key={reportKey(report)}
       role="link"
-      aria-describedby="reports-legacy-notice"
-      align="between"
-      variant="ghost"
+      variant="link"
+      padding="none"
+      align="start"
       width="full"
       wrap="normal"
       nativeButton={false}
-      render={<a href={`${legacyHome(import.meta.env.BASE_URL)}${hash}`} />}
+      render={<a href={legacy.href} />}
       onClick={(event) => {
         if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
           return;
@@ -208,33 +211,38 @@ function ReportLink({ report }: { report: CatalogReport }) {
         legacy.onClick();
       }}
     >
-      <bdi>{report.name}</bdi>
-      <ArrowRightIcon data-icon="inline-end" className="rtl:rotate-180" />
+      <bdi className="min-w-0 wrap-anywhere">{report.name}</bdi>
     </Button>
   );
 }
 
 export function ReportCatalogSkeleton() {
   return (
-    <div className="grid gap-4 @3xl/main:grid-cols-2" aria-hidden="true">
-      {[0, 1].map((index) => (
-        <Card key={index}>
-          <CardHeader>
-            <div className="h-5 w-36">
-              <Skeleton />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-3">
-              {[0, 1, 2].map((line) => (
-                <div key={line} className="h-8">
+    <div aria-hidden="true">
+      <DataTableCard>
+        <Table density="comfortable">
+          <TableHeader surface="muted">
+            <TableRow>
+              <TableHead>
+                <div className="h-5 w-36">
                   <Skeleton />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[0, 1, 2, 3, 4, 5].map((line) => (
+              <TableRow key={line}>
+                <TableCell>
+                  <div className="h-5 w-3/4">
+                    <Skeleton />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </DataTableCard>
     </div>
   );
 }
