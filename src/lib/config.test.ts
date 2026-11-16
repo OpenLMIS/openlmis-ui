@@ -177,7 +177,8 @@ describe('LIVE_NAV_GROUPS', () => {
   });
 
   it('drops a section once none of its pages is live', () => {
-    expect(items.map((item) => item.titleKey)).not.toContain('nav.reports');
+    expect(items.map((item) => item.titleKey)).not.toContain('nav.buq');
+    expect(items.map((item) => item.titleKey)).toContain('nav.reports');
     expect(items.map((item) => item.titleKey)).toContain('nav.administration');
   });
 

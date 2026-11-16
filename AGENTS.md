@@ -751,7 +751,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 
 | Field | Contract |
 |---|---|
-| `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row; `TextField controlSize="sm"` opts into 28px controls, including inline fields |
+| `TextField`, `TextareaField`, `PasswordField` | Text, multiline text and passwords; `TextareaField maxLength` caps input, `inline` is one row; `TextField controlSize="sm"` opts into 28px controls, including inline fields; `controlSize="lg"` uses 36px |
 | `NumberField` | Keep typed text; validate `wholeNumberText` (`src/lib/whole-number.ts`), including Arabic/Persian digits; read with `toWholeNumber`; `controlSize="sm"` opts into small controls |
 | `QuantityField` | Keep doses, packs and remainder text in `QuantityValue` across unit switches; submit doses; `sizing="minimum"` fills the cell while reserving each input's translated placeholder minimum with room for at least five digits; `InputSizer` measures it once in the column header; `sizing="full"` uses Input's `full-minimum` mode to divide the wrapper equally while reserving the same content minimum with full input padding; `sizing="fill"` with `notation="plus"` lets card Packs inputs share a wide `CardControlRow` as `[Packs] + [Doses]` |
 | `DecimalField` | Validate `decimalText` (`src/lib/decimal.ts`); read with `toDecimal`; display with `toNumberText(value, decimalMark(language))` |
@@ -759,7 +759,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 | `MultiComboboxField` | Multiple choices as chips, never a checkbox column |
 | `TagsField` | Enter/Tab/blur takes the highlighted suggestion or typed text; comma adds typed text; `minLength`/`maxLength` failures show a message |
 | `SelectField` | One choice from a short fixed list; opens below input (`alignItemWithTrigger: false`); `placeholder` shows when empty, unless an item's value is `''` |
-| `ComboboxField` | Searchable choices; item `description` appears muted after label |
+| `ComboboxField` | Searchable choices; item `description` appears muted after label; `loading` puts a spinner inside the input in place of its chevron |
 | `ImageField` | `undefined` keeps saved image, `null` removes it, `File` replaces it; validate `onChange` immediately |
 | `FileField` | `File` selects a file; `undefined` clears it and its errors; pass translated `emptyLabel`, `removeLabel`, `accept` and optional external `describedBy`; the entire paperclip/filename row opens the file chooser, and the selected-file card takes a caller-localized `fileSize` and a destructive clear control; required validation stays in the schema |
 | `DateField` | Page-language calendar; draft is `yyyy-MM-dd` or empty; optional dates get `clearLabel` |
@@ -786,7 +786,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   Set `maxDecimals` to cap precision.
 - Dates use `earliest`/`latest` calendar bounds and schema validation too. Lazy-load the
   calendar and language (`loadDateLocale` through `FormMessagesProvider`) on mount; retry
-  failed loads when opened. Required dates announce the provider's `requiredLabel` with
+  failed loads when opened. `DateField size="lg"` uses a 36px control. Required dates announce the provider's `requiredLabel` with
   their name. Outside forms use `DatePicker`, which `DateField` wraps; display dates with
   localized `formatDateValue` (`src/components/form/date-value.ts`).
 - Timestamps use `formatTimestamp` with `useDeploymentTimeZone()` (`src/hooks/`). It suspends

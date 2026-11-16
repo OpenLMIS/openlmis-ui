@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 type RuntimeConfig = {
+  reportingModules?: string[];
   defaultIssueReasonId?: string;
   defaultReceiveReasonId?: string;
   kitUnpackReasonId?: string;
@@ -38,8 +39,13 @@ export async function loadRuntimeConfig(): Promise<void> {
       kitUnpackReasonId,
       unpackedFromKitReasonId,
       featureFlags,
+      reportingModules,
     } = parsed as Record<string, unknown>;
     useRuntimeConfigStore.setState({
+      reportingModules: asString(reportingModules)
+        ?.split(',')
+        .map((module) => module.trim())
+        .filter((module) => /^[a-zA-Z][\w-]*$/.test(module)),
       defaultIssueReasonId: asString(defaultIssueReasonId),
       defaultReceiveReasonId: asString(defaultReceiveReasonId),
       kitUnpackReasonId: asString(kitUnpackReasonId),
@@ -64,6 +70,11 @@ export function getAuthClientCredentials(): { clientId?: string; clientSecret?: 
 
 export function getDeploymentFlags(): Record<string, unknown> {
   return useRuntimeConfigStore.getState().featureFlags;
+}
+
+export function getReportingModules(): string[] {
+  const modules = useRuntimeConfigStore.getState().reportingModules;
+  return modules?.length ? [...new Set(modules)] : ['common', 'requisitions'];
 }
 
 export function useDeploymentFlags(): Record<string, unknown> {

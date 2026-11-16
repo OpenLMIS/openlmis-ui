@@ -17,6 +17,7 @@ import { Route as ResetPasswordTokenRouteImport } from './routes/reset-password.
 import { Route as protectedProtectedHomeRouteImport } from './routes/(protected)/_protected.home'
 import { Route as protectedProtectedOfflineEventsRouteImport } from './routes/(protected)/_protected.offline-events'
 import { Route as protectedProtectedProfileRouteImport } from './routes/(protected)/_protected.profile'
+import { Route as protectedProtectedReportsRouteImport } from './routes/(protected)/_protected.reports'
 import { Route as protectedProtectedSettingsRouteImport } from './routes/(protected)/_protected.settings'
 import { Route as protectedProtectedAdministrationEquipmentCatalogRouteImport } from './routes/(protected)/_protected.administration.equipment-catalog'
 import { Route as protectedProtectedAdministrationFacilitiesRouteImport } from './routes/(protected)/_protected.administration.facilities'
@@ -93,6 +94,7 @@ import { Route as protectedProtectedAdministrationProductsIdKitUnpackListRouteIm
 import { Route as protectedProtectedAdministrationProductsIdProgramsRouteImport } from './routes/(protected)/_protected.administration.products_.$id.programs'
 import { Route as protectedProtectedAdministrationRequisitionGroupsIdEditRouteImport } from './routes/(protected)/_protected.administration.requisition-groups_.$id_.edit'
 import { Route as protectedProtectedAdministrationUsersIdRolesRouteImport } from './routes/(protected)/_protected.administration.users_.$id.roles'
+import { Route as protectedProtectedReportsModuleReportIdGenerateRouteImport } from './routes/(protected)/_protected.reports_.$module.$reportId.generate'
 import { Route as protectedProtectedStockManagementTransactionHistoryEventIdReverseRouteImport } from './routes/(protected)/_protected.stock-management.transaction-history_.$eventId_.reverse'
 
 const IndexRoute = IndexRouteImport.update({
@@ -134,6 +136,12 @@ const protectedProtectedProfileRoute =
   protectedProtectedProfileRouteImport.update({
     id: '/profile',
     path: '/profile',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedReportsRoute =
+  protectedProtectedReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedSettingsRoute =
@@ -596,6 +604,12 @@ const protectedProtectedAdministrationUsersIdRolesRoute =
     path: '/administration/users/$id/roles',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedReportsModuleReportIdGenerateRoute =
+  protectedProtectedReportsModuleReportIdGenerateRouteImport.update({
+    id: '/reports_/$module/$reportId/generate',
+    path: '/reports/$module/$reportId/generate',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute =
   protectedProtectedStockManagementTransactionHistoryEventIdReverseRouteImport.update(
     {
@@ -613,6 +627,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof protectedProtectedHomeRoute
   '/offline-events': typeof protectedProtectedOfflineEventsRoute
   '/profile': typeof protectedProtectedProfileRouteWithChildren
+  '/reports': typeof protectedProtectedReportsRoute
   '/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/administration/equipment-catalog': typeof protectedProtectedAdministrationEquipmentCatalogRoute
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
@@ -688,6 +703,7 @@ export interface FileRoutesByFullPath {
   '/administration/products/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/administration/requisition-groups/$id/edit': typeof protectedProtectedAdministrationRequisitionGroupsIdEditRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
+  '/reports/$module/$reportId/generate': typeof protectedProtectedReportsModuleReportIdGenerateRoute
   '/stock-management/transaction-history/$eventId/reverse': typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
   '/administration/products/$id/': typeof protectedProtectedAdministrationProductsIdIndexRoute
 }
@@ -698,6 +714,7 @@ export interface FileRoutesByTo {
   '/reset-password/$token': typeof ResetPasswordTokenRoute
   '/home': typeof protectedProtectedHomeRoute
   '/offline-events': typeof protectedProtectedOfflineEventsRoute
+  '/reports': typeof protectedProtectedReportsRoute
   '/administration/equipment-catalog': typeof protectedProtectedAdministrationEquipmentCatalogRoute
   '/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
   '/administration/facility-types': typeof protectedProtectedAdministrationFacilityTypesRoute
@@ -771,6 +788,7 @@ export interface FileRoutesByTo {
   '/administration/products/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/administration/requisition-groups/$id/edit': typeof protectedProtectedAdministrationRequisitionGroupsIdEditRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
+  '/reports/$module/$reportId/generate': typeof protectedProtectedReportsModuleReportIdGenerateRoute
   '/stock-management/transaction-history/$eventId/reverse': typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdIndexRoute
 }
@@ -784,6 +802,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/home': typeof protectedProtectedHomeRoute
   '/(protected)/_protected/offline-events': typeof protectedProtectedOfflineEventsRoute
   '/(protected)/_protected/profile': typeof protectedProtectedProfileRouteWithChildren
+  '/(protected)/_protected/reports': typeof protectedProtectedReportsRoute
   '/(protected)/_protected/settings': typeof protectedProtectedSettingsRouteWithChildren
   '/(protected)/_protected/administration/equipment-catalog': typeof protectedProtectedAdministrationEquipmentCatalogRoute
   '/(protected)/_protected/administration/facilities': typeof protectedProtectedAdministrationFacilitiesRoute
@@ -859,6 +878,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/products_/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/(protected)/_protected/administration/requisition-groups_/$id_/edit': typeof protectedProtectedAdministrationRequisitionGroupsIdEditRoute
   '/(protected)/_protected/administration/users_/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
+  '/(protected)/_protected/reports_/$module/$reportId/generate': typeof protectedProtectedReportsModuleReportIdGenerateRoute
   '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse': typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
   '/(protected)/_protected/administration/products_/$id/': typeof protectedProtectedAdministrationProductsIdIndexRoute
 }
@@ -872,6 +892,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/offline-events'
     | '/profile'
+    | '/reports'
     | '/settings'
     | '/administration/equipment-catalog'
     | '/administration/facilities'
@@ -947,6 +968,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id/programs'
     | '/administration/requisition-groups/$id/edit'
     | '/administration/users/$id/roles'
+    | '/reports/$module/$reportId/generate'
     | '/stock-management/transaction-history/$eventId/reverse'
     | '/administration/products/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -957,6 +979,7 @@ export interface FileRouteTypes {
     | '/reset-password/$token'
     | '/home'
     | '/offline-events'
+    | '/reports'
     | '/administration/equipment-catalog'
     | '/administration/facilities'
     | '/administration/facility-types'
@@ -1030,6 +1053,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id/programs'
     | '/administration/requisition-groups/$id/edit'
     | '/administration/users/$id/roles'
+    | '/reports/$module/$reportId/generate'
     | '/stock-management/transaction-history/$eventId/reverse'
     | '/administration/products/$id'
   id:
@@ -1042,6 +1066,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/home'
     | '/(protected)/_protected/offline-events'
     | '/(protected)/_protected/profile'
+    | '/(protected)/_protected/reports'
     | '/(protected)/_protected/settings'
     | '/(protected)/_protected/administration/equipment-catalog'
     | '/(protected)/_protected/administration/facilities'
@@ -1117,6 +1142,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/products_/$id/programs'
     | '/(protected)/_protected/administration/requisition-groups_/$id_/edit'
     | '/(protected)/_protected/administration/users_/$id/roles'
+    | '/(protected)/_protected/reports_/$module/$reportId/generate'
     | '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse'
     | '/(protected)/_protected/administration/products_/$id/'
   fileRoutesById: FileRoutesById
@@ -1185,6 +1211,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof protectedProtectedProfileRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/reports': {
+      id: '/(protected)/_protected/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof protectedProtectedReportsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/settings': {
@@ -1719,6 +1752,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationUsersIdRolesRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/reports_/$module/$reportId/generate': {
+      id: '/(protected)/_protected/reports_/$module/$reportId/generate'
+      path: '/reports/$module/$reportId/generate'
+      fullPath: '/reports/$module/$reportId/generate'
+      preLoaderRoute: typeof protectedProtectedReportsModuleReportIdGenerateRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse': {
       id: '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse'
       path: '/stock-management/transaction-history/$eventId/reverse'
@@ -1798,6 +1838,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedHomeRoute: typeof protectedProtectedHomeRoute
   protectedProtectedOfflineEventsRoute: typeof protectedProtectedOfflineEventsRoute
   protectedProtectedProfileRoute: typeof protectedProtectedProfileRouteWithChildren
+  protectedProtectedReportsRoute: typeof protectedProtectedReportsRoute
   protectedProtectedSettingsRoute: typeof protectedProtectedSettingsRouteWithChildren
   protectedProtectedAdministrationEquipmentCatalogRoute: typeof protectedProtectedAdministrationEquipmentCatalogRoute
   protectedProtectedAdministrationFacilitiesRoute: typeof protectedProtectedAdministrationFacilitiesRoute
@@ -1863,6 +1904,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedStockManagementUnpackProgramIdRoute: typeof protectedProtectedStockManagementUnpackProgramIdRoute
   protectedProtectedAdministrationRequisitionGroupsIdEditRoute: typeof protectedProtectedAdministrationRequisitionGroupsIdEditRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
+  protectedProtectedReportsModuleReportIdGenerateRoute: typeof protectedProtectedReportsModuleReportIdGenerateRoute
   protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute: typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
 }
 
@@ -1870,6 +1912,7 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
   protectedProtectedHomeRoute: protectedProtectedHomeRoute,
   protectedProtectedOfflineEventsRoute: protectedProtectedOfflineEventsRoute,
   protectedProtectedProfileRoute: protectedProtectedProfileRouteWithChildren,
+  protectedProtectedReportsRoute: protectedProtectedReportsRoute,
   protectedProtectedSettingsRoute: protectedProtectedSettingsRouteWithChildren,
   protectedProtectedAdministrationEquipmentCatalogRoute:
     protectedProtectedAdministrationEquipmentCatalogRoute,
@@ -1997,6 +2040,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationRequisitionGroupsIdEditRoute,
   protectedProtectedAdministrationUsersIdRolesRoute:
     protectedProtectedAdministrationUsersIdRolesRoute,
+  protectedProtectedReportsModuleReportIdGenerateRoute:
+    protectedProtectedReportsModuleReportIdGenerateRoute,
   protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute:
     protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute,
 }

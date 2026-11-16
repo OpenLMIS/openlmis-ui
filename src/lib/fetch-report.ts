@@ -2,9 +2,15 @@ import type { AxiosRequestConfig } from 'axios';
 import { isAxiosError } from 'axios';
 import { client } from '@/integrations/axios';
 
-async function requestReport(path: string, params: AxiosRequestConfig['params']) {
+type ReportRequestOptions = Pick<AxiosRequestConfig, 'signal' | 'timeout'>;
+
+async function requestReport(
+  path: string,
+  params: AxiosRequestConfig['params'],
+  options?: ReportRequestOptions,
+) {
   try {
-    return await client.get<Blob>(path, { params, responseType: 'blob' });
+    return await client.get<Blob>(path, { params, responseType: 'blob', ...options });
   } catch (error) {
     if (isAxiosError(error) && error.response?.data instanceof Blob) {
       try {
@@ -33,7 +39,15 @@ export async function fetchReport(path: string, params: AxiosRequestConfig['para
   return (await requestReport(path, params)).data;
 }
 
-export async function fetchReportFile(path: string, params: AxiosRequestConfig['params']) {
-  const { data, headers } = await requestReport(path, params);
-  return { blob: data, filename: reportFilename(headers['content-disposition']) };
+/** `options` can cancel the request or change its timeout; `0` waits as long as the server takes. */
+export async function fetchReportFile(
+  path: string,
+  params: AxiosRequestConfig['params'],
+  options?: ReportRequestOptions,
+) {
+  const { data, headers } = await requestReport(path, params, options);
+  return {
+    blob: data,
+    filename: reportFilename(headers['content-disposition']),
+  };
 }
