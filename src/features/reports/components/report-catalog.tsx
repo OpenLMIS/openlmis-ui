@@ -1,6 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { ChartColumnIcon, TriangleAlertIcon } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { DataTableCard } from '@/components/data-table/data-table';
@@ -28,7 +29,7 @@ import {
   reportCategoriesOptions,
   templateReportsOptions,
 } from '@/features/reports/api/queries';
-import { groupReports, reportLegacyHash } from '@/features/reports/lib/report-categories';
+import { dashboardLegacyHash, groupReports } from '@/features/reports/lib/report-categories';
 import type { CatalogReport } from '@/features/reports/lib/types';
 import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
 import { isRefused } from '@/lib/http';
@@ -191,8 +192,32 @@ function reportKey(report: CatalogReport) {
 }
 
 function ReportLink({ report }: { report: CatalogReport }) {
-  const hash = reportLegacyHash(report);
-  const legacy = useBackToLegacy(hash);
+  const label = <bdi className="min-w-0 wrap-anywhere">{report.name}</bdi>;
+  if (report.kind === 'dashboard') return <DashboardLink report={report}>{label}</DashboardLink>;
+  return (
+    <Button
+      data-report-key={reportKey(report)}
+      role="link"
+      variant="link"
+      padding="none"
+      align="start"
+      width="full"
+      wrap="normal"
+      nativeButton={false}
+      render={
+        <Link
+          to="/reports/$module/$reportId/generate"
+          params={{ module: report.module, reportId: report.id }}
+        />
+      }
+    >
+      {label}
+    </Button>
+  );
+}
+
+function DashboardLink({ report, children }: { report: CatalogReport; children: ReactNode }) {
+  const legacy = useBackToLegacy(dashboardLegacyHash(report.id));
   return (
     <Button
       data-report-key={reportKey(report)}
@@ -211,7 +236,7 @@ function ReportLink({ report }: { report: CatalogReport }) {
         legacy.onClick();
       }}
     >
-      <bdi className="min-w-0 wrap-anywhere">{report.name}</bdi>
+      {children}
     </Button>
   );
 }

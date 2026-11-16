@@ -1,6 +1,7 @@
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { CanceledError } from 'axios';
 import { PrinterIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -191,6 +192,16 @@ describe('usePrintReport', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Print' })).toBeEnabled());
     expect(request).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('closes the waiting tab without a toast when the request is cancelled', async () => {
+    request.mockRejectedValue(new CanceledError());
+    renderButton('open');
+    await userEvent.click(screen.getByRole('button', { name: 'Print' }));
+    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Print' })).toBeEnabled());
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it.each(['success', 'error'])(

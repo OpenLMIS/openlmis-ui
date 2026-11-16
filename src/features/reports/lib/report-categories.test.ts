@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupReports, reportLegacyHash } from '@/features/reports/lib/report-categories';
+import { dashboardLegacyHash, groupReports } from '@/features/reports/lib/report-categories';
 import type { CatalogReport } from '@/features/reports/lib/types';
 
 const reports: CatalogReport[] = [
@@ -49,9 +49,6 @@ describe('report categories', () => {
   });
 });
 
-it('keeps module identity and selects the proper encoded legacy destination', () => {
-  expect(
-    reportLegacyHash({ ...reports[0], kind: 'template', id: 'id/a', module: 'local reports' }),
-  ).toBe('#!/reports/list/local%20reports/id%2Fa/options');
-  expect(reportLegacyHash(reports[2])).toBe('#!/reports/list/dashboard/dash');
+it('encodes the legacy dashboard destination', () => {
+  expect(dashboardLegacyHash('id/a')).toBe('#!/reports/list/dashboard/id%2Fa');
 });

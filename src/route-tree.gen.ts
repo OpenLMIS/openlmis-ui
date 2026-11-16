@@ -94,6 +94,7 @@ import { Route as protectedProtectedAdministrationProductsIdKitUnpackListRouteIm
 import { Route as protectedProtectedAdministrationProductsIdProgramsRouteImport } from './routes/(protected)/_protected.administration.products_.$id.programs'
 import { Route as protectedProtectedAdministrationRequisitionGroupsIdEditRouteImport } from './routes/(protected)/_protected.administration.requisition-groups_.$id_.edit'
 import { Route as protectedProtectedAdministrationUsersIdRolesRouteImport } from './routes/(protected)/_protected.administration.users_.$id.roles'
+import { Route as protectedProtectedReportsModuleReportIdGenerateRouteImport } from './routes/(protected)/_protected.reports_.$module.$reportId.generate'
 import { Route as protectedProtectedStockManagementTransactionHistoryEventIdReverseRouteImport } from './routes/(protected)/_protected.stock-management.transaction-history_.$eventId_.reverse'
 
 const IndexRoute = IndexRouteImport.update({
@@ -603,6 +604,12 @@ const protectedProtectedAdministrationUsersIdRolesRoute =
     path: '/administration/users/$id/roles',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedReportsModuleReportIdGenerateRoute =
+  protectedProtectedReportsModuleReportIdGenerateRouteImport.update({
+    id: '/reports_/$module/$reportId/generate',
+    path: '/reports/$module/$reportId/generate',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute =
   protectedProtectedStockManagementTransactionHistoryEventIdReverseRouteImport.update(
     {
@@ -696,6 +703,7 @@ export interface FileRoutesByFullPath {
   '/administration/products/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/administration/requisition-groups/$id/edit': typeof protectedProtectedAdministrationRequisitionGroupsIdEditRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
+  '/reports/$module/$reportId/generate': typeof protectedProtectedReportsModuleReportIdGenerateRoute
   '/stock-management/transaction-history/$eventId/reverse': typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
   '/administration/products/$id/': typeof protectedProtectedAdministrationProductsIdIndexRoute
 }
@@ -780,6 +788,7 @@ export interface FileRoutesByTo {
   '/administration/products/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/administration/requisition-groups/$id/edit': typeof protectedProtectedAdministrationRequisitionGroupsIdEditRoute
   '/administration/users/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
+  '/reports/$module/$reportId/generate': typeof protectedProtectedReportsModuleReportIdGenerateRoute
   '/stock-management/transaction-history/$eventId/reverse': typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
   '/administration/products/$id': typeof protectedProtectedAdministrationProductsIdIndexRoute
 }
@@ -869,6 +878,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/products_/$id/programs': typeof protectedProtectedAdministrationProductsIdProgramsRoute
   '/(protected)/_protected/administration/requisition-groups_/$id_/edit': typeof protectedProtectedAdministrationRequisitionGroupsIdEditRoute
   '/(protected)/_protected/administration/users_/$id/roles': typeof protectedProtectedAdministrationUsersIdRolesRoute
+  '/(protected)/_protected/reports_/$module/$reportId/generate': typeof protectedProtectedReportsModuleReportIdGenerateRoute
   '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse': typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
   '/(protected)/_protected/administration/products_/$id/': typeof protectedProtectedAdministrationProductsIdIndexRoute
 }
@@ -958,6 +968,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id/programs'
     | '/administration/requisition-groups/$id/edit'
     | '/administration/users/$id/roles'
+    | '/reports/$module/$reportId/generate'
     | '/stock-management/transaction-history/$eventId/reverse'
     | '/administration/products/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -1042,6 +1053,7 @@ export interface FileRouteTypes {
     | '/administration/products/$id/programs'
     | '/administration/requisition-groups/$id/edit'
     | '/administration/users/$id/roles'
+    | '/reports/$module/$reportId/generate'
     | '/stock-management/transaction-history/$eventId/reverse'
     | '/administration/products/$id'
   id:
@@ -1130,6 +1142,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/products_/$id/programs'
     | '/(protected)/_protected/administration/requisition-groups_/$id_/edit'
     | '/(protected)/_protected/administration/users_/$id/roles'
+    | '/(protected)/_protected/reports_/$module/$reportId/generate'
     | '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse'
     | '/(protected)/_protected/administration/products_/$id/'
   fileRoutesById: FileRoutesById
@@ -1739,6 +1752,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationUsersIdRolesRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/reports_/$module/$reportId/generate': {
+      id: '/(protected)/_protected/reports_/$module/$reportId/generate'
+      path: '/reports/$module/$reportId/generate'
+      fullPath: '/reports/$module/$reportId/generate'
+      preLoaderRoute: typeof protectedProtectedReportsModuleReportIdGenerateRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse': {
       id: '/(protected)/_protected/stock-management/transaction-history_/$eventId_/reverse'
       path: '/stock-management/transaction-history/$eventId/reverse'
@@ -1884,6 +1904,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedStockManagementUnpackProgramIdRoute: typeof protectedProtectedStockManagementUnpackProgramIdRoute
   protectedProtectedAdministrationRequisitionGroupsIdEditRoute: typeof protectedProtectedAdministrationRequisitionGroupsIdEditRoute
   protectedProtectedAdministrationUsersIdRolesRoute: typeof protectedProtectedAdministrationUsersIdRolesRoute
+  protectedProtectedReportsModuleReportIdGenerateRoute: typeof protectedProtectedReportsModuleReportIdGenerateRoute
   protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute: typeof protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute
 }
 
@@ -2019,6 +2040,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationRequisitionGroupsIdEditRoute,
   protectedProtectedAdministrationUsersIdRolesRoute:
     protectedProtectedAdministrationUsersIdRolesRoute,
+  protectedProtectedReportsModuleReportIdGenerateRoute:
+    protectedProtectedReportsModuleReportIdGenerateRoute,
   protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute:
     protectedProtectedStockManagementTransactionHistoryEventIdReverseRoute,
 }

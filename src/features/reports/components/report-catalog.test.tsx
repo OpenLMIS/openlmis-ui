@@ -1,5 +1,5 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
+import { QueryClient } from '@tanstack/react-query';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
@@ -9,6 +9,7 @@ import {
 } from '@/features/reports/api/api';
 import { ReportCatalog } from '@/features/reports/components/report-catalog';
 import { reportCaughtError } from '@/lib/report-error';
+import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/lib/report-error', () => ({ reportCaughtError: vi.fn() }));
 
@@ -20,7 +21,7 @@ vi.mock('@/features/reports/api/api', () => ({
 
 afterEach(() => vi.unstubAllEnvs());
 
-it('keeps usable template links during a dashboard failure and retries only that failed source', async () => {
+it('links templates to the native form and keeps them usable during a dashboard failure and retries only that failed source', async () => {
   const error = new Error('Unavailable');
   vi.stubEnv('VITE_LEGACY_UI_URL', 'https://legacy.example.org');
   vi.mocked(fetchReportCategories).mockResolvedValue([{ id: 'default', name: 'Default Category' }]);
@@ -31,15 +32,11 @@ it('keeps usable template links during a dashboard failure and retries only that
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
-  const view = render(
-    <QueryClientProvider client={queryClient}>
-      <ReportCatalog userId="user" modules={['common']} />
-    </QueryClientProvider>,
-  );
+  renderPage(<ReportCatalog userId="user" modules={['common']} />, { queryClient });
   try {
     expect(await screen.findByRole('link', { name: 'Stock' })).toHaveAttribute(
       'href',
-      'https://legacy.example.org/#!/reports/list/common/stock/options',
+      '/reports/common/stock/generate',
     );
     expect(screen.getByRole('table', { name: 'Default Category' })).toBeInTheDocument();
     expect(screen.queryByText('reports.legacy-description')).not.toBeInTheDocument();
@@ -56,7 +53,6 @@ it('keeps usable template links during a dashboard failure and retries only that
     expect(screen.queryByRole('button', { name: 'error.try-again' })).not.toBeInTheDocument();
     expect(reportCaughtError).toHaveBeenCalledOnce();
   } finally {
-    view.unmount();
     queryClient.clear();
   }
 });
@@ -74,11 +70,7 @@ it.each(['report', 'background'])(
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
-    const view = render(
-      <QueryClientProvider client={queryClient}>
-        <ReportCatalog userId="user" modules={['requisitions']} />
-      </QueryClientProvider>,
-    );
+    renderPage(<ReportCatalog userId="user" modules={['requisitions']} />, { queryClient });
     try {
       const report = await screen.findByRole('link', { name: 'Sample Requisition Report' });
       expect(screen.getByRole('link', { name: 'Stock On Hand' })).toBeInTheDocument();
@@ -96,7 +88,6 @@ it.each(['report', 'background'])(
           : document.body,
       ).toHaveFocus();
     } finally {
-      view.unmount();
       queryClient.clear();
     }
   },
