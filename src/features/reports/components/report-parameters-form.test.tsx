@@ -9,6 +9,7 @@ import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchParameterOptions, generateReport } from '@/features/reports/api/api';
 import { ReportParametersForm } from '@/features/reports/components/report-parameters-form';
 import { downloadFile } from '@/lib/download-file';
+import { reportCaughtError } from '@/lib/report-error';
 import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
 import { TIMELINESS } from '@/test-utils/report-templates';
@@ -18,6 +19,7 @@ vi.mock('@/features/reports/api/api', async (original) => ({
   fetchParameterOptions: vi.fn(),
   generateReport: vi.fn(),
 }));
+vi.mock('@/lib/report-error', () => ({ reportCaughtError: vi.fn() }));
 vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
@@ -30,7 +32,6 @@ const tab = { location: { href: 'about:blank' }, close: vi.fn(), closed: false, 
 const pdf = () => ({
   blob: new Blob(['%PDF-1.4\n']),
   filename: 'Timeliness_Report.pdf' as string | undefined,
-  contentType: 'application/pdf' as string | undefined,
 });
 
 beforeEach(() => {
@@ -154,7 +155,6 @@ it('downloads non-PDF formats without a tab and opens only a verified PDF', asyn
   vi.mocked(generateReport).mockResolvedValue({
     blob: new Blob(['<html><script>steal()</script>']),
     filename: 'Timeliness_Report.html',
-    contentType: 'text/html',
   });
   await renderForm();
   await choose(user, 'Program Name', 'Family Planning');
@@ -242,3 +242,32 @@ it('ends a generation when the app hides the page, without delivering or a toast
   expect(toast.success).not.toHaveBeenCalled();
   expect(toast.error).not.toHaveBeenCalled();
 });
+
+it.each(['failed', 'loading'])(
+  'returns invalid-submit focus to an actionable control when a required lookup is %s',
+  async (state) => {
+    vi.mocked(fetchParameterOptions).mockImplementation(async (lookup) => {
+      if (lookup.path !== '/programs') return [];
+      if (state === 'failed') throw httpError(403, 'Refused');
+      return new Promise(() => {});
+    });
+    const user = userEvent.setup();
+    await renderForm();
+    if (state === 'failed') {
+      await screen.findByText('reports.source-refused');
+      expect(reportCaughtError).toHaveBeenCalledOnce();
+    }
+    expect(screen.getByRole('combobox', { name: 'Program Name' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'reports.generate.submit' }));
+    await screen.findByRole('alertdialog');
+    await user.click(screen.getByRole('button', { name: 'dialog.close' }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', {
+          name: state === 'failed' ? 'error.try-again' : 'reports.generate.submit',
+        }),
+      ).toHaveFocus(),
+    );
+    expect(generateReport).not.toHaveBeenCalled();
+  },
+);

@@ -1,8 +1,9 @@
 import { useStore } from '@tanstack/react-form';
 import { useQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { withForm } from '@/components/form/form';
 import type { ComboboxFieldItem, SelectFieldItem } from '@/components/form/form-fields';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -15,6 +16,8 @@ import type {
   ReportField,
   ReportFormValues,
 } from '@/features/reports/lib/report-parameters';
+import { isRefused } from '@/lib/http';
+import { reportCaughtError } from '@/lib/report-error';
 
 type FieldProps = { field: ReportField; fields: readonly ReportField[]; userId: string };
 
@@ -145,7 +148,7 @@ const ReportChoiceField = withForm({
     const blocked = unsupported || waitingFor.length > 0 || loading || (failed && !query.data);
 
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2" data-report-field={field.key}>
         <form.AppField name={field.key} listeners={listeners}>
           {(control) => (
             <control.ComboboxField
@@ -181,29 +184,57 @@ const ReportChoiceField = withForm({
           </Alert>
         )}
         {failed && (
-          <Alert variant="destructive" actionLayout="flow">
-            <TriangleAlertIcon />
-            <AlertTitle>
-              {t('reports.generate.lookup-error-title', { name: field.label })}
-            </AlertTitle>
-            <AlertDescription>
-              {query.error instanceof IncompleteLookupError
-                ? t('reports.generate.lookup-incomplete')
-                : t('reports.generate.lookup-error-description')}
-            </AlertDescription>
-            <AlertAction>
-              <Button
-                variant="outline"
-                disabled={query.isFetching}
-                onClick={() => void query.refetch()}
-              >
-                {query.isFetching && <Spinner data-icon="inline-start" />}
-                {t('error.try-again')}
-              </Button>
-            </AlertAction>
-          </Alert>
+          <LookupError
+            name={field.label}
+            error={query.error}
+            pending={query.isFetching}
+            retry={() => void query.refetch()}
+          />
         )}
       </div>
     );
   },
 });
+
+function LookupError({
+  name,
+  error,
+  pending,
+  retry,
+}: {
+  name: string;
+  error: unknown;
+  pending: boolean;
+  retry: () => void;
+}) {
+  const { t } = useTranslation();
+  const offline = useOfflineFailure(error, retry);
+  useEffect(() => reportCaughtError(error, {}), [error]);
+  return (
+    <Alert variant="destructive" actionLayout="flow">
+      <TriangleAlertIcon />
+      <AlertTitle>{t('reports.generate.lookup-error-title', { name })}</AlertTitle>
+      <AlertDescription>
+        {offline
+          ? t('offline.notice-description')
+          : isRefused(error)
+            ? t('reports.source-refused')
+            : error instanceof IncompleteLookupError
+              ? t('reports.generate.lookup-incomplete')
+              : t('reports.generate.lookup-error-description')}
+      </AlertDescription>
+      <AlertAction>
+        <Button
+          type="button"
+          data-lookup-retry
+          variant="outline"
+          disabled={pending}
+          onClick={retry}
+        >
+          {pending && <Spinner data-icon="inline-start" />}
+          {t('error.try-again')}
+        </Button>
+      </AlertAction>
+    </Alert>
+  );
+}

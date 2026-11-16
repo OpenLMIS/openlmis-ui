@@ -141,7 +141,18 @@ export function ReportParametersForm({ template, module, userId }: Props) {
         closeLabel={t('dialog.close')}
         finalFocus={false}
         onOpenChangeComplete={(open) => {
-          if (!open) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+          if (open) return;
+          const invalid = formRef.current?.querySelectorAll<HTMLElement>('[aria-invalid="true"]');
+          for (const control of invalid ?? []) {
+            const target = control.matches(':disabled, [aria-disabled="true"]')
+              ? control
+                  .closest('[data-report-field]')
+                  ?.querySelector<HTMLElement>('[data-lookup-retry]:not(:disabled)')
+              : control;
+            target?.focus();
+            if (target && document.activeElement === target) return;
+          }
+          generateRef.current?.focus();
         }}
       />
     </form>

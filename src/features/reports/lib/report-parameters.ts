@@ -17,7 +17,7 @@ export const REPORT_FORMATS = [
   'html',
 ] as const satisfies readonly ReportFormat[];
 
-export type ReportDependency = { parentKey: string; parentName: string; placeholder: string };
+export type ReportDependency = { parentKey: string; placeholder: string };
 
 export type ReportChoiceSource =
   | { type: 'static'; options: ReportChoice[] }
@@ -60,9 +60,7 @@ function choiceSource(
     const lookup = toLookup(parameter, api);
     const parents = dependencies.map(({ dependency, placeholder }) => {
       const parentKey = dependency && dependency !== parameter.name && keys.get(dependency);
-      return parentKey && placeholder
-        ? { parentKey, parentName: dependency, placeholder }
-        : undefined;
+      return parentKey && placeholder ? { parentKey, placeholder } : undefined;
     });
     if (!lookup || parents.some((parent) => !parent)) return { type: 'unsupported' };
     return { type: 'lookup', lookup, dependencies: parents as ReportDependency[] };

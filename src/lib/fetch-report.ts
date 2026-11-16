@@ -46,10 +46,8 @@ export async function fetchReportFile(
   options?: ReportRequestOptions,
 ) {
   const { data, headers } = await requestReport(path, params, options);
-  const type = headers['content-type'];
   return {
     blob: data,
     filename: reportFilename(headers['content-disposition']),
-    contentType: typeof type === 'string' ? type : undefined,
   };
 }

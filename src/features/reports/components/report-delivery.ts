@@ -91,6 +91,7 @@ export function useReportGeneration({ userId, module, reportId, reportName }: Ge
     const opening = active.current;
     if (!opening) return;
     active.current = null;
+    opening.prepared = undefined;
     opening.controller.abort();
     opening.delivery?.close();
   }, []);
@@ -122,6 +123,7 @@ export function useReportGeneration({ userId, module, reportId, reportName }: Ge
           params: opening.params(language),
           signal,
         }).then((prepared) => {
+          if (signal.aborted || active.current !== opening) throw new CanceledError();
           opening.prepared = prepared;
           return prepared.blob;
         }),
@@ -136,6 +138,7 @@ export function useReportGeneration({ userId, module, reportId, reportName }: Ge
           ? openReport(reportFileName(undefined, reportName, 'pdf'), t('reports.generate.opening'))
           : null;
       const finish = () => {
+        opening.prepared = undefined;
         if (active.current === opening) active.current = null;
       };
       opening.delivery = {
