@@ -136,7 +136,7 @@ export function ReportCatalog({ userId, modules }: { userId: string; modules: re
           </Table>
         </DataTableCard>
       ))}
-      {pending && <ReportCatalogSkeleton />}
+      {pending && reports.length === 0 && <ReportCatalogSkeleton />}
       {!pending && errors.length === 0 && reports.length === 0 && (
         <Empty>
           <EmptyHeader>
@@ -250,7 +250,7 @@ export function ReportCatalogSkeleton() {
             <TableRow>
               <TableHead>
                 <div className="h-5 w-36">
-                  <Skeleton />
+                  <Skeleton fill />
                 </div>
               </TableHead>
             </TableRow>
@@ -260,7 +260,7 @@ export function ReportCatalogSkeleton() {
               <TableRow key={line}>
                 <TableCell>
                   <div className="h-5 w-3/4">
-                    <Skeleton />
+                    <Skeleton fill />
                   </div>
                 </TableCell>
               </TableRow>

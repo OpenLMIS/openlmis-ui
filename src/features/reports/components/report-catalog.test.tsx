@@ -92,3 +92,31 @@ it.each(['report', 'background'])(
     }
   },
 );
+
+it('replaces the initial skeleton with usable reports while another source is still loading', async () => {
+  const templates = Promise.withResolvers<Awaited<ReturnType<typeof fetchTemplateReports>>>();
+  const dashboards = Promise.withResolvers<Awaited<ReturnType<typeof fetchAvailableDashboards>>>();
+  vi.mocked(fetchReportCategories).mockResolvedValue([{ id: 'default', name: 'Default Category' }]);
+  vi.mocked(fetchTemplateReports).mockReturnValue(templates.promise);
+  vi.mocked(fetchAvailableDashboards).mockReturnValue(dashboards.promise);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  renderPage(<ReportCatalog userId="user" modules={['common']} />, { queryClient });
+  try {
+    expect(await screen.findAllByRole('table', { hidden: true })).toHaveLength(1);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    await act(async () => templates.resolve([{ id: 'stock', name: 'Stock' }]));
+    expect(await screen.findByRole('link', { name: 'Stock' })).toHaveAttribute(
+      'href',
+      '/reports/common/stock/generate',
+    );
+    expect(screen.getAllByRole('table', { hidden: true })).toHaveLength(1);
+    expect(screen.queryByText('reports.empty-title')).not.toBeInTheDocument();
+    await act(async () => dashboards.resolve([{ id: 'dashboard', name: 'Dashboard' }]));
+    expect(await screen.findByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.getAllByRole('table', { hidden: true })).toHaveLength(1);
+  } finally {
+    queryClient.clear();
+  }
+});
