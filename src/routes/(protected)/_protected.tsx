@@ -7,6 +7,7 @@ import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { OfflineNotice } from '@/components/app-shell/offline-notice';
 import { PageVisibility } from '@/components/shared/page-visibility';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { TourLauncher } from '@/features/onboarding/components/tour-launcher';
 import { queryClient } from '@/integrations/tanstack-query';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { canRetainPageOffline, isOfflineCapable } from '@/lib/offline-pages';
@@ -18,6 +19,8 @@ import {
   preloadRequisitionReferences,
   warmRequisitionChunks,
 } from '@/routes/-requisition-preload';
+
+const HEADER_ACTIONS = <TourLauncher />;
 
 export const Route = createFileRoute('/(protected)/_protected')({
   beforeLoad: ({ location, context }) => {
@@ -125,7 +128,7 @@ function ProtectedLayout() {
   if (scope !== loadedScope) return <AppShellSkeleton />;
 
   return (
-    <AppShell key={scope}>
+    <AppShell key={scope} headerActions={HEADER_ACTIONS}>
       <div ref={noticeRef} hidden={available}>
         {!available && (
           <OfflineNotice

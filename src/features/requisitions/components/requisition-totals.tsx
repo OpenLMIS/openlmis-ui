@@ -6,6 +6,7 @@ import { SettingsItem } from '@/components/form/settings-list';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function RequisitionTotals({
   totals,
@@ -19,7 +20,11 @@ export function RequisitionTotals({
   const { t } = useTranslation();
   const headingId = useId();
   return (
-    <section aria-labelledby={headingId} className="flex justify-end">
+    <section
+      aria-labelledby={headingId}
+      className="flex justify-end"
+      data-tour={TOUR_ANCHORS.requisitionTotals}
+    >
       <div className="w-full @3xl/main:max-w-md">
         <DataTableCard>
           <CardBand>
