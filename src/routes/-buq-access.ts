@@ -12,6 +12,7 @@ import {
   buqSourcesOfFundsOptions,
   buqsForApprovalOptions,
   buqsForFinalApprovalOptions,
+  fetchFinalApprovalIds,
   openBuqsOptions,
   supervisedZonesOptions,
 } from '@/features/buq/api/queries';
@@ -201,21 +202,12 @@ export async function loadNationalForecast(
   ]);
   assertSessionScope(scope);
   const zoneIds = Object.keys(zones);
-  const lists = await Promise.all(
-    zoneIds.map((zoneId) =>
-      queryClient.fetchQuery({
-        ...buqsForFinalApprovalOptions({
-          programId: access.programId,
-          periodId: forecast.processingPeriodId,
-          zoneId,
-        }),
-        staleTime: 0,
-      }),
-    ),
-  );
+  const waiting = await fetchFinalApprovalIds(queryClient, {
+    programId: access.programId,
+    periodId: forecast.processingPeriodId,
+    zoneIds,
+  });
   assertSessionScope(scope);
-  if (!lists.flat().some(({ bottomUpQuantification }) => bottomUpQuantification.id === id)) {
-    throw notFound();
-  }
+  if (!waiting.includes(id)) throw notFound();
   return { ...access, zoneIds };
 }

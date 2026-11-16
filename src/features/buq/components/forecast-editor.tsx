@@ -35,7 +35,7 @@ import {
   buqRemarksOptions,
   buqSourcesOfFundsOptions,
   buqsForApprovalOptions,
-  buqsForFinalApprovalOptions,
+  fetchFinalApprovalIds,
 } from '@/features/buq/api/queries';
 import { buqStatusBadge } from '@/features/buq/components/buq-status-badge';
 import {
@@ -325,19 +325,11 @@ export function ForecastForm({
       return waiting.map(({ id }) => id);
     }
     if (mode.kind === 'national') {
-      const lists = await Promise.all(
-        mode.zoneIds.map((zoneId) =>
-          queryClient.fetchQuery({
-            ...buqsForFinalApprovalOptions({
-              programId: mode.programId,
-              periodId: forecast.processingPeriodId,
-              zoneId,
-            }),
-            staleTime: 0,
-          }),
-        ),
-      );
-      return lists.flat().map(({ bottomUpQuantification }) => bottomUpQuantification.id);
+      return fetchFinalApprovalIds(queryClient, {
+        programId: mode.programId,
+        periodId: forecast.processingPeriodId,
+        zoneIds: mode.zoneIds,
+      });
     }
     return undefined;
   };

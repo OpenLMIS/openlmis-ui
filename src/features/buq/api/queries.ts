@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
+import { type QueryClient, queryOptions } from '@tanstack/react-query';
 import {
   type FinalApprovalSearch,
   fetchApproveStats,
@@ -87,3 +87,22 @@ export const buqRejectionOptions = (id: string) =>
     queryKey: [...queryKeys.buq.detail(id), 'rejection'],
     queryFn: () => fetchMostRecentRejection(id),
   });
+
+export async function fetchFinalApprovalIds(
+  queryClient: QueryClient,
+  {
+    programId,
+    periodId,
+    zoneIds,
+  }: { programId: string; periodId: string; zoneIds: readonly string[] },
+) {
+  const lists = await Promise.all(
+    zoneIds.map((zoneId) =>
+      queryClient.fetchQuery({
+        ...buqsForFinalApprovalOptions({ programId, periodId, zoneId }),
+        staleTime: 0,
+      }),
+    ),
+  );
+  return lists.flat().map(({ bottomUpQuantification }) => bottomUpQuantification.id);
+}
