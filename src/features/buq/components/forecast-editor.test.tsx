@@ -1,5 +1,5 @@
-import { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, useQuery } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -14,6 +14,7 @@ import {
   saveBuqForecast,
   submitBuqForecast,
 } from '@/features/buq/api/api';
+import { buqForecastOptions, buqsForFinalApprovalOptions } from '@/features/buq/api/queries';
 import { ForecastForm } from '@/features/buq/components/forecast-editor';
 import type { ProductInfo } from '@/features/buq/lib/forecast';
 import type { ForecastMode } from '@/features/buq/lib/forecast-actions';
@@ -109,6 +110,10 @@ function Harness({
   onDone?: () => void;
 }) {
   const [search, setSearch] = useState<ForecastSearch>({});
+  const { data: current = forecast } = useQuery({
+    ...buqForecastOptions(forecast.id),
+    enabled: false,
+  });
   return (
     <ForecastForm
       currency={{
@@ -128,7 +133,7 @@ function Harness({
         facilityName: 'Cuamba, Cuamba',
         period: 'July 2017 - June 2018',
       }}
-      forecast={forecast}
+      forecast={current}
       header={null}
       onCloseDialog={() => setSearch((previous) => ({ ...previous, dialog: undefined }))}
       mode={mode}
@@ -164,6 +169,7 @@ const renderEditor = async (props: Parameters<typeof Harness>[0] = {}) => {
   ]);
   renderPage(<Harness {...props} />, { queryClient });
   await screen.findByText('Product A');
+  return queryClient;
 };
 
 const card = (name: string) => {
@@ -373,11 +379,11 @@ it('gives final approval to this forecast only and returns to the summary', asyn
   const user = userEvent.setup();
   const onDone = vi.fn();
   vi.mocked(fetchBuqForecast).mockResolvedValue(APPROVED);
-  vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue([
-    { bottomUpQuantification: APPROVED, calculatedGroupsCosts: {} },
-  ]);
+  vi.mocked(fetchBuqsForFinalApproval).mockImplementation(async ({ zoneId }) =>
+    zoneId === 'z2' ? [{ bottomUpQuantification: APPROVED, calculatedGroupsCosts: {} }] : [],
+  );
   vi.mocked(finalApproveBuqForecast).mockResolvedValue({ ...APPROVED, status: 'APPROVED_BY_NQT' });
-  await renderEditor({ forecast: APPROVED, mode: NATIONAL, onDone });
+  await renderEditor({ forecast: APPROVED, mode: { ...NATIONAL, zoneIds: ['z1', 'z2'] }, onDone });
 
   expect(card('Product A').queryByRole('textbox')).not.toBeInTheDocument();
   await giveFinalApproval(user);
@@ -395,10 +401,33 @@ it('gives no final approval once the forecast left the final approval list', asy
   const user = userEvent.setup();
   vi.mocked(fetchBuqForecast).mockResolvedValue(APPROVED);
   vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue([]);
-  await renderEditor({ forecast: APPROVED, mode: NATIONAL });
+  const queryClient = await renderEditor({ forecast: APPROVED, mode: NATIONAL });
+  queryClient.setQueryData(
+    buqsForFinalApprovalOptions({ programId: 'g1', periodId: 'p1', zoneId: 'z1' }).queryKey,
+    [{ bottomUpQuantification: APPROVED, calculatedGroupsCosts: {} }],
+  );
 
   await giveFinalApproval(user);
 
   expect(await screen.findByText('buq.forecast.moved')).toBeInTheDocument();
   expect(finalApproveBuqForecast).not.toHaveBeenCalled();
+});
+
+it('sends one final approval when Approve is pressed twice at once', async () => {
+  const user = userEvent.setup();
+  vi.mocked(fetchBuqForecast).mockResolvedValue(APPROVED);
+  vi.mocked(fetchBuqsForFinalApproval).mockResolvedValue([
+    { bottomUpQuantification: APPROVED, calculatedGroupsCosts: {} },
+  ]);
+  vi.mocked(finalApproveBuqForecast).mockResolvedValue({ ...APPROVED, status: 'APPROVED_BY_NQT' });
+  await renderEditor({ forecast: APPROVED, mode: NATIONAL });
+
+  await user.click(screen.getByRole('button', { name: 'buq.national.approve' }));
+  const confirm = await screen.findByRole('alertdialog');
+  const send = within(confirm).getByRole('button', { name: 'buq.national.approve' });
+  fireEvent.click(send);
+  fireEvent.click(send);
+
+  await waitFor(() => expect(finalApproveBuqForecast).toHaveBeenCalled());
+  expect(finalApproveBuqForecast).toHaveBeenCalledTimes(1);
 });

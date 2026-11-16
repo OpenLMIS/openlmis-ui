@@ -108,13 +108,14 @@ export async function authorizeBuqForecast(body: ForecastBody) {
   return data;
 }
 
-export async function finalApproveBuqForecast(body: ForecastBody) {
+export async function finalApproveBuqForecast({ id }: { id: string }) {
   const { data } = await client.post<BuqForecast[]>('/bottomUpQuantifications/finalApprove', null, {
-    params: { id: [body.id] },
+    params: { id: [id] },
     paramsSerializer: { indexes: null },
   });
-  const [approved] = data;
-  return approved ?? fetchBuqForecast(body.id);
+  const approved = data.find((forecast) => forecast.id === id) ?? (await fetchBuqForecast(id));
+  if (approved.status !== 'APPROVED_BY_NQT') throw new Error('Final approval not confirmed');
+  return approved;
 }
 
 export async function approveBuqForecast(body: ForecastBody) {

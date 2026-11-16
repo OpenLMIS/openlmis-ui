@@ -262,6 +262,8 @@ export function ForecastForm({
   const failureDialog = useDialogTarget(failure ?? undefined, () => setFailure(null));
   const invalidTarget = useRef<string | null>(null);
   const leaving = useRef(false);
+  const sending = useRef(false);
+  const [rejectRefused, setRejectRefused] = useState(false);
 
   const actions = forecastActions(forecast.status, mode);
   const editable = actions.includes('save');
@@ -345,7 +347,7 @@ export function ForecastForm({
   };
   const refreshForecast = () => {
     void queryClient.invalidateQueries({ queryKey: buqForecastOptions(forecast.id).queryKey });
-    void refreshLists();
+    refreshLists();
   };
   const mutation = useSessionMutation({
     mutationFn: async ({ action, body }: { action: WriteAction; body: ForecastBody }) => {
@@ -361,7 +363,7 @@ export function ForecastForm({
       setBaseline(next);
       form.reset(next);
       setAttempted(false);
-      await refreshLists();
+      refreshLists();
     },
     onError: (error, { action }) => {
       setConfirming(null);
@@ -375,14 +377,17 @@ export function ForecastForm({
       });
       refreshForecast();
     },
+    onSettled: () => {
+      sending.current = false;
+    },
   });
   const refreshLists = () =>
-    queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'list'] });
+    queryClient.removeQueries({ queryKey: [...queryKeys.buq.all, 'list'] });
   const finish = (action: Exclude<ForecastAction, 'save'>) => {
     toast.success(t(DONE[action].title), { description: t(DONE[action].description) });
     leaving.current = true;
+    refreshLists();
     onDone();
-    return refreshLists();
   };
   const rejecting = useIsMutating({ mutationKey: rejectKey(forecast.id) }) > 0;
   const pending = mutation.isPending || rejecting;
@@ -398,8 +403,12 @@ export function ForecastForm({
     } else invalidTarget.current = FUNDING_TARGET;
     setInvalid(description);
   };
-  const write = (action: WriteAction) =>
-    mutation.mutate({ action, body: forecastBody(forecast, values, prices) });
+  const write = (action: WriteAction) => {
+    if (sending.current) return;
+    const body = forecastBody(forecast, values, prices);
+    sending.current = true;
+    mutation.mutate({ action, body });
+  };
   const onSave = () => {
     setAttempted(true);
     const bad = models.find(({ lineId }) => {
@@ -522,12 +531,18 @@ export function ForecastForm({
         onClose={onCloseDialog}
         open={search.dialog === 'rejection' && canViewRejection(forecast.status, mode)}
       />
-      {actions.includes('reject') && (
+      {(actions.includes('reject') || rejectRefused) && (
         <RejectDialog
           forecastId={forecast.id}
-          onClose={onCloseDialog}
+          onClose={() => {
+            setRejectRefused(false);
+            onCloseDialog();
+          }}
           ensureStillOpen={() => ensureStillOpen('reject')}
-          onFailed={refreshForecast}
+          onFailed={() => {
+            setRejectRefused(true);
+            refreshForecast();
+          }}
           onRejected={(rejected) => {
             queryClient.setQueryData(buqForecastOptions(rejected.id).queryKey, rejected);
             void queryClient.invalidateQueries({

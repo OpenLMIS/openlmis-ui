@@ -7,6 +7,7 @@ import {
   fetchBuqPeriods,
   fetchOpenBuqs,
   fetchTakenPeriods,
+  finalApproveBuqForecast,
   finalApproveBuqs,
   prepareBuq,
 } from '@/features/buq/api/api';
@@ -171,5 +172,27 @@ describe('finalApproveBuqs', () => {
     post.mockRejectedValueOnce(new Error('refused'));
 
     await expect(finalApproveBuqs(ids)).rejects.toThrow('refused');
+  });
+});
+
+describe('finalApproveBuqForecast', () => {
+  const body = { id: 'b1' };
+
+  it('fails when the response does not show the forecast finally approved', async () => {
+    post.mockResolvedValueOnce({ data: [{ id: 'b1', status: 'APPROVED' }] });
+    await expect(finalApproveBuqForecast(body)).rejects.toThrow();
+
+    post.mockResolvedValueOnce({ data: [] });
+    get.mockResolvedValueOnce({ data: { id: 'b1', status: 'APPROVED' } });
+    await expect(finalApproveBuqForecast(body)).rejects.toThrow();
+  });
+
+  it('confirms by rereading when the response omits the forecast', async () => {
+    post.mockResolvedValueOnce({ data: [] });
+    get.mockResolvedValueOnce({ data: { id: 'b1', status: 'APPROVED_BY_NQT' } });
+
+    await expect(finalApproveBuqForecast(body)).resolves.toMatchObject({
+      status: 'APPROVED_BY_NQT',
+    });
   });
 });
