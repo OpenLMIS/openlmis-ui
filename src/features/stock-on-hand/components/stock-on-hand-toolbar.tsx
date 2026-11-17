@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { type StockOnHandSearch, showsInactive } from '@/features/stock-on-hand/lib/search';
 import type { QuantityUnit } from '@/lib/quantity';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type StockOnHandToolbarProps = {
   search: StockOnHandSearch;
@@ -50,10 +51,13 @@ export function StockOnHandToolbar({
 
   return (
     <DataTableToolbar>
-      <div className="w-full @2xl/main:w-72">
+      <div className="w-full @2xl/main:w-72" data-tour={TOUR_ANCHORS.stockOnHandSearch}>
         {text('productName', t('stock-on-hand.search-product-name'), 'lg')}
       </div>
-      <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
+      <div
+        className="flex-1 @2xl/main:me-auto @2xl/main:flex-none"
+        data-tour={TOUR_ANCHORS.stockOnHandFilters}
+      >
         <DataTableFilters
           size="lg"
           activeCount={activeFilters(search)}
@@ -82,14 +86,23 @@ export function StockOnHandToolbar({
         </DataTableFilters>
       </div>
       {onUnitChange && (
-        <div>
+        <div data-tour={TOUR_ANCHORS.stockOnHandUnit}>
           <QuantityUnitToggle disabled={disabled} onUnitChange={onUnitChange} unit={unit} />
         </div>
       )}
       {(view || print) && (
         <div className="flex w-full items-center gap-2 @2xl/main:w-auto">
-          <div className="shrink-0">{view}</div>
-          {print && <div className="min-w-0 flex-1 @2xl/main:flex-none">{print}</div>}
+          <div className="shrink-0" data-tour={TOUR_ANCHORS.stockOnHandView}>
+            {view}
+          </div>
+          {print && (
+            <div
+              className="min-w-0 flex-1 @2xl/main:flex-none"
+              data-tour={TOUR_ANCHORS.stockOnHandPrint}
+            >
+              {print}
+            </div>
+          )}
         </div>
       )}
     </DataTableToolbar>

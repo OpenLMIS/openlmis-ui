@@ -1,6 +1,14 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from '@tanstack/react-router';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -51,6 +59,20 @@ const SECTION_TOUR: Tour = {
 vi.mock('@/features/onboarding/lib/tours', () => ({
   tourForRoute: () => state.tour,
 }));
+
+/** Shows a busy placeholder first, then the filters part, as a page skeleton does. */
+function LoadingFilters() {
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setLoaded(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
+  return loaded ? (
+    <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Filters</div>
+  ) : (
+    <div aria-busy="true">Loading</div>
+  );
+}
 
 /** Two menu sections where opening one closes the other, as the sidebar does. */
 function Sections() {
@@ -166,6 +188,66 @@ describe('TourLauncher', () => {
     await user.click(screen.getByRole('button', { name: 'onboarding.close' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(orders).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('waits for the page to finish loading before counting its steps', async () => {
+    const user = userEvent.setup();
+    renderPage(
+      <TooltipProvider>
+        <div data-slot="sidebar-inset">
+          <header>
+            <TourLauncher />
+          </header>
+          <div data-tour={TOUR_ANCHORS.requisitionsPicker}>Picker</div>
+          <LoadingFilters />
+        </div>
+      </TooltipProvider>,
+    );
+    const guide = await screen.findByRole('button', { name: 'onboarding.show-guide' });
+    expect(screen.getByText('Loading')).toBeInTheDocument();
+    await user.click(guide);
+
+    const tooltip = await screen.findByRole('alertdialog');
+    expect(within(tooltip).getByRole('button', { name: 'onboarding.next' })).toBeVisible();
+  });
+
+  it("waits for the next page while it loads, then plays that page's guide", async () => {
+    const user = userEvent.setup();
+    const rootRoute = createRootRoute({
+      component: () => (
+        <TooltipProvider>
+          <TourLauncher />
+          <Outlet />
+        </TooltipProvider>
+      ),
+    });
+    const routeTree = rootRoute.addChildren([
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/',
+        component: () => <div data-tour={TOUR_ANCHORS.requisitionsPicker}>Picker</div>,
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/next',
+        loader: () => new Promise((resolve) => setTimeout(resolve, 2000)),
+        component: () => <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Next Page</div>,
+      }),
+    ]);
+    const router = createRouter({ routeTree, history: createMemoryHistory() });
+    render(<RouterProvider router={router} />);
+    const guide = await screen.findByRole('button', { name: 'onboarding.show-guide' });
+
+    router.history.push('/next');
+    await user.click(guide);
+    expect(guide).toHaveAttribute('aria-busy', 'true');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+
+    await screen.findByText('Next Page');
+    expect(await screen.findByRole('alertdialog')).toHaveAccessibleName(
+      'onboarding.requisitions-view.filters.title',
+    );
+    expect(guide).not.toHaveAttribute('aria-busy');
   });
 
   it('still plays every step in browsers without Element.checkVisibility', async () => {

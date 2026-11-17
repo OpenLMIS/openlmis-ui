@@ -20,6 +20,18 @@ export const TOUR_ANCHORS = {
   shellAccount: 'shell-account',
   shellStatus: 'shell-status',
   shellGuide: 'shell-guide',
+  stockOnHandPicker: 'stock-on-hand-picker',
+  stockOnHandSearch: 'stock-on-hand-search',
+  stockOnHandFilters: 'stock-on-hand-filters',
+  stockOnHandUnit: 'stock-on-hand-unit',
+  stockOnHandView: 'stock-on-hand-view',
+  stockOnHandPrint: 'stock-on-hand-print',
+  stockOnHandResults: 'stock-on-hand-results',
+  stockCardSummary: 'stock-card-summary',
+  stockCardPrint: 'stock-card-print',
+  stockCardUnit: 'stock-card-unit',
+  stockCardView: 'stock-card-view',
+  stockCardLines: 'stock-card-lines',
 } as const;
 
 /** Anchor of one sidebar menu section, keyed by its navigation title key. */

@@ -12,49 +12,52 @@ import type { StockCard } from '@/features/stock-card/lib/types';
 import { orEmpty } from '@/lib/empty-value';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { stockProductName } from '@/lib/stock-labels';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function StockCardHeader({ card, unit }: { card: StockCard; unit: QuantityUnit }) {
   const { t, i18n } = useTranslation();
   const packSize = card.orderable.netContent;
   return (
-    <RecordSummary>
-      <RecordSummaryHeading>
-        <bdi>{stockProductName(card.orderable)}</bdi>
-      </RecordSummaryHeading>
-      <RecordSummaryFields>
-        <RecordSummaryField label={t('stock-card.product-code')}>
-          {orEmpty(card.orderable.productCode)}
-        </RecordSummaryField>
-        <RecordSummaryField label={t('stock-card.pack-size')}>
-          {packSize == null
-            ? orEmpty(packSize)
-            : new Intl.NumberFormat(i18n.language).format(packSize)}
-        </RecordSummaryField>
-        <RecordSummaryField label={t('stock-card.facility')}>
-          {orEmpty(card.facility.name)}
-        </RecordSummaryField>
-        <RecordSummaryField label={t('stock-card.program')}>
-          {orEmpty(card.program.name)}
-        </RecordSummaryField>
-        <RecordSummaryField label={t('stock-card.stock-on-hand')}>
-          <span className="tabular-nums" dir="ltr">
-            {orEmpty(cardQuantity(card.stockOnHand, packSize, unit, i18n.language))}
-          </span>
-        </RecordSummaryField>
-        {card.lot && (
-          <>
-            <RecordSummaryField label={t('stock-card.lot-number')}>
-              {orEmpty(card.lot.lotCode)}
-            </RecordSummaryField>
-            <RecordSummaryField label={t('stock-card.expiry-date')}>
-              {card.lot.expirationDate
-                ? formatDateValue(card.lot.expirationDate, i18n.language)
-                : orEmpty(card.lot.expirationDate)}
-            </RecordSummaryField>
-          </>
-        )}
-      </RecordSummaryFields>
-    </RecordSummary>
+    <div data-tour={TOUR_ANCHORS.stockCardSummary}>
+      <RecordSummary>
+        <RecordSummaryHeading>
+          <bdi>{stockProductName(card.orderable)}</bdi>
+        </RecordSummaryHeading>
+        <RecordSummaryFields>
+          <RecordSummaryField label={t('stock-card.product-code')}>
+            {orEmpty(card.orderable.productCode)}
+          </RecordSummaryField>
+          <RecordSummaryField label={t('stock-card.pack-size')}>
+            {packSize == null
+              ? orEmpty(packSize)
+              : new Intl.NumberFormat(i18n.language).format(packSize)}
+          </RecordSummaryField>
+          <RecordSummaryField label={t('stock-card.facility')}>
+            {orEmpty(card.facility.name)}
+          </RecordSummaryField>
+          <RecordSummaryField label={t('stock-card.program')}>
+            {orEmpty(card.program.name)}
+          </RecordSummaryField>
+          <RecordSummaryField label={t('stock-card.stock-on-hand')}>
+            <span className="tabular-nums" dir="ltr">
+              {orEmpty(cardQuantity(card.stockOnHand, packSize, unit, i18n.language))}
+            </span>
+          </RecordSummaryField>
+          {card.lot && (
+            <>
+              <RecordSummaryField label={t('stock-card.lot-number')}>
+                {orEmpty(card.lot.lotCode)}
+              </RecordSummaryField>
+              <RecordSummaryField label={t('stock-card.expiry-date')}>
+                {card.lot.expirationDate
+                  ? formatDateValue(card.lot.expirationDate, i18n.language)
+                  : orEmpty(card.lot.expirationDate)}
+              </RecordSummaryField>
+            </>
+          )}
+        </RecordSummaryFields>
+      </RecordSummary>
+    </div>
   );
 }
 
