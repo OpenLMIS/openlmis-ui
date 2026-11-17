@@ -71,6 +71,7 @@ import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import { withShownReversals } from '@/lib/stock-labels';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { readStockCardOnDevice } from '@/routes/-home-stock-read';
 import { stockCardAccess } from '@/routes/-stock-card-access';
 
@@ -190,7 +191,7 @@ function StockCardPage() {
           )}
           <DataTableToolbar align="end">
             {canSwitch && (
-              <div className="flex-1 @2xl/main:flex-none">
+              <div className="flex-1 @2xl/main:flex-none" data-tour={TOUR_ANCHORS.stockCardUnit}>
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
@@ -207,15 +208,17 @@ function StockCardPage() {
               />
             </DataTableCard>
           ) : (
-            <StockCardLines
-              cards={cards}
-              card={data.card}
-              search={search}
-              onSearchChange={updateSearch}
-              unit={unit}
-              columnVisibility={columnView.visibility}
-              eventSearch={eventSearch}
-            />
+            <div data-tour={TOUR_ANCHORS.stockCardLines}>
+              <StockCardLines
+                cards={cards}
+                card={data.card}
+                search={search}
+                onSearchChange={updateSearch}
+                unit={unit}
+                columnVisibility={columnView.visibility}
+                eventSearch={eventSearch}
+              />
+            </div>
           )}
         </div>
       </WorkspaceContent>
@@ -234,7 +237,10 @@ function StockCardColumns({
 }) {
   const { t } = useTranslation();
   return (
-    <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
+    <div
+      className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}
+      data-tour={TOUR_ANCHORS.stockCardView}
+    >
       <DataTableViewOptions
         size="lg"
         columns={STOCK_CARD_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
@@ -279,6 +285,7 @@ function StockCardPrint({
   return (
     <ActionTooltip reason={disabledReason}>
       <Button
+        data-tour={TOUR_ANCHORS.stockCardPrint}
         size="lg"
         disabled={offline || print.isPending}
         onClick={print.print}

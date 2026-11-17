@@ -10,7 +10,9 @@ import { hasOpenDialog } from '@/lib/has-open-dialog';
 import type { TourAnchor } from '@/lib/tour-anchors';
 
 const SPOTLIGHT_PADDING = 8;
+/** How long a loaded page may lack every anchor, and how long a loading page may take. */
 const PAGE_WAIT_MS = 5000;
+const LOAD_WAIT_MS = 20000;
 
 const anchorSelector = (anchor: TourAnchor) => `[data-tour="${anchor}"]`;
 
@@ -21,8 +23,17 @@ const isShown = (element: Element | null) =>
     ? element.checkVisibility({ visibilityProperty: true })
     : element.getClientRects().length > 0);
 
-const presentSteps = (tour: Tour) =>
-  tour.steps.filter((step) => isShown(document.querySelector(anchorSelector(step.anchor))));
+/** A skeleton in the page body, outside the top bar whose Show Guide button is busy itself. */
+const isPageLoading = () =>
+  Array.from(document.querySelectorAll('[data-slot="sidebar-inset"] [aria-busy="true"]')).some(
+    (element) => !element.closest('header'),
+  );
+
+/** None while the page is loading, unless `anyway` because the load wait ran out. */
+const presentSteps = (tour: Tour, anyway = false) =>
+  !anyway && isPageLoading()
+    ? []
+    : tour.steps.filter((step) => isShown(document.querySelector(anchorSelector(step.anchor))));
 
 const nextFrame = () =>
   new Promise<void>((resolve) =>
@@ -67,20 +78,29 @@ function tokenPixels(property: 'borderTopLeftRadius' | 'height', token: string) 
 type TourRunnerProps = {
   tour: Tour;
   onEnd: () => void;
+  onReady: () => void;
 };
 
-/** Plays only the steps whose part of the page is shown, waiting while the page still loads. */
-export function TourRunner({ tour, onEnd }: TourRunnerProps) {
+/** Plays the steps whose part of the page is shown, once the page stops loading. */
+export function TourRunner({ tour, onEnd, onReady }: TourRunnerProps) {
   const [steps, setSteps] = useState(() => presentSteps(tour));
   const giveUp = useEffectEvent(onEnd);
+  const ready = useEffectEvent(onReady);
 
   useEffect(() => {
-    if (steps.length) return;
+    if (steps.length) {
+      ready();
+      return;
+    }
     const started = Date.now();
+    let loadedAt: number | undefined;
     const timer = window.setInterval(() => {
-      const found = presentSteps(tour);
+      const now = Date.now();
+      const loadedOut = now - started >= LOAD_WAIT_MS;
+      if (!isPageLoading()) loadedAt ??= now;
+      const found = presentSteps(tour, loadedOut);
       if (found.length) setSteps(found);
-      else if (Date.now() - started < PAGE_WAIT_MS) return;
+      else if (!loadedOut && (loadedAt === undefined || now - loadedAt < PAGE_WAIT_MS)) return;
       else giveUp();
       window.clearInterval(timer);
     }, 100);

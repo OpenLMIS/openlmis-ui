@@ -1,8 +1,9 @@
-import { CatchBoundary, useLocation, useMatches } from '@tanstack/react-router';
+import { CatchBoundary, useLocation, useMatches, useRouterState } from '@tanstack/react-router';
 import { CircleHelpIcon } from 'lucide-react';
 import { lazy, Suspense, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { tourForRoute } from '@/features/onboarding/lib/tours';
 import { useFlag } from '@/lib/feature-flags';
@@ -19,17 +20,26 @@ export function TourLauncher() {
   const enabled = useFlag('ONBOARDING');
   const routeId = useMatches({ select: (matches) => matches.at(-1)?.routeId });
   const href = useLocation({ select: (location) => location.href });
+  // While the next page loads, the address is new but the matched route is still the old one.
+  const navigating = useRouterState({ select: (state) => state.status === 'pending' });
   const tour = tourForRoute(routeId);
   // The page the tour was started on; leaving it ends the tour for good.
   const [runningAt, setRunningAt] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  if (runningAt !== null && runningAt !== href) setRunningAt(null);
+  if (runningAt !== null && runningAt !== href) {
+    setRunningAt(null);
+    setPreparing(false);
+  }
 
   if (!enabled || !tour) return null;
 
   const label = t('onboarding.show-guide');
+  const running = runningAt === href;
+  const busy = running && (navigating || preparing);
   const end = () => {
     setRunningAt(null);
+    setPreparing(false);
     buttonRef.current?.focus();
   };
 
@@ -40,22 +50,26 @@ export function TourLauncher() {
           render={
             <Button
               ref={buttonRef}
+              aria-busy={busy || undefined}
               aria-label={label}
               data-tour={TOUR_ANCHORS.shellGuide}
-              onClick={() => setRunningAt(href)}
+              onClick={() => {
+                setRunningAt(href);
+                setPreparing(true);
+              }}
               size="icon-sm"
               variant="ghost"
             />
           }
         >
-          <CircleHelpIcon />
+          {busy ? <Spinner aria-hidden="true" /> : <CircleHelpIcon />}
         </TooltipTrigger>
         <TooltipContent side="bottom">{label}</TooltipContent>
       </Tooltip>
-      {runningAt === href && (
+      {running && !navigating && (
         <CatchBoundary getResetKey={() => href} onCatch={end} errorComponent={() => null}>
           <Suspense fallback={null}>
-            <TourRunner tour={tour} onEnd={end} />
+            <TourRunner key={tour.id} tour={tour} onEnd={end} onReady={() => setPreparing(false)} />
           </Suspense>
         </CatchBoundary>
       )}
