@@ -4,6 +4,8 @@ import { requisitionDetailTour } from '@/features/onboarding/tours/requisition-d
 import { requisitionsViewTour } from '@/features/onboarding/tours/requisitions-view.tour';
 import { stockCardTour } from '@/features/onboarding/tours/stock-card.tour';
 import { stockOnHandTour } from '@/features/onboarding/tours/stock-on-hand.tour';
+import { transactionDetailsTour } from '@/features/onboarding/tours/transaction-details.tour';
+import { transactionHistoryTour } from '@/features/onboarding/tours/transaction-history.tour';
 
 const TOURS: readonly Tour[] = [
   homeTour,
@@ -11,6 +13,8 @@ const TOURS: readonly Tour[] = [
   requisitionDetailTour,
   stockOnHandTour,
   stockCardTour,
+  transactionHistoryTour,
+  transactionDetailsTour,
 ];
 
 export function tourForRoute(routeId: string | undefined): Tour | undefined {

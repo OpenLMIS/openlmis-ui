@@ -243,19 +243,21 @@ export function CardListSkeleton({
   const cards = Array.from({ length: count }, (_, index) => index);
   const details = Array.from({ length: rows }, (_, index) => index);
   return (
-    <CardList footer={pagination && <DataTablePaginationSkeleton />}>
-      {cards.map((id) => (
-        <CardListItem key={id} surface={surface}>
-          <CardBand>{band}</CardBand>
-          {rows > 0 && (
-            <CardRows>
-              {details.map((id) => (
-                <Fragment key={id}>{row}</Fragment>
-              ))}
-            </CardRows>
-          )}
-        </CardListItem>
-      ))}
-    </CardList>
+    <div aria-busy className="min-w-0">
+      <CardList footer={pagination && <DataTablePaginationSkeleton />}>
+        {cards.map((id) => (
+          <CardListItem key={id} surface={surface}>
+            <CardBand>{band}</CardBand>
+            {rows > 0 && (
+              <CardRows>
+                {details.map((id) => (
+                  <Fragment key={id}>{row}</Fragment>
+                ))}
+              </CardRows>
+            )}
+          </CardListItem>
+        ))}
+      </CardList>
+    </div>
   );
 }
