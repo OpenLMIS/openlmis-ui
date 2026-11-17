@@ -3,6 +3,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type CustomTriggerProps = {
   place: 'sidebar' | 'navbar';
@@ -24,7 +25,11 @@ export function CustomTrigger({ place }: CustomTriggerProps) {
     <Tooltip>
       <TooltipTrigger
         render={
-          <SidebarTrigger aria-label={label} tone={place === 'sidebar' ? 'sidebar' : 'default'} />
+          <SidebarTrigger
+            aria-label={label}
+            data-tour={TOUR_ANCHORS.shellMenuToggle}
+            tone={place === 'sidebar' ? 'sidebar' : 'default'}
+          />
         }
       />
       <TooltipContent side={place === 'navbar' ? 'bottom' : 'top'}>

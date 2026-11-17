@@ -6,6 +6,7 @@ import { CustomTrigger } from '@/components/app-shell/custom-trigger';
 import { NavUser } from '@/components/app-shell/nav-user';
 import { OfflineDot, StatusAnnouncer } from '@/components/app-shell/sidebar-notices';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const AppHeader = memo(function AppHeader({ actions }: { actions?: ReactNode }) {
   const { t } = useTranslation();
@@ -24,6 +25,7 @@ export const AppHeader = memo(function AppHeader({ actions }: { actions?: ReactN
           trigger={
             <button
               aria-label={t('nav-user.account-menu')}
+              data-tour={TOUR_ANCHORS.shellAccount}
               className="cursor-pointer rounded-full outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
               type="button"
             >

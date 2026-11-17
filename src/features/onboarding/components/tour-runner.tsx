@@ -7,13 +7,43 @@ import { toJoyridePlacement } from '@/features/onboarding/lib/placement';
 import type { Tour, TourStep } from '@/features/onboarding/lib/types';
 import { useResolvedAppearance } from '@/lib/appearance';
 import { hasOpenDialog } from '@/lib/has-open-dialog';
+import type { TourAnchor } from '@/lib/tour-anchors';
 
 const SPOTLIGHT_PADDING = 8;
 const PAGE_WAIT_MS = 5000;
 
-const targetOf = (step: TourStep) => `[data-tour="${step.anchor}"]`;
+const anchorSelector = (anchor: TourAnchor) => `[data-tour="${anchor}"]`;
+
+/** Shown parts only; Safari before 17.4 lacks checkVisibility, where layout boxes tell instead. */
+const isShown = (element: Element | null) =>
+  !!element &&
+  (typeof element.checkVisibility === 'function'
+    ? element.checkVisibility({ visibilityProperty: true })
+    : element.getClientRects().length > 0);
+
 const presentSteps = (tour: Tour) =>
-  tour.steps.filter((step) => document.querySelector(targetOf(step)));
+  tour.steps.filter((step) => isShown(document.querySelector(anchorSelector(step.anchor))));
+
+const nextFrame = () =>
+  new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+
+/** The section's expand button; absent when the menu shows sections as icon flyouts. */
+const sectionTrigger = (anchor: TourAnchor) =>
+  document.querySelector<HTMLElement>(
+    `${anchorSelector(anchor)} [data-slot="collapsible-trigger"]`,
+  );
+
+const isSectionOpen = (anchor: TourAnchor) =>
+  sectionTrigger(anchor)?.getAttribute('aria-expanded') === 'true';
+
+function setSectionOpen(anchor: TourAnchor, open: boolean) {
+  if (isSectionOpen(anchor) !== open) sectionTrigger(anchor)?.click();
+}
+
+const isSidebarShortcut = (event: KeyboardEvent) =>
+  (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b';
 
 /** A soft ring that contrasts with the dimmed page in both themes. */
 const halo = (token: '--background' | '--foreground') =>
@@ -70,15 +100,43 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
     scrollOffset: tokenPixels('height', '--app-header-height') + SPOTLIGHT_PADDING * 2,
     scrollDuration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 300,
   }));
+  // The menu shows one section at a time, so remember the user's to give it back at the end.
+  const [userSection] = useState(
+    () => steps.find((step) => step.expand && isSectionOpen(step.anchor))?.anchor,
+  );
+  const [startedAt] = useState(() => window.location.href);
   const joyrideSteps = useMemo<Step[]>(
     () =>
       steps.map((step) => ({
-        target: targetOf(step),
+        // A section's arrow points at its name, not the middle of its open list.
+        target: step.expand
+          ? `${anchorSelector(step.anchor)} > button`
+          : anchorSelector(step.anchor),
+        spotlightTarget: step.spotlight && anchorSelector(step.spotlight),
         title: t(step.title),
         content: t(step.content),
         placement: toJoyridePlacement(step.placement ?? 'bottom', direction),
+        ...(step.expand && {
+          before: async () => {
+            setSectionOpen(step.anchor, true);
+            await nextFrame();
+          },
+          after: () => setSectionOpen(step.anchor, false),
+        }),
       })),
     [steps, t, direction],
+  );
+
+  // Leaving the page hands the menu to the next page, which opens its own section.
+  useEffect(
+    () => () => {
+      if (window.location.href !== startedAt) return;
+      for (const step of steps) {
+        if (step.expand && step.anchor !== userSection) setSectionOpen(step.anchor, false);
+      }
+      if (userSection) setSectionOpen(userSection, true);
+    },
+    [steps, userSection, startedAt],
   );
   const { controls, Tour } = useJoyride({
     steps: joyrideSteps,
@@ -109,15 +167,23 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') controls.skip(null);
     };
+    // Collapsing the menu mid-tour would swap an opened section for its icon, out of reach.
+    const blockSidebarShortcut = (event: KeyboardEvent) => {
+      if (!isSidebarShortcut(event)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
     // A modal hides Joyride's portal from assistive technology and fights its focus trap.
     const observer = new MutationObserver(() => {
       const own = document.querySelector(`#${PORTAL_ELEMENT_ID} [role="alertdialog"]`);
       if (hasOpenDialog({ modalOnly: true, exclude: own })) controls.skip(null);
     });
     document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', blockSidebarShortcut, true);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keydown', blockSidebarShortcut, true);
       observer.disconnect();
     };
   }, [controls]);

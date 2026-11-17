@@ -20,6 +20,7 @@ import { CardSkeleton, PENDING } from '@/features/home/components/dashboard-skel
 import { EquipmentStatusCard } from '@/features/home/components/equipment-status';
 import { Stat, StatStrip } from '@/features/home/components/stat-strip';
 import type { DashboardAccess } from '@/features/home/lib/types';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 // The charts bring Recharts, so they load apart from the page, and only for users who see them.
 const loadPeriods = () => import('@/features/home/components/requisitions-by-period');
@@ -66,7 +67,7 @@ export function HomeDashboard({ access }: { access: DashboardAccess }) {
   ].filter(Boolean);
 
   return (
-    <div className="flex flex-col gap-4 lg:gap-6">
+    <div className="flex flex-col gap-4 lg:gap-6" data-tour={TOUR_ANCHORS.homeDashboard}>
       {!Object.values(access).some(Boolean) && (
         <Empty>
           <EmptyHeader>
