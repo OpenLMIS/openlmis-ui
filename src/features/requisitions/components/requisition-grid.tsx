@@ -89,6 +89,7 @@ import {
   type SearchChange,
   toPaginationState,
 } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export type GridSearch = {
   detailPage?: number;
@@ -490,7 +491,12 @@ export function RequisitionGridView({
     <RequisitionDraftStatus editor={editing.editor} />
   );
   return (
-    <div ref={measure} tabIndex={-1} className="flex min-w-0 flex-col gap-4 outline-none">
+    <div
+      ref={measure}
+      tabIndex={-1}
+      className="flex min-w-0 flex-col gap-4 outline-none"
+      data-tour={TOUR_ANCHORS.requisitionGrid}
+    >
       {supplyingStock && <SupplyingStockNote record={record} />}
       <RequisitionGridToolbar
         disabled={editing?.pending}

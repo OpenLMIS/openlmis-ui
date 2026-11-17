@@ -14,6 +14,7 @@ describe('toFlagDraft', () => {
       BATCH_APPROVE_SCREEN: { value: false, overridden: false },
       DEFAULT_QUANTITY_UNIT: { value: 'DOSES', overridden: false },
       GS1_SCANNING: { value: true, overridden: false },
+      ONBOARDING: { value: true, overridden: false },
       QUANTITY_UNIT_OPTION: { value: 'PACKS', overridden: true },
       SHOW_REQUISITION_LESS_ORDER: { value: true, overridden: false },
     });

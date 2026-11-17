@@ -37,6 +37,7 @@ import { validateLine } from '@/features/requisitions/lib/validation';
 import { useCardLayout } from '@/hooks/use-card-view';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type LineCacheEntry = {
   source: RequisitionLine['line'] | undefined;
@@ -274,7 +275,12 @@ const RequisitionTabsView = memo(function RequisitionTabsView({
         value={active}
         onValueChange={(value) => onTabChange(value as RequisitionTab)}
       >
-        <TabsList size="lg" wrap="column" aria-label={t('requisitions.requisition.tabs')}>
+        <TabsList
+          size="lg"
+          wrap="column"
+          aria-label={t('requisitions.requisition.tabs')}
+          data-tour={TOUR_ANCHORS.requisitionTabs}
+        >
           {tabs.map(({ value, label }) => (
             <TabsTrigger key={value} value={value}>
               {label}
