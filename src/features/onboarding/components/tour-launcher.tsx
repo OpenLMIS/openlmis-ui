@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { tourForRoute } from '@/features/onboarding/lib/tours';
 import { useFlag } from '@/lib/feature-flags';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const TourRunner = lazy(() =>
   import('@/features/onboarding/components/tour-runner').then(({ TourRunner }) => ({
@@ -40,6 +41,7 @@ export function TourLauncher() {
             <Button
               ref={buttonRef}
               aria-label={label}
+              data-tour={TOUR_ANCHORS.shellGuide}
               onClick={() => setRunningAt(href)}
               size="icon-sm"
               variant="ghost"

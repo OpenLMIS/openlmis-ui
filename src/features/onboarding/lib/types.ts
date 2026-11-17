@@ -9,6 +9,10 @@ export type TourStep = {
   title: ParseKeys;
   content: ParseKeys;
   placement?: TourPlacement;
+  /** Opens the anchored menu section for this step and closes it afterwards. */
+  expand?: boolean;
+  /** Highlights this part instead of the anchor, which still positions the tooltip. */
+  spotlight?: TourAnchor;
 };
 
 export type Tour = {

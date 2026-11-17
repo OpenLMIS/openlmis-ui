@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useAppName, useShowAppName } from '@/lib/app-configuration';
 import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
+import { sectionAnchor, TOUR_ANCHORS } from '@/lib/tour-anchors';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
 export const AppSidebar = memo(function AppSidebar() {
@@ -90,7 +91,7 @@ export const AppSidebar = memo(function AppSidebar() {
 
       <SidebarNavigation isCollapsed={isCollapsed} onNavigate={closeMobileSidebar} />
 
-      <SidebarFooter>
+      <SidebarFooter data-tour={TOUR_ANCHORS.shellStatus}>
         <div className="max-h-64 scroll-py-2 overflow-y-auto overscroll-contain pb-2">
           <SidebarNotices />
         </div>
@@ -136,7 +137,7 @@ function SidebarNavigation({
   }));
   const { openParent, setOpenParent } = useOpenNavParent(pathname);
   return (
-    <SidebarContent>
+    <SidebarContent data-tour={TOUR_ANCHORS.shellNavigation}>
       {sidebarGroups.map((group) => (
         <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
           {group.labelKey && <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>}
@@ -282,7 +283,12 @@ function NavCollapsible({
   const { t } = useTranslation();
   const offline = useOfflineNavigation();
   return (
-    <Collapsible onOpenChange={onOpenChange} open={open} render={<SidebarMenuItem />}>
+    <Collapsible
+      data-tour={sectionAnchor(item.titleKey)}
+      onOpenChange={onOpenChange}
+      open={open}
+      render={<SidebarMenuItem />}
+    >
       <CollapsibleTrigger render={<SidebarMenuButton isActive={isActive} />}>
         {item.icon && <item.icon />}
         <span>{t(item.titleKey)}</span>
@@ -329,7 +335,7 @@ function NavFlyout({ item, isActive }: Pick<NavParentProps, 'item' | 'isActive'>
   const offline = useOfflineNavigation();
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem data-tour={sectionAnchor(item.titleKey)}>
       <DropdownMenu
         open={menuOpen}
         onOpenChange={(next) => {
