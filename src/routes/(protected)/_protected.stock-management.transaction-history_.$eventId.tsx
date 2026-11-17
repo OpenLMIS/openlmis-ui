@@ -50,6 +50,7 @@ import type { QuantityUnit } from '@/lib/quantity';
 import { withShownReversals } from '@/lib/stock-labels';
 import type { DetailPagingSearch } from '@/lib/table-search';
 import { detailPagingSchema, detailTableSearch, toPaginationState } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const RIGHT = RIGHTS.stockCardsView;
 let shownEventId: string | undefined;
@@ -149,35 +150,42 @@ function StockEventPage() {
       </WorkspaceHeader>
       <WorkspaceContent>
         <div className="flex flex-col gap-4" ref={measure}>
-          <EventHeader event={data.event} />
+          <div data-tour={TOUR_ANCHORS.transactionDetailsSummary}>
+            <EventHeader event={data.event} />
+          </div>
           <DataTableToolbar align="end">
             {canSwitch && (
-              <div className="flex-1 @2xl/main:flex-none">
+              <div
+                className="flex-1 @2xl/main:flex-none"
+                data-tour={TOUR_ANCHORS.transactionDetailsUnit}
+              >
                 <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
               </div>
             )}
             <StockEventColumns layout={layout} columnView={columnView} canSwitch={canSwitch} />
           </DataTableToolbar>
-          <QueryBoundary
-            resetKey={`${data.event.id}:${search.detailPage}:${search.detailSize}`}
-            errorComponent={EventLinesError}
-            pendingFallback={
-              <EventLinesSkeleton
+          <div data-tour={TOUR_ANCHORS.transactionDetailsLines}>
+            <QueryBoundary
+              resetKey={`${data.event.id}:${search.detailPage}:${search.detailSize}`}
+              errorComponent={EventLinesError}
+              pendingFallback={
+                <EventLinesSkeleton
+                  cards={cards}
+                  search={search}
+                  columnVisibility={columnView.visibility}
+                />
+              }
+            >
+              <EventLines
                 cards={cards}
+                eventId={data.event.id}
                 search={search}
+                onSearchChange={updateSearch}
+                unit={unit}
                 columnVisibility={columnView.visibility}
               />
-            }
-          >
-            <EventLines
-              cards={cards}
-              eventId={data.event.id}
-              search={search}
-              onSearchChange={updateSearch}
-              unit={unit}
-              columnVisibility={columnView.visibility}
-            />
-          </QueryBoundary>
+            </QueryBoundary>
+          </div>
         </div>
       </WorkspaceContent>
     </Workspace>
@@ -206,7 +214,10 @@ function StockEventColumns({
 }) {
   const { t } = useTranslation();
   return (
-    <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
+    <div
+      className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}
+      data-tour={TOUR_ANCHORS.transactionDetailsView}
+    >
       <DataTableViewOptions
         size="lg"
         layout={layout}
@@ -258,6 +269,7 @@ function StockEventActions({
     <>
       {canReverse && (
         <Button
+          data-tour={TOUR_ANCHORS.transactionDetailsReverse}
           size="lg"
           disabled={!lines.data?.totalElements || !!lines.error}
           nativeButton={false}
@@ -275,6 +287,7 @@ function StockEventActions({
       )}
       <ActionTooltip reason={print.disabledReason}>
         <Button
+          data-tour={TOUR_ANCHORS.transactionDetailsPrint}
           size="lg"
           disabled={print.offline || print.isPending || !lines.data?.totalElements || !!lines.error}
           onClick={print.print}

@@ -60,6 +60,7 @@ import {
 import { queryKeys } from '@/lib/key-factory';
 import { hasProgramGrant, type ProgramGrant, programGrants } from '@/lib/permissions';
 import type { SearchChange } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const RIGHT = RIGHTS.stockCardsView;
 
@@ -126,7 +127,7 @@ function useColumnView() {
 function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
   const { t } = useTranslation();
   return (
-    <div>
+    <div data-tour={TOUR_ANCHORS.transactionHistoryView}>
       <DataTableViewOptions
         size="lg"
         layout={columnView.layout}
@@ -290,12 +291,14 @@ function TransactionHistoryBody({
 
   return (
     <>
-      <FacilityProgramSelector
-        applied={applied}
-        onDraftChange={setDraft}
-        onSearch={onSearch}
-        options={options}
-      />
+      <div data-tour={TOUR_ANCHORS.transactionHistoryPicker}>
+        <FacilityProgramSelector
+          applied={applied}
+          onDraftChange={setDraft}
+          onSearch={onSearch}
+          options={options}
+        />
+      </div>
       <TransactionHistoryOutcome
         applied={applied}
         columnView={columnView}
@@ -436,51 +439,53 @@ function TransactionHistoryList({
         search={search}
         view={<ColumnsMenu columnView={columnView} />}
       />
-      {invalidDateRange(search) ? (
-        <OutcomeMessage
-          action={
-            <Button
-              onClick={() =>
-                onSearchChange({ startDate: undefined, endDate: undefined, page: undefined })
-              }
-              variant="outline"
-            >
-              {t('transaction-history.clear-dates')}
-            </Button>
-          }
-          description={t('transaction-history.date-range-description')}
-          icon={<CalendarX2Icon />}
-          title={t('transaction-history.date-range-title')}
-        />
-      ) : (
-        <QueryBoundary
-          errorComponent={({ error, reset }) => (
-            <ListError
-              description={t('transaction-history.error-description')}
-              error={error}
-              reset={reset}
-              title={t('transaction-history.error-title')}
-            />
-          )}
-          pendingFallback={
-            <TransactionHistoryResultsSkeleton
+      <div data-tour={TOUR_ANCHORS.transactionHistoryResults}>
+        {invalidDateRange(search) ? (
+          <OutcomeMessage
+            action={
+              <Button
+                onClick={() =>
+                  onSearchChange({ startDate: undefined, endDate: undefined, page: undefined })
+                }
+                variant="outline"
+              >
+                {t('transaction-history.clear-dates')}
+              </Button>
+            }
+            description={t('transaction-history.date-range-description')}
+            icon={<CalendarX2Icon />}
+            title={t('transaction-history.date-range-title')}
+          />
+        ) : (
+          <QueryBoundary
+            errorComponent={({ error, reset }) => (
+              <ListError
+                description={t('transaction-history.error-description')}
+                error={error}
+                reset={reset}
+                title={t('transaction-history.error-title')}
+              />
+            )}
+            pendingFallback={
+              <TransactionHistoryResultsSkeleton
+                cards={columnView.cards}
+                columns={columnView.visibility}
+                search={search}
+              />
+            }
+            resetKey={JSON.stringify(query)}
+          >
+            <TransactionHistoryResults
               cards={columnView.cards}
               columns={columnView.visibility}
+              facilityId={selection.facilityId}
+              onSearchChange={onSearchChange}
+              programId={selection.programId}
               search={search}
             />
-          }
-          resetKey={JSON.stringify(query)}
-        >
-          <TransactionHistoryResults
-            cards={columnView.cards}
-            columns={columnView.visibility}
-            facilityId={selection.facilityId}
-            onSearchChange={onSearchChange}
-            programId={selection.programId}
-            search={search}
-          />
-        </QueryBoundary>
-      )}
+          </QueryBoundary>
+        )}
+      </div>
     </div>
   );
 }
