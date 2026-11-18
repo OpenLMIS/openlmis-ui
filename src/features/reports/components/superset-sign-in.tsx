@@ -22,6 +22,7 @@ import { FieldGroup } from '@/components/ui/field';
 import {
   changeSupersetLanguage,
   checkSupersetSession,
+  SupersetAccountMismatchError,
   SupersetSignInError,
   signInToSuperset,
 } from '@/features/reports/api/api';
@@ -36,7 +37,7 @@ import { getSessionScope, SessionEndedError } from '@/lib/session-scope';
 
 type Status =
   | { kind: 'checking' }
-  | { kind: 'sign-in'; state: string | undefined }
+  | { kind: 'sign-in' }
   | { kind: 'signed-in' }
   | { kind: 'failed'; failure: DashboardFailure };
 
@@ -81,10 +82,10 @@ export function SupersetSignIn({
     const current = () => !controller.signal.aborted && scope === getSessionScope();
     void (async () => {
       try {
-        const session = await checkSupersetSession(supersetUrl, controller.signal);
+        const session = await checkSupersetSession(supersetUrl, username, controller.signal);
         if (!current()) return;
         if (!session.isAuthorized) {
-          setStatus({ kind: 'sign-in', state: session.state });
+          setStatus({ kind: 'sign-in' });
           return;
         }
         await changeSupersetLanguage(supersetUrl, i18n.language, controller.signal).catch(() => {});
@@ -93,12 +94,15 @@ export function SupersetSignIn({
         if (!current() || isCancel(error)) return;
         setStatus({
           kind: 'failed',
-          failure: { kind: isOnline() ? 'unavailable' : 'offline' },
+          failure:
+            error instanceof SupersetAccountMismatchError
+              ? { kind: 'account-mismatch', logoutUrl: `${supersetUrl}/logout/` }
+              : { kind: isOnline() ? 'unavailable' : 'offline' },
         });
       }
     })();
     return () => controller.abort();
-  }, [supersetUrl, scope, i18n]);
+  }, [supersetUrl, username, scope, i18n]);
 
   if (status.kind === 'signed-in')
     return <DashboardFrame url={url} title={title} onRetry={onRetry} retried={retried} />;
@@ -120,13 +124,19 @@ export function SupersetSignIn({
             signIn={async (password) => {
               const signal = opening.current?.signal;
               if (!signal) return;
-              await signInToSuperset({
-                supersetUrl,
-                username,
-                password,
-                state: status.state,
-                signal,
-              });
+              try {
+                await signInToSuperset({ supersetUrl, username, password, scope, signal });
+              } catch (error) {
+                if (!(error instanceof SupersetAccountMismatchError)) throw error;
+                if (!signal.aborted && scope === getSessionScope()) {
+                  setStatus({
+                    kind: 'failed',
+                    failure: { kind: 'account-mismatch', logoutUrl: `${supersetUrl}/logout/` },
+                  });
+                }
+                return;
+              }
+              if (signal.aborted || scope !== getSessionScope()) return;
               await changeSupersetLanguage(supersetUrl, i18n.language, signal).catch(() => {});
               if (!signal.aborted && scope === getSessionScope()) setStatus({ kind: 'signed-in' });
             }}

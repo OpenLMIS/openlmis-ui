@@ -48,7 +48,7 @@ export function resolveDashboardMode(
   if (!superset) return { kind: 'link', url: link.href };
   if (!link.searchParams.has('standalone')) link.searchParams.set('standalone', 'true');
   const base = supersetBase(supersetUrl, appOrigin);
-  return base
+  return base && link.origin === new URL(base).origin
     ? { kind: 'superset-sign-in', url: link.href, supersetUrl: base }
     : { kind: 'not-configured' };
 }

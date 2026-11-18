@@ -61,6 +61,7 @@ beforeEach(() => {
   replies = {
     'GET <superset>/oauth-init/openlmis': () =>
       authorized ? { isAuthorized: true } : { isAuthorized: false, state: 'st/1+2' },
+    'GET <superset>/api/v1/me/': ok({ result: { username: 'adá' } }),
     'POST /oauth/token?grant_type=password': ok({ access_token: 'discarded' }),
     'GET /oauth/authorize': ok('<form>approve</form>'),
     'POST /oauth/authorize': () => {
@@ -117,13 +118,31 @@ it('opens an already signed-in Superset dashboard without asking for a password'
 
   expect(await screen.findByTitle('Stock')).toHaveAttribute('src', `${DASHBOARD}?standalone=true`);
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  expect(routes()).toEqual(['GET <superset>/oauth-init/openlmis', 'GET <superset>/lang/change/en']);
+  expect(routes()).toEqual([
+    'GET <superset>/oauth-init/openlmis',
+    'GET <superset>/api/v1/me/',
+    'GET <superset>/lang/change/en',
+  ]);
   expect(sent[0]).toMatchObject({
     params: { redirect_url: `${SUPERSET}/oauth-authorized/openlmis` },
     authorization: undefined,
     withCredentials: true,
   });
-  expect(sent[1].authorization).toBeUndefined();
+  for (const request of sent) expect(request.authorization).toBeUndefined();
+});
+
+it('keeps the dashboard closed when the provider session belongs to a different account', async () => {
+  replies['GET <superset>/oauth-init/openlmis'] = ok({ isAuthorized: true });
+  replies['GET <superset>/api/v1/me/'] = ok({ result: { username: 'bob' } });
+  renderPage(<Harness />);
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('reports.dashboard.account-mismatch');
+  expect(screen.queryByTitle('Stock')).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'reports.dashboard.sign-out' })).toHaveAttribute(
+    'href',
+    `${SUPERSET}/logout/`,
+  );
+  expect(routes()).toEqual(['GET <superset>/oauth-init/openlmis', 'GET <superset>/api/v1/me/']);
 });
 
 it('signs in with the password, authorizes and approves Superset, then shows the dashboard', async () => {
@@ -138,13 +157,15 @@ it('signs in with the password, authorizes and approves Superset, then shows the
   expect(routes()).toEqual([
     'GET <superset>/oauth-init/openlmis',
     'POST /oauth/token?grant_type=password',
+    'GET <superset>/oauth-init/openlmis',
     'GET /oauth/authorize',
     'GET <superset>/oauth-init/openlmis',
     'POST /oauth/authorize',
     'GET <superset>/oauth-init/openlmis',
+    'GET <superset>/api/v1/me/',
     'GET <superset>/lang/change/en',
   ]);
-  const [, token, authorize, , approve] = sent;
+  const [, token, , authorize, , approve] = sent;
   expect(token.authorization).toBe(basic('user-client:changeme'));
   expect(new URLSearchParams(token.body)).toEqual(
     new URLSearchParams({ username: 'adá', password }),
@@ -207,6 +228,31 @@ it('reports an authorization the server refused without showing an unsigned dash
   expect(useLoginData.getState().expired).toBe(false);
 });
 
+it('asks the provider for fresh OAuth state before retrying a failed authorization', async () => {
+  const user = userEvent.setup();
+  let checks = 0;
+  const check = replies['GET <superset>/oauth-init/openlmis'];
+  replies['GET <superset>/oauth-init/openlmis'] = (config) =>
+    ++checks <= 3 ? { isAuthorized: false, state: `state-${checks}` } : check(config);
+  const authorize = replies['GET /oauth/authorize'];
+  replies['GET /oauth/authorize'] = fail(500);
+  renderPage(<Harness />);
+  await user.type(await screen.findByLabelText('login.password'), 'secret');
+  const submit = () =>
+    user.click(screen.getByRole('button', { name: 'reports.dashboard.sign-in-submit' }));
+  await submit();
+  await screen.findByText('reports.dashboard.sign-in-authorize-failed');
+
+  replies['GET /oauth/authorize'] = authorize;
+  await submit();
+  expect(await screen.findByTitle('Stock')).toBeInTheDocument();
+  expect(
+    sent
+      .filter(({ method, url }) => method === 'GET' && url === '/oauth/authorize')
+      .map(({ params }) => params?.state),
+  ).toEqual(['state-2', 'state-3']);
+});
+
 it.each([
   ['unreachable', fail()],
   ['missing', fail(404)],
@@ -265,7 +311,29 @@ it('never opens the frame for a user who changed during sign-in', async () => {
 
   await waitFor(() => expect(routes()).toContain('GET /oauth/authorize'));
   expect(screen.queryByTitle('Stock')).not.toBeInTheDocument();
-  expect(routes()).toHaveLength(3);
+  expect(routes()).toHaveLength(4);
+});
+
+it('ends sign-in before approval if the OpenLMIS account changes during a provider check', async () => {
+  const user = userEvent.setup();
+  let checks = 0;
+  replies['GET <superset>/oauth-init/openlmis'] = () => {
+    if (++checks === 3) {
+      useLoginData.getState().setLoginData({
+        referenceDataUserId: 'bob-id',
+        username: 'bob',
+        accessToken: 'bob-token',
+      });
+    }
+    return { isAuthorized: false, state: 'state' };
+  };
+  renderPage(<Harness />);
+  await user.type(await screen.findByLabelText('login.password'), 'secret');
+  await user.click(screen.getByRole('button', { name: 'reports.dashboard.sign-in-submit' }));
+
+  await waitFor(() => expect(checks).toBe(3));
+  expect(screen.queryByTitle('Stock')).not.toBeInTheDocument();
+  expect(routes()).not.toContain('POST /oauth/authorize');
 });
 
 it('shows Not Set Up without contacting anything when no Superset address is configured', async () => {

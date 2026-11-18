@@ -25,7 +25,9 @@ export type DashboardFailureKind =
   | 'unavailable'
   | 'did-not-load';
 
-export type DashboardFailure = { kind: DashboardFailureKind; error?: unknown };
+export type DashboardFailure =
+  | { kind: DashboardFailureKind; error?: unknown }
+  | { kind: 'account-mismatch'; logoutUrl: string; error?: undefined };
 
 /** How long a frame may take to load before the viewer offers Try Again. */
 export const FRAME_LOAD_LIMIT_MS = 45_000;
@@ -54,6 +56,10 @@ const FAILURE_TEXT = {
   'did-not-load': [
     'reports.dashboard.did-not-load-title',
     'reports.dashboard.did-not-load-description',
+  ],
+  'account-mismatch': [
+    'reports.dashboard.account-mismatch-title',
+    'reports.dashboard.account-mismatch',
   ],
 } as const;
 
@@ -106,6 +112,17 @@ export function DashboardFailureState({
             <RotateCcwIcon data-icon="inline-start" />
             {t('error.try-again')}
           </Button>
+          {failure.kind === 'account-mismatch' && (
+            <Button
+              role="link"
+              nativeButton={false}
+              size="sm"
+              variant="outline"
+              render={<a href={failure.logoutUrl} target="_blank" rel="noopener noreferrer" />}
+            >
+              {t('reports.dashboard.sign-out')}
+            </Button>
+          )}
           {back && <BackToReports />}
         </div>
       </AlertAction>

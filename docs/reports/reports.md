@@ -39,6 +39,7 @@ saved as a PDF and a message says so.
 
 Dashboards open inside the app. Some older Superset dashboards first ask for your password
 to sign you in to the reporting service; you are asked again only when that sign-in ends.
+If Superset is signed in to another account, select **Sign Out Of Superset**, then **Try Again**.
 
 Generating a report requires a connection. Some reports need extra permissions, which the
 server checks when you select **Generate**.

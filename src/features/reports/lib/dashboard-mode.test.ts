@@ -73,6 +73,11 @@ describe('resolveDashboardMode', () => {
     ).toEqual({ kind: 'not-configured' });
   });
 
+  it('rejects an older Superset report on a different origin from its sign-in service', () => {
+    const report = record({ url: 'https://other.example.org/superset/dashboard/7/' });
+    expect(resolveDashboardMode(report, superset, app)).toEqual({ kind: 'not-configured' });
+  });
+
   it('frames another provider link unchanged', () => {
     const url = 'https://app.powerbi.com/view?r=abc#page';
     expect(resolveDashboardMode(record({ type: 'POWERBI', url }), undefined, app)).toEqual({

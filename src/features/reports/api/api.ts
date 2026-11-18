@@ -15,7 +15,7 @@ import { client } from '@/integrations/axios';
 import { basicAuthorization } from '@/lib/basic-auth';
 import { fetchReportFile } from '@/lib/fetch-report';
 import { getAuthClientCredentials } from '@/lib/runtime-config';
-import { SessionEndedError } from '@/lib/session-scope';
+import { assertSessionScope, SessionEndedError } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
 /** Where the shared client sends requests, so template lookups are checked against it. */
@@ -110,11 +110,19 @@ const SUPERSET_REQUEST = {
 
 const supersetRedirectUrl = (supersetUrl: string) => `${supersetUrl}/oauth-authorized/openlmis`;
 
-export type SupersetSession = { isAuthorized: boolean; state?: string };
+type SupersetSession = { isAuthorized: true } | { isAuthorized: false; state: string };
+
+export class SupersetAccountMismatchError extends Error {
+  constructor() {
+    super('The reporting session belongs to a different account');
+    this.name = 'SupersetAccountMismatchError';
+  }
+}
 
 /** Whether the older reporting stack already has a Superset session, and the OAuth state if not. */
 export async function checkSupersetSession(
   supersetUrl: string,
+  username: string,
   signal: AbortSignal,
 ): Promise<SupersetSession> {
   const { data } = await client.get<unknown>(`${supersetUrl}/oauth-init/openlmis`, {
@@ -123,15 +131,23 @@ export async function checkSupersetSession(
     signal,
   });
   const session = data as { isAuthorized?: unknown; state?: unknown } | null;
-  if (typeof session?.isAuthorized !== 'boolean')
-    throw new Error('The reporting service gave no sign-in status');
-  return {
-    isAuthorized: session.isAuthorized,
-    state: typeof session.state === 'string' ? session.state : undefined,
-  };
+  if (session?.isAuthorized === true) {
+    const { data: account } = await client.get<{ result?: { username?: unknown } }>(
+      `${supersetUrl}/api/v1/me/`,
+      { ...SUPERSET_REQUEST, signal },
+    );
+    const signedInAs = account?.result?.username;
+    if (typeof signedInAs !== 'string' || !signedInAs)
+      throw new Error('The reporting service gave no account name');
+    if (signedInAs !== username) throw new SupersetAccountMismatchError();
+    return { isAuthorized: true };
+  }
+  if (session?.isAuthorized === false && typeof session.state === 'string' && session.state)
+    return { isAuthorized: false, state: session.state };
+  throw new Error('The reporting service gave no sign-in status');
 }
 
-export type SupersetSignInStep = 'password' | 'authorize' | 'approve';
+type SupersetSignInStep = 'password' | 'authorize' | 'approve';
 
 export class SupersetSignInError extends Error {
   constructor(
@@ -147,7 +163,12 @@ async function step<T>(name: SupersetSignInStep, request: Promise<T>) {
   try {
     return await request;
   } catch (error) {
-    if (isCancel(error) || error instanceof SessionEndedError) throw error;
+    if (
+      isCancel(error) ||
+      error instanceof SessionEndedError ||
+      error instanceof SupersetAccountMismatchError
+    )
+      throw error;
     throw new SupersetSignInError(name, error);
   }
 }
@@ -157,15 +178,16 @@ export async function signInToSuperset({
   supersetUrl,
   username,
   password,
-  state,
+  scope,
   signal,
 }: {
   supersetUrl: string;
   username: string;
   password: string;
-  state: string | undefined;
+  scope: number;
   signal: AbortSignal;
 }) {
+  assertSessionScope(scope);
   const { clientId, clientSecret } = getAuthClientCredentials();
   if (!clientId || !clientSecret)
     throw new SupersetSignInError('password', new Error('No OAuth client is configured'));
@@ -174,6 +196,20 @@ export async function signInToSuperset({
     response_type: 'code',
     client_id: 'superset',
     redirect_uri: supersetRedirectUrl(supersetUrl),
+  };
+  const oauthRequest = {
+    headers: user,
+    withCredentials: true,
+    session: false,
+    sessionScope: scope,
+    connectionStatus: false,
+    signal,
+  } as const;
+  const check = async () => {
+    assertSessionScope(scope);
+    const session = await checkSupersetSession(supersetUrl, username, signal);
+    assertSessionScope(scope);
+    return session;
   };
   // Checked first, as legacy does, so a wrong password never meets the browser's own Basic prompt.
   await step(
@@ -184,20 +220,20 @@ export async function signInToSuperset({
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       session: false,
+      sessionScope: scope,
       signal,
     }),
   );
+  const session = await step('authorize', check());
+  if (session.isAuthorized) return;
   await step(
     'authorize',
     client.get('/oauth/authorize', {
-      params: { ...authorize, scope: 'read write', state },
-      headers: user,
-      withCredentials: true,
-      session: false,
-      signal,
+      ...oauthRequest,
+      params: { ...authorize, scope: 'read write', state: session.state },
     }),
   );
-  if ((await step('authorize', checkSupersetSession(supersetUrl, signal))).isAuthorized) return;
+  if ((await step('authorize', check())).isAuthorized) return;
   await step(
     'approve',
     client.post(
@@ -209,15 +245,13 @@ export async function signInToSuperset({
         'scope.write': 'true',
       }),
       {
+        ...oauthRequest,
         params: authorize,
         headers: { ...user, 'Content-Type': 'application/x-www-form-urlencoded' },
-        withCredentials: true,
-        session: false,
-        signal,
       },
     ),
   );
-  if (!(await step('approve', checkSupersetSession(supersetUrl, signal))).isAuthorized)
+  if (!(await step('approve', check())).isAuthorized)
     throw new SupersetSignInError('approve', new Error('Superset is still not signed in'));
 }
 
