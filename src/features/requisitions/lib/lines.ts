@@ -58,15 +58,20 @@ export function buildLines(
 
 export function filterLines<T extends RequisitionLine>(
   lines: readonly T[],
-  options: { hideSkipped?: boolean; product?: string; showSkipped?: boolean } = {},
+  options: { hidden?: ReadonlySet<string>; product?: string; showSkipped?: boolean } = {},
 ) {
-  const hideSkipped = !(options.showSkipped ?? !options.hideSkipped);
   const query = options.product?.trim().toLocaleLowerCase() ?? '';
   return lines.filter(
     (l) =>
-      !(hideSkipped && l.line.skipped) &&
+      !options.hidden?.has(l.line.id) &&
+      !(options.showSkipped === false && l.line.skipped) &&
       (!query ||
         l.product?.fullProductName?.toLocaleLowerCase().includes(query) ||
         l.product?.productCode.toLocaleLowerCase().includes(query)),
   );
 }
+
+export const skippedLineIds = (
+  lines: readonly RequisitionLine[],
+  isSkipped: (line: RequisitionLine) => boolean = (l) => !!l.line.skipped,
+) => new Set(lines.flatMap((l) => (isSkipped(l) ? [l.line.id] : [])));

@@ -61,6 +61,7 @@ import { RequisitionInput } from '@/features/requisitions/components/requisition
 import { SkipControls } from '@/features/requisitions/components/skip-controls';
 import { SupplyingStockNote } from '@/features/requisitions/components/supplying-stock-note';
 import { useGridWidths } from '@/features/requisitions/hooks/use-grid-widths';
+import { useHiddenSkipped } from '@/features/requisitions/hooks/use-hidden-skipped';
 import { useLiveGridLine } from '@/features/requisitions/hooks/use-live-grid-line';
 import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 import type { calculateTotals } from '@/features/requisitions/lib/calculations';
@@ -182,15 +183,42 @@ export function RequisitionGridView({
     () => models.filter((model) => model.fullSupply === (tab === 'fullSupply')),
     [models, tab],
   );
-  const skipFilter = !!editing?.skipLines && tab === 'fullSupply';
+  const skipFilter = !!editing?.skippedFilter && tab === 'fullSupply';
+  const productFilter = !!editing?.productFilter && tab === 'fullSupply';
+  const product = productFilter ? search.product : undefined;
+  const hideTemplate = hidesSkipped(record.template, tab);
+  const store = editing?.editor.form.store;
+  const isSkipped = useCallback(
+    (model: RequisitionLine) =>
+      store?.state.values.draft.lines[model.line.id]?.skipped ?? !!model.line.skipped,
+    [store],
+  );
+  const pageAt = `${search.detailPage ?? 1}:${search.detailSize ?? ''}`;
+  const [paging, setPaging] = useState({ pending: false, at: pageAt, turn: 0 });
+  const paged = paging.pending && paging.at !== pageAt;
+  if (paged) setPaging({ pending: false, at: pageAt, turn: paging.turn + 1 });
+  const { hidden, refresh: refreshHidden } = useHiddenSkipped(
+    selected,
+    hideTemplate,
+    [
+      record,
+      tab,
+      hideTemplate,
+      search.addProduct,
+      paged ? paging.turn + 1 : paging.turn,
+      selected.map((model) => model.line.id).join('|'),
+    ],
+    isSkipped,
+  );
+  const skippedOff = skipFilter && search.skipped === false;
   const filtered = useMemo(
     () =>
       filterLines(selected, {
-        hideSkipped: hidesSkipped(record.template, tab),
-        product: search.product,
+        hidden,
+        product,
         showSkipped: skipFilter ? search.skipped : undefined,
       }),
-    [selected, record.template, tab, search.product, search.skipped, skipFilter],
+    [selected, hidden, product, search.skipped, skipFilter],
   );
   const pagination = toPaginationState(detailTableSearch(search));
   const pageIndex = Math.min(
@@ -248,7 +276,7 @@ export function RequisitionGridView({
       onAdjustments,
     ],
   );
-  const removable = canRemoveLine(tab === 'fullSupply', !!editing?.editable);
+  const removable = canRemoveLine(tab === 'fullSupply', !!editing?.editable, record.status);
   const removal = useRef({ data, editing });
   removal.current = { data, editing };
   const removeLine = useCallback((id: string) => {
@@ -311,7 +339,8 @@ export function RequisitionGridView({
       pagination: { ...pagination, pageIndex },
       columnVisibility: { ...view.columnView.visibility, 'orderable.productCode': !view.cards },
     },
-    onPaginationChange: pageStart.onPaginationChange((updater) =>
+    onPaginationChange: pageStart.onPaginationChange((updater) => {
+      setPaging((previous) => ({ ...previous, pending: true, at: pageAt }));
       onSearchChange(
         (previous) => {
           return changeDetailPaging(previous, (current) => {
@@ -321,8 +350,8 @@ export function RequisitionGridView({
         },
         false,
         pageStart.navigation,
-      ),
-    ),
+      );
+    }),
   });
   const [focusedRow, setFocusedRow] = useState<number | null>(null);
   const virtual = !view.cards && data.length > 30;
@@ -356,6 +385,14 @@ export function RequisitionGridView({
     document.addEventListener('requisition-line-focus', reveal);
     return () => document.removeEventListener('requisition-line-focus', reveal);
   }, [virtual, record.id, data, virtualizer]);
+  useEffect(() => {
+    const refresh = (event: Event) => {
+      if ((event as CustomEvent<{ requisitionId: string }>).detail.requisitionId === record.id)
+        refreshHidden();
+    };
+    document.addEventListener('requisition-lines-refresh', refresh);
+    return () => document.removeEventListener('requisition-lines-refresh', refresh);
+  }, [record.id, refreshHidden]);
   const tableRows = table.getRowModel().rows;
   const renderedRows = virtual
     ? virtualizer.getVirtualItems()
@@ -364,7 +401,7 @@ export function RequisitionGridView({
   const empty = (
     <DataTableEmpty
       action={
-        search.product || search.skipped !== undefined ? (
+        product || skippedOff ? (
           <Button
             variant="destructive"
             onClick={() =>
@@ -379,7 +416,7 @@ export function RequisitionGridView({
         ) : undefined
       }
       description={
-        !search.product && search.skipped === undefined
+        !product && !skippedOff
           ? t(
               tab === 'fullSupply'
                 ? 'requisitions.requisition.empty-full-supply-description'
@@ -388,7 +425,7 @@ export function RequisitionGridView({
           : undefined
       }
       title={t(
-        search.product || search.skipped !== undefined
+        product || skippedOff
           ? 'requisitions.requisition.no-matching-products'
           : tab === 'fullSupply'
             ? 'requisitions.requisition.empty-full-supply'
@@ -529,7 +566,7 @@ export function RequisitionGridView({
         view={view}
         search={search}
         onSearchChange={onSearchChange}
-        hideSkipped={hidesSkipped(record.template, tab)}
+        showSearch={productFilter}
         showSkipFilter={skipFilter}
         unit={unit}
         setUnit={setUnit}
@@ -1035,6 +1072,8 @@ export type GridEditing = {
   pending: boolean;
   editableColumns: readonly string[];
   skipLines: boolean;
+  skippedFilter: boolean;
+  productFilter: boolean;
   addFullSupplyProduct: boolean;
   addNonFullSupplyProduct: boolean;
 };

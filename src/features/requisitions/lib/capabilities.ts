@@ -24,6 +24,7 @@ type CapabilityContext = {
   approvalNodes: readonly string[];
   currentNodeId?: string | null;
   unskipWhenApproving?: boolean;
+  unskipSettingFailed?: boolean;
   isSplit?: boolean;
 };
 export function requisitionCapabilities(context: CapabilityContext) {
@@ -37,8 +38,11 @@ export function requisitionCapabilities(context: CapabilityContext) {
     !!context.currentNodeId &&
     context.approvalNodes.includes(context.currentNodeId);
   const canEdit = creator || authorizer || approver;
+  const legacyEditor =
+    creator || authorizer || !!context.unskipWhenApproving || !!context.unskipSettingFailed;
   const skipColumn = template.columnsMap.skipped;
   const hasSkip = !!skipColumn?.isDisplayed;
+  const unskipHidden = skipColumn?.option?.optionName === 'hideSkippedLineItems';
   const canDelete =
     has(RIGHTS.requisitionDelete) &&
     ((['INITIATED', 'REJECTED', 'SKIPPED'].includes(status) && has(RIGHTS.requisitionCreate)) ||
@@ -87,15 +91,16 @@ export function requisitionCapabilities(context: CapabilityContext) {
       canEdit ||
       ((status === 'INITIATED' || status === 'REJECTED') && has(RIGHTS.requisitionAuthorize)),
     addFullSupplyProduct:
-      canEdit &&
-      (creator || authorizer) &&
-      (emergency || (hasSkip && skipColumn.option?.optionName === 'hideSkippedLineItems')),
-    addNonFullSupplyProduct: canEdit && (creator || authorizer) && !!program.showNonFullSupplyTab,
+      ((creator || authorizer) && (emergency || unskipHidden)) ||
+      (approver && !!context.unskipWhenApproving && !emergency && unskipHidden),
+    addNonFullSupplyProduct: (creator || authorizer) && !!program.showNonFullSupplyTab,
     skipLines:
       canEdit &&
       !emergency &&
       hasSkip &&
       (creator || authorizer || (approver && !!context.unskipWhenApproving)),
+    skippedFilter: !emergency && !!skipColumn && legacyEditor,
+    productFilter: legacyEditor,
     approver,
   };
 }

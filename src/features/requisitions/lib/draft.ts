@@ -166,4 +166,5 @@ export function canSkipLine(
     );
   });
 }
-export const canRemoveLine = (fullSupply: boolean, editable: boolean) => editable && !fullSupply;
+export const canRemoveLine = (fullSupply: boolean, editable: boolean, status?: string) =>
+  editable && !fullSupply && ['INITIATED', 'SUBMITTED', 'REJECTED'].includes(status ?? '');

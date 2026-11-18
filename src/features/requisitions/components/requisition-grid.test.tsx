@@ -1,8 +1,8 @@
 import { useStore } from '@tanstack/react-form';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
@@ -78,6 +78,9 @@ function Harness({
   tab = 'fullSupply',
   supplyingStock = false,
   editable = false,
+  skippedFilter = editable,
+  productFilter = true,
+  deferSearch = false,
   pending = false,
 }: {
   initial?: GridSearch;
@@ -86,17 +89,28 @@ function Harness({
   tab?: 'fullSupply' | 'nonFullSupply';
   supplyingStock?: boolean;
   editable?: boolean;
+  skippedFilter?: boolean;
+  productFilter?: boolean;
+  deferSearch?: boolean;
   pending?: boolean;
 }) {
   const [search, setSearch] = useState<GridSearch>(initial);
-  const update: SearchChange<GridSearch> = (change) =>
-    setSearch((previous) => ({
-      ...previous,
-      ...(typeof change === 'function' ? change(previous) : change),
-    }));
-  const current = stockBased
-    ? { ...value, template: { ...value.template, populateStockOnHandFromStockCards: true } }
-    : value;
+  const update: SearchChange<GridSearch> = (change) => {
+    const apply = () =>
+      setSearch((previous) => ({
+        ...previous,
+        ...(typeof change === 'function' ? change(previous) : change),
+      }));
+    if (deferSearch) window.setTimeout(apply);
+    else apply();
+  };
+  const current = useMemo(
+    () =>
+      stockBased
+        ? { ...value, template: { ...value.template, populateStockOnHandFromStockCards: true } }
+        : value,
+    [stockBased, value],
+  );
   const hydrated =
     tab === 'nonFullSupply'
       ? products.map((p) => ({
@@ -119,21 +133,21 @@ function Harness({
   }));
   return (
     <RequisitionGridView
-      record={draftRecord}
+      record={current}
       editing={
-        editable
+        editable || skippedFilter || productFilter
           ? {
               editor,
-              editable: true,
+              editable,
               pending,
-              editableColumns: [
-                'requestedQuantity',
-                'totalStockoutDays',
-                'totalLossesAndAdjustments',
-              ],
-              skipLines: true,
+              editableColumns: editable
+                ? ['requestedQuantity', 'totalStockoutDays', 'totalLossesAndAdjustments']
+                : [],
+              skipLines: editable,
+              skippedFilter,
+              productFilter,
               addFullSupplyProduct: false,
-              addNonFullSupplyProduct: true,
+              addNonFullSupplyProduct: editable,
             }
           : undefined
       }
@@ -221,20 +235,105 @@ const withSkipped: RequisitionRecord = {
     skipped: true,
   })),
 };
-it('shows skipped full-supply products from the toolbar checkbox and clears both filters from no matches', async () => {
+it('lands on the clicked page when the router applies paging after a newly skipped line', async () => {
   const user = userEvent.setup();
-  render(<Harness value={withSkipped} editable />);
+  render(
+    <Harness
+      value={{
+        ...withSkipped,
+        requisitionLineItems: requisition.requisitionLineItems.map((item, index) => ({
+          ...item,
+          skipped: index === 0,
+        })),
+      }}
+      editable
+      deferSearch
+      initial={{ detailSize: 1, detailPage: 11 }}
+    />,
+  );
+  await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 9 (P9)' }));
+  await user.click(screen.getByRole('button', { name: 'First Page' }));
+  expect(await screen.findByText('Medicine 1')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'First Page' })).toBeDisabled();
+});
+it('keeps a newly skipped line visible when a filter change on page 2 resets the page', async () => {
+  const user = userEvent.setup();
+  render(
+    <Harness
+      value={{
+        ...withSkipped,
+        requisitionLineItems: requisition.requisitionLineItems.map((item, index) => ({
+          ...item,
+          skipped: index === 0,
+        })),
+      }}
+      editable
+      initial={{ detailPage: 2 }}
+    />,
+  );
+  await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 9 (P9)' }));
+  await user.type(screen.getByRole('textbox'), 'Medicine 9');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Previous Page' })).toBeDisabled());
+  expect(screen.getByText('Medicine 9')).toBeInTheDocument();
+});
+it('keeps template-hidden lines hidden and newly skipped lines visible until a refresh', async () => {
+  const user = userEvent.setup();
+  render(
+    <Harness
+      value={{
+        ...withSkipped,
+        requisitionLineItems: requisition.requisitionLineItems.map((item, index) => ({
+          ...item,
+          skipped: index === 0,
+        })),
+      }}
+      editable
+    />,
+  );
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
+  await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' }));
+  expect(screen.getByText('Medicine 1')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Filters' }));
-  await user.click(screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' }));
+  const show = screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' });
+  expect(show).toBeChecked();
+  await user.click(show);
+  expect(screen.queryByText('Medicine 1')).not.toBeInTheDocument();
+  await user.click(show);
+  expect(screen.getByText('Medicine 1')).toBeInTheDocument();
+  expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
   await user.keyboard('{Escape}');
-  expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
-  expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0 (P0)' })).toBeChecked();
-  await user.type(screen.getByRole('textbox'), 'absent');
-  await user.click(await screen.findByRole('button', { name: 'data-table.clear-filters' }));
-  expect(screen.getByRole('textbox')).toHaveValue('');
+  await user.click(screen.getByRole('button', { name: 'Next Page' }));
+  await user.click(screen.getByRole('button', { name: 'Previous Page' }));
+  expect(screen.queryByText('Medicine 1')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 2 (P2)' }));
+  act(() => {
+    document.dispatchEvent(
+      new CustomEvent('requisition-lines-refresh', { detail: { requisitionId: requisition.id } }),
+    );
+  });
+  expect(screen.queryByText('Medicine 2')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-none' }));
+  expect(screen.queryByText('Medicine 2')).not.toBeInTheDocument();
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
 });
+it.each([
+  ['full supply viewer', 'fullSupply', false],
+  ['non-full supply editor', 'nonFullSupply', true],
+] as const)(
+  'offers no product search to a %s and ignores a linked one',
+  (_, tab, productFilter) => {
+    render(
+      <Harness
+        tab={tab}
+        productFilter={productFilter}
+        editable={productFilter}
+        initial={{ product: 'absent' }}
+      />,
+    );
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
+  },
+);
 it('does not hide skipped non-full-supply products', () => {
   render(<Harness value={withSkipped} tab="nonFullSupply" />);
   expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
@@ -568,31 +667,34 @@ it.each([1000, 390])(
   },
 );
 
-it('lets editors hide skipped lines on disable templates through Filters and clear the choice', async () => {
-  const user = userEvent.setup();
-  const value = {
-    ...requisition,
-    template: {
-      columnsMap: {
-        ...requisition.template.columnsMap,
-        skipped: column('skipped', 0, { option: { optionName: 'disableSkippedLineItems' } }),
+it.each([true, false])(
+  'hides skipped lines through Filters and clears the choice, editable=%s',
+  async (editable) => {
+    const user = userEvent.setup();
+    const value = {
+      ...requisition,
+      template: {
+        columnsMap: {
+          ...requisition.template.columnsMap,
+          skipped: column('skipped', 0, { option: { optionName: 'disableSkippedLineItems' } }),
+        },
       },
-    },
-    requisitionLineItems: requisition.requisitionLineItems.map((item, index) => ({
-      ...item,
-      skipped: index === 0,
-    })),
-  };
-  render(<Harness value={value} editable />);
-  expect(screen.getByText('Medicine 0')).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Filters' }));
-  const skipped = screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' });
-  expect(skipped).toBeChecked();
-  await user.click(skipped);
-  expect(screen.queryByText('Medicine 0')).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
-  expect(screen.getByText('Medicine 0')).toBeInTheDocument();
-});
+      requisitionLineItems: requisition.requisitionLineItems.map((item, index) => ({
+        ...item,
+        skipped: index === 0,
+      })),
+    };
+    render(<Harness value={value} editable={editable} skippedFilter />);
+    expect(screen.getByText('Medicine 0')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
+    const skipped = screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' });
+    expect(skipped).toBeChecked();
+    await user.click(skipped);
+    expect(screen.queryByText('Medicine 0')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
+    expect(screen.getByText('Medicine 0')).toBeInTheDocument();
+  },
+);
 
 it.each([1000, 390])('interpolates product removal labels in Arabic at width %s', async (width) => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);

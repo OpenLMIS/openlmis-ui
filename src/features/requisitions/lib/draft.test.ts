@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import {
   applyRequisitionDraft,
   buildRequisitionDraft,
+  canRemoveLine,
   canSkipLine,
   rebaseRequisitionDraft,
 } from '@/features/requisitions/lib/draft';
@@ -450,4 +451,12 @@ it('compares adjustment values independently of server ids and row order', () =>
   const result = mergeRequisitionDraft(fresh, draft, draftBaseValues(original, draft), original);
   expect(result.conflicts).toEqual([]);
   expect(result.draft.lines).toEqual({});
+});
+
+it('removes Non-Full Supply lines only up to Submitted, as legacy', () => {
+  for (const status of ['INITIATED', 'SUBMITTED', 'REJECTED'])
+    expect(canRemoveLine(false, true, status)).toBe(true);
+  for (const status of ['AUTHORIZED', 'IN_APPROVAL'])
+    expect(canRemoveLine(false, true, status)).toBe(false);
+  expect(canRemoveLine(true, true, 'INITIATED')).toBe(false);
 });

@@ -118,7 +118,44 @@ it('limits product additions and line skipping, including approver unskip', () =
   expect(
     policy({ program: { id: 'program', showNonFullSupplyTab: false } }).addNonFullSupplyProduct,
   ).toBe(false);
-  expect(policy({ status: 'IN_APPROVAL', grants: ['REQUISITION_APPROVE'] }).skipLines).toBe(false);
+  expect(policy({ status: 'IN_APPROVAL', grants: ['REQUISITION_APPROVE'] })).toMatchObject({
+    skipLines: false,
+    addFullSupplyProduct: false,
+  });
+  expect(
+    policy({ status: 'IN_APPROVAL', grants: ['REQUISITION_APPROVE'], unskipWhenApproving: true }),
+  ).toMatchObject({ addFullSupplyProduct: true, addNonFullSupplyProduct: false });
+  expect(
+    policy({
+      status: 'IN_APPROVAL',
+      grants: ['REQUISITION_APPROVE'],
+      unskipWhenApproving: true,
+      emergency: true,
+    }).addFullSupplyProduct,
+  ).toBe(false);
+  expect(
+    policy({
+      status: 'IN_APPROVAL',
+      grants: ['REQUISITION_APPROVE'],
+      unskipWhenApproving: true,
+      template: {
+        columnsMap: {
+          skipped: column('skipped', 0, {
+            isDisplayed: false,
+            option: { optionName: 'hideSkippedLineItems' },
+          }),
+        },
+      },
+    }),
+  ).toMatchObject({ addFullSupplyProduct: true, skipLines: false });
+  expect(
+    policy({
+      status: 'IN_APPROVAL',
+      unskipWhenApproving: true,
+      unskipSettingFailed: true,
+      approvalNodes: [],
+    }).addFullSupplyProduct,
+  ).toBe(false);
   expect(
     policy({ status: 'IN_APPROVAL', grants: ['REQUISITION_APPROVE'], unskipWhenApproving: true })
       .skipLines,
@@ -130,6 +167,28 @@ it('limits product additions and line skipping, including approver unskip', () =
       grants: ['REQUISITION_APPROVE'],
       unskipWhenApproving: true,
     }).skipLines,
+  ).toBe(true);
+});
+
+it('offers Show Skipped Items and product search as legacy: submitters, authorizers, or anyone when unskip is on or unread', () => {
+  const viewer = { status: 'SUBMITTED' as const, grants: [] };
+  expect(policy().skippedFilter).toBe(true);
+  expect(policy({ ...viewer, grants: ['REQUISITION_AUTHORIZE'] }).skippedFilter).toBe(true);
+  expect(policy(viewer)).toMatchObject({ skippedFilter: false, productFilter: false });
+  expect(policy({ ...viewer, unskipWhenApproving: true }).productFilter).toBe(true);
+  expect(policy({ emergency: true }).productFilter).toBe(true);
+  expect(policy({ ...viewer, unskipWhenApproving: true }).skippedFilter).toBe(true);
+  expect(policy({ ...viewer, status: 'APPROVED', unskipSettingFailed: true }).skippedFilter).toBe(
+    true,
+  );
+  expect(policy({ emergency: true }).skippedFilter).toBe(false);
+  expect(policy({ template: { columnsMap: {} } }).skippedFilter).toBe(false);
+  expect(
+    policy({
+      template: {
+        columnsMap: { skipped: column('skipped', 0, { isDisplayed: false }) },
+      },
+    }).skippedFilter,
   ).toBe(true);
 });
 
