@@ -5,6 +5,8 @@ import {
   createRouter,
   Outlet,
   RouterProvider,
+  useNavigate,
+  useSearch,
 } from '@tanstack/react-router';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -14,7 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { TourLauncher } from '@/features/onboarding/components/tour-launcher';
 import type { Tour, TourStep } from '@/features/onboarding/lib/types';
-import { sectionAnchor, TOUR_ANCHORS } from '@/lib/tour-anchors';
+import { offlineEventsTab, sectionAnchor, TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { renderPage } from '@/test-utils/render-page';
 
 const TOUR: Tour = {
@@ -253,6 +255,76 @@ describe('TourLauncher', () => {
       'onboarding.requisitions-view.filters.title',
     );
     expect(guide).not.toHaveAttribute('aria-busy');
+  });
+
+  it('switches tabs for its steps without ending, then gives the user back their tab', async () => {
+    const user = userEvent.setup();
+    state.tour = {
+      ...TOUR,
+      steps: [TOUR.steps[0], { ...TOUR.steps[1], select: offlineEventsTab('errors') }],
+    };
+    function Tabs() {
+      const { tab = 'pending' } = useSearch({ strict: false }) as { tab?: string };
+      const navigate = useNavigate();
+      return (
+        <div role="tablist">
+          {(['pending', 'errors'] as const).map((value) => (
+            <button
+              aria-selected={tab === value}
+              data-tour={offlineEventsTab(value)}
+              key={value}
+              onClick={() => void navigate({ to: '.', search: { tab: value } })}
+              role="tab"
+              type="button"
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    const rootRoute = createRootRoute({
+      component: () => (
+        <TooltipProvider>
+          <TourLauncher />
+          <Outlet />
+        </TooltipProvider>
+      ),
+    });
+    const routeTree = rootRoute.addChildren([
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/',
+        validateSearch: (search: Record<string, unknown>) => search as { tab?: string },
+        component: () => (
+          <>
+            <Tabs />
+            <div data-tour={TOUR_ANCHORS.requisitionsPicker}>Picker</div>
+            <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Filters</div>
+          </>
+        ),
+      }),
+    ]);
+    const router = createRouter({ routeTree, history: createMemoryHistory() });
+    render(<RouterProvider router={router} />);
+    await user.click(await screen.findByRole('button', { name: 'onboarding.show-guide' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'onboarding.next',
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+        'onboarding.requisitions-view.filters.title',
+      ),
+    );
+    expect(screen.getByRole('tab', { name: 'errors' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('button', { name: 'onboarding.finish' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'pending' })).toHaveAttribute('aria-selected', 'true'),
+    );
   });
 
   it('still plays every step in browsers without Element.checkVisibility', async () => {

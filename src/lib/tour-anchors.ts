@@ -62,12 +62,21 @@ export const TOUR_ANCHORS = {
   stockEventLines: 'stock-event-lines',
   stockEventClear: 'stock-event-clear',
   stockEventSubmit: 'stock-event-submit',
+  offlineEventsTabs: 'offline-events-tabs',
+  offlineEventsFilters: 'offline-events-filters',
+  offlineEventsView: 'offline-events-view',
+  offlineEventsList: 'offline-events-list',
 } as const;
 
 /** Anchor of one sidebar menu section, keyed by its navigation title key. */
 export const sectionAnchor = (titleKey: LiveNavParent['titleKey']) =>
   `shell-section:${titleKey}` as const;
 
+/** Anchor of one Offline Events tab. */
+export const offlineEventsTab = (tab: 'pending' | 'errors' | 'synced') =>
+  `offline-events-tab:${tab}` as const;
+
 export type TourAnchor =
   | (typeof TOUR_ANCHORS)[keyof typeof TOUR_ANCHORS]
-  | ReturnType<typeof sectionAnchor>;
+  | ReturnType<typeof sectionAnchor>
+  | ReturnType<typeof offlineEventsTab>;

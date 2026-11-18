@@ -88,6 +88,7 @@ import {
   toPaginationState,
   useTableSearchState,
 } from '@/lib/table-search';
+import { offlineEventsTab, TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const tabs = ['pending', 'errors', 'synced'] as const;
 const sharedHideable = [
@@ -288,13 +289,19 @@ export function OfflineEventsPage({
               })
             }
           >
-            <TabsList size="lg" wrap="column" aria-label={t('offline-events.tabs-label')}>
+            <TabsList
+              size="lg"
+              wrap="column"
+              aria-label={t('offline-events.tabs-label')}
+              data-tour={TOUR_ANCHORS.offlineEventsTabs}
+            >
               {tabs.map((value) => {
                 const count = local.events?.filter((event) => tabOf(event) === value).length ?? 0;
                 return (
                   <TabsTrigger
                     key={value}
                     value={value}
+                    data-tour={offlineEventsTab(value)}
                     id={`${panelId}-${value}`}
                     aria-controls={panelId}
                     aria-label={t(`offline-events.tab-${value}-label`, { count })}
@@ -314,7 +321,10 @@ export function OfflineEventsPage({
               className="flex min-w-0 flex-col gap-4 @lg/main:gap-6"
             >
               <DataTableToolbar>
-                <div className="flex-1 @2xl/main:flex-none">
+                <div
+                  className="flex-1 @2xl/main:flex-none"
+                  data-tour={TOUR_ANCHORS.offlineEventsFilters}
+                >
                   <DataTableFilters
                     size="lg"
                     activeCount={activeEventFilters(search)}
@@ -373,7 +383,7 @@ export function OfflineEventsPage({
                     />
                   </DataTableFilters>
                 </div>
-                <div className="@2xl/main:ms-auto">
+                <div className="@2xl/main:ms-auto" data-tour={TOUR_ANCHORS.offlineEventsView}>
                   <DataTableViewOptions
                     size="lg"
                     sort={{
@@ -757,7 +767,12 @@ function OfflineEventsTable({
           onRemoved={() => onRemoved(selected.localEventId)}
         />
       )}
-      <div ref={listRef} tabIndex={-1} className="min-w-0 outline-none">
+      <div
+        ref={listRef}
+        tabIndex={-1}
+        className="min-w-0 outline-none"
+        data-tour={TOUR_ANCHORS.offlineEventsList}
+      >
         {cards ? (
           <TableCards
             table={table}

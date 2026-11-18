@@ -1,5 +1,6 @@
 import type { Tour } from '@/features/onboarding/lib/types';
 import { homeTour } from '@/features/onboarding/tours/home.tour';
+import { offlineEventsTour } from '@/features/onboarding/tours/offline-events.tour';
 import { physicalInventoryTour } from '@/features/onboarding/tours/physical-inventory.tour';
 import { physicalInventoryDraftTour } from '@/features/onboarding/tours/physical-inventory-draft.tour';
 import { requisitionDetailTour } from '@/features/onboarding/tours/requisition-detail.tour';
@@ -21,6 +22,7 @@ const TOURS: readonly Tour[] = [
   physicalInventoryTour,
   physicalInventoryDraftTour,
   ...stockEventTours,
+  offlineEventsTour,
 ];
 
 export function tourForRoute(routeId: string | undefined): Tour | undefined {

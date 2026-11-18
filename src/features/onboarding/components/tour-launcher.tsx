@@ -1,6 +1,6 @@
 import { CatchBoundary, useLocation, useMatches, useRouterState } from '@tanstack/react-router';
 import { CircleHelpIcon } from 'lucide-react';
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -27,10 +27,19 @@ export function TourLauncher() {
   const [runningAt, setRunningAt] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  // A tab the tour itself switches changes the address without leaving the page.
+  const following = useRef(false);
   if (runningAt !== null && runningAt !== href) {
-    setRunningAt(null);
-    setPreparing(false);
+    if (following.current) setRunningAt(href);
+    else {
+      setRunningAt(null);
+      setPreparing(false);
+    }
   }
+
+  useEffect(() => {
+    if (!navigating) following.current = false;
+  }, [navigating]);
 
   if (!enabled || !tour) return null;
 
@@ -66,10 +75,18 @@ export function TourLauncher() {
         </TooltipTrigger>
         <TooltipContent side="bottom">{label}</TooltipContent>
       </Tooltip>
-      {running && !navigating && (
-        <CatchBoundary getResetKey={() => href} onCatch={end} errorComponent={() => null}>
+      {running && (!navigating || following.current) && (
+        <CatchBoundary getResetKey={() => tour.id} onCatch={end} errorComponent={() => null}>
           <Suspense fallback={null}>
-            <TourRunner key={tour.id} tour={tour} onEnd={end} onReady={() => setPreparing(false)} />
+            <TourRunner
+              key={tour.id}
+              tour={tour}
+              onEnd={end}
+              onReady={() => setPreparing(false)}
+              onFollow={() => {
+                following.current = true;
+              }}
+            />
           </Suspense>
         </CatchBoundary>
       )}

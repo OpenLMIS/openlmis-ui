@@ -45,11 +45,15 @@ export const physicalInventoryDraftTour: Tour = {
       ...ON_LINES,
       title: 'onboarding.physical-inventory-draft.lines.title',
       content: 'onboarding.physical-inventory-draft.lines.content',
+      column: 'physical-inventory.current-stock',
+      placement: 'inline-start',
     },
     {
       ...ON_LINES,
       title: 'onboarding.physical-inventory-draft.reasons.title',
       content: 'onboarding.physical-inventory-draft.reasons.content',
+      column: 'physical-inventory.unaccounted',
+      placement: 'inline-start',
     },
     {
       anchor: TOUR_ANCHORS.physicalInventoryDelete,
