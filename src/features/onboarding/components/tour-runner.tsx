@@ -29,11 +29,15 @@ const isPageLoading = () =>
     (element) => !element.closest('header'),
   );
 
+const shownAnchor = (anchor: TourAnchor) => isShown(document.querySelector(anchorSelector(anchor)));
+
 /** None while the page is loading, unless `anyway` because the load wait ran out. */
 const presentSteps = (tour: Tour, anyway = false) =>
   !anyway && isPageLoading()
     ? []
-    : tour.steps.filter((step) => isShown(document.querySelector(anchorSelector(step.anchor))));
+    : tour.steps.filter(
+        (step) => shownAnchor(step.anchor) && (!step.spotlight || shownAnchor(step.spotlight)),
+      );
 
 const nextFrame = () =>
   new Promise<void>((resolve) =>

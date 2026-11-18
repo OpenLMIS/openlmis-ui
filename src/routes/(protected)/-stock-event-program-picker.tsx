@@ -53,6 +53,7 @@ import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection'
 import { useOnline } from '@/lib/online';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
 import { homeStockPrograms } from '@/lib/stock-programs';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export async function loadStockEventPrograms(
   queryClient: QueryClient,
@@ -175,12 +176,14 @@ export function StockEventProgramPicker(props: PickerProps) {
             renderTable={
               'kind' in props
                 ? (table) => (
-                    <ProgramsTable
-                      {...table}
-                      kind={props.kind}
-                      action={copy.action}
-                      editorLink={props.editorLink}
-                    />
+                    <div data-tour={TOUR_ANCHORS.stockEventPrograms}>
+                      <ProgramsTable
+                        {...table}
+                        kind={props.kind}
+                        action={copy.action}
+                        editorLink={props.editorLink}
+                      />
+                    </div>
                   )
                 : props.children
             }

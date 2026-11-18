@@ -144,10 +144,15 @@ describe('TourLauncher', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
-  it.each(['missing', 'hidden'])(
+  it.each(['missing', 'hidden', 'spotlit but missing'])(
     'leaves out a step whose part of the page is %s, so the count stays true',
     async (how) => {
       const user = userEvent.setup();
+      if (how === 'spotlit but missing')
+        state.tour = {
+          ...TOUR,
+          steps: [TOUR.steps[0], { ...TOUR.steps[0], spotlight: TOUR_ANCHORS.requisitionsFilters }],
+        };
       renderLauncher({ filters: how === 'hidden' });
       if (how === 'hidden') (await screen.findByText('Filters')).style.display = 'none';
       await user.click(await screen.findByRole('button', { name: 'onboarding.show-guide' }));
