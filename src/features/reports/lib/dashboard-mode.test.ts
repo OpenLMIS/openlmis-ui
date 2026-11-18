@@ -53,17 +53,24 @@ describe('resolveDashboardMode', () => {
     ).toEqual({ kind: 'embedded', uuid, supersetUrl: 'http://localhost:5174/reporting' });
   });
 
-  it('frames a Superset link in standalone mode, keeping its own query and fragment', () => {
+  it('signs in to Superset before framing a link in standalone mode, keeping its query', () => {
     expect(
       resolveDashboardMode(
         record({ url: `${superset}/superset/dashboard/7/?native_filters=a#tab` }),
-        undefined,
+        `${superset}/`,
         app,
       ),
     ).toEqual({
-      kind: 'link',
+      kind: 'superset-sign-in',
       url: `${superset}/superset/dashboard/7/?native_filters=a&standalone=true#tab`,
+      supersetUrl: superset,
     });
+  });
+
+  it('cannot sign in to a Superset link without a configured Superset address', () => {
+    expect(
+      resolveDashboardMode(record({ url: `${superset}/superset/dashboard/7/` }), undefined, app),
+    ).toEqual({ kind: 'not-configured' });
   });
 
   it('frames another provider link unchanged', () => {

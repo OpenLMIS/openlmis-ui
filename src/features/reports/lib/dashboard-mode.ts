@@ -2,6 +2,7 @@ import type { DashboardReport } from '@/features/reports/lib/types';
 
 export type DashboardMode =
   | { kind: 'embedded'; uuid: string; supersetUrl: string }
+  | { kind: 'superset-sign-in'; url: string; supersetUrl: string }
   | { kind: 'link'; url: string }
   | { kind: 'not-configured' }
   | { kind: 'unsupported' };
@@ -22,7 +23,7 @@ function frameableUrl(raw: string | null | undefined, appOrigin: string) {
   return url;
 }
 
-/** The Superset address the SDK appends `/embedded/<id>` to, or undefined when unusable. */
+/** The Superset address the SDK and older sign-in build on, or undefined when unusable. */
 function supersetBase(raw: string | null | undefined, appOrigin: string) {
   const url = frameableUrl(raw, appOrigin);
   if (!url || raw?.includes('?') || raw?.includes('#')) return undefined;
@@ -44,6 +45,10 @@ export function resolveDashboardMode(
   }
   const link = frameableUrl(report.url, appOrigin);
   if (!link) return { kind: 'unsupported' };
-  if (superset && !link.searchParams.has('standalone')) link.searchParams.set('standalone', 'true');
-  return { kind: 'link', url: link.href };
+  if (!superset) return { kind: 'link', url: link.href };
+  if (!link.searchParams.has('standalone')) link.searchParams.set('standalone', 'true');
+  const base = supersetBase(supersetUrl, appOrigin);
+  return base
+    ? { kind: 'superset-sign-in', url: link.href, supersetUrl: base }
+    : { kind: 'not-configured' };
 }

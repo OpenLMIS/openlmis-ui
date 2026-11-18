@@ -46,7 +46,8 @@ at startup. Feature flags have no `.env` fallback.
 defaulting to `common,requisitions`. It becomes `reportingModules` in runtime `config.json`.
 For local development, an optional `public/config.json` can supply that same string.
 
-`SUPERSET_URL` is the public Superset address that embedded dashboards load from, written as
+`SUPERSET_URL` is the public Superset address that embedded dashboards load from, and that
+older Superset link dashboards sign in to, written as
 `supersetUrl`. For local development, set `supersetUrl` in the ignored
 `public/config.json`, for example `{ "supersetUrl": "http://localhost:8088" }`.
 This address belongs to the Superset server, independently of `VITE_API_PROXY_TARGET`.

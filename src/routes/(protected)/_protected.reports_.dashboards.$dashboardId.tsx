@@ -21,6 +21,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { requireRight } from '@/features/auth/lib/access';
+import { useLoginData } from '@/features/auth/store/login-data';
 import { availableDashboardsOptions } from '@/features/reports/api/queries';
 import {
   BackToReports,
@@ -82,8 +83,9 @@ function DashboardHeader({ title }: { title?: string }) {
 function DashboardPage() {
   const { t } = useTranslation();
   const { userId, report } = Route.useLoaderData();
+  const username = useLoginData((state) => state.username) ?? '';
   return (
-    <Workspace width="wide">
+    <Workspace width="wide" layout="viewport">
       <DashboardHeader title={report.name || t('reports.dashboard.crumb')} />
       <WorkspaceContent>
         <DashboardViewer
@@ -91,6 +93,7 @@ function DashboardPage() {
           report={report}
           supersetUrl={getSupersetUrl()}
           userId={userId}
+          username={username}
         />
       </WorkspaceContent>
     </Workspace>
@@ -99,10 +102,10 @@ function DashboardPage() {
 
 function DashboardPending() {
   return (
-    <Workspace width="wide">
+    <Workspace width="wide" layout="viewport">
       <DashboardHeader />
       <WorkspaceContent>
-        <div className="h-svh min-h-120">
+        <div className="min-h-0 flex-1">
           <DashboardAreaSkeleton />
         </div>
       </WorkspaceContent>

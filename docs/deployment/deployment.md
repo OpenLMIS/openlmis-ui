@@ -148,8 +148,12 @@ and the dashboards available to the signed-in user.
   uses, such as `https://superset.example.org`. It must be on another origin than the UI. Superset
   must allow the UI's origin to frame it and list it in the dashboard's allowed domains, which a
   working legacy setup on the same host already does.
-- Superset link dashboards and other links, such as Power BI, open in a frame with an Open In New
-  Tab link. The new UI never asks for the user's password to sign them in to Superset.
+- Superset link dashboards without an embedded id come from the older reporting stack with the
+  OpenLMIS sign-in add-on. They also need `SUPERSET_URL`. Like legacy, the new UI checks
+  Superset's own session and asks for the user's password only when Superset is not signed in,
+  then shows the dashboard. Superset must allow the UI's origin for CORS with credentials and
+  framing, and its OAuth client must accept the Superset redirect address.
+- Other links, such as Power BI, open in a frame with an Open In New Tab link.
 
 ## Working offline
 

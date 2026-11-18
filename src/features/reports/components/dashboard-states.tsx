@@ -15,7 +15,6 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
 import { isOfflineError } from '@/lib/http';
 
 export type DashboardFailureKind =
@@ -95,15 +94,15 @@ export function DashboardFailureState({
   const [titleKey, descriptionKey] = FAILURE_TEXT[failure.kind];
   const back = failure.kind === 'refused' || failure.kind === 'not-registered';
   return (
-    <Alert variant="destructive" actionLayout="flow">
+    <Alert variant="destructive" actionLayout="inline">
       <TriangleAlertIcon />
       <AlertTitle ref={title} tabIndex={-1}>
         {t(titleKey)}
       </AlertTitle>
       <AlertDescription>{t(descriptionKey)}</AlertDescription>
       <AlertAction>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={onRetry}>
+        <div className="flex flex-col items-end gap-2">
+          <Button variant="destructive" size="sm" onClick={onRetry}>
             <RotateCcwIcon data-icon="inline-start" />
             {t('error.try-again')}
           </Button>
@@ -142,10 +141,10 @@ export function DashboardArea({
   recovery: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div
         aria-busy={connecting}
-        className="relative h-svh min-h-120 overflow-hidden rounded-lg border"
+        className="relative min-h-0 flex-1 overflow-hidden rounded-lg border"
       >
         <div className={connecting ? 'invisible size-full' : 'size-full'}>{frame}</div>
         {connecting && (
@@ -162,7 +161,7 @@ export function DashboardArea({
 export function DashboardRecovery({ onRetry, link }: { onRetry: () => void; link?: string }) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-sm text-muted-foreground">
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-sm text-muted-foreground">
       <span>{t('reports.dashboard.not-showing')}</span>
       <Button variant="link" padding="none" onClick={onRetry}>
         <RotateCcwIcon data-icon="inline-start" />
@@ -189,12 +188,9 @@ export function DashboardAreaSkeleton() {
   return (
     <div
       aria-busy="true"
-      className="@container/dashboard flex h-full flex-col gap-4 overflow-hidden"
+      className="@container/dashboard flex h-full flex-col gap-4 overflow-hidden p-px"
     >
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner aria-hidden="true" />
-        <p>{t('reports.dashboard.connecting')}</p>
-      </div>
+      <span className="sr-only">{t('reports.dashboard.connecting')}</span>
       <div aria-hidden="true" className="flex flex-col gap-4">
         <div className="flex flex-wrap gap-3">
           {[0, 1, 2].map((item) => (

@@ -166,7 +166,7 @@ function CatalogError({
   const offline = useOfflineFailure(error, retry);
   useEffect(() => reportCaughtError(error, {}), [error]);
   return (
-    <Alert variant="destructive" actionLayout="flow">
+    <Alert variant="destructive" actionLayout="inline">
       <TriangleAlertIcon />
       <AlertTitle>{t('reports.load-error-title', { source })}</AlertTitle>
       <AlertDescription>
@@ -177,7 +177,7 @@ function CatalogError({
             : t('reports.load-error-description')}
       </AlertDescription>
       <AlertAction>
-        <Button variant="outline" disabled={pending} onClick={retry}>
+        <Button variant="destructive" size="sm" disabled={pending} onClick={retry}>
           {pending && <Spinner data-icon="inline-start" />}
           {t('error.try-again')}
         </Button>

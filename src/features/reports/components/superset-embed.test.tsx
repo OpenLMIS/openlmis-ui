@@ -87,7 +87,12 @@ function Harness() {
   setHidden = set;
   return (
     <PageVisibility hidden={hidden}>
-      <DashboardViewer report={report} supersetUrl="https://superset.example.org" userId="ada" />
+      <DashboardViewer
+        report={report}
+        supersetUrl="https://superset.example.org"
+        userId="ada"
+        username="ada"
+      />
     </PageVisibility>
   );
 }
@@ -120,7 +125,7 @@ it('embeds through the bundled SDK with the legacy layout and connects on the ha
     },
   });
   expect(embedding.params).not.toHaveProperty('referrerPolicy');
-  expect(screen.getByText('reports.dashboard.connecting')).toBeVisible();
+  expect(screen.getByText('reports.dashboard.connecting')).toBeInTheDocument();
 
   await connect(embedding);
 

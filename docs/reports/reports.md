@@ -37,7 +37,8 @@ appears and your options are kept so you can try again.
 Some servers return a PDF when XLSX is chosen for requisition reports. The file is then
 saved as a PDF and a message says so.
 
-Dashboards still open in the legacy UI, where you may need to sign in separately.
+Dashboards open inside the app. Some older Superset dashboards first ask for your password
+to sign you in to the reporting service; you are asked again only when that sign-in ends.
 
 Generating a report requires a connection. Some reports need extra permissions, which the
 server checks when you select **Generate**.

@@ -18,7 +18,7 @@ function Harness() {
   setHidden = set;
   return (
     <PageVisibility hidden={hidden}>
-      <DashboardViewer report={report} supersetUrl={undefined} userId="ada" />
+      <DashboardViewer report={report} supersetUrl={undefined} userId="ada" username="ada" />
     </PageVisibility>
   );
 }

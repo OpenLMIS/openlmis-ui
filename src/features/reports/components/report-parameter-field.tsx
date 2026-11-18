@@ -228,7 +228,7 @@ function LookupError({
   const offline = useOfflineFailure(error, retry);
   useEffect(() => reportCaughtError(error, {}), [error]);
   return (
-    <Alert variant="destructive" actionLayout="flow">
+    <Alert variant="destructive" actionLayout="inline">
       <TriangleAlertIcon />
       <AlertTitle>{t('reports.generate.lookup-error-title', { name })}</AlertTitle>
       <AlertDescription>
@@ -244,7 +244,8 @@ function LookupError({
         <Button
           type="button"
           data-lookup-retry
-          variant="outline"
+          variant="destructive"
+          size="sm"
           disabled={pending}
           onClick={retry}
         >

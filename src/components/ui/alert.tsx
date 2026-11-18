@@ -8,6 +8,7 @@ const alertVariants = cva(
     variants: {
       actionLayout: {
         default: "",
+        inline: "has-data-[slot=alert-action]:pe-2.5 has-data-[slot=alert-action]:grid-cols-[minmax(0,1fr)_auto] has-[>svg]:has-data-[slot=alert-action]:grid-cols-[auto_minmax(0,1fr)_auto] *:data-[slot=alert-action]:static *:data-[slot=alert-action]:col-start-2 has-[>svg]:*:data-[slot=alert-action]:col-start-3 *:data-[slot=alert-action]:row-start-1 *:data-[slot=alert-action]:row-span-2 *:data-[slot=alert-action]:self-center *:data-[slot=alert-action]:ms-3",
         flow: "has-data-[slot=alert-action]:pe-2.5 *:data-[slot=alert-action]:static *:data-[slot=alert-action]:col-span-full *:data-[slot=alert-action]:mt-2",
       },
       countdown: {

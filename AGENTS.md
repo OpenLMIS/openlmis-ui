@@ -294,7 +294,7 @@ edits, which have no prop for TypeScript to detect:
 | `button.tsx` | Keep warning and `warning-ghost` tints on hover with `tone="sidebar"` |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
 | `button.tsx` | Preserve `align="between"` for labels with end-aligned values |
-| `alert.tsx` | Preserve `actionLayout="flow"` for wrapping actions below long alert text |
+| `alert.tsx` | Preserve `actionLayout="flow"` for actions below the text and `actionLayout="inline"` for an end-aligned action with its actual width reserved |
 | `badge.tsx` | Preserve `wrap="normal"` for wrapping badge labels |
 | `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
@@ -403,7 +403,8 @@ App-shell pages compose `src/components/workspace/workspace.tsx`:
   `WorkspaceFooter` accept `width="narrow"` for settings or short stock-program tables,
   `width="form"` (42rem) for one-column forms such as Create Orders,
   `width="large"` (84rem) for tables slightly wider than the default, such as Supervisory
-  Nodes, and `width="wide"` for uncapped tables.
+  Nodes, and `width="wide"` for uncapped tables. `Workspace layout="viewport"` fills the space
+  below the app header; dashboard frames flex within it so recovery actions stay on screen.
 - Stock event pending views use the real icon, description, cached title or title-height placeholder,
   disabled picker/toolbar, empty table or empty card list and sticky footer. Stock program
   skeleton actions reserve the real translated Button size. Wrap program, status and action

@@ -13,6 +13,7 @@ import {
 import { DashboardFrame } from '@/features/reports/components/dashboard-frame';
 import { BackToReports, DashboardNotSetUp } from '@/features/reports/components/dashboard-states';
 import { SupersetEmbed } from '@/features/reports/components/superset-embed';
+import { SupersetSignIn } from '@/features/reports/components/superset-sign-in';
 import { resolveDashboardMode } from '@/features/reports/lib/dashboard-mode';
 import type { DashboardReport } from '@/features/reports/lib/types';
 
@@ -21,10 +22,12 @@ export function DashboardViewer({
   report,
   supersetUrl,
   userId,
+  username,
 }: {
   report: DashboardReport;
   supersetUrl: string | undefined;
   userId: string;
+  username: string;
 }) {
   const hidden = usePageHidden();
   const [opening, setOpening] = useState({ count: 0, retried: false });
@@ -39,6 +42,18 @@ export function DashboardViewer({
   if (mode.kind === 'not-configured') return <DashboardNotSetUp />;
   if (mode.kind === 'unsupported') return <DashboardUnsupported />;
   if (hidden) return null;
+  if (mode.kind === 'superset-sign-in')
+    return (
+      <SupersetSignIn
+        key={opening.count}
+        url={mode.url}
+        supersetUrl={mode.supersetUrl}
+        title={report.name}
+        username={username}
+        onRetry={retry}
+        retried={opening.retried}
+      />
+    );
   return mode.kind === 'embedded' ? (
     <SupersetEmbed
       key={opening.count}

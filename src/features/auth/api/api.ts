@@ -2,6 +2,7 @@ import type { AxiosRequestConfig } from 'axios';
 import type { LoginInput, LoginResponse } from '@/features/auth/lib/types';
 import type { LoginData } from '@/features/auth/store/login-data';
 import { client } from '@/integrations/axios';
+import { basicAuthorization } from '@/lib/basic-auth';
 import { getAuthClientCredentials } from '@/lib/runtime-config';
 
 export class MissingAuthClientCredentialsError extends Error {
@@ -24,7 +25,7 @@ export async function login({ username, password }: LoginInput): Promise<LoginRe
     { username, password },
     {
       headers: {
-        Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+        Authorization: basicAuthorization(clientId, clientSecret),
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       session: false,
