@@ -47,7 +47,10 @@ defaulting to `common,requisitions`. It becomes `reportingModules` in runtime `c
 For local development, an optional `public/config.json` can supply that same string.
 
 `SUPERSET_URL` is the public Superset address that embedded dashboards load from, written as
-`supersetUrl`. It is empty by default; see the [deployment guide](docs/deployment/deployment.md#dashboards).
+`supersetUrl`. For local development, set `supersetUrl` in the ignored
+`public/config.json`, for example `{ "supersetUrl": "http://localhost:8088" }`.
+This address belongs to the Superset server, independently of `VITE_API_PROXY_TARGET`.
+It is empty by default; see the [deployment guide](docs/deployment/deployment.md#dashboards).
 
 `VITE_BASE_PATH` remains a build input and must match container `BASE_PATH`; see the
 [deployment guide](docs/deployment/deployment.md).

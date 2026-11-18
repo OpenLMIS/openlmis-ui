@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { OfflineNotice, useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Empty,
   EmptyDescription,
@@ -14,6 +15,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { isOfflineError } from '@/lib/http';
 
 export type DashboardFailureKind =
@@ -139,7 +141,6 @@ export function DashboardArea({
   frame: ReactNode;
   recovery: ReactNode;
 }) {
-  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-2">
       <div
@@ -148,11 +149,8 @@ export function DashboardArea({
       >
         <div className={connecting ? 'invisible size-full' : 'size-full'}>{frame}</div>
         {connecting && (
-          <div className="absolute inset-0 flex flex-col gap-3 p-4">
-            <p className="text-sm text-muted-foreground">{t('reports.dashboard.connecting')}</p>
-            <div aria-hidden="true" className="flex-1">
-              <Skeleton fill />
-            </div>
+          <div className="absolute inset-0 p-4">
+            <DashboardAreaSkeleton />
           </div>
         )}
       </div>
@@ -187,9 +185,90 @@ export function DashboardRecovery({ onRetry, link }: { onRetry: () => void; link
 }
 
 export function DashboardAreaSkeleton() {
+  const { t } = useTranslation();
   return (
-    <div aria-hidden="true" className="h-svh min-h-120">
-      <Skeleton fill />
+    <div
+      aria-busy="true"
+      className="@container/dashboard flex h-full flex-col gap-4 overflow-hidden"
+    >
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Spinner aria-hidden="true" />
+        <p>{t('reports.dashboard.connecting')}</p>
+      </div>
+      <div aria-hidden="true" className="flex flex-col gap-4">
+        <div className="flex flex-wrap gap-3">
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="h-9 w-36 max-w-full">
+              <Skeleton fill />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-4 @3xl/dashboard:grid-cols-4">
+          {[0, 1, 2, 3].map((item) => (
+            <Card key={item} size="sm">
+              <CardHeader>
+                <div className="h-3 w-20 max-w-full">
+                  <Skeleton fill />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-7 w-16">
+                  <Skeleton fill />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid gap-4 @2xl/dashboard:grid-cols-2">
+          <DashboardChartSkeleton />
+          <DashboardChartSkeleton />
+        </div>
+        <Card>
+          <CardHeader>
+            <div className="h-4 w-40 max-w-full">
+              <Skeleton fill />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              {[0, 1, 2, 3].map((item) => (
+                <div key={item} className="grid grid-cols-3 gap-6">
+                  <div className="h-3">
+                    <Skeleton fill />
+                  </div>
+                  <div className="h-3">
+                    <Skeleton fill />
+                  </div>
+                  <div className="h-3">
+                    <Skeleton fill />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
+  );
+}
+
+function DashboardChartSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="h-4 w-36 max-w-full">
+          <Skeleton fill />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex h-40 items-end gap-3 border-b pb-3">
+          {['h-1/3', 'h-3/5', 'h-2/5', 'h-4/5', 'h-1/2', 'h-2/3'].map((height) => (
+            <div key={height} className={`flex-1 ${height}`}>
+              <Skeleton fill />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

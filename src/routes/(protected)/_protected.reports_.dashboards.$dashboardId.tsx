@@ -102,7 +102,9 @@ function DashboardPending() {
     <Workspace width="wide">
       <DashboardHeader />
       <WorkspaceContent>
-        <DashboardAreaSkeleton />
+        <div className="h-svh min-h-120">
+          <DashboardAreaSkeleton />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );
