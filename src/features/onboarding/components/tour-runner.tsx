@@ -73,7 +73,12 @@ async function selectTab(anchor: TourAnchor, follow: () => void) {
 /** The header cell of the column with this label inside the part, when the part is a table. */
 const columnHeader = (anchor: TourAnchor, label: string) =>
   Array.from(document.querySelectorAll<HTMLElement>(`${anchorSelector(anchor)} th`)).find(
-    (cell) => cell.textContent?.trim() === label && isShown(cell),
+    (cell) =>
+      (cell.textContent?.trim() === label ||
+        Array.from(cell.querySelectorAll('[title]')).some(
+          (part) => part.getAttribute('title') === label,
+        )) &&
+      isShown(cell),
   ) ?? null;
 
 const isSidebarShortcut = (event: KeyboardEvent) =>
