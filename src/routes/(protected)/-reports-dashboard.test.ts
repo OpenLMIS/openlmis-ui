@@ -2,9 +2,9 @@ import { QueryClient } from '@tanstack/react-query';
 import { isNotFound } from '@tanstack/react-router';
 import { afterEach, expect, it, vi } from 'vitest';
 import { permissionsOptions } from '@/features/auth/api/queries';
+import { isForbidden } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchAvailableDashboards, fetchGuestToken } from '@/features/reports/api/api';
-import { getFlag } from '@/lib/feature-flags';
 import { parsePermissions } from '@/lib/permissions';
 import { Route } from '@/routes/(protected)/_protected.reports_.dashboards.$dashboardId';
 
@@ -12,19 +12,15 @@ vi.mock('@/features/reports/api/api', () => ({
   fetchAvailableDashboards: vi.fn(),
   fetchGuestToken: vi.fn(),
 }));
-vi.mock('@/lib/feature-flags', async (original) => ({
-  ...(await original<typeof import('@/lib/feature-flags')>()),
-  getFlag: vi.fn(),
-}));
 
 afterEach(() => {
   useLoginData.setState({ referenceDataUserId: undefined });
 });
 
-async function load(dashboardId: string) {
+async function load(dashboardId: string, grants = ['REPORTS_VIEW']) {
   useLoginData.setState({ referenceDataUserId: 'user' });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  queryClient.setQueryData(permissionsOptions('user').queryKey, parsePermissions(['REPORTS_VIEW']));
+  queryClient.setQueryData(permissionsOptions('user').queryKey, parsePermissions(grants));
   const loader = Route.options.loader;
   if (typeof loader !== 'function') throw new Error('Expected dashboard loader');
   try {
@@ -36,18 +32,23 @@ async function load(dashboardId: string) {
   }
 }
 
-it('hands every dashboard to legacy without asking the reporting service while the flag is off', async () => {
-  vi.mocked(getFlag).mockReturnValue(false);
-  vi.mocked(fetchAvailableDashboards).mockRejectedValue(new Error('Catalog down'));
+it('opens an available dashboard without a deployment switch', async () => {
+  const report = { id: 'dashboard', name: 'Dashboard' };
+  vi.mocked(fetchAvailableDashboards).mockResolvedValue([report]);
 
-  await expect(load('unknown')).resolves.toEqual({ userId: 'user', report: null });
+  await expect(load('dashboard')).resolves.toEqual({ userId: 'user', report });
+  expect(fetchGuestToken).not.toHaveBeenCalled();
+});
 
+it('denies users without Reports View before discovering dashboards or asking for a token', async () => {
+  const result = await load('dashboard', []).catch((error: unknown) => error);
+
+  expect(isForbidden(result)).toBe(true);
   expect(fetchAvailableDashboards).not.toHaveBeenCalled();
   expect(fetchGuestToken).not.toHaveBeenCalled();
 });
 
 it('refuses a dashboard missing from the user available list without asking for a token', async () => {
-  vi.mocked(getFlag).mockReturnValue(true);
   vi.mocked(fetchAvailableDashboards).mockResolvedValue([{ id: 'other', name: 'Other' }]);
 
   const result = load('missing').catch((error: unknown) => error);

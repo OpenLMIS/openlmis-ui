@@ -23,7 +23,3 @@ export function groupReports(
   }
   return [...groups.values()].filter(({ reports }) => reports.length > 0);
 }
-
-/** Dashboards still open in legacy. */
-export const dashboardLegacyHash = (id: string) =>
-  `#!/reports/list/dashboard/${encodeURIComponent(id)}`;

@@ -1,8 +1,7 @@
 import { createFileRoute, type ErrorComponentProps, notFound } from '@tanstack/react-router';
-import { HistoryIcon, LayoutDashboardIcon, SearchXIcon } from 'lucide-react';
+import { LayoutDashboardIcon, SearchXIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
-import { Button } from '@/components/ui/button';
 import {
   Empty,
   EmptyContent,
@@ -28,10 +27,6 @@ import {
   DashboardAreaSkeleton,
 } from '@/features/reports/components/dashboard-states';
 import { DashboardViewer } from '@/features/reports/components/dashboard-viewer';
-import { dashboardLegacyHash } from '@/features/reports/lib/report-categories';
-import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
-import { useAppName } from '@/lib/app-configuration';
-import { getFlag } from '@/lib/feature-flags';
 import { RIGHTS } from '@/lib/rights';
 import { getSupersetUrl } from '@/lib/runtime-config';
 import {
@@ -49,7 +44,6 @@ export const Route = createFileRoute('/(protected)/_protected/reports_/dashboard
     assertSessionScope(scope);
     const userId = getSessionUserId();
     if (!userId) throw new SessionEndedError();
-    if (!getFlag('NATIVE_DASHBOARDS')) return { userId, report: null };
     const dashboards = await queryClient.ensureQueryData(availableDashboardsOptions(userId));
     assertSessionScope(scope);
     const report = dashboards.find(({ id }) => id === dashboardId);
@@ -87,9 +81,7 @@ function DashboardHeader({ title }: { title?: string }) {
 
 function DashboardPage() {
   const { t } = useTranslation();
-  const { dashboardId } = Route.useParams();
   const { userId, report } = Route.useLoaderData();
-  if (!report) return <LegacyDashboard dashboardId={dashboardId} />;
   return (
     <Workspace width="wide">
       <DashboardHeader title={report.name || t('reports.dashboard.crumb')} />
@@ -100,50 +92,6 @@ function DashboardPage() {
           supersetUrl={getSupersetUrl()}
           userId={userId}
         />
-      </WorkspaceContent>
-    </Workspace>
-  );
-}
-
-function LegacyDashboard({ dashboardId }: { dashboardId: string }) {
-  const { t } = useTranslation();
-  const appName = useAppName();
-  const legacy = useBackToLegacy(dashboardLegacyHash(dashboardId));
-  return (
-    <Workspace width="wide">
-      <DashboardHeader title={t('reports.dashboard.crumb')} />
-      <WorkspaceContent>
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <HistoryIcon />
-            </EmptyMedia>
-            <EmptyTitle>{t('reports.dashboard.legacy-title')}</EmptyTitle>
-            <EmptyDescription>
-              {t('reports.dashboard.legacy-description', { appName })}
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button
-              nativeButton={false}
-              render={<a href={legacy.href} />}
-              onClick={(event) => {
-                if (
-                  event.button !== 0 ||
-                  event.ctrlKey ||
-                  event.metaKey ||
-                  event.shiftKey ||
-                  event.altKey
-                )
-                  return;
-                event.preventDefault();
-                legacy.onClick();
-              }}
-            >
-              {t('reports.dashboard.open-legacy')}
-            </Button>
-          </EmptyContent>
-        </Empty>
       </WorkspaceContent>
     </Workspace>
   );
