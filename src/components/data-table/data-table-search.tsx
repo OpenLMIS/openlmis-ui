@@ -37,7 +37,7 @@ export function DataTableSearch({
   const text = placeholder ?? labels.search;
 
   return (
-    <div className="w-full">
+    <div className="w-full" data-tour={disabled ? undefined : 'list-search'}>
       <InputGroup size={size}>
         <InputGroupAddon>
           <SearchIcon />

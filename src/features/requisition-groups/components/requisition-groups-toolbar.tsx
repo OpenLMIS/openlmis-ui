@@ -21,6 +21,7 @@ import {
   type RequisitionGroupsListSearch,
 } from '@/features/requisition-groups/lib/search';
 import { withPicked } from '@/lib/filter-options';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type RequisitionGroupsToolbarProps = {
   search: RequisitionGroupsListSearch;
@@ -102,6 +103,7 @@ export function RequisitionGroupsToolbar({
       </div>
       <div className="w-full @2xl/main:w-auto">
         <Button
+          data-tour={TOUR_ANCHORS.listCreate}
           size="lg"
           nativeButton={false}
           render={

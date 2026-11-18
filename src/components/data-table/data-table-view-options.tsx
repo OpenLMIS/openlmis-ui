@@ -61,7 +61,15 @@ export function DataTableViewOptions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button disabled={disabled} size={size} variant="outline" width="full" />}
+        render={
+          <Button
+            data-tour={disabled ? undefined : 'list-view'}
+            disabled={disabled}
+            size={size}
+            variant="outline"
+            width="full"
+          />
+        }
       >
         <Settings2Icon data-icon="inline-start" />
         {labels.view}

@@ -29,6 +29,7 @@ import {
 } from '@/features/supply-partners/lib/search';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 declare module '@tanstack/react-router' {
   // biome-ignore lint/style/useConsistentTypeDefinitions: router types extend by interface merging.
@@ -74,7 +75,12 @@ function ListPage() {
         <div className="flex flex-col gap-4" ref={measure}>
           <DataTableToolbar>
             <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">
-              <Button size="lg" onClick={() => void openDialog({ partner: 'new' })} width="full">
+              <Button
+                data-tour={TOUR_ANCHORS.listCreate}
+                size="lg"
+                onClick={() => void openDialog({ partner: 'new' })}
+                width="full"
+              >
                 <PlusIcon data-icon="inline-start" />
                 {t('supply-partners.add')}
               </Button>

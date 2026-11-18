@@ -71,8 +71,8 @@ async function selectTab(anchor: TourAnchor, follow: () => void) {
 }
 
 /** The header cell of the column with this label inside the part, when the part is a table. */
-const columnHeader = (anchor: TourAnchor, label: string) =>
-  Array.from(document.querySelectorAll<HTMLElement>(`${anchorSelector(anchor)} th`)).find(
+const columnHeader = (scope: Element | null, label: string) =>
+  Array.from(scope?.querySelectorAll<HTMLElement>('th') ?? []).find(
     (cell) =>
       (cell.textContent?.trim() === label ||
         Array.from(cell.querySelectorAll('[title]')).some(
@@ -183,18 +183,23 @@ function TourPlayer({
           : anchorSelector(step.anchor);
         // In a table, a column step sits beside and highlights that column's header.
         const column = step.column && t(step.column);
-        const inColumn = (fallback: string) =>
-          column
-            ? () =>
-                columnHeader(step.spotlight ?? step.anchor, column) ??
-                document.querySelector<HTMLElement>(fallback)
-            : fallback;
+        // The spotlit part holding the target, so a page with several lists keeps them together.
+        const holder = () => {
+          const outer = anchorSelector(step.spotlight ?? step.anchor);
+          return (
+            document.querySelector(target)?.closest<HTMLElement>(outer) ??
+            document.querySelector<HTMLElement>(outer)
+          );
+        };
+        const inColumn = (fallback: () => HTMLElement | null) =>
+          column ? () => columnHeader(holder(), column) ?? fallback() : fallback;
+        const targetElement = () => document.querySelector<HTMLElement>(target);
         return {
-          target: inColumn(target),
+          target: column ? inColumn(targetElement) : target,
           // Joyride would scroll to the spotlight, hiding a target above it under the header.
           ...(step.spotlight && {
-            spotlightTarget: inColumn(anchorSelector(step.spotlight)),
-            scrollTarget: inColumn(target),
+            spotlightTarget: column ? inColumn(holder) : anchorSelector(step.spotlight),
+            scrollTarget: column ? inColumn(targetElement) : target,
           }),
           title: t(step.title),
           content: step.legend ? (

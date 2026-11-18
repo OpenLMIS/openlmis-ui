@@ -11,6 +11,7 @@ import {
   type ProgramsSearch,
 } from '@/features/programs/lib/search';
 import { searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type ProgramsToolbarProps = {
   search: ProgramsSearch;
@@ -49,7 +50,7 @@ export function ProgramsToolbar({
         />
       </div>
       <div className="flex-1 @2xl/main:flex-none">
-        <Button size="lg" onClick={onAdd} width="full">
+        <Button data-tour={TOUR_ANCHORS.listCreate} size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('programs.add')}
         </Button>

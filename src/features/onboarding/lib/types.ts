@@ -9,7 +9,7 @@ export type TourPlacement = 'top' | 'bottom' | 'inline-start' | 'inline-end' | '
 export type TourLegendItem = {
   label: ParseKeys;
   text: ParseKeys;
-  tone: 'secondary' | 'info' | 'warning' | 'destructive' | 'outline';
+  tone: 'secondary' | 'success' | 'info' | 'warning' | 'destructive' | 'outline';
   icon: LucideIcon;
 };
 

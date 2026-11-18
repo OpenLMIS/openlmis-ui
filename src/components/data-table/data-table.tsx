@@ -106,6 +106,7 @@ export function DataTable<TData extends RowData>({
     <DataTableCard height={height}>
       <div
         aria-busy={isStale}
+        data-tour="list-table"
         className={cn(
           'transition-opacity aria-busy:opacity-60',
           height === 'fill' && 'min-h-0 flex-1',
@@ -279,6 +280,7 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
   return (
     <div className="-ms-2 min-w-0">
       <Button
+        data-tour="list-sort"
         onClick={column.getToggleSortingHandler()}
         size="xs"
         variant="ghost"

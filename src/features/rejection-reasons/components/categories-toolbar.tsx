@@ -12,6 +12,7 @@ import {
   DEFAULT_CATEGORIES_SORT,
 } from '@/features/rejection-reasons/lib/search';
 import { type SearchChange, searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type CategoriesToolbarProps = {
   search: CategoriesListSearch;
@@ -59,7 +60,7 @@ export function CategoriesToolbar({
         />
       </div>
       <div className="flex-1 @2xl/main:flex-none">
-        <Button size="lg" onClick={onAdd} width="full">
+        <Button data-tour={TOUR_ANCHORS.listCreate} size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('rejection-reason-categories.add')}
         </Button>

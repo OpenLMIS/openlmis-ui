@@ -66,6 +66,17 @@ export const TOUR_ANCHORS = {
   offlineEventsFilters: 'offline-events-filters',
   offlineEventsView: 'offline-events-view',
   offlineEventsList: 'offline-events-list',
+  // Plain strings in src/components/data-table/, which imports no app code.
+  listSearch: 'list-search',
+  listFilters: 'list-filters',
+  listView: 'list-view',
+  listSort: 'list-sort',
+  listTable: 'list-table',
+  listSelect: 'list-select',
+  listPager: 'list-pager',
+  listCreate: 'list-create',
+  listFlag: 'list-flag',
+  listRowActions: 'list-row-actions',
 } as const;
 
 /** Anchor of one sidebar menu section, keyed by its navigation title key. */
