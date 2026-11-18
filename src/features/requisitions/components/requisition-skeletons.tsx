@@ -342,7 +342,7 @@ function RequisitionGridPending({
         view={view}
         search={{}}
         onSearchChange={noop}
-        showSearch={(!editing || editing.productFilter) && activeTab === 'fullSupply'}
+        showSearch={!!editing?.productFilter && activeTab === 'fullSupply'}
         showSkipFilter={!!editing?.skippedFilter && activeTab === 'fullSupply'}
         unit={unit}
         setUnit={noop}

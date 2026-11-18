@@ -80,6 +80,7 @@ function Harness({
   editable = false,
   skippedFilter = editable,
   productFilter = true,
+  deferSearch = false,
   pending = false,
 }: {
   initial?: GridSearch;
@@ -90,14 +91,19 @@ function Harness({
   editable?: boolean;
   skippedFilter?: boolean;
   productFilter?: boolean;
+  deferSearch?: boolean;
   pending?: boolean;
 }) {
   const [search, setSearch] = useState<GridSearch>(initial);
-  const update: SearchChange<GridSearch> = (change) =>
-    setSearch((previous) => ({
-      ...previous,
-      ...(typeof change === 'function' ? change(previous) : change),
-    }));
+  const update: SearchChange<GridSearch> = (change) => {
+    const apply = () =>
+      setSearch((previous) => ({
+        ...previous,
+        ...(typeof change === 'function' ? change(previous) : change),
+      }));
+    if (deferSearch) window.setTimeout(apply);
+    else apply();
+  };
   const current = useMemo(
     () =>
       stockBased
@@ -229,6 +235,27 @@ const withSkipped: RequisitionRecord = {
     skipped: true,
   })),
 };
+it('lands on the clicked page when the router applies paging after a newly skipped line', async () => {
+  const user = userEvent.setup();
+  render(
+    <Harness
+      value={{
+        ...withSkipped,
+        requisitionLineItems: requisition.requisitionLineItems.map((item, index) => ({
+          ...item,
+          skipped: index === 0,
+        })),
+      }}
+      editable
+      deferSearch
+      initial={{ detailSize: 1, detailPage: 11 }}
+    />,
+  );
+  await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 9 (P9)' }));
+  await user.click(screen.getByRole('button', { name: 'First Page' }));
+  expect(await screen.findByText('Medicine 1')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'First Page' })).toBeDisabled();
+});
 it('keeps a newly skipped line visible when a filter change on page 2 resets the page', async () => {
   const user = userEvent.setup();
   render(

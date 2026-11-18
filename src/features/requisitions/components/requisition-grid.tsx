@@ -193,6 +193,10 @@ export function RequisitionGridView({
       store?.state.values.draft.lines[model.line.id]?.skipped ?? !!model.line.skipped,
     [store],
   );
+  const pageAt = `${search.detailPage ?? 1}:${search.detailSize ?? ''}`;
+  const [paging, setPaging] = useState({ pending: false, at: pageAt, turn: 0 });
+  const paged = paging.pending && paging.at !== pageAt;
+  if (paged) setPaging({ pending: false, at: pageAt, turn: paging.turn + 1 });
   const { hidden, refresh: refreshHidden } = useHiddenSkipped(
     selected,
     hideTemplate,
@@ -201,6 +205,7 @@ export function RequisitionGridView({
       tab,
       hideTemplate,
       search.addProduct,
+      paged ? paging.turn + 1 : paging.turn,
       selected.map((model) => model.line.id).join('|'),
     ],
     isSkipped,
@@ -335,7 +340,7 @@ export function RequisitionGridView({
       columnVisibility: { ...view.columnView.visibility, 'orderable.productCode': !view.cards },
     },
     onPaginationChange: pageStart.onPaginationChange((updater) => {
-      refreshHidden();
+      setPaging((previous) => ({ ...previous, pending: true, at: pageAt }));
       onSearchChange(
         (previous) => {
           return changeDetailPaging(previous, (current) => {
