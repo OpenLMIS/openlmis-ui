@@ -31,6 +31,7 @@ import { columnChoicesSchema, useCardLayout } from '@/hooks/use-card-view';
 import type { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useStoredState } from '@/hooks/use-stored-state';
 import type { SearchChange } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type QuantityUnitState = ReturnType<typeof useQuantityUnit>;
 type ToolbarProps = {
@@ -58,11 +59,18 @@ export function InventoryToolbar({
 }: ToolbarProps) {
   const { t } = useTranslation();
   const inactiveId = useId();
+  // The loading toolbar stays anchor-free, so a guide never starts on placeholders.
+  const anchors: Partial<typeof TOUR_ANCHORS> = disabled ? {} : TOUR_ANCHORS;
   return (
     <DataTableToolbar>
       <div className="flex w-full flex-wrap items-end gap-2 @4xl/main:w-auto @4xl/main:flex-nowrap">
-        <div className="min-w-0 flex-1 @4xl/main:w-80 @4xl/main:flex-none">{progress}</div>
-        <div className="shrink-0">
+        <div
+          className="min-w-0 flex-1 @4xl/main:w-80 @4xl/main:flex-none"
+          data-tour={anchors.physicalInventoryProgress}
+        >
+          {progress}
+        </div>
+        <div className="shrink-0" data-tour={anchors.physicalInventoryFilters}>
           <DataTableFilters
             size="lg"
             activeCount={[search.keyword, search.includeInactive].filter(Boolean).length}
@@ -94,9 +102,11 @@ export function InventoryToolbar({
         </div>
       </div>
       <div className="flex w-full flex-wrap items-center gap-2 @4xl/main:ms-auto @4xl/main:w-auto">
-        <div className="basis-full @4xl/main:basis-auto">{save}</div>
+        <div className="basis-full @4xl/main:basis-auto" data-tour={anchors.physicalInventorySaved}>
+          {save}
+        </div>
         {quantityUnit.canSwitch && (
-          <div className="flex-1 @4xl/main:flex-none">
+          <div className="flex-1 @4xl/main:flex-none" data-tour={anchors.physicalInventoryUnit}>
             <QuantityUnitToggle
               disabled={disabled}
               unit={quantityUnit.unit}
@@ -104,7 +114,10 @@ export function InventoryToolbar({
             />
           </div>
         )}
-        <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @4xl/main:flex-none'}>
+        <div
+          className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @4xl/main:flex-none'}
+          data-tour={anchors.physicalInventoryView}
+        >
           <DataTableViewOptions
             size="lg"
             disabled={disabled}
@@ -118,7 +131,7 @@ export function InventoryToolbar({
             {...view}
           />
         </div>
-        <div className="w-full @4xl/main:w-auto">
+        <div className="w-full @4xl/main:w-auto" data-tour={anchors.physicalInventoryAdd}>
           <Button size="lg" disabled={disabled} onClick={onAdd} width="full">
             <PlusIcon data-icon="inline-start" />
             {t('physical-inventory.add-product')}

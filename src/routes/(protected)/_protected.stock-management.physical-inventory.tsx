@@ -20,6 +20,7 @@ import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
 import { useOnline } from '@/lib/online';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import {
   loadStockEventPrograms,
   type ProgramsTableProps,
@@ -171,25 +172,27 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
           }}
         />
       )}
-      <StockProgramPicker
-        rows={rows}
-        hasHomeFacility={hasHomeFacility}
-        statusLabel={t('physical-inventory.status')}
-        actionsLabel={t('physical-inventory.actions')}
-        onAction={(row) => {
-          const result = drafts[programs.findIndex((program) => program.id === row.id)];
-          if (result.isError) {
-            void result.refetch();
-            return;
-          }
-          if (result.data)
-            void navigate({
-              to: '/stock-management/physical-inventory/$programId',
-              params: { programId: row.id },
-            });
-          else if (online) mutation.mutate(row.id);
-        }}
-      />
+      <div data-tour={TOUR_ANCHORS.physicalInventoryPrograms}>
+        <StockProgramPicker
+          rows={rows}
+          hasHomeFacility={hasHomeFacility}
+          statusLabel={t('physical-inventory.status')}
+          actionsLabel={t('physical-inventory.actions')}
+          onAction={(row) => {
+            const result = drafts[programs.findIndex((program) => program.id === row.id)];
+            if (result.isError) {
+              void result.refetch();
+              return;
+            }
+            if (result.data)
+              void navigate({
+                to: '/stock-management/physical-inventory/$programId',
+                params: { programId: row.id },
+              });
+            else if (online) mutation.mutate(row.id);
+          }}
+        />
+      </div>
     </>
   );
 }

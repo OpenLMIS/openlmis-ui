@@ -12,7 +12,7 @@ import type { TourAnchor } from '@/lib/tour-anchors';
 const SPOTLIGHT_PADDING = 8;
 /** How long a loaded page may lack every anchor, and how long a loading page may take. */
 const PAGE_WAIT_MS = 5000;
-const LOAD_WAIT_MS = 20000;
+const LOAD_WAIT_MS = 30000;
 
 const anchorSelector = (anchor: TourAnchor) => `[data-tour="${anchor}"]`;
 
@@ -127,23 +127,30 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
   const [startedAt] = useState(() => window.location.href);
   const joyrideSteps = useMemo<Step[]>(
     () =>
-      steps.map((step) => ({
+      steps.map((step) => {
         // A section's arrow points at its name, not the middle of its open list.
-        target: step.expand
+        const target = step.expand
           ? `${anchorSelector(step.anchor)} > button`
-          : anchorSelector(step.anchor),
-        spotlightTarget: step.spotlight && anchorSelector(step.spotlight),
-        title: t(step.title),
-        content: t(step.content),
-        placement: toJoyridePlacement(step.placement ?? 'bottom', direction),
-        ...(step.expand && {
-          before: async () => {
-            setSectionOpen(step.anchor, true);
-            await nextFrame();
-          },
-          after: () => setSectionOpen(step.anchor, false),
-        }),
-      })),
+          : anchorSelector(step.anchor);
+        return {
+          target,
+          // Joyride would scroll to the spotlight, hiding a target above it under the header.
+          ...(step.spotlight && {
+            spotlightTarget: anchorSelector(step.spotlight),
+            scrollTarget: target,
+          }),
+          title: t(step.title),
+          content: t(step.content),
+          placement: toJoyridePlacement(step.placement ?? 'bottom', direction),
+          ...(step.expand && {
+            before: async () => {
+              setSectionOpen(step.anchor, true);
+              await nextFrame();
+            },
+            after: () => setSectionOpen(step.anchor, false),
+          }),
+        };
+      }),
     [steps, t, direction],
   );
 
