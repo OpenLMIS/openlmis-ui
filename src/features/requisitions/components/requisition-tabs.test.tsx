@@ -118,6 +118,8 @@ function renderEditor({ adjustments = false, second = false, remove = false } = 
             pending: false,
             editableColumns: ['totalConsumedQuantity'],
             skipLines: true,
+            skippedFilter: true,
+            productFilter: true,
             addFullSupplyProduct: false,
             addNonFullSupplyProduct: false,
           }}

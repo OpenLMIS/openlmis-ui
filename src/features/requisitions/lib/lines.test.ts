@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { column, line, product, record } from '@/features/requisitions/lib/fixtures/builders';
+import { line, product, record } from '@/features/requisitions/lib/fixtures/builders';
 import { buildLines, filterLines } from '@/features/requisitions/lib/lines';
 
 it('joins exact versions, uses the last program entry and preserves supply type', () => {
@@ -50,19 +50,17 @@ it('sorts both supply types by category order/name, product order/name and filte
   expect(filterLines(models, { product: 'cOdE2' }).map((m) => m.line.id)).toEqual(['2']);
   expect(filterLines(models, { product: 'alp' }).map((m) => m.line.id)).toEqual(['1']);
 });
-it('hides skipped only by template option with an explicit show-skipped override', () => {
-  const r = record({
-    template: {
-      columnsMap: {
-        skipped: column('skipped', 0, { option: { optionName: 'hideSkippedLineItems' } }),
-      },
-    },
-    requisitionLineItems: [line({ skipped: true })],
-  });
-  const models = buildLines(r, [product()]);
-  expect(filterLines(models, { hideSkipped: true })).toEqual([]);
-  expect(filterLines(models, { hideSkipped: true, showSkipped: true })).toHaveLength(1);
-  expect(filterLines(models, { hideSkipped: false, showSkipped: false })).toEqual([]);
+it('keeps template-hidden lines hidden even when skipped lines are shown, as legacy', () => {
+  const models = buildLines(
+    record({
+      requisitionLineItems: [line({ id: 'a', skipped: true }), line({ id: 'b', skipped: true })],
+    }),
+    [product()],
+  );
+  const hidden = new Set(['a']);
+  expect(filterLines(models, { hidden }).map((m) => m.line.id)).toEqual(['b']);
+  expect(filterLines(models, { hidden, showSkipped: true }).map((m) => m.line.id)).toEqual(['b']);
+  expect(filterLines(models, { showSkipped: false })).toEqual([]);
 });
 
 it('does not silently hydrate a missing pinned version from a newer product or approval', () => {

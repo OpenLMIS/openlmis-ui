@@ -21,7 +21,7 @@ export function RequisitionGridToolbar({
   view,
   search,
   onSearchChange,
-  hideSkipped,
+  showSearch,
   showSkipFilter,
   unit,
   setUnit,
@@ -35,7 +35,7 @@ export function RequisitionGridToolbar({
   view: Pick<ReturnType<typeof useCardView>, 'layout' | 'columnView'>;
   search: GridSearch;
   onSearchChange: SearchChange<GridSearch>;
-  hideSkipped: boolean;
+  showSearch: boolean;
   showSkipFilter: boolean;
   unit: QuantityUnit;
   setUnit: (unit: QuantityUnit) => void;
@@ -46,33 +46,35 @@ export function RequisitionGridToolbar({
   const id = useId();
   return (
     <DataTableToolbar>
-      <div className="w-full @2xl/main:w-72">
-        <DataTableSearch
-          disabled={disabled}
-          size="lg"
-          placeholder={t('requisitions.requisition.search-products')}
-          value={search.product ?? ''}
-          onValueChange={(product) =>
-            onSearchChange({ product: product || undefined, detailPage: undefined }, true)
-          }
-        />
-      </div>
+      {showSearch && (
+        <div className="w-full @2xl/main:w-72">
+          <DataTableSearch
+            disabled={disabled}
+            size="lg"
+            placeholder={t('requisitions.requisition.search-products')}
+            value={search.product ?? ''}
+            onValueChange={(product) =>
+              onSearchChange({ product: product || undefined, detailPage: undefined }, true)
+            }
+          />
+        </div>
+      )}
       {showSkipFilter && (
         <div className="flex-1 @2xl/main:flex-none">
           <DataTableFilters
             size="lg"
             disabled={disabled}
-            activeCount={search.skipped === undefined ? 0 : 1}
+            activeCount={search.skipped === false ? 1 : 0}
             onClear={() => onSearchChange({ skipped: undefined, detailPage: undefined }, true)}
           >
             <Field orientation="horizontal">
               <Checkbox
                 disabled={disabled}
                 id={id}
-                checked={search.skipped ?? !hideSkipped}
+                checked={search.skipped !== false}
                 onCheckedChange={(checked) =>
                   onSearchChange({
-                    skipped: checked === !hideSkipped ? undefined : checked,
+                    skipped: checked ? undefined : false,
                     detailPage: undefined,
                   })
                 }

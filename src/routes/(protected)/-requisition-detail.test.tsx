@@ -136,9 +136,7 @@ vi.mock('@/features/requisitions/components/requisition-skeletons', async (impor
   ...(await importOriginal<
     typeof import('@/features/requisitions/components/requisition-skeletons')
   >()),
-  RequisitionTabsPending: ({ hideSkipped }: { hideSkipped?: boolean }) => (
-    <div role="status" aria-label={hideSkipped ? 'pending-skipped-filter' : 'pending-products'} />
-  ),
+  RequisitionTabsPending: () => <div role="status" aria-label="pending-products" />,
 }));
 
 function renderRoute(
@@ -286,18 +284,6 @@ it('shows total requisition cost on the default Patients tab', async () => {
   const { queryClient } = renderRoute('/requisitions/view/r');
   await screen.findByRole('tab', { name: 'requisitions.requisition.patients', selected: true });
   expect(await screen.findByText('requisitions.requisition.total-cost')).toBeInTheDocument();
-  queryClient.clear();
-});
-
-it('keeps the skipped filter out of the pending default Patients tab', async () => {
-  useLoginData.setState({ referenceDataUserId: 'u' });
-  vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|program']);
-  vi.mocked(fetchRequisition).mockResolvedValue(patientRecord());
-  vi.mocked(fetchOrderablesByIdentities).mockImplementationOnce(() => new Promise(() => {}));
-  const { queryClient } = renderRoute('/requisitions/view/r');
-  await screen.findByRole('status', { name: 'pending-products' });
-  expect(screen.getByRole('status', { name: 'pending-products' })).toBeInTheDocument();
-  expect(screen.queryByRole('status', { name: 'pending-skipped-filter' })).not.toBeInTheDocument();
   queryClient.clear();
 });
 

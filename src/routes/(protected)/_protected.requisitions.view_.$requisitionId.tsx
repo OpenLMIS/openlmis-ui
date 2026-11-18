@@ -120,7 +120,7 @@ import {
   RequisitionRetryConflict,
   toRequisitionFailure,
 } from '@/features/requisitions/lib/failure';
-import { buildLines, filterLines } from '@/features/requisitions/lib/lines';
+import { buildLines, filterLines, skippedLineIds } from '@/features/requisitions/lib/lines';
 import {
   prepareRequisitionAccess,
   requisitionNodesOptions,
@@ -261,7 +261,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/view_
         throw error;
       })) ?? [];
     if (!userId || userChanged() || !access || !record) return;
-    if (needsUnskipSetting(record)) queryClient.prefetchQuery(unskipSettingOptions());
+    queryClient.prefetchQuery(unskipSettingOptions());
     queryClient.prefetchQuery(requisitionStatusMessagesOptions(record.id));
     queryClient.prefetchQuery(facilityOptions(record.facility.id));
     const [products, approvedProducts, period, currency, program] = requisitionGridQueries(record);
@@ -393,7 +393,6 @@ function RequisitionReadShell({
                 supplyingStock={pending.supplyingStock}
                 unit={quantity.unit}
                 canSwitch={quantity.canSwitch}
-                hideSkipped={hidesSkipped(record.template, search.tab)}
               />
             )}
           </div>
@@ -1314,7 +1313,6 @@ function RequisitionBody({
                     !!record.template.columnsMap.supplyingFacilityStockOnHand?.isDisplayed
                   }
                   unit={unit}
-                  hideSkipped={hidesSkipped(record.template, search.tab)}
                   canSwitch={canSwitch}
                 />
               }
@@ -1469,10 +1467,17 @@ function RequisitionBody({
             }
             if (!target) return;
             const tab = target.fullSupply ? 'fullSupply' : 'nonFullSupply';
-            const lines = filterLines(
-              currentLines().filter((model) => model.fullSupply === target.fullSupply),
-              { hideSkipped: hidesSkipped(record.template, tab) },
+            document.dispatchEvent(
+              new CustomEvent('requisition-lines-refresh', {
+                detail: { requisitionId: record.id },
+              }),
             );
+            const tabLines = currentLines().filter(
+              (model) => model.fullSupply === target.fullSupply,
+            );
+            const lines = filterLines(tabLines, {
+              hidden: hidesSkipped(record.template, tab) ? skippedLineIds(tabLines) : undefined,
+            });
             const page =
               Math.floor(
                 lines.findIndex((model) => model.line.id === target.id) / (search.detailSize ?? 10),
@@ -1633,6 +1638,8 @@ function RequisitionPolicyTabs({
             approver: policy.approver,
             patientsEditable: policy.patientsEditable,
             skipLines: policy.skipLines,
+            skippedFilter: policy.skippedFilter,
+            productFilter: policy.productFilter,
             addFullSupplyProduct: policy.addFullSupplyProduct,
             addNonFullSupplyProduct: policy.addNonFullSupplyProduct,
           }
@@ -1645,6 +1652,8 @@ function RequisitionPolicyTabs({
       policy.approver,
       policy.patientsEditable,
       policy.skipLines,
+      policy.skippedFilter,
+      policy.productFilter,
       policy.addFullSupplyProduct,
       policy.addNonFullSupplyProduct,
     ],
@@ -1733,11 +1742,8 @@ function useRequisitionPolicy(data: RequisitionData) {
           ),
         )
         .map(({ id }) => id);
-  const { data: unskip } = useQuery({
-    ...unskipSettingOptions(),
-    enabled: needsUnskipSetting(record),
-  });
-  const context = capabilityContext(record, access, program, unskip?.unskipRequisition);
+  const unskip = unskipSetting(useQuery(unskipSettingOptions()));
+  const context = capabilityContext(record, access, program, unskip);
   const policies = (currentNodes.length ? currentNodes : [undefined]).map((currentNodeId) =>
     requisitionCapabilities({ ...context, currentNodeId }),
   );
@@ -1838,7 +1844,6 @@ function RequisitionPending() {
               supplyingStock={pending?.supplyingStock}
               unit={quantity.unit}
               canSwitch={quantity.canSwitch}
-              hideSkipped={!!record && hidesSkipped(record.template, search.tab)}
             />
           </div>
         </WorkspaceContent>
@@ -1857,7 +1862,7 @@ function capabilityContext(
   record: RequisitionRecord,
   access: PendingAccess,
   program: Program | undefined,
-  unskipWhenApproving = false,
+  unskip: UnskipSetting = {},
 ) {
   const grants = access.permissions.grants
     .filter(
@@ -1874,7 +1879,7 @@ function capabilityContext(
         }
       : record.program,
     grants,
-    unskipWhenApproving,
+    ...unskip,
     approvalNodes: approvalNodesFor(access, record.program.id),
     isSplit: !!record.extraData?.originalRequisition,
   };
@@ -1883,10 +1888,10 @@ function pendingPolicy(
   record: RequisitionRecord,
   access: PendingAccess,
   program: Program | undefined,
-  unskipWhenApproving = false,
+  unskip: UnskipSetting = {},
 ) {
   const policy = requisitionCapabilities({
-    ...capabilityContext(record, access, program, unskipWhenApproving),
+    ...capabilityContext(record, access, program, unskip),
     currentNodeId: record.supervisoryNode,
   });
   const editing: PendingEditing = { ...policy, deviceAvailable: isSecureOrigin };
@@ -1927,9 +1932,16 @@ function SectionError(props: ErrorComponentProps) {
   );
 }
 
-function needsUnskipSetting(record: RequisitionRecord) {
-  return ['AUTHORIZED', 'IN_APPROVAL'].includes(record.status);
+type UnskipSetting = { unskipWhenApproving?: boolean; unskipSettingFailed?: boolean };
+function unskipSetting({
+  data,
+  isError,
+}: {
+  data?: { unskipRequisition: boolean };
+  isError: boolean;
+}): UnskipSetting {
+  return { unskipWhenApproving: data?.unskipRequisition, unskipSettingFailed: isError };
 }
 function useCachedUnskipSetting() {
-  return useQuery({ ...unskipSettingOptions(), enabled: false }).data?.unskipRequisition;
+  return unskipSetting(useQuery({ ...unskipSettingOptions(), enabled: false }));
 }

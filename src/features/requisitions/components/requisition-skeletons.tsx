@@ -252,7 +252,6 @@ const PENDING_COLUMNS = [
 const PAGE_ROWS = toPaginationState({}).pageSize;
 
 function RequisitionGridPending({
-  hideSkipped = false,
   canSwitch = false,
   record,
   tab,
@@ -260,7 +259,6 @@ function RequisitionGridPending({
   editing,
   supplyingStock = false,
 }: {
-  hideSkipped?: boolean;
   canSwitch?: boolean;
   record?: RequisitionRecord;
   tab?: RequisitionTab;
@@ -295,7 +293,7 @@ function RequisitionGridPending({
   );
   const editable = !!editing?.editable;
   const fullSupply = activeTab === 'fullSupply';
-  const removable = canRemoveLine(fullSupply, editable);
+  const removable = canRemoveLine(fullSupply, editable, record?.status);
   const stockBased = !!record?.template.populateStockOnHandFromStockCards;
   const visible = columns.filter(
     (column) =>
@@ -344,8 +342,8 @@ function RequisitionGridPending({
         view={view}
         search={{}}
         onSearchChange={noop}
-        hideSkipped={hideSkipped}
-        showSkipFilter={!!editing?.skipLines && activeTab === 'fullSupply'}
+        showSearch={(!editing || editing.productFilter) && activeTab === 'fullSupply'}
+        showSkipFilter={!!editing?.skippedFilter && activeTab === 'fullSupply'}
         unit={unit}
         setUnit={noop}
         canSwitch={canSwitch}
