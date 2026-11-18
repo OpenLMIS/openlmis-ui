@@ -53,6 +53,15 @@ export const TOUR_ANCHORS = {
   physicalInventoryLines: 'physical-inventory-lines',
   physicalInventoryDelete: 'physical-inventory-delete',
   physicalInventoryActions: 'physical-inventory-actions',
+  stockEventPrograms: 'stock-event-programs',
+  stockEventPicker: 'stock-event-picker',
+  stockEventSearch: 'stock-event-search',
+  stockEventSaved: 'stock-event-saved',
+  stockEventUnit: 'stock-event-unit',
+  stockEventView: 'stock-event-view',
+  stockEventLines: 'stock-event-lines',
+  stockEventClear: 'stock-event-clear',
+  stockEventSubmit: 'stock-event-submit',
 } as const;
 
 /** Anchor of one sidebar menu section, keyed by its navigation title key. */

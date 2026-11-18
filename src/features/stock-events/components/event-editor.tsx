@@ -152,6 +152,7 @@ import {
 import { type ScanMessage, scanMessage } from '@/lib/scan-messages';
 import { resolveScan, type ScanProduct } from '@/lib/stock-scan';
 import type { SearchChange } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export type EventSearch = {
   page?: number | undefined;
@@ -864,25 +865,27 @@ export function EventEditor({
                   }
                   errorComponent={StockCardsError}
                 >
-                  <ProductLotPicker
-                    bundleScope={bundleScope}
-                    kind={kind}
-                    facilityId={facilityId}
-                    programId={programId}
-                    disabled={locked || !ready}
-                    {...(fromCards || !device
-                      ? { cardFilter: filterCards }
-                      : {
-                          from: 'approved-products' as const,
-                          canManageLots,
-                          lines,
-                          device,
-                          cards,
-                        })}
-                    onAdd={add}
-                  >
-                    {scanning && <ScanStatus {...scanStatus} />}
-                  </ProductLotPicker>
+                  <div data-tour={TOUR_ANCHORS.stockEventPicker}>
+                    <ProductLotPicker
+                      bundleScope={bundleScope}
+                      kind={kind}
+                      facilityId={facilityId}
+                      programId={programId}
+                      disabled={locked || !ready}
+                      {...(fromCards || !device
+                        ? { cardFilter: filterCards }
+                        : {
+                            from: 'approved-products' as const,
+                            canManageLots,
+                            lines,
+                            device,
+                            cards,
+                          })}
+                      onAdd={add}
+                    >
+                      {scanning && <ScanStatus {...scanStatus} />}
+                    </ProductLotPicker>
+                  </div>
                 </QueryBoundary>
               )}
               {unknownOutcome && (
@@ -902,7 +905,11 @@ export function EventEditor({
                   />
                 )}
               <DataTableToolbar>
-                <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled={pending}>
+                <fieldset
+                  className="w-full @2xl/main:me-auto @2xl/main:w-72"
+                  data-tour={TOUR_ANCHORS.stockEventSearch}
+                  disabled={pending}
+                >
                   <DataTableSearch
                     size="lg"
                     value={keyword}
@@ -917,7 +924,9 @@ export function EventEditor({
                   {drafts.enabled && (
                     <EventLineToolbarStatus>
                       {(lines.length > 0 || draft.status !== 'saved') && (
-                        <DraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
+                        <div className="min-w-0" data-tour={TOUR_ANCHORS.stockEventSaved}>
+                          <DraftStatus {...draft} onRetry={draft.retry} onResolve={draft.resolve} />
+                        </div>
                       )}
                       <EventArchivedCopies
                         kind={kind}
@@ -930,7 +939,10 @@ export function EventEditor({
                   )}
                   <EventLineToolbarControls>
                     {quantityUnit.canSwitch && (
-                      <div className="min-w-0 flex-1 @2xl/main:flex-none">
+                      <div
+                        className="min-w-0 flex-1 @2xl/main:flex-none"
+                        data-tour={TOUR_ANCHORS.stockEventUnit}
+                      >
                         <QuantityUnitToggle
                           unit={quantityUnit.unit}
                           onUnitChange={quantityUnit.setUnit}
@@ -940,6 +952,7 @@ export function EventEditor({
                     )}
                     <div
                       className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}
+                      data-tour={TOUR_ANCHORS.stockEventView}
                     >
                       <DataTableViewOptions
                         size="lg"
@@ -987,26 +1000,28 @@ export function EventEditor({
                         programId={programId}
                         options={assignmentOptions}
                       >
-                        <EventLineTable
-                          cards={cards}
-                          kind={kind}
-                          fitContent={fitContent}
-                          containerWidth={width}
-                          reasonRequired={reasonRequired}
-                          form={form}
-                          lines={filtered}
-                          reasons={reasons}
-                          assignments={assignments}
-                          unit={quantityUnit.unit}
-                          today={today}
-                          disabled={locked}
-                          onEditLot={editLot}
-                          onRemove={remove}
-                          search={search}
-                          onSearchChange={onSearchChange}
-                          columnVisibility={visibility}
-                          onClearFilter={clearFilter}
-                        />
+                        <div data-tour={TOUR_ANCHORS.stockEventLines}>
+                          <EventLineTable
+                            cards={cards}
+                            kind={kind}
+                            fitContent={fitContent}
+                            containerWidth={width}
+                            reasonRequired={reasonRequired}
+                            form={form}
+                            lines={filtered}
+                            reasons={reasons}
+                            assignments={assignments}
+                            unit={quantityUnit.unit}
+                            today={today}
+                            disabled={locked}
+                            onEditLot={editLot}
+                            onRemove={remove}
+                            search={search}
+                            onSearchChange={onSearchChange}
+                            columnVisibility={visibility}
+                            onClearFilter={clearFilter}
+                          />
+                        </div>
                       </CounterpartyReady>
                     </StockCardsReady>
                   </ReasonsReady>
@@ -1018,6 +1033,7 @@ export function EventEditor({
       </Workspace>
       <WorkspaceFooter width={config.width}>
         <Button
+          data-tour={TOUR_ANCHORS.stockEventClear}
           disabled={!filtered.length || locked}
           onClick={() => setClearOpen(true)}
           size="lg"
@@ -1026,6 +1042,7 @@ export function EventEditor({
           {t('stock-events.clear')}
         </Button>
         <Button
+          data-tour={TOUR_ANCHORS.stockEventSubmit}
           disabled={!lines.length || locked || !ready}
           ref={submitButton}
           form={config.formId}
