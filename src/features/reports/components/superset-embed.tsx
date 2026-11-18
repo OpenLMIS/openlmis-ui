@@ -73,7 +73,6 @@ export function SupersetEmbed({
 
     let disposed = false;
     let handle: EmbeddedDashboard | undefined;
-    let tokenRequest: Promise<string> | undefined;
     let tokenAbort: AbortController | undefined;
     const timers = new Set<ReturnType<typeof setTimeout>>();
     const later = (ms: number, run: () => void) => {
@@ -112,7 +111,6 @@ export function SupersetEmbed({
 
     const fetchToken = () => {
       if (disposed) return Promise.reject(new CanceledError());
-      if (tokenRequest) return tokenRequest;
       const controller = new AbortController();
       tokenAbort = controller;
       let timedOut = false;
@@ -120,7 +118,7 @@ export function SupersetEmbed({
         timedOut = true;
         controller.abort();
       });
-      const request = fetchGuestToken(uuid, userId, controller.signal)
+      return fetchGuestToken(uuid, userId, controller.signal)
         .catch((error: unknown) => {
           if (error instanceof SessionEndedError) dispose();
           else if (timedOut) fail({ kind: 'unavailable' });
@@ -129,11 +127,8 @@ export function SupersetEmbed({
         })
         .finally(() => {
           stop(deadline);
-          if (tokenRequest === request) tokenRequest = undefined;
           if (tokenAbort === controller) tokenAbort = undefined;
         });
-      tokenRequest = request;
-      return request;
     };
 
     const mountDeadline = later(FRAME_LOAD_LIMIT_MS, () => fail({ kind: 'did-not-load' }));

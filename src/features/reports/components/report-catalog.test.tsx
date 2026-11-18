@@ -19,7 +19,7 @@ vi.mock('@/features/reports/api/api', () => ({
   fetchTemplateReports: vi.fn(),
 }));
 
-it('opens dashboard links in the native viewer without a deployment switch', async () => {
+it('links dashboard reports to the native viewer', async () => {
   vi.mocked(fetchReportCategories).mockResolvedValue([]);
   vi.mocked(fetchTemplateReports).mockResolvedValue([]);
   vi.mocked(fetchAvailableDashboards).mockResolvedValue([{ id: 'dash', name: 'Dashboard' }]);

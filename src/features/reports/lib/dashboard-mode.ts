@@ -23,7 +23,7 @@ function frameableUrl(raw: string | null | undefined, appOrigin: string) {
 }
 
 /** The Superset address the SDK appends `/embedded/<id>` to, or undefined when unusable. */
-export function supersetBase(raw: string | null | undefined, appOrigin: string) {
+function supersetBase(raw: string | null | undefined, appOrigin: string) {
   const url = frameableUrl(raw, appOrigin);
   if (!url || raw?.includes('?') || raw?.includes('#')) return undefined;
   return `${url.origin}${url.pathname.replace(/\/+$/, '')}`;

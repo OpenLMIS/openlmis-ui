@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveDashboardMode, supersetBase } from '@/features/reports/lib/dashboard-mode';
+import { resolveDashboardMode } from '@/features/reports/lib/dashboard-mode';
 import type { DashboardReport } from '@/features/reports/lib/types';
 
 const app = 'https://lmis.example.org';
@@ -44,9 +44,13 @@ describe('resolveDashboardMode', () => {
   });
 
   it('keeps a deployment path prefix on the Superset address without trailing slashes', () => {
-    expect(supersetBase('http://localhost:5174/reporting///', 'http://localhost:5173')).toBe(
-      'http://localhost:5174/reporting',
-    );
+    expect(
+      resolveDashboardMode(
+        record({ embeddedUuid: uuid }),
+        'http://localhost:5174/reporting///',
+        app,
+      ),
+    ).toEqual({ kind: 'embedded', uuid, supersetUrl: 'http://localhost:5174/reporting' });
   });
 
   it('frames a Superset link in standalone mode, keeping its own query and fragment', () => {

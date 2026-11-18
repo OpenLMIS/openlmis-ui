@@ -156,18 +156,8 @@ it('unmounts a dashboard that resolves after the page has gone', async () => {
   expect(embedding.params.mountPoint.isConnected).toBe(false);
 });
 
-it('asks for one token at a time and maps a renewal failure in the callback', async () => {
+it('maps a token-renewal failure and reports it without credentials', async () => {
   const embedding = await open();
-  const token = Promise.withResolvers<string>();
-  vi.mocked(fetchGuestToken).mockReturnValueOnce(token.promise);
-
-  const first = embedding.params.fetchGuestToken();
-  const second = embedding.params.fetchGuestToken();
-  token.resolve('guest');
-
-  await expect(first).resolves.toBe('guest');
-  await expect(second).resolves.toBe('guest');
-  expect(fetchGuestToken).toHaveBeenCalledOnce();
   await connect(embedding);
 
   const failure = httpError(403);

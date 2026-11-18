@@ -32,7 +32,7 @@ async function load(dashboardId: string, grants = ['REPORTS_VIEW']) {
   }
 }
 
-it('opens an available dashboard without a deployment switch', async () => {
+it('opens an available dashboard in the native viewer', async () => {
   const report = { id: 'dashboard', name: 'Dashboard' };
   vi.mocked(fetchAvailableDashboards).mockResolvedValue([report]);
 
