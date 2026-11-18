@@ -57,7 +57,6 @@ For local development, an optional `public/config.json` can supply that same str
 | Command | Purpose |
 |---|---|
 | `pnpm dev` | Dev server |
-| `pnpm dev:local-uat` | Dev server against UAT with read-only proxies, for dashboards |
 | `pnpm build` | Type-check and production build |
 | `pnpm preview` | Preview production build |
 | `pnpm check` | Biome lint, format and organize imports |
@@ -73,25 +72,9 @@ For local development, an optional `public/config.json` can supply that same str
 Local test runs use Vitest's `25%` worker limit. CI runs two test shards with its default
 worker parallelism.
 
-### Dashboards against UAT
-
-`pnpm dev:local-uat` serves the UI at `http://localhost:5173` with `/api` proxied to UAT, and a
-separate Superset origin at `http://localhost:5174` proxied to UAT's Superset. It turns on
-`NATIVE_DASHBOARDS` and sets `supersetUrl` for this run only, on top of any `public/config.json`.
-Both ports must be free. Override targets and ports with `LOCAL_UAT_API_TARGET`,
-`LOCAL_UAT_SUPERSET_TARGET`, `LOCAL_UAT_UI_PORT` and `LOCAL_UAT_SUPERSET_PORT`.
-
-Legacy handoffs use the selected API origin, overriding `VITE_LEGACY_UI_URL` for this run.
-
-It is for development only and never part of the app or its image:
-
-- Writes never reach UAT. The API proxy allows reads and password sign-in; Sign Out is answered
-  locally so the shared session is not revoked. The Superset proxy allows reads, chart queries
-  and answers telemetry itself.
-- Superset sees only the guest token: browser cookies and bearer tokens are removed, and
-  Superset's cookies never reach the browser. Use a browser profile without a Superset login.
-- Only the local UI may frame the Superset origin; redirects stay on it. UAT's own frame and
-  referrer settings are unchanged, so a local success says nothing about a deployed `/v2`.
+To use another backend locally, set `VITE_API_PROXY_TARGET` and `VITE_LEGACY_UI_URL` in
+`.env`, then restart `pnpm dev`. Native dashboards use the normal runtime configuration
+and the Superset server's own framing and allowed-origin settings.
 
 ## Project layout
 

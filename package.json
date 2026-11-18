@@ -6,7 +6,6 @@
   "packageManager": "pnpm@12.4.1",
   "scripts": {
     "dev": "vite",
-    "dev:local-uat": "node scripts/local-uat/start.mjs",
     "build": "tsc -b && vite build",
     "lint": "biome lint .",
     "lint:ds": "oxlint",
