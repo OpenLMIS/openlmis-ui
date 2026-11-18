@@ -30,7 +30,11 @@ const isPageLoading = () =>
     (element) => !element.closest('header'),
   );
 
-const shownAnchor = (anchor: TourAnchor) => isShown(document.querySelector(anchorSelector(anchor)));
+/** Shown and loaded: a skeleton's anchor never plays, even once the load wait runs out. */
+const shownAnchor = (anchor: TourAnchor) => {
+  const element = document.querySelector(anchorSelector(anchor));
+  return isShown(element) && !element?.closest('[aria-busy="true"]');
+};
 
 /** None while the page is loading, unless `anyway` because the load wait ran out. */
 const presentSteps = (tour: Tour, anyway = false) =>
@@ -191,15 +195,23 @@ function TourPlayer({
             document.querySelector<HTMLElement>(outer)
           );
         };
-        const inColumn = (fallback: () => HTMLElement | null) =>
-          column ? () => columnHeader(holder(), column) ?? fallback() : fallback;
         const targetElement = () => document.querySelector<HTMLElement>(target);
+        const inColumn = column
+          ? (fallback: () => HTMLElement | null) => () =>
+              columnHeader(holder(), column) ?? fallback()
+          : undefined;
+        const columnTarget = inColumn?.(targetElement);
+        // A wide table scrolls sideways; bring the header into view so the tooltip can reach it.
+        const reveal = async () => {
+          columnTarget?.()?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          await nextFrame();
+        };
         return {
-          target: column ? inColumn(targetElement) : target,
+          target: columnTarget ?? target,
           // Joyride would scroll to the spotlight, hiding a target above it under the header.
           ...(step.spotlight && {
-            spotlightTarget: column ? inColumn(holder) : anchorSelector(step.spotlight),
-            scrollTarget: column ? inColumn(targetElement) : target,
+            spotlightTarget: inColumn?.(holder) ?? anchorSelector(step.spotlight),
+            scrollTarget: columnTarget ?? target,
           }),
           title: t(step.title),
           content: step.legend ? (
@@ -218,8 +230,11 @@ function TourPlayer({
             },
             after: () => setSectionOpen(step.anchor, false),
           }),
-          ...(step.select && {
-            before: () => selectTab(step.select as TourAnchor, () => followRef.current()),
+          ...((step.select || columnTarget) && {
+            before: async () => {
+              if (step.select) await selectTab(step.select, () => followRef.current());
+              await reveal();
+            },
           }),
         };
       }),

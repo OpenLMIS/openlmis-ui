@@ -2,31 +2,33 @@ import { CheckIcon, EllipsisIcon, EyeIcon, PencilIcon, Trash2Icon, XIcon } from 
 import type { Tour } from '@/features/onboarding/lib/types';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
+const ADMIN_LISTS = [
+  'facilities',
+  'facility-types',
+  'geographic-zones',
+  'lots',
+  'processing-schedules',
+  'products',
+  'programs',
+  'reasons',
+  'rejection-reason-categories',
+  'rejection-reasons',
+  'requisition-groups',
+  'requisition-templates',
+  'roles',
+  'service-accounts',
+  'supervisory-nodes',
+  'supply-lines',
+  'supply-partners',
+  'users',
+  'valid-destinations',
+  'valid-sources',
+] as const;
+
 // One guide for every Administration list; each page plays the steps for the parts it has.
 export const adminListTour: Tour = {
   id: 'admin-list',
-  routeIds: [
-    '/(protected)/_protected/administration/facilities',
-    '/(protected)/_protected/administration/facility-types',
-    '/(protected)/_protected/administration/geographic-zones',
-    '/(protected)/_protected/administration/lots',
-    '/(protected)/_protected/administration/processing-schedules',
-    '/(protected)/_protected/administration/products',
-    '/(protected)/_protected/administration/programs',
-    '/(protected)/_protected/administration/reasons',
-    '/(protected)/_protected/administration/rejection-reason-categories',
-    '/(protected)/_protected/administration/rejection-reasons',
-    '/(protected)/_protected/administration/requisition-groups',
-    '/(protected)/_protected/administration/requisition-templates',
-    '/(protected)/_protected/administration/roles',
-    '/(protected)/_protected/administration/service-accounts',
-    '/(protected)/_protected/administration/supervisory-nodes',
-    '/(protected)/_protected/administration/supply-lines',
-    '/(protected)/_protected/administration/supply-partners',
-    '/(protected)/_protected/administration/users',
-    '/(protected)/_protected/administration/valid-destinations',
-    '/(protected)/_protected/administration/valid-sources',
-  ],
+  routeIds: ADMIN_LISTS.map((slug) => `/(protected)/_protected/administration/${slug}` as const),
   steps: [
     {
       anchor: TOUR_ANCHORS.listSearch,
