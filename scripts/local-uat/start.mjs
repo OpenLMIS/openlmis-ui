@@ -26,6 +26,7 @@ await new Promise((resolve, reject) => {
 });
 
 process.env.VITE_API_PROXY_TARGET = apiTarget;
+process.env.VITE_LEGACY_UI_URL = new URL(apiTarget).origin;
 const backend = { secure: true, configure: noStoreGuestTokens };
 const ui = await createServer({
   server: {

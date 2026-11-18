@@ -81,6 +81,8 @@ separate Superset origin at `http://localhost:5174` proxied to UAT's Superset. I
 Both ports must be free. Override targets and ports with `LOCAL_UAT_API_TARGET`,
 `LOCAL_UAT_SUPERSET_TARGET`, `LOCAL_UAT_UI_PORT` and `LOCAL_UAT_SUPERSET_PORT`.
 
+Legacy handoffs use the selected API origin, overriding `VITE_LEGACY_UI_URL` for this run.
+
 It is for development only and never part of the app or its image:
 
 - Writes never reach UAT. The API proxy allows reads and password sign-in; Sign Out is answered

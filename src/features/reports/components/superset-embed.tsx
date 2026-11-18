@@ -1,6 +1,7 @@
 import type { EmbeddedDashboard } from '@superset-ui/embedded-sdk';
 import { CanceledError, isAxiosError, isCancel } from 'axios';
 import { useEffect, useRef, useState } from 'react';
+import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { fetchGuestToken } from '@/features/reports/api/api';
 import {
   DashboardArea,
@@ -10,6 +11,7 @@ import {
   FRAME_LOAD_LIMIT_MS,
   tokenFailure,
 } from '@/features/reports/components/dashboard-states';
+import { isChunkLoadError } from '@/lib/chunk-load';
 import { isOnline } from '@/lib/online';
 import { reportCaughtError } from '@/lib/report-error';
 import { SessionEndedError } from '@/lib/session-scope';
@@ -40,6 +42,7 @@ function sdkEmbed(sdk: { embedDashboard?: EmbedDashboard; default?: unknown }) {
 type Status =
   | { kind: 'connecting' }
   | { kind: 'connected' }
+  | { kind: 'chunk-failed'; error: Error }
   | { kind: 'failed'; failure: DashboardFailure };
 
 /** One opening of an embedded Superset dashboard; Try Again and returning to the page remount it. */
@@ -138,7 +141,17 @@ export function SupersetEmbed({
       let embedDashboard: EmbedDashboard;
       try {
         embedDashboard = sdkEmbed(await import('@superset-ui/embedded-sdk'));
-      } catch {
+      } catch (error) {
+        if (disposed) return;
+        if (error instanceof Error && isChunkLoadError(error)) {
+          dispose();
+          if (isOnline())
+            reportCaughtError(new Error('Dashboard SDK chunk could not be loaded'), {
+              componentStack: 'SupersetEmbed',
+            });
+          setStatus({ kind: 'chunk-failed', error });
+          return;
+        }
         fail({ kind: isOnline() ? 'did-not-load' : 'offline' });
         return;
       }
@@ -176,6 +189,8 @@ export function SupersetEmbed({
     return dispose;
   }, [uuid, supersetUrl, title, userId]);
 
+  if (status.kind === 'chunk-failed')
+    return <ErrorFallback error={status.error} info={undefined} reset={onRetry} />;
   if (status.kind === 'failed')
     return <DashboardFailureState failure={status.failure} onRetry={onRetry} focus={retried} />;
   return (

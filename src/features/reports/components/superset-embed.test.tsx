@@ -1,5 +1,6 @@
 import type { EmbedDashboardParams } from '@superset-ui/embedded-sdk';
-import { act, cleanup, screen } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
+import { act, cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -8,14 +9,24 @@ import { fetchGuestToken } from '@/features/reports/api/api';
 import { DashboardViewer } from '@/features/reports/components/dashboard-viewer';
 import { HANDSHAKE_LIMIT_MS, TOKEN_LIMIT_MS } from '@/features/reports/components/superset-embed';
 import type { DashboardReport } from '@/features/reports/lib/types';
+import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { reportCaughtError } from '@/lib/report-error';
 import { SessionEndedError } from '@/lib/session-scope';
 import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
 
-const sdk = vi.hoisted(() => ({ embedDashboard: vi.fn() }));
+const sdk = vi.hoisted(() => ({
+  embedDashboard: vi.fn(),
+  loadError: undefined as Error | undefined,
+}));
 // Dev and production bundles both expose the CommonJS SDK only as a default export.
-vi.mock('@superset-ui/embedded-sdk', () => ({ default: sdk, embedDashboard: undefined }));
+vi.mock('@superset-ui/embedded-sdk', () => ({
+  get default() {
+    if (sdk.loadError) throw sdk.loadError;
+    return sdk;
+  },
+  embedDashboard: undefined,
+}));
 vi.mock('@/features/reports/api/api', () => ({ fetchGuestToken: vi.fn() }));
 vi.mock('@/lib/report-error', () => ({ reportCaughtError: vi.fn() }));
 
@@ -39,6 +50,7 @@ let setHidden: (hidden: boolean) => void = () => {};
 
 beforeEach(() => {
   embeddings = [];
+  sdk.loadError = undefined;
   sdk.embedDashboard.mockImplementation((params: EmbedDashboardParams) => {
     const { promise, resolve, reject } = Promise.withResolvers<Handle>();
     const frame = document.createElement('iframe');
@@ -67,6 +79,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  sessionStorage.removeItem('openlmis-ui:chunk-reload');
 });
 
 function Harness() {
@@ -238,4 +251,40 @@ it('ends the opening while the app is hidden and opens exactly once on return', 
   act(() => setHidden(false));
   await screen.findByTitle('Stock Dashboard');
   expect(embeddings).toHaveLength(2);
+});
+
+it('uses guarded page recovery for a failed SDK module, including Try Again', async () => {
+  sdk.loadError = new TypeError('Failed to fetch dynamically imported module: /assets/sdk-old.js');
+  const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {});
+  let proceed: () => void = () => {};
+  const ask = vi.fn((next: () => void) => {
+    proceed = next;
+  });
+  function Draft() {
+    useLeaveGuard(true, ask);
+    return <Harness />;
+  }
+  renderPage(<Draft />);
+
+  expect(await screen.findByRole('heading', { name: 'error.title' })).toBeVisible();
+  expect(ask).toHaveBeenCalledOnce();
+  expect(reload).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+  expect(ask).toHaveBeenCalledTimes(2);
+  act(() => proceed());
+
+  expect(reload).toHaveBeenCalledOnce();
+  expect(sdk.embedDashboard).not.toHaveBeenCalled();
+});
+
+it('keeps a missing SDK unavailable offline and recovers when connection returns', async () => {
+  sdk.loadError = new TypeError('Failed to fetch dynamically imported module: /assets/sdk-old.js');
+  const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {});
+  onlineManager.setOnline(false);
+  renderPage(<Harness />);
+
+  expect(await screen.findByRole('heading', { name: 'offline.unavailable-title' })).toBeVisible();
+  expect(reload).not.toHaveBeenCalled();
+  act(() => onlineManager.setOnline(true));
+  await waitFor(() => expect(reload).toHaveBeenCalledOnce());
 });
