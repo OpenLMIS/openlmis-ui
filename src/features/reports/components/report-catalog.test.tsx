@@ -8,6 +8,7 @@ import {
   fetchTemplateReports,
 } from '@/features/reports/api/api';
 import { ReportCatalog } from '@/features/reports/components/report-catalog';
+import { useFlag } from '@/lib/feature-flags';
 import { reportCaughtError } from '@/lib/report-error';
 import { renderPage } from '@/test-utils/render-page';
 
@@ -19,7 +20,34 @@ vi.mock('@/features/reports/api/api', () => ({
   fetchTemplateReports: vi.fn(),
 }));
 
-afterEach(() => vi.unstubAllEnvs());
+vi.mock('@/lib/feature-flags', async (original) => ({
+  ...(await original<typeof import('@/lib/feature-flags')>()),
+  useFlag: vi.fn(() => false),
+}));
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.mocked(useFlag).mockReturnValue(false);
+});
+
+it('opens dashboards in the native viewer once the deployment turns it on', async () => {
+  vi.mocked(useFlag).mockReturnValue(true);
+  vi.mocked(fetchReportCategories).mockResolvedValue([]);
+  vi.mocked(fetchTemplateReports).mockResolvedValue([]);
+  vi.mocked(fetchAvailableDashboards).mockResolvedValue([{ id: 'dash', name: 'Dashboard' }]);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  renderPage(<ReportCatalog userId="user" modules={['common']} />, { queryClient });
+  try {
+    expect(await screen.findByRole('link', { name: 'Dashboard' })).toHaveAttribute(
+      'href',
+      '/reports/dashboards/dash',
+    );
+  } finally {
+    queryClient.clear();
+  }
+});
 
 it('links templates to the native form and keeps them usable during a dashboard failure and retries only that failed source', async () => {
   const error = new Error('Unavailable');

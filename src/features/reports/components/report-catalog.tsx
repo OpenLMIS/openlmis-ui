@@ -32,6 +32,7 @@ import {
 import { dashboardLegacyHash, groupReports } from '@/features/reports/lib/report-categories';
 import type { CatalogReport } from '@/features/reports/lib/types';
 import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
+import { useFlag } from '@/lib/feature-flags';
 import { isRefused } from '@/lib/http';
 import { reportCaughtError } from '@/lib/report-error';
 
@@ -217,7 +218,24 @@ function ReportLink({ report }: { report: CatalogReport }) {
 }
 
 function DashboardLink({ report, children }: { report: CatalogReport; children: ReactNode }) {
+  const native = useFlag('NATIVE_DASHBOARDS');
   const legacy = useBackToLegacy(dashboardLegacyHash(report.id));
+  if (native)
+    return (
+      <Button
+        data-report-key={reportKey(report)}
+        role="link"
+        variant="link"
+        padding="none"
+        align="start"
+        width="full"
+        wrap="normal"
+        nativeButton={false}
+        render={<Link to="/reports/dashboards/$dashboardId" params={{ dashboardId: report.id }} />}
+      >
+        {children}
+      </Button>
+    );
   return (
     <Button
       data-report-key={reportKey(report)}

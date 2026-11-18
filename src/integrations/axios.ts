@@ -45,6 +45,8 @@ useLoginData.subscribe(() => {
   client.defaults.sessionScope = getSessionScope();
 });
 
+const abortSignal = (signal: unknown) => (signal instanceof AbortSignal ? signal : undefined);
+
 const bearer = (token: string | null) => (token ? `Bearer ${token}` : undefined);
 
 const prepareTransport = (config: InternalAxiosRequestConfig) => {
@@ -103,7 +105,7 @@ client.interceptors.request.use(async (config) => {
 
   const token =
     expired && referenceDataUserId && config.session !== false
-      ? await waitForSession(referenceDataUserId)
+      ? await waitForSession(referenceDataUserId, abortSignal(config.signal))
       : accessToken;
   if (!config.anonymous) assertSessionScope(config.sessionScope ?? getSessionScope());
   const authorization = bearer(token);
@@ -179,7 +181,9 @@ client.interceptors.response.use(
       useLoginData.getState().expireSession();
     }
 
-    config.headers.Authorization = bearer(await waitForSession(referenceDataUserId));
+    config.headers.Authorization = bearer(
+      await waitForSession(referenceDataUserId, abortSignal(config.signal)),
+    );
     return client.request(config);
   },
 );

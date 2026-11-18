@@ -82,3 +82,15 @@ export const generateReport = (
     signal,
     timeout: 0,
   });
+
+/** A Superset guest token for one embedded dashboard; callers keep it in memory only. */
+export async function fetchGuestToken(embeddedUuid: string, sentFor: string, signal: AbortSignal) {
+  const { data } = await client.get<{ token?: unknown }>('/reports/superset/guest-token', {
+    params: { embeddedUuid },
+    signal,
+    sentFor,
+  });
+  if (typeof data?.token !== 'string' || !data.token)
+    throw new Error('No guest token was returned');
+  return data.token;
+}

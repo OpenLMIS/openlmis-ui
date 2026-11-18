@@ -125,6 +125,8 @@ Optional features are turned on or off in two places:
 - **`SYSTEM_SETTINGS`** (`true` or `false`, off by default) offers the Settings page. Turn it on only
   where the reference data service stores the new UI's settings; the released versions do not. It
   is read from the environment alone, so it never appears among the flags below.
+- **`NATIVE_DASHBOARDS`** (`true` or `false`, off by default) opens dashboard reports inside the
+  new UI instead of the legacy UI. It is read from the environment alone; see [Dashboards](#dashboards).
 - **Settings > Feature Flags**, opened from the account menu at the top right, where an administrator's value wins over
   the environment's. Reset on a flag goes back to the environment's value, or the default.
 
@@ -138,6 +140,18 @@ Set the same value on the UI and reference data containers, and keep the legacy 
 during dual boot. The UI cannot detect a mismatch. This flag comes only from deployment
 configuration and is hidden from Settings > Feature Flags. For local development, set it
 under `featureFlags` in `public/config.json`.
+
+## Dashboards
+
+With `NATIVE_DASHBOARDS=true`, View Reports opens dashboards inside the new UI. With it off, they
+keep opening in the legacy UI.
+
+- Embedded Superset dashboards need `SUPERSET_URL`, the same public Superset address the legacy UI
+  uses, such as `https://superset.example.org`. It must be on another origin than the UI. Superset
+  must allow the UI's origin to frame it and list it in the dashboard's allowed domains, which a
+  working legacy setup on the same host already does.
+- Superset link dashboards and other links, such as Power BI, open in a frame with an Open In New
+  Tab link. The new UI never asks for the user's password to sign them in to Superset.
 
 ## Working offline
 

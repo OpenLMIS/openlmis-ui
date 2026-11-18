@@ -11,7 +11,11 @@ export type CatalogReport = ReportSummary &
 
 export type ReportGroup = ReportCategory & { reports: CatalogReport[] };
 export type TemplateReport = ReportSummary & { description?: string | null };
-export type DashboardReport = ReportSummary;
+export type DashboardReport = ReportSummary & {
+  type?: string | null;
+  url?: string | null;
+  embeddedUuid?: string | null;
+};
 
 export type ReportParameterDependency = {
   id?: string | null;
