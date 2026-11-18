@@ -91,7 +91,7 @@ function DashboardPage() {
         <DashboardViewer
           key={report.id}
           report={report}
-          supersetUrl={getSupersetUrl()}
+          supersetUrl={getSupersetUrl(report.embeddedUuid ? 'embedded' : 'legacy')}
           userId={userId}
           username={username}
         />

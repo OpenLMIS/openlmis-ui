@@ -3,6 +3,7 @@ import { create } from 'zustand';
 type RuntimeConfig = {
   reportingModules?: string[];
   supersetUrl?: string;
+  legacySupersetUrl?: string;
   defaultIssueReasonId?: string;
   defaultReceiveReasonId?: string;
   kitUnpackReasonId?: string;
@@ -42,6 +43,7 @@ export async function loadRuntimeConfig(): Promise<void> {
       featureFlags,
       reportingModules,
       supersetUrl,
+      legacySupersetUrl,
     } = parsed as Record<string, unknown>;
     useRuntimeConfigStore.setState({
       reportingModules: asString(reportingModules)
@@ -49,6 +51,7 @@ export async function loadRuntimeConfig(): Promise<void> {
         .map((module) => module.trim())
         .filter((module) => /^[a-zA-Z][\w-]*$/.test(module)),
       supersetUrl: asString(supersetUrl),
+      legacySupersetUrl: asString(legacySupersetUrl),
       defaultIssueReasonId: asString(defaultIssueReasonId),
       defaultReceiveReasonId: asString(defaultReceiveReasonId),
       kitUnpackReasonId: asString(kitUnpackReasonId),
@@ -80,9 +83,9 @@ export function getReportingModules(): string[] {
   return modules?.length ? [...new Set(modules)] : ['common', 'requisitions'];
 }
 
-/** The deployment's Superset address for embedded dashboards, never compiled in. */
-export function getSupersetUrl(): string | undefined {
-  return useRuntimeConfigStore.getState().supersetUrl;
+export function getSupersetUrl(mode: 'embedded' | 'legacy'): string | undefined {
+  const { supersetUrl, legacySupersetUrl } = useRuntimeConfigStore.getState();
+  return mode === 'legacy' ? (legacySupersetUrl ?? supersetUrl) : supersetUrl;
 }
 
 export function useDeploymentFlags(): Record<string, unknown> {

@@ -149,7 +149,8 @@ and the dashboards available to the signed-in user.
   must allow the UI's origin to frame it and list it in the dashboard's allowed domains, which a
   working legacy setup on the same host already does.
 - Superset link dashboards without an embedded id use the older reporting stack with the
-  OpenLMIS sign-in add-on. Their URLs must use the origin configured in `SUPERSET_URL`. The UI
+  OpenLMIS sign-in add-on. Their URLs must use the origin configured in `SUPERSET_URL`, or
+  `LEGACY_SUPERSET_URL` if the older stack runs separately. The UI
   checks that the Superset session belongs to the current OpenLMIS user before opening the
   dashboard. Superset must allow the UI's origin for credentialed CORS, including `GET /api/v1/me/`,
   and allow the UI to frame the dashboard. The OAuth client must accept the Superset redirect address.

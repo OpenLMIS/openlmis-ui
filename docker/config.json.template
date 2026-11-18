@@ -1,6 +1,7 @@
 {
   "reportingModules": "${REPORTING_SERVICES}",
   "supersetUrl": "${SUPERSET_URL}",
+  "legacySupersetUrl": "${LEGACY_SUPERSET_URL}",
   "defaultIssueReasonId": "${DEFAULT_ISSUE_REASON_ID}",
   "defaultReceiveReasonId": "${DEFAULT_RECEIVE_REASON_ID}",
   "kitUnpackReasonId": "${KIT_UNPACK_REASON_ID}",
