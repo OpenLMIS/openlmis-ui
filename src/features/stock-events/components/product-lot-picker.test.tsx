@@ -490,6 +490,10 @@ describe('ProductLotPicker with approved products', () => {
   });
 
   it('searches by name without a count hint and keeps the picked product across searches', async () => {
+    vi.mocked(fetchLotsByTradeItems).mockResolvedValue([
+      existingLot,
+      { ...existingLot, id: 'lot-b', lotCode: 'LOT-B', expirationDate: null },
+    ]);
     const { user, onAdd } = renderApproved();
     const product = await productBox();
     await user.click(product);
@@ -513,7 +517,8 @@ describe('ProductLotPicker with approved products', () => {
     expect(screen.getByRole('option', { name: 'Aspirin' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
     await user.click(screen.getByRole('combobox', { name: 'Lot Code' }));
-    await user.click(await screen.findByRole('option', { name: /^LOT-A/ }));
+    expect(await screen.findByRole('option', { name: 'LOT-B' })).toBeVisible();
+    await user.click(screen.getByRole('option', { name: 'LOT-A / Jan 1, 2030' }));
     await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(onAdd).toHaveBeenCalledWith(
       { orderable: aspirin, lot: existingLot, stockOnHand: 40 },

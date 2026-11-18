@@ -554,10 +554,15 @@ function ApprovedProductLotPicker({
   const lotChoices: (ReceiveLotOption | NonNullable<typeof typedLot>)[] = typedLot
     ? lotOptions.flatMap((item) => (item.value === ADD_NEW_LOT ? [item, typedLot] : [item]))
     : lotOptions;
-  const lotItems = lotChoices.map((item) => ({
-    value: item.value,
-    label: 'label' in item && item.label !== undefined ? item.label : t(item.labelKey),
-  }));
+  const lotItems = lotChoices.map((item) => {
+    if (!('label' in item) || item.label === undefined)
+      return { value: item.value, label: t(item.labelKey) };
+    const expiry =
+      item.value === TYPED_NEW_LOT
+        ? ''
+        : formatDateValue(item.lot?.expirationDate ?? '', i18n.language);
+    return { value: item.value, label: expiry ? `${item.label} / ${expiry}` : item.label };
+  });
   const shownLot = addingNewLot && typedLot ? typedLot : pickedLot;
   const pickLot = (value: string | null) => {
     if (cards && value === ADD_NEW_LOT) setNewLotDialog({ check: false });
