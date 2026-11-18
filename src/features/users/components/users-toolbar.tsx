@@ -14,6 +14,7 @@ import {
   type UsersSearch,
 } from '@/features/users/lib/search';
 import { searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type UsersToolbarProps = {
   search: UsersSearch;
@@ -82,7 +83,7 @@ export function UsersToolbar({
         />
       </div>
       <div className="w-full @2xl/main:w-auto">
-        <Button size="lg" onClick={onAdd} width="full">
+        <Button data-tour={TOUR_ANCHORS.listCreate} size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('users.add')}
         </Button>

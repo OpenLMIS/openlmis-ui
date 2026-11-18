@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { PRODUCT_HIDEABLE_COLUMNS, type ProductsSearch } from '@/features/products/lib/search';
 import { programsOptions } from '@/features/reference-data/api/queries';
 import { toProgramFilter } from '@/features/reference-data/lib/program-filter';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type ProductsToolbarProps = {
   search: ProductsSearch;
@@ -78,7 +79,7 @@ export function ProductsToolbar({
       </div>
       {onAdd && (
         <div className="w-full @2xl/main:w-auto">
-          <Button size="lg" onClick={onAdd} width="full">
+          <Button data-tour={TOUR_ANCHORS.listCreate} size="lg" onClick={onAdd} width="full">
             <PlusIcon data-icon="inline-start" />
             {t('products.add')}
           </Button>

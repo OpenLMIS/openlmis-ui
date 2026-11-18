@@ -10,6 +10,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMenuOpensDialog } from '@/hooks/use-menu-opens-dialog';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export type CardAction = {
   id: string;
@@ -97,7 +98,7 @@ export function RowActions({
   if (actions.length === 0) return null;
   if ((variant === 'icons' && actions.length <= 2) || (variant === 'menu' && cards))
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end" data-tour={TOUR_ANCHORS.listRowActions}>
         <CardActions
           actions={disabled ? actions.map((action) => ({ ...action, disabled })) : actions}
           label={label}
@@ -105,7 +106,7 @@ export function RowActions({
       </div>
     );
   return (
-    <div className="flex justify-end">
+    <div className="flex justify-end" data-tour={TOUR_ANCHORS.listRowActions}>
       <CardActionsMenu
         actions={actions}
         data={data}

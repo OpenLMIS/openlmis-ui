@@ -9,6 +9,7 @@ import {
   type SchedulesSearch,
 } from '@/features/processing-schedules/lib/search';
 import { searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type SchedulesToolbarProps = {
   search: SchedulesSearch;
@@ -41,7 +42,13 @@ export function SchedulesToolbar({
         />
       )}
       <div className="flex-1 @2xl/main:ms-auto @2xl/main:w-auto @2xl/main:flex-none">
-        <Button size="lg" disabled={disabled} onClick={onAdd} width="full">
+        <Button
+          data-tour={disabled ? undefined : TOUR_ANCHORS.listCreate}
+          size="lg"
+          disabled={disabled}
+          onClick={onAdd}
+          width="full"
+        >
           <PlusIcon data-icon="inline-start" />
           {t('processing-schedules.add')}
         </Button>

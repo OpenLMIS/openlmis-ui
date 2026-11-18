@@ -1,5 +1,6 @@
 import { CheckIcon, XIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function FlagBadge({
   value,
@@ -11,12 +12,12 @@ export function FlagBadge({
   falseLabel: string;
 }) {
   return value ? (
-    <Badge variant="success">
+    <Badge data-tour={TOUR_ANCHORS.listFlag} variant="success">
       <CheckIcon data-icon="inline-start" />
       {trueLabel}
     </Badge>
   ) : (
-    <Badge variant="destructive">
+    <Badge data-tour={TOUR_ANCHORS.listFlag} variant="destructive">
       <XIcon data-icon="inline-start" />
       {falseLabel}
     </Badge>

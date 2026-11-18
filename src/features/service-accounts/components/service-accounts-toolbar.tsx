@@ -8,6 +8,7 @@ import {
   type ServiceAccountsSearch,
 } from '@/features/service-accounts/lib/search';
 import { searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type ServiceAccountsToolbarProps = {
   search: ServiceAccountsSearch;
@@ -26,7 +27,13 @@ export function ServiceAccountsToolbar({
 }: ServiceAccountsToolbarProps) {
   const { t } = useTranslation();
   const add = (
-    <Button disabled={disabled} onClick={onAdd} size="lg" width="full">
+    <Button
+      data-tour={disabled ? undefined : TOUR_ANCHORS.listCreate}
+      disabled={disabled}
+      onClick={onAdd}
+      size="lg"
+      width="full"
+    >
       <PlusIcon data-icon="inline-start" />
       {t('service-accounts.add')}
     </Button>

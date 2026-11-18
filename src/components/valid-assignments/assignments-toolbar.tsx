@@ -19,6 +19,7 @@ import {
 import type { AssignmentKind } from '@/components/valid-assignments/types';
 import { minimalFacilitiesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { withPicked } from '@/lib/filter-options';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type AssignmentsToolbarProps = {
   kind: AssignmentKind;
@@ -92,7 +93,7 @@ export function AssignmentsToolbar({
         />
       </div>
       <div className="w-full @2xl/main:w-auto">
-        <Button size="lg" onClick={onAdd} width="full">
+        <Button data-tour={TOUR_ANCHORS.listCreate} size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('valid-assignments.add', { kind })}
         </Button>

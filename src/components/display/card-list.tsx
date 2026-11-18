@@ -4,6 +4,7 @@ import { DataTableCard, DataTablePagerCard } from '@/components/data-table/data-
 import { DataTablePaginationSkeleton } from '@/components/data-table/data-table-pagination';
 import { SettingsRowFrame } from '@/components/form/settings-list';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { cn } from '@/lib/utils';
 
 type CardListProps = {
@@ -24,7 +25,7 @@ export function CardList({
   padding,
 }: CardListProps) {
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4" data-tour={TOUR_ANCHORS.listTable}>
       <div aria-busy={busy || undefined} className="transition-opacity aria-busy:opacity-60">
         {empty ? (
           <DataTableCard>{empty}</DataTableCard>

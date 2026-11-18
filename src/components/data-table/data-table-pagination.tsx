@@ -71,6 +71,7 @@ export function DataTablePagination<TData extends RowData>({
 
   return (
     <PaginationLayout
+      anchor="list-pager"
       layout={layout}
       controls={
         <div className="flex items-center gap-1">
@@ -207,6 +208,7 @@ type PaginationLayoutProps = {
   range: ReactNode;
   controls: ReactNode;
   layout?: 'default' | 'centered';
+  anchor?: 'list-pager';
 };
 
 function PaginationLayout({
@@ -214,17 +216,18 @@ function PaginationLayout({
   range,
   controls,
   layout = 'default',
+  anchor,
 }: PaginationLayoutProps) {
   if (layout === 'centered') {
     return (
-      <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
+      <div className="flex flex-wrap items-center justify-center gap-3 text-sm" data-tour={anchor}>
         {range}
         {controls}
       </div>
     );
   }
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm" data-tour={anchor}>
       {pageSize}
       <div className="ms-auto flex flex-wrap items-center justify-end gap-3">
         {range}

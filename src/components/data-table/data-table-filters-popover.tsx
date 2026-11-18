@@ -32,7 +32,14 @@ export function DataTableFilters({
     >
       <PopoverTrigger
         render={
-          <Button disabled={disabled} size={size} type="button" variant="outline" width="full" />
+          <Button
+            data-tour={disabled ? undefined : 'list-filters'}
+            disabled={disabled}
+            size={size}
+            type="button"
+            variant="outline"
+            width="full"
+          />
         }
       >
         <FilterIcon data-icon="inline-start" />

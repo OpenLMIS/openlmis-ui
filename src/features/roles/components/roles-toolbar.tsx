@@ -15,6 +15,7 @@ import {
   type RolesSearch,
 } from '@/features/roles/lib/search';
 import { searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type RolesToolbarProps = {
   search: RolesSearch;
@@ -77,7 +78,7 @@ export function RolesToolbar({
       </div>
       {onCreate && (
         <div className="w-full @2xl/main:w-auto">
-          <Button size="lg" onClick={onCreate} width="full">
+          <Button data-tour={TOUR_ANCHORS.listCreate} size="lg" onClick={onCreate} width="full">
             <PlusIcon data-icon="inline-start" />
             {t('roles.create')}
           </Button>

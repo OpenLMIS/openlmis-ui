@@ -19,6 +19,7 @@ import { geographicZonesOptions } from '@/features/reference-data/api/queries';
 import { toZoneOption } from '@/features/reference-data/lib/zone-filter';
 import { withPicked } from '@/lib/filter-options';
 import { searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type FacilitiesToolbarProps = {
   search: FacilitiesSearch;
@@ -89,7 +90,7 @@ export function FacilitiesToolbar({
         />
       </div>
       <div className="w-full @2xl/main:w-auto">
-        <Button size="lg" onClick={onAdd} width="full">
+        <Button data-tour={TOUR_ANCHORS.listCreate} size="lg" onClick={onAdd} width="full">
           <PlusIcon data-icon="inline-start" />
           {t('facilities.add')}
         </Button>

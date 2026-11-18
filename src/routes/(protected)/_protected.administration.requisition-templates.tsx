@@ -24,6 +24,7 @@ import { ProgramTemplateSections } from '@/features/requisition-templates/compon
 import { TemplatesSkeleton } from '@/features/requisition-templates/components/templates-skeleton';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const searchSchema = z.object({ template: z.literal('new').optional().catch(undefined) });
 type TemplatesSearch = z.infer<typeof searchSchema>;
@@ -59,7 +60,12 @@ function TemplatesHeader({ pending = false, onAdd }: { pending?: boolean; onAdd?
         <WorkspaceDescription>{t('requisition-templates.description')}</WorkspaceDescription>
       </WorkspaceHeading>
       <WorkspaceActions>
-        <Button disabled={pending} onClick={onAdd} size="lg">
+        <Button
+          data-tour={pending ? undefined : TOUR_ANCHORS.listCreate}
+          disabled={pending}
+          onClick={onAdd}
+          size="lg"
+        >
           <PlusIcon data-icon="inline-start" />
           {t('requisition-templates.add')}
         </Button>
