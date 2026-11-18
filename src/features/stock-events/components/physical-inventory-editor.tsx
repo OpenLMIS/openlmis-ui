@@ -124,6 +124,7 @@ import { isOnline, useOnline } from '@/lib/online';
 import { reportCaughtError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const NO_SORT = { id: 'product', desc: false };
 const helper = createColumnHelper<DataTableFeatures, InventoryProductGroup>();
@@ -829,53 +830,57 @@ function InventoryDraftRows({
           description={t('physical-inventory.load-error-description')}
         />
       ) : null}
-      {filtered.length ? (
-        <PhysicalInventoryGrid
-          cards={cards}
-          listRef={pageStart.ref}
-          bands={page.bands}
-          visibility={visibility}
-          showVvm={showVvm}
-          showActions={showActions}
-          editor={editor}
-          footer={
-            <InventoryPagination
-              table={table}
-              form={form}
-              lines={filtered}
-              validationAttempted={validationAttempted}
-              includeInactive={Boolean(search.includeInactive)}
-              size={deferred.size ?? INVENTORY_PAGE_SIZE}
-            />
-          }
-        />
-      ) : (
-        <DataTableEmpty
-          title={t(hasFilters ? 'stock-events.no-matches-title' : 'physical-inventory.empty-title')}
-          description={t(
-            hasFilters
-              ? 'stock-events.no-matches-description'
-              : 'physical-inventory.empty-description',
-          )}
-          icon={<ClipboardListIcon />}
-          action={
-            hasFilters ? (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  onSearchChange({
-                    keyword: undefined,
-                    includeInactive: undefined,
-                    page: undefined,
-                  })
-                }
-              >
-                {t('stock-on-hand.clear-filters')}
-              </Button>
-            ) : undefined
-          }
-        />
-      )}
+      <div data-tour={TOUR_ANCHORS.physicalInventoryLines}>
+        {filtered.length ? (
+          <PhysicalInventoryGrid
+            cards={cards}
+            listRef={pageStart.ref}
+            bands={page.bands}
+            visibility={visibility}
+            showVvm={showVvm}
+            showActions={showActions}
+            editor={editor}
+            footer={
+              <InventoryPagination
+                table={table}
+                form={form}
+                lines={filtered}
+                validationAttempted={validationAttempted}
+                includeInactive={Boolean(search.includeInactive)}
+                size={deferred.size ?? INVENTORY_PAGE_SIZE}
+              />
+            }
+          />
+        ) : (
+          <DataTableEmpty
+            title={t(
+              hasFilters ? 'stock-events.no-matches-title' : 'physical-inventory.empty-title',
+            )}
+            description={t(
+              hasFilters
+                ? 'stock-events.no-matches-description'
+                : 'physical-inventory.empty-description',
+            )}
+            icon={<ClipboardListIcon />}
+            action={
+              hasFilters ? (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    onSearchChange({
+                      keyword: undefined,
+                      includeInactive: undefined,
+                      page: undefined,
+                    })
+                  }
+                >
+                  {t('stock-on-hand.clear-filters')}
+                </Button>
+              ) : undefined
+            }
+          />
+        )}
+      </div>
       <InventoryActions
         draft={draft}
         eligibleUpdatedAfter={entryUpdatedAfter}

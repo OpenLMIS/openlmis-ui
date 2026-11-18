@@ -65,6 +65,7 @@ import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 class UnknownSubmit extends Error {}
 class InventoryOrphaned extends Error {
@@ -399,6 +400,7 @@ export function InventoryActions(props: Props) {
       <WorkspaceFooterPortal width="wide">
         <ActionTooltip reason={deleteReason}>
           <Button
+            data-tour={TOUR_ANCHORS.physicalInventoryDelete}
             size="lg"
             variant="destructive"
             disabled={disabled || props.conflicted || !online}
@@ -409,7 +411,10 @@ export function InventoryActions(props: Props) {
             {t('physical-inventory.delete')}
           </Button>
         </ActionTooltip>
-        <div className="flex flex-wrap justify-end gap-2">
+        <div
+          className="flex flex-wrap justify-end gap-2"
+          data-tour={TOUR_ANCHORS.physicalInventoryActions}
+        >
           <ActionTooltip reason={writeReason}>
             <Button
               ref={saveButton}

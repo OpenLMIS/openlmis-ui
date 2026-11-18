@@ -136,3 +136,17 @@ it('uses phone skeleton cards with visible details', () => {
   expect(screen.getAllByText('stock-events.vvm-status')).toHaveLength(5);
   expect(screen.getByRole('button', { name: 'View' })).toBeDisabled();
 });
+
+it('keeps guide anchors off the loading toolbar, so a guide never starts on placeholders', () => {
+  const props = {
+    search: { keyword: undefined, page: undefined, size: undefined, includeInactive: undefined },
+    quantityUnit,
+    view: { visibility: {}, onVisibilityChange: vi.fn(), onReset: vi.fn() },
+    progress: null,
+    save: null,
+  };
+  const { container, rerender } = render(<InventoryToolbar {...props} disabled />);
+  expect(container.querySelector('[data-tour]')).toBeNull();
+  rerender(<InventoryToolbar {...props} />);
+  expect(container.querySelectorAll('[data-tour]')).toHaveLength(6);
+});

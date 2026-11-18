@@ -43,6 +43,16 @@ export const TOUR_ANCHORS = {
   transactionDetailsUnit: 'transaction-details-unit',
   transactionDetailsView: 'transaction-details-view',
   transactionDetailsLines: 'transaction-details-lines',
+  physicalInventoryPrograms: 'physical-inventory-programs',
+  physicalInventoryProgress: 'physical-inventory-progress',
+  physicalInventoryFilters: 'physical-inventory-filters',
+  physicalInventorySaved: 'physical-inventory-saved',
+  physicalInventoryUnit: 'physical-inventory-unit',
+  physicalInventoryView: 'physical-inventory-view',
+  physicalInventoryAdd: 'physical-inventory-add',
+  physicalInventoryLines: 'physical-inventory-lines',
+  physicalInventoryDelete: 'physical-inventory-delete',
+  physicalInventoryActions: 'physical-inventory-actions',
 } as const;
 
 /** Anchor of one sidebar menu section, keyed by its navigation title key. */
