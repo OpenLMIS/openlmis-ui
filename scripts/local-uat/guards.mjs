@@ -6,7 +6,7 @@ const READS = new Set(['GET', 'HEAD']);
 export function safePath(rawUrl) {
   if (typeof rawUrl !== 'string' || !rawUrl.startsWith('/')) return null;
   const path = rawUrl.split(/[?#]/, 1)[0];
-  if (/\\|%2f|%5c|%2e|%00|\/\/|(^|\/)\.\.?(\/|$)/i.test(path)) return null;
+  if (/\\|%|;|\/\/|(^|\/)\.\.?(\/|$)/.test(path)) return null;
   return path;
 }
 
@@ -14,7 +14,8 @@ export function safePath(rawUrl) {
 export function apiDecision(method, rawUrl, headers = {}) {
   const path = safePath(rawUrl);
   if (!path || headers['x-http-method-override'] || headers['x-method-override']) return 'deny';
-  if (READS.has(method)) return /^\/api\/orders\/[^/]+\/retry$/.test(path) ? 'deny' : 'forward';
+  if (!/^\/(api|localeSettings)(\/|$)/.test(path)) return 'deny';
+  if (READS.has(method)) return /^\/api\/orders\/[^/]+\/retry\/?$/.test(path) ? 'deny' : 'forward';
   if (method === 'POST' && path === '/api/users/auth/logout') return 'local-logout';
   if (method === 'POST' && path === '/api/oauth/token') {
     const query = new URLSearchParams(rawUrl.slice(rawUrl.indexOf('?') + 1));

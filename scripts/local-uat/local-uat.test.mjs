@@ -3,6 +3,7 @@ import http from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
 import { apiDecision } from './guards.mjs';
 import { createSupersetProxy } from './superset-proxy.mjs';
+import { localUatGuard } from './vite-guard.mjs';
 
 const servers = [];
 afterEach(async () => {
@@ -157,6 +158,9 @@ describe('OpenLMIS API guard', () => {
     ['POST', '/api/oauth/token?grant_type=client_credentials', 'deny'],
     ['POST', '/api/users/auth/logout', 'local-logout'],
     ['GET', '/api/orders/o1/retry', 'deny'],
+    ['GET', '/api/orders/o1/retry/', 'deny'],
+    ['GET', '/api/orders/o1/%72etry', 'deny'],
+    ['GET', '/api/orders/o1/retry;extra', 'deny'],
     ['GET', '/api/orders/o1/../o1/retry', 'deny'],
     ['PUT', '/api/users/u1', 'deny'],
     ['POST', '/api/stockEvents', 'deny'],
@@ -167,5 +171,40 @@ describe('OpenLMIS API guard', () => {
 
   it('refuses a read that asks to be treated as another method', () => {
     expect(apiDecision('GET', '/api/users', { 'x-http-method-override': 'DELETE' })).toBe('deny');
+  });
+});
+
+describe('Vite API middleware', () => {
+  it('guards every raw API prefix the Vite proxy forwards before middleware can fall through', async () => {
+    let middleware;
+    localUatGuard({ supersetOrigin: 'http://localhost:5174' }).configureServer({
+      middlewares: {
+        use: (handler) => {
+          middleware = handler;
+        },
+      },
+    });
+    const forwarded = [];
+    const server = http.createServer((request, response) => {
+      middleware(request, response, () => {
+        forwarded.push(request.url);
+        response.end('read forwarded');
+      });
+    });
+    const port = await listen(server);
+    const send = (path, method) =>
+      new Promise((resolve, reject) => {
+        const request = http.request({ host: '127.0.0.1', port, path, method }, (response) => {
+          response.resume();
+          response.on('end', () => resolve(response.statusCode));
+        });
+        request.on('error', reject);
+        request.end();
+      });
+    for (const path of ['/api%2fusers', '/api;extra/users', '/apix', '/localeSettings;extra']) {
+      expect(await send(path, 'POST')).toBe(405);
+    }
+    expect(await send('/api/facilities?page=0', 'GET')).toBe(200);
+    expect(forwarded).toEqual(['/api/facilities?page=0']);
   });
 });

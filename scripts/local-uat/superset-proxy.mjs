@@ -44,10 +44,7 @@ function mapOrigin(value, { localOrigin, upstreamOrigin, uiOrigin, upstreamUiOri
     : `${target}/`;
 }
 
-/**
- * @param {{ upstream: string, localOrigin: string, uiOrigin: string, upstreamUiOrigin: string,
- *   log?: (line: string) => void }} options
- */
+/** @param {{ upstream: string, localOrigin: string, uiOrigin: string, upstreamUiOrigin: string, log?: (line: string) => void }} options */
 export function createSupersetProxy({ upstream, localOrigin, uiOrigin, upstreamUiOrigin, log }) {
   const upstreamUrl = new URL(upstream);
   const upstreamOrigin = upstreamUrl.origin;

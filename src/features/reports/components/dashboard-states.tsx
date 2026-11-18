@@ -85,8 +85,10 @@ export function DashboardFailureState({
 }) {
   const { t } = useTranslation();
   const title = useFailureFocus<HTMLDivElement>(focus);
+  const offlineTitle = useFailureFocus<HTMLHeadingElement>(focus);
   const offline = useOfflineFailure(failure.error, onRetry, failure.kind === 'offline');
-  if (offline || failure.kind === 'offline') return <OfflineNotice onRetry={onRetry} />;
+  if (offline || failure.kind === 'offline')
+    return <OfflineNotice onRetry={onRetry} headingRef={offlineTitle} />;
   if (failure.kind === 'not-set-up') return <DashboardNotSetUp titleRef={title} />;
   const [titleKey, descriptionKey] = FAILURE_TEXT[failure.kind];
   const back = failure.kind === 'refused' || failure.kind === 'not-registered';

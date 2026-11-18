@@ -44,7 +44,7 @@ export function OfflineNotice({
           <WifiOffIcon />
         </EmptyMedia>
         <EmptyTitle size={headingLevel === 1 ? 'lg' : 'default'}>
-          <Heading ref={headingRef} tabIndex={headingLevel === 1 ? -1 : undefined}>
+          <Heading ref={headingRef} tabIndex={headingLevel === 1 || headingRef ? -1 : undefined}>
             {t(title)}
           </Heading>
         </EmptyTitle>

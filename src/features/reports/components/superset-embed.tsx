@@ -1,5 +1,5 @@
 import type { EmbeddedDashboard } from '@superset-ui/embedded-sdk';
-import { CanceledError, isCancel } from 'axios';
+import { CanceledError, isAxiosError, isCancel } from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { fetchGuestToken } from '@/features/reports/api/api';
 import {
@@ -11,6 +11,7 @@ import {
   tokenFailure,
 } from '@/features/reports/components/dashboard-states';
 import { isOnline } from '@/lib/online';
+import { reportCaughtError } from '@/lib/report-error';
 import { SessionEndedError } from '@/lib/session-scope';
 
 /** Below the SDK's own 30-second limit, so a slow token request fails visibly here first. */
@@ -96,6 +97,13 @@ export function SupersetEmbed({
     const fail = (failure: DashboardFailure) => {
       if (disposed) return;
       dispose();
+      if (failure.kind !== 'offline') {
+        const status = isAxiosError(failure.error) ? failure.error.response?.status : undefined;
+        const detail = typeof status === 'number' ? ` (HTTP ${status})` : '';
+        reportCaughtError(new Error(`Dashboard failed: ${failure.kind}${detail}`), {
+          componentStack: 'SupersetEmbed',
+        });
+      }
       setStatus({ kind: 'failed', failure });
     };
 

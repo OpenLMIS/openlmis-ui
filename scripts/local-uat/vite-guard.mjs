@@ -16,9 +16,7 @@ export function noStoreGuestTokens(proxy) {
   });
 }
 
-/**
- * @param {{ supersetOrigin: string, log?: (line: string) => void }} options
- */
+/** @param {{ supersetOrigin: string, log?: (line: string) => void }} options */
 export function localUatGuard({ supersetOrigin, log }) {
   let base = '/';
   return {
@@ -41,7 +39,7 @@ export function localUatGuard({ supersetOrigin, log }) {
             featureFlags: { ...deployed.featureFlags, NATIVE_DASHBOARDS: true },
           });
         }
-        if (!/^\/(api|localeSettings)(\/|\?|$)/.test(rawUrl)) return next();
+        if (!rawUrl.startsWith('/api') && !rawUrl.startsWith('/localeSettings')) return next();
         const decision = apiDecision(method, rawUrl, request.headers);
         if (decision === 'forward') return next();
         request.resume();

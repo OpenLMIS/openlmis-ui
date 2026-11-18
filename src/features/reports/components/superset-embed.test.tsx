@@ -8,6 +8,7 @@ import { fetchGuestToken } from '@/features/reports/api/api';
 import { DashboardViewer } from '@/features/reports/components/dashboard-viewer';
 import { HANDSHAKE_LIMIT_MS, TOKEN_LIMIT_MS } from '@/features/reports/components/superset-embed';
 import type { DashboardReport } from '@/features/reports/lib/types';
+import { reportCaughtError } from '@/lib/report-error';
 import { SessionEndedError } from '@/lib/session-scope';
 import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
@@ -16,6 +17,7 @@ const sdk = vi.hoisted(() => ({ embedDashboard: vi.fn() }));
 // Dev and production bundles both expose the CommonJS SDK only as a default export.
 vi.mock('@superset-ui/embedded-sdk', () => ({ default: sdk, embedDashboard: undefined }));
 vi.mock('@/features/reports/api/api', () => ({ fetchGuestToken: vi.fn() }));
+vi.mock('@/lib/report-error', () => ({ reportCaughtError: vi.fn() }));
 
 const report: DashboardReport = {
   id: 'r1',
@@ -155,10 +157,21 @@ it('asks for one token at a time and maps a renewal failure in the callback', as
   expect(fetchGuestToken).toHaveBeenCalledOnce();
   await connect(embedding);
 
-  vi.mocked(fetchGuestToken).mockRejectedValueOnce(httpError(403));
+  const failure = httpError(403);
+  failure.config = {
+    headers: { Authorization: 'synthetic-private-value' },
+  } as typeof failure.config;
+  vi.mocked(fetchGuestToken).mockRejectedValueOnce(failure);
   await act(() => expect(embedding.params.fetchGuestToken()).rejects.toThrow());
 
   expect(screen.getByRole('alert')).toHaveTextContent('reports.dashboard.refused-title');
+  expect(reportCaughtError).toHaveBeenCalledWith(
+    new Error('Dashboard failed: refused (HTTP 403)'),
+    { componentStack: 'SupersetEmbed' },
+  );
+  expect(JSON.stringify(vi.mocked(reportCaughtError).mock.calls)).not.toContain(
+    'synthetic-private-value',
+  );
   expect(screen.queryByTitle('Stock Dashboard')).not.toBeInTheDocument();
 });
 
