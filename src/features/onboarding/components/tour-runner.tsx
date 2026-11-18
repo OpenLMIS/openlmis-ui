@@ -1,7 +1,8 @@
-import { useEffect, useEffectEvent, useMemo, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EVENTS, PORTAL_ELEMENT_ID, type Step, useJoyride } from 'react-joyride';
 import { useDirection } from '@/components/ui/direction';
+import { TourLegend } from '@/features/onboarding/components/tour-legend';
 import { TourTooltip } from '@/features/onboarding/components/tour-tooltip';
 import { toJoyridePlacement } from '@/features/onboarding/lib/placement';
 import type { Tour, TourStep } from '@/features/onboarding/lib/types';
@@ -57,6 +58,24 @@ function setSectionOpen(anchor: TourAnchor, open: boolean) {
   if (isSectionOpen(anchor) !== open) sectionTrigger(anchor)?.click();
 }
 
+const isSelected = (anchor: TourAnchor) =>
+  document.querySelector(anchorSelector(anchor))?.getAttribute('aria-selected') === 'true';
+
+/** Clicks the tab and waits until it is selected, at most two seconds. */
+async function selectTab(anchor: TourAnchor, follow: () => void) {
+  if (isSelected(anchor)) return;
+  follow();
+  document.querySelector<HTMLElement>(anchorSelector(anchor))?.click();
+  for (let frame = 0; frame < 120 && !isSelected(anchor); frame++) await nextFrame();
+  await nextFrame();
+}
+
+/** The header cell of the column with this label inside the part, when the part is a table. */
+const columnHeader = (anchor: TourAnchor, label: string) =>
+  Array.from(document.querySelectorAll<HTMLElement>(`${anchorSelector(anchor)} th`)).find(
+    (cell) => cell.textContent?.trim() === label && isShown(cell),
+  ) ?? null;
+
 const isSidebarShortcut = (event: KeyboardEvent) =>
   (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b';
 
@@ -83,10 +102,12 @@ type TourRunnerProps = {
   tour: Tour;
   onEnd: () => void;
   onReady: () => void;
+  /** Called before the tour changes the address itself, by switching a tab. */
+  onFollow: () => void;
 };
 
 /** Plays the steps whose part of the page is shown, once the page stops loading. */
-export function TourRunner({ tour, onEnd, onReady }: TourRunnerProps) {
+export function TourRunner({ tour, onEnd, onReady, onFollow }: TourRunnerProps) {
   const [steps, setSteps] = useState(() => presentSteps(tour));
   const giveUp = useEffectEvent(onEnd);
   const ready = useEffectEvent(onReady);
@@ -111,10 +132,18 @@ export function TourRunner({ tour, onEnd, onReady }: TourRunnerProps) {
     return () => window.clearInterval(timer);
   }, [steps.length, tour]);
 
-  return steps.length ? <TourPlayer steps={steps} onEnd={onEnd} /> : null;
+  return steps.length ? <TourPlayer steps={steps} onEnd={onEnd} onFollow={onFollow} /> : null;
 }
 
-function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () => void }) {
+function TourPlayer({
+  steps,
+  onEnd,
+  onFollow,
+}: {
+  steps: readonly TourStep[];
+  onEnd: () => void;
+  onFollow: () => void;
+}) {
   const { t } = useTranslation();
   const direction = useDirection();
   const appearance = useResolvedAppearance();
@@ -128,7 +157,18 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
   const [userSection] = useState(
     () => steps.find((step) => step.expand && isSectionOpen(step.anchor))?.anchor,
   );
-  const [startedAt] = useState(() => window.location.href);
+  // Likewise the tab the user was on, when the tour switches tabs.
+  const [userTab] = useState(() => {
+    const select = steps.find((step) => step.select)?.select;
+    const tab = select && document.querySelector(anchorSelector(select));
+    return tab
+      ?.closest('[role="tablist"]')
+      ?.querySelector('[aria-selected="true"]')
+      ?.getAttribute('data-tour') as TourAnchor | undefined;
+  });
+  const followRef = useRef(onFollow);
+  followRef.current = onFollow;
+  const [startedAt] = useState(() => window.location.pathname);
   const joyrideSteps = useMemo<Step[]>(
     () =>
       steps.map((step) => {
@@ -136,15 +176,30 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
         const target = step.expand
           ? `${anchorSelector(step.anchor)} > button`
           : anchorSelector(step.anchor);
+        // In a table, a column step sits beside and highlights that column's header.
+        const column = step.column && t(step.column);
+        const inColumn = (fallback: string) =>
+          column
+            ? () =>
+                columnHeader(step.spotlight ?? step.anchor, column) ??
+                document.querySelector<HTMLElement>(fallback)
+            : fallback;
         return {
-          target,
+          target: inColumn(target),
           // Joyride would scroll to the spotlight, hiding a target above it under the header.
           ...(step.spotlight && {
-            spotlightTarget: anchorSelector(step.spotlight),
-            scrollTarget: target,
+            spotlightTarget: inColumn(anchorSelector(step.spotlight)),
+            scrollTarget: inColumn(target),
           }),
           title: t(step.title),
-          content: t(step.content),
+          content: step.legend ? (
+            <>
+              <p>{t(step.content)}</p>
+              <TourLegend items={step.legend} />
+            </>
+          ) : (
+            t(step.content)
+          ),
           placement: toJoyridePlacement(step.placement ?? 'bottom', direction),
           ...(step.expand && {
             before: async () => {
@@ -152,6 +207,9 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
               await nextFrame();
             },
             after: () => setSectionOpen(step.anchor, false),
+          }),
+          ...(step.select && {
+            before: () => selectTab(step.select as TourAnchor, () => followRef.current()),
           }),
         };
       }),
@@ -161,13 +219,15 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
   // Leaving the page hands the menu to the next page, which opens its own section.
   useEffect(
     () => () => {
-      if (window.location.href !== startedAt) return;
+      if (window.location.pathname !== startedAt) return;
       for (const step of steps) {
         if (step.expand && step.anchor !== userSection) setSectionOpen(step.anchor, false);
       }
       if (userSection) setSectionOpen(userSection, true);
+      if (userTab && !isSelected(userTab))
+        document.querySelector<HTMLElement>(anchorSelector(userTab))?.click();
     },
-    [steps, userSection, startedAt],
+    [steps, userSection, userTab, startedAt],
   );
   const { controls, Tour } = useJoyride({
     steps: joyrideSteps,
