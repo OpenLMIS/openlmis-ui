@@ -69,6 +69,7 @@ describe('supervisory node edit loader', () => {
     server.node = version('New');
     await router.navigate({ to: '/supervisory-nodes/$id', params: { id: 'f1' } } as never);
 
+    expect(Route.options.staticData?.rights).toEqual(['SUPERVISORY_NODES_MANAGE']);
     expect(requireRouteRights).toHaveBeenCalledWith(
       queryClient,
       expect.objectContaining({

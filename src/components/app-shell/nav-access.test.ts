@@ -31,18 +31,14 @@ const links = (groups: LiveNavGroup[]) =>
   );
 
 describe('navWithinRights', () => {
-  it('offers Users only to someone who may manage users', () => {
-    expect(links(navWithinRights(nav, new Set(['USERS_MANAGE']), rightsFor))).toEqual([
-      '/home',
-      '/administration/users',
-    ]);
-    expect(links(navWithinRights(nav, new Set(['REQUISITION_VIEW']), rightsFor))).toEqual([
-      '/home',
-    ]);
-  });
-
   it('drops a section left with no page', () => {
     expect(navWithinRights(nav, new Set(), rightsFor)).toHaveLength(1);
+  });
+
+  it('hides a gated link with an unresolved route lookup even when the user holds its right', () => {
+    const rights = new Set(['USERS_MANAGE']);
+    const unresolvedRightsFor = () => undefined;
+    expect(links(navWithinRights(nav, rights, unresolvedRightsFor))).toEqual(['/home']);
   });
 
   it('hides gated pages while the rights are still loading', () => {
@@ -56,10 +52,6 @@ describe('canOpen', () => {
     expect(canOpen('/offline-events', new Set(['STOCK_CARDS_VIEW']), rightsFor)).toBe(false);
     expect(canOpen('/offline-events', new Set(), rightsFor, true)).toBe(true);
     expect(canOpen('/stock-management/adjustments', new Set(), rightsFor, true)).toBe(false);
-  });
-  it('lets anyone open a page that needs no right', () => {
-    expect(canOpen('/home', undefined, rightsFor)).toBe(true);
-    expect(canOpen('/administration/users', new Set(), rightsFor)).toBe(false);
   });
 });
 

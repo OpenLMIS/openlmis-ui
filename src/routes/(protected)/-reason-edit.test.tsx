@@ -104,6 +104,7 @@ describe('reasons routes', () => {
     for (const route of [ListRoute, AddRoute, EditRoute]) {
       vi.mocked(requireRouteRights).mockClear();
       await (route.options.loader as (args: unknown) => Promise<unknown>)({ ...context, route });
+      expect(route.options.staticData?.rights).toEqual(['STOCK_CARD_LINE_ITEM_REASONS_MANAGE']);
       expect(requireRouteRights).toHaveBeenCalledWith(queryClient, route);
     }
   });

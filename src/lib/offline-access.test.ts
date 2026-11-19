@@ -4,12 +4,7 @@ import { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import {
-  ForbiddenError,
-  isForbidden,
-  requirePermissions,
-  requireRight,
-} from '@/features/auth/lib/access';
+import { ForbiddenError, isForbidden, requirePermissions } from '@/features/auth/lib/access';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -129,7 +124,7 @@ describe('durable access', () => {
     expect(hasProgramGrant(permissions, 'STOCK_ADJUST', 'home', 'p1')).toBe(true);
     expect(hasProgramGrant(permissions, 'STOCK_ADJUST', 'elsewhere', 'p1')).toBe(false);
     expect(hasProgramGrant(permissions, 'STOCK_ADJUST', 'home', 'p2')).toBe(false);
-    await expect(requireRight(client, 'USERS_MANAGE')).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(requirePermissions(client, 'USERS_MANAGE')).rejects.toBeInstanceOf(ForbiddenError);
     const savedUser = await client.fetchQuery(userRecordOptions('ada'));
     const savedPrograms = await client.fetchQuery(userProgramsOptions('ada'));
     const savedHome = await client.fetchQuery(homeFacilityOptions(savedUser.homeFacilityId ?? ''));
@@ -164,7 +159,7 @@ describe('durable access', () => {
       vi.spyOn(Date, 'now').mockImplementation(() => now);
       const client = queryClient();
       const read = async () => {
-        await requireRight(client, 'STOCK_ADJUST');
+        await requirePermissions(client, 'STOCK_ADJUST');
         await client.fetchQuery(userRecordOptions('ada'));
         await client.fetchQuery(userProgramsOptions('ada'));
         await client.fetchQuery(homeFacilityOptions('home'));
@@ -198,7 +193,7 @@ describe('durable access', () => {
     client.setQueryData(userProgramsOptions('ada').queryKey, programs);
     await client.invalidateQueries({ queryKey: userProgramsOptions('ada').queryKey });
     onlineManager.setOnline(false);
-    await requireRight(client, 'STOCK_ADJUST');
+    await requirePermissions(client, 'STOCK_ADJUST');
     await client.fetchQuery(userRecordOptions('ada'));
     await client.fetchQuery(userProgramsOptions('ada'));
     await client.fetchQuery(homeFacilityOptions('home'));
@@ -209,7 +204,7 @@ describe('durable access', () => {
     vi.mocked(fetchFacility).mockResolvedValue({ ...home, supportedPrograms: [] });
     onlineManager.setOnline(true);
 
-    await expect(requireRight(client, 'STOCK_ADJUST')).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(requirePermissions(client, 'STOCK_ADJUST')).rejects.toBeInstanceOf(ForbiddenError);
     expect((await client.fetchQuery(userRecordOptions('ada'))).homeFacilityId).toBeNull();
     expect(await client.fetchQuery(userProgramsOptions('ada'))).toEqual([]);
     expect((await client.fetchQuery(homeFacilityOptions('home'))).supportedPrograms).toEqual([]);
@@ -220,7 +215,7 @@ describe('durable access', () => {
     await saveAccess(readers());
     onlineManager.setOnline(false);
     const client = queryClient();
-    await requireRight(client, 'STOCK_ADJUST');
+    await requirePermissions(client, 'STOCK_ADJUST');
     client.mount();
     const observer = new QueryObserver(client, permissionsOptions('ada'));
     const unsubscribe = observer.subscribe(() => {});
@@ -238,7 +233,7 @@ describe('durable access', () => {
   });
 
   it('missing access is an offline failure, never a forbidden or not-found result', async () => {
-    const error = await requireRight(queryClient(), 'STOCK_ADJUST').catch((error) => error);
+    const error = await requirePermissions(queryClient(), 'STOCK_ADJUST').catch((error) => error);
     expect(error).toBeInstanceOf(LocalDataUnavailableError);
     expect(isOfflineError(error)).toBe(true);
     expect(isForbidden(error)).toBe(false);
@@ -285,16 +280,16 @@ describe('durable access', () => {
     await saveAccess(readers());
     useLoginData.getState().clearLoginData();
     signIn('alan');
-    await expect(requireRight(queryClient(), 'STOCK_ADJUST')).rejects.toBeInstanceOf(
+    await expect(requirePermissions(queryClient(), 'STOCK_ADJUST')).rejects.toBeInstanceOf(
       LocalDataUnavailableError,
     );
     await expect(queryClient().fetchQuery(userRecordOptions('ada'))).rejects.toBeInstanceOf(
       LocalDataUnavailableError,
     );
     signIn('ada');
-    await expect(requireRight(queryClient(), 'STOCK_ADJUST')).resolves.toEqual(
-      new Set(['STOCK_ADJUST']),
-    );
+    await expect(requirePermissions(queryClient(), 'STOCK_ADJUST')).resolves.toMatchObject({
+      rights: new Set(['STOCK_ADJUST']),
+    });
   });
 
   it('never falls back after a definitive 403 server response', async () => {
@@ -306,7 +301,7 @@ describe('durable access', () => {
     vi.mocked(fetchUserPrograms).mockRejectedValue(failure);
     vi.mocked(fetchFacility).mockRejectedValue(failure);
     const client = queryClient();
-    await expect(requireRight(client, 'STOCK_ADJUST')).rejects.toBe(failure);
+    await expect(requirePermissions(client, 'STOCK_ADJUST')).rejects.toBe(failure);
     await expect(client.fetchQuery(userRecordOptions('ada'))).rejects.toBe(failure);
     await expect(client.fetchQuery(userProgramsOptions('ada'))).rejects.toBe(failure);
     await expect(client.fetchQuery(homeFacilityOptions('home'))).rejects.toBe(failure);
@@ -321,7 +316,7 @@ describe('durable access', () => {
       vi.mocked(fetchUserPrograms).mockResolvedValue(programs);
       vi.mocked(fetchFacility).mockResolvedValue(home);
       const client = queryClient();
-      await requireRight(client, 'STOCK_ADJUST');
+      await requirePermissions(client, 'STOCK_ADJUST');
       await client.fetchQuery(userRecordOptions('ada'));
       await client.fetchQuery(userProgramsOptions('ada'));
       await client.fetchQuery(homeFacilityOptions('home'));

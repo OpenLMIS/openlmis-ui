@@ -888,6 +888,7 @@ home facility, user programs, all facilities and page grants, following legacy:
   `requireRouteRights(queryClient, route)` before rendering. It reads the nearest declaration,
   including from a parent layout. A missing declaration fails closed. A user who lacks every listed
   right gets `ForbiddenError`.
+- Shared guard helpers take `route`. List new helpers in the static check in `src/integrations/route-rights.test.ts`.
 - Home and Profile are open after sign-in. Requisitions View and Offline Events declare rights
   for links and keep their custom access checks. Settings checks its feature flag before rights.
 - The sidebar, palette, breadcrumb and account links and Home's Add User shortcut read opening

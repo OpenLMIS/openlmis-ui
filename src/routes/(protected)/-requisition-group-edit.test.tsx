@@ -130,6 +130,7 @@ describe('requisition group edit loader', () => {
         cause: 'enter',
         deps: { query: { page: 0, size: 10 } },
       });
+      expect(route.options.staticData?.rights).toEqual(['REQUISITION_GROUPS_MANAGE']);
       expect(requireRouteRights).toHaveBeenCalledWith(queryClient, route);
     }
   });

@@ -108,6 +108,18 @@ const homeFacility: Facility = {
   })),
 };
 
+function loadEditor(queryClient: QueryClient, cause: 'enter' | 'stay' = 'enter') {
+  const loader = EditorRoute.options.loader;
+  if (!loader || typeof loader === 'function')
+    throw new Error('Expected object-form editor loader');
+  return loader.handler({
+    route: EditorRoute,
+    context: { queryClient },
+    params: { programId: FP },
+    cause,
+  } as Parameters<typeof loader.handler>[0]);
+}
+
 function renderRoute(
   path = PICKER,
   seed?: (client: QueryClient) => void,
@@ -381,40 +393,15 @@ it('reads fresh stock on every entry and keeps the cached stock on stay', async 
     { ...stock, stockOnHand: 5 },
   ]);
   vi.mocked(fetchInventoryStockLines).mockResolvedValue([stock]);
-  const loader = (
-    typeof EditorRoute.options.loader === 'function'
-      ? EditorRoute.options.loader
-      : EditorRoute.options.loader?.handler
-  ) as (args: {
-    route: typeof EditorRoute;
-    context: { queryClient: QueryClient };
-    params: { programId: string };
-    cause: string;
-  }) => Promise<unknown>;
-  await loader({
-    route: EditorRoute,
-    context: { queryClient },
-    params: { programId: FP },
-    cause: 'enter',
-  });
+  await loadEditor(queryClient);
   await waitFor(() =>
     expect(queryClient.getQueryData(inventoryStockLinesOptions(draft).queryKey)).toEqual([stock]),
   );
   const lines = queryClient.getQueryData(inventoryStockLinesOptions(draft).queryKey);
   expect(buildInventoryLines(lines ?? [], [])[0].stockOnHand).toBe(42);
-  await loader({
-    route: EditorRoute,
-    context: { queryClient },
-    params: { programId: FP },
-    cause: 'stay',
-  });
+  await loadEditor(queryClient, 'stay');
   expect(fetchInventoryStockLines).toHaveBeenCalledTimes(1);
-  await loader({
-    route: EditorRoute,
-    context: { queryClient },
-    params: { programId: FP },
-    cause: 'enter',
-  });
+  await loadEditor(queryClient);
   await waitFor(() => expect(fetchInventoryStockLines).toHaveBeenCalledTimes(2));
   expect(fetchInventorySummaries).toHaveBeenCalledTimes(2);
 });
@@ -424,22 +411,7 @@ it('starts the user read alongside permissions and prefetches lookups before a b
   vi.mocked(fetchPermissionStrings).mockReturnValueOnce(permissions.promise);
   vi.mocked(fetchPhysicalInventoryDraft).mockReturnValueOnce(draft.promise);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const loader = (
-    typeof EditorRoute.options.loader === 'function'
-      ? EditorRoute.options.loader
-      : EditorRoute.options.loader?.handler
-  ) as (args: {
-    route: typeof EditorRoute;
-    context: { queryClient: QueryClient };
-    params: { programId: string };
-    cause: string;
-  }) => Promise<unknown>;
-  const loading = loader({
-    route: EditorRoute,
-    context: { queryClient },
-    params: { programId: FP },
-    cause: 'enter',
-  });
+  const loading = loadEditor(queryClient);
   await waitFor(() => expect(fetchUserRecord).toHaveBeenCalled());
   permissions.resolve([...grants, `STOCK_CARDS_VIEW|${HOME}|${FP}`]);
   await waitFor(() => expect(fetchEligibleInventoryProducts).toHaveBeenCalled());
@@ -510,22 +482,7 @@ it('starts eligible expansion while stock-line hydration is still pending', asyn
   const stock = Promise.withResolvers<[]>();
   vi.mocked(fetchInventoryStockLines).mockReturnValueOnce(stock.promise);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const loader = (
-    typeof EditorRoute.options.loader === 'function'
-      ? EditorRoute.options.loader
-      : EditorRoute.options.loader?.handler
-  ) as (args: {
-    route: typeof EditorRoute;
-    context: { queryClient: QueryClient };
-    params: { programId: string };
-    cause: string;
-  }) => Promise<unknown>;
-  const loading = loader({
-    route: EditorRoute,
-    context: { queryClient },
-    params: { programId: FP },
-    cause: 'enter',
-  });
+  const loading = loadEditor(queryClient);
   await waitFor(() => expect(fetchInventoryStockLines).toHaveBeenCalled());
   expect(fetchEligibleInventoryProducts).toHaveBeenCalled();
   stock.resolve([]);
@@ -632,22 +589,7 @@ it('does not start deferred eligibility for another user after summaries resolve
   const summaries = Promise.withResolvers<[]>();
   vi.mocked(fetchInventorySummaries).mockReturnValue(summaries.promise);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const loader = (
-    typeof EditorRoute.options.loader === 'function'
-      ? EditorRoute.options.loader
-      : EditorRoute.options.loader?.handler
-  ) as (args: {
-    route: typeof EditorRoute;
-    context: { queryClient: QueryClient };
-    params: { programId: string };
-    cause: string;
-  }) => Promise<unknown>;
-  await loader({
-    route: EditorRoute,
-    context: { queryClient },
-    params: { programId: FP },
-    cause: 'enter',
-  });
+  await loadEditor(queryClient);
   useLoginData.setState({ referenceDataUserId: 'another-user' });
   summaries.resolve([]);
   await waitFor(() => expect(queryClient.isFetching()).toBe(0));

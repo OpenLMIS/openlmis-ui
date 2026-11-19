@@ -44,10 +44,6 @@ export async function requirePermissions(
   }
 }
 
-export async function requireRight(queryClient: QueryClient, right: string | readonly string[]) {
-  return (await requirePermissions(queryClient, right)).rights;
-}
-
 export async function requireRouteRights(queryClient: QueryClient, route: RouteWithRights) {
   const rights = routeRights(route);
   if (!rights) throw new Error(`Route has no rights declaration: ${route.id ?? '(unknown route)'}`);

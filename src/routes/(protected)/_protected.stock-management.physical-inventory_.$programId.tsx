@@ -51,6 +51,8 @@ import { isOnline, useOnReconnect } from '@/lib/online';
 import { hasProgramGrant } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
+const RIGHT = RIGHTS.stockInventoriesEdit;
+
 export const Route = createFileRoute(
   '/(protected)/_protected/stock-management/physical-inventory_/$programId',
 )({
@@ -58,7 +60,7 @@ export const Route = createFileRoute(
   preload: false,
   shouldReload: ({ cause }) => cause === 'enter',
   staticData: {
-    rights: [RIGHTS.stockInventoriesEdit],
+    rights: [RIGHT],
     crumbKey: 'physical-inventory.editor-crumb',
   },
   loader: {
@@ -68,7 +70,7 @@ export const Route = createFileRoute(
       const eligibleUpdatedAfter = cause === 'enter' ? Date.now() : 0;
       const session = getSessionScope();
       const userId = useLoginData.getState().referenceDataUserId;
-      if (!userId) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
+      if (!userId) throw new ForbiddenError(RIGHT);
       const [permissions, user] = await Promise.all([
         requireRouteRights(queryClient, route),
         queryClient.fetchQuery(userRecordOptions(userId)),
@@ -76,12 +78,11 @@ export const Route = createFileRoute(
       assertSessionScope(session);
       const homeId = user.homeFacilityId;
       if (!homeId) throw new NoHomeFacilityError({ back: '/stock-management/physical-inventory' });
-      if (!hasProgramGrant(permissions, RIGHTS.stockInventoriesEdit, homeId, programId))
-        throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
+      if (!hasProgramGrant(permissions, RIGHT, homeId, programId)) throw new ForbiddenError(RIGHT);
       const homeFacility = await queryClient.fetchQuery(homeFacilityOptions(homeId));
       assertSessionScope(session);
       const program = homeFacility.supportedPrograms?.find((program) => program.id === programId);
-      if (!program) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
+      if (!program) throw new ForbiddenError(RIGHT);
       const selection = { facilityId: homeId, programId };
       const canViewStock = hasProgramGrant(permissions, RIGHTS.stockCardsView, homeId, programId);
       const fromDevice = async () => {
@@ -214,7 +215,7 @@ function InventoryPage() {
                 draft={draft}
                 deviceCopy={deviceCopy}
                 eligibleUpdatedAfter={eligibleUpdatedAfter}
-                right={RIGHTS.stockInventoriesEdit}
+                right={RIGHT}
                 userId={userId}
                 username={username}
                 onDeleted={() => navigate({ to: '/stock-management/physical-inventory' })}

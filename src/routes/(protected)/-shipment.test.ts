@@ -23,6 +23,14 @@ vi.mock('@/features/orders/api/api', async (original) => ({
   fetchShipmentSummaries: vi.fn(),
   findShipmentDraft: vi.fn(),
 }));
+it('declares the shipment detail opening rights', () => {
+  expect(Route.options.staticData?.rights).toEqual([
+    'SHIPMENTS_VIEW',
+    'SHIPMENTS_EDIT',
+    'ORDERS_VIEW',
+  ]);
+});
+
 it.each(['ORDERED', 'FULFILLING', 'CANCELLED', 'SHIPPED'])(
   'reads %s fresh on entry, prefetches the matching record and never creates during loading',
   async (status) => {

@@ -36,9 +36,11 @@ const copy = {
   actions: 'physical-inventory.actions',
 } as const;
 
+const RIGHT = RIGHTS.stockInventoriesEdit;
+
 export const Route = createFileRoute('/(protected)/_protected/stock-management/physical-inventory')(
   {
-    staticData: { rights: [RIGHTS.stockInventoriesEdit] },
+    staticData: { rights: [RIGHT] },
     loader: ({ route, context: { queryClient } }) => loadStockEventPrograms(queryClient, route),
     pendingComponent: () => <StockEventProgramsPending copy={copy} />,
     component: PhysicalInventoryPage,
@@ -49,12 +51,7 @@ function PhysicalInventoryPage() {
   useReloadOnConnectivityChange(queryKeys.physicalInventories.all);
   const { userId, permissions } = Route.useLoaderData();
   return (
-    <StockEventProgramPicker
-      userId={userId}
-      permissions={permissions}
-      copy={copy}
-      right={RIGHTS.stockInventoriesEdit}
-    >
+    <StockEventProgramPicker userId={userId} permissions={permissions} copy={copy} right={RIGHT}>
       {(table) => <ProgramsTable {...table} />}
     </StockEventProgramPicker>
   );
