@@ -1,13 +1,16 @@
-import { queryOptions } from '@tanstack/react-query';
+import { type QueryClient, queryOptions } from '@tanstack/react-query';
 import {
+  type FinalApprovalSearch,
   fetchApproveStats,
   fetchBuqForecast,
   fetchBuqPeriods,
   fetchBuqsForApproval,
+  fetchBuqsForFinalApproval,
   fetchMostRecentRejection,
   fetchOpenBuqs,
   fetchRemarks,
   fetchSourcesOfFunds,
+  fetchSupervisedZones,
   fetchTakenPeriods,
 } from '@/features/buq/api/api';
 import { BUQ_CODE } from '@/features/buq/lib/access';
@@ -44,6 +47,18 @@ export const buqApproveStatsOptions = (programId: string) =>
     queryFn: () => fetchApproveStats(programId),
   });
 
+export const buqsForFinalApprovalOptions = (search: FinalApprovalSearch) =>
+  queryOptions({
+    queryKey: queryKeys.buq.list({ national: search }),
+    queryFn: () => fetchBuqsForFinalApproval(search),
+  });
+
+export const supervisedZonesOptions = (programId: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.buq.all, 'zones', programId],
+    queryFn: () => fetchSupervisedZones(programId),
+  });
+
 export const buqPeriodsOptions = () =>
   queryOptions({
     queryKey: [...queryKeys.processingPeriods.all, 'buq'],
@@ -72,3 +87,22 @@ export const buqRejectionOptions = (id: string) =>
     queryKey: [...queryKeys.buq.detail(id), 'rejection'],
     queryFn: () => fetchMostRecentRejection(id),
   });
+
+export async function fetchFinalApprovalIds(
+  queryClient: QueryClient,
+  {
+    programId,
+    periodId,
+    zoneIds,
+  }: { programId: string; periodId: string; zoneIds: readonly string[] },
+) {
+  const lists = await Promise.all(
+    zoneIds.map((zoneId) =>
+      queryClient.fetchQuery({
+        ...buqsForFinalApprovalOptions({ programId, periodId, zoneId }),
+        staleTime: 0,
+      }),
+    ),
+  );
+  return lists.flat().map(({ bottomUpQuantification }) => bottomUpQuantification.id);
+}

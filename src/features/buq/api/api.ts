@@ -8,11 +8,14 @@ import type {
   BuqPeriod,
   BuqPreparation,
   BuqRejection,
+  FinalApprovalItem,
   NamedItem,
   PreparedBuq,
+  SupervisedZones,
   TakenPeriod,
 } from '@/features/buq/lib/types';
 import { client } from '@/integrations/axios';
+import { BY_IDS_BATCH } from '@/lib/fetch-by-ids';
 import { fetchReport } from '@/lib/fetch-report';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
@@ -105,6 +108,32 @@ export async function authorizeBuqForecast(body: ForecastBody) {
   return data;
 }
 
+export async function finalApproveBuqForecast({ id }: { id: string }) {
+  const { data } = await client.post<BuqForecast[]>('/bottomUpQuantifications/finalApprove', null, {
+    params: { id: [id] },
+    paramsSerializer: { indexes: null },
+  });
+  const approved = data.find((forecast) => forecast.id === id) ?? (await fetchBuqForecast(id));
+  if (approved.status !== 'APPROVED_BY_NQT') throw new Error('Final approval not confirmed');
+  return approved;
+}
+
+export async function approveBuqForecast(body: ForecastBody) {
+  const { data } = await client.post<BuqForecast>(
+    `/bottomUpQuantifications/${body.id}/approve`,
+    body,
+  );
+  return data;
+}
+
+export async function rejectBuqForecast(id: string, rejection: BuqRejection) {
+  const { data } = await client.post<BuqForecast>(
+    `/bottomUpQuantifications/${id}/reject`,
+    rejection,
+  );
+  return data;
+}
+
 export async function fetchBuqsForApproval(programId: string) {
   const { data } = await client.get<Page<BuqForApproval>>('/bottomUpQuantifications/forApproval', {
     params: { programId },
@@ -118,6 +147,48 @@ export async function fetchApproveStats(programId: string) {
     { params: { programId } },
   );
   return data;
+}
+
+export async function fetchSupervisedZones(programId: string) {
+  const { data } = await client.get<SupervisedZones>(
+    '/bottomUpQuantifications/supervisedGeographicZones',
+    { params: { programId } },
+  );
+  return data;
+}
+
+export type FinalApprovalSearch = { programId: string; periodId: string; zoneId: string };
+
+export async function fetchBuqsForFinalApproval({
+  programId,
+  periodId,
+  zoneId,
+}: FinalApprovalSearch) {
+  const { data } = await client.get<Page<FinalApprovalItem>>(
+    '/bottomUpQuantifications/forFinalApproval',
+    { params: { programId, processingPeriodId: periodId, geographicZoneId: zoneId } },
+  );
+  return data.content;
+}
+
+export async function finalApproveBuqs(ids: readonly string[]) {
+  const scope = getSessionScope();
+  const approved: string[] = [];
+  try {
+    for (let start = 0; start < ids.length; start += BY_IDS_BATCH) {
+      const batch = ids.slice(start, start + BY_IDS_BATCH);
+      assertSessionScope(scope);
+      await client.post('/bottomUpQuantifications/finalApprove', null, {
+        params: { id: batch },
+        paramsSerializer: { indexes: null },
+      });
+      approved.push(...batch);
+    }
+    return { approved, error: undefined };
+  } catch (error) {
+    if (!approved.length) throw error;
+    return { approved, error };
+  }
 }
 
 export async function fetchRemarks() {

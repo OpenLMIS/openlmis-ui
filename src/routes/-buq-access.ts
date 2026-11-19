@@ -1,23 +1,36 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { notFound } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { toDateValue } from '@/components/form/date-value';
 import { ForbiddenError, requirePermissions, requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   buqApproveStatsOptions,
+  buqForecastOptions,
   buqPeriodsOptions,
+  buqRemarksOptions,
+  buqSourcesOfFundsOptions,
   buqsForApprovalOptions,
+  buqsForFinalApprovalOptions,
+  fetchFinalApprovalIds,
   openBuqsOptions,
+  supervisedZonesOptions,
 } from '@/features/buq/api/queries';
 import { approveAccess, type BuqAccess, buqAccess } from '@/features/buq/lib/access';
 import { approvalFacilityIds } from '@/features/buq/lib/approval-rows';
+import { nationalFacilityIds } from '@/features/buq/lib/national';
 import {
+  currencySettingsOptions,
   deploymentTimeZoneOptions,
   facilitiesByIdsOptions,
+  facilityOptions,
+  geographicZonesOptions,
   homeFacilityOptions,
+  orderablesByIdsOptions,
   userProgramsOptions,
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
+import { isNotFound } from '@/lib/http';
 import {
   assertSessionScope,
   getSessionScope,
@@ -98,6 +111,43 @@ export async function loadApproveAccess(
   return access;
 }
 
+export async function loadNationalAccess(
+  queryClient: QueryClient,
+  { zone, period }: { zone?: string; period?: string },
+  cause: 'enter' | 'stay' | 'preload',
+) {
+  const { scope, userId } = currentUser();
+  const fresh = cause === 'enter' ? { staleTime: 0 } : {};
+  const [, programs] = await Promise.all([
+    requireRight(queryClient, [RIGHTS.mohApproval, RIGHTS.poralgApproval]),
+    queryClient.fetchQuery({ ...userProgramsOptions(userId), ...fresh }),
+  ]);
+  assertSessionScope(scope);
+  const access = approveAccess(programs);
+  if (access.kind === 'ready') {
+    queryClient.prefetchQuery(buqPeriodsOptions());
+    queryClient.prefetchQuery(supervisedZonesOptions(access.programId));
+    queryClient.prefetchQuery(geographicZonesOptions());
+    queryClient.prefetchQuery(currencySettingsOptions());
+    if (zone && period) {
+      void queryClient
+        .fetchQuery(
+          buqsForFinalApprovalOptions({
+            programId: access.programId,
+            periodId: period,
+            zoneId: zone,
+          }),
+        )
+        .then((items) => {
+          assertSessionScope(scope);
+          return queryClient.prefetchQuery(facilitiesByIdsOptions(nationalFacilityIds(items)));
+        })
+        .catch(noop);
+    }
+  }
+  return access;
+}
+
 export function useForecastRights(access: ShownBuqAccess) {
   const granted = access.kind === 'ready' ? access.granted : NO_RIGHTS;
   return useMemo(
@@ -107,4 +157,57 @@ export function useForecastRights(access: ShownBuqAccess) {
     }),
     [granted],
   );
+}
+
+export async function loadForecast(
+  queryClient: QueryClient,
+  id: string,
+  cause: 'enter' | 'stay' | 'preload',
+) {
+  const detail = buqForecastOptions(id);
+  try {
+    const forecast =
+      cause === 'stay'
+        ? await queryClient.ensureQueryData(detail)
+        : await queryClient.fetchQuery({ ...detail, staleTime: 0 });
+    queryClient.prefetchQuery(
+      orderablesByIdsOptions(
+        forecast.bottomUpQuantificationLineItems.map(({ orderableId }) => orderableId),
+      ),
+    );
+    queryClient.prefetchQuery(facilityOptions(forecast.facilityId));
+    queryClient.prefetchQuery(buqRemarksOptions());
+    queryClient.prefetchQuery(buqSourcesOfFundsOptions());
+    queryClient.prefetchQuery(currencySettingsOptions());
+    return forecast;
+  } catch (error) {
+    if (isNotFound(error)) throw notFound();
+    throw error;
+  }
+}
+
+const NO_ZONES: readonly string[] = [];
+
+export async function loadNationalForecast(
+  queryClient: QueryClient,
+  id: string,
+  cause: 'enter' | 'stay' | 'preload',
+) {
+  const { scope } = currentUser();
+  const access = await loadNationalAccess(queryClient, {}, cause);
+  if (access.kind !== 'ready') return { ...access, zoneIds: NO_ZONES };
+  const [forecast, zones] = await Promise.all([
+    loadForecast(queryClient, id, cause),
+    queryClient.fetchQuery({ ...supervisedZonesOptions(access.programId), staleTime: 0 }),
+  ]);
+  assertSessionScope(scope);
+  const zoneIds = Object.keys(zones);
+  const waiting = await fetchFinalApprovalIds(queryClient, {
+    programId: access.programId,
+    periodId: forecast.processingPeriodId,
+    zoneIds,
+  });
+  assertSessionScope(scope);
+  if (!waiting.includes(id)) throw notFound();
+  return { ...access, zoneIds };
 }

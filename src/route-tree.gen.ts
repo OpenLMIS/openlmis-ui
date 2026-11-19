@@ -43,6 +43,7 @@ import { Route as protectedProtectedAdministrationValidDestinationsRouteImport }
 import { Route as protectedProtectedAdministrationValidSourcesRouteImport } from './routes/(protected)/_protected.administration.valid-sources'
 import { Route as protectedProtectedBuqApproveRouteImport } from './routes/(protected)/_protected.buq.approve'
 import { Route as protectedProtectedBuqCreateRouteImport } from './routes/(protected)/_protected.buq.create'
+import { Route as protectedProtectedBuqNationalApprovalRouteImport } from './routes/(protected)/_protected.buq.national-approval'
 import { Route as protectedProtectedBuqPrepareRouteImport } from './routes/(protected)/_protected.buq.prepare'
 import { Route as protectedProtectedCceInventoryRouteImport } from './routes/(protected)/_protected.cce.inventory'
 import { Route as protectedProtectedOrdersFulfillmentRouteImport } from './routes/(protected)/_protected.orders.fulfillment'
@@ -78,7 +79,9 @@ import { Route as protectedProtectedAdministrationRequisitionGroupsNewRouteImpor
 import { Route as protectedProtectedAdministrationRequisitionTemplatesIdRouteImport } from './routes/(protected)/_protected.administration.requisition-templates_.$id'
 import { Route as protectedProtectedAdministrationSupervisoryNodesIdRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes_.$id'
 import { Route as protectedProtectedAdministrationSupplyPartnersIdRouteImport } from './routes/(protected)/_protected.administration.supply-partners_.$id'
+import { Route as protectedProtectedBuqApproveIdRouteImport } from './routes/(protected)/_protected.buq.approve_.$id'
 import { Route as protectedProtectedBuqCreateIdRouteImport } from './routes/(protected)/_protected.buq.create_.$id'
+import { Route as protectedProtectedBuqNationalApprovalIdRouteImport } from './routes/(protected)/_protected.buq.national-approval_.$id'
 import { Route as protectedProtectedOrdersFulfillmentOrderIdRouteImport } from './routes/(protected)/_protected.orders.fulfillment_.$orderId'
 import { Route as protectedProtectedOrdersProofOfDeliveryPodIdRouteImport } from './routes/(protected)/_protected.orders.proof-of-delivery_.$podId'
 import { Route as protectedProtectedRequisitionsApproveBatchRouteImport } from './routes/(protected)/_protected.requisitions.approve_.batch'
@@ -298,6 +301,12 @@ const protectedProtectedBuqCreateRoute =
     path: '/buq/create',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedBuqNationalApprovalRoute =
+  protectedProtectedBuqNationalApprovalRouteImport.update({
+    id: '/buq/national-approval',
+    path: '/buq/national-approval',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedBuqPrepareRoute =
   protectedProtectedBuqPrepareRouteImport.update({
     id: '/buq/prepare',
@@ -510,10 +519,22 @@ const protectedProtectedAdministrationSupplyPartnersIdRoute =
     path: '/administration/supply-partners/$id',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedBuqApproveIdRoute =
+  protectedProtectedBuqApproveIdRouteImport.update({
+    id: '/buq/approve_/$id',
+    path: '/buq/approve/$id',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedBuqCreateIdRoute =
   protectedProtectedBuqCreateIdRouteImport.update({
     id: '/buq/create_/$id',
     path: '/buq/create/$id',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedBuqNationalApprovalIdRoute =
+  protectedProtectedBuqNationalApprovalIdRouteImport.update({
+    id: '/buq/national-approval_/$id',
+    path: '/buq/national-approval/$id',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedOrdersFulfillmentOrderIdRoute =
@@ -681,6 +702,7 @@ export interface FileRoutesByFullPath {
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/buq/approve': typeof protectedProtectedBuqApproveRoute
   '/buq/create': typeof protectedProtectedBuqCreateRoute
+  '/buq/national-approval': typeof protectedProtectedBuqNationalApprovalRoute
   '/buq/prepare': typeof protectedProtectedBuqPrepareRoute
   '/cce/inventory': typeof protectedProtectedCceInventoryRoute
   '/orders/fulfillment': typeof protectedProtectedOrdersFulfillmentRoute
@@ -716,7 +738,9 @@ export interface FileRoutesByFullPath {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/buq/approve/$id': typeof protectedProtectedBuqApproveIdRoute
   '/buq/create/$id': typeof protectedProtectedBuqCreateIdRoute
+  '/buq/national-approval/$id': typeof protectedProtectedBuqNationalApprovalIdRoute
   '/orders/fulfillment/$orderId': typeof protectedProtectedOrdersFulfillmentOrderIdRoute
   '/orders/proof-of-delivery/$podId': typeof protectedProtectedOrdersProofOfDeliveryPodIdRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
@@ -771,6 +795,7 @@ export interface FileRoutesByTo {
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/buq/approve': typeof protectedProtectedBuqApproveRoute
   '/buq/create': typeof protectedProtectedBuqCreateRoute
+  '/buq/national-approval': typeof protectedProtectedBuqNationalApprovalRoute
   '/buq/prepare': typeof protectedProtectedBuqPrepareRoute
   '/cce/inventory': typeof protectedProtectedCceInventoryRoute
   '/orders/fulfillment': typeof protectedProtectedOrdersFulfillmentRoute
@@ -805,7 +830,9 @@ export interface FileRoutesByTo {
   '/administration/requisition-templates/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/administration/supervisory-nodes/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/administration/supply-partners/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/buq/approve/$id': typeof protectedProtectedBuqApproveIdRoute
   '/buq/create/$id': typeof protectedProtectedBuqCreateIdRoute
+  '/buq/national-approval/$id': typeof protectedProtectedBuqNationalApprovalIdRoute
   '/orders/fulfillment/$orderId': typeof protectedProtectedOrdersFulfillmentOrderIdRoute
   '/orders/proof-of-delivery/$podId': typeof protectedProtectedOrdersProofOfDeliveryPodIdRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
@@ -864,6 +891,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
   '/(protected)/_protected/buq/approve': typeof protectedProtectedBuqApproveRoute
   '/(protected)/_protected/buq/create': typeof protectedProtectedBuqCreateRoute
+  '/(protected)/_protected/buq/national-approval': typeof protectedProtectedBuqNationalApprovalRoute
   '/(protected)/_protected/buq/prepare': typeof protectedProtectedBuqPrepareRoute
   '/(protected)/_protected/cce/inventory': typeof protectedProtectedCceInventoryRoute
   '/(protected)/_protected/orders/fulfillment': typeof protectedProtectedOrdersFulfillmentRoute
@@ -899,7 +927,9 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/requisition-templates_/$id': typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   '/(protected)/_protected/administration/supervisory-nodes_/$id': typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   '/(protected)/_protected/administration/supply-partners_/$id': typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  '/(protected)/_protected/buq/approve_/$id': typeof protectedProtectedBuqApproveIdRoute
   '/(protected)/_protected/buq/create_/$id': typeof protectedProtectedBuqCreateIdRoute
+  '/(protected)/_protected/buq/national-approval_/$id': typeof protectedProtectedBuqNationalApprovalIdRoute
   '/(protected)/_protected/orders/fulfillment_/$orderId': typeof protectedProtectedOrdersFulfillmentOrderIdRoute
   '/(protected)/_protected/orders/proof-of-delivery_/$podId': typeof protectedProtectedOrdersProofOfDeliveryPodIdRoute
   '/(protected)/_protected/requisitions/approve_/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
@@ -958,6 +988,7 @@ export interface FileRouteTypes {
     | '/administration/valid-sources'
     | '/buq/approve'
     | '/buq/create'
+    | '/buq/national-approval'
     | '/buq/prepare'
     | '/cce/inventory'
     | '/orders/fulfillment'
@@ -993,7 +1024,9 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/buq/approve/$id'
     | '/buq/create/$id'
+    | '/buq/national-approval/$id'
     | '/orders/fulfillment/$orderId'
     | '/orders/proof-of-delivery/$podId'
     | '/requisitions/approve/batch'
@@ -1048,6 +1081,7 @@ export interface FileRouteTypes {
     | '/administration/valid-sources'
     | '/buq/approve'
     | '/buq/create'
+    | '/buq/national-approval'
     | '/buq/prepare'
     | '/cce/inventory'
     | '/orders/fulfillment'
@@ -1082,7 +1116,9 @@ export interface FileRouteTypes {
     | '/administration/requisition-templates/$id'
     | '/administration/supervisory-nodes/$id'
     | '/administration/supply-partners/$id'
+    | '/buq/approve/$id'
     | '/buq/create/$id'
+    | '/buq/national-approval/$id'
     | '/orders/fulfillment/$orderId'
     | '/orders/proof-of-delivery/$podId'
     | '/requisitions/approve/batch'
@@ -1140,6 +1176,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/valid-sources'
     | '/(protected)/_protected/buq/approve'
     | '/(protected)/_protected/buq/create'
+    | '/(protected)/_protected/buq/national-approval'
     | '/(protected)/_protected/buq/prepare'
     | '/(protected)/_protected/cce/inventory'
     | '/(protected)/_protected/orders/fulfillment'
@@ -1175,7 +1212,9 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/requisition-templates_/$id'
     | '/(protected)/_protected/administration/supervisory-nodes_/$id'
     | '/(protected)/_protected/administration/supply-partners_/$id'
+    | '/(protected)/_protected/buq/approve_/$id'
     | '/(protected)/_protected/buq/create_/$id'
+    | '/(protected)/_protected/buq/national-approval_/$id'
     | '/(protected)/_protected/orders/fulfillment_/$orderId'
     | '/(protected)/_protected/orders/proof-of-delivery_/$podId'
     | '/(protected)/_protected/requisitions/approve_/batch'
@@ -1447,6 +1486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedBuqCreateRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/buq/national-approval': {
+      id: '/(protected)/_protected/buq/national-approval'
+      path: '/buq/national-approval'
+      fullPath: '/buq/national-approval'
+      preLoaderRoute: typeof protectedProtectedBuqNationalApprovalRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/buq/prepare': {
       id: '/(protected)/_protected/buq/prepare'
       path: '/buq/prepare'
@@ -1692,11 +1738,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/buq/approve_/$id': {
+      id: '/(protected)/_protected/buq/approve_/$id'
+      path: '/buq/approve/$id'
+      fullPath: '/buq/approve/$id'
+      preLoaderRoute: typeof protectedProtectedBuqApproveIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/buq/create_/$id': {
       id: '/(protected)/_protected/buq/create_/$id'
       path: '/buq/create/$id'
       fullPath: '/buq/create/$id'
       preLoaderRoute: typeof protectedProtectedBuqCreateIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/buq/national-approval_/$id': {
+      id: '/(protected)/_protected/buq/national-approval_/$id'
+      path: '/buq/national-approval/$id'
+      fullPath: '/buq/national-approval/$id'
+      preLoaderRoute: typeof protectedProtectedBuqNationalApprovalIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/orders/fulfillment_/$orderId': {
@@ -1944,6 +2004,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
   protectedProtectedBuqApproveRoute: typeof protectedProtectedBuqApproveRoute
   protectedProtectedBuqCreateRoute: typeof protectedProtectedBuqCreateRoute
+  protectedProtectedBuqNationalApprovalRoute: typeof protectedProtectedBuqNationalApprovalRoute
   protectedProtectedBuqPrepareRoute: typeof protectedProtectedBuqPrepareRoute
   protectedProtectedCceInventoryRoute: typeof protectedProtectedCceInventoryRoute
   protectedProtectedOrdersFulfillmentRoute: typeof protectedProtectedOrdersFulfillmentRoute
@@ -1973,7 +2034,9 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationRequisitionTemplatesIdRoute: typeof protectedProtectedAdministrationRequisitionTemplatesIdRoute
   protectedProtectedAdministrationSupervisoryNodesIdRoute: typeof protectedProtectedAdministrationSupervisoryNodesIdRoute
   protectedProtectedAdministrationSupplyPartnersIdRoute: typeof protectedProtectedAdministrationSupplyPartnersIdRoute
+  protectedProtectedBuqApproveIdRoute: typeof protectedProtectedBuqApproveIdRoute
   protectedProtectedBuqCreateIdRoute: typeof protectedProtectedBuqCreateIdRoute
+  protectedProtectedBuqNationalApprovalIdRoute: typeof protectedProtectedBuqNationalApprovalIdRoute
   protectedProtectedOrdersFulfillmentOrderIdRoute: typeof protectedProtectedOrdersFulfillmentOrderIdRoute
   protectedProtectedOrdersProofOfDeliveryPodIdRoute: typeof protectedProtectedOrdersProofOfDeliveryPodIdRoute
   protectedProtectedRequisitionsApproveBatchRoute: typeof protectedProtectedRequisitionsApproveBatchRoute
@@ -2044,6 +2107,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationValidSourcesRoute,
   protectedProtectedBuqApproveRoute: protectedProtectedBuqApproveRoute,
   protectedProtectedBuqCreateRoute: protectedProtectedBuqCreateRoute,
+  protectedProtectedBuqNationalApprovalRoute:
+    protectedProtectedBuqNationalApprovalRoute,
   protectedProtectedBuqPrepareRoute: protectedProtectedBuqPrepareRoute,
   protectedProtectedCceInventoryRoute: protectedProtectedCceInventoryRoute,
   protectedProtectedOrdersFulfillmentRoute:
@@ -2099,7 +2164,10 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationSupervisoryNodesIdRoute,
   protectedProtectedAdministrationSupplyPartnersIdRoute:
     protectedProtectedAdministrationSupplyPartnersIdRoute,
+  protectedProtectedBuqApproveIdRoute: protectedProtectedBuqApproveIdRoute,
   protectedProtectedBuqCreateIdRoute: protectedProtectedBuqCreateIdRoute,
+  protectedProtectedBuqNationalApprovalIdRoute:
+    protectedProtectedBuqNationalApprovalIdRoute,
   protectedProtectedOrdersFulfillmentOrderIdRoute:
     protectedProtectedOrdersFulfillmentOrderIdRoute,
   protectedProtectedOrdersProofOfDeliveryPodIdRoute:
