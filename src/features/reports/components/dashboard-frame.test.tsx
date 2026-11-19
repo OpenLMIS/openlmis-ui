@@ -43,12 +43,35 @@ it('shows Did Not Load when the frame never loads, and keeps recovery after a lo
   expect(screen.getByRole('alert')).toHaveTextContent('reports.dashboard.did-not-load-title');
   expect(screen.queryByTitle('Power BI Sales')).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
+  const retry = screen.getByRole('button', { name: 'error.try-again' });
+  act(() => retry.focus());
+  fireEvent.click(retry);
   fireEvent.load(screen.getByTitle('Power BI Sales'));
   act(() => vi.advanceTimersByTime(FRAME_LOAD_LIMIT_MS));
 
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'error.try-again' })).toHaveFocus();
   expect(screen.getByRole('link', { name: 'reports.dashboard.open-new-tab' })).toBeInTheDocument();
+});
+
+it('leaves focus where the user moved it while a retry was loading', () => {
+  vi.useFakeTimers();
+  render(
+    <>
+      <a href="/reports">View Reports</a>
+      <Harness />
+    </>,
+  );
+  const retry = screen.getByRole('button', { name: 'error.try-again' });
+  act(() => retry.focus());
+  fireEvent.click(retry);
+  const breadcrumb = screen.getByRole('link', { name: 'View Reports' });
+  act(() => breadcrumb.focus());
+
+  act(() => vi.advanceTimersByTime(FRAME_LOAD_LIMIT_MS));
+
+  expect(screen.getByRole('alert')).toBeVisible();
+  expect(breadcrumb).toHaveFocus();
 });
 
 it('removes the frame while the app is hidden and starts one fresh deadline on return', () => {

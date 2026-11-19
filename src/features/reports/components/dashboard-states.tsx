@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { ExternalLinkIcon, RotateCcwIcon, ServerOffIcon, TriangleAlertIcon } from 'lucide-react';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { OfflineNotice, useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -72,13 +72,13 @@ export function BackToReports() {
   );
 }
 
-/** Moves focus to a failure's title only when a Try Again has just failed again. */
-function useFailureFocus<T extends HTMLElement>(focus: boolean) {
-  const title = useRef<T>(null);
-  useEffect(() => {
-    if (focus) title.current?.focus();
+/** Restores focus only when retry replaced the focused control. */
+function useRetryFocus<T extends HTMLElement>(focus: boolean) {
+  const target = useRef<T>(null);
+  useLayoutEffect(() => {
+    if (focus && document.activeElement === document.body) target.current?.focus();
   }, [focus]);
-  return title;
+  return target;
 }
 
 export function DashboardFailureState({
@@ -91,8 +91,8 @@ export function DashboardFailureState({
   focus: boolean;
 }) {
   const { t } = useTranslation();
-  const title = useFailureFocus<HTMLDivElement>(focus);
-  const offlineTitle = useFailureFocus<HTMLHeadingElement>(focus);
+  const title = useRetryFocus<HTMLDivElement>(focus);
+  const offlineTitle = useRetryFocus<HTMLHeadingElement>(focus);
   const offline = useOfflineFailure(failure.error, onRetry, failure.kind === 'offline');
   if (offline || failure.kind === 'offline')
     return <OfflineNotice onRetry={onRetry} headingRef={offlineTitle} />;
@@ -158,10 +158,10 @@ export function DashboardArea({
   recovery: ReactNode;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <div className="flex flex-1 flex-col gap-2">
       <div
         aria-busy={connecting}
-        className="relative min-h-0 flex-1 overflow-hidden rounded-lg border"
+        className="relative min-h-80 flex-1 overflow-hidden rounded-lg border"
       >
         <div className={connecting ? 'invisible size-full' : 'size-full'}>{frame}</div>
         {connecting && (
@@ -175,12 +175,21 @@ export function DashboardArea({
   );
 }
 
-export function DashboardRecovery({ onRetry, link }: { onRetry: () => void; link?: string }) {
+export function DashboardRecovery({
+  onRetry,
+  focus,
+  link,
+}: {
+  onRetry: () => void;
+  focus: boolean;
+  link?: string;
+}) {
   const { t } = useTranslation();
+  const retry = useRetryFocus<HTMLButtonElement>(focus);
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-sm text-muted-foreground">
       <span>{t('reports.dashboard.not-showing')}</span>
-      <Button variant="link" padding="none" onClick={onRetry}>
+      <Button ref={retry} variant="link" padding="none" onClick={onRetry}>
         <RotateCcwIcon data-icon="inline-start" />
         {t('error.try-again')}
       </Button>

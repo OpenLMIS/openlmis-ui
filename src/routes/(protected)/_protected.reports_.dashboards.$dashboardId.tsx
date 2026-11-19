@@ -39,17 +39,24 @@ import {
 
 export const Route = createFileRoute('/(protected)/_protected/reports_/dashboards/$dashboardId')({
   staticData: { crumbKey: 'reports.dashboard.crumb' },
-  loader: async ({ context: { queryClient }, params: { dashboardId } }) => {
-    const scope = getSessionScope();
-    await requireRight(queryClient, RIGHTS.reportsView);
-    assertSessionScope(scope);
-    const userId = getSessionUserId();
-    if (!userId) throw new SessionEndedError();
-    const dashboards = await queryClient.ensureQueryData(availableDashboardsOptions(userId));
-    assertSessionScope(scope);
-    const report = dashboards.find(({ id }) => id === dashboardId);
-    if (!report) throw notFound();
-    return { userId, report };
+  preload: false,
+  loader: {
+    staleReloadMode: 'blocking',
+    handler: async ({ context: { queryClient }, params: { dashboardId } }) => {
+      const scope = getSessionScope();
+      await requireRight(queryClient, RIGHTS.reportsView);
+      assertSessionScope(scope);
+      const userId = getSessionUserId();
+      if (!userId) throw new SessionEndedError();
+      const dashboards = await queryClient.fetchQuery({
+        ...availableDashboardsOptions(userId),
+        staleTime: 0,
+      });
+      assertSessionScope(scope);
+      const report = dashboards.find(({ id }) => id === dashboardId);
+      if (!report) throw notFound();
+      return { userId, report };
+    },
   },
   pendingComponent: DashboardPending,
   errorComponent: DashboardError,
@@ -105,7 +112,7 @@ function DashboardPending() {
     <Workspace width="wide" layout="viewport">
       <DashboardHeader />
       <WorkspaceContent>
-        <div className="min-h-0 flex-1">
+        <div className="min-h-80 flex-1">
           <DashboardAreaSkeleton />
         </div>
       </WorkspaceContent>

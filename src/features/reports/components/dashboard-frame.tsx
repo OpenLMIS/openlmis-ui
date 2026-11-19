@@ -15,12 +15,12 @@ export function DashboardFrame({
   url,
   title,
   onRetry,
-  retried,
+  restoreFocus,
 }: {
   url: string;
   title: string;
   onRetry: () => void;
-  retried: boolean;
+  restoreFocus: boolean;
 }) {
   const [status, setStatus] = useState<'connecting' | 'loaded' | 'failed'>('connecting');
   useEffect(() => {
@@ -33,7 +33,11 @@ export function DashboardFrame({
 
   if (status === 'failed')
     return (
-      <DashboardFailureState failure={{ kind: 'did-not-load' }} onRetry={onRetry} focus={retried} />
+      <DashboardFailureState
+        failure={{ kind: 'did-not-load' }}
+        onRetry={onRetry}
+        focus={restoreFocus}
+      />
     );
   return (
     <DashboardArea
@@ -48,7 +52,7 @@ export function DashboardFrame({
           onLoad={() => setStatus('loaded')}
         />
       }
-      recovery={<DashboardRecovery onRetry={onRetry} link={url} />}
+      recovery={<DashboardRecovery onRetry={onRetry} focus={restoreFocus} link={url} />}
     />
   );
 }

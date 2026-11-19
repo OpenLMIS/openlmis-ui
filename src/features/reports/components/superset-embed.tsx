@@ -52,14 +52,14 @@ export function SupersetEmbed({
   title,
   userId,
   onRetry,
-  retried,
+  restoreFocus,
 }: {
   uuid: string;
   supersetUrl: string;
   title: string;
   userId: string;
   onRetry: () => void;
-  retried: boolean;
+  restoreFocus: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>({ kind: 'connecting' });
@@ -187,12 +187,14 @@ export function SupersetEmbed({
   if (status.kind === 'chunk-failed')
     return <ErrorFallback error={status.error} info={undefined} reset={onRetry} />;
   if (status.kind === 'failed')
-    return <DashboardFailureState failure={status.failure} onRetry={onRetry} focus={retried} />;
+    return (
+      <DashboardFailureState failure={status.failure} onRetry={onRetry} focus={restoreFocus} />
+    );
   return (
     <DashboardArea
       connecting={status.kind === 'connecting'}
       frame={<div ref={host} className="size-full" />}
-      recovery={<DashboardRecovery onRetry={onRetry} />}
+      recovery={<DashboardRecovery onRetry={onRetry} focus={restoreFocus} />}
     />
   );
 }

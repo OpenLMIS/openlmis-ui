@@ -1,5 +1,5 @@
 import { CircleSlashIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePageHidden } from '@/components/shared/page-visibility';
 import {
@@ -30,48 +30,49 @@ export function DashboardViewer({
   username: string;
 }) {
   const hidden = usePageHidden();
-  const [opening, setOpening] = useState({ count: 0, retried: false });
+  const viewer = useRef<HTMLDivElement>(null);
+  const [opening, setOpening] = useState({ count: 0, restoreFocus: false });
   const [wasHidden, setWasHidden] = useState(hidden);
   if (hidden !== wasHidden) {
     setWasHidden(hidden);
-    if (hidden) setOpening(({ count }) => ({ count: count + 1, retried: false }));
+    if (hidden && opening.restoreFocus) setOpening({ ...opening, restoreFocus: false });
   }
-  const retry = () => setOpening(({ count }) => ({ count: count + 1, retried: true }));
+  const retry = () => {
+    const restoreFocus = viewer.current?.contains(document.activeElement) ?? false;
+    setOpening(({ count }) => ({ count: count + 1, restoreFocus }));
+  };
 
   const mode = resolveDashboardMode(report, supersetUrl, window.location.origin);
   if (mode.kind === 'not-configured') return <DashboardNotSetUp />;
   if (mode.kind === 'unsupported') return <DashboardUnsupported />;
   if (hidden) return null;
-  if (mode.kind === 'superset-sign-in')
-    return (
-      <SupersetSignIn
-        key={opening.count}
-        url={mode.url}
-        supersetUrl={mode.supersetUrl}
-        title={report.name}
-        username={username}
-        onRetry={retry}
-        retried={opening.retried}
-      />
-    );
-  return mode.kind === 'embedded' ? (
-    <SupersetEmbed
-      key={opening.count}
-      uuid={mode.uuid}
-      supersetUrl={mode.supersetUrl}
-      title={report.name}
-      userId={userId}
-      onRetry={retry}
-      retried={opening.retried}
-    />
-  ) : (
-    <DashboardFrame
-      key={opening.count}
-      url={mode.url}
-      title={report.name}
-      onRetry={retry}
-      retried={opening.retried}
-    />
+  const openingProps = {
+    title: report.name,
+    onRetry: retry,
+    restoreFocus: opening.restoreFocus,
+  };
+  return (
+    <div ref={viewer} className="contents">
+      {mode.kind === 'superset-sign-in' ? (
+        <SupersetSignIn
+          key={opening.count}
+          url={mode.url}
+          supersetUrl={mode.supersetUrl}
+          username={username}
+          {...openingProps}
+        />
+      ) : mode.kind === 'embedded' ? (
+        <SupersetEmbed
+          key={opening.count}
+          uuid={mode.uuid}
+          supersetUrl={mode.supersetUrl}
+          userId={userId}
+          {...openingProps}
+        />
+      ) : (
+        <DashboardFrame key={opening.count} url={mode.url} {...openingProps} />
+      )}
+    </div>
   );
 }
 

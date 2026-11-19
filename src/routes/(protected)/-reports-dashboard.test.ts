@@ -5,6 +5,8 @@ import { permissionsOptions } from '@/features/auth/api/queries';
 import { isForbidden } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchAvailableDashboards, fetchGuestToken } from '@/features/reports/api/api';
+import { availableDashboardsOptions } from '@/features/reports/api/queries';
+import type { DashboardReport } from '@/features/reports/lib/types';
 import { parsePermissions } from '@/lib/permissions';
 import { Route } from '@/routes/(protected)/_protected.reports_.dashboards.$dashboardId';
 
@@ -17,12 +19,14 @@ afterEach(() => {
   useLoginData.setState({ referenceDataUserId: undefined });
 });
 
-async function load(dashboardId: string, grants = ['REPORTS_VIEW']) {
+async function load(dashboardId: string, grants = ['REPORTS_VIEW'], cached?: DashboardReport[]) {
   useLoginData.setState({ referenceDataUserId: 'user' });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   queryClient.setQueryData(permissionsOptions('user').queryKey, parsePermissions(grants));
-  const loader = Route.options.loader;
-  if (typeof loader !== 'function') throw new Error('Expected dashboard loader');
+  if (cached) queryClient.setQueryData(availableDashboardsOptions('user').queryKey, cached);
+  const option = Route.options.loader;
+  const loader = typeof option === 'function' ? option : option?.handler;
+  if (!loader) throw new Error('Expected dashboard loader');
   try {
     return await loader({ context: { queryClient }, params: { dashboardId } } as Parameters<
       typeof loader
@@ -55,4 +59,13 @@ it('refuses a dashboard missing from the user available list without asking for 
 
   expect(isNotFound(await result)).toBe(true);
   expect(fetchGuestToken).not.toHaveBeenCalled();
+});
+
+it('checks current availability even when the catalog has just cached the dashboard', async () => {
+  vi.mocked(fetchAvailableDashboards).mockResolvedValue([]);
+
+  const result = load('dashboard', ['REPORTS_VIEW'], [{ id: 'dashboard', name: 'Dashboard' }]);
+
+  expect(isNotFound(await result.catch((error: unknown) => error))).toBe(true);
+  expect(fetchAvailableDashboards).toHaveBeenCalledOnce();
 });

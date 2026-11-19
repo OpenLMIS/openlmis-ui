@@ -28,11 +28,10 @@ export function Workspace({
 }: WorkspaceWidthProps & { layout?: 'default' | 'viewport' }) {
   return (
     <div
-      data-layout={layout === 'viewport' ? layout : undefined}
       className={cn(
         '@container/main mx-auto flex w-full flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6',
         MAX_WIDTH[width],
-        layout === 'viewport' && 'h-workspace-viewport min-h-0 flex-none',
+        layout === 'viewport' && 'h-workspace-viewport min-h-min flex-none',
       )}
     >
       <AppBreadcrumbs />
@@ -101,11 +100,7 @@ export function WorkspaceActions({ children }: WorkspaceProps) {
 }
 
 export function WorkspaceContent({ children }: WorkspaceProps) {
-  return (
-    <div className="flex flex-1 flex-col gap-4 in-data-[layout=viewport]:min-h-0 lg:gap-6">
-      {children}
-    </div>
-  );
+  return <div className="flex flex-1 flex-col gap-4 lg:gap-6">{children}</div>;
 }
 
 /** Rendered after `Workspace`: full width, stuck to the bottom, buttons aligned with the page. */
