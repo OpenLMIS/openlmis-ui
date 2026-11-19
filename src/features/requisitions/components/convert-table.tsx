@@ -49,6 +49,7 @@ import type { ConvertListRow } from '@/features/requisitions/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const helper = createColumnHelper<DataTableFeatures, ConvertListRow>();
 const COLUMNS = [
@@ -98,7 +99,10 @@ const DepotSelect = memo(function DepotSelect({
   const id = `depot-${row.requisition.id}`;
   const offered = row.supplyingDepots.filter((depot) => depot !== null);
   return (
-    <div className={cards ? 'inline-block w-44 max-w-full align-middle' : undefined}>
+    <div
+      className={cards ? 'inline-block w-44 max-w-full align-middle' : undefined}
+      data-tour={disabled ? undefined : TOUR_ANCHORS.convertDepot}
+    >
       <Field surface="background" data-invalid={invalid || undefined}>
         <HiddenFromView>
           <FieldLabel htmlFor={id}>

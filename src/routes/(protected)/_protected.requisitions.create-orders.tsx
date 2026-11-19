@@ -65,21 +65,21 @@ function CreatePending() {
       <div className="min-w-0">
         <Field>
           <FieldLabel>{t('orders.create.program')}</FieldLabel>
-          <div className="h-9">
+          <div aria-busy="true" className="h-9">
             <Skeleton fill />
           </div>
         </Field>
       </div>
       <Field>
         <FieldLabel>{t('orders.create.requesting-facility')}</FieldLabel>
-        <div className="h-9">
+        <div aria-busy="true" className="h-9">
           <Skeleton fill />
         </div>
       </Field>
       <div className="min-w-0">
         <Field>
           <FieldLabel>{t('orders.create.supplying-facility')}</FieldLabel>
-          <div className="h-9">
+          <div aria-busy="true" className="h-9">
             <Skeleton fill />
           </div>
         </Field>

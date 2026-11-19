@@ -35,6 +35,7 @@ import { batchApprovable, batchRowTotals, batchTotals } from '@/features/requisi
 import type { BatchRequisition, BatchRow } from '@/features/requisitions/lib/batch-types';
 import { formatCurrency } from '@/features/requisitions/lib/currency';
 import { revealField } from '@/lib/reveal-field';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export type BatchGridHandle = { reveal: (id: string) => void };
 
@@ -275,6 +276,7 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
     <div
       ref={frame}
       className="batch-grid min-w-0 overflow-clip rounded-xl border bg-card"
+      data-tour={TOUR_ANCHORS.batchGrid}
       onFocusCapture={(event) => {
         const field = fields.find((field) => field.id === event.target.id);
         if (field) setFocusedRow(field.index);
@@ -323,11 +325,16 @@ export const BatchGrid = memo(function BatchGrid({ ref }: { ref?: Ref<BatchGridH
               <RequisitionGridHeader label={t('requisitions.batch.product')} />
             </TableHead>
             {records.map((record, index) => (
-              <TableHead ref={index === 0 ? firstGroup : undefined} colSpan={2} key={record.id}>
+              <TableHead
+                ref={index === 0 ? firstGroup : undefined}
+                colSpan={2}
+                data-tour={index === 0 ? TOUR_ANCHORS.batchRequisition : undefined}
+                key={record.id}
+              >
                 <BatchGroup record={record} />
               </TableHead>
             ))}
-            <TableHead colSpan={2} sticky="end">
+            <TableHead colSpan={2} data-tour={TOUR_ANCHORS.batchTotals} sticky="end">
               <RequisitionGridHeader label={t('requisitions.batch.total-all')} />
             </TableHead>
           </TableRow>

@@ -101,6 +101,7 @@ import { revealField } from '@/lib/reveal-field';
 import { RIGHTS } from '@/lib/rights';
 import { isSecureOrigin } from '@/lib/secure-context';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { uploadAccessEpoch } from '@/lib/upload-access';
 import {
   currentApprovalNodes,
@@ -226,7 +227,7 @@ function BatchPending() {
         <BatchHeader />
         <WorkspaceContent>
           <DraftStatusSkeleton />
-          <div className="h-128">
+          <div aria-busy="true" className="h-128">
             <Skeleton fill />
           </div>
         </WorkspaceContent>
@@ -913,7 +914,10 @@ function BatchPage() {
                 result={copyResult}
                 failure={copyFailure}
               />
-              <div className="flex flex-wrap items-center justify-end gap-2">
+              <div
+                className="flex flex-wrap items-center justify-end gap-2"
+                data-tour={TOUR_ANCHORS.batchStatus}
+              >
                 <RequisitionCopyBadge />
                 <BatchDraftStatus drafts={drafts} />
               </div>
@@ -1005,7 +1009,7 @@ function BatchPage() {
         <Button size="lg" variant="outline" disabled={pending} onClick={() => void returnToList()}>
           {t('dialog.cancel')}
         </Button>
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2" data-tour={TOUR_ANCHORS.batchActions}>
           {!online && (
             <p role="note" className="basis-full text-end text-muted-foreground text-sm">
               {t('offline.action-description')}

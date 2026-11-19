@@ -64,6 +64,7 @@ import { hasProgramGrant, type Permissions } from '@/lib/permissions';
 import { randomId } from '@/lib/random-id';
 import { RIGHTS } from '@/lib/rights';
 import { assertSessionScope } from '@/lib/session-scope';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const ENTRY_RIGHTS = [
   RIGHTS.requisitionCreate,
@@ -201,7 +202,7 @@ function InitiateBody({ userId }: { userId: string }) {
   );
   const typeField = useMemo(
     () => (
-      <Field spacing="tight">
+      <Field data-tour={TOUR_ANCHORS.requisitionType} spacing="tight">
         <span className="font-medium text-sm leading-snug" id="requisition-type-label">
           {t('requisitions.initiate.type')}
         </span>
@@ -225,14 +226,16 @@ function InitiateBody({ userId }: { userId: string }) {
   );
   return (
     <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-      <FacilityProgramSelector
-        applied={applied}
-        options={options}
-        onDraftChange={setDraft}
-        onSearch={onSearch}
-      >
-        {typeField}
-      </FacilityProgramSelector>
+      <div data-tour={TOUR_ANCHORS.requisitionsPicker}>
+        <FacilityProgramSelector
+          applied={applied}
+          options={options}
+          onDraftChange={setDraft}
+          onSearch={onSearch}
+        >
+          {typeField}
+        </FacilityProgramSelector>
+      </div>
       {valid && canSearch(permissions, valid) && !changed ? (
         <QueryBoundary
           resetKey={JSON.stringify(search)}

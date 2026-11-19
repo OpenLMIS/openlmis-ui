@@ -30,6 +30,7 @@ import type { MinimalFacility, Program } from '@/features/reference-data/lib/typ
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { invalidateOrderLists } from '@/lib/order-queries';
 import { settleFew } from '@/lib/settle-few';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const EMPTY_PROGRAMS: Program[] = [];
 
@@ -139,7 +140,10 @@ export function CreateOrderForm({
   return (
     <form className="flex flex-col gap-4" onSubmit={(event) => event.preventDefault()}>
       <FieldGroup>
-        <div className="min-w-0">
+        <div
+          className="min-w-0"
+          data-tour={mutation.isPending || programsPending ? undefined : TOUR_ANCHORS.orderProgram}
+        >
           <OrderSelect
             required
             label={t('orders.create.program')}
@@ -157,7 +161,7 @@ export function CreateOrderForm({
         disabled={mutation.isPending || facilitiesPending}
         onChange={changeFacilities}
       />
-      <div className="min-w-0">
+      <div className="min-w-0" data-tour={TOUR_ANCHORS.orderSupplier}>
         <OrderSelect
           required
           label={t('orders.create.supplying-facility')}
@@ -189,7 +193,7 @@ export function CreateOrderForm({
           <AlertDescription>{t('orders.create.no-read-right')}</AlertDescription>
         </Alert>
       )}
-      <div className="flex justify-end">
+      <div className="flex justify-end" data-tour={TOUR_ANCHORS.orderCreate}>
         <Button
           type="button"
           size="lg"
@@ -221,7 +225,7 @@ const RequestingFacilityPicker = memo(function RequestingFacilityPicker({
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   return (
-    <Field data-disabled={disabled}>
+    <Field data-disabled={disabled} data-tour={disabled ? undefined : TOUR_ANCHORS.orderFacilities}>
       <FieldLabel htmlFor={requestingId}>
         <FieldLabelText label={t('orders.create.requesting-facility')} required />
       </FieldLabel>

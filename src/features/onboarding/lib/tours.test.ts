@@ -4,13 +4,22 @@ import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 
 const CSV_PAGES = ['/administration/equipment-catalog', '/administration/ideal-stock-amounts'];
 
-const administrationPages = LIVE_NAV_GROUPS.flatMap((group) => group.items)
+const navPages = LIVE_NAV_GROUPS.flatMap((group) => group.items)
   .flatMap((item) => (isNavParent(item) ? item.items : [item]))
-  .flatMap((link) => (link.to ? [link.to] : []))
-  .filter((to) => to.startsWith('/administration/') && !CSV_PAGES.includes(to));
+  .flatMap((link) => (link.to ? [link.to] : []));
+
+const guidedPages = [
+  ...navPages.filter(
+    (to) =>
+      (to.startsWith('/administration/') && !CSV_PAGES.includes(to)) ||
+      to.startsWith('/requisitions/'),
+  ),
+  '/requisitions/approve_/batch',
+  '/requisitions/create-orders_/$orderIds',
+];
 
 describe('tourForRoute', () => {
-  it.each(administrationPages)('gives the Administration list %s a guide', (to) => {
+  it.each(guidedPages)('gives %s a guide', (to) => {
     expect(tourForRoute(`/(protected)/_protected${to}`)).toBeDefined();
   });
 });

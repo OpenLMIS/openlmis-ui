@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { ApprovalSearch } from '@/features/requisitions/lib/approval-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function ApprovalToolbar({
   search,
@@ -56,7 +57,10 @@ export function ApprovalToolbar({
           />
         </DataTableFilters>
       </div>
-      <div className="flex-1 @2xl/main:flex-none">
+      <div
+        className="flex-1 @2xl/main:flex-none"
+        data-tour={disabled ? undefined : TOUR_ANCHORS.approvalSort}
+      >
         <Select
           value={newestFirst ? 'desc' : 'asc'}
           items={orders}

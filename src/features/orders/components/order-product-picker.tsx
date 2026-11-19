@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/combobox';
 import type { OrderProduct } from '@/features/orders/lib/types';
 import { approvedProductsOptions } from '@/features/reference-data/api/queries';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const OrderProductPicker = memo(function OrderProductPicker({
   programId,
@@ -49,7 +50,10 @@ export const OrderProductPicker = memo(function OrderProductPicker({
     [query.data],
   );
   return (
-    <div className="flex items-center gap-2 @3xl/main:max-w-xl">
+    <div
+      className="flex items-center gap-2 @3xl/main:max-w-xl"
+      data-tour={disabled ? undefined : TOUR_ANCHORS.orderAdd}
+    >
       <PickerAdd>
         <PickerAddField ref={anchor}>
           <Combobox

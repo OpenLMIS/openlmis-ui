@@ -29,6 +29,7 @@ import type { ApprovalListRow, RequisitionSearchResult } from '@/features/requis
 import { tableValue } from '@/lib/empty-value';
 import { useOnline } from '@/lib/online';
 import { isSecureOrigin } from '@/lib/secure-context';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type ListRecord = RequisitionSearchResult | Omit<ApprovalListRow, 'status'>;
 export const requisitionRowLabel = (row: ListRecord, emergency: string) =>
@@ -188,25 +189,32 @@ export function ViewRequisition({
       ? requisitionRowLabel(record, t('requisitions.columns.emergency'))
       : [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
   });
+  const anchor = disabled ? undefined : TOUR_ANCHORS.requisitionOpen;
   if (cards)
     return (
-      <CardActions
-        label={groupLabel}
-        actions={[
-          {
-            id: 'view',
-            icon: unavailable ? <WifiOffIcon /> : <EyeIcon />,
-            label: unavailable ? t('offline.unavailable-title') : label,
-            name,
-            ...(unavailable ? { onSelect: offline.show } : { link }),
-            disabled,
-          },
-          ...actions,
-        ]}
-      />
+      <div className="flex shrink-0" data-tour={anchor}>
+        <CardActions
+          label={groupLabel}
+          actions={[
+            {
+              id: 'view',
+              icon: unavailable ? <WifiOffIcon /> : <EyeIcon />,
+              label: unavailable ? t('offline.unavailable-title') : label,
+              name,
+              ...(unavailable ? { onSelect: offline.show } : { link }),
+              disabled,
+            },
+            ...actions,
+          ]}
+        />
+      </div>
     );
   return (
-    <fieldset aria-label={groupLabel} className="flex items-center justify-end gap-1">
+    <fieldset
+      aria-label={groupLabel}
+      className="flex items-center justify-end gap-1"
+      data-tour={anchor}
+    >
       <ViewSlot>
         {unavailable ? (
           <Button

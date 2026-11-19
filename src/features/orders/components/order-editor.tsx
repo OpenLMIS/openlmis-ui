@@ -57,6 +57,7 @@ import { invalidateOrderLists } from '@/lib/order-queries';
 import type { QuantityUnit } from '@/lib/quantity';
 import { randomId } from '@/lib/random-id';
 import { revealField } from '@/lib/reveal-field';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 function useOrderForm(initial: Record<string, DraftLine[]>) {
   return useAppForm({ defaultValues: { orders: initial } });
@@ -335,7 +336,7 @@ export function OrderEditor({
             {t('orders.edit.cancel')}
           </Button>
         </div>
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2" data-tour={TOUR_ANCHORS.orderActions}>
           <Button
             size="lg"
             variant="destructive"
@@ -549,7 +550,7 @@ function OrderFields({
           onAdd={onAdd}
         />
         {canSwitch && (
-          <div className="ms-auto flex-1 @2xl/main:flex-none">
+          <div className="ms-auto flex-1 @2xl/main:flex-none" data-tour={TOUR_ANCHORS.orderUnit}>
             <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
           </div>
         )}
