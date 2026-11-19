@@ -14,7 +14,10 @@ import { parsePermissions } from '@/lib/permissions';
 import { loadRuntimeConfig } from '@/lib/runtime-config';
 import { renderPage } from '@/test-utils/render-page';
 
-vi.mock('@/features/profile/api/api', () => ({ fetchProfile: () => new Promise(() => {}) }));
+vi.mock('@/features/reference-data/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/reference-data/api/api')>()),
+  fetchUserRecord: () => new Promise(() => {}),
+}));
 
 beforeEach(() => vi.stubEnv('VITE_LEGACY_UI_URL', ''));
 

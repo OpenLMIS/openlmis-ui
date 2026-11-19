@@ -21,7 +21,6 @@ import {
   approvalsOptions,
   convertCountOptions,
   equipmentStatusCountsOptions,
-  firstNameOptions,
   openOrdersCountOptions,
   recentRequisitionsOptions,
   requisitionStatusCountsOptions,
@@ -33,7 +32,8 @@ import { ActionsSkeleton, DashboardSkeleton } from '@/features/home/components/d
 import { HomeDashboard, preloadCharts } from '@/features/home/components/home-dashboard';
 import { SystemNotifications } from '@/features/home/components/system-notifications';
 import type { DashboardAccess } from '@/features/home/lib/types';
-import { queryKeys } from '@/lib/key-factory';
+import { userRecordOptions } from '@/features/reference-data/api/queries';
+import { queryKeys, userRecordKey } from '@/lib/key-factory';
 import { isOnline, useOnline } from '@/lib/online';
 
 /** Each part of the dashboard needs the right its legacy page asks for. */
@@ -51,7 +51,7 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
   loader: async ({ context: { queryClient } }) => {
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
-    queryClient.prefetchQuery(firstNameOptions(userId));
+    queryClient.prefetchQuery(userRecordOptions(userId));
     queryClient.prefetchQuery(systemNotificationsOptions());
 
     // What to load depends on the user's rights, so the page waits for those, as for any permission check.
@@ -133,11 +133,14 @@ function RefreshButton({ userId, onRefresh }: { userId: string; onRefresh: () =>
   const online = useOnline();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const isFetching = useIsFetching({ queryKey: queryKeys.home.all }) > 0;
+  const fetchingDashboard = useIsFetching({ queryKey: queryKeys.home.all });
+  const fetchingUser = useIsFetching({ queryKey: userRecordKey(userId), exact: true });
+  const isFetching = fetchingDashboard + fetchingUser > 0;
 
   const refresh = () => {
     if (!isOnline()) return;
     void queryClient.invalidateQueries({ queryKey: rightsOptions(userId).queryKey });
+    void queryClient.refetchQueries({ queryKey: userRecordKey(userId), exact: true });
     void queryClient.resetQueries({ queryKey: queryKeys.home.all });
     onRefresh();
   };

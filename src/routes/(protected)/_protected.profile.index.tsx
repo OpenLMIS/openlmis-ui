@@ -1,13 +1,17 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { firstNameOptions } from '@/features/home/api/queries';
-import { profileOptions } from '@/features/profile/api/queries';
+import { contactDetailsOptions } from '@/features/profile/api/queries';
 import { BasicInformation } from '@/features/profile/components/basic-information';
+import { userRecordOptions } from '@/features/reference-data/api/queries';
 import { queryKeys } from '@/lib/key-factory';
 
 export const Route = createFileRoute('/(protected)/_protected/profile/')({
   staticData: { crumbKey: 'profile.title' },
+  loader: ({ context: { queryClient } }) => {
+    const userId = useLoginData.getState().referenceDataUserId;
+    if (userId) queryClient.prefetchQuery(contactDetailsOptions(userId));
+  },
   component: BasicInformationPage,
 });
 
@@ -18,18 +22,17 @@ function BasicInformationPage() {
 
 function BasicInformationTab({ userId }: { userId: string }) {
   const queryClient = useQueryClient();
-  const { data: profile } = useSuspenseQuery(profileOptions(userId));
+  const { data: user } = useSuspenseQuery(userRecordOptions(userId));
+  const { data: contact } = useSuspenseQuery(contactDetailsOptions(userId));
 
   return (
-    // A different user, such as one who signed in through the legacy UI meanwhile, starts a fresh form.
     <BasicInformation
       key={userId}
       onSaved={() => {
-        // Home greets the user by name, and an administrator's list shows it.
-        void queryClient.invalidateQueries({ queryKey: firstNameOptions(userId).queryKey });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.users.list().slice(0, 2) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
       }}
-      profile={profile}
+      profile={{ user, contact }}
     />
   );
 }

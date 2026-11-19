@@ -14,17 +14,17 @@ import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   fetchDigestConfigurations,
-  fetchProfile,
   fetchSubscriptions,
-  saveProfile,
   saveSubscriptions,
 } from '@/features/profile/api/api';
-import { profileOptions, subscriptionsOptions } from '@/features/profile/api/queries';
+import { subscriptionsOptions } from '@/features/profile/api/queries';
 import { BasicInformation } from '@/features/profile/components/basic-information';
 import { NotificationSettings } from '@/features/profile/components/notification-settings';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
 import { fetchUserRecord } from '@/features/reference-data/api/api';
+import { client } from '@/integrations/axios';
 import { queryClient } from '@/integrations/tanstack-query';
+import { userRecordKey } from '@/lib/key-factory';
 import { Route } from '@/routes/(protected)/_protected';
 
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
@@ -32,9 +32,8 @@ vi.mock('@/features/reference-data/api/api', async (original) => ({
   ...(await original<typeof import('@/features/reference-data/api/api')>()),
   fetchUserRecord: vi.fn(),
 }));
-vi.mock('@/features/profile/api/api', () => ({
-  saveProfile: vi.fn(),
-  fetchProfile: vi.fn(),
+vi.mock('@/features/profile/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/profile/api/api')>()),
   fetchPendingEmail: vi.fn().mockResolvedValue(null),
   resendVerification: vi.fn(),
   fetchSubscriptions: vi.fn(),
@@ -107,9 +106,7 @@ beforeEach(() => {
   });
   vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
   vi.mocked(fetchUserRecord).mockImplementation(async (id) => ({ ...profile.user, id }));
-  vi.mocked(saveProfile).mockResolvedValue();
   vi.mocked(saveSubscriptions).mockResolvedValue();
-  vi.mocked(fetchProfile).mockReturnValue(new Promise(() => {}));
   vi.mocked(fetchDigestConfigurations).mockResolvedValue([
     { id: 'd1', tag: 'requisition-actionRequired' },
   ]);
@@ -119,14 +116,20 @@ beforeEach(() => {
 });
 it('profile completion must not repopulate the previous identity cache after the shared boundary unmounts', async () => {
   notifications = false;
-  queryClient.setQueryData(profileOptions('u1').queryKey, profile);
+  queryClient.setQueryData(userRecordKey('u1'), profile.user);
+  const late = Promise.withResolvers<typeof profile.user>();
+  const get = vi.spyOn(client, 'get').mockResolvedValue({ data: profile.user });
+  vi.spyOn(client, 'put').mockResolvedValue({ data: undefined });
+  vi.mocked(fetchUserRecord).mockReturnValueOnce(late.promise);
   const user = await open();
   await user.type(await screen.findByRole('textbox', { name: /users.form.first-name/ }), 'x');
   await user.click(screen.getByRole('button', { name: 'profile.save' }));
-  await waitFor(() => expect(fetchProfile).toHaveBeenCalledOnce());
+  await waitFor(() => expect(get).toHaveBeenCalledWith('/users/u1'));
+  await waitFor(() => expect(fetchUserRecord).toHaveBeenCalledWith('u1', expect.anything()));
   act(() => useLoginData.getState().setLoginData(alan));
   await screen.findByText('Alan page');
-  expect(queryClient.getQueryData(profileOptions('u1').queryKey)).toBeUndefined();
+  await act(async () => late.resolve({ ...profile.user, firstName: 'Adax' }));
+  expect(queryClient.getQueryData(userRecordKey('u1'))).toBeUndefined();
   expect(onSaved).not.toHaveBeenCalled();
 });
 it('notification completion must not repopulate the previous identity cache after the shared boundary unmounts', async () => {

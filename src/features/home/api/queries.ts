@@ -3,7 +3,6 @@ import {
   fetchApprovals,
   fetchConvertCount,
   fetchEquipmentStatusCounts,
-  fetchFirstName,
   fetchOpenOrdersCount,
   fetchRecentRequisitions,
   fetchRequisitionStatusCounts,
@@ -59,10 +58,4 @@ export const systemNotificationsOptions = () =>
   queryOptions({
     queryKey: key('notifications'),
     queryFn: ({ signal }) => fetchSystemNotifications({ signal }),
-  });
-
-export const firstNameOptions = (userId: string) =>
-  queryOptions({
-    queryKey: key('first-name', userId),
-    queryFn: ({ signal }) => fetchFirstName(userId, { signal }),
   });

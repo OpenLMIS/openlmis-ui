@@ -1,6 +1,7 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, MailIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Block } from '@/components/app-shell/skeleton-block';
@@ -15,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
 import { resendVerification, saveProfile } from '@/features/profile/api/api';
-import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
+import { contactDetailsOptions, pendingEmailOptions } from '@/features/profile/api/queries';
 import {
   applySaved,
   type ProfileFormValues,
@@ -24,26 +25,102 @@ import {
   toProfileFormValues,
 } from '@/features/profile/lib/profile-form';
 import type { Profile } from '@/features/profile/lib/types';
-import { homeFacilityOptions } from '@/features/reference-data/api/queries';
+import { fetchUserRecord } from '@/features/reference-data/api/api';
+import { homeFacilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { SessionEndedError } from '@/lib/session-scope';
+import type { UserRecord } from '@/lib/user-types';
 
 const FORM_ID = 'profile-form';
 
 type BasicInformationProps = {
   profile: Profile;
-  /** After a save, even one that failed part way, e.g. to refresh screens that show the name. */
   onSaved: () => void;
 };
 
-export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
+async function refetchSavedUser(
+  queryClient: QueryClient,
+  userId: string,
+  isCurrent: () => boolean,
+) {
+  const options = userRecordOptions(userId);
+  const filters = { queryKey: options.queryKey, exact: true };
+  await queryClient.cancelQueries(filters);
+  if (!isCurrent()) return;
+
+  const user = await queryClient
+    .fetchQuery({
+      ...options,
+      staleTime: 0,
+      queryFn: async ({ signal }) => {
+        const record = await fetchUserRecord(userId, { signal });
+        if (!isCurrent()) throw new SessionEndedError();
+        return record;
+      },
+    })
+    .catch(() => undefined);
+  if (isCurrent() && !user) {
+    void queryClient.invalidateQueries({ ...filters, refetchType: 'none' });
+  }
+  return user;
+}
+
+type SavedNames = Pick<UserRecord, 'firstName' | 'lastName'> & { source: UserRecord };
+
+export function BasicInformation({ profile: serverProfile, onSaved }: BasicInformationProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { user, contact } = profile;
+  const [savedNames, setSavedNames] = useState<SavedNames>();
+  const user =
+    savedNames?.source === serverProfile.user
+      ? { ...serverProfile.user, firstName: savedNames.firstName, lastName: savedNames.lastName }
+      : serverProfile.user;
+  const { contact } = serverProfile;
+  const profile = { user, contact };
   const emailVerified = contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = contact?.emailDetails?.email ?? '';
   const save = useSessionMutation({
-    mutationFn: (values: ProfileFormValues) => saveProfile(profile, values),
+    mutationFn: async (values: ProfileFormValues) => {
+      const changes = profileChanges(profile, values);
+      const fallback = applySaved(profile, values);
+      let userRefresh: Promise<UserRecord | undefined> | undefined;
+      let nextUser = user;
+      try {
+        await saveProfile(profile, values, () => {
+          if (save.isCurrent()) {
+            userRefresh = refetchSavedUser(queryClient, user.id, save.isCurrent);
+          }
+        });
+      } finally {
+        if (userRefresh) {
+          const refreshed = await userRefresh;
+          if (save.isCurrent()) {
+            nextUser = refreshed ?? fallback.user;
+            if (!refreshed) {
+              const { firstName, lastName } = nextUser;
+              setSavedNames({ source: serverProfile.user, firstName, lastName });
+            }
+          }
+        }
+      }
+      if (!save.isCurrent()) return;
+
+      let nextContact = contact;
+      if (changes.contact) {
+        const options = contactDetailsOptions(user.id);
+        await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
+        if (!save.isCurrent()) return;
+        const refreshed = await queryClient
+          .fetchQuery({ ...options, staleTime: 0 })
+          .catch(() => undefined);
+        if (!save.isCurrent()) return;
+        nextContact = refreshed === undefined ? fallback.contact : refreshed;
+        if (refreshed === undefined) queryClient.setQueryData(options.queryKey, nextContact);
+        void queryClient.invalidateQueries({ queryKey: pendingEmailOptions(user.id).queryKey });
+      }
+      form.reset(toProfileFormValues({ user: nextUser, contact: nextContact }));
+    },
     onSuccess: (_, values) => {
       toast.success(t('profile.saved-title'), {
         description: profileChanges(profile, values).email
@@ -51,20 +128,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
           : t('profile.saved'),
       });
     },
-    // Either way: a save that failed part way may already have stored the names.
-    onSettled: async (_, error, values) => {
-      const saved = await queryClient
-        .fetchQuery({ ...profileOptions(user.id), staleTime: 0 })
-        .catch(() => undefined);
-      if (!save.isCurrent()) return;
-      void queryClient.invalidateQueries({ queryKey: pendingEmailOptions(user.id).queryKey });
-      onSaved();
-      if (error) return;
-      // The form starts again from what the server now holds; if it cannot be read, from what it took.
-      const next = saved ?? applySaved(profile, values);
-      if (!saved) queryClient.setQueryData(profileOptions(user.id).queryKey, next);
-      form.reset(toProfileFormValues(next));
-    },
+    onSettled: onSaved,
   });
 
   const form = useAppForm({

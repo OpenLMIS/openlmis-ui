@@ -8,8 +8,7 @@ import {
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchProfile, saveProfile } from '@/features/profile/api/api';
-import { profileOptions } from '@/features/profile/api/queries';
+import { contactDetailsOptions } from '@/features/profile/api/queries';
 import {
   BasicInformation,
   BasicInformationSkeleton,
@@ -17,14 +16,14 @@ import {
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
 import type { Profile } from '@/features/profile/lib/types';
 import { fetchFacility } from '@/features/reference-data/api/api';
+import { userRecordOptions } from '@/features/reference-data/api/queries';
+import { client } from '@/integrations/axios';
+import { userRecordKey } from '@/lib/key-factory';
 
-vi.mock('@/features/profile/api/api', () => ({
-  saveProfile: vi.fn(),
-  fetchProfile: vi.fn(),
-  fetchPendingEmail: vi.fn().mockResolvedValue(null),
-  resendVerification: vi.fn(),
+vi.mock('@/features/reference-data/api/api', async (original) => ({
+  ...(await original<typeof import('@/features/reference-data/api/api')>()),
+  fetchFacility: vi.fn(),
 }));
-vi.mock('@/features/reference-data/api/api', () => ({ fetchFacility: vi.fn() }));
 
 const profile: Profile = {
   user: {
@@ -38,70 +37,76 @@ const profile: Profile = {
   contact: null,
 };
 
-/** As the route renders it: the profile read from the cache, so a save's refresh reaches the form. */
 function FromCache() {
-  const { data } = useSuspenseQuery(profileOptions('u1'));
-  return <BasicInformation onSaved={vi.fn()} profile={data} />;
+  const { data: user } = useSuspenseQuery(userRecordOptions('u1'));
+  const { data: contact } = useSuspenseQuery(contactDetailsOptions('u1'));
+  return <BasicInformation onSaved={vi.fn()} profile={{ user, contact }} />;
 }
 
 beforeEach(() => {
-  vi.mocked(saveProfile).mockReset().mockResolvedValue();
-  vi.mocked(fetchProfile).mockReset().mockResolvedValue(profile);
+  vi.spyOn(client, 'get').mockResolvedValue({ data: null });
+  vi.spyOn(client, 'put').mockResolvedValue({ data: undefined });
 });
 
+function openProfile(queryClient: QueryClient, content: React.ReactNode) {
+  const root = createRootRoute({
+    component: () => <ProfileWorkspace username="ada">{content}</ProfileWorkspace>,
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider
+        router={createRouter({
+          routeTree: root,
+          history: createMemoryHistory({ initialEntries: ['/profile'] }),
+        })}
+      />
+    </QueryClientProvider>,
+  );
+}
+
 describe('BasicInformation', () => {
-  it('refreshes the profile after a save that failed part way, since part of it may be stored', async () => {
-    vi.mocked(saveProfile).mockRejectedValue(new Error('contact details refused'));
+  it('refreshes the server user after the name saves and the contact write fails', async () => {
+    const updated = { ...profile.user, firstName: 'Augusta', roleAssignments: [{ roleId: 'r2' }] };
+    vi.mocked(client.get).mockImplementation(async (url) => ({
+      data:
+        url === '/users/u1'
+          ? vi.mocked(client.put).mock.calls.length
+            ? updated
+            : profile.user
+          : null,
+    }));
+    vi.mocked(client.put)
+      .mockResolvedValueOnce({ data: undefined })
+      .mockRejectedValueOnce(new Error('contact details refused'));
     const queryClient = new QueryClient();
-    queryClient.setQueryData(profileOptions('u1').queryKey, profile);
+    queryClient.setQueryData(userRecordKey('u1'), profile.user);
     const onSaved = vi.fn();
-    const root = createRootRoute({
-      component: () => (
-        <ProfileWorkspace username="ada">
-          <BasicInformation onSaved={onSaved} profile={profile} />
-        </ProfileWorkspace>
-      ),
-    });
-    const router = createRouter({
-      routeTree: root,
-      history: createMemoryHistory({ initialEntries: ['/profile'] }),
-    });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
+    openProfile(queryClient, <BasicInformation onSaved={onSaved} profile={profile} />);
 
     const firstName = await screen.findByRole('textbox', { name: /users.form.first-name/ });
-    await userEvent.type(firstName, 'x');
+    await userEvent.clear(firstName);
+    await userEvent.type(firstName, 'Augusta');
+    await userEvent.type(screen.getByRole('textbox', { name: 'users.form.phone-number' }), '123');
     await userEvent.click(screen.getByRole('button', { name: 'profile.save' }));
 
-    await waitFor(() => expect(saveProfile).toHaveBeenCalledOnce());
-    await waitFor(() => expect(fetchProfile).toHaveBeenCalled());
+    await screen.findByText('profile.save-error-title');
+    expect(queryClient.getQueryData(userRecordKey('u1'))).toEqual(updated);
     expect(onSaved).toHaveBeenCalledOnce();
+    expect(screen.getByRole('textbox', { name: 'users.form.phone-number' })).toHaveValue('123');
   });
 
-  it('keeps what was saved on screen when the refresh after a save fails', async () => {
-    vi.mocked(saveProfile).mockReset().mockResolvedValue();
-    vi.mocked(fetchProfile).mockRejectedValue(new Error('offline'));
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    queryClient.setQueryData(profileOptions('u1').queryKey, profile);
-    const root = createRootRoute({
-      component: () => (
-        <ProfileWorkspace username="ada">
-          <FromCache />
-        </ProfileWorkspace>
-      ),
+  it('keeps the confirmed name on the form when refreshing the shared user fails', async () => {
+    vi.mocked(client.get).mockImplementation(async (url) => {
+      if (url !== '/users/u1') return { data: null };
+      if (vi.mocked(client.put).mock.calls.length) throw new Error('refetch failed');
+      return { data: profile.user };
     });
-    const router = createRouter({
-      routeTree: root,
-      history: createMemoryHistory({ initialEntries: ['/profile'] }),
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
+    queryClient.setQueryData(contactDetailsOptions('u1').queryKey, profile.contact);
+    queryClient.setQueryData(userRecordKey('u1'), profile.user);
+    openProfile(queryClient, <FromCache />);
 
     const firstName = await screen.findByRole('textbox', { name: /users.form.first-name/ });
     await userEvent.clear(firstName);
@@ -109,15 +114,11 @@ describe('BasicInformation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'profile.save' }));
 
     await waitFor(() =>
-      expect(queryClient.getQueryData(profileOptions('u1').queryKey)?.user.firstName).toBe(
-        'Augusta',
-      ),
-    );
-    expect(fetchProfile).toHaveBeenCalled();
-    expect(firstName).toHaveValue('Augusta');
-    await waitFor(() =>
       expect(screen.getByRole('button', { name: 'profile.save' })).toBeDisabled(),
     );
+    expect(firstName).toHaveValue('Augusta');
+    expect(queryClient.getQueryData(userRecordKey('u1'))).toEqual(profile.user);
+    expect(queryClient.getQueryState(userRecordKey('u1'))?.isInvalidated).toBe(true);
   });
 
   it('shows the saved email as verified beside its label, read with the field, and a hint once it is changed', async () => {

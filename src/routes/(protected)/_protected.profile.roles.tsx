@@ -2,12 +2,12 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import type { z } from 'zod';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { profileOptions } from '@/features/profile/api/queries';
 import {
   minimalFacilitiesOptions,
   programsOptions,
   rolesOptions,
   supervisoryNodesOptions,
+  userRecordOptions,
 } from '@/features/reference-data/api/queries';
 import { RoleTabs } from '@/features/users/components/role-tabs';
 import { ROLE_TABS } from '@/features/users/lib/role-assignments';
@@ -39,8 +39,7 @@ function RoleAssignmentsPage() {
 
 function RoleAssignmentsTab({ userId }: { userId: string }) {
   const search = Route.useSearch();
-  const { data: profile } = useSuspenseQuery(profileOptions(userId));
-  const { user } = profile;
+  const { data: user } = useSuspenseQuery(userRecordOptions(userId));
   const tab = ROLE_TABS.find((item) => item.id === (search.tab ?? 'supervision')) ?? ROLE_TABS[0];
 
   const { updateSearch } = useSearchNavigation<ProfileRolesSearch>({});

@@ -2,9 +2,9 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   changePassword,
+  fetchContactDetails,
   fetchDigestConfigurations,
   fetchPendingEmail,
-  fetchProfile,
   fetchSubscriptions,
   resendVerification,
   saveProfile,
@@ -67,27 +67,18 @@ beforeEach(() => {
   put.mockReset();
 });
 
-describe('fetchProfile', () => {
-  it('loads the user and their contact details', async () => {
-    get.mockResolvedValueOnce({ data: user }).mockResolvedValueOnce({ data: contact });
+describe('fetchContactDetails', () => {
+  it('reads only the contact details for the user', async () => {
+    get.mockResolvedValueOnce({ data: contact });
 
-    await expect(fetchProfile('u1')).resolves.toEqual(profile);
-    expect(get).toHaveBeenCalledWith('/users/u1');
-    expect(get).toHaveBeenCalledWith('/userContactDetails/u1');
+    await expect(fetchContactDetails('u1')).resolves.toEqual(contact);
+    expect(get).toHaveBeenCalledExactlyOnceWith('/userContactDetails/u1');
   });
 
   it('treats missing contact details as none', async () => {
-    get.mockResolvedValueOnce({ data: user }).mockRejectedValueOnce(notFound());
+    get.mockRejectedValueOnce(notFound());
 
-    await expect(fetchProfile('u1')).resolves.toEqual({ user, contact: null });
-  });
-
-  it('never reads the sign-in account, which the page does not show', async () => {
-    get.mockResolvedValueOnce({ data: user }).mockResolvedValueOnce({ data: contact });
-
-    await fetchProfile('u1');
-
-    expect(get).not.toHaveBeenCalledWith('/users/auth/u1');
+    await expect(fetchContactDetails('u1')).resolves.toBeNull();
   });
 });
 

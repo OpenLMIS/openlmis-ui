@@ -20,6 +20,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import ICU from 'i18next-icu';
+import { createContext } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
@@ -68,6 +69,7 @@ import { expectRouteWarning } from '@/test-utils/expect-route-warning';
 import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/components/app-shell/app-shell', () => ({
+  AppShellContext: createContext(false),
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock('@/components/app-shell/app-shell-skeleton', () => ({
@@ -673,14 +675,11 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       assertRouteWarning();
     });
 
-    it('shows No Access without a home facility', async () => {
+    it('shows No Home Facility and links back to the program list', async () => {
       const assertRouteWarning = expectRouteWarning(
         `/(protected)/_protected/stock-management/${kind}_/$programId${PICKER}/${FP}`,
       );
-      const onCaughtError = vi.fn((caught: unknown) => {
-        expect(caught).toBeInstanceOf(ForbiddenError);
-        expect(caught).toHaveProperty('message', 'Missing right STOCK_ADJUST');
-      });
+      const onCaughtError = vi.fn();
       vi.mocked(fetchUserRecord).mockResolvedValue({
         id: USER,
         username: 'administrator',
@@ -692,7 +691,14 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       });
       renderRoute(`${PICKER}/${FP}`, { onCaughtError });
 
-      expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: 'stock-programs.no-home-title' }),
+      ).toBeInTheDocument();
+      expect(screen.getByText('facility-program.no-home')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'stock-programs.back' })).toHaveAttribute(
+        'href',
+        PICKER,
+      );
       expect(fetchFacility).not.toHaveBeenCalled();
       expect(onCaughtError).toHaveBeenCalled();
       assertRouteWarning();

@@ -265,6 +265,32 @@ describe('physical inventory routes', () => {
     expect(onCaughtError).toHaveBeenCalled();
     assertRouteWarning();
   });
+  it('shows No Home Facility and links back to the program list', async () => {
+    const assertRouteWarning = expectRouteWarning(
+      `/(protected)/_protected/stock-management/physical-inventory_/$programId${PICKER}/${FP}`,
+    );
+    vi.mocked(fetchUserRecord).mockResolvedValue({
+      id: USER,
+      username: 'administrator',
+      firstName: 'Admin',
+      lastName: 'Istrator',
+      active: true,
+      homeFacilityId: null,
+      roleAssignments: [],
+    });
+    renderRoute(`${PICKER}/${FP}`, undefined, { onCaughtError: vi.fn() });
+    expect(
+      await screen.findByRole('heading', { name: 'stock-programs.no-home-title' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('facility-program.no-home')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'stock-programs.back' })).toHaveAttribute(
+      'href',
+      PICKER,
+    );
+    expect(fetchFacility).not.toHaveBeenCalled();
+    expect(fetchPhysicalInventoryDraft).not.toHaveBeenCalled();
+    assertRouteWarning();
+  });
   it('refuses an unsupported program', async () => {
     const assertRouteWarning = expectRouteWarning(
       `/(protected)/_protected/stock-management/physical-inventory_/$programId${PICKER}/${FP}`,
@@ -711,7 +737,7 @@ it.each(['absent', 'older format'])(
     renderRoute(`${PICKER}/${FP}`);
     await screen.findByText('physical-inventory.not-on-device');
     expect(screen.getByText('physical-inventory.editor-title')).toBeInTheDocument();
-    expect(screen.getByText('physical-inventory.back').closest('a')).toHaveAttribute(
+    expect(screen.getByText('stock-programs.back').closest('a')).toHaveAttribute(
       'href',
       expect.stringContaining('/stock-management/physical-inventory'),
     );

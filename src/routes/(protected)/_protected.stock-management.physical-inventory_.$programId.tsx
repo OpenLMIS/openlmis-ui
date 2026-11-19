@@ -46,6 +46,7 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
 import { deviceDataGeneration } from '@/lib/local-data';
+import { NoHomeFacilityError } from '@/lib/no-home-facility-error';
 import { isOnline, useOnReconnect } from '@/lib/online';
 import { hasProgramGrant } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -71,7 +72,8 @@ export const Route = createFileRoute(
       ]);
       assertSessionScope(session);
       const homeId = user.homeFacilityId;
-      if (!homeId || !hasProgramGrant(permissions, RIGHTS.stockInventoriesEdit, homeId, programId))
+      if (!homeId) throw new NoHomeFacilityError({ back: '/stock-management/physical-inventory' });
+      if (!hasProgramGrant(permissions, RIGHTS.stockInventoriesEdit, homeId, programId))
         throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
       const homeFacility = await queryClient.fetchQuery(homeFacilityOptions(homeId));
       assertSessionScope(session);
@@ -197,7 +199,7 @@ function InventoryPage() {
                     nativeButton={false}
                     render={<Link to="/stock-management/physical-inventory" />}
                   >
-                    {t('physical-inventory.back')}
+                    {t('stock-programs.back')}
                   </Button>
                 }
               />
@@ -241,7 +243,7 @@ function InventoryPage() {
                   nativeButton={false}
                   render={<Link to="/stock-management/physical-inventory" />}
                 >
-                  {t('physical-inventory.back')}
+                  {t('stock-programs.back')}
                 </Button>
               }
             />

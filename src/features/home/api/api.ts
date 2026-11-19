@@ -125,8 +125,3 @@ export async function fetchSystemNotifications(
   }
   return notifications;
 }
-
-export async function fetchFirstName(userId: string, config?: AxiosRequestConfig): Promise<string> {
-  const { data } = await client.get<{ firstName: string }>(`/users/${userId}`, config);
-  return data.firstName;
-}
