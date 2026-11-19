@@ -1,16 +1,16 @@
 import { queryOptions } from '@tanstack/react-query';
 import {
+  fetchContactDetails,
   fetchDigestConfigurations,
   fetchPendingEmail,
-  fetchProfile,
   fetchSubscriptions,
 } from '@/features/profile/api/api';
 import { queryKeys } from '@/lib/key-factory';
 
-export const profileOptions = (userId: string) =>
+export const contactDetailsOptions = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.profile.detail(userId),
-    queryFn: () => fetchProfile(userId),
+    queryFn: () => fetchContactDetails(userId),
   });
 
 export const pendingEmailOptions = (userId: string) =>

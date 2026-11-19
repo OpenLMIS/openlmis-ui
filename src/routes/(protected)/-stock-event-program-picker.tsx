@@ -91,6 +91,8 @@ function ProgramsHeader({ userId, copy }: { userId?: string; copy: PickerCopy })
             t(copy.title, { facility: recordLabel(home) })
           ) : copy.nav ? (
             t(copy.nav)
+          ) : user && !homeId && copy.plainTitle ? (
+            t(copy.plainTitle)
           ) : (
             <span className="block h-5 w-64 max-w-full @xl/main:w-96">
               <Skeleton fill />
@@ -108,8 +110,15 @@ type PickerCopy = {
   description: ParseKeys;
   action: ParseKeys;
   nav?: ParseKeys;
+  plainTitle?: ParseKeys;
   status?: ParseKeys;
   actions?: ParseKeys;
+};
+const KIND_NAV_TITLES: Record<ConfiguredEventKind, ParseKeys> = {
+  adjustment: 'nav.stock-management.adjustments',
+  issue: 'nav.stock-management.issue',
+  receive: 'nav.stock-management.receive',
+  unpack: 'nav.stock-management.unpack',
 };
 type PickerSource = { kind: ConfiguredEventKind } | { copy: PickerCopy };
 function pickerCopy(source: PickerSource): PickerCopy {
@@ -119,6 +128,7 @@ function pickerCopy(source: PickerSource): PickerCopy {
     title: copy.pickerTitle,
     description: copy.pageDescription,
     action: copy.make,
+    plainTitle: KIND_NAV_TITLES[source.kind],
   };
 }
 type PickerProps = {

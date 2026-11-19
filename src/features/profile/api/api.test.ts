@@ -2,15 +2,15 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   changePassword,
+  fetchContactDetails,
   fetchDigestConfigurations,
   fetchPendingEmail,
-  fetchProfile,
   fetchSubscriptions,
   resendVerification,
-  saveProfile,
+  saveProfileContact,
+  saveProfileNames,
   saveSubscriptions,
 } from '@/features/profile/api/api';
-import type { Profile } from '@/features/profile/lib/types';
 import { client } from '@/integrations/axios';
 import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 
@@ -51,43 +51,24 @@ const contact: UserContactDetails = {
   emailDetails: { email: 'ada@example.org', emailVerified: true },
 };
 
-const profile: Profile = { user, contact };
-
-const values = {
-  firstName: 'Ada',
-  lastName: 'Lovelace',
-  email: 'ada@example.org',
-  phoneNumber: '123',
-  allowNotify: true,
-};
-
 beforeEach(() => {
   get.mockReset();
   post.mockReset();
   put.mockReset();
 });
 
-describe('fetchProfile', () => {
-  it('loads the user and their contact details', async () => {
-    get.mockResolvedValueOnce({ data: user }).mockResolvedValueOnce({ data: contact });
+describe('fetchContactDetails', () => {
+  it('reads only the contact details for the user', async () => {
+    get.mockResolvedValueOnce({ data: contact });
 
-    await expect(fetchProfile('u1')).resolves.toEqual(profile);
-    expect(get).toHaveBeenCalledWith('/users/u1');
-    expect(get).toHaveBeenCalledWith('/userContactDetails/u1');
+    await fetchContactDetails('u1');
+    expect(get).toHaveBeenCalledExactlyOnceWith('/userContactDetails/u1');
   });
 
   it('treats missing contact details as none', async () => {
-    get.mockResolvedValueOnce({ data: user }).mockRejectedValueOnce(notFound());
+    get.mockRejectedValueOnce(notFound());
 
-    await expect(fetchProfile('u1')).resolves.toEqual({ user, contact: null });
-  });
-
-  it('never reads the sign-in account, which the page does not show', async () => {
-    get.mockResolvedValueOnce({ data: user }).mockResolvedValueOnce({ data: contact });
-
-    await fetchProfile('u1');
-
-    expect(get).not.toHaveBeenCalledWith('/users/auth/u1');
+    await expect(fetchContactDetails('u1')).resolves.toBeNull();
   });
 });
 
@@ -107,83 +88,28 @@ describe('fetchPendingEmail', () => {
   });
 });
 
-describe('saveProfile', () => {
-  it('changes only the names, on the user as it is now, keeping every other field', async () => {
-    const fresh = { ...user, roleAssignments: [{ roleId: 'r2' }] };
+describe('saveProfileNames', () => {
+  it('applies only the edited name to the current server user', async () => {
+    const fresh = { ...user, lastName: 'Byron', roleAssignments: [{ roleId: 'r2' }] };
     get.mockResolvedValueOnce({ data: fresh });
 
-    await saveProfile(profile, { ...values, firstName: ' Augusta ', lastName: 'King' });
+    await saveProfileNames('u1', { firstName: 'Augusta' });
 
-    expect(get).toHaveBeenCalledWith('/users/u1');
-    expect(put).toHaveBeenCalledTimes(1);
-    expect(put).toHaveBeenCalledWith('/users', {
+    expect(get).toHaveBeenCalledExactlyOnceWith('/users/u1');
+    expect(put).toHaveBeenCalledExactlyOnceWith('/users', {
       ...fresh,
       firstName: 'Augusta',
-      lastName: 'King',
     });
   });
+});
 
-  it('saves the contact details alone when only they changed', async () => {
-    await saveProfile(profile, { ...values, phoneNumber: ' 456 ', allowNotify: false });
+describe('saveProfileContact', () => {
+  it('writes contact details without reading or writing the user or sign-in account', async () => {
+    await saveProfileContact('u1', contact);
 
+    expect(put).toHaveBeenCalledExactlyOnceWith('/userContactDetails/u1', contact);
     expect(get).not.toHaveBeenCalled();
-    expect(put).toHaveBeenCalledWith('/userContactDetails/u1', {
-      referenceDataUserId: 'u1',
-      phoneNumber: '456',
-      allowNotify: false,
-      emailDetails: { email: 'ada@example.org', emailVerified: true },
-    });
-  });
-
-  it('sends a new email with the stored verified flag, since the server verifies it', async () => {
-    await saveProfile(profile, { ...values, email: 'new@example.org' });
-
-    expect(put).toHaveBeenCalledWith(
-      '/userContactDetails/u1',
-      expect.objectContaining({
-        emailDetails: { email: 'new@example.org', emailVerified: true },
-      }),
-    );
-  });
-
-  it('saves the user before the contact details, and stops when the user fails', async () => {
-    get.mockResolvedValueOnce({ data: user });
-    put.mockRejectedValueOnce(new Error('refused'));
-
-    await expect(
-      saveProfile(profile, { ...values, firstName: 'Augusta', phoneNumber: '456' }),
-    ).rejects.toThrow('refused');
-    expect(put).toHaveBeenCalledTimes(1);
-    expect(put).toHaveBeenCalledWith('/users', expect.anything());
-  });
-
-  it('creates contact details for a user who has none', async () => {
-    await saveProfile(
-      { user, contact: null },
-      { ...values, email: '', phoneNumber: '1', allowNotify: false },
-    );
-
-    expect(put).toHaveBeenCalledWith('/userContactDetails/u1', {
-      referenceDataUserId: 'u1',
-      phoneNumber: '1',
-      allowNotify: false,
-      emailDetails: { email: null, emailVerified: false },
-    });
-  });
-
-  it('never touches the sign-in account', async () => {
-    get.mockResolvedValueOnce({ data: user });
-
-    await saveProfile(profile, { ...values, firstName: 'Augusta', phoneNumber: '456' });
-
     expect(post).not.toHaveBeenCalled();
-  });
-
-  it('sends nothing when nothing changed', async () => {
-    await saveProfile(profile, values);
-
-    expect(get).not.toHaveBeenCalled();
-    expect(put).not.toHaveBeenCalled();
   });
 });
 

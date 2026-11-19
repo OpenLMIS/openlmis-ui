@@ -1,24 +1,13 @@
-import {
-  type ProfileFormValues,
-  profileChanges,
-  toContactDetails,
-} from '@/features/profile/lib/profile-form';
-import type {
-  DigestConfiguration,
-  DigestSubscription,
-  Profile,
-} from '@/features/profile/lib/types';
+import type { ProfileNameChanges } from '@/features/profile/lib/profile-form';
+import type { DigestConfiguration, DigestSubscription } from '@/features/profile/lib/types';
 import { client } from '@/integrations/axios';
 import { getIfExists } from '@/lib/http';
+import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 
-export async function fetchProfile(userId: string): Promise<Profile> {
-  const [{ data: user }, contact] = await Promise.all([
-    client.get<UserRecord>(`/users/${userId}`),
-    getIfExists<UserContactDetails>(`/userContactDetails/${userId}`),
-  ]);
-  return { user, contact };
+export function fetchContactDetails(userId: string): Promise<UserContactDetails | null> {
+  return getIfExists<UserContactDetails>(`/userContactDetails/${userId}`);
 }
 
 /** A changed email waits here until its link is opened; nothing pending comes back empty. */
@@ -30,21 +19,23 @@ export async function fetchPendingEmail(userId: string): Promise<string | null> 
   return pending.emailAddress || null;
 }
 
-/** Only the parts that changed, one after another, so a refused step stops the rest. */
-export async function saveProfile(profile: Profile, values: ProfileFormValues): Promise<void> {
-  const changes = profileChanges(profile, values);
-  if (changes.user) {
-    // The user as it is now, so roles an admin changed meanwhile survive.
-    const { data: user } = await client.get<UserRecord>(`/users/${profile.user.id}`);
-    await client.put('/users', {
-      ...user,
-      firstName: values.firstName.trim(),
-      lastName: values.lastName.trim(),
-    });
-  }
-  if (changes.contact) {
-    await client.put(`/userContactDetails/${profile.user.id}`, toContactDetails(profile, values));
-  }
+export async function saveProfileNames(userId: string, changes: ProfileNameChanges) {
+  const scope = getSessionScope();
+  const { data: user } = await client.get<UserRecord>(`/users/${userId}`);
+  assertSessionScope(scope);
+  const { firstName, lastName } = { ...user, ...changes };
+  await client.put('/users', { ...user, firstName, lastName });
+  assertSessionScope(scope);
+  return { firstName, lastName };
+}
+
+export async function saveProfileContact(
+  userId: string,
+  details: UserContactDetails,
+): Promise<void> {
+  const scope = getSessionScope();
+  await client.put(`/userContactDetails/${userId}`, details);
+  assertSessionScope(scope);
 }
 
 export async function resendVerification(userId: string): Promise<void> {

@@ -65,6 +65,7 @@ import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
+import { NoHomeFacilityError } from '@/lib/no-home-facility-error';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
@@ -87,7 +88,8 @@ export async function loadStockEventEditor(
     queryClient.fetchQuery(userRecordOptions(userId)),
   ]);
   const homeId = user.homeFacilityId;
-  if (!homeId || !hasProgramGrant(permissions, right, homeId, programId)) {
+  if (!homeId) throw new NoHomeFacilityError({ back: EVENT_KINDS[kind].listRoute });
+  if (!hasProgramGrant(permissions, right, homeId, programId)) {
     throw new ForbiddenError(right);
   }
   const homeFacility = await queryClient.fetchQuery(homeFacilityOptions(homeId));

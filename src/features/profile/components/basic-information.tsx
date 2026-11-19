@@ -1,6 +1,7 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, MailIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Block } from '@/components/app-shell/skeleton-block';
@@ -14,25 +15,34 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
-import { resendVerification, saveProfile } from '@/features/profile/api/api';
-import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
 import {
-  applySaved,
+  resendVerification,
+  saveProfileContact,
+  saveProfileNames,
+} from '@/features/profile/api/api';
+import { contactDetailsOptions, pendingEmailOptions } from '@/features/profile/api/queries';
+import {
   type ProfileFormValues,
   profileChanges,
   profileFormSchema,
+  savedContactDetails,
+  toContactDetails,
   toProfileFormValues,
 } from '@/features/profile/lib/profile-form';
 import type { Profile } from '@/features/profile/lib/types';
-import { homeFacilityOptions } from '@/features/reference-data/api/queries';
+import {
+  homeFacilityOptions,
+  refreshServerUserRecord,
+} from '@/features/reference-data/api/queries';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { userRecordKey } from '@/lib/key-factory';
+import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 
 const FORM_ID = 'profile-form';
 
 type BasicInformationProps = {
   profile: Profile;
-  /** After a save, even one that failed part way, e.g. to refresh screens that show the name. */
   onSaved: () => void;
 };
 
@@ -40,35 +50,99 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user, contact } = profile;
+  const [startingValues, setStartingValues] = useState(() => toProfileFormValues(profile));
   const emailVerified = contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = contact?.emailDetails?.email ?? '';
   const save = useSessionMutation({
-    mutationFn: (values: ProfileFormValues) => saveProfile(profile, values),
-    onSuccess: (_, values) => {
+    mutationFn: async (values: ProfileFormValues) => {
+      const changes = profileChanges(startingValues, values);
+      let confirmedNames: Pick<UserRecord, 'firstName' | 'lastName'> | undefined;
+      let submittedContact: UserContactDetails | undefined;
+      let failure: { error: unknown } | undefined;
+
+      try {
+        if (changes.names) {
+          confirmedNames = await saveProfileNames(user.id, changes.names);
+          if (!save.isCurrent()) return;
+        }
+        if (changes.contact) {
+          submittedContact = toContactDetails(profile, values);
+          await saveProfileContact(user.id, submittedContact);
+        }
+      } catch (error) {
+        failure = { error };
+      }
+      if (!save.isCurrent()) return;
+
+      const recordKey = userRecordKey(user.id);
+      let nextUser = queryClient.getQueryData<UserRecord>(recordKey) ?? user;
+      if (confirmedNames) {
+        const refreshed = await refreshServerUserRecord(queryClient, user.id).catch(
+          () => undefined,
+        );
+        if (!save.isCurrent()) return;
+        if (refreshed) {
+          nextUser = refreshed;
+        } else {
+          const names = confirmedNames;
+          nextUser = queryClient.setQueryData<UserRecord>(
+            recordKey,
+            (old) => old && { ...old, ...names },
+          ) ?? { ...nextUser, ...names };
+          void queryClient.invalidateQueries({
+            queryKey: recordKey,
+            exact: true,
+            refetchType: 'none',
+          });
+        }
+      }
+
+      let nextContact = contact;
+      if (submittedContact) {
+        const options = contactDetailsOptions(user.id);
+        await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
+        if (!save.isCurrent()) return;
+        const refreshed = await queryClient
+          .fetchQuery({ ...options, staleTime: 0 })
+          .catch(() => undefined);
+        if (!save.isCurrent()) return;
+
+        if (refreshed !== undefined) {
+          nextContact = refreshed;
+        } else if (!failure) {
+          nextContact = savedContactDetails(contact, submittedContact);
+          queryClient.setQueryData(options.queryKey, nextContact);
+        }
+        void queryClient.invalidateQueries({ queryKey: pendingEmailOptions(user.id).queryKey });
+      }
+
+      const nextValues = toProfileFormValues({ user: nextUser, contact: nextContact });
+      if (failure) {
+        if (submittedContact) {
+          setStartingValues({
+            ...nextValues,
+            firstName: changes.names?.firstName ?? startingValues.firstName,
+            lastName: changes.names?.lastName ?? startingValues.lastName,
+          });
+        }
+        throw failure.error;
+      }
+      setStartingValues(nextValues);
+      form.reset(nextValues);
+      return changes.email;
+    },
+    onSuccess: (emailChanged, values) => {
       toast.success(t('profile.saved-title'), {
-        description: profileChanges(profile, values).email
+        description: emailChanged
           ? t('profile.saved-pending-email', { email: values.email.trim() })
           : t('profile.saved'),
       });
     },
-    // Either way: a save that failed part way may already have stored the names.
-    onSettled: async (_, error, values) => {
-      const saved = await queryClient
-        .fetchQuery({ ...profileOptions(user.id), staleTime: 0 })
-        .catch(() => undefined);
-      if (!save.isCurrent()) return;
-      void queryClient.invalidateQueries({ queryKey: pendingEmailOptions(user.id).queryKey });
-      onSaved();
-      if (error) return;
-      // The form starts again from what the server now holds; if it cannot be read, from what it took.
-      const next = saved ?? applySaved(profile, values);
-      if (!saved) queryClient.setQueryData(profileOptions(user.id).queryKey, next);
-      form.reset(toProfileFormValues(next));
-    },
+    onSettled: onSaved,
   });
 
   const form = useAppForm({
-    defaultValues: toProfileFormValues(profile),
+    defaultValues: startingValues,
     // Quiet until the first submit, then each field re-checks as it is corrected.
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: profileFormSchema },
@@ -76,8 +150,8 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
   });
   // Only whether anything changed, so typing re-renders this page, not every part of it.
   const changed = useStore(form.store, (state) => {
-    const changes = profileChanges(profile, state.values);
-    return changes.user || changes.contact;
+    const changes = profileChanges(startingValues, state.values);
+    return Boolean(changes.names) || changes.contact;
   });
   const guard = useDiscardGuard(changed);
 
@@ -88,7 +162,9 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
           disabled={!changed || save.isPending}
           onClick={() => {
             save.reset();
-            form.reset(toProfileFormValues(profile));
+            const savedValues = toProfileFormValues(profile);
+            setStartingValues(savedValues);
+            form.reset(savedValues);
           }}
           size="lg"
           variant="outline"

@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { profileOptions } from '@/features/profile/api/queries';
+import { userRecordOptions } from '@/features/reference-data/api/queries';
 import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
 import { isNavParent } from '@/lib/config';
 import { fullName } from '@/lib/text';
@@ -133,9 +133,9 @@ export function NavUser({ trigger, align = 'end' }: NavUserProps) {
 /** The user's name over their username; rendered in the open menu, so it loads only then. */
 function SignedInAs({ userId, username }: { userId: string | null; username: string | null }) {
   const { data: name } = useQuery({
-    ...profileOptions(userId ?? ''),
+    ...userRecordOptions(userId ?? ''),
     enabled: userId !== null,
-    select: ({ user }) => fullName(user),
+    select: fullName,
   });
 
   return (

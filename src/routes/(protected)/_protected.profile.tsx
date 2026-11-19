@@ -12,12 +12,12 @@ import { z } from 'zod';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { useAuthActions } from '@/features/auth/hooks/use-auth-actions';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { pendingEmailOptions, profileOptions } from '@/features/profile/api/queries';
+import { pendingEmailOptions } from '@/features/profile/api/queries';
 import { BasicInformationSkeleton } from '@/features/profile/components/basic-information';
 import { ChangePasswordDialog } from '@/features/profile/components/change-password-dialog';
 import { NotificationSettingsSkeleton } from '@/features/profile/components/notification-settings';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
-import { homeFacilityOptions } from '@/features/reference-data/api/queries';
+import { homeFacilityOptions, userRecordOptions } from '@/features/reference-data/api/queries';
 import { RoleTabsSkeleton } from '@/features/users/components/role-tabs';
 import { ROLE_TABS } from '@/features/users/lib/role-assignments';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
@@ -37,8 +37,7 @@ export const Route = createFileRoute('/(protected)/_protected/profile')({
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
     queryClient.prefetchQuery(pendingEmailOptions(userId));
-    // The page is about this record, so it waits for it.
-    const { user } = await queryClient.ensureQueryData(profileOptions(userId));
+    const user = await queryClient.ensureQueryData(userRecordOptions(userId));
     if (user.homeFacilityId) queryClient.prefetchQuery(homeFacilityOptions(user.homeFacilityId));
   },
   pendingComponent: ProfilePending,
@@ -56,7 +55,7 @@ function ProfileDialogs({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { dialog } = Route.useSearch();
-  const { data: profile } = useSuspenseQuery(profileOptions(userId));
+  const { data: user } = useSuspenseQuery(userRecordOptions(userId));
   const { logout } = useAuthActions();
 
   const { closeDialog } = useSearchNavigation<ProfileSearch>(CLOSED_DIALOGS);
@@ -71,13 +70,13 @@ function ProfileDialogs({ userId }: { userId: string }) {
   };
 
   return (
-    <ProfileWorkspace username={profile.user.username}>
+    <ProfileWorkspace username={user.username}>
       <Outlet />
       <ChangePasswordDialog
         onChanged={signOut}
         onClose={closeDialog}
         open={dialog === 'password'}
-        user={profile.user}
+        user={user}
       />
     </ProfileWorkspace>
   );

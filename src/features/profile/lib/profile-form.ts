@@ -36,15 +36,27 @@ export function toProfileFormValues({ user, contact }: Profile): ProfileFormValu
 
 const orNull = (value: string) => value.trim() || null;
 
-/** Which parts of the profile the form changed, so a save sends only those. */
-export function profileChanges({ user, contact }: Profile, values: ProfileFormValues) {
-  const email = orNull(values.email) !== (contact?.emailDetails?.email ?? null);
+export type ProfileNameChanges = Partial<Pick<ProfileFormValues, 'firstName' | 'lastName'>>;
+
+export function profileChanges(starting: ProfileFormValues, values: ProfileFormValues) {
+  const firstName = values.firstName.trim();
+  const lastName = values.lastName.trim();
+  const firstNameChanged = firstName !== starting.firstName.trim();
+  const lastNameChanged = lastName !== starting.lastName.trim();
+  const names =
+    firstNameChanged || lastNameChanged
+      ? {
+          ...(firstNameChanged && { firstName }),
+          ...(lastNameChanged && { lastName }),
+        }
+      : undefined;
+  const email = orNull(values.email) !== orNull(starting.email);
   return {
-    user: values.firstName.trim() !== user.firstName || values.lastName.trim() !== user.lastName,
+    names,
     contact:
       email ||
-      orNull(values.phoneNumber) !== (contact?.phoneNumber ?? null) ||
-      values.allowNotify !== (contact?.allowNotify ?? false),
+      orNull(values.phoneNumber) !== orNull(starting.phoneNumber) ||
+      values.allowNotify !== starting.allowNotify,
     email,
   };
 }
@@ -66,18 +78,12 @@ export function toContactDetails(
   };
 }
 
-/** The profile as a successful save left it; the email stays until its link is opened. */
-export function applySaved(profile: Profile, values: ProfileFormValues): Profile {
-  const contact = toContactDetails(profile, values);
+export function savedContactDetails(
+  previous: UserContactDetails | null,
+  submitted: UserContactDetails,
+): UserContactDetails {
   return {
-    user: {
-      ...profile.user,
-      firstName: values.firstName.trim(),
-      lastName: values.lastName.trim(),
-    },
-    contact: {
-      ...contact,
-      emailDetails: profile.contact?.emailDetails ?? contact.emailDetails,
-    },
+    ...submitted,
+    emailDetails: previous?.emailDetails ?? submitted.emailDetails,
   };
 }

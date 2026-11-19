@@ -1,6 +1,6 @@
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { Link, useRouter } from '@tanstack/react-router';
-import { HouseIcon, RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
+import { ArrowLeftIcon, HouseIcon, RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ import { isForbidden } from '@/features/auth/lib/access';
 import { allowUnload, whenLeaveAllowed } from '@/hooks/use-leave-guard';
 import { isChunkLoadError, reloadOnce } from '@/lib/chunk-load';
 import { LocalDataUnavailableError } from '@/lib/local-data';
+import { NoHomeFacilityError } from '@/lib/no-home-facility-error';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { isOnline, seedOnline } from '@/lib/online';
 import { canReloadIntoWorker } from '@/lib/service-worker';
@@ -85,6 +86,28 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
               : undefined
         }
       />
+    );
+  if (error instanceof NoHomeFacilityError)
+    return (
+      <StatusPage>
+        <EmptyHeader>
+          <EmptyMedia size="lg" variant="icon">
+            <HouseIcon />
+          </EmptyMedia>
+          <EmptyTitle size="lg">
+            <h1 ref={headingRef} tabIndex={-1}>
+              {t('stock-programs.no-home-title')}
+            </h1>
+          </EmptyTitle>
+          <EmptyDescription size="lg">{t('facility-program.no-home')}</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button nativeButton={false} render={<Link to={error.back} />} role="link" size="lg">
+            <ArrowLeftIcon className="rtl:rotate-180" data-icon="inline-start" />
+            {t('stock-programs.back')}
+          </Button>
+        </EmptyContent>
+      </StatusPage>
     );
   const parsedError = error instanceof Error ? error : new Error(String(error));
 

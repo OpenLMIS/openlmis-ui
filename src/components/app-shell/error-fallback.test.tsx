@@ -9,6 +9,7 @@ import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { Button } from '@/components/ui/button';
 import { useLeaveGuard } from '@/hooks/use-leave-guard';
 import { LocalDataUnavailableError } from '@/lib/local-data';
+import { NoHomeFacilityError } from '@/lib/no-home-facility-error';
 import { httpError, networkError } from '@/test-utils/http-error';
 
 vi.mock('sonner', () => ({ toast: { info: vi.fn() } }));
@@ -211,23 +212,30 @@ it('holds automatic chunk recovery until unsaved work allows leaving', () => {
   expect(chunk.reloadOnce).toHaveBeenCalledOnce();
 });
 
-it('focuses the error heading when a retry fails again', async () => {
+it.each([
+  [new Error('boom'), 'error.title'],
+  [new NoHomeFacilityError({ back: '/home' }), 'stock-programs.no-home-title'],
+])('focuses the error heading when a retry fails with %s', async (retryError, headingName) => {
   function FailedRoute() {
     const [attempt, setAttempt] = useState(0);
     return (
       <ErrorFallback
         key={attempt}
         back={<Button>Back</Button>}
-        error={new Error('boom')}
+        error={attempt === 0 ? new Error('first failure') : retryError}
         info={undefined}
         reset={() => setAttempt((value) => value + 1)}
       />
     );
   }
-  render(<FailedRoute />);
+  render(
+    <RouterContextProvider router={createRouter({ routeTree: createRootRoute() })}>
+      <FailedRoute />
+    </RouterContextProvider>,
+  );
   const heading = screen.getByRole('heading', { name: 'error.title' });
   expect(heading).not.toHaveFocus();
   await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'error.title' })).toHaveFocus());
+  await waitFor(() => expect(screen.getByRole('heading', { name: headingName })).toHaveFocus());
   expect(heading).not.toBeInTheDocument();
 });

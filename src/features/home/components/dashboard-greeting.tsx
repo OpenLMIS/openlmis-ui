@@ -1,16 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import {
-  approvalsOptions,
-  convertCountOptions,
-  firstNameOptions,
-} from '@/features/home/api/queries';
+import { approvalsOptions, convertCountOptions } from '@/features/home/api/queries';
+import { userRecordOptions } from '@/features/reference-data/api/queries';
 import { useAppName } from '@/lib/app-configuration';
 
 /** The user's name once it loads; the page's plain title until then or if it cannot. */
 export function WelcomeTitle({ userId }: { userId: string }) {
   const { t } = useTranslation();
-  const { data: firstName } = useQuery(firstNameOptions(userId));
+  const { data: firstName } = useQuery({
+    ...userRecordOptions(userId),
+    select: (user) => user.firstName,
+  });
   return firstName ? t('home.welcome-name', { name: firstName }) : t('home.title');
 }
 
