@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFooter } from '@/components/workspace/workspace';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export type ShipmentAction = 'delete' | 'cancel' | 'save' | 'print' | 'confirm';
 export function ShipmentFooter({
@@ -25,7 +26,10 @@ export function ShipmentFooter({
   return (
     <WorkspaceFooter>
       <div className="flex w-full flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
+        <div
+          className="flex flex-wrap gap-2"
+          data-tour={canEdit && hasDraft ? TOUR_ANCHORS.shipmentDraft : undefined}
+        >
           {canEdit && hasDraft && (
             <Button size="lg" variant="outline" disabled={pending} onClick={() => onAction('save')}>
               {t('orders.shipment.save')}
@@ -42,7 +46,10 @@ export function ShipmentFooter({
             </Button>
           )}
         </div>
-        <div className="ms-auto flex flex-wrap justify-end gap-2">
+        <div
+          className="ms-auto flex flex-wrap justify-end gap-2"
+          data-tour={canCancel || (canEdit && hasDraft) ? TOUR_ANCHORS.shipmentActions : undefined}
+        >
           {canCancel && (
             <Button
               size="lg"

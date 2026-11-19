@@ -71,6 +71,7 @@ import { invalidateOrderLists } from '@/lib/order-queries';
 import { revealField } from '@/lib/reveal-field';
 import { getSessionUserId } from '@/lib/session-scope';
 import { homeStockRefreshKey } from '@/lib/stock-programs';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { toOptionalWholeNumber } from '@/lib/whole-number';
 
 export type ShipmentAccess = { canEdit: boolean; canCancel: boolean; canPrint: boolean };
@@ -96,7 +97,9 @@ export function ShipmentFrame({
       </WorkspaceHeader>
       <WorkspaceContent>
         <div className="flex flex-col gap-4">
-          <OrderHeader order={order} cceStatus={cceStatus} />
+          <div data-tour={TOUR_ANCHORS.orderSummary}>
+            <OrderHeader order={order} cceStatus={cceStatus} />
+          </div>
           {children}
         </div>
       </WorkspaceContent>
@@ -483,7 +486,7 @@ function ShipmentEditor({
           className="flex flex-col gap-4"
         >
           {canSwitch && (
-            <div className="flex justify-end">
+            <div className="flex justify-end" data-tour={TOUR_ANCHORS.orderUnit}>
               <QuantityUnitToggle unit={unit} onUnitChange={setUnit} />
             </div>
           )}

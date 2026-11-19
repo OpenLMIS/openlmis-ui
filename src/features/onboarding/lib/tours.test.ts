@@ -12,10 +12,13 @@ const guidedPages = [
   ...navPages.filter(
     (to) =>
       (to.startsWith('/administration/') && !CSV_PAGES.includes(to)) ||
-      to.startsWith('/requisitions/'),
+      to.startsWith('/requisitions/') ||
+      to.startsWith('/orders/'),
   ),
   '/requisitions/approve_/batch',
   '/requisitions/create-orders_/$orderIds',
+  '/orders/fulfillment_/$orderId',
+  '/orders/proof-of-delivery_/$podId',
 ];
 
 describe('tourForRoute', () => {

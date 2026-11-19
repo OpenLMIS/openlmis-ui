@@ -53,6 +53,7 @@ import { ORDER_LISTS_KEY } from '@/lib/order-queries';
 import { facilityGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 import type { SearchChange } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const NO_DIALOGS = {} satisfies Partial<ViewOrdersSearch>;
 const noop = () => {};
@@ -283,24 +284,26 @@ function OrdersBody({
   }
   return (
     <>
-      <SupplierSearchPicker
-        options={suppliers}
-        applied={search.supplyingFacilityId}
-        onDraftChange={setDraft}
-        onSearch={(id) => {
-          if (id === search.supplyingFacilityId)
-            void client.invalidateQueries({
-              queryKey: ORDER_LISTS_KEY,
-              refetchType: search.page ? 'none' : 'active',
-            });
-          onSearchChange((previous) => ({
-            supplyingFacilityId: id,
-            requestingFacilityId:
-              previous.supplyingFacilityId === id ? previous.requestingFacilityId : undefined,
-            page: undefined,
-          }));
-        }}
-      />
+      <div data-tour={suppliers.length ? TOUR_ANCHORS.ordersSupplier : undefined}>
+        <SupplierSearchPicker
+          options={suppliers}
+          applied={search.supplyingFacilityId}
+          onDraftChange={setDraft}
+          onSearch={(id) => {
+            if (id === search.supplyingFacilityId)
+              void client.invalidateQueries({
+                queryKey: ORDER_LISTS_KEY,
+                refetchType: search.page ? 'none' : 'active',
+              });
+            onSearchChange((previous) => ({
+              supplyingFacilityId: id,
+              requestingFacilityId:
+                previous.supplyingFacilityId === id ? previous.requestingFacilityId : undefined,
+              page: undefined,
+            }));
+          }}
+        />
+      </div>
       {!pending && toolbar}
       {failedLookup && (
         <OrdersError error={failedLookup.error} reset={() => void failedLookup.refetch()} />

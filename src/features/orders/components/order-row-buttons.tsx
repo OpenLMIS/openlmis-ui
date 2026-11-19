@@ -36,6 +36,7 @@ import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { openReport } from '@/lib/open-report';
 import { getSessionUserId } from '@/lib/session-scope';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const RETRY_KEY = [...queryKeys.orders.all, 'retry'];
 const SHIPMENT_ENTRY_KEY = [...queryKeys.orders.all, 'open-shipment'];
@@ -204,28 +205,31 @@ export function FulfillOrderButton({
   return (
     <>
       {cards ? (
-        <CardActions
-          label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}
-          actions={[
-            {
-              id: 'fulfill',
-              icon: entry.isPending ? (
-                <Spinner aria-hidden="true" role="presentation" />
-              ) : (
-                <PackageOpenIcon />
-              ),
-              label,
-              name,
-              disabled: disabled || pending,
-              onSelect: openShipment,
-              variant,
-            },
-          ]}
-        />
+        <div className="flex shrink-0" data-tour={TOUR_ANCHORS.fulfillStart}>
+          <CardActions
+            label={t('card-actions.actions-for', { name: order.orderCode ?? order.id })}
+            actions={[
+              {
+                id: 'fulfill',
+                icon: entry.isPending ? (
+                  <Spinner aria-hidden="true" role="presentation" />
+                ) : (
+                  <PackageOpenIcon />
+                ),
+                label,
+                name,
+                disabled: disabled || pending,
+                onSelect: openShipment,
+                variant,
+              },
+            ]}
+          />
+        </div>
       ) : (
         <Button
           aria-label={name}
           aria-busy={entry.isPending}
+          data-tour={TOUR_ANCHORS.fulfillStart}
           size="sm"
           variant={variant}
           disabled={disabled || pending}

@@ -69,8 +69,8 @@ const approveTour: Tour = {
     },
     {
       anchor: TOUR_ANCHORS.listPager,
-      title: 'onboarding.requisitions-list.pager.title',
-      content: 'onboarding.requisitions-list.pager.content',
+      title: 'onboarding.list.pager.title',
+      content: 'onboarding.list.pager.content',
       placement: 'top',
     },
   ],
@@ -130,8 +130,8 @@ const convertTour: Tour = {
     },
     {
       anchor: TOUR_ANCHORS.listView,
-      title: 'onboarding.requisitions-list.view-menu.title',
-      content: 'onboarding.requisitions-list.view-menu.content',
+      title: 'onboarding.list.view-menu.title',
+      content: 'onboarding.list.view-menu.content',
     },
     {
       // A tall list leaves no room above it, so the tooltip hangs from View just above it.
@@ -155,8 +155,8 @@ const convertTour: Tour = {
     },
     {
       anchor: TOUR_ANCHORS.listPager,
-      title: 'onboarding.requisitions-list.pager.title',
-      content: 'onboarding.requisitions-list.pager.content',
+      title: 'onboarding.list.pager.title',
+      content: 'onboarding.list.pager.content',
       placement: 'top',
     },
   ],

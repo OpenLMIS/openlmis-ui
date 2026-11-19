@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/select';
 import { type FulfillOrdersSearch, ORDER_DEFAULT_SORT } from '@/features/orders/lib/order-search';
 import { type SearchChange, searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function FulfillOrdersSort({
   search,
@@ -34,7 +35,12 @@ export function FulfillOrdersSort({
         if (value) sort.onValueChange({ id: 'createdDate', desc: value === 'desc' });
       }}
     >
-      <SelectTrigger aria-label={t('data-table.sort-by')} size="lg" width="full">
+      <SelectTrigger
+        aria-label={t('data-table.sort-by')}
+        data-tour={disabled ? undefined : TOUR_ANCHORS.fulfillSort}
+        size="lg"
+        width="full"
+      >
         <SelectValue placeholder={t('data-table.sort-by')} />
       </SelectTrigger>
       <SelectContent>
