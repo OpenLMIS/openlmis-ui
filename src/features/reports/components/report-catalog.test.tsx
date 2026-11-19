@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import {
   fetchAvailableDashboards,
   fetchReportCategories,
@@ -19,11 +19,26 @@ vi.mock('@/features/reports/api/api', () => ({
   fetchTemplateReports: vi.fn(),
 }));
 
-afterEach(() => vi.unstubAllEnvs());
+it('links dashboard reports to the native viewer', async () => {
+  vi.mocked(fetchReportCategories).mockResolvedValue([]);
+  vi.mocked(fetchTemplateReports).mockResolvedValue([]);
+  vi.mocked(fetchAvailableDashboards).mockResolvedValue([{ id: 'dash', name: 'Dashboard' }]);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  renderPage(<ReportCatalog userId="user" modules={['common']} />, { queryClient });
+  try {
+    expect(await screen.findByRole('link', { name: 'Dashboard' })).toHaveAttribute(
+      'href',
+      '/reports/dashboards/dash',
+    );
+  } finally {
+    queryClient.clear();
+  }
+});
 
 it('links templates to the native form and keeps them usable during a dashboard failure and retries only that failed source', async () => {
   const error = new Error('Unavailable');
-  vi.stubEnv('VITE_LEGACY_UI_URL', 'https://legacy.example.org');
   vi.mocked(fetchReportCategories).mockResolvedValue([{ id: 'default', name: 'Default Category' }]);
   vi.mocked(fetchTemplateReports).mockResolvedValue([{ id: 'stock', name: 'Stock' }]);
   vi.mocked(fetchAvailableDashboards)
@@ -46,7 +61,7 @@ it('links templates to the native form and keeps them usable during a dashboard 
     await userEvent.click(screen.getByRole('button', { name: 'error.try-again' }));
     expect(await screen.findByRole('link', { name: 'Dashboard' })).toHaveAttribute(
       'href',
-      'https://legacy.example.org/#!/reports/list/dashboard/dash',
+      '/reports/dashboards/dash',
     );
     expect(screen.getAllByRole('heading', { name: 'Default Category' })).toHaveLength(1);
     expect(fetchTemplateReports).toHaveBeenCalledOnce();

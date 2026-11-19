@@ -84,6 +84,7 @@ import { Route as protectedProtectedBuqCreateIdRouteImport } from './routes/(pro
 import { Route as protectedProtectedBuqNationalApprovalIdRouteImport } from './routes/(protected)/_protected.buq.national-approval_.$id'
 import { Route as protectedProtectedOrdersFulfillmentOrderIdRouteImport } from './routes/(protected)/_protected.orders.fulfillment_.$orderId'
 import { Route as protectedProtectedOrdersProofOfDeliveryPodIdRouteImport } from './routes/(protected)/_protected.orders.proof-of-delivery_.$podId'
+import { Route as protectedProtectedReportsDashboardsDashboardIdRouteImport } from './routes/(protected)/_protected.reports_.dashboards.$dashboardId'
 import { Route as protectedProtectedRequisitionsApproveBatchRouteImport } from './routes/(protected)/_protected.requisitions.approve_.batch'
 import { Route as protectedProtectedRequisitionsCreateOrdersOrderIdsRouteImport } from './routes/(protected)/_protected.requisitions.create-orders_.$orderIds'
 import { Route as protectedProtectedRequisitionsViewRequisitionIdRouteImport } from './routes/(protected)/_protected.requisitions.view_.$requisitionId'
@@ -549,6 +550,12 @@ const protectedProtectedOrdersProofOfDeliveryPodIdRoute =
     path: '/orders/proof-of-delivery/$podId',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
+const protectedProtectedReportsDashboardsDashboardIdRoute =
+  protectedProtectedReportsDashboardsDashboardIdRouteImport.update({
+    id: '/reports_/dashboards/$dashboardId',
+    path: '/reports/dashboards/$dashboardId',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
 const protectedProtectedRequisitionsApproveBatchRoute =
   protectedProtectedRequisitionsApproveBatchRouteImport.update({
     id: '/requisitions/approve_/batch',
@@ -743,6 +750,7 @@ export interface FileRoutesByFullPath {
   '/buq/national-approval/$id': typeof protectedProtectedBuqNationalApprovalIdRoute
   '/orders/fulfillment/$orderId': typeof protectedProtectedOrdersFulfillmentOrderIdRoute
   '/orders/proof-of-delivery/$podId': typeof protectedProtectedOrdersProofOfDeliveryPodIdRoute
+  '/reports/dashboards/$dashboardId': typeof protectedProtectedReportsDashboardsDashboardIdRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/requisitions/create-orders/$orderIds': typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
@@ -835,6 +843,7 @@ export interface FileRoutesByTo {
   '/buq/national-approval/$id': typeof protectedProtectedBuqNationalApprovalIdRoute
   '/orders/fulfillment/$orderId': typeof protectedProtectedOrdersFulfillmentOrderIdRoute
   '/orders/proof-of-delivery/$podId': typeof protectedProtectedOrdersProofOfDeliveryPodIdRoute
+  '/reports/dashboards/$dashboardId': typeof protectedProtectedReportsDashboardsDashboardIdRoute
   '/requisitions/approve/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/requisitions/create-orders/$orderIds': typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   '/requisitions/view/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
@@ -932,6 +941,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/buq/national-approval_/$id': typeof protectedProtectedBuqNationalApprovalIdRoute
   '/(protected)/_protected/orders/fulfillment_/$orderId': typeof protectedProtectedOrdersFulfillmentOrderIdRoute
   '/(protected)/_protected/orders/proof-of-delivery_/$podId': typeof protectedProtectedOrdersProofOfDeliveryPodIdRoute
+  '/(protected)/_protected/reports_/dashboards/$dashboardId': typeof protectedProtectedReportsDashboardsDashboardIdRoute
   '/(protected)/_protected/requisitions/approve_/batch': typeof protectedProtectedRequisitionsApproveBatchRoute
   '/(protected)/_protected/requisitions/create-orders_/$orderIds': typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   '/(protected)/_protected/requisitions/view_/$requisitionId': typeof protectedProtectedRequisitionsViewRequisitionIdRoute
@@ -1029,6 +1039,7 @@ export interface FileRouteTypes {
     | '/buq/national-approval/$id'
     | '/orders/fulfillment/$orderId'
     | '/orders/proof-of-delivery/$podId'
+    | '/reports/dashboards/$dashboardId'
     | '/requisitions/approve/batch'
     | '/requisitions/create-orders/$orderIds'
     | '/requisitions/view/$requisitionId'
@@ -1121,6 +1132,7 @@ export interface FileRouteTypes {
     | '/buq/national-approval/$id'
     | '/orders/fulfillment/$orderId'
     | '/orders/proof-of-delivery/$podId'
+    | '/reports/dashboards/$dashboardId'
     | '/requisitions/approve/batch'
     | '/requisitions/create-orders/$orderIds'
     | '/requisitions/view/$requisitionId'
@@ -1217,6 +1229,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/buq/national-approval_/$id'
     | '/(protected)/_protected/orders/fulfillment_/$orderId'
     | '/(protected)/_protected/orders/proof-of-delivery_/$podId'
+    | '/(protected)/_protected/reports_/dashboards/$dashboardId'
     | '/(protected)/_protected/requisitions/approve_/batch'
     | '/(protected)/_protected/requisitions/create-orders_/$orderIds'
     | '/(protected)/_protected/requisitions/view_/$requisitionId'
@@ -1773,6 +1786,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedProtectedOrdersProofOfDeliveryPodIdRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
+    '/(protected)/_protected/reports_/dashboards/$dashboardId': {
+      id: '/(protected)/_protected/reports_/dashboards/$dashboardId'
+      path: '/reports/dashboards/$dashboardId'
+      fullPath: '/reports/dashboards/$dashboardId'
+      preLoaderRoute: typeof protectedProtectedReportsDashboardsDashboardIdRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
     '/(protected)/_protected/requisitions/approve_/batch': {
       id: '/(protected)/_protected/requisitions/approve_/batch'
       path: '/requisitions/approve/batch'
@@ -2039,6 +2059,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedBuqNationalApprovalIdRoute: typeof protectedProtectedBuqNationalApprovalIdRoute
   protectedProtectedOrdersFulfillmentOrderIdRoute: typeof protectedProtectedOrdersFulfillmentOrderIdRoute
   protectedProtectedOrdersProofOfDeliveryPodIdRoute: typeof protectedProtectedOrdersProofOfDeliveryPodIdRoute
+  protectedProtectedReportsDashboardsDashboardIdRoute: typeof protectedProtectedReportsDashboardsDashboardIdRoute
   protectedProtectedRequisitionsApproveBatchRoute: typeof protectedProtectedRequisitionsApproveBatchRoute
   protectedProtectedRequisitionsCreateOrdersOrderIdsRoute: typeof protectedProtectedRequisitionsCreateOrdersOrderIdsRoute
   protectedProtectedRequisitionsViewRequisitionIdRoute: typeof protectedProtectedRequisitionsViewRequisitionIdRoute
@@ -2172,6 +2193,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedOrdersFulfillmentOrderIdRoute,
   protectedProtectedOrdersProofOfDeliveryPodIdRoute:
     protectedProtectedOrdersProofOfDeliveryPodIdRoute,
+  protectedProtectedReportsDashboardsDashboardIdRoute:
+    protectedProtectedReportsDashboardsDashboardIdRoute,
   protectedProtectedRequisitionsApproveBatchRoute:
     protectedProtectedRequisitionsApproveBatchRoute,
   protectedProtectedRequisitionsCreateOrdersOrderIdsRoute:

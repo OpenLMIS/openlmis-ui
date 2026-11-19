@@ -46,6 +46,12 @@ at startup. Feature flags have no `.env` fallback.
 defaulting to `common,requisitions`. It becomes `reportingModules` in runtime `config.json`.
 For local development, an optional `public/config.json` can supply that same string.
 
+`SUPERSET_URL` supplies the public address for Superset dashboards as `supersetUrl`.
+If older link dashboards use a separate Superset server, set `LEGACY_SUPERSET_URL` to its
+address. The container writes this as `legacySupersetUrl`. For local development, set the
+same keys in the ignored `public/config.json`. These addresses are independent of
+`VITE_API_PROXY_TARGET`. See the [deployment guide](docs/deployment/deployment.md#dashboards).
+
 `VITE_BASE_PATH` remains a build input and must match container `BASE_PATH`; see the
 [deployment guide](docs/deployment/deployment.md).
 
@@ -68,6 +74,10 @@ For local development, an optional `public/config.json` can supply that same str
 
 Local test runs use Vitest's `25%` worker limit. CI runs two test shards with its default
 worker parallelism.
+
+To use another backend locally, set `VITE_API_PROXY_TARGET` and `VITE_LEGACY_UI_URL` in
+`.env`, then restart `pnpm dev`. Native dashboards use the normal runtime configuration
+and the Superset server's own framing and allowed-origin settings.
 
 ## Project layout
 

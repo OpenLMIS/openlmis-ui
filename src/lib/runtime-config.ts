@@ -2,6 +2,8 @@ import { create } from 'zustand';
 
 type RuntimeConfig = {
   reportingModules?: string[];
+  supersetUrl?: string;
+  legacySupersetUrl?: string;
   defaultIssueReasonId?: string;
   defaultReceiveReasonId?: string;
   kitUnpackReasonId?: string;
@@ -40,12 +42,16 @@ export async function loadRuntimeConfig(): Promise<void> {
       unpackedFromKitReasonId,
       featureFlags,
       reportingModules,
+      supersetUrl,
+      legacySupersetUrl,
     } = parsed as Record<string, unknown>;
     useRuntimeConfigStore.setState({
       reportingModules: asString(reportingModules)
         ?.split(',')
         .map((module) => module.trim())
         .filter((module) => /^[a-zA-Z][\w-]*$/.test(module)),
+      supersetUrl: asString(supersetUrl),
+      legacySupersetUrl: asString(legacySupersetUrl),
       defaultIssueReasonId: asString(defaultIssueReasonId),
       defaultReceiveReasonId: asString(defaultReceiveReasonId),
       kitUnpackReasonId: asString(kitUnpackReasonId),
@@ -75,6 +81,11 @@ export function getDeploymentFlags(): Record<string, unknown> {
 export function getReportingModules(): string[] {
   const modules = useRuntimeConfigStore.getState().reportingModules;
   return modules?.length ? [...new Set(modules)] : ['common', 'requisitions'];
+}
+
+export function getSupersetUrl(mode: 'embedded' | 'legacy'): string | undefined {
+  const { supersetUrl, legacySupersetUrl } = useRuntimeConfigStore.getState();
+  return mode === 'legacy' ? (legacySupersetUrl ?? supersetUrl) : supersetUrl;
 }
 
 export function useDeploymentFlags(): Record<string, unknown> {

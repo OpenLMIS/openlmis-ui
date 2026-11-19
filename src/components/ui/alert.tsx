@@ -8,6 +8,12 @@ const alertVariants = cva(
     variants: {
       actionLayout: {
         default: "",
+        inline: [
+          "has-data-[slot=alert-action]:pe-2.5 *:data-[slot=alert-action]:static *:data-[slot=alert-action]:col-span-full *:data-[slot=alert-action]:mt-2 *:data-[slot=alert-action]:justify-self-end",
+          "@md/main:has-data-[slot=alert-action]:grid-cols-[minmax(0,1fr)_auto] @md/main:has-[>svg]:has-data-[slot=alert-action]:grid-cols-[auto_minmax(0,1fr)_auto]",
+          "@md/main:*:data-[slot=alert-action]:col-start-2 @md/main:*:data-[slot=alert-action]:col-end-auto @md/main:has-[>svg]:*:data-[slot=alert-action]:col-start-3",
+          "@md/main:*:data-[slot=alert-action]:row-start-1 @md/main:*:data-[slot=alert-action]:row-span-2 @md/main:*:data-[slot=alert-action]:self-center @md/main:*:data-[slot=alert-action]:ms-3 @md/main:*:data-[slot=alert-action]:mt-0",
+        ].join(" "),
         flow: "has-data-[slot=alert-action]:pe-2.5 *:data-[slot=alert-action]:static *:data-[slot=alert-action]:col-span-full *:data-[slot=alert-action]:mt-2",
       },
       countdown: {

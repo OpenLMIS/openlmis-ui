@@ -91,6 +91,7 @@ export default defineConfig(({ mode }) => {
     test: {
       exclude: [...configDefaults.exclude, '**/.screenshots/**', 'tests/offline/**'],
       environment: 'happy-dom',
+      environmentOptions: { happyDOM: { settings: { disableIframePageLoading: true } } },
       globals: true,
       setupFiles: ['./src/test-utils/setup.ts'],
       css: false,

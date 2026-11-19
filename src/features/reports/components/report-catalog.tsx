@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { ChartColumnIcon, TriangleAlertIcon } from 'lucide-react';
-import { type ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { DataTableCard } from '@/components/data-table/data-table';
@@ -29,9 +29,8 @@ import {
   reportCategoriesOptions,
   templateReportsOptions,
 } from '@/features/reports/api/queries';
-import { dashboardLegacyHash, groupReports } from '@/features/reports/lib/report-categories';
+import { groupReports } from '@/features/reports/lib/report-categories';
 import type { CatalogReport } from '@/features/reports/lib/types';
-import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
 import { isRefused } from '@/lib/http';
 import { reportCaughtError } from '@/lib/report-error';
 
@@ -167,7 +166,7 @@ function CatalogError({
   const offline = useOfflineFailure(error, retry);
   useEffect(() => reportCaughtError(error, {}), [error]);
   return (
-    <Alert variant="destructive" actionLayout="flow">
+    <Alert variant="destructive" actionLayout="inline">
       <TriangleAlertIcon />
       <AlertTitle>{t('reports.load-error-title', { source })}</AlertTitle>
       <AlertDescription>
@@ -178,7 +177,7 @@ function CatalogError({
             : t('reports.load-error-description')}
       </AlertDescription>
       <AlertAction>
-        <Button variant="outline" disabled={pending} onClick={retry}>
+        <Button variant="destructive" size="sm" disabled={pending} onClick={retry}>
           {pending && <Spinner data-icon="inline-start" />}
           {t('error.try-again')}
         </Button>
@@ -192,8 +191,6 @@ function reportKey(report: CatalogReport) {
 }
 
 function ReportLink({ report }: { report: CatalogReport }) {
-  const label = <bdi className="min-w-0 wrap-anywhere">{report.name}</bdi>;
-  if (report.kind === 'dashboard') return <DashboardLink report={report}>{label}</DashboardLink>;
   return (
     <Button
       data-report-key={reportKey(report)}
@@ -205,38 +202,17 @@ function ReportLink({ report }: { report: CatalogReport }) {
       wrap="normal"
       nativeButton={false}
       render={
-        <Link
-          to="/reports/$module/$reportId/generate"
-          params={{ module: report.module, reportId: report.id }}
-        />
+        report.kind === 'dashboard' ? (
+          <Link to="/reports/dashboards/$dashboardId" params={{ dashboardId: report.id }} />
+        ) : (
+          <Link
+            to="/reports/$module/$reportId/generate"
+            params={{ module: report.module, reportId: report.id }}
+          />
+        )
       }
     >
-      {label}
-    </Button>
-  );
-}
-
-function DashboardLink({ report, children }: { report: CatalogReport; children: ReactNode }) {
-  const legacy = useBackToLegacy(dashboardLegacyHash(report.id));
-  return (
-    <Button
-      data-report-key={reportKey(report)}
-      role="link"
-      variant="link"
-      padding="none"
-      align="start"
-      width="full"
-      wrap="normal"
-      nativeButton={false}
-      render={<a href={legacy.href} />}
-      onClick={(event) => {
-        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
-          return;
-        event.preventDefault();
-        legacy.onClick();
-      }}
-    >
-      {children}
+      <bdi className="min-w-0 wrap-anywhere">{report.name}</bdi>
     </Button>
   );
 }

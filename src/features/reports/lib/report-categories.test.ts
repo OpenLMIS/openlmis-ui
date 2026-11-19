@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dashboardLegacyHash, groupReports } from '@/features/reports/lib/report-categories';
+import { groupReports } from '@/features/reports/lib/report-categories';
 import type { CatalogReport } from '@/features/reports/lib/types';
 
 const reports: CatalogReport[] = [
@@ -47,8 +47,4 @@ describe('report categories', () => {
       ['Same', ['stock']],
     ]);
   });
-});
-
-it('encodes the legacy dashboard destination', () => {
-  expect(dashboardLegacyHash('id/a')).toBe('#!/reports/list/dashboard/id%2Fa');
 });

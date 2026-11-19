@@ -139,6 +139,23 @@ during dual boot. The UI cannot detect a mismatch. This flag comes only from dep
 configuration and is hidden from Settings > Feature Flags. For local development, set it
 under `featureFlags` in `public/config.json`.
 
+## Dashboards
+
+View Reports opens dashboard reports inside the new UI. Access follows the Reports View right
+and the dashboards available to the signed-in user.
+
+- Embedded Superset dashboards need `SUPERSET_URL`, the same public Superset address the legacy UI
+  uses, such as `https://superset.example.org`. It must be on another origin than the UI. Superset
+  must allow the UI's origin to frame it and list it in the dashboard's allowed domains, which a
+  working legacy setup on the same host already does.
+- Superset link dashboards without an embedded id use the older reporting stack with the
+  OpenLMIS sign-in add-on. Their URLs must use the origin configured in `SUPERSET_URL`, or
+  `LEGACY_SUPERSET_URL` if the older stack runs separately. The UI
+  checks that the Superset session belongs to the current OpenLMIS user before opening the
+  dashboard. Superset must allow the UI's origin for credentialed CORS, including `GET /api/v1/me/`,
+  and allow the UI to frame the dashboard. The OAuth client must accept the Superset redirect address.
+- Other links, such as Power BI, open in a frame with an Open In New Tab link.
+
 ## Working offline
 
 The app keeps its own files in the browser so it opens without a connection. A service worker,

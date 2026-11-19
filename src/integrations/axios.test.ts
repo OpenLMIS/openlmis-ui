@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
-import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig, isCancel } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
@@ -435,4 +435,34 @@ it('ignores a success dispatched before the latest connection failure', async ()
   serve('old-token');
   await client.get('/new-read');
   expect(isOnline()).toBe(true);
+});
+
+it('drops a request aborted while it waits for an expired session, without sending it later', async () => {
+  const { sent } = serve('new-token');
+  useLoginData.getState().expireSession();
+  const controller = new AbortController();
+  const request = client.get('/reports/superset/guest-token', { signal: controller.signal });
+  await flush();
+
+  controller.abort();
+
+  await expect(request).rejects.toSatisfy(isCancel);
+  useLoginData.getState().setLoginData({ ...ada, accessToken: 'new-token' });
+  await flush();
+  expect(sent).toEqual([]);
+});
+
+it('drops a refused request aborted while it waits to be resent, without resending it', async () => {
+  const { sent } = serve('new-token');
+  const controller = new AbortController();
+  const request = client.get('/reports/superset/guest-token', { signal: controller.signal });
+  await flush();
+  expect(useLoginData.getState().expired).toBe(true);
+
+  controller.abort();
+
+  await expect(request).rejects.toSatisfy(isCancel);
+  useLoginData.getState().setLoginData({ ...ada, accessToken: 'new-token' });
+  await flush();
+  expect(sent).toEqual(['/reports/superset/guest-token Bearer old-token']);
 });

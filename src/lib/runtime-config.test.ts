@@ -155,3 +155,21 @@ describe('getReportingModules', () => {
     expect(getReportingModules()).toEqual(['common', 'country-reports']);
   });
 });
+
+describe('getSupersetUrl', () => {
+  it.each(['http://localhost:18088', undefined])(
+    'keeps embedded dashboards on their provider when the older provider is %s',
+    async (legacySupersetUrl) => {
+      const supersetUrl = 'http://localhost:18089';
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(new Response(JSON.stringify({ supersetUrl, legacySupersetUrl }))),
+      );
+      const { loadRuntimeConfig, getSupersetUrl } = await load();
+      await loadRuntimeConfig();
+
+      expect(getSupersetUrl('embedded')).toBe(supersetUrl);
+      expect(getSupersetUrl('legacy')).toBe(legacySupersetUrl ?? supersetUrl);
+    },
+  );
+});
