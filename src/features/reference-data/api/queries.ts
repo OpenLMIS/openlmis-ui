@@ -359,6 +359,23 @@ export const userRecordOptions = (id: string, config?: AxiosRequestConfig) =>
     gcTime: Number.POSITIVE_INFINITY,
   });
 
+export async function refreshServerUserRecord(queryClient: QueryClient, userId: string) {
+  const scope = getSessionScope();
+  const options = userRecordOptions(userId);
+  await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
+  assertSessionScope(scope);
+
+  return queryClient.fetchQuery({
+    ...options,
+    staleTime: 0,
+    queryFn: async ({ signal }) => {
+      const record = await fetchUserRecord(userId, { signal });
+      assertSessionScope(scope);
+      return record;
+    },
+  });
+}
+
 export const userProgramsOptions = (id: string, config?: AxiosRequestConfig) =>
   queryOptions({
     ...(config?.backgroundDownload && { retry: false }),

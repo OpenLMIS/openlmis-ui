@@ -1,13 +1,5 @@
-import {
-  type ProfileFormValues,
-  profileChanges,
-  toContactDetails,
-} from '@/features/profile/lib/profile-form';
-import type {
-  DigestConfiguration,
-  DigestSubscription,
-  Profile,
-} from '@/features/profile/lib/types';
+import type { ProfileNameChanges } from '@/features/profile/lib/profile-form';
+import type { DigestConfiguration, DigestSubscription } from '@/features/profile/lib/types';
 import { client } from '@/integrations/axios';
 import { getIfExists } from '@/lib/http';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -27,28 +19,23 @@ export async function fetchPendingEmail(userId: string): Promise<string | null> 
   return pending.emailAddress || null;
 }
 
-export async function saveProfile(
-  profile: Profile,
-  values: ProfileFormValues,
-  onUserSaved?: () => void,
+export async function saveProfileNames(userId: string, changes: ProfileNameChanges) {
+  const scope = getSessionScope();
+  const { data: user } = await client.get<UserRecord>(`/users/${userId}`);
+  assertSessionScope(scope);
+  const { firstName, lastName } = { ...user, ...changes };
+  await client.put('/users', { ...user, firstName, lastName });
+  assertSessionScope(scope);
+  return { firstName, lastName };
+}
+
+export async function saveProfileContact(
+  userId: string,
+  details: UserContactDetails,
 ): Promise<void> {
   const scope = getSessionScope();
-  const changes = profileChanges(profile, values);
-  if (changes.user) {
-    const { data: user } = await client.get<UserRecord>(`/users/${profile.user.id}`);
-    assertSessionScope(scope);
-    await client.put('/users', {
-      ...user,
-      firstName: values.firstName.trim(),
-      lastName: values.lastName.trim(),
-    });
-    assertSessionScope(scope);
-    onUserSaved?.();
-  }
-  if (changes.contact) {
-    await client.put(`/userContactDetails/${profile.user.id}`, toContactDetails(profile, values));
-    assertSessionScope(scope);
-  }
+  await client.put(`/userContactDetails/${userId}`, details);
+  assertSessionScope(scope);
 }
 
 export async function resendVerification(userId: string): Promise<void> {

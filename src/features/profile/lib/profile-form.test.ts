@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applySaved,
   profileChanges,
   profileFormSchema,
+  savedContactDetails,
   toContactDetails,
   toProfileFormValues,
 } from '@/features/profile/lib/profile-form';
@@ -70,44 +70,50 @@ describe('profileFormSchema', () => {
 
 describe('profileChanges', () => {
   it('finds nothing in the saved profile, or in surrounding spaces', () => {
-    expect(profileChanges(profile, values)).toEqual({ user: false, contact: false, email: false });
-    expect(profileChanges(profile, { ...values, firstName: ' Ada ' }).user).toBe(false);
-  });
-
-  it('tells a name change from a contact change', () => {
-    expect(profileChanges(profile, { ...values, lastName: 'King' })).toEqual({
-      user: true,
+    expect(profileChanges(values, values)).toEqual({
+      names: undefined,
       contact: false,
       email: false,
     });
-    expect(profileChanges(profile, { ...values, phoneNumber: '123' })).toEqual({
-      user: false,
+    expect(profileChanges(values, { ...values, firstName: ' Ada ' }).names).toBeUndefined();
+  });
+
+  it('tells a name change from a contact change', () => {
+    expect(profileChanges(values, { ...values, lastName: 'King' })).toEqual({
+      names: { lastName: 'King' },
+      contact: false,
+      email: false,
+    });
+    expect(profileChanges(values, { ...values, phoneNumber: '123' })).toEqual({
+      names: undefined,
       contact: true,
       email: false,
     });
   });
 
   it('marks a new email, and a cleared one', () => {
-    expect(profileChanges(profile, { ...values, email: 'new@example.org' })).toEqual({
-      user: false,
+    expect(profileChanges(values, { ...values, email: 'new@example.org' })).toEqual({
+      names: undefined,
       contact: true,
       email: true,
     });
-    expect(profileChanges(profile, { ...values, email: ' ' }).email).toBe(true);
+    expect(profileChanges(values, { ...values, email: ' ' }).email).toBe(true);
   });
 
   it('sees the switch turned off as a contact change', () => {
-    expect(profileChanges(profile, { ...values, allowNotify: false }).contact).toBe(true);
+    expect(profileChanges(values, { ...values, allowNotify: false }).contact).toBe(true);
   });
 });
 
 describe('toContactDetails', () => {
   it('keeps the verified flag and trims what was typed', () => {
-    expect(toContactDetails(profile, { ...values, phoneNumber: ' 123 ' })).toEqual({
+    expect(
+      toContactDetails(profile, { ...values, phoneNumber: ' 123 ', email: 'new@example.org' }),
+    ).toEqual({
       referenceDataUserId: 'u1',
       phoneNumber: '123',
       allowNotify: true,
-      emailDetails: { email: 'ada@example.org', emailVerified: true },
+      emailDetails: { email: 'new@example.org', emailVerified: true },
     });
   });
 
@@ -119,18 +125,16 @@ describe('toContactDetails', () => {
   });
 });
 
-describe('applySaved', () => {
-  it('takes the saved names, phone and switch, but keeps the email until it is verified', () => {
-    const next = applySaved(profile, {
+describe('savedContactDetails', () => {
+  it('takes the saved phone and switch while the new email awaits verification', () => {
+    const submitted = toContactDetails(profile, {
       ...values,
-      firstName: ' Augusta ',
       phoneNumber: '123',
       allowNotify: false,
       email: 'new@example.org',
     });
 
-    expect(next.user).toMatchObject({ firstName: 'Augusta', lastName: 'Lovelace' });
-    expect(next.contact).toEqual({
+    expect(savedContactDetails(profile.contact, submitted)).toEqual({
       referenceDataUserId: 'u1',
       phoneNumber: '123',
       allowNotify: false,

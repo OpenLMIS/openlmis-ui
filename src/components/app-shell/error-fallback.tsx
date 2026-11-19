@@ -95,17 +95,14 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
             <HouseIcon />
           </EmptyMedia>
           <EmptyTitle size="lg">
-            <h1>{t('stock-programs.no-home-title')}</h1>
+            <h1 ref={headingRef} tabIndex={-1}>
+              {t('stock-programs.no-home-title')}
+            </h1>
           </EmptyTitle>
           <EmptyDescription size="lg">{t('facility-program.no-home')}</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button
-            nativeButton={false}
-            render={<Link activeOptions={{ exact: true }} to={error.back} />}
-            role="link"
-            size="lg"
-          >
+          <Button nativeButton={false} render={<Link to={error.back} />} role="link" size="lg">
             <ArrowLeftIcon className="rtl:rotate-180" data-icon="inline-start" />
             {t('stock-programs.back')}
           </Button>

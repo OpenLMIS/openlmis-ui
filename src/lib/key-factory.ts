@@ -53,7 +53,12 @@ export const queryKeys = {
   supervisoryNodes: createQueryKeys('supervisoryNodes'),
   supplyPartners: createQueryKeys('supplyPartners'),
   tradeItems: createQueryKeys('tradeItems'),
-  users: createQueryKeys('users'),
+  users: {
+    ...createQueryKeys('users'),
+    lists: ['users', 'list'] as const,
+    matches: ['users', 'matches'] as const,
+    every: ['users', 'every'] as const,
+  },
   validDestinations: createQueryKeys('validDestinations'),
   validReasons: createQueryKeys('validReasons'),
   validSources: createQueryKeys('validSources'),

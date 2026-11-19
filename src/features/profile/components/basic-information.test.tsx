@@ -8,7 +8,7 @@ import {
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { contactDetailsOptions } from '@/features/profile/api/queries';
+import { contactDetailsOptions, pendingEmailOptions } from '@/features/profile/api/queries';
 import {
   BasicInformation,
   BasicInformationSkeleton,
@@ -67,21 +67,27 @@ function openProfile(queryClient: QueryClient, content: React.ReactNode) {
 describe('BasicInformation', () => {
   it('refreshes the server user after the name saves and the contact write fails', async () => {
     const updated = { ...profile.user, firstName: 'Augusta', roleAssignments: [{ roleId: 'r2' }] };
+    const serverContact = { referenceDataUserId: 'u1', phoneNumber: '456', allowNotify: false };
     vi.mocked(client.get).mockImplementation(async (url) => ({
       data:
         url === '/users/u1'
           ? vi.mocked(client.put).mock.calls.length
             ? updated
             : profile.user
-          : null,
+          : url === '/userContactDetails/u1'
+            ? serverContact
+            : null,
     }));
     vi.mocked(client.put)
       .mockResolvedValueOnce({ data: undefined })
-      .mockRejectedValueOnce(new Error('contact details refused'));
+      .mockRejectedValueOnce(new Error('contact response lost'));
     const queryClient = new QueryClient();
     queryClient.setQueryData(userRecordKey('u1'), profile.user);
+    const contactKey = contactDetailsOptions('u1').queryKey;
+    queryClient.setQueryData(contactKey, null);
     const onSaved = vi.fn();
     openProfile(queryClient, <BasicInformation onSaved={onSaved} profile={profile} />);
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
     const firstName = await screen.findByRole('textbox', { name: /users.form.first-name/ });
     await userEvent.clear(firstName);
@@ -92,17 +98,25 @@ describe('BasicInformation', () => {
     await screen.findByText('profile.save-error-title');
     expect(queryClient.getQueryData(userRecordKey('u1'))).toEqual(updated);
     expect(onSaved).toHaveBeenCalledOnce();
+    expect(queryClient.getQueryData(contactKey)).toEqual(serverContact);
+    expect(client.put).toHaveBeenNthCalledWith(1, '/users', expect.anything());
+    expect(client.put).toHaveBeenNthCalledWith(2, '/userContactDetails/u1', expect.anything());
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: pendingEmailOptions('u1').queryKey });
     expect(screen.getByRole('textbox', { name: 'users.form.phone-number' })).toHaveValue('123');
   });
 
-  it('keeps the confirmed name on the form when refreshing the shared user fails', async () => {
-    vi.mocked(client.get).mockImplementation(async (url) => {
-      if (url !== '/users/u1') return { data: null };
-      if (vi.mocked(client.put).mock.calls.length) throw new Error('refetch failed');
-      return { data: profile.user };
-    });
+  it('patches confirmed names into the current shared user when its refresh fails', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const latestUser = { ...profile.user, roleAssignments: [{ roleId: 'r2' }] };
+    vi.mocked(client.get).mockImplementation(async (url) => {
+      if (url !== '/users/u1') return { data: null };
+      if (vi.mocked(client.put).mock.calls.length) {
+        queryClient.setQueryData(userRecordKey('u1'), latestUser);
+        throw new Error('refetch failed');
+      }
+      return { data: profile.user };
     });
     queryClient.setQueryData(contactDetailsOptions('u1').queryKey, profile.contact);
     queryClient.setQueryData(userRecordKey('u1'), profile.user);
@@ -114,10 +128,13 @@ describe('BasicInformation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'profile.save' }));
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'profile.save' })).toBeDisabled(),
+      expect(queryClient.getQueryData(userRecordKey('u1'))).toEqual({
+        ...latestUser,
+        firstName: 'Augusta',
+      }),
     );
     expect(firstName).toHaveValue('Augusta');
-    expect(queryClient.getQueryData(userRecordKey('u1'))).toEqual(profile.user);
+    expect(screen.getByRole('button', { name: 'profile.save' })).toBeDisabled();
     expect(queryClient.getQueryState(userRecordKey('u1'))?.isInvalidated).toBe(true);
   });
 

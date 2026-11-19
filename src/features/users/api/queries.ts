@@ -11,7 +11,7 @@ import { queryKeys } from '@/lib/key-factory';
 /** Search matches depend only on the term, so paging and sorting reuse them instead of searching again. */
 export const userMatchesOptions = (term: string) =>
   queryOptions({
-    queryKey: [...queryKeys.users.all, 'matches', term] as const,
+    queryKey: [...queryKeys.users.matches, term] as const,
     queryFn: () => findMatchingUserIds(term),
   });
 
@@ -30,7 +30,7 @@ export const userDetailsOptions = (id: string) =>
 
 export const allUsersOptions = () =>
   queryOptions({
-    queryKey: [...queryKeys.users.all, 'every'] as const,
+    queryKey: queryKeys.users.every,
     queryFn: fetchAllUsers,
     staleTime: 5 * 60 * 1000,
   });

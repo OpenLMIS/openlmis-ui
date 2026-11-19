@@ -8,3 +8,16 @@ export function invalidateUserQueries(queryClient: QueryClient, userId: string):
     ),
   );
 }
+
+export function invalidateUsersAdminQueries(
+  queryClient: QueryClient,
+  userId: string,
+): Promise<unknown> {
+  const { matches, lists, detail, every } = queryKeys.users;
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: matches }),
+    queryClient.invalidateQueries({ queryKey: lists }),
+    queryClient.invalidateQueries({ queryKey: detail(userId), exact: true }),
+    queryClient.invalidateQueries({ queryKey: every, exact: true }),
+  ]);
+}

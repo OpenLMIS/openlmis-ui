@@ -679,7 +679,6 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       const assertRouteWarning = expectRouteWarning(
         `/(protected)/_protected/stock-management/${kind}_/$programId${PICKER}/${FP}`,
       );
-      const onCaughtError = vi.fn();
       vi.mocked(fetchUserRecord).mockResolvedValue({
         id: USER,
         username: 'administrator',
@@ -689,7 +688,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         homeFacilityId: null,
         roleAssignments: [],
       });
-      renderRoute(`${PICKER}/${FP}`, { onCaughtError });
+      renderRoute(`${PICKER}/${FP}`, { onCaughtError: () => undefined });
 
       expect(
         await screen.findByRole('heading', { name: 'stock-programs.no-home-title' }),
@@ -700,7 +699,9 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         PICKER,
       );
       expect(fetchFacility).not.toHaveBeenCalled();
-      expect(onCaughtError).toHaveBeenCalled();
+      expect(fetchApprovedProducts).not.toHaveBeenCalled();
+      expect(fetchOrderablesByIds).not.toHaveBeenCalled();
+      expect(fetchEventStockCards).not.toHaveBeenCalled();
       assertRouteWarning();
     });
 

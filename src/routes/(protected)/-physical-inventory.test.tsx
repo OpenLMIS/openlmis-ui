@@ -285,7 +285,7 @@ describe('physical inventory routes', () => {
     expect(screen.getByText('facility-program.no-home')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'stock-programs.back' })).toHaveAttribute(
       'href',
-      PICKER,
+      '/stock-management/physical-inventory',
     );
     expect(fetchFacility).not.toHaveBeenCalled();
     expect(fetchPhysicalInventoryDraft).not.toHaveBeenCalled();

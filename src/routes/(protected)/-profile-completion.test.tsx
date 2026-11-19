@@ -132,6 +132,24 @@ it('profile completion must not repopulate the previous identity cache after the
   expect(queryClient.getQueryData(userRecordKey('u1'))).toBeUndefined();
   expect(onSaved).not.toHaveBeenCalled();
 });
+it('does not start the user refresh when the session changes during the user write', async () => {
+  notifications = false;
+  queryClient.setQueryData(userRecordKey('u1'), profile.user);
+  const late = Promise.withResolvers<{ data: undefined }>();
+  vi.spyOn(client, 'get').mockResolvedValue({ data: profile.user });
+  const put = vi.spyOn(client, 'put').mockReturnValueOnce(late.promise);
+  const user = await open();
+  await user.type(await screen.findByRole('textbox', { name: /users.form.first-name/ }), 'x');
+  await user.click(screen.getByRole('button', { name: 'profile.save' }));
+  await waitFor(() => expect(put).toHaveBeenCalledWith('/users', expect.anything()));
+  act(() => useLoginData.getState().setLoginData(alan));
+  await screen.findByText('Alan page');
+  await act(async () => late.resolve({ data: undefined }));
+  expect(fetchUserRecord).not.toHaveBeenCalledWith('u1', expect.anything());
+  expect(queryClient.getQueryData(userRecordKey('u1'))).toBeUndefined();
+  expect(onSaved).not.toHaveBeenCalled();
+});
+
 it('notification completion must not repopulate the previous identity cache after the shared boundary unmounts', async () => {
   notifications = true;
   const user = await open();

@@ -1,13 +1,17 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   contactDetailsOptions,
   digestConfigurationsOptions,
   subscriptionsOptions,
 } from '@/features/profile/api/queries';
-import { NotificationSettings } from '@/features/profile/components/notification-settings';
-import { userRecordOptions } from '@/features/reference-data/api/queries';
+import {
+  NotificationSettings,
+  NotificationSettingsSkeleton,
+} from '@/features/profile/components/notification-settings';
+import { ProfileContactError } from '@/features/profile/components/profile-contact-error';
 
 export const Route = createFileRoute('/(protected)/_protected/profile/notifications')({
   staticData: { crumbKey: 'profile.title' },
@@ -23,11 +27,18 @@ export const Route = createFileRoute('/(protected)/_protected/profile/notificati
 
 function NotificationSettingsPage() {
   const userId = useLoginData((state) => state.referenceDataUserId);
-  return userId ? <NotificationSettingsTab userId={userId} /> : null;
+  return userId ? (
+    <QueryBoundary
+      errorComponent={ProfileContactError}
+      pendingFallback={<NotificationSettingsSkeleton />}
+      resetKey={userId}
+    >
+      <NotificationSettingsTab userId={userId} />
+    </QueryBoundary>
+  ) : null;
 }
 
 function NotificationSettingsTab({ userId }: { userId: string }) {
-  const { data: user } = useSuspenseQuery(userRecordOptions(userId));
   const { data: contact } = useSuspenseQuery(contactDetailsOptions(userId));
-  return <NotificationSettings hasContactDetails={contact !== null} userId={user.id} />;
+  return <NotificationSettings hasContactDetails={contact !== null} userId={userId} />;
 }
