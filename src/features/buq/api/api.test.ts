@@ -4,7 +4,7 @@ import {
   deleteBuq,
   downloadBuq,
   fetchBuqPeriods,
-  fetchPreparedBuqs,
+  fetchOpenBuqs,
   fetchTakenPeriods,
   prepareBuq,
 } from '@/features/buq/api/api';
@@ -25,19 +25,31 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe('fetchPreparedBuqs', () => {
-  it('reads every page of the facility forecasts that can still be prepared again', async () => {
+describe('fetchOpenBuqs', () => {
+  it('reads every page of the open facility forecasts in a stable order', async () => {
     get
       .mockResolvedValueOnce(page([{ id: 'b1' }], 2))
       .mockResolvedValueOnce(page([{ id: 'b2' }], 2));
 
-    await expect(fetchPreparedBuqs('f1')).resolves.toEqual([{ id: 'b1' }, { id: 'b2' }]);
+    await expect(fetchOpenBuqs('f1')).resolves.toEqual([{ id: 'b1' }, { id: 'b2' }]);
     expect(get).toHaveBeenNthCalledWith(1, '/bottomUpQuantifications', {
-      params: { facility: 'f1', status: ['DRAFT', 'SUBMITTED', 'REJECTED'], page: 0, size: 100 },
+      params: {
+        facility: 'f1',
+        status: ['DRAFT', 'SUBMITTED', 'REJECTED'],
+        page: 0,
+        size: 100,
+        sort: 'id,asc',
+      },
       paramsSerializer: { indexes: null },
     });
     expect(get).toHaveBeenNthCalledWith(2, '/bottomUpQuantifications', {
-      params: { facility: 'f1', status: ['DRAFT', 'SUBMITTED', 'REJECTED'], page: 1, size: 100 },
+      params: {
+        facility: 'f1',
+        status: ['DRAFT', 'SUBMITTED', 'REJECTED'],
+        page: 1,
+        size: 100,
+        sort: 'id,asc',
+      },
       paramsSerializer: { indexes: null },
     });
   });
@@ -75,7 +87,7 @@ describe('fetchTakenPeriods', () => {
       { id: 'b1', processingPeriodId: 'p1' },
     ]);
     expect(get).toHaveBeenCalledWith('/bottomUpQuantifications', {
-      params: { facility: 'f1', page: 0, size: 100 },
+      params: { facility: 'f1', page: 0, size: 100, sort: 'id,asc' },
     });
   });
 });

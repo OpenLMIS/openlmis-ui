@@ -176,10 +176,14 @@ describe('LIVE_NAV_GROUPS', () => {
     expect(links.map((link) => String(link.to))).not.toContain('#');
   });
 
-  it('drops a section once none of its pages is live', () => {
-    expect(items.map((item) => item.titleKey)).not.toContain('nav.buq');
-    expect(items.map((item) => item.titleKey)).toContain('nav.reports');
-    expect(items.map((item) => item.titleKey)).toContain('nav.administration');
+  it('keeps sections with live pages and drops empty sections', () => {
+    const sections = items.filter(isNavParent);
+    expect(sections.every((section) => section.items.length > 0)).toBe(true);
+
+    const sectionKeys = sections.map((section) => section.titleKey);
+    expect(sectionKeys).toContain('nav.buq');
+    expect(sectionKeys).toContain('nav.reports');
+    expect(sectionKeys).toContain('nav.administration');
   });
 
   it('drops a group left with nothing in it', () => {
