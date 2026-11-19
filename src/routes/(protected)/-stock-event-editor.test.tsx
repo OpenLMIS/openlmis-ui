@@ -380,6 +380,9 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       renderRoute();
 
       expect(await screen.findByText('facility-program.no-home')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { level: 1, name: `nav.stock-management.${kind}` }),
+      ).toBeInTheDocument();
       expect(fetchFacility).not.toHaveBeenCalled();
     });
 
