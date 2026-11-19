@@ -39,6 +39,7 @@ import { productLabel } from '@/features/reference-data/lib/products';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { orEmpty } from '@/lib/empty-value';
 import { packsToShip, type QuantityUnit } from '@/lib/quantity';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { toWholeNumber } from '@/lib/whole-number';
 
 export function productName(line: DraftLine) {
@@ -132,6 +133,7 @@ export function OrderLines({
   );
   return (
     <div
+      data-tour={TOUR_ANCHORS.orderLines}
       ref={(element) => {
         measure(element);
         focus.region.current = element;

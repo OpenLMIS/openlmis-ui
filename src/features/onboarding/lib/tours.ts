@@ -5,6 +5,7 @@ import { offlineEventsTour } from '@/features/onboarding/tours/offline-events.to
 import { physicalInventoryTour } from '@/features/onboarding/tours/physical-inventory.tour';
 import { physicalInventoryDraftTour } from '@/features/onboarding/tours/physical-inventory-draft.tour';
 import { requisitionDetailTour } from '@/features/onboarding/tours/requisition-detail.tour';
+import { requisitionWorkflowTours } from '@/features/onboarding/tours/requisition-workflows.tour';
 import { requisitionsViewTour } from '@/features/onboarding/tours/requisitions-view.tour';
 import { stockCardTour } from '@/features/onboarding/tours/stock-card.tour';
 import { stockEventTours } from '@/features/onboarding/tours/stock-events.tour';
@@ -16,6 +17,7 @@ const TOURS: readonly Tour[] = [
   homeTour,
   requisitionsViewTour,
   requisitionDetailTour,
+  ...requisitionWorkflowTours,
   stockOnHandTour,
   stockCardTour,
   transactionHistoryTour,

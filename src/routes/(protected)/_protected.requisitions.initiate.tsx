@@ -64,6 +64,7 @@ import { hasProgramGrant, type Permissions } from '@/lib/permissions';
 import { randomId } from '@/lib/random-id';
 import { RIGHTS } from '@/lib/rights';
 import { assertSessionScope } from '@/lib/session-scope';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const ENTRY_RIGHTS = [
   RIGHTS.requisitionCreate,
@@ -199,9 +200,10 @@ function InitiateBody({ userId }: { userId: string }) {
     },
     [applied, emergency, navigate, queryClient, search.emergency],
   );
+  const hasChoices = options.myPrograms.length > 0 || options.supervisedPrograms.length > 0;
   const typeField = useMemo(
     () => (
-      <Field spacing="tight">
+      <Field data-tour={hasChoices ? TOUR_ANCHORS.requisitionType : undefined} spacing="tight">
         <span className="font-medium text-sm leading-snug" id="requisition-type-label">
           {t('requisitions.initiate.type')}
         </span>
@@ -221,18 +223,20 @@ function InitiateBody({ userId }: { userId: string }) {
         </RadioGroup>
       </Field>
     ),
-    [t, emergency],
+    [t, emergency, hasChoices],
   );
   return (
     <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-      <FacilityProgramSelector
-        applied={applied}
-        options={options}
-        onDraftChange={setDraft}
-        onSearch={onSearch}
-      >
-        {typeField}
-      </FacilityProgramSelector>
+      <div data-tour={hasChoices ? TOUR_ANCHORS.requisitionsPicker : undefined}>
+        <FacilityProgramSelector
+          applied={applied}
+          options={options}
+          onDraftChange={setDraft}
+          onSearch={onSearch}
+        >
+          {typeField}
+        </FacilityProgramSelector>
+      </div>
       {valid && canSearch(permissions, valid) && !changed ? (
         <QueryBoundary
           resetKey={JSON.stringify(search)}

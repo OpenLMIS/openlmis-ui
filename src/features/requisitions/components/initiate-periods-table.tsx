@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import type { InitiateRow } from '@/features/requisitions/lib/initiate';
 import { REQUISITION_STATUS } from '@/lib/requisition-status';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const helper = createColumnHelper<DataTableFeatures, InitiateRow>();
 const NO_ROWS: InitiateRow[] = [];
@@ -43,26 +44,30 @@ function Proceed({
   const name = t('requisitions.initiate.proceed-label', { period: row.name });
   const busy = pending === rowId(row);
   const link = row.requisitionId ? openLink(row.requisitionId) : undefined;
+  const anchor = disabled ? undefined : TOUR_ANCHORS.requisitionProceed;
   if (cards)
     return (
-      <CardActions
-        label={t('card-actions.actions-for', { name: row.name })}
-        actions={[
-          {
-            id: 'proceed',
-            icon: busy ? <Spinner /> : <ArrowRightIcon className="rtl:rotate-180" />,
-            label: t('requisitions.initiate.proceed'),
-            name,
-            link,
-            disabled,
-            onSelect: link ? undefined : () => onStart(row),
-          },
-        ]}
-      />
+      <div className="flex shrink-0" data-tour={anchor}>
+        <CardActions
+          label={t('card-actions.actions-for', { name: row.name })}
+          actions={[
+            {
+              id: 'proceed',
+              icon: busy ? <Spinner /> : <ArrowRightIcon className="rtl:rotate-180" />,
+              label: t('requisitions.initiate.proceed'),
+              name,
+              link,
+              disabled,
+              onSelect: link ? undefined : () => onStart(row),
+            },
+          ]}
+        />
+      </div>
     );
   return (
     <Button
       aria-label={name}
+      data-tour={anchor}
       disabled={disabled}
       nativeButton={!link}
       render={link}

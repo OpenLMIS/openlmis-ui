@@ -201,9 +201,12 @@ function TourPlayer({
               columnHeader(holder(), column) ?? fallback()
           : undefined;
         const columnTarget = inColumn?.(targetElement);
-        // A wide table scrolls sideways; bring the header into view so the tooltip can reach it.
+        // A wide table scrolls sideways; bring the target into view so the tooltip can reach it.
         const reveal = async () => {
-          columnTarget?.()?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          (columnTarget ?? targetElement)()?.scrollIntoView({
+            block: 'nearest',
+            inline: 'nearest',
+          });
           await nextFrame();
         };
         return {
@@ -223,19 +226,16 @@ function TourPlayer({
             t(step.content)
           ),
           placement: toJoyridePlacement(step.placement ?? 'bottom', direction),
-          ...(step.expand && {
-            before: async () => {
+          before: async () => {
+            if (step.expand) {
               setSectionOpen(step.anchor, true);
               await nextFrame();
-            },
-            after: () => setSectionOpen(step.anchor, false),
-          }),
-          ...((step.select || columnTarget) && {
-            before: async () => {
-              if (step.select) await selectTab(step.select, () => followRef.current());
-              await reveal();
-            },
-          }),
+              return;
+            }
+            if (step.select) await selectTab(step.select, () => followRef.current());
+            await reveal();
+          },
+          ...(step.expand && { after: () => setSectionOpen(step.anchor, false) }),
         };
       }),
     [steps, t, direction],

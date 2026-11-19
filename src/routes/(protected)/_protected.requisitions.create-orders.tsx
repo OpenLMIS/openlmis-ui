@@ -65,7 +65,7 @@ function CreatePending() {
       <div className="min-w-0">
         <Field>
           <FieldLabel>{t('orders.create.program')}</FieldLabel>
-          <div className="h-9">
+          <div aria-busy className="h-9">
             <Skeleton fill />
           </div>
         </Field>

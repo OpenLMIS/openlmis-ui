@@ -30,6 +30,7 @@ import type { MinimalFacility, Program } from '@/features/reference-data/lib/typ
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { invalidateOrderLists } from '@/lib/order-queries';
 import { settleFew } from '@/lib/settle-few';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const EMPTY_PROGRAMS: Program[] = [];
 
@@ -139,7 +140,11 @@ export function CreateOrderForm({
   return (
     <form className="flex flex-col gap-4" onSubmit={(event) => event.preventDefault()}>
       <FieldGroup>
-        <div className="min-w-0">
+        <div
+          aria-busy={programsPending || undefined}
+          className="min-w-0"
+          data-tour={TOUR_ANCHORS.orderProgram}
+        >
           <OrderSelect
             required
             label={t('orders.create.program')}
@@ -151,13 +156,15 @@ export function CreateOrderForm({
           />
         </div>
       </FieldGroup>
-      <RequestingFacilityPicker
-        options={requesting}
-        selected={selectedFacilities}
-        disabled={mutation.isPending || facilitiesPending}
-        onChange={changeFacilities}
-      />
-      <div className="min-w-0">
+      <div aria-busy={facilitiesPending || undefined}>
+        <RequestingFacilityPicker
+          options={requesting}
+          selected={selectedFacilities}
+          disabled={mutation.isPending || facilitiesPending}
+          onChange={changeFacilities}
+        />
+      </div>
+      <div className="min-w-0" data-tour={TOUR_ANCHORS.orderSupplier}>
         <OrderSelect
           required
           label={t('orders.create.supplying-facility')}
@@ -191,6 +198,7 @@ export function CreateOrderForm({
       )}
       <div className="flex justify-end">
         <Button
+          data-tour={TOUR_ANCHORS.orderCreate}
           type="button"
           size="lg"
           disabled={!readable || mutation.isPending}
@@ -221,7 +229,7 @@ const RequestingFacilityPicker = memo(function RequestingFacilityPicker({
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   return (
-    <Field data-disabled={disabled}>
+    <Field data-disabled={disabled} data-tour={TOUR_ANCHORS.orderFacilities}>
       <FieldLabel htmlFor={requestingId}>
         <FieldLabelText label={t('orders.create.requesting-facility')} required />
       </FieldLabel>

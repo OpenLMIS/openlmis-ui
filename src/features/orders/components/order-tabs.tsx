@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { TabsClose, TabsItem, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { LoadedOrder } from '@/features/orders/lib/order-load';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function OrderTabs({
   entries,
@@ -23,7 +24,12 @@ export function OrderTabs({
 }) {
   const { t } = useTranslation();
   return (
-    <TabsList aria-label={t('orders.create.facilities-label')} size="lg" wrap="column">
+    <TabsList
+      aria-label={t('orders.create.facilities-label')}
+      data-tour={TOUR_ANCHORS.orderTabs}
+      size="lg"
+      wrap="column"
+    >
       {entries.map((entry) => {
         const name =
           entry.order?.requestingFacility.name ??
