@@ -19,7 +19,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Workspace, WorkspaceContent } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { supplyPartnerOptions } from '@/features/supply-partners/api/queries';
 import {
@@ -50,6 +50,7 @@ export const Route = createFileRoute('/(protected)/_protected/administration/sup
   {
     validateSearch: supplyPartnerEditSearchSchema,
     staticData: {
+      rights: [RIGHTS.supplyPartnersManage],
       crumbKey: 'supply-partners.edit',
       crumbParentSearch: (search) =>
         supplyPartnerListSearch(supplyPartnerEditSearchSchema.parse(search)),
@@ -74,8 +75,8 @@ export const Route = createFileRoute('/(protected)/_protected/administration/sup
           replace: true,
         });
     },
-    loader: async ({ context: { queryClient }, params, cause }) => {
-      const rights = await requireRight(queryClient, RIGHTS.supplyPartnersManage);
+    loader: async ({ route, context: { queryClient }, params, cause }) => {
+      const { rights } = await requireRouteRights(queryClient, route);
       const options = supplyPartnerOptions(params.id);
       const saved = await (cause === 'stay'
         ? queryClient.ensureQueryData(options)

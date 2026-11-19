@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   ProgramsTable,
@@ -39,10 +39,11 @@ const CLOSED_DIALOGS = { program: undefined } satisfies Partial<ProgramsSearch>;
 const usePageCardView = () => useCardView(PROGRAM_HIDEABLE_COLUMNS, 'programs.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/programs')({
+  staticData: { rights: [RIGHTS.programsManage] },
   validateSearch: programsSearchSchema,
   loaderDeps: ({ search }) => ({ program: search.program }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.programsManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(programsOptions());
     if (deps.program === 'new') queryClient.prefetchQuery(programsOptions());
   },

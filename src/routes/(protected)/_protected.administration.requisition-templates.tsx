@@ -16,7 +16,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { requisitionTemplatesOptions } from '@/features/requisition-templates/api/queries';
@@ -36,9 +36,10 @@ const AddTemplateDialog = lazy(() =>
 export const Route = createFileRoute(
   '/(protected)/_protected/administration/requisition-templates',
 )({
+  staticData: { rights: [RIGHTS.requisitionTemplatesManage] },
   validateSearch: searchSchema,
-  loader: async ({ context: { queryClient } }) => {
-    await requireRight(queryClient, RIGHTS.requisitionTemplatesManage);
+  loader: async ({ route, context: { queryClient } }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(requisitionTemplatesOptions());
     queryClient.prefetchQuery(programsOptions());
     queryClient.prefetchQuery(facilityTypesOptions());

@@ -20,13 +20,12 @@ import { type BuqListSearch, buqListSearchSchema } from '@/features/buq/lib/sear
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { loadBuqAccess, useForecastRights } from '@/routes/-buq-access';
 
-const FORECASTING_RIGHTS = [RIGHTS.createForecasting, RIGHTS.authorizeForecasting];
-
 export const Route = createFileRoute('/(protected)/_protected/buq/create')({
+  staticData: { rights: [RIGHTS.createForecasting, RIGHTS.authorizeForecasting] },
   preload: false,
   validateSearch: buqListSearchSchema,
-  loader: ({ context: { queryClient }, cause }) =>
-    loadBuqAccess(queryClient, FORECASTING_RIGHTS, cause, { activeSupport: false }),
+  loader: ({ route, context: { queryClient }, cause }) =>
+    loadBuqAccess(queryClient, route, cause, { activeSupport: false }),
   pendingComponent: CreateAuthorizePending,
   component: CreateAuthorizePage,
 });

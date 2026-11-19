@@ -12,7 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { deleteOrders, fetchOrder, saveOrder, sendOrder } from '@/features/orders/api/api';
 import { orderOptions } from '@/features/orders/api/queries';
 import { OrderEditor } from '@/features/orders/components/order-editor';
@@ -26,7 +26,7 @@ import { queryKeys } from '@/lib/key-factory';
 import { Route } from '@/routes/(protected)/_protected.requisitions.create-orders_.$orderIds';
 import { creatingOrder, orderProduct } from '@/test-utils/order-fixtures';
 
-vi.mock('@/features/auth/lib/access', () => ({ requirePermissions: vi.fn(async () => ({})) }));
+vi.mock('@/features/auth/lib/access', () => ({ requireRouteRights: vi.fn(async () => ({})) }));
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/hooks/use-discard-guard', () => ({
   useDiscardGuard: () => ({
@@ -374,17 +374,19 @@ it('checks permission and rereads on entry even with an old batch-change history
   vi.mocked(fetchOrder).mockResolvedValue(creatingOrder('b', 30));
   const loader = Route.options.loader as (args: unknown) => Promise<unknown>;
   await loader({
+    route: Route,
     context: { queryClient: client },
     params: { orderIds: 'b' },
     cause: 'enter',
     location: { state: { orderBatchChange: 'old-consumed-token' } },
   });
-  expect(requirePermissions).toHaveBeenCalledOnce();
+  expect(requireRouteRights).toHaveBeenCalledOnce();
   expect(fetchOrder).toHaveBeenCalledWith('b');
   vi.mocked(fetchOrder).mockClear();
-  vi.mocked(requirePermissions).mockRejectedValueOnce(new Error('No access'));
+  vi.mocked(requireRouteRights).mockRejectedValueOnce(new Error('No access'));
   await expect(
     loader({
+      route: Route,
       context: { queryClient: client },
       params: { orderIds: 'b' },
       cause: 'enter',
@@ -464,6 +466,7 @@ it('deletes the final order and replaces its history entry with the list', async
     path: 'requisitions/create-orders/$orderIds',
     validateSearch: Route.options.validateSearch as never,
     loader: Route.options.loader as never,
+    staticData: Route.options.staticData,
     component: Route.options.component as never,
   });
   const list = createRoute({

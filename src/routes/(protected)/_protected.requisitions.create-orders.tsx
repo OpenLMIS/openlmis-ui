@@ -16,7 +16,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { CreateOrderForm } from '@/features/orders/components/create-order-form';
 import { canReadOrders, requestingFacilities } from '@/features/orders/lib/supplying-facilities';
 import {
@@ -27,8 +27,9 @@ import { RIGHTS } from '@/lib/rights';
 import { getSessionUserId } from '@/lib/session-scope';
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/create-orders')({
-  loader: async ({ context: { queryClient } }) => {
-    await requirePermissions(queryClient, RIGHTS.orderCreate);
+  staticData: { rights: [RIGHTS.orderCreate] },
+  loader: async ({ route, context: { queryClient } }) => {
+    await requireRouteRights(queryClient, route);
     const userId = getSessionUserId() ?? '';
     queryClient.prefetchQuery(userProgramsOptions(userId));
     queryClient.prefetchQuery(minimalFacilitiesOptions());

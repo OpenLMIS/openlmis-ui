@@ -11,6 +11,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
+import { RIGHTS } from '@/features/auth/lib/rights';
 import { BuqUnavailable } from '@/features/buq/components/buq-unavailable';
 import {
   NationalApproval,
@@ -21,11 +22,12 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { loadNationalAccess } from '@/routes/-buq-access';
 
 export const Route = createFileRoute('/(protected)/_protected/buq/national-approval')({
+  staticData: { rights: [RIGHTS.mohApproval, RIGHTS.poralgApproval] },
   preload: false,
   validateSearch: nationalSearchSchema,
   loaderDeps: ({ search: { zone, period } }) => ({ zone, period }),
-  loader: ({ context: { queryClient }, deps, cause }) =>
-    loadNationalAccess(queryClient, deps, cause),
+  loader: ({ route, context: { queryClient }, deps, cause }) =>
+    loadNationalAccess(queryClient, route, deps, cause),
   pendingComponent: NationalPending,
   component: NationalPage,
 });

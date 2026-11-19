@@ -12,7 +12,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions, reasonsOptions } from '@/features/reference-data/api/queries';
@@ -39,11 +39,12 @@ export const Route = createFileRoute(
 )({
   validateSearch: searchSchema,
   staticData: {
+    rights: [RIGHTS.stockEventsCancel],
     crumbKey: 'stock-event-reverse.crumb',
     crumbParentSearch: (search) => transactionHistorySearchSchema.parse(search),
   },
   preload: false,
-  loader: async ({ context: { queryClient }, params, cause }) => {
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
     const userId = useLoginData.getState().referenceDataUserId;
     const options = stockEventOptions(params.eventId);
     const state = queryClient.getQueryState(options.queryKey);
@@ -51,7 +52,7 @@ export const Route = createFileRoute(
     shownEventId = undefined;
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
     try {
-      await requireRight(queryClient, RIGHTS.stockEventsCancel);
+      await requireRouteRights(queryClient, route);
     } catch (error) {
       if (userChanged()) return;
       throw error;

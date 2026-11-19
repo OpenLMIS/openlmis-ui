@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { notFound } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { toDateValue } from '@/components/form/date-value';
-import { ForbiddenError, requirePermissions, requireRight } from '@/features/auth/lib/access';
+import { ForbiddenError, requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   buqApproveStatsOptions,
@@ -31,6 +31,7 @@ import {
   userRecordOptions,
 } from '@/features/reference-data/api/queries';
 import { isNotFound } from '@/lib/http';
+import { type RouteWithRights, routeRights } from '@/lib/route-rights';
 import {
   assertSessionScope,
   getSessionScope,
@@ -52,14 +53,14 @@ function currentUser() {
 
 export async function loadBuqAccess(
   queryClient: QueryClient,
-  rights: readonly string[],
+  route: RouteWithRights,
   cause: 'enter' | 'stay' | 'preload',
   { activeSupport }: { activeSupport: boolean },
 ): Promise<ShownBuqAccess> {
   const { scope, userId } = currentUser();
   const fresh = cause === 'enter' ? { staleTime: 0 } : {};
   const [permissions, user, programs, timeZone] = await Promise.all([
-    requirePermissions(queryClient, rights),
+    requireRouteRights(queryClient, route),
     queryClient.fetchQuery({ ...userRecordOptions(userId), ...fresh }),
     queryClient.fetchQuery({ ...userProgramsOptions(userId), ...fresh }),
     activeSupport ? queryClient.fetchQuery(deploymentTimeZoneOptions()) : undefined,
@@ -69,6 +70,7 @@ export async function loadBuqAccess(
     ? await queryClient.fetchQuery({ ...homeFacilityOptions(user.homeFacilityId), ...fresh })
     : undefined;
   assertSessionScope(scope);
+  const rights = routeRights(route) ?? NO_RIGHTS;
   const access = buqAccess({
     home,
     programs,
@@ -86,12 +88,13 @@ export async function loadBuqAccess(
 
 export async function loadApproveAccess(
   queryClient: QueryClient,
+  route: RouteWithRights,
   cause: 'enter' | 'stay' | 'preload',
 ) {
   const { scope, userId } = currentUser();
   const fresh = cause === 'enter' ? { staleTime: 0 } : {};
   const [, programs] = await Promise.all([
-    requireRight(queryClient, RIGHTS.approveBuq),
+    requireRouteRights(queryClient, route),
     queryClient.fetchQuery({ ...userProgramsOptions(userId), ...fresh }),
   ]);
   assertSessionScope(scope);
@@ -113,13 +116,14 @@ export async function loadApproveAccess(
 
 export async function loadNationalAccess(
   queryClient: QueryClient,
+  route: RouteWithRights,
   { zone, period }: { zone?: string; period?: string },
   cause: 'enter' | 'stay' | 'preload',
 ) {
   const { scope, userId } = currentUser();
   const fresh = cause === 'enter' ? { staleTime: 0 } : {};
   const [, programs] = await Promise.all([
-    requireRight(queryClient, [RIGHTS.mohApproval, RIGHTS.poralgApproval]),
+    requireRouteRights(queryClient, route),
     queryClient.fetchQuery({ ...userProgramsOptions(userId), ...fresh }),
   ]);
   assertSessionScope(scope);
@@ -190,11 +194,12 @@ const NO_ZONES: readonly string[] = [];
 
 export async function loadNationalForecast(
   queryClient: QueryClient,
+  route: RouteWithRights,
   id: string,
   cause: 'enter' | 'stay' | 'preload',
 ) {
   const { scope } = currentUser();
-  const access = await loadNationalAccess(queryClient, {}, cause);
+  const access = await loadNationalAccess(queryClient, route, {}, cause);
   if (access.kind !== 'ready') return { ...access, zoneIds: NO_ZONES };
   const [forecast, zones] = await Promise.all([
     loadForecast(queryClient, id, cause),

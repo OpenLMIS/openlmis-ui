@@ -1,14 +1,14 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, renderHook, waitFor } from '@testing-library/react';
+import { QueryClient } from '@tanstack/react-query';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import { type AxiosAdapter, AxiosError } from 'axios';
-import type { ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { useHasRight } from '@/components/app-shell/nav-access';
+import { useCanOpen } from '@/components/app-shell/nav-access';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { client } from '@/integrations/axios';
 import { isOnline } from '@/lib/online';
 import { parsePermissions } from '@/lib/permissions';
+import { renderPage } from '@/test-utils/render-page';
 
 const originalAdapter = client.defaults.adapter;
 let queryClient: QueryClient;
@@ -26,20 +26,24 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function ViewAccess() {
+  const canOpen = useCanOpen();
+  return <output>{canOpen('/requisitions/view') ? 'Available' : 'Hidden'}</output>;
+}
+
 function mount(permissions: string[]) {
   queryClient.setQueryData(permissionsOptions('u').queryKey, parsePermissions(permissions));
-  return renderHook(() => useHasRight('REQUISITION_VIEW'), {
-    wrapper: ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    ),
+  renderPage(<ViewAccess />, {
+    queryClient,
+    routeStaticData: { '/requisitions/view': { rights: ['REQUISITION_VIEW'] } },
   });
 }
 
-it('skips optional supervision lookups when permission strings already grant VIEW', () => {
+it('skips optional supervision lookups when permission strings already grant VIEW', async () => {
   const adapter = vi.fn<AxiosAdapter>();
   client.defaults.adapter = adapter;
-  const { result } = mount(['REQUISITION_VIEW|f|p']);
-  expect(result.current).toBe(true);
+  mount(['REQUISITION_VIEW|f|p']);
+  expect(await screen.findByRole('status')).toHaveTextContent('Available');
   expect(queryClient.isFetching()).toBe(0);
   expect(adapter).not.toHaveBeenCalled();
 });
@@ -62,10 +66,10 @@ it('keeps the shell available while supervision lookups load and grants VIEW whe
           : { id: 'u', roleAssignments: [{ roleId: 'viewer', supervisoryNodeId: 'node' }] },
     };
   };
-  const { result } = mount([]);
-  expect(result.current).toBe(false);
+  mount([]);
+  expect(await screen.findByRole('status')).toHaveTextContent('Hidden');
   release();
-  await waitFor(() => expect(result.current).toBe(true));
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Available'));
 });
 
 it('treats failed optional lookups as no extra rights without marking the app offline', async () => {
@@ -73,9 +77,10 @@ it('treats failed optional lookups as no extra rights without marking the app of
     throw new AxiosError('Network Error', 'ERR_NETWORK', config);
   });
   client.defaults.adapter = adapter;
-  const { result } = mount(['USERS_MANAGE']);
+  mount(['USERS_MANAGE']);
+  await screen.findByRole('status');
   await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   expect(adapter).toHaveBeenCalledTimes(2);
-  expect(result.current).toBe(false);
+  expect(screen.getByRole('status')).toHaveTextContent('Hidden');
   expect(isOnline()).toBe(true);
 });

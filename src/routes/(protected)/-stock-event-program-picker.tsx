@@ -22,7 +22,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { ForbiddenError, isForbidden, requirePermissions } from '@/features/auth/lib/access';
+import { ForbiddenError, isForbidden, requireRouteRights } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   homeFacilityOptions,
@@ -52,16 +52,17 @@ import { useDownloadedScopes } from '@/hooks/use-downloaded-scopes';
 import { type NamedRecord, recordLabel } from '@/lib/facility-program-selection';
 import { useOnline } from '@/lib/online';
 import { type Permissions, type ProgramGrant, programGrants } from '@/lib/permissions';
+import { type RouteWithRights, routeRights } from '@/lib/route-rights';
 import { homeStockPrograms } from '@/lib/stock-programs';
 
 export async function loadStockEventPrograms(
   queryClient: QueryClient,
-  right: string,
+  route: RouteWithRights,
 ): Promise<{ userId: string; permissions: Permissions }> {
   const userId = useLoginData.getState().referenceDataUserId;
-  const permissions = await requirePermissions(queryClient, right);
+  const permissions = await requireRouteRights(queryClient, route);
   if (!userId || useLoginData.getState().referenceDataUserId !== userId) {
-    throw new ForbiddenError(right);
+    throw new ForbiddenError(routeRights(route) ?? []);
   }
   queryClient.prefetchQuery(userProgramsOptions(userId));
   queryClient.prefetchQuery(userRecordOptions(userId)).then(() => {

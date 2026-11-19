@@ -35,7 +35,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   minimalFacilitiesOptions,
@@ -71,8 +71,8 @@ const RoleDialogs = lazy(() =>
 
 export const Route = createFileRoute('/(protected)/_protected/administration/users_/$id/roles')({
   validateSearch: rolesSearchSchema,
-  staticData: { crumbKey: 'users.roles' },
-  loader: async ({ context: { queryClient }, params }) => {
+  staticData: { rights: [RIGHTS.usersManage], crumbKey: 'users.roles' },
+  loader: async ({ route, context: { queryClient }, params }) => {
     queryClient.prefetchQuery(rolesOptions());
     queryClient.prefetchQuery(programsOptions());
     // Slow, so they start now and fill in the rows when they arrive.
@@ -82,7 +82,7 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
     loadRoleDialogs().catch(() => undefined);
     // The page waits for the right it needs and for the user, which must exist; both at once.
     const [, details] = await Promise.all([
-      requireRight(queryClient, RIGHTS.usersManage),
+      requireRouteRights(queryClient, route),
       queryClient.ensureQueryData(userDetailsOptions(params.id)),
     ]);
     return details;

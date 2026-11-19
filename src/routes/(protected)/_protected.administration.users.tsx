@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { userDetailsOptions, usersListOptions } from '@/features/users/api/queries';
@@ -53,6 +53,7 @@ declare module '@tanstack/react-router' {
 const usePageCardView = () => useCardView(USER_HIDEABLE_COLUMNS, 'users.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/users')({
+  staticData: { rights: [RIGHTS.usersManage] },
   validateSearch: usersSearchSchema,
   loaderDeps: ({ search }) => ({
     query: toUsersQuery(search),
@@ -60,8 +61,8 @@ export const Route = createFileRoute('/(protected)/_protected/administration/use
     password: search.password,
   }),
   // Managing users takes a right; checked before anything loads, since the list would only fail.
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.usersManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(usersListOptions(deps.query));
     // A dialog's data starts with the navigation, not once the dialog has rendered.
     if (deps.user) queryClient.prefetchQuery(minimalFacilitiesOptions());

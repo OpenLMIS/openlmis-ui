@@ -19,7 +19,7 @@ import {
   WorkspaceHeading,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { OrderEditor } from '@/features/orders/components/order-editor';
 import { OrderHeaderSkeleton } from '@/features/orders/components/order-header';
 import { OrderLinesSkeleton } from '@/features/orders/components/order-lines';
@@ -38,13 +38,13 @@ export const Route = createFileRoute(
 )({
   validateSearch: z.object({ tab: z.string().optional().catch(undefined) }),
   preload: false,
-  staticData: { crumbKey: 'orders.edit.crumb' },
-  loader: ({ context: { queryClient }, params, cause, location }) => {
+  staticData: { rights: [RIGHTS.orderCreate], crumbKey: 'orders.edit.crumb' },
+  loader: ({ route, context: { queryClient }, params, cause, location }) => {
     const ids = orderIds(params.orderIds);
     if (!ids.length) throw notFound();
     const batchChange = batchChanges.get(queryClient) === location.state.orderBatchChange;
     batchChanges.delete(queryClient);
-    return requirePermissions(queryClient, RIGHTS.orderCreate).then(() => {
+    return requireRouteRights(queryClient, route).then(() => {
       queryClient.prefetchQuery(deploymentTimeZoneOptions());
       if (batchChange && location.state.orderBatchChange) {
         const cached = cachedOrders(queryClient, ids);

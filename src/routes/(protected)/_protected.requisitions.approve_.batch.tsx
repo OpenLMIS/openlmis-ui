@@ -36,7 +36,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { supervisoryNodesWithRight } from '@/features/auth/lib/requisition-access';
 import { currencySettingsOptions } from '@/features/reference-data/api/queries';
 import {
@@ -115,10 +115,10 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   gcTime: 0,
   pendingMinMs: 0,
   staleTime: Infinity,
-  loader: async ({ location, context: { queryClient }, deps: { ids, program } }) => {
+  loader: async ({ route, location, context: { queryClient }, deps: { ids, program } }) => {
     const scope = getSessionScope();
     await prepareRequisitionAccess(queryClient);
-    await requireRight(queryClient, RIGHTS.requisitionApprove);
+    await requireRouteRights(queryClient, route);
     const copyLeases = isSecureOrigin ? Promise.all(ids.map(beginCopy)) : Promise.resolve([]);
     void copyLeases.catch(() => undefined);
     let copyResult: Promise<unknown> | undefined;
@@ -185,7 +185,7 @@ export const Route = createFileRoute('/(protected)/_protected/requisitions/appro
   component: BatchPage,
   pendingComponent: BatchPending,
   errorComponent: BatchError,
-  staticData: { crumbKey: 'requisitions.batch.crumb' },
+  staticData: { rights: [RIGHTS.requisitionApprove], crumbKey: 'requisitions.batch.crumb' },
 });
 function BatchHeader() {
   const { t } = useTranslation();

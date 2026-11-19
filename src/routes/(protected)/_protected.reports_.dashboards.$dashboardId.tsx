@@ -20,7 +20,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { availableDashboardsOptions } from '@/features/reports/api/queries';
 import {
@@ -38,13 +38,13 @@ import {
 } from '@/lib/session-scope';
 
 export const Route = createFileRoute('/(protected)/_protected/reports_/dashboards/$dashboardId')({
-  staticData: { crumbKey: 'reports.dashboard.crumb' },
+  staticData: { rights: [RIGHTS.reportsView], crumbKey: 'reports.dashboard.crumb' },
   preload: false,
   loader: {
     staleReloadMode: 'blocking',
-    handler: async ({ context: { queryClient }, params: { dashboardId } }) => {
+    handler: async ({ route, context: { queryClient }, params: { dashboardId } }) => {
       const scope = getSessionScope();
-      await requireRight(queryClient, RIGHTS.reportsView);
+      await requireRouteRights(queryClient, route);
       assertSessionScope(scope);
       const userId = getSessionUserId();
       if (!userId) throw new SessionEndedError();

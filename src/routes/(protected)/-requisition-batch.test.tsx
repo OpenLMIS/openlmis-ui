@@ -88,6 +88,7 @@ function renderRoute(ids = records.map((r) => r.id).join(','), state?: HistorySt
     validateSearch: Route.options.validateSearch as never,
     loaderDeps: Route.options.loaderDeps as never,
     loader: Route.options.loader as never,
+    staticData: Route.options.staticData,
     component: Route.options.component as never,
     pendingComponent: Route.options.pendingComponent as never,
     gcTime: Route.options.gcTime,
@@ -182,7 +183,11 @@ it('checks approve rights before loading any batch', async () => {
   vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
   const loader = Route.options.loader as (arg: unknown) => Promise<unknown>;
   await expect(
-    loader({ context: { queryClient: new QueryClient() }, deps: { ids: [records[0].id] } }),
+    loader({
+      route: Route,
+      context: { queryClient: new QueryClient() },
+      deps: { ids: [records[0].id] },
+    }),
   ).rejects.toBeInstanceOf(ForbiddenError);
   expect(fetchBatchRequisitions).not.toHaveBeenCalled();
 });
@@ -773,7 +778,12 @@ it('does not reconcile an uncertain attempt against a timeout fallback snapshot'
   });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const loader = Route.options.loader as (args: unknown) => Promise<unknown>;
-  await loader({ context: { queryClient }, deps: { ids: [id] }, location: { state: {} } });
+  await loader({
+    route: Route,
+    context: { queryClient },
+    deps: { ids: [id] },
+    location: { state: {} },
+  });
   expect(
     (await getLocalDb().table('requisitionBatchDrafts').get(id)).unresolvedApproval,
   ).toBeDefined();
@@ -1054,6 +1064,7 @@ it('fetches membership once in parallel with the batch and reuses it for capture
   ) => Promise<{ copyResult?: Promise<unknown> }>;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const loaded = loader({
+    route: Route,
     context: { queryClient: client },
     deps: { ids: records.map((r) => r.id) },
   });
@@ -1404,6 +1415,7 @@ it('starts retrieving the batch while device copy leases are pending', async () 
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const loader = Route.options.loader as (arg: unknown) => Promise<unknown>;
   const loaded = loader({
+    route: Route,
     context: { queryClient: client },
     deps: { ids: records.map((record) => record.id) },
   });

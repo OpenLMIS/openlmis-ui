@@ -145,6 +145,7 @@ function renderRoute(path = PICKER) {
     getParentRoute: () => layout,
     path: 'stock-management/issue',
     loader: PickerRoute.options.loader as never,
+    staticData: PickerRoute.options.staticData,
     component: PickerRoute.options.component as never,
     pendingComponent: PickerRoute.options.pendingComponent as never,
   });
@@ -164,6 +165,7 @@ function renderRoute(path = PICKER) {
     validateSearch: StockRoute.options.validateSearch as never,
     loaderDeps: StockRoute.options.loaderDeps as never,
     loader: StockRoute.options.loader as never,
+    staticData: StockRoute.options.staticData,
     component: StockRoute.options.component as never,
     pendingComponent: StockRoute.options.pendingComponent as never,
   });

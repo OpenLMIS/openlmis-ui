@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { createFacility } from '@/features/facilities/api/api';
 import {
@@ -22,9 +22,9 @@ import { queryKeys } from '@/lib/key-factory';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/facilities_/new')({
   validateSearch: facilityEditorSearchSchema,
-  staticData: { crumbKey: 'facilities.form.create-title' },
-  loader: async ({ context: { queryClient } }) => {
-    await requireRight(queryClient, RIGHTS.facilitiesManage);
+  staticData: { rights: [RIGHTS.facilitiesManage], crumbKey: 'facilities.form.create-title' },
+  loader: async ({ route, context: { queryClient } }) => {
+    await requireRouteRights(queryClient, route);
     prefetchFacilityEditorLookups(queryClient);
   },
   pendingComponent: AddFacilityPending,

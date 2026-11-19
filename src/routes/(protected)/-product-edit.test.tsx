@@ -11,7 +11,7 @@ import {
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { fetchApprovals, fetchProduct } from '@/features/products/api/api';
 import { productDetailOptions } from '@/features/products/api/queries';
 import type { ProductsSearch } from '@/features/products/lib/search';
@@ -27,7 +27,7 @@ import { Route as GeneralRoute } from '@/routes/(protected)/_protected.administr
 import { Route as KitRoute } from '@/routes/(protected)/_protected.administration.products_.$id.kit-unpack-list';
 
 vi.mock('@/features/auth/lib/access', () => ({
-  requireRight: vi.fn(async () => new Set(['ORDERABLES_MANAGE'])),
+  requireRouteRights: vi.fn(async () => ({ rights: new Set(['ORDERABLES_MANAGE']), grants: [] })),
 }));
 vi.mock('@/features/products/api/api', () => ({
   fetchApprovals: vi.fn(),
@@ -50,6 +50,7 @@ function productRouter(queryClient: QueryClient) {
     getParentRoute: () => root,
     path: '/products/$id',
     loader: Route.options.loader as never,
+    staticData: Route.options.staticData,
     preload: Route.options.preload,
   });
   const list = createRoute({ getParentRoute: () => root, path: '/' });
@@ -172,7 +173,10 @@ async function expectBackOnList(router: AnyRouter) {
 
 describe('product edit page', () => {
   beforeEach(() => {
-    vi.mocked(requireRight).mockResolvedValue(new Set(['ORDERABLES_MANAGE']));
+    vi.mocked(requireRouteRights).mockResolvedValue({
+      rights: new Set(['ORDERABLES_MANAGE']),
+      grants: [],
+    });
     fetchMock.mockResolvedValue(kit);
     vi.mocked(fetchOrderablesByIds).mockResolvedValue([
       {
@@ -237,7 +241,10 @@ describe('product edit page', () => {
   });
 
   it('offers Add, Edit and Remove on facility types to a user who manages approvals', async () => {
-    vi.mocked(requireRight).mockResolvedValue(new Set(['FACILITY_APPROVED_ORDERABLES_MANAGE']));
+    vi.mocked(requireRouteRights).mockResolvedValue({
+      rights: new Set(['FACILITY_APPROVED_ORDERABLES_MANAGE']),
+      grants: [],
+    });
     await openTab('facility-types');
 
     const row = await screen.findByRole('group', { name: 'products.approvals.actions-for' });

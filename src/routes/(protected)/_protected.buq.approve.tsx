@@ -10,6 +10,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
+import { RIGHTS } from '@/features/auth/lib/rights';
 import { ApproveBuq, ApproveBuqSkeleton } from '@/features/buq/components/approve-buq';
 import { BuqUnavailable } from '@/features/buq/components/buq-unavailable';
 import { type BuqListSearch, buqListSearchSchema } from '@/features/buq/lib/search';
@@ -17,9 +18,11 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { loadApproveAccess } from '@/routes/-buq-access';
 
 export const Route = createFileRoute('/(protected)/_protected/buq/approve')({
+  staticData: { rights: [RIGHTS.approveBuq] },
   preload: false,
   validateSearch: buqListSearchSchema,
-  loader: ({ context: { queryClient }, cause }) => loadApproveAccess(queryClient, cause),
+  loader: ({ route, context: { queryClient }, cause }) =>
+    loadApproveAccess(queryClient, route, cause),
   pendingComponent: ApprovePending,
   component: ApprovePage,
 });

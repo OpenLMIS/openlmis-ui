@@ -1,7 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
-import { ForbiddenError, isForbidden, requireRight } from '@/features/auth/lib/access';
+import {
+  ForbiddenError,
+  isForbidden,
+  requirePermissions,
+  requireRouteRights,
+} from '@/features/auth/lib/access';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { queryClient } from '@/integrations/tanstack-query';
@@ -15,17 +20,17 @@ beforeEach(() => {
   useLoginData.setState({ referenceDataUserId: 'u1' });
 });
 
-describe('requireRight', () => {
+describe('requirePermissions', () => {
   it('resolves with all the rights when the user holds the one asked for anywhere', async () => {
     permissionStrings.mockResolvedValueOnce(['USERS_MANAGE', 'REQUISITION_VIEW|f1|p1']);
-    await expect(requireRight(new QueryClient(), 'USERS_MANAGE')).resolves.toEqual(
-      new Set(['USERS_MANAGE', 'REQUISITION_VIEW']),
-    );
+    await expect(requirePermissions(new QueryClient(), 'USERS_MANAGE')).resolves.toMatchObject({
+      rights: new Set(['USERS_MANAGE', 'REQUISITION_VIEW']),
+    });
   });
 
   it('throws a forbidden error when the user does not', async () => {
     permissionStrings.mockResolvedValueOnce(['REQUISITION_VIEW|f1|p1']);
-    await expect(requireRight(new QueryClient(), 'USERS_MANAGE')).rejects.toBeInstanceOf(
+    await expect(requirePermissions(new QueryClient(), 'USERS_MANAGE')).rejects.toBeInstanceOf(
       ForbiddenError,
     );
   });
@@ -33,14 +38,20 @@ describe('requireRight', () => {
   it('resolves when the user holds any one of several rights asked for', async () => {
     permissionStrings.mockResolvedValueOnce(['FACILITY_APPROVED_ORDERABLES_MANAGE']);
     await expect(
-      requireRight(new QueryClient(), ['ORDERABLES_MANAGE', 'FACILITY_APPROVED_ORDERABLES_MANAGE']),
-    ).resolves.toEqual(new Set(['FACILITY_APPROVED_ORDERABLES_MANAGE']));
+      requirePermissions(new QueryClient(), [
+        'ORDERABLES_MANAGE',
+        'FACILITY_APPROVED_ORDERABLES_MANAGE',
+      ]),
+    ).resolves.toMatchObject({ rights: new Set(['FACILITY_APPROVED_ORDERABLES_MANAGE']) });
   });
 
   it('throws a forbidden error naming every right when the user holds none of them', async () => {
     permissionStrings.mockResolvedValueOnce(['USERS_MANAGE']);
     await expect(
-      requireRight(new QueryClient(), ['ORDERABLES_MANAGE', 'FACILITY_APPROVED_ORDERABLES_MANAGE']),
+      requirePermissions(new QueryClient(), [
+        'ORDERABLES_MANAGE',
+        'FACILITY_APPROVED_ORDERABLES_MANAGE',
+      ]),
     ).rejects.toThrow('Missing right ORDERABLES_MANAGE or FACILITY_APPROVED_ORDERABLES_MANAGE');
   });
 
@@ -55,11 +66,11 @@ describe('requireRight', () => {
       );
       permissionStrings.mockResolvedValueOnce(['USERS_MANAGE']);
       const client = clearCache ? queryClient : new QueryClient();
-      const pending = requireRight(client, 'USERS_MANAGE');
+      const pending = requirePermissions(client, 'USERS_MANAGE');
       useLoginData.setState({ referenceDataUserId: 'u2' });
       release(['USERS_MANAGE', 'STOCK_ADJUST|old-home|old-program']);
 
-      await expect(pending).resolves.toEqual(new Set(['USERS_MANAGE']));
+      await expect(pending).resolves.toMatchObject({ rights: new Set(['USERS_MANAGE']) });
       expect(permissionStrings.mock.calls.map(([id]) => id)).toEqual(['u1', 'u2']);
       client.clear();
     },
@@ -72,7 +83,7 @@ describe('requireRight', () => {
         release = resolve;
       }),
     );
-    const pending = requireRight(new QueryClient(), 'USERS_MANAGE');
+    const pending = requirePermissions(new QueryClient(), 'USERS_MANAGE');
     useLoginData.getState().clearLoginData();
     release(['USERS_MANAGE']);
     await expect(pending).rejects.toBeInstanceOf(SessionEndedError);
@@ -80,7 +91,7 @@ describe('requireRight', () => {
 
   it('throws without asking the server when nobody is signed in', async () => {
     useLoginData.setState({ referenceDataUserId: null });
-    await expect(requireRight(new QueryClient(), 'USERS_MANAGE')).rejects.toBeInstanceOf(
+    await expect(requirePermissions(new QueryClient(), 'USERS_MANAGE')).rejects.toBeInstanceOf(
       SessionEndedError,
     );
     expect(permissionStrings).not.toHaveBeenCalled();
@@ -93,5 +104,30 @@ describe('isForbidden', () => {
     expect(isForbidden(refused)).toBe(true);
     expect(isForbidden(new ForbiddenError('USERS_MANAGE'))).toBe(true);
     expect(isForbidden(new Error('offline'))).toBe(false);
+  });
+});
+
+describe('requireRouteRights', () => {
+  const parentRoute = { options: { staticData: { rights: ['ORDERS_VIEW', 'PODS_MANAGE'] } } };
+
+  it('accepts any inherited right', async () => {
+    permissionStrings.mockResolvedValueOnce(['PODS_MANAGE|facility']);
+    await expect(
+      requireRouteRights(new QueryClient(), { options: {}, parentRoute }),
+    ).resolves.toMatchObject({ rights: new Set(['PODS_MANAGE']) });
+  });
+
+  it.each([[['USERS_MANAGE']], [[]]])('uses the nearest declaration (%j)', async (rights) => {
+    permissionStrings.mockResolvedValueOnce(['PODS_MANAGE']);
+    await expect(
+      requireRouteRights(new QueryClient(), { options: { staticData: { rights } }, parentRoute }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('fails closed without a declaration', async () => {
+    await expect(requireRouteRights(new QueryClient(), { options: {} })).rejects.toThrow(
+      'Route has no rights declaration',
+    );
+    expect(permissionStrings).not.toHaveBeenCalled();
   });
 });

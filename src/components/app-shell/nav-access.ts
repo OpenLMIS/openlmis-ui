@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
 import type { ParseKeys } from 'i18next';
 import { type LucideIcon, SettingsIcon, UserIcon } from 'lucide-react';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useDeviceWork } from '@/components/app-shell/device-work';
 import { rightsOptions } from '@/features/auth/api/queries';
 import { requisitionViewNodes } from '@/features/auth/lib/requisition-access';
@@ -11,34 +12,46 @@ import { userRecordOptions } from '@/features/reference-data/api/queries';
 import { requisitionRolesOptions } from '@/features/requisitions/lib/offline-access';
 import { isNavParent, LIVE_NAV_GROUPS } from '@/lib/config';
 import { type FeatureFlagKey, useFlag } from '@/lib/feature-flags';
-import { navRightFor } from '@/lib/nav-rights';
 import { hasOfflineCapability, isOfflineCapable } from '@/lib/offline-pages';
 import { useOnline } from '@/lib/online';
+import { routeRights } from '@/lib/route-rights';
 import type { LiveNavGroup, LiveNavItem, LiveNavLink } from '@/lib/types';
 
-/** Whether `rights` reach the page at `to`; a gated page is out while rights are unknown. */
+type RightsLookup = (to: string) => readonly string[] | undefined;
+
+export function useRouteRightsLookup(): RightsLookup {
+  const routes = useRouter().routesByPath;
+  return useCallback(
+    (to) =>
+      Object.hasOwn(routes, to) ? routeRights(routes[to as keyof typeof routes]) : undefined,
+    [routes],
+  );
+}
+
 export function canOpen(
   to: LiveNavLink['to'],
   rights: ReadonlySet<string> | undefined,
+  rightsFor: RightsLookup,
   hasDeviceEvents = false,
   offline = false,
 ) {
+  if (to === '/home' || to === '/profile') return true;
   if (to === '/offline-events' && (hasDeviceEvents || offline)) return true;
-  const right = to && navRightFor(to);
-  return !right || [right].flat().some((name) => rights?.has(name) ?? false);
+  return Boolean(to && rightsFor(to)?.some((name) => rights?.has(name)));
 }
 
 /** The nav without the pages `rights` do not reach; gated pages stay out while rights are unknown. */
 export function navWithinRights(
   groups: LiveNavGroup[],
   rights: ReadonlySet<string> | undefined,
+  rightsFor: RightsLookup,
   hasDeviceEvents = false,
   offline = false,
   flags: Partial<Record<FeatureFlagKey, boolean>> = {},
 ): LiveNavGroup[] {
   const allowed = (link: LiveNavLink) =>
     (!link.flag || flags[link.flag] !== false) &&
-    canOpen(link.to, rights, hasDeviceEvents, offline);
+    canOpen(link.to, rights, rightsFor, hasDeviceEvents, offline);
   return groups
     .map((group) => ({
       ...group,
@@ -76,6 +89,7 @@ function useSignedInRights() {
 
 /** The signed-in user's nav, for the sidebar and the command palette. */
 export function useNavGroups() {
+  const rightsFor = useRouteRightsLookup();
   const rights = useSignedInRights();
   const { hasDeviceEvents } = useDeviceWork();
   const online = useOnline();
@@ -85,7 +99,7 @@ export function useNavGroups() {
       ...link,
       connectionRequired: !online && !isOfflineCapable(link.to ?? ''),
     });
-    return navWithinRights(LIVE_NAV_GROUPS, rights, hasDeviceEvents, !online, {
+    return navWithinRights(LIVE_NAV_GROUPS, rights, rightsFor, hasDeviceEvents, !online, {
       SHOW_REQUISITION_LESS_ORDER: createOrders,
     }).map((group) => ({
       ...group,
@@ -98,20 +112,18 @@ export function useNavGroups() {
           : mark(item),
       ),
     }));
-  }, [rights, online, hasDeviceEvents, createOrders]);
-}
-
-export function useHasRight(right: string) {
-  return useSignedInRights()?.has(right) ?? false;
+  }, [rights, rightsFor, online, hasDeviceEvents, createOrders]);
 }
 
 /** Whether the signed-in user may open a nav page, e.g. before linking to it in a breadcrumb. */
 export function useCanOpen() {
+  const rightsFor = useRouteRightsLookup();
   const rights = useSignedInRights();
   const { hasDeviceEvents } = useDeviceWork();
   const online = useOnline();
   return (to: LiveNavLink['to']) =>
-    canOpen(to, rights, hasDeviceEvents, !online) && (online || isOfflineCapable(to ?? ''));
+    canOpen(to, rights, rightsFor, hasDeviceEvents, !online) &&
+    (online || isOfflineCapable(to ?? ''));
 }
 
 type AccountLink = {
@@ -123,9 +135,10 @@ type AccountLink = {
 
 export function useAccountLinks(): AccountLink[] {
   const online = useOnline();
-  const mayManageSettings = useHasRight(RIGHTS.systemSettingsManage);
+  const rightsFor = useRouteRightsLookup();
+  const rights = useSignedInRights();
   const settingsOn = useFlag('SYSTEM_SETTINGS');
-  const canManageSettings = mayManageSettings && settingsOn;
+  const canManageSettings = settingsOn && canOpen('/settings', rights, rightsFor);
   return [
     { titleKey: 'nav-user.account', to: '/profile', icon: UserIcon, connectionRequired: !online },
     ...(canManageSettings

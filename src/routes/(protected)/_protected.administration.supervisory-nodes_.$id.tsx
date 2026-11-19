@@ -15,7 +15,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Workspace, WorkspaceContent } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   minimalFacilitiesOptions,
@@ -41,7 +41,7 @@ export const Route = createFileRoute(
   '/(protected)/_protected/administration/supervisory-nodes_/$id',
 )({
   validateSearch: nodeEditSearchSchema,
-  staticData: { crumbKey: 'supervisory-nodes.edit-title' },
+  staticData: { rights: [RIGHTS.supervisoryNodesManage], crumbKey: 'supervisory-nodes.edit-title' },
   preload: false,
   loaderDeps: ({ search }) => ({
     childPage: search.childPage ?? 1,
@@ -49,10 +49,10 @@ export const Route = createFileRoute(
     partnerPage: search.partnerPage ?? 1,
     partnerSize: search.partnerSize ?? 10,
   }),
-  loader: async ({ context: { queryClient }, params, cause, deps }) => {
+  loader: async ({ route, context: { queryClient }, params, cause, deps }) => {
     const detail = supervisoryNodeOptions(params.id);
     const [, saved] = await Promise.all([
-      requireRight(queryClient, RIGHTS.supervisoryNodesManage).then(() => {
+      requireRouteRights(queryClient, route).then(() => {
         queryClient.prefetchQuery(supervisoryNodesOptions());
         queryClient.prefetchQuery(minimalFacilitiesOptions());
       }),

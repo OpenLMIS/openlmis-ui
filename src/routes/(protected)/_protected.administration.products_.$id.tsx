@@ -22,7 +22,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Workspace, WorkspaceContent } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { productDetailOptions } from '@/features/products/api/queries';
 import {
@@ -36,11 +36,12 @@ import { BackToProducts } from '@/features/products/hooks/back-to-products';
 import { isNotFound } from '@/lib/http';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/products_/$id')({
+  staticData: { rights: [RIGHTS.orderablesManage, RIGHTS.facilityApprovedOrderablesManage] },
   preload: false,
-  loader: async ({ context: { queryClient }, params, cause }) => {
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
     const detail = productDetailOptions(params.id);
-    const [rights] = await Promise.all([
-      requireRight(queryClient, [RIGHTS.orderablesManage, RIGHTS.facilityApprovedOrderablesManage]),
+    const [{ rights }] = await Promise.all([
+      requireRouteRights(queryClient, route),
       cause === 'stay'
         ? queryClient.ensureQueryData(detail)
         : queryClient.fetchQuery({ ...detail, staleTime: 0 }),

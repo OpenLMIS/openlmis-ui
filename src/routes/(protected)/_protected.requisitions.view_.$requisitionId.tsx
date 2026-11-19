@@ -207,6 +207,7 @@ let shownRequisitionId: string | undefined;
 export const Route = createFileRoute('/(protected)/_protected/requisitions/view_/$requisitionId')({
   validateSearch: searchSchema,
   staticData: {
+    rights: [RIGHTS.requisitionView],
     crumbKey: 'requisitions.requisition',
     crumbParentSearch: (search) => requisitionSearchSchema.parse(search),
   },

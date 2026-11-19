@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { facilityCceOptions } from '@/features/cce-inventory/api/queries';
 import {
@@ -15,7 +15,7 @@ import { parsePermissions } from '@/lib/permissions';
 import { Route } from '@/routes/(protected)/_protected.orders.fulfillment_.$orderId';
 import { creatingOrder } from '@/test-utils/order-fixtures';
 
-vi.mock('@/features/auth/lib/access', () => ({ requirePermissions: vi.fn() }));
+vi.mock('@/features/auth/lib/access', () => ({ requireRouteRights: vi.fn() }));
 vi.mock('@/features/orders/api/api', async (original) => ({
   ...(await original<typeof import('@/features/orders/api/api')>()),
   createShipmentDraftOnce: vi.fn(),
@@ -23,18 +23,27 @@ vi.mock('@/features/orders/api/api', async (original) => ({
   fetchShipmentSummaries: vi.fn(),
   findShipmentDraft: vi.fn(),
 }));
+it('declares the shipment detail opening rights', () => {
+  expect(Route.options.staticData?.rights).toEqual([
+    'SHIPMENTS_VIEW',
+    'SHIPMENTS_EDIT',
+    'ORDERS_VIEW',
+  ]);
+});
+
 it.each(['ORDERED', 'FULFILLING', 'CANCELLED', 'SHIPPED'])(
   'reads %s fresh on entry, prefetches the matching record and never creates during loading',
   async (status) => {
     const client = new QueryClient();
     const rights = Promise.withResolvers<ReturnType<typeof parsePermissions>>();
     const freshOrder = Promise.withResolvers<ReturnType<typeof creatingOrder>>();
-    vi.mocked(requirePermissions).mockReturnValue(rights.promise);
+    vi.mocked(requireRouteRights).mockReturnValue(rights.promise);
     const fetch = vi.spyOn(client, 'fetchQuery').mockReturnValue(freshOrder.promise);
     const prefetch = vi.spyOn(client, 'prefetchQuery').mockResolvedValue();
     const loader = Route.options.loader;
     if (typeof loader !== 'function') throw new Error('Expected shipment loader');
     const loading = loader({
+      route: Route,
       context: { queryClient: client },
       params: { orderId: 'a' },
       cause: 'enter',
@@ -43,11 +52,7 @@ it.each(['ORDERED', 'FULFILLING', 'CANCELLED', 'SHIPPED'])(
     expect(fetch).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: orderOptions('a').queryKey, staleTime: 0 }),
     );
-    expect(requirePermissions).toHaveBeenCalledWith(client, [
-      'SHIPMENTS_VIEW',
-      'SHIPMENTS_EDIT',
-      'ORDERS_VIEW',
-    ]);
+    expect(requireRouteRights).toHaveBeenCalledWith(client, Route);
     freshOrder.resolve({ ...creatingOrder(), status });
     rights.resolve(parsePermissions(['SHIPMENTS_EDIT|supplier', 'ORDERS_EDIT|elsewhere']));
     const loaded = await loading;
@@ -79,7 +84,7 @@ it.each([
   ['another-facility', false],
 ] as const)('uses CCE supervision grants at %s: %s', async (facility, expected) => {
   const client = new QueryClient();
-  vi.mocked(requirePermissions).mockResolvedValue(
+  vi.mocked(requireRouteRights).mockResolvedValue(
     parsePermissions(['SHIPMENTS_EDIT|supplier', `CCE_INVENTORY_VIEW|${facility}|another-program`]),
   );
   vi.spyOn(client, 'fetchQuery').mockResolvedValue(creatingOrder());
@@ -87,6 +92,7 @@ it.each([
   const loader = Route.options.loader;
   if (typeof loader !== 'function') throw new Error('Expected shipment loader');
   const loaded = await loader({
+    route: Route,
     context: { queryClient: client },
     params: { orderId: 'a' },
     cause: 'enter',
@@ -117,7 +123,7 @@ it.each([
   vi.mocked(fetchOrder).mockResolvedValue({ ...creatingOrder(), status: 'FULFILLING' });
   vi.mocked(fetchShipmentSummaries).mockResolvedValue([]);
   vi.mocked(findShipmentDraft).mockResolvedValue(null);
-  vi.mocked(requirePermissions).mockResolvedValue(parsePermissions(['SHIPMENTS_EDIT|supplier']));
+  vi.mocked(requireRouteRights).mockResolvedValue(parsePermissions(['SHIPMENTS_EDIT|supplier']));
   const orderCalls = vi.mocked(fetchOrder).mock.calls.length;
   const stockCalls = vi.mocked(fetchShipmentSummaries).mock.calls.length;
   const draftCalls = vi.mocked(findShipmentDraft).mock.calls.length;
@@ -129,6 +135,7 @@ it.each([
   const loader = Route.options.loader;
   if (typeof loader !== 'function') throw new Error('Expected shipment loader');
   const args = {
+    route: Route,
     context: { queryClient: client },
     params: { orderId: 'a' },
     cause: 'enter',

@@ -22,7 +22,6 @@ import { createContext } from 'react';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
-import { canOpen } from '@/components/app-shell/nav-access';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -109,10 +108,27 @@ const homeFacility: Facility = {
   })),
 };
 
+function loadEditor(queryClient: QueryClient, cause: 'enter' | 'stay' = 'enter') {
+  const loader = EditorRoute.options.loader;
+  if (!loader || typeof loader === 'function')
+    throw new Error('Expected object-form editor loader');
+  return loader.handler({
+    route: EditorRoute,
+    context: { queryClient },
+    params: { programId: FP },
+    cause,
+  } as Parameters<typeof loader.handler>[0]);
+}
+
 function renderRoute(
   path = PICKER,
   seed?: (client: QueryClient) => void,
-  renderOptions: Pick<RenderOptions, 'onCaughtError'> = {},
+  {
+    onPickerRender,
+    ...renderOptions
+  }: Pick<RenderOptions, 'onCaughtError'> & {
+    onPickerRender?: () => void;
+  } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -128,11 +144,16 @@ function renderRoute(
     beforeLoad: ProtectedRoute.options.beforeLoad,
     component: ProtectedRoute.options.component,
   } as never);
+  const PickerPage = PickerRoute.options.component;
   const picker = createRoute({
     getParentRoute: () => layout,
     path: 'stock-management/physical-inventory',
     loader: PickerRoute.options.loader as never,
-    component: PickerRoute.options.component as never,
+    staticData: PickerRoute.options.staticData,
+    component: () => {
+      onPickerRender?.();
+      return PickerPage ? <PickerPage /> : null;
+    },
     pendingComponent: PickerRoute.options.pendingComponent as never,
   });
   const editor = createRoute({
@@ -244,7 +265,7 @@ describe('physical inventory routes', () => {
     await screen.findByRole('heading', { name: 'physical-inventory.editor-title' });
     expect(fetchPhysicalInventoryDraft).toHaveBeenCalledWith({ programId: EM, facilityId: HOME });
   });
-  it('refuses missing rights before lookups and hides navigation', async () => {
+  it('keeps the picker unmounted while rights are pending and after denial', async () => {
     const assertRouteWarning = expectRouteWarning(
       `/(protected)/_protected/stock-management/physical-inventory${PICKER}`,
     );
@@ -252,16 +273,21 @@ describe('physical inventory routes', () => {
       expect(caught).toBeInstanceOf(ForbiddenError);
       expect(caught).toHaveProperty('message', 'Missing right STOCK_INVENTORIES_EDIT');
     });
-    vi.mocked(fetchPermissionStrings).mockResolvedValue([]);
-    renderRoute(PICKER, undefined, { onCaughtError });
+    const permissions = Promise.withResolvers<string[]>();
+    vi.mocked(fetchPermissionStrings).mockReturnValue(permissions.promise);
+    const onPickerRender = vi.fn();
+    renderRoute(PICKER, undefined, { onCaughtError, onPickerRender });
+    await waitFor(() => expect(fetchPermissionStrings).toHaveBeenCalledWith(USER));
+    expect(onPickerRender).not.toHaveBeenCalled();
+    expect(fetchInventorySummaries).not.toHaveBeenCalled();
+    permissions.resolve([]);
     expect(await screen.findByRole('heading', { name: 'no-access.title' })).toBeInTheDocument();
+    expect(onPickerRender).not.toHaveBeenCalled();
     expect(
       vi
         .mocked(fetchUserRecord)
         .mock.calls.every(([, config]) => config?.connectionStatus === false),
     ).toBe(true);
-    expect(canOpen(PICKER, new Set(['STOCK_CARDS_VIEW']))).toBe(false);
-    expect(canOpen(PICKER, new Set(['STOCK_INVENTORIES_EDIT']))).toBe(true);
     expect(onCaughtError).toHaveBeenCalled();
     assertRouteWarning();
   });
@@ -367,24 +393,15 @@ it('reads fresh stock on every entry and keeps the cached stock on stay', async 
     { ...stock, stockOnHand: 5 },
   ]);
   vi.mocked(fetchInventoryStockLines).mockResolvedValue([stock]);
-  const loader = (
-    typeof EditorRoute.options.loader === 'function'
-      ? EditorRoute.options.loader
-      : EditorRoute.options.loader?.handler
-  ) as (args: {
-    context: { queryClient: QueryClient };
-    params: { programId: string };
-    cause: string;
-  }) => Promise<unknown>;
-  await loader({ context: { queryClient }, params: { programId: FP }, cause: 'enter' });
+  await loadEditor(queryClient);
   await waitFor(() =>
     expect(queryClient.getQueryData(inventoryStockLinesOptions(draft).queryKey)).toEqual([stock]),
   );
   const lines = queryClient.getQueryData(inventoryStockLinesOptions(draft).queryKey);
   expect(buildInventoryLines(lines ?? [], [])[0].stockOnHand).toBe(42);
-  await loader({ context: { queryClient }, params: { programId: FP }, cause: 'stay' });
+  await loadEditor(queryClient, 'stay');
   expect(fetchInventoryStockLines).toHaveBeenCalledTimes(1);
-  await loader({ context: { queryClient }, params: { programId: FP }, cause: 'enter' });
+  await loadEditor(queryClient);
   await waitFor(() => expect(fetchInventoryStockLines).toHaveBeenCalledTimes(2));
   expect(fetchInventorySummaries).toHaveBeenCalledTimes(2);
 });
@@ -394,16 +411,7 @@ it('starts the user read alongside permissions and prefetches lookups before a b
   vi.mocked(fetchPermissionStrings).mockReturnValueOnce(permissions.promise);
   vi.mocked(fetchPhysicalInventoryDraft).mockReturnValueOnce(draft.promise);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const loader = (
-    typeof EditorRoute.options.loader === 'function'
-      ? EditorRoute.options.loader
-      : EditorRoute.options.loader?.handler
-  ) as (args: {
-    context: { queryClient: QueryClient };
-    params: { programId: string };
-    cause: string;
-  }) => Promise<unknown>;
-  const loading = loader({ context: { queryClient }, params: { programId: FP }, cause: 'enter' });
+  const loading = loadEditor(queryClient);
   await waitFor(() => expect(fetchUserRecord).toHaveBeenCalled());
   permissions.resolve([...grants, `STOCK_CARDS_VIEW|${HOME}|${FP}`]);
   await waitFor(() => expect(fetchEligibleInventoryProducts).toHaveBeenCalled());
@@ -474,16 +482,7 @@ it('starts eligible expansion while stock-line hydration is still pending', asyn
   const stock = Promise.withResolvers<[]>();
   vi.mocked(fetchInventoryStockLines).mockReturnValueOnce(stock.promise);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const loader = (
-    typeof EditorRoute.options.loader === 'function'
-      ? EditorRoute.options.loader
-      : EditorRoute.options.loader?.handler
-  ) as (args: {
-    context: { queryClient: QueryClient };
-    params: { programId: string };
-    cause: string;
-  }) => Promise<unknown>;
-  const loading = loader({ context: { queryClient }, params: { programId: FP }, cause: 'enter' });
+  const loading = loadEditor(queryClient);
   await waitFor(() => expect(fetchInventoryStockLines).toHaveBeenCalled());
   expect(fetchEligibleInventoryProducts).toHaveBeenCalled();
   stock.resolve([]);
@@ -590,16 +589,7 @@ it('does not start deferred eligibility for another user after summaries resolve
   const summaries = Promise.withResolvers<[]>();
   vi.mocked(fetchInventorySummaries).mockReturnValue(summaries.promise);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const loader = (
-    typeof EditorRoute.options.loader === 'function'
-      ? EditorRoute.options.loader
-      : EditorRoute.options.loader?.handler
-  ) as (args: {
-    context: { queryClient: QueryClient };
-    params: { programId: string };
-    cause: string;
-  }) => Promise<unknown>;
-  await loader({ context: { queryClient }, params: { programId: FP }, cause: 'enter' });
+  await loadEditor(queryClient);
   useLoginData.setState({ referenceDataUserId: 'another-user' });
   summaries.resolve([]);
   await waitFor(() => expect(queryClient.isFetching()).toBe(0));

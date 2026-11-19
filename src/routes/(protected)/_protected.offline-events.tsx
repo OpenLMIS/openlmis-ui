@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useCallback } from 'react';
 import { useDeviceWork } from '@/components/app-shell/device-work';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import { OfflineEventsPage } from '@/features/stock-events/components/offline-events';
@@ -21,14 +21,14 @@ import { parsePermissions } from '@/lib/permissions';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const Route = createFileRoute('/(protected)/_protected/offline-events')({
+  staticData: { rights: OFFLINE_EVENT_RIGHTS },
   validateSearch: offlineEventsSearchSchema,
-  loader: async ({ context: { queryClient } }) => {
+  loader: async ({ route, context: { queryClient } }) => {
     const scope = getSessionScope();
     const userId = useLoginData.getState().referenceDataUserId ?? '';
     try {
       await queryClient.ensureQueryData(permissionsOptions(userId));
-      if (isOnline() && !(await hasOwnDeviceEvents()))
-        await requireRight(queryClient, OFFLINE_EVENT_RIGHTS);
+      if (isOnline() && !(await hasOwnDeviceEvents())) await requireRouteRights(queryClient, route);
     } catch (error) {
       if (!isOfflineError(error)) throw error;
     }

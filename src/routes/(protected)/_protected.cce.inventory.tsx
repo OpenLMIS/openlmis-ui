@@ -28,7 +28,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { exportInventoryItems } from '@/features/cce-inventory/api/api';
@@ -83,11 +83,12 @@ const EXPORT_FILENAME = 'inventory_items.csv';
 const noop = () => {};
 
 export const Route = createFileRoute('/(protected)/_protected/cce/inventory')({
+  staticData: { rights: [RIGHT] },
   validateSearch: inventorySearchSchema,
   loaderDeps: ({ search }) => ({ search }),
-  loader: async ({ context: { queryClient }, deps: { search } }) => {
+  loader: async ({ route, context: { queryClient }, deps: { search } }) => {
     const userId = useLoginData.getState().referenceDataUserId;
-    const permissions = await requirePermissions(queryClient, RIGHT);
+    const permissions = await requireRouteRights(queryClient, route);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     const allowed =
       search.action === 'transfer' && search.item !== 'new' ? transferableGrants : editableGrants;

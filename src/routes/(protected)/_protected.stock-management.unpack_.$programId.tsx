@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search';
 import { getKitUnpackReasonIds } from '@/lib/runtime-config';
 import {
@@ -11,10 +12,10 @@ import {
 export const Route = createFileRoute('/(protected)/_protected/stock-management/unpack_/$programId')(
   {
     validateSearch: stockEventSearchSchema,
-    staticData: { crumbKey: 'stock-unpack.editor-crumb' },
+    staticData: { rights: [EVENT_KINDS.unpack.right], crumbKey: 'stock-unpack.editor-crumb' },
     shouldReload: reloadOnEntry,
-    loader: ({ context: { queryClient }, params: { programId } }) =>
-      loadStockEventEditor(queryClient, programId, 'unpack'),
+    loader: ({ route, context: { queryClient }, params: { programId } }) =>
+      loadStockEventEditor(queryClient, route, programId, 'unpack'),
     pendingComponent: () => (
       <StockEventPending kind="unpack" programId={Route.useParams().programId} />
     ),

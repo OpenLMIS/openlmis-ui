@@ -146,6 +146,7 @@ function renderRoute(path = PICKER) {
     getParentRoute: () => layout,
     path: 'stock-management/receive',
     loader: PickerRoute.options.loader as never,
+    staticData: PickerRoute.options.staticData,
     component: PickerRoute.options.component as never,
     pendingComponent: PickerRoute.options.pendingComponent as never,
   });

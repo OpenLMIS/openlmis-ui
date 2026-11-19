@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import {
@@ -18,10 +18,13 @@ export const Route = createFileRoute(
   '/(protected)/_protected/administration/requisition-groups_/$id',
 )({
   validateSearch: requisitionGroupEditorSearchSchema,
-  staticData: { crumbKey: 'requisition-groups.view-title' },
+  staticData: {
+    rights: [RIGHTS.requisitionGroupsManage],
+    crumbKey: 'requisition-groups.view-title',
+  },
   preload: false,
-  loader: async ({ context: { queryClient }, params, cause }) => {
-    await requireRight(queryClient, RIGHTS.requisitionGroupsManage);
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(minimalFacilitiesOptions());
     return loadRequisitionGroup(queryClient, params.id, cause);
   },

@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import {
   deploymentTimeZoneOptions,
   minimalFacilitiesOptions,
@@ -36,10 +36,11 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { RIGHTS } from '@/lib/rights';
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/convert')({
+  staticData: { rights: [RIGHTS.ordersEdit] },
   validateSearch: convertSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
-  loader: async ({ context: { queryClient }, deps: { search } }) => {
-    await requireRight(queryClient, RIGHTS.ordersEdit);
+  loader: async ({ route, context: { queryClient }, deps: { search } }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(convertListOptions(search));
     queryClient.prefetchQuery(programsOptions());
     queryClient.prefetchQuery(minimalFacilitiesOptions());

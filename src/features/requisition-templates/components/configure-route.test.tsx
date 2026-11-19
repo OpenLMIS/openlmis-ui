@@ -13,7 +13,7 @@ import { expect, it, vi } from 'vitest';
 import type { RequisitionTemplate } from '@/features/requisition-templates/lib/types';
 import { Route } from '@/routes/(protected)/_protected.administration.requisition-templates_.$id';
 
-vi.mock('@/features/auth/lib/access', () => ({ requireRight: vi.fn(async () => undefined) }));
+vi.mock('@/features/auth/lib/access', () => ({ requireRouteRights: vi.fn(async () => undefined) }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchPrograms: vi.fn(async () => [{ id: 'program', name: 'Program' }]),
   fetchFacilityTypes: vi.fn(async () => []),

@@ -15,7 +15,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { rightsOptions } from '@/features/auth/api/queries';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { toRoleAccess } from '@/features/auth/lib/role-access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -50,10 +50,11 @@ const LIST_FRESH_FOR = 30 * 1000;
 const usePageCardView = () => useCardView(ROLE_HIDEABLE_COLUMNS, 'roles.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/roles')({
+  staticData: { rights: [RIGHTS.usersManage] },
   validateSearch: rolesSearchSchema,
   loaderDeps: ({ search }) => ({ role: search.role }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    const rights = await requireRight(queryClient, RIGHTS.usersManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    const { rights } = await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery({ ...rolesOptions(), staleTime: LIST_FRESH_FOR });
     // The dialog's data is only worth loading for someone who can edit.
     if (!toRoleAccess(rights).canEdit) return;

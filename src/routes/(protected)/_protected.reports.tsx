@@ -10,7 +10,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import {
   availableDashboardsOptions,
   reportCategoriesOptions,
@@ -27,9 +27,10 @@ import {
 } from '@/lib/session-scope';
 
 export const Route = createFileRoute('/(protected)/_protected/reports')({
-  loader: async ({ context: { queryClient } }) => {
+  staticData: { rights: [RIGHTS.reportsView] },
+  loader: async ({ route, context: { queryClient } }) => {
     const scope = getSessionScope();
-    await requireRight(queryClient, RIGHTS.reportsView);
+    await requireRouteRights(queryClient, route);
     assertSessionScope(scope);
     const userId = getSessionUserId();
     if (!userId) throw new SessionEndedError();

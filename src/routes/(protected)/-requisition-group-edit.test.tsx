@@ -10,7 +10,7 @@ import {
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { fetchRequisitionGroup } from '@/features/reference-data/api/api';
 import { requisitionGroupOptions } from '@/features/reference-data/api/queries';
 import { Route as ListRoute } from '@/routes/(protected)/_protected.administration.requisition-groups';
@@ -21,7 +21,7 @@ import { Route as AddRoute } from '@/routes/(protected)/_protected.administratio
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('@/features/auth/lib/access', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/auth/lib/access')>()),
-  requireRight: vi.fn(async () => new Set(['REQUISITION_GROUPS_MANAGE'])),
+  requireRouteRights: vi.fn(async () => new Set(['REQUISITION_GROUPS_MANAGE'])),
 }));
 vi.mock('@/features/requisition-groups/api/api', () => ({
   searchRequisitionGroups: vi.fn(async () => ({ content: [], totalElements: 0, totalPages: 0 })),
@@ -122,14 +122,16 @@ describe('requisition group edit loader', () => {
     vi.mocked(fetchRequisitionGroup).mockResolvedValue(version('Group'));
     const queryClient = new QueryClient();
     for (const route of [ListRoute, AddRoute, EditRoute, ViewRoute]) {
-      vi.mocked(requireRight).mockClear();
+      vi.mocked(requireRouteRights).mockClear();
       await (route.options.loader as (args: unknown) => Promise<unknown>)({
+        route,
         context: { queryClient },
         params: { id: 'rg' },
         cause: 'enter',
         deps: { query: { page: 0, size: 10 } },
       });
-      expect(requireRight).toHaveBeenCalledWith(queryClient, 'REQUISITION_GROUPS_MANAGE');
+      expect(route.options.staticData?.rights).toEqual(['REQUISITION_GROUPS_MANAGE']);
+      expect(requireRouteRights).toHaveBeenCalledWith(queryClient, route);
     }
   });
 });

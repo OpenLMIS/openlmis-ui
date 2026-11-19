@@ -14,7 +14,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { geographicZonesListOptions } from '@/features/geographic-zones/api/queries';
 import {
@@ -52,10 +52,11 @@ const usePageCardView = () =>
   useCardView(GEOGRAPHIC_ZONE_HIDEABLE_COLUMNS, 'geographic-zones.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/geographic-zones')({
+  staticData: { rights: [RIGHTS.geographicZonesManage] },
   validateSearch: geographicZonesSearchSchema,
   loaderDeps: ({ search }) => ({ query: toGeographicZonesQuery(search) }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.geographicZonesManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(geographicZonesListOptions(deps.query));
     queryClient.prefetchQuery(geographicLevelsOptions());
     queryClient.prefetchQuery(geographicZonesOptions());

@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { PlusIcon, RefreshCwIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { canOpen, useRouteRightsLookup } from '@/components/app-shell/nav-access';
 import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
 import {
@@ -84,6 +85,7 @@ function HomeContent({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const { data: rights } = useSuspenseQuery(rightsOptions(userId));
   const access = toAccess(rights);
+  const rightsFor = useRouteRightsLookup();
   const [revision, setRevision] = useState(0);
 
   return (
@@ -100,7 +102,7 @@ function HomeContent({ userId }: { userId: string }) {
         <WorkspaceActions>
           <SystemNotifications revision={revision} />
           <RefreshButton onRefresh={() => setRevision((current) => current + 1)} userId={userId} />
-          {rights.has(RIGHTS.usersManage) && (
+          {canOpen('/administration/users', rights, rightsFor) && (
             <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
               <Button
                 nativeButton={!online}

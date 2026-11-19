@@ -68,6 +68,7 @@ function renderRoute(path = `${listPath}?${query}`) {
     validateSearch: ListRoute.options.validateSearch,
     loaderDeps: ListRoute.options.loaderDeps,
     loader: ListRoute.options.loader,
+    staticData: ListRoute.options.staticData,
     component: ListRoute.options.component,
     pendingComponent: ListRoute.options.pendingComponent,
   } as never);

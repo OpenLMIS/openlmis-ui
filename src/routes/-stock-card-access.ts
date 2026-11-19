@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   homeFacilityOptions,
@@ -8,15 +8,15 @@ import {
 } from '@/features/reference-data/api/queries';
 import { LocalDataUnavailableError } from '@/lib/local-data';
 import { isDeviceAccess } from '@/lib/offline-access';
-import { RIGHTS } from '@/lib/rights';
+import type { RouteWithRights } from '@/lib/route-rights';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
-export async function stockCardAccess(queryClient: QueryClient) {
+export async function stockCardAccess(queryClient: QueryClient, route: RouteWithRights) {
   const scope = getSessionScope();
   const userId = useLoginData.getState().referenceDataUserId;
   if (!userId) throw new LocalDataUnavailableError();
   const [permissions, user, programs] = await Promise.all([
-    requirePermissions(queryClient, RIGHTS.stockCardsView),
+    requireRouteRights(queryClient, route),
     queryClient.fetchQuery(userRecordOptions(userId)),
     queryClient.fetchQuery(userProgramsOptions(userId)),
   ]);

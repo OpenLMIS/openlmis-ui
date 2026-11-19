@@ -13,7 +13,7 @@ import type { Facility } from '@/features/reference-data/lib/types';
 import { Route } from '@/routes/(protected)/_protected.administration.facilities_.$id';
 
 vi.mock('@/features/auth/lib/access', () => ({
-  requireRight: vi.fn(async () => new Set(['FACILITIES_MANAGE'])),
+  requireRouteRights: vi.fn(async () => new Set(['FACILITIES_MANAGE'])),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchFacility: vi.fn(),
@@ -31,6 +31,7 @@ function editRouter(queryClient: QueryClient) {
     getParentRoute: () => root,
     path: '/facilities/$id',
     loader: Route.options.loader as never,
+    staticData: Route.options.staticData,
     preload: Route.options.preload,
   });
   const list = createRoute({ getParentRoute: () => root, path: '/' });

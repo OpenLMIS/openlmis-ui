@@ -21,15 +21,16 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { IDEAL_STOCK_AMOUNTS_API } from '@/features/ideal-stock-amounts/api/api';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/ideal-stock-amounts')({
+  staticData: { rights: [RIGHTS.systemIdealStockAmountsManage] },
   validateSearch: instructionsSearchSchema,
-  loader: ({ context: { queryClient } }) =>
-    requireRight(queryClient, RIGHTS.systemIdealStockAmountsManage),
+  loader: ({ route, context: { queryClient } }) =>
+    requireRouteRights(queryClient, route).then(({ rights }) => rights),
   pendingComponent: IdealStockAmountsPagePending,
   component: IdealStockAmountsPage,
 });

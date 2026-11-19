@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   prefetchReasonEditorLookups,
@@ -12,9 +12,12 @@ import {
 } from '@/features/reasons/components/reason-editor';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/reasons_/new')({
-  staticData: { crumbKey: 'reasons.form.create-title' },
-  loader: async ({ context: { queryClient } }) => {
-    await requireRight(queryClient, RIGHTS.stockCardLineItemReasonsManage);
+  staticData: {
+    rights: [RIGHTS.stockCardLineItemReasonsManage],
+    crumbKey: 'reasons.form.create-title',
+  },
+  loader: async ({ route, context: { queryClient } }) => {
+    await requireRouteRights(queryClient, route);
     prefetchReasonEditorLookups(queryClient);
   },
   pendingComponent: AddReasonPending,

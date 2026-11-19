@@ -16,7 +16,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import {
   orderRequestingFacilitiesOptions,
   ordersSearchOptions,
@@ -57,13 +57,11 @@ import type { SearchChange } from '@/lib/table-search';
 const NO_DIALOGS = {} satisfies Partial<ViewOrdersSearch>;
 const noop = () => {};
 export const Route = createFileRoute('/(protected)/_protected/orders/view')({
+  staticData: { rights: [RIGHTS.ordersView, RIGHTS.podsManage] },
   validateSearch: viewOrdersSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
-  loader: async ({ context: { queryClient }, deps: { search } }) => {
-    const permissions = await requirePermissions(queryClient, [
-      RIGHTS.ordersView,
-      RIGHTS.podsManage,
-    ]);
+  loader: async ({ route, context: { queryClient }, deps: { search } }) => {
+    const permissions = await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(programsOptions());
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const facilityOptions = viewSupplierFacilitiesOptions(permissions);
@@ -208,7 +206,7 @@ function OrdersBody({
   columnView,
   onSearchChange,
 }: {
-  permissions: Awaited<ReturnType<typeof requirePermissions>>;
+  permissions: Awaited<ReturnType<typeof requireRouteRights>>;
   access: OrderAccess;
   search: ViewOrdersSearch;
   columnView: ColumnView;

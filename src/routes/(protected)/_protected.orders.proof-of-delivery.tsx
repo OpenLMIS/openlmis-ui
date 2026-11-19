@@ -18,7 +18,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { ordersSearchOptions, viewSupplierFacilitiesOptions } from '@/features/orders/api/queries';
 import { OrdersError } from '@/features/orders/components/orders-error';
 import {
@@ -56,14 +56,11 @@ import { getSessionUserId } from '@/lib/session-scope';
 
 const NO_DIALOGS = {};
 export const Route = createFileRoute('/(protected)/_protected/orders/proof-of-delivery')({
+  staticData: { rights: [RIGHTS.podsManage, RIGHTS.podsView, RIGHTS.shipmentsEdit] },
   validateSearch: podSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
-  loader: async ({ context: { queryClient }, deps: { search } }) => {
-    const permissions = await requirePermissions(queryClient, [
-      RIGHTS.podsManage,
-      RIGHTS.podsView,
-      RIGHTS.shipmentsEdit,
-    ]);
+  loader: async ({ route, context: { queryClient }, deps: { search } }) => {
+    const permissions = await requireRouteRights(queryClient, route);
     const programs = await queryClient.ensureQueryData(
       userProgramsOptions(getSessionUserId() ?? ''),
     );

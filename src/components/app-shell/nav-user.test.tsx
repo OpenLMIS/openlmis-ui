@@ -1,4 +1,3 @@
-import '@/routes/-offline-pages';
 import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -34,7 +33,10 @@ async function renderMenu(rights: string[], systemSettings = 'true') {
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
   const queryClient = new QueryClient();
   queryClient.setQueryData(permissionsOptions('u1').queryKey, parsePermissions(rights));
-  renderPage(<NavUser trigger={<button type="button">Menu</button>} />, { queryClient });
+  renderPage(<NavUser trigger={<button type="button">Menu</button>} />, {
+    queryClient,
+    routeStaticData: { '/settings': { rights: ['SYSTEM_SETTINGS_MANAGE'] } },
+  });
 }
 
 afterEach(() => {

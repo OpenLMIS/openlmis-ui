@@ -1,5 +1,4 @@
 import { Link, useLocation, useMatches } from '@tanstack/react-router';
-import type { ParseKeys } from 'i18next';
 import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCanOpen } from '@/components/app-shell/nav-access';
@@ -23,15 +22,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { hiddenBreadcrumbCount } from '@/lib/breadcrumb-fit';
 import { getBreadcrumbTrail } from '@/lib/config';
-
-declare module '@tanstack/react-router' {
-  // biome-ignore lint/style/useConsistentTypeDefinitions: router types extend by interface merging.
-  interface StaticDataRouteOption {
-    /** The last crumb: a page below a nav entry, e.g. a user's roles, or a page off the nav. */
-    crumbKey?: ParseKeys;
-    crumbParentSearch?: (search: Record<string, unknown>) => Record<string, unknown>;
-  }
-}
 
 /** Home, then the current page's place in the nav. Hidden on Home and on off-nav pages without a crumb. */
 export function AppBreadcrumbs() {

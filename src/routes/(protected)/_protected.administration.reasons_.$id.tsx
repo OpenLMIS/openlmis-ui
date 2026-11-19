@@ -15,7 +15,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Workspace, WorkspaceContent } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { reasonDetailOptions, validReasonsOptions } from '@/features/reasons/api/queries';
 import {
@@ -26,15 +26,18 @@ import {
 import { isNotFound } from '@/lib/http';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/reasons_/$id')({
-  staticData: { crumbKey: 'reasons.form.edit-title' },
+  staticData: {
+    rights: [RIGHTS.stockCardLineItemReasonsManage],
+    crumbKey: 'reasons.form.edit-title',
+  },
   // A preloaded page would open on the copy read at hover, and the save sends the whole reason back.
   preload: false,
-  loader: async ({ context: { queryClient }, params, cause }) => {
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
     const detail = reasonDetailOptions(params.id);
     const pairs = validReasonsOptions(params.id);
     const stay = cause === 'stay';
     await Promise.all([
-      requireRight(queryClient, RIGHTS.stockCardLineItemReasonsManage),
+      requireRouteRights(queryClient, route),
       stay
         ? queryClient.ensureQueryData(detail)
         : queryClient.fetchQuery({ ...detail, staleTime: 0 }),

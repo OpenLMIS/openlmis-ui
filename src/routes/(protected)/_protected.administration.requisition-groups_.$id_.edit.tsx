@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   prefetchRequisitionGroupLookups,
@@ -19,10 +19,13 @@ export const Route = createFileRoute(
   '/(protected)/_protected/administration/requisition-groups_/$id_/edit',
 )({
   validateSearch: requisitionGroupEditorSearchSchema,
-  staticData: { crumbKey: 'requisition-groups.form.edit-title' },
+  staticData: {
+    rights: [RIGHTS.requisitionGroupsManage],
+    crumbKey: 'requisition-groups.form.edit-title',
+  },
   preload: false,
-  loader: async ({ context: { queryClient }, params, cause }) => {
-    await requireRight(queryClient, RIGHTS.requisitionGroupsManage);
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
+    await requireRouteRights(queryClient, route);
     prefetchRequisitionGroupLookups(queryClient);
     return loadRequisitionGroup(queryClient, params.id, cause);
   },

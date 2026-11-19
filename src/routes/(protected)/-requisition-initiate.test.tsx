@@ -200,7 +200,11 @@ it('refuses a user who lacks all three entry rights', async () => {
   vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW']);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await expect(
-    (Route.options.loader as CallableFunction)({ context: { queryClient }, deps: { search: {} } }),
+    (Route.options.loader as CallableFunction)({
+      route: Route,
+      context: { queryClient },
+      deps: { search: {} },
+    }),
   ).rejects.toBeInstanceOf(ForbiddenError);
   expect(client.get).not.toHaveBeenCalled();
   queryClient.clear();

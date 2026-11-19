@@ -17,13 +17,12 @@ import { type BuqListSearch, buqListSearchSchema } from '@/features/buq/lib/sear
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { loadBuqAccess } from '@/routes/-buq-access';
 
-const PREPARE_RIGHTS = [RIGHTS.prepareBuq];
-
 export const Route = createFileRoute('/(protected)/_protected/buq/prepare')({
+  staticData: { rights: [RIGHTS.prepareBuq] },
   preload: false,
   validateSearch: buqListSearchSchema,
-  loader: ({ context: { queryClient }, cause }) =>
-    loadBuqAccess(queryClient, PREPARE_RIGHTS, cause, { activeSupport: true }),
+  loader: ({ route, context: { queryClient }, cause }) =>
+    loadBuqAccess(queryClient, route, cause, { activeSupport: true }),
   pendingComponent: PrepareBuqPending,
   component: PrepareBuqPage,
 });

@@ -30,7 +30,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import {
   podReasonsOptions,
   podReferenceOptions,
@@ -45,9 +45,9 @@ import { hasProgramGrant } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 
 export const Route = createFileRoute('/(protected)/_protected/orders/proof-of-delivery_/$podId')({
-  loader: async ({ context: { queryClient }, params, cause }) => {
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
     const [permissions, pod] = await Promise.all([
-      requirePermissions(queryClient, [RIGHTS.podsManage, RIGHTS.podsView, RIGHTS.shipmentsEdit]),
+      requireRouteRights(queryClient, route),
       queryClient.fetchQuery({
         ...proofOfDeliveryOptions(params.podId),
         staleTime: cause === 'enter' ? 0 : undefined,
@@ -68,7 +68,10 @@ export const Route = createFileRoute('/(protected)/_protected/orders/proof-of-de
   },
   preload: false,
   pendingComponent: PodPending,
-  staticData: { crumbKey: 'orders.pod.detail-title' },
+  staticData: {
+    rights: [RIGHTS.podsManage, RIGHTS.podsView, RIGHTS.shipmentsEdit],
+    crumbKey: 'orders.pod.detail-title',
+  },
   errorComponent: PodLoadError,
   component: PodPage,
 });

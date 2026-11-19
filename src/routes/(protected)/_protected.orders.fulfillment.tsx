@@ -12,7 +12,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import {
   orderRequestingFacilitiesOptions,
   ordersSearchOptions,
@@ -41,13 +41,11 @@ import { RIGHTS } from '@/lib/rights';
 const NO_DIALOGS = {} satisfies Partial<FulfillOrdersSearch>;
 const noop = () => {};
 export const Route = createFileRoute('/(protected)/_protected/orders/fulfillment')({
+  staticData: { rights: [RIGHTS.shipmentsView, RIGHTS.shipmentsEdit] },
   validateSearch: fulfillOrdersSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
-  loader: async ({ context: { queryClient }, deps: { search } }) => {
-    const permissions = await requirePermissions(queryClient, [
-      RIGHTS.shipmentsView,
-      RIGHTS.shipmentsEdit,
-    ]);
+  loader: async ({ route, context: { queryClient }, deps: { search } }) => {
+    const permissions = await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(ordersSearchOptions(toOrderParams(search, 'fulfill')));
     queryClient.prefetchQuery(programsOptions());
     queryClient.prefetchQuery(deploymentTimeZoneOptions());

@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { facilityTypesListOptions } from '@/features/facility-types/api/queries';
 import {
@@ -42,13 +42,14 @@ const usePageCardView = () =>
   useCardView(FACILITY_TYPE_HIDEABLE_COLUMNS, 'facility-types.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/facility-types')({
+  staticData: { rights: [RIGHTS.facilitiesManage] },
   validateSearch: facilityTypesSearchSchema,
   loaderDeps: ({ search }) => ({
     query: toFacilityTypesQuery(search),
     facilityType: search.facilityType,
   }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.facilitiesManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(facilityTypesListOptions(deps.query));
     if (!deps.facilityType) return;
     queryClient.prefetchQuery(facilityTypesOptions());

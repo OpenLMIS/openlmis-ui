@@ -65,6 +65,7 @@ function renderRoute(path: string) {
     validateSearch: Route.options.validateSearch as never,
     loaderDeps: Route.options.loaderDeps as never,
     loader: Route.options.loader as never,
+    staticData: Route.options.staticData,
     component: Route.options.component as never,
     pendingComponent: Route.options.pendingComponent as never,
   });
@@ -130,9 +131,9 @@ it('refuses conversion access before fetching rows or lookups', async () => {
   vi.mocked(fetchPermissionStrings).mockResolvedValue(['REQUISITION_VIEW|f|p']);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const loader = Route.options.loader as (context: unknown) => Promise<unknown>;
-  await expect(loader({ context: { queryClient }, deps: { search: {} } })).rejects.toBeInstanceOf(
-    ForbiddenError,
-  );
+  await expect(
+    loader({ route: Route, context: { queryClient }, deps: { search: {} } }),
+  ).rejects.toBeInstanceOf(ForbiddenError);
   expect(fetchConvertList).not.toHaveBeenCalled();
   queryClient.clear();
 });

@@ -28,7 +28,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
@@ -70,11 +70,12 @@ const noop = () => {};
 export const Route = createFileRoute(
   '/(protected)/_protected/stock-management/transaction-history',
 )({
+  staticData: { rights: [RIGHT] },
   validateSearch: transactionHistorySearchSchema,
   loaderDeps: ({ search }) => ({ search }),
-  loader: async ({ context: { queryClient }, deps: { search } }) => {
+  loader: async ({ route, context: { queryClient }, deps: { search } }) => {
     const userId = useLoginData.getState().referenceDataUserId;
-    const permissions = await requirePermissions(queryClient, RIGHT);
+    const permissions = await requireRouteRights(queryClient, route);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     prefetchFacilityProgramOptions(queryClient, userId);
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
