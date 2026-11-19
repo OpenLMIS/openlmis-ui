@@ -200,9 +200,10 @@ function InitiateBody({ userId }: { userId: string }) {
     },
     [applied, emergency, navigate, queryClient, search.emergency],
   );
+  const hasChoices = options.myPrograms.length > 0 || options.supervisedPrograms.length > 0;
   const typeField = useMemo(
     () => (
-      <Field data-tour={TOUR_ANCHORS.requisitionType} spacing="tight">
+      <Field data-tour={hasChoices ? TOUR_ANCHORS.requisitionType : undefined} spacing="tight">
         <span className="font-medium text-sm leading-snug" id="requisition-type-label">
           {t('requisitions.initiate.type')}
         </span>
@@ -222,11 +223,11 @@ function InitiateBody({ userId }: { userId: string }) {
         </RadioGroup>
       </Field>
     ),
-    [t, emergency],
+    [t, emergency, hasChoices],
   );
   return (
     <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-      <div data-tour={TOUR_ANCHORS.requisitionsPicker}>
+      <div data-tour={hasChoices ? TOUR_ANCHORS.requisitionsPicker : undefined}>
         <FacilityProgramSelector
           applied={applied}
           options={options}

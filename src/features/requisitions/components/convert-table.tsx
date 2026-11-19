@@ -101,7 +101,7 @@ const DepotSelect = memo(function DepotSelect({
   return (
     <div
       className={cards ? 'inline-block w-44 max-w-full align-middle' : undefined}
-      data-tour={disabled ? undefined : TOUR_ANCHORS.convertDepot}
+      data-tour={TOUR_ANCHORS.convertDepot}
     >
       <Field surface="background" data-invalid={invalid || undefined}>
         <HiddenFromView>

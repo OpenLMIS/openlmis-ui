@@ -189,10 +189,12 @@ export function ViewRequisition({
       ? requisitionRowLabel(record, t('requisitions.columns.emergency'))
       : [record.program?.name, record.processingPeriod?.name].filter(Boolean).join(' - '),
   });
-  const anchor = disabled ? undefined : TOUR_ANCHORS.requisitionOpen;
   if (cards)
     return (
-      <div className="flex shrink-0" data-tour={anchor}>
+      <div
+        className="flex shrink-0"
+        data-tour={unavailable ? undefined : TOUR_ANCHORS.requisitionOpen}
+      >
         <CardActions
           label={groupLabel}
           actions={[
@@ -210,11 +212,7 @@ export function ViewRequisition({
       </div>
     );
   return (
-    <fieldset
-      aria-label={groupLabel}
-      className="flex items-center justify-end gap-1"
-      data-tour={anchor}
-    >
+    <fieldset aria-label={groupLabel} className="flex items-center justify-end gap-1">
       <ViewSlot>
         {unavailable ? (
           <Button
@@ -231,6 +229,7 @@ export function ViewRequisition({
         ) : (
           <Button
             aria-label={name}
+            data-tour={TOUR_ANCHORS.requisitionOpen}
             disabled={disabled}
             nativeButton={false}
             render={link}

@@ -179,6 +179,8 @@ it('keeps the facility picker mounted while programs load and enables the loaded
     queryFn: () => pending,
   }));
   const { user } = setup(true, false, true);
+  // Onboarding tours wait for loading parts; without this the Create Orders guide loses steps.
+  expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   expect(screen.getByRole('combobox', { name: 'orders.create.program' })).toHaveAttribute(
     'data-disabled',
   );
@@ -196,6 +198,7 @@ it('keeps the facility picker mounted while programs load and enables the loaded
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'orders.create.create' })).toBeEnabled(),
   );
+  expect(document.querySelector('[aria-busy="true"]')).toBeNull();
 });
 
 it('offers every requesting facility through virtualization and can search its code', async () => {

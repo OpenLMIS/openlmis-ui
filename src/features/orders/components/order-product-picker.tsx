@@ -50,10 +50,7 @@ export const OrderProductPicker = memo(function OrderProductPicker({
     [query.data],
   );
   return (
-    <div
-      className="flex items-center gap-2 @3xl/main:max-w-xl"
-      data-tour={disabled ? undefined : TOUR_ANCHORS.orderAdd}
-    >
+    <div className="flex items-center gap-2 @3xl/main:max-w-xl" data-tour={TOUR_ANCHORS.orderAdd}>
       <PickerAdd>
         <PickerAddField ref={anchor}>
           <Combobox

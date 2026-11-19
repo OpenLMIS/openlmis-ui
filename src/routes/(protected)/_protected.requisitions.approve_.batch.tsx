@@ -227,7 +227,7 @@ function BatchPending() {
         <BatchHeader />
         <WorkspaceContent>
           <DraftStatusSkeleton />
-          <div aria-busy="true" className="h-128">
+          <div className="h-128">
             <Skeleton fill />
           </div>
         </WorkspaceContent>
@@ -914,12 +914,14 @@ function BatchPage() {
                 result={copyResult}
                 failure={copyFailure}
               />
-              <div
-                className="flex flex-wrap items-center justify-end gap-2"
-                data-tour={TOUR_ANCHORS.batchStatus}
-              >
-                <RequisitionCopyBadge />
-                <BatchDraftStatus drafts={drafts} />
+              <div className="flex justify-end">
+                <div
+                  className="flex flex-wrap items-center justify-end gap-2"
+                  data-tour={TOUR_ANCHORS.batchStatus}
+                >
+                  <RequisitionCopyBadge />
+                  <BatchDraftStatus drafts={drafts} />
+                </div>
               </div>
               {[...refused].map(([id, reason]) => (
                 <Alert key={id} variant="warning">

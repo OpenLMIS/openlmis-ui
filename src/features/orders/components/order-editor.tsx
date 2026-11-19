@@ -338,7 +338,10 @@ export function OrderEditor({
             {t('orders.edit.cancel')}
           </Button>
         </div>
-        <div className="flex flex-wrap justify-end gap-2" data-tour={TOUR_ANCHORS.orderActions}>
+        <div
+          className="flex flex-wrap justify-end gap-2"
+          data-tour={editable.length ? TOUR_ANCHORS.orderActions : undefined}
+        >
           <Button
             size="lg"
             variant="destructive"

@@ -46,8 +46,8 @@ const approveTour: Tour = {
     },
     {
       anchor: TOUR_ANCHORS.listView,
-      title: 'onboarding.requisitions-list.view-menu.title',
-      content: 'onboarding.requisitions-list.view-menu.content',
+      title: 'onboarding.requisitions-approve.view-menu.title',
+      content: 'onboarding.requisitions-approve.view-menu.content',
     },
     {
       // A tall list leaves no room above it, so the tooltip hangs from View just above it.

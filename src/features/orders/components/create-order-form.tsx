@@ -138,15 +138,12 @@ export function CreateOrderForm({
       }),
   });
   return (
-    <form
-      aria-busy={programsPending || facilitiesPending || undefined}
-      className="flex flex-col gap-4"
-      onSubmit={(event) => event.preventDefault()}
-    >
+    <form className="flex flex-col gap-4" onSubmit={(event) => event.preventDefault()}>
       <FieldGroup>
         <div
+          aria-busy={programsPending || undefined}
           className="min-w-0"
-          data-tour={mutation.isPending || programsPending ? undefined : TOUR_ANCHORS.orderProgram}
+          data-tour={TOUR_ANCHORS.orderProgram}
         >
           <OrderSelect
             required
@@ -159,12 +156,14 @@ export function CreateOrderForm({
           />
         </div>
       </FieldGroup>
-      <RequestingFacilityPicker
-        options={requesting}
-        selected={selectedFacilities}
-        disabled={mutation.isPending || facilitiesPending}
-        onChange={changeFacilities}
-      />
+      <div aria-busy={facilitiesPending || undefined}>
+        <RequestingFacilityPicker
+          options={requesting}
+          selected={selectedFacilities}
+          disabled={mutation.isPending || facilitiesPending}
+          onChange={changeFacilities}
+        />
+      </div>
       <div className="min-w-0" data-tour={TOUR_ANCHORS.orderSupplier}>
         <OrderSelect
           required
@@ -197,8 +196,9 @@ export function CreateOrderForm({
           <AlertDescription>{t('orders.create.no-read-right')}</AlertDescription>
         </Alert>
       )}
-      <div className="flex justify-end" data-tour={TOUR_ANCHORS.orderCreate}>
+      <div className="flex justify-end">
         <Button
+          data-tour={TOUR_ANCHORS.orderCreate}
           type="button"
           size="lg"
           disabled={!readable || mutation.isPending}
@@ -229,7 +229,7 @@ const RequestingFacilityPicker = memo(function RequestingFacilityPicker({
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   return (
-    <Field data-disabled={disabled} data-tour={disabled ? undefined : TOUR_ANCHORS.orderFacilities}>
+    <Field data-disabled={disabled} data-tour={TOUR_ANCHORS.orderFacilities}>
       <FieldLabel htmlFor={requestingId}>
         <FieldLabelText label={t('orders.create.requesting-facility')} required />
       </FieldLabel>

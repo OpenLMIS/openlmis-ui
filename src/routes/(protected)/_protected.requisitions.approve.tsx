@@ -231,7 +231,7 @@ function ApprovalLayout({ userId, pending = false }: { userId?: string; pending?
             {userId ? (
               <QueryBoundary
                 resetKey={userId}
-                pendingFallback={toolbar()}
+                pendingFallback={<div aria-busy>{toolbar()}</div>}
                 errorComponent={ApprovalError}
               >
                 <ApprovalPrograms userId={userId}>{toolbar}</ApprovalPrograms>
