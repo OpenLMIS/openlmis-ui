@@ -2,6 +2,7 @@ import { createFileRoute, type ErrorComponentProps, notFound } from '@tanstack/r
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Workspace, WorkspaceContent } from '@/components/workspace/workspace';
+import { RIGHTS } from '@/features/auth/lib/rights';
 import { buqsForApprovalOptions } from '@/features/buq/api/queries';
 import { BuqUnavailable } from '@/features/buq/components/buq-unavailable';
 import { ForecastEditor } from '@/features/buq/components/forecast-editor';
@@ -22,13 +23,13 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { loadApproveAccess, loadForecast } from '@/routes/-buq-access';
 
 export const Route = createFileRoute('/(protected)/_protected/buq/approve_/$id')({
-  staticData: { crumbKey: 'buq.approve.crumb' },
+  staticData: { rights: [RIGHTS.approveBuq], crumbKey: 'buq.approve.crumb' },
   preload: false,
   shouldReload: ({ cause }) => cause === 'enter',
   validateSearch: forecastSearchSchema,
-  loader: async ({ context: { queryClient }, params, cause }) => {
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
     if (!z.guid().safeParse(params.id).success) throw notFound();
-    const access = await loadApproveAccess(queryClient, cause);
+    const access = await loadApproveAccess(queryClient, route, cause);
     if (access.kind !== 'ready') return access;
     const [waiting] = await Promise.all([
       queryClient.fetchQuery({ ...buqsForApprovalOptions(access.programId), staleTime: 0 }),

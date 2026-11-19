@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { rejectionReasonCategoriesOptions } from '@/features/reference-data/api/queries';
 import {
@@ -41,9 +41,10 @@ const usePageCardView = () =>
 export const Route = createFileRoute(
   '/(protected)/_protected/administration/rejection-reason-categories',
 )({
+  staticData: { rights: [RIGHTS.usersManage] },
   validateSearch: categoriesSearchSchema,
-  loader: async ({ context: { queryClient } }) => {
-    await requireRight(queryClient, RIGHTS.usersManage);
+  loader: async ({ route, context: { queryClient } }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery({ ...rejectionReasonCategoriesOptions(), staleTime: 30 * 1000 });
   },
   pendingComponent: CategoriesPagePending,

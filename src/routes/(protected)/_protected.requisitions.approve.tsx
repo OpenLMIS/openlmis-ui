@@ -24,7 +24,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
   deploymentTimeZoneOptions,
@@ -65,12 +65,13 @@ import { searchSort } from '@/lib/table-search';
 
 const NOTHING_PICKED: ApprovalSelection = new Map();
 export const Route = createFileRoute('/(protected)/_protected/requisitions/approve')({
+  staticData: { rights: [RIGHTS.requisitionApprove] },
   validateSearch: approvalSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
-  loader: async ({ context: { queryClient }, deps: { search } }) => {
+  loader: async ({ route, context: { queryClient }, deps: { search } }) => {
     queryClient.prefetchQuery(offlineCopiesOptions());
     await prepareRequisitionAccess(queryClient);
-    await requireRight(queryClient, RIGHTS.requisitionApprove);
+    await requireRouteRights(queryClient, route);
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
     if (isOnline() || !hasOnlineApprovalList(queryClient, search))

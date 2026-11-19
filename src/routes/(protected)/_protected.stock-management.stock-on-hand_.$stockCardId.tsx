@@ -40,7 +40,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
+import { ForbiddenError, requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
@@ -102,21 +102,22 @@ export const Route = createFileRoute(
 )({
   validateSearch: stockCardSearchSchema,
   staticData: {
+    rights: [RIGHT],
     crumbKey: 'stock-card.crumb',
     crumbParentSearch: (search) => stockOnHandSearchSchema.parse(search),
   },
   preload: false,
-  loader: async ({ context: { queryClient }, params, cause }) => {
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
     queryClient.prefetchQuery(deploymentTimeZoneOptions());
     const userId = useLoginData.getState().referenceDataUserId;
     const options = stockCardOptions(params.stockCardId, readStockCardOnDevice, isOnline(), () =>
-      stockCardAccess(queryClient),
+      stockCardAccess(queryClient, route),
     );
     const state = queryClient.getQueryState(options.queryKey);
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
     const [permissions, card] =
       (await Promise.all([
-        requirePermissions(queryClient, RIGHT),
+        requireRouteRights(queryClient, route),
         cause === 'stay' && !state?.error && !state?.isInvalidated
           ? queryClient.ensureQueryData(options)
           : queryClient.fetchQuery({ ...options, staleTime: 0 }),

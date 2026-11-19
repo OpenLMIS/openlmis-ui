@@ -884,13 +884,15 @@ home facility, user programs, all facilities and page grants, following legacy:
 - User-changing saves call `invalidateUserQueries(queryClient, userId)`
   (`src/lib/user-queries.ts`). Per-user caches hold only the signed-in user's data; rights,
   Profile and Home refresh only when saving that user.
-- Before loading protected pages, await `requireRight(queryClient, RIGHTS.x)` or
-  `requirePermissions` for grants (`src/features/auth/lib/access.ts`), alongside required data.
-  Missing rights throw `ForbiddenError`. Add matching `NAV_RIGHTS` entries in
-  `src/lib/nav-rights.ts` for sidebar, palette and breadcrumb filtering.
-  Route composition registers feature-owned navigation rights.
-- For legacy's either-right pages, pass both rights to `requireRight` and `NAV_RIGHTS`.
-  Gate individual actions with the resolved rights set, including directly linked dialogs.
+- Declare opening rights in the route's `staticData.rights` and await
+  `requireRouteRights(queryClient, route)` before rendering. It reads the nearest declaration,
+  including from a parent layout. A missing declaration fails closed. A user who lacks every listed
+  right gets `ForbiddenError`.
+- Home and Profile are open after sign-in. Requisitions View and Offline Events declare rights
+  for links and keep their custom access checks. Settings checks its feature flag before rights.
+- The sidebar, palette, breadcrumb and account links and Home's Add User shortcut read opening
+  rights from the router. Gate individual actions with the resolved rights set, including
+  directly linked dialogs.
 - Record-and-grant pages (Stock Card, stock events) use `useReloadForUser`
   (`src/hooks/use-reload-for-user.ts`) after identity changes.
 

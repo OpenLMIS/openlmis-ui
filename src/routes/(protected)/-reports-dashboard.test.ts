@@ -28,9 +28,11 @@ async function load(dashboardId: string, grants = ['REPORTS_VIEW'], cached?: Das
   const loader = typeof option === 'function' ? option : option?.handler;
   if (!loader) throw new Error('Expected dashboard loader');
   try {
-    return await loader({ context: { queryClient }, params: { dashboardId } } as Parameters<
-      typeof loader
-    >[0]);
+    return await loader({
+      route: Route,
+      context: { queryClient },
+      params: { dashboardId },
+    } as Parameters<typeof loader>[0]);
   } finally {
     queryClient.clear();
   }

@@ -22,7 +22,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { apiBase } from '@/features/reports/api/api';
 import {
   reportParameterOptionsOptions,
@@ -42,10 +42,10 @@ import {
 
 export const Route = createFileRoute('/(protected)/_protected/reports_/$module/$reportId/generate')(
   {
-    staticData: { crumbKey: 'reports.generate.crumb' },
-    loader: async ({ context: { queryClient }, params: { module, reportId } }) => {
+    staticData: { rights: [RIGHTS.reportsView], crumbKey: 'reports.generate.crumb' },
+    loader: async ({ route, context: { queryClient }, params: { module, reportId } }) => {
       const scope = getSessionScope();
-      await requireRight(queryClient, RIGHTS.reportsView);
+      await requireRouteRights(queryClient, route);
       assertSessionScope(scope);
       const userId = getSessionUserId();
       if (!userId) throw new SessionEndedError();

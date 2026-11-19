@@ -1,19 +1,19 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import type { ViewOrdersSearch } from '@/features/orders/lib/order-search';
 import { minimalFacilitiesOptions } from '@/features/reference-data/api/queries';
 import { parsePermissions } from '@/lib/permissions';
 import { Route as FulfillRoute } from '@/routes/(protected)/_protected.orders.fulfillment';
 import { Route } from '@/routes/(protected)/_protected.orders.view';
 
-vi.mock('@/features/auth/lib/access', () => ({ requirePermissions: vi.fn() }));
+vi.mock('@/features/auth/lib/access', () => ({ requireRouteRights: vi.fn() }));
 
 const supplier = 'b1b0d686-38ad-4f41-ae8e-f3dba2958397';
 
 function setup() {
   const client = new QueryClient();
-  vi.mocked(requirePermissions).mockResolvedValue(parsePermissions([`ORDERS_VIEW|${supplier}`]));
+  vi.mocked(requireRouteRights).mockResolvedValue(parsePermissions([`ORDERS_VIEW|${supplier}`]));
   const prefetch = vi
     .spyOn(client, 'prefetchQuery')
     .mockImplementation((options) =>
@@ -23,6 +23,7 @@ function setup() {
     const loader = Route.options.loader;
     if (typeof loader !== 'function') throw new Error('Expected a route loader');
     return loader({
+      route: Route,
       context: { queryClient: client },
       deps: { search },
     } as Parameters<typeof loader>[0]);
@@ -63,10 +64,11 @@ it('starts Fulfill Orders without waiting for requester options', async () => {
   const ensure = vi
     .spyOn(client, 'ensureQueryData')
     .mockImplementation(() => new Promise(() => {}));
-  vi.mocked(requirePermissions).mockResolvedValue(parsePermissions([`SHIPMENTS_VIEW|${supplier}`]));
+  vi.mocked(requireRouteRights).mockResolvedValue(parsePermissions([`SHIPMENTS_VIEW|${supplier}`]));
   const loader = FulfillRoute.options.loader;
   if (typeof loader !== 'function') throw new Error('Expected a route loader');
   await loader({
+    route: FulfillRoute,
     context: { queryClient: client },
     deps: { search: {} },
   } as Parameters<typeof loader>[0]);
@@ -81,7 +83,7 @@ it('refuses a linked facility without a supplier grant', async () => {
   client.setQueryData(minimalFacilitiesOptions().queryKey, [
     { id: supplier, name: 'Supplier', code: 'S', active: true },
   ]);
-  vi.mocked(requirePermissions).mockResolvedValue(parsePermissions(['ORDERS_VIEW|another']));
+  vi.mocked(requireRouteRights).mockResolvedValue(parsePermissions(['ORDERS_VIEW|another']));
   await load();
   expect(orderCalls()).toEqual([]);
 });

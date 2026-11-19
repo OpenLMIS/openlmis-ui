@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { ReasonsTable, ReasonsTableSkeleton } from '@/features/reasons/components/reasons-table';
 import { ReasonsToolbar } from '@/features/reasons/components/reasons-toolbar';
@@ -39,9 +39,10 @@ const LIST_FRESH_FOR = 30 * 1000;
 const usePageCardView = () => useCardView(REASON_HIDEABLE_COLUMNS, 'reasons.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/reasons')({
+  staticData: { rights: [RIGHTS.stockCardLineItemReasonsManage] },
   validateSearch: reasonsSearchSchema,
-  loader: async ({ context: { queryClient } }) => {
-    await requireRight(queryClient, RIGHTS.stockCardLineItemReasonsManage);
+  loader: async ({ route, context: { queryClient } }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery({ ...reasonsOptions(), staleTime: LIST_FRESH_FOR });
   },
   pendingComponent: ReasonsPagePending,

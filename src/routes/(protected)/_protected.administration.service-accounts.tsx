@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { serviceAccountsListOptions } from '@/features/service-accounts/api/queries';
 import {
@@ -43,10 +43,11 @@ const CLOSED_DIALOGS = {
 const noop = () => {};
 
 export const Route = createFileRoute('/(protected)/_protected/administration/service-accounts')({
+  staticData: { rights: [RIGHTS.serviceAccountsManage] },
   validateSearch: serviceAccountsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toServiceAccountsQuery(search) }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.serviceAccountsManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(serviceAccountsListOptions(deps.query));
   },
   pendingComponent: ServiceAccountsPagePending,

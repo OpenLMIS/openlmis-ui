@@ -10,7 +10,7 @@ import {
   isHalfFiltered,
   toAssignmentsQuery,
 } from '@/components/valid-assignments/search';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import {
   facilityTypesOptions,
@@ -23,10 +23,11 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 const CLOSED_DIALOGS = { assignment: undefined } satisfies Partial<AssignmentsSearch>;
 
 export const Route = createFileRoute('/(protected)/_protected/administration/valid-destinations')({
+  staticData: { rights: [RIGHTS.stockDestinationsManage] },
   validateSearch: assignmentsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toAssignmentsQuery(search), half: isHalfFiltered(search) }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    const rights = await requireRight(queryClient, RIGHTS.stockDestinationsManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    const { rights } = await requireRouteRights(queryClient, route);
     if (!deps.half) {
       queryClient.prefetchQuery(VALID_DESTINATIONS_API.listOptions(deps.query));
     }

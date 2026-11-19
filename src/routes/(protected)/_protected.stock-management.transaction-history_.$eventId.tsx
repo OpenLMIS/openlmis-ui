@@ -23,7 +23,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { rightsOptions } from '@/features/auth/api/queries';
-import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
+import { ForbiddenError, requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
@@ -72,12 +72,13 @@ export const Route = createFileRoute(
 )({
   validateSearch: stockEventSearchSchema,
   staticData: {
+    rights: [RIGHT],
     crumbKey: 'transaction-history.details-crumb',
     crumbParentSearch: (search) => transactionHistorySearchSchema.parse(search),
   },
   preload: false,
   loaderDeps: ({ search }) => ({ detailPage: search.detailPage, detailSize: search.detailSize }),
-  loader: async ({ context: { queryClient }, params, cause, deps }) => {
+  loader: async ({ route, context: { queryClient }, params, cause, deps }) => {
     const userId = useLoginData.getState().referenceDataUserId;
     const options = stockEventOptions(params.eventId);
     const state = queryClient.getQueryState(options.queryKey);
@@ -86,7 +87,7 @@ export const Route = createFileRoute(
     const userChanged = () => !userId || useLoginData.getState().referenceDataUserId !== userId;
     const [permissions, event] =
       (await Promise.all([
-        requirePermissions(queryClient, RIGHT),
+        requireRouteRights(queryClient, route),
         sameEvent && !state?.error && !state?.isInvalidated
           ? queryClient.ensureQueryData(options)
           : queryClient.fetchQuery({ ...options, staleTime: 0 }),

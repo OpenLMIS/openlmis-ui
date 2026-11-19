@@ -21,15 +21,17 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { CCE_CATALOG_API } from '@/features/cce-catalog/api/api';
 import { describeCatalogUploadError } from '@/features/cce-catalog/lib/upload-errors';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/equipment-catalog')({
+  staticData: { rights: [RIGHTS.cceManage] },
   validateSearch: instructionsSearchSchema,
-  loader: ({ context: { queryClient } }) => requireRight(queryClient, RIGHTS.cceManage),
+  loader: ({ route, context: { queryClient } }) =>
+    requireRouteRights(queryClient, route).then(({ rights }) => rights),
   pendingComponent: EquipmentCatalogPagePending,
   component: EquipmentCatalogPage,
 });

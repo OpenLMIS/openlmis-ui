@@ -26,11 +26,13 @@ it('opens the local recovery route without adjustment rights only for the owning
   client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true });
   client.setQueryData(permissionsOptions('device-owner').queryKey, parsePermissions([]));
   const loader = Route.options.loader as (input: unknown) => Promise<void>;
-  await expect(loader({ context: { queryClient: client } })).rejects.toThrow('Missing right');
+  await expect(loader({ route: Route, context: { queryClient: client } })).rejects.toThrow(
+    'Missing right',
+  );
   await getLocalDb()
     .table(LOCAL_TABLES.stockEventQueue)
     .put({ localEventId: 'own', userId: 'device-owner', status: 'queued' });
-  await expect(loader({ context: { queryClient: client } })).resolves.toBeUndefined();
+  await expect(loader({ route: Route, context: { queryClient: client } })).resolves.toBeUndefined();
   await getLocalDb().table(LOCAL_TABLES.stockEventQueue).clear();
   await getLocalDb()
     .table(LOCAL_TABLES.stockEventReceipts)
@@ -61,7 +63,9 @@ it('opens empty Offline Events on an offline reload before any access download c
   });
   const loader = Route.options.loader as (input: unknown) => Promise<void>;
   try {
-    await expect(loader({ context: { queryClient: client } })).resolves.toBeUndefined();
+    await expect(
+      loader({ route: Route, context: { queryClient: client } }),
+    ).resolves.toBeUndefined();
   } finally {
     client.clear();
   }

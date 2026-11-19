@@ -1,7 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
-import { ForbiddenError, isForbidden, requireRight } from '@/features/auth/lib/access';
+import {
+  ForbiddenError,
+  isForbidden,
+  requireRight,
+  requireRouteRights,
+} from '@/features/auth/lib/access';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { queryClient } from '@/integrations/tanstack-query';
@@ -93,5 +98,30 @@ describe('isForbidden', () => {
     expect(isForbidden(refused)).toBe(true);
     expect(isForbidden(new ForbiddenError('USERS_MANAGE'))).toBe(true);
     expect(isForbidden(new Error('offline'))).toBe(false);
+  });
+});
+
+describe('requireRouteRights', () => {
+  const parentRoute = { options: { staticData: { rights: ['ORDERS_VIEW', 'PODS_MANAGE'] } } };
+
+  it('accepts any inherited right', async () => {
+    permissionStrings.mockResolvedValueOnce(['PODS_MANAGE|facility']);
+    await expect(
+      requireRouteRights(new QueryClient(), { options: {}, parentRoute }),
+    ).resolves.toMatchObject({ rights: new Set(['PODS_MANAGE']) });
+  });
+
+  it.each([[['USERS_MANAGE']], [[]]])('uses the nearest declaration (%j)', async (rights) => {
+    permissionStrings.mockResolvedValueOnce(['PODS_MANAGE']);
+    await expect(
+      requireRouteRights(new QueryClient(), { options: { staticData: { rights } }, parentRoute }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('fails closed without a declaration', async () => {
+    await expect(requireRouteRights(new QueryClient(), { options: {} })).rejects.toThrow(
+      'Route has no rights declaration',
+    );
+    expect(permissionStrings).not.toHaveBeenCalled();
   });
 });

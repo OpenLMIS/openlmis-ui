@@ -29,7 +29,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { facilityOptions } from '@/features/reference-data/api/queries';
 import {
@@ -82,11 +82,12 @@ const toQuery = (selection: CompleteSelection, emergency?: boolean): InitiateQue
 });
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/initiate')({
+  staticData: { rights: ENTRY_RIGHTS },
   validateSearch: initiateSearchSchema,
   loaderDeps: ({ search }) => ({ search }),
-  loader: async ({ context: { queryClient }, deps: { search } }) => {
+  loader: async ({ route, context: { queryClient }, deps: { search } }) => {
     const userId = useLoginData.getState().referenceDataUserId;
-    const permissions = await requirePermissions(queryClient, ENTRY_RIGHTS);
+    const permissions = await requireRouteRights(queryClient, route);
     if (!userId || useLoginData.getState().referenceDataUserId !== userId) return;
     prefetchFacilityProgramOptions(queryClient, userId);
     const { emergency } = search;

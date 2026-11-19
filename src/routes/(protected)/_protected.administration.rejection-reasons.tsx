@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { rejectionReasonsOptions } from '@/features/reference-data/api/queries';
 import {
@@ -40,9 +40,10 @@ const usePageCardView = () =>
   useCardView(REJECTION_REASON_HIDEABLE_COLUMNS, 'rejection-reasons.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/rejection-reasons')({
+  staticData: { rights: [RIGHTS.usersManage] },
   validateSearch: rejectionReasonsSearchSchema,
-  loader: async ({ context: { queryClient } }) => {
-    await requireRight(queryClient, RIGHTS.usersManage);
+  loader: async ({ route, context: { queryClient } }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery({ ...rejectionReasonsOptions(), staleTime: 30 * 1000 });
   },
   pendingComponent: RejectionReasonsPagePending,

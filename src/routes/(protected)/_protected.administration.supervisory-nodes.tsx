@@ -12,7 +12,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { geographicZonesOptions } from '@/features/reference-data/api/queries';
 import { supervisoryNodesPageOptions } from '@/features/supervisory-nodes/api/queries';
@@ -41,10 +41,11 @@ const usePageCardView = () =>
   useCardView(SUPERVISORY_NODE_HIDEABLE_COLUMNS, 'supervisory-nodes.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/supervisory-nodes')({
+  staticData: { rights: [RIGHTS.supervisoryNodesManage] },
   validateSearch: supervisoryNodesSearchSchema,
   loaderDeps: ({ search }) => ({ query: toSupervisoryNodesQuery(search) }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.supervisoryNodesManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(supervisoryNodesPageOptions(deps.query));
     queryClient.prefetchQuery(geographicZonesOptions());
   },

@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { supplyLineOptions, supplyLinesPageOptions } from '@/features/supply-lines/api/queries';
 import { SupplyLineViewDialog } from '@/features/supply-lines/components/supply-line-view';
@@ -35,13 +35,14 @@ const usePageCardView = () =>
   useCardView(SUPPLY_LINE_HIDEABLE_COLUMNS, 'supply-lines.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/supply-lines')({
+  staticData: { rights: [RIGHTS.supplyLinesManage] },
   validateSearch: supplyLinesSearchSchema,
   loaderDeps: ({ search }) => ({
     query: toSupplyLinesQuery(search),
     supplyLine: search.supplyLine,
   }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.supplyLinesManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(supplyLinesPageOptions(deps.query));
     if (deps.supplyLine && z.guid().safeParse(deps.supplyLine).success) {
       queryClient.prefetchQuery(supplyLineOptions(deps.supplyLine));

@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { productsListOptions } from '@/features/products/api/queries';
 import {
@@ -48,13 +48,11 @@ declare module '@tanstack/react-router' {
 const usePageCardView = () => useCardView(PRODUCT_HIDEABLE_COLUMNS, 'products.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/products')({
+  staticData: { rights: [RIGHTS.orderablesManage, RIGHTS.facilityApprovedOrderablesManage] },
   validateSearch: productsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toProductsQuery(search) }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    const rights = await requireRight(queryClient, [
-      RIGHTS.orderablesManage,
-      RIGHTS.facilityApprovedOrderablesManage,
-    ]);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    const { rights } = await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(productsListOptions(deps.query));
     queryClient.prefetchQuery(programsOptions());
     return { canAdd: rights.has(RIGHTS.orderablesManage) };

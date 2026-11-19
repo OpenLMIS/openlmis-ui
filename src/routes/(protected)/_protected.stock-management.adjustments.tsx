@@ -7,8 +7,8 @@ import {
 } from '@/routes/(protected)/-stock-event-program-picker';
 
 export const Route = createFileRoute('/(protected)/_protected/stock-management/adjustments')({
-  loader: ({ context: { queryClient } }) =>
-    loadStockEventPrograms(queryClient, EVENT_KINDS.adjustment.right),
+  staticData: { rights: [EVENT_KINDS.adjustment.right] },
+  loader: ({ route, context: { queryClient } }) => loadStockEventPrograms(queryClient, route),
   pendingComponent: () => <StockEventProgramsPending kind="adjustment" />,
   component: ProgramsPage,
 });

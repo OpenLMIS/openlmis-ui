@@ -76,6 +76,7 @@ const combineGroups = (results: { data?: RequisitionGroup }[]) =>
   results.flatMap(({ data }) => data ?? []);
 
 export const Route = createFileRoute('/(protected)/_protected/requisitions/view')({
+  staticData: { rights: [RIGHTS.requisitionView] },
   validateSearch: (input) => {
     const search = requisitionSearchSchema.parse(input);
     return isSecureOrigin ? search : { ...search, offline: undefined };

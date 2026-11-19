@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search';
 import { getDefaultReceiveReasonId } from '@/lib/runtime-config';
 import {
@@ -12,10 +13,10 @@ export const Route = createFileRoute(
   '/(protected)/_protected/stock-management/receive_/$programId',
 )({
   validateSearch: stockEventSearchSchema,
-  staticData: { crumbKey: 'stock-receive.editor-crumb' },
+  staticData: { rights: [EVENT_KINDS.receive.right], crumbKey: 'stock-receive.editor-crumb' },
   shouldReload: reloadOnEntry,
-  loader: ({ context: { queryClient }, params: { programId } }) =>
-    loadStockEventEditor(queryClient, programId, 'receive'),
+  loader: ({ route, context: { queryClient }, params: { programId } }) =>
+    loadStockEventEditor(queryClient, route, programId, 'receive'),
   pendingComponent: () => (
     <StockEventPending kind="receive" programId={Route.useParams().programId} />
   ),

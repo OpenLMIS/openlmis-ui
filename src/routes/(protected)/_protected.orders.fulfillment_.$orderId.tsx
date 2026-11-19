@@ -4,7 +4,7 @@ import {
   useLocation,
   useNavigate,
 } from '@tanstack/react-router';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { facilityCceOptions } from '@/features/cce-inventory/api/queries';
 import { FacilityCceStatus } from '@/features/cce-inventory/components/facility-cce-status';
 import {
@@ -27,19 +27,18 @@ import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export const Route = createFileRoute('/(protected)/_protected/orders/fulfillment_/$orderId')({
   preload: false,
-  staticData: { crumbKey: 'orders.shipment.crumb' },
-  loader: async ({ context: { queryClient }, params: { orderId }, cause, location }) => {
+  staticData: {
+    rights: [RIGHTS.shipmentsView, RIGHTS.shipmentsEdit, RIGHTS.ordersView],
+    crumbKey: 'orders.shipment.crumb',
+  },
+  loader: async ({ route, context: { queryClient }, params: { orderId }, cause, location }) => {
     const scope = getSessionScope();
     const checked =
       cause === 'enter'
         ? consumeShipmentEntry(queryClient, orderId, location.state.shipmentEntry)
         : undefined;
     const [permissions, order] = await Promise.all([
-      requirePermissions(queryClient, [
-        RIGHTS.shipmentsView,
-        RIGHTS.shipmentsEdit,
-        RIGHTS.ordersView,
-      ]),
+      requireRouteRights(queryClient, route),
       checked
         ? Promise.resolve(checked)
         : cause === 'enter'

@@ -1,12 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
 import { isNotFound } from '@tanstack/react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { fetchAppConfiguration } from '@/features/system-settings/api/api';
 import { loadRuntimeConfig } from '@/lib/runtime-config';
 import { Route } from '@/routes/(protected)/_protected.settings';
 
-vi.mock('@/features/auth/lib/access', () => ({ requireRight: vi.fn(async () => new Set()) }));
+vi.mock('@/features/auth/lib/access', () => ({ requireRouteRights: vi.fn(async () => new Set()) }));
 vi.mock('@/features/system-settings/api/api', () => ({ fetchAppConfiguration: vi.fn() }));
 
 async function deployWith(flags: Record<string, string>) {
@@ -19,6 +19,7 @@ async function deployWith(flags: Record<string, string>) {
 
 const load = () =>
   (Route.options.loader as (match: unknown) => Promise<unknown>)({
+    route: Route,
     context: { queryClient: new QueryClient() },
   });
 
@@ -34,7 +35,7 @@ describe('settings loader', () => {
     const error = await load().catch((caught: unknown) => caught);
 
     expect(isNotFound(error)).toBe(true);
-    expect(requireRight).not.toHaveBeenCalled();
+    expect(requireRouteRights).not.toHaveBeenCalled();
     expect(fetchAppConfiguration).not.toHaveBeenCalled();
   });
 
@@ -43,6 +44,6 @@ describe('settings loader', () => {
     vi.mocked(fetchAppConfiguration).mockResolvedValue(null);
 
     await expect(load()).resolves.not.toThrow();
-    expect(requireRight).toHaveBeenCalled();
+    expect(requireRouteRights).toHaveBeenCalled();
   });
 });

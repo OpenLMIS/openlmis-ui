@@ -7,7 +7,7 @@ import {
   createRouter,
 } from '@tanstack/react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { fetchReason, fetchValidReasons } from '@/features/reasons/api/api';
 import { reasonDetailOptions, validReasonsOptions } from '@/features/reasons/api/queries';
 import type { Reason } from '@/features/reference-data/lib/types';
@@ -16,7 +16,7 @@ import { Route as EditRoute } from '@/routes/(protected)/_protected.administrati
 import { Route as AddRoute } from '@/routes/(protected)/_protected.administration.reasons_.new';
 
 vi.mock('@/features/auth/lib/access', () => ({
-  requireRight: vi.fn(async () => new Set(['STOCK_CARD_LINE_ITEM_REASONS_MANAGE'])),
+  requireRouteRights: vi.fn(async () => new Set(['STOCK_CARD_LINE_ITEM_REASONS_MANAGE'])),
 }));
 vi.mock('@/features/reasons/api/api', () => ({
   fetchReason: vi.fn(),
@@ -54,6 +54,7 @@ function editRouter(queryClient: QueryClient) {
     getParentRoute: () => root,
     path: '/reasons/$id',
     loader: EditRoute.options.loader as never,
+    staticData: EditRoute.options.staticData,
     preload: EditRoute.options.preload,
   });
   const list = createRoute({ getParentRoute: () => root, path: '/' });
@@ -101,9 +102,9 @@ describe('reasons routes', () => {
     const context = { context: { queryClient }, params: { id: 'r1' }, cause: 'enter' };
 
     for (const route of [ListRoute, AddRoute, EditRoute]) {
-      vi.mocked(requireRight).mockClear();
-      await (route.options.loader as (args: unknown) => Promise<unknown>)(context);
-      expect(requireRight).toHaveBeenCalledWith(queryClient, 'STOCK_CARD_LINE_ITEM_REASONS_MANAGE');
+      vi.mocked(requireRouteRights).mockClear();
+      await (route.options.loader as (args: unknown) => Promise<unknown>)({ ...context, route });
+      expect(requireRouteRights).toHaveBeenCalledWith(queryClient, route);
     }
   });
 });

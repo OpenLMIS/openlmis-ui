@@ -16,7 +16,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
-import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
+import { ForbiddenError, requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -57,17 +57,20 @@ export const Route = createFileRoute(
   validateSearch: inventorySearchSchema,
   preload: false,
   shouldReload: ({ cause }) => cause === 'enter',
-  staticData: { crumbKey: 'physical-inventory.editor-crumb' },
+  staticData: {
+    rights: [RIGHTS.stockInventoriesEdit],
+    crumbKey: 'physical-inventory.editor-crumb',
+  },
   loader: {
     staleReloadMode: 'blocking',
-    handler: async ({ context: { queryClient }, params: { programId }, cause }) => {
+    handler: async ({ route, context: { queryClient }, params: { programId }, cause }) => {
       queryClient.prefetchQuery(deploymentTimeZoneOptions());
       const eligibleUpdatedAfter = cause === 'enter' ? Date.now() : 0;
       const session = getSessionScope();
       const userId = useLoginData.getState().referenceDataUserId;
       if (!userId) throw new ForbiddenError(RIGHTS.stockInventoriesEdit);
       const [permissions, user] = await Promise.all([
-        requirePermissions(queryClient, RIGHTS.stockInventoriesEdit),
+        requireRouteRights(queryClient, route),
         queryClient.fetchQuery(userRecordOptions(userId)),
       ]);
       assertSessionScope(session);

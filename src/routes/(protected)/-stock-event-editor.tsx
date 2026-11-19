@@ -20,7 +20,7 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { permissionsOptions } from '@/features/auth/api/queries';
-import { ForbiddenError, requirePermissions } from '@/features/auth/lib/access';
+import { ForbiddenError, requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { useLoginData } from '@/features/auth/store/login-data';
 import {
@@ -69,12 +69,14 @@ import { NoHomeFacilityError } from '@/lib/no-home-facility-error';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
+import type { RouteWithRights } from '@/lib/route-rights';
 
 export const reloadOnEntry = ({ cause }: { cause: 'preload' | 'enter' | 'stay' }) =>
   cause !== 'stay';
 
 export async function loadStockEventEditor(
   queryClient: QueryClient,
+  route: RouteWithRights,
   programId: string,
   kind: ConfiguredEventKind,
 ) {
@@ -84,7 +86,7 @@ export async function loadStockEventEditor(
     throw new ForbiddenError(right);
   }
   const [permissions, user] = await Promise.all([
-    requirePermissions(queryClient, right),
+    requireRouteRights(queryClient, route),
     queryClient.fetchQuery(userRecordOptions(userId)),
   ]);
   const homeId = user.homeFacilityId;

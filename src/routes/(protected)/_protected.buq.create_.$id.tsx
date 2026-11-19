@@ -21,16 +21,17 @@ import {
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { loadBuqAccess, loadForecast, useForecastRights } from '@/routes/-buq-access';
 
-const FORECASTING_RIGHTS = [RIGHTS.createForecasting, RIGHTS.authorizeForecasting];
-
 export const Route = createFileRoute('/(protected)/_protected/buq/create_/$id')({
-  staticData: { crumbKey: 'buq.forecast.crumb' },
+  staticData: {
+    rights: [RIGHTS.createForecasting, RIGHTS.authorizeForecasting],
+    crumbKey: 'buq.forecast.crumb',
+  },
   preload: false,
   shouldReload: ({ cause }) => cause === 'enter',
   validateSearch: forecastSearchSchema,
-  loader: async ({ context: { queryClient }, params, cause }) => {
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
     if (!z.guid().safeParse(params.id).success) throw notFound();
-    const access = await loadBuqAccess(queryClient, FORECASTING_RIGHTS, cause, {
+    const access = await loadBuqAccess(queryClient, route, cause, {
       activeSupport: false,
     });
     if (access.kind !== 'ready') return access;

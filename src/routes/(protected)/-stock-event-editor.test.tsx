@@ -25,7 +25,6 @@ import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '@/../public/locales/en.json';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
-import { canOpen } from '@/components/app-shell/nav-access';
 import { fetchPermissionStrings } from '@/features/auth/api/api';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -50,7 +49,6 @@ import {
 } from '@/features/stock-events/api/api';
 import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search';
-import { LIVE_NAV_GROUPS } from '@/lib/config';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as AdjustmentPickerRoute } from '@/routes/(protected)/_protected.stock-management.adjustments';
 import { Route as AdjustmentEditorRoute } from '@/routes/(protected)/_protected.stock-management.adjustments_.$programId';
@@ -210,6 +208,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       getParentRoute: () => layout,
       path: `stock-management/${kind}`,
       loader: PickerRoute.options.loader as never,
+      staticData: PickerRoute.options.staticData,
       component: PickerRoute.options.component as never,
       pendingComponent: PickerRoute.options.pendingComponent as never,
     });
@@ -358,13 +357,6 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
       expect(fetchFacility).not.toHaveBeenCalled();
       expect(onCaughtError).toHaveBeenCalled();
       assertRouteWarning();
-    });
-
-    it(`hides the ${kind} navigation entry without the adjustment right`, () => {
-      expect(JSON.stringify(LIVE_NAV_GROUPS)).toContain(PICKER);
-      expect(canOpen(PICKER, undefined)).toBe(false);
-      expect(canOpen(PICKER, new Set(['STOCK_CARDS_VIEW']))).toBe(false);
-      expect(canOpen(PICKER, new Set(['STOCK_ADJUST']))).toBe(true);
     });
 
     it('shows the no-home message without asking for a facility', async () => {
@@ -532,7 +524,7 @@ describe.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('%s', (kind) => {
         }),
       );
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-      const loading = loadStockEventEditor(queryClient, FP, eventKind);
+      const loading = loadStockEventEditor(queryClient, EditorRoute, FP, eventKind);
       const started = vi.mocked(fetchUserRecord).mock.calls.length;
       finish(grants);
       await loading;
@@ -782,7 +774,7 @@ describe('Unpack policies', () => {
   it('prefetches stock cards and the reasons list without valid reasons or destinations', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     try {
-      await loadStockEventEditor(client, FP, 'unpack');
+      await loadStockEventEditor(client, UnpackEditorRoute, FP, 'unpack');
       expect(fetchEventStockCards).toHaveBeenCalledWith({ facilityId: HOME, programId: FP });
       expect(fetchReasons).toHaveBeenCalledOnce();
       expect(fetchValidReasons).not.toHaveBeenCalled();
@@ -804,6 +796,7 @@ describe('Unpack policies', () => {
       getParentRoute: () => layout,
       path: 'stock-management/unpack',
       loader: UnpackPickerRoute.options.loader as never,
+      staticData: UnpackPickerRoute.options.staticData,
       component: UnpackPickerRoute.options.component as never,
     });
     const editor = createRoute({

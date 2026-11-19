@@ -8,15 +8,14 @@ import {
 } from '@tanstack/react-router';
 import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { requireRight } from '@/features/auth/lib/access';
-import { RIGHTS } from '@/features/auth/lib/rights';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { fetchSupervisoryNode } from '@/features/supervisory-nodes/api/api';
 import { supervisoryNodeOptions } from '@/features/supervisory-nodes/api/queries';
 import type { SupervisoryNode } from '@/features/supervisory-nodes/lib/types';
 import { Route } from '@/routes/(protected)/_protected.administration.supervisory-nodes_.$id';
 
 vi.mock('@/features/auth/lib/access', () => ({
-  requireRight: vi.fn(async () => new Set(['SUPERVISORY_NODES_MANAGE'])),
+  requireRouteRights: vi.fn(async () => new Set(['SUPERVISORY_NODES_MANAGE'])),
 }));
 vi.mock('@/features/supervisory-nodes/api/api', () => ({
   fetchSupervisoryNode: vi.fn(),
@@ -36,6 +35,7 @@ function editRouter(queryClient: QueryClient) {
     getParentRoute: () => root,
     path: '/supervisory-nodes/$id',
     loader: Route.options.loader as never,
+    staticData: Route.options.staticData,
     preload: Route.options.preload,
     validateSearch: Route.options.validateSearch as never,
     loaderDeps: Route.options.loaderDeps as never,
@@ -69,7 +69,12 @@ describe('supervisory node edit loader', () => {
     server.node = version('New');
     await router.navigate({ to: '/supervisory-nodes/$id', params: { id: 'f1' } } as never);
 
-    expect(requireRight).toHaveBeenCalledWith(queryClient, RIGHTS.supervisoryNodesManage);
+    expect(requireRouteRights).toHaveBeenCalledWith(
+      queryClient,
+      expect.objectContaining({
+        options: expect.objectContaining({ staticData: Route.options.staticData }),
+      }),
+    );
     expect(queryClient.getQueryData(supervisoryNodeOptions('f1').queryKey)).toEqual(version('New'));
 
     await router.navigate({ to: '/' } as never);

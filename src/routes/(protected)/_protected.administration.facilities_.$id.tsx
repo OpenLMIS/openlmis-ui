@@ -15,7 +15,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Workspace, WorkspaceContent } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { updateFacility } from '@/features/facilities/api/api';
 import {
@@ -35,12 +35,12 @@ import { queryKeys } from '@/lib/key-factory';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/facilities_/$id')({
   validateSearch: facilityEditorSearchSchema,
-  staticData: { crumbKey: 'facilities.form.edit-title' },
+  staticData: { rights: [RIGHTS.facilitiesManage], crumbKey: 'facilities.form.edit-title' },
   // A preloaded page would open on the copy read at hover, and the save sends the whole record back.
   preload: false,
-  loader: async ({ context: { queryClient }, params }) => {
+  loader: async ({ route, context: { queryClient }, params }) => {
     await Promise.all([
-      requireRight(queryClient, RIGHTS.facilitiesManage),
+      requireRouteRights(queryClient, route),
       queryClient.fetchQuery({ ...facilityOptions(params.id), staleTime: 0 }),
     ]);
     prefetchFacilityEditorLookups(queryClient);

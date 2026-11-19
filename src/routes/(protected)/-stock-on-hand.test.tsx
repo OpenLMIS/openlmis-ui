@@ -117,6 +117,7 @@ function renderRoute(
     validateSearch: Route.options.validateSearch as never,
     loaderDeps: Route.options.loaderDeps as never,
     loader: Route.options.loader as never,
+    staticData: Route.options.staticData,
     component: Route.options.component as never,
     pendingComponent: Route.options.pendingComponent as never,
   });

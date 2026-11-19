@@ -10,7 +10,7 @@ import {
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { requirePermissions } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import {
   orderRequestingFacilitiesOptions,
   ordersSearchOptions,
@@ -24,7 +24,7 @@ import { orderSummary } from '@/test-utils/order-fixtures';
 
 vi.mock('@/features/auth/lib/access', async (original) => ({
   ...(await original<typeof import('@/features/auth/lib/access')>()),
-  requirePermissions: vi.fn(),
+  requireRouteRights: vi.fn(),
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchPrograms: vi.fn(async () => {
@@ -36,7 +36,7 @@ const other = '22222222-2222-4222-8222-222222222222';
 const requester = '33333333-3333-4333-8333-333333333333';
 const permissions = parsePermissions([`ORDERS_VIEW|${supplier}`, `ORDERS_VIEW|${other}`]);
 beforeEach(() => {
-  vi.mocked(requirePermissions).mockResolvedValue(permissions);
+  vi.mocked(requireRouteRights).mockResolvedValue(permissions);
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     width: 1440,
   } as DOMRect);
@@ -85,6 +85,7 @@ function setup(failedPrograms = false, page?: number) {
     validateSearch: Route.options.validateSearch as never,
     loaderDeps: Route.options.loaderDeps as never,
     loader: Route.options.loader as never,
+    staticData: Route.options.staticData,
     component: Route.options.component as never,
   });
   const router = createRouter({

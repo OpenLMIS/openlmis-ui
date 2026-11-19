@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { lotsListOptions } from '@/features/lots/api/queries';
 import { LotsTable, LotsTableSkeleton } from '@/features/lots/components/lots-table';
@@ -37,10 +37,11 @@ const CLOSED_DIALOGS = { lot: undefined } satisfies Partial<LotsSearch>;
 const usePageCardView = () => useCardView(LOT_HIDEABLE_COLUMNS, 'lots.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/lots')({
+  staticData: { rights: [RIGHTS.lotsManage] },
   validateSearch: lotsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toLotsQuery(search) }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.lotsManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(lotsListOptions(deps.query));
   },
   pendingComponent: LotsPagePending,

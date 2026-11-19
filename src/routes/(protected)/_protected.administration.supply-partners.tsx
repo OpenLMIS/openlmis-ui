@@ -14,7 +14,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { supplyPartnersOptions } from '@/features/supply-partners/api/queries';
 import { AddSupplyPartnerDialog } from '@/features/supply-partners/components/add-supply-partner-dialog';
@@ -38,10 +38,11 @@ declare module '@tanstack/react-router' {
 }
 const CLOSED = { partner: undefined };
 export const Route = createFileRoute('/(protected)/_protected/administration/supply-partners')({
+  staticData: { rights: [RIGHTS.supplyPartnersManage] },
   validateSearch: supplyPartnersSearchSchema,
   loaderDeps: ({ search }) => ({ query: toSupplyPartnersQuery(search) }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.supplyPartnersManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(supplyPartnersOptions(deps.query));
   },
   pendingComponent: ListPending,

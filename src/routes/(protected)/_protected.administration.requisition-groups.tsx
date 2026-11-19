@@ -11,7 +11,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { geographicZonesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { requisitionGroupsSearchOptions } from '@/features/requisition-groups/api/queries';
@@ -41,10 +41,11 @@ const usePageCardView = () =>
   useCardView(REQUISITION_GROUP_HIDEABLE_COLUMNS, 'requisition-groups.column-visibility');
 
 export const Route = createFileRoute('/(protected)/_protected/administration/requisition-groups')({
+  staticData: { rights: [RIGHTS.requisitionGroupsManage] },
   validateSearch: requisitionGroupsSearchSchema,
   loaderDeps: ({ search }) => ({ query: toRequisitionGroupsQuery(search) }),
-  loader: async ({ context: { queryClient }, deps }) => {
-    await requireRight(queryClient, RIGHTS.requisitionGroupsManage);
+  loader: async ({ route, context: { queryClient }, deps }) => {
+    await requireRouteRights(queryClient, route);
     queryClient.prefetchQuery(requisitionGroupsSearchOptions(deps.query));
     queryClient.prefetchQuery(geographicZonesOptions());
     queryClient.prefetchQuery(programsOptions());

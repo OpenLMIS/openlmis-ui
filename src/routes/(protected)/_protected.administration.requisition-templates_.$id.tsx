@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
@@ -24,10 +24,13 @@ import { isNotFound } from '@/lib/http';
 export const Route = createFileRoute(
   '/(protected)/_protected/administration/requisition-templates_/$id',
 )({
-  staticData: { crumbKey: 'requisition-templates.configure.crumb' },
+  staticData: {
+    rights: [RIGHTS.requisitionTemplatesManage],
+    crumbKey: 'requisition-templates.configure.crumb',
+  },
   preload: false,
   validateSearch: z.object({ tab: z.literal('settings').optional().catch(undefined) }),
-  loader: async ({ context: { queryClient }, params, cause }) => {
+  loader: async ({ route, context: { queryClient }, params, cause }) => {
     if (!z.guid().safeParse(params.id).success) throw notFound();
     const detail = requisitionTemplateOptions(params.id);
     try {
@@ -36,7 +39,7 @@ export const Route = createFileRoute(
           ? queryClient.ensureQueryData(detail)
           : queryClient.fetchQuery({ ...detail, staleTime: 0 }),
         queryClient.ensureQueryData(programsOptions()),
-        requireRight(queryClient, RIGHTS.requisitionTemplatesManage),
+        requireRouteRights(queryClient, route),
       ]);
       if (!template.program?.id) throw notFound();
       queryClient.prefetchQuery(templateReasonTagsOptions());

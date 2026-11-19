@@ -13,7 +13,7 @@ import {
   WorkspaceIcon,
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
-import { requireRight } from '@/features/auth/lib/access';
+import { requireRouteRights } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { schedulesListOptions } from '@/features/processing-schedules/api/queries';
 import {
@@ -51,12 +51,13 @@ const noop = () => {};
 
 export const Route = createFileRoute('/(protected)/_protected/administration/processing-schedules')(
   {
+    staticData: { rights: [RIGHTS.processingSchedulesManage] },
     validateSearch: schedulesSearchSchema,
     loaderDeps: ({ search }) => ({
       query: toSchedulesQuery(search),
     }),
-    loader: async ({ context: { queryClient }, deps }) => {
-      await requireRight(queryClient, RIGHTS.processingSchedulesManage);
+    loader: async ({ route, context: { queryClient }, deps }) => {
+      await requireRouteRights(queryClient, route);
       queryClient.prefetchQuery(schedulesListOptions(deps.query));
     },
     pendingComponent: SchedulesPagePending,

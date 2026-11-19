@@ -38,8 +38,8 @@ const copy = {
 
 export const Route = createFileRoute('/(protected)/_protected/stock-management/physical-inventory')(
   {
-    loader: ({ context: { queryClient } }) =>
-      loadStockEventPrograms(queryClient, RIGHTS.stockInventoriesEdit),
+    staticData: { rights: [RIGHTS.stockInventoriesEdit] },
+    loader: ({ route, context: { queryClient } }) => loadStockEventPrograms(queryClient, route),
     pendingComponent: () => <StockEventProgramsPending copy={copy} />,
     component: PhysicalInventoryPage,
   },

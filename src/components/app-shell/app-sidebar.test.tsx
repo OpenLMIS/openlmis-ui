@@ -54,7 +54,15 @@ function renderSidebar(
         <SidebarTrigger />
       </SidebarProvider>
     </TooltipProvider>,
-    { path, queryClient },
+    {
+      path,
+      queryClient,
+      routeStaticData: {
+        '/settings': { rights: ['SYSTEM_SETTINGS_MANAGE'] },
+        '/stock-management/adjustments': { rights: ['STOCK_ADJUST'] },
+        '/stock-management/unpack': { rights: ['STOCK_ADJUST'] },
+      },
+    },
   );
 }
 

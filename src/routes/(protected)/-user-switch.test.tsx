@@ -33,7 +33,6 @@ vi.mock('@/components/app-shell/device-work', () => ({
 }));
 
 vi.mock('@/components/app-shell/nav-access', () => ({
-  useHasRight: () => false,
   useHasOfflineCapability: () => false,
 }));
 vi.mock('@/components/app-shell/app-shell', () => ({

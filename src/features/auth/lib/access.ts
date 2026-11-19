@@ -4,6 +4,7 @@ import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { isRefused } from '@/lib/http';
 import type { Permissions } from '@/lib/permissions';
+import { type RouteWithRights, routeRights } from '@/lib/route-rights';
 import { getSessionScope } from '@/lib/session-scope';
 
 /** Thrown by a route whose user lacks every right that opens the page. */
@@ -45,4 +46,10 @@ export async function requirePermissions(
 
 export async function requireRight(queryClient: QueryClient, right: string | readonly string[]) {
   return (await requirePermissions(queryClient, right)).rights;
+}
+
+export async function requireRouteRights(queryClient: QueryClient, route: RouteWithRights) {
+  const rights = routeRights(route);
+  if (!rights) throw new Error(`Route has no rights declaration: ${route.id ?? '(unknown route)'}`);
+  return requirePermissions(queryClient, rights);
 }

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { EVENT_KINDS } from '@/features/stock-events/lib/event-kinds';
 import { stockEventSearchSchema } from '@/features/stock-events/lib/event-search';
 import { getDefaultIssueReasonId } from '@/lib/runtime-config';
 import {
@@ -10,10 +11,10 @@ import {
 
 export const Route = createFileRoute('/(protected)/_protected/stock-management/issue_/$programId')({
   validateSearch: stockEventSearchSchema,
-  staticData: { crumbKey: 'stock-issue.editor-crumb' },
+  staticData: { rights: [EVENT_KINDS.issue.right], crumbKey: 'stock-issue.editor-crumb' },
   shouldReload: reloadOnEntry,
-  loader: ({ context: { queryClient }, params: { programId } }) =>
-    loadStockEventEditor(queryClient, programId, 'issue'),
+  loader: ({ route, context: { queryClient }, params: { programId } }) =>
+    loadStockEventEditor(queryClient, route, programId, 'issue'),
   pendingComponent: () => (
     <StockEventPending kind="issue" programId={Route.useParams().programId} />
   ),
