@@ -138,7 +138,11 @@ export function CreateOrderForm({
       }),
   });
   return (
-    <form className="flex flex-col gap-4" onSubmit={(event) => event.preventDefault()}>
+    <form
+      aria-busy={programsPending || facilitiesPending || undefined}
+      className="flex flex-col gap-4"
+      onSubmit={(event) => event.preventDefault()}
+    >
       <FieldGroup>
         <div
           className="min-w-0"

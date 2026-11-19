@@ -310,7 +310,9 @@ export function OrderEditor({
                           errorComponent={HeaderError}
                           pendingFallback={<OrderHeaderSkeleton />}
                         >
-                          <OrderHeader order={current} />
+                          <div data-tour={TOUR_ANCHORS.orderSummary}>
+                            <OrderHeader order={current} />
+                          </div>
                         </QueryBoundary>
                         <OrderFields
                           key={active.id}

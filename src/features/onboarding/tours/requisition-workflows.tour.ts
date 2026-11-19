@@ -46,8 +46,8 @@ const approveTour: Tour = {
     },
     {
       anchor: TOUR_ANCHORS.listView,
-      title: 'onboarding.requisitions-approve.view-menu.title',
-      content: 'onboarding.requisitions-approve.view-menu.content',
+      title: 'onboarding.requisitions-list.view-menu.title',
+      content: 'onboarding.requisitions-list.view-menu.content',
     },
     {
       // A tall list leaves no room above it, so the tooltip hangs from View just above it.
@@ -69,8 +69,8 @@ const approveTour: Tour = {
     },
     {
       anchor: TOUR_ANCHORS.listPager,
-      title: 'onboarding.requisitions-approve.pager.title',
-      content: 'onboarding.requisitions-approve.pager.content',
+      title: 'onboarding.requisitions-list.pager.title',
+      content: 'onboarding.requisitions-list.pager.content',
       placement: 'top',
     },
   ],
@@ -130,8 +130,8 @@ const convertTour: Tour = {
     },
     {
       anchor: TOUR_ANCHORS.listView,
-      title: 'onboarding.requisitions-convert.view-menu.title',
-      content: 'onboarding.requisitions-convert.view-menu.content',
+      title: 'onboarding.requisitions-list.view-menu.title',
+      content: 'onboarding.requisitions-list.view-menu.content',
     },
     {
       // A tall list leaves no room above it, so the tooltip hangs from View just above it.
@@ -155,8 +155,8 @@ const convertTour: Tour = {
     },
     {
       anchor: TOUR_ANCHORS.listPager,
-      title: 'onboarding.requisitions-convert.pager.title',
-      content: 'onboarding.requisitions-convert.pager.content',
+      title: 'onboarding.requisitions-list.pager.title',
+      content: 'onboarding.requisitions-list.pager.content',
       placement: 'top',
     },
   ],

@@ -14,7 +14,6 @@ import { OrderStatusBadge } from '@/features/orders/components/order-status-badg
 import type { Order } from '@/features/orders/lib/types';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { orEmpty } from '@/lib/empty-value';
-import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const OrderHeader = memo(function OrderHeader({
   order,
@@ -27,62 +26,58 @@ export const OrderHeader = memo(function OrderHeader({
   const timeZone = useDeploymentTimeZone();
   const shipment = cceStatus !== undefined;
   return (
-    <div data-tour={TOUR_ANCHORS.orderSummary}>
-      <RecordSummary aria-label={shipment ? t('orders.shipment.crumb') : undefined}>
-        {shipment ? (
-          <RecordSummaryHeading>
-            <span className="font-normal text-muted-foreground text-xs">
-              {t('orders.view.columns.order-code')}
-            </span>
-            <span className="break-words">
-              <bdi>{order.orderCode ?? order.id}</bdi>
-            </span>
-            {order.emergency && (
-              <Badge variant="destructive">{t('orders.shipment.emergency')}</Badge>
-            )}
-          </RecordSummaryHeading>
-        ) : (
-          <RecordSummaryHeading>
-            <span className="font-normal text-muted-foreground text-xs">
-              {t('orders.edit.requesting-facility')}
-            </span>
-            <span className="break-words">
-              <bdi>{order.requestingFacility.name ?? order.requestingFacility.id}</bdi>
-            </span>
-          </RecordSummaryHeading>
+    <RecordSummary aria-label={shipment ? t('orders.shipment.crumb') : undefined}>
+      {shipment ? (
+        <RecordSummaryHeading>
+          <span className="font-normal text-muted-foreground text-xs">
+            {t('orders.view.columns.order-code')}
+          </span>
+          <span className="break-words">
+            <bdi>{order.orderCode ?? order.id}</bdi>
+          </span>
+          {order.emergency && <Badge variant="destructive">{t('orders.shipment.emergency')}</Badge>}
+        </RecordSummaryHeading>
+      ) : (
+        <RecordSummaryHeading>
+          <span className="font-normal text-muted-foreground text-xs">
+            {t('orders.edit.requesting-facility')}
+          </span>
+          <span className="break-words">
+            <bdi>{order.requestingFacility.name ?? order.requestingFacility.id}</bdi>
+          </span>
+        </RecordSummaryHeading>
+      )}
+      <RecordSummaryFields>
+        {!shipment && order.emergency && (
+          <RecordSummaryField label={t('orders.shipment.emergency')}>
+            <Badge variant="destructive">{t('orders.shipment.emergency')}</Badge>
+          </RecordSummaryField>
         )}
-        <RecordSummaryFields>
-          {!shipment && order.emergency && (
-            <RecordSummaryField label={t('orders.shipment.emergency')}>
-              <Badge variant="destructive">{t('orders.shipment.emergency')}</Badge>
+        <RecordSummaryField label={t('orders.edit.status')}>
+          <OrderStatusBadge status={order.status} />
+        </RecordSummaryField>
+        <RecordSummaryField label={t('orders.edit.date-created')}>
+          {orEmpty(formatTimestamp(order.createdDate, i18n.language, { timeZone }))}
+        </RecordSummaryField>
+        <RecordSummaryField label={t('orders.edit.program')}>
+          {order.program.name ?? order.program.id}
+        </RecordSummaryField>
+        {shipment ? (
+          <>
+            <RecordSummaryField label={t('orders.shipment.facility')}>
+              {order.requestingFacility.name ?? order.requestingFacility.id}
             </RecordSummaryField>
-          )}
-          <RecordSummaryField label={t('orders.edit.status')}>
-            <OrderStatusBadge status={order.status} />
-          </RecordSummaryField>
-          <RecordSummaryField label={t('orders.edit.date-created')}>
-            {orEmpty(formatTimestamp(order.createdDate, i18n.language, { timeZone }))}
-          </RecordSummaryField>
-          <RecordSummaryField label={t('orders.edit.program')}>
-            {order.program.name ?? order.program.id}
-          </RecordSummaryField>
-          {shipment ? (
-            <>
-              <RecordSummaryField label={t('orders.shipment.facility')}>
-                {order.requestingFacility.name ?? order.requestingFacility.id}
-              </RecordSummaryField>
-              <RecordSummaryField label={t('orders.shipment.cce-status')}>
-                {cceStatus}
-              </RecordSummaryField>
-            </>
-          ) : (
-            <RecordSummaryField label={t('orders.edit.supplying-facility')}>
-              {order.supplyingFacility.name ?? order.supplyingFacility.id}
+            <RecordSummaryField label={t('orders.shipment.cce-status')}>
+              {cceStatus}
             </RecordSummaryField>
-          )}
-        </RecordSummaryFields>
-      </RecordSummary>
-    </div>
+          </>
+        ) : (
+          <RecordSummaryField label={t('orders.edit.supplying-facility')}>
+            {order.supplyingFacility.name ?? order.supplyingFacility.id}
+          </RecordSummaryField>
+        )}
+      </RecordSummaryFields>
+    </RecordSummary>
   );
 });
 
