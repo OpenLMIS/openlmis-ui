@@ -108,12 +108,11 @@ export function PodRowButtons({
       <CardActions label={label} actions={[action, printAction]} />
     </div>
   ) : (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex items-center justify-end gap-1" data-tour={TOUR_ANCHORS.podManage}>
       <Button
         size="sm"
         variant={action.variant}
         aria-label={action.name}
-        data-tour={TOUR_ANCHORS.podManage}
         disabled={action.disabled}
         onClick={() => manage.mutate()}
       >

@@ -134,7 +134,7 @@ export function PodGrid({
       )),
     );
   return (
-    <div data-tour={TOUR_ANCHORS.podLines} ref={measure}>
+    <div data-tour={TOUR_ANCHORS.orderLines} ref={measure}>
       {cards ? (
         <CardList>
           {groups.map((group, index) => (

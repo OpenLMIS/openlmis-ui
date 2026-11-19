@@ -10,7 +10,7 @@ export function TourLegend({ items }: { items: readonly TourLegendItem[] }) {
         <li key={label} className="flex items-start gap-2">
           <span className="shrink-0">
             <Badge variant={tone}>
-              <Icon aria-hidden="true" data-icon="inline-start" />
+              {Icon && <Icon aria-hidden="true" data-icon="inline-start" />}
               {t(label)}
             </Badge>
           </span>

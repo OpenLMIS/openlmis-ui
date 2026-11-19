@@ -284,7 +284,7 @@ function OrdersBody({
   }
   return (
     <>
-      <div data-tour={suppliers.length ? TOUR_ANCHORS.ordersSupplier : undefined}>
+      <div data-tour={suppliers.length ? TOUR_ANCHORS.viewOrdersSupplier : undefined}>
         <SupplierSearchPicker
           options={suppliers}
           applied={search.supplyingFacilityId}

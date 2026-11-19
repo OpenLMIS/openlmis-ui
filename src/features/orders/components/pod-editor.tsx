@@ -380,7 +380,7 @@ export function PodEditor({
           {t('orders.edit.cancel')}
         </Button>
         {editable && (
-          <div className="flex flex-wrap justify-end gap-2" data-tour={TOUR_ANCHORS.podActions}>
+          <div className="flex flex-wrap justify-end gap-2" data-tour={TOUR_ANCHORS.orderActions}>
             <Button
               size="lg"
               variant="outline"

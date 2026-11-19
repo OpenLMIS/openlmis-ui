@@ -53,7 +53,7 @@ export function ShipmentGrid(props: ShipmentGridProps) {
   for (const row of rows)
     if (row.line && !firstRows.has(row.line.key)) firstRows.set(row.line.key, row.key);
   return (
-    <div data-tour={TOUR_ANCHORS.shipmentLines} ref={measure}>
+    <div data-tour={TOUR_ANCHORS.orderLines} ref={measure}>
       {cards ? (
         <ShipmentCards {...props} groups={groups} />
       ) : (

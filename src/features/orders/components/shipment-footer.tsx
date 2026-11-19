@@ -48,7 +48,7 @@ export function ShipmentFooter({
         </div>
         <div
           className="ms-auto flex flex-wrap justify-end gap-2"
-          data-tour={canCancel || (canEdit && hasDraft) ? TOUR_ANCHORS.shipmentActions : undefined}
+          data-tour={canCancel || (canEdit && hasDraft) ? TOUR_ANCHORS.orderActions : undefined}
         >
           {canCancel && (
             <Button

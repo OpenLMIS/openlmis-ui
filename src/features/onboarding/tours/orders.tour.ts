@@ -1,25 +1,44 @@
-import type { Tour } from '@/features/onboarding/lib/types';
+import type { Tour, TourLegendItem, TourStep } from '@/features/onboarding/lib/types';
+import { pagerStep, sortStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
-const viewMenuStep = {
-  anchor: TOUR_ANCHORS.listView,
-  title: 'onboarding.orders-list.view-menu.title',
-  content: 'onboarding.orders-list.view-menu.content',
+const STATUS_TONES = {
+  creating: 'secondary',
+  ordered: 'info',
+  fulfilling: 'warning',
+  shipped: 'info',
+  'in-route': 'info',
+  'ready-to-pack': 'warning',
+  received: 'success',
+  'transfer-failed': 'destructive',
+  cancelled: 'secondary',
 } as const;
+type StatusKey = keyof typeof STATUS_TONES;
 
-const pagerStep = {
-  anchor: TOUR_ANCHORS.listPager,
-  title: 'onboarding.list.pager.title',
-  content: 'onboarding.list.pager.content',
-  placement: 'top',
-} as const;
+/** Status badges drawn as the list draws them, so the step reads true on an empty list too. */
+const statusLegend = (statuses: readonly StatusKey[]): TourLegendItem[] =>
+  statuses.map((status) => ({
+    label: `orders.status.${status}`,
+    text: `onboarding.orders-status.${status}`,
+    tone: STATUS_TONES[status],
+  }));
+
+const statusStep = (column: TourStep['column'], statuses: readonly StatusKey[]): TourStep => ({
+  anchor: TOUR_ANCHORS.listView,
+  spotlight: TOUR_ANCHORS.listTable,
+  column,
+  title: 'onboarding.orders-status.title',
+  content: 'onboarding.orders-status.content',
+  placement: 'inline-start',
+  legend: statusLegend(statuses),
+});
 
 const ordersViewTour: Tour = {
   id: 'orders-view',
   routeIds: ['/(protected)/_protected/orders/view'],
   steps: [
     {
-      anchor: TOUR_ANCHORS.ordersSupplier,
+      anchor: TOUR_ANCHORS.viewOrdersSupplier,
       title: 'onboarding.orders-view.supplier.title',
       content: 'onboarding.orders-view.supplier.content',
     },
@@ -28,7 +47,7 @@ const ordersViewTour: Tour = {
       title: 'onboarding.orders-view.filters.title',
       content: 'onboarding.orders-view.filters.content',
     },
-    viewMenuStep,
+    viewSortStep,
     {
       // A tall list leaves no room above it, so the tooltip hangs from View just above it.
       anchor: TOUR_ANCHORS.listView,
@@ -36,11 +55,18 @@ const ordersViewTour: Tour = {
       title: 'onboarding.orders-view.results.title',
       content: 'onboarding.orders-view.results.content',
     },
-    {
-      anchor: TOUR_ANCHORS.listSort,
-      title: 'onboarding.orders-view.sort.title',
-      content: 'onboarding.orders-view.sort.content',
-    },
+    statusStep('orders.view.columns.status', [
+      'creating',
+      'ordered',
+      'fulfilling',
+      'ready-to-pack',
+      'shipped',
+      'in-route',
+      'received',
+      'transfer-failed',
+      'cancelled',
+    ]),
+    sortStep,
     {
       // Rows offer different actions by status and rights, so the step highlights the column.
       anchor: TOUR_ANCHORS.listView,
@@ -68,13 +94,14 @@ const fulfillmentTour: Tour = {
       title: 'onboarding.orders-fulfillment.sort.title',
       content: 'onboarding.orders-fulfillment.sort.content',
     },
-    viewMenuStep,
+    viewSortStep,
     {
       anchor: TOUR_ANCHORS.listView,
       spotlight: TOUR_ANCHORS.listTable,
       title: 'onboarding.orders-fulfillment.results.title',
       content: 'onboarding.orders-fulfillment.results.content',
     },
+    statusStep('orders.fulfill.columns.status', ['ordered', 'fulfilling']),
     {
       anchor: TOUR_ANCHORS.fulfillStart,
       title: 'onboarding.orders-fulfillment.start.title',
@@ -102,13 +129,13 @@ const shipmentTour: Tour = {
     {
       // The lines fill the screen, so the tooltip hangs from the summary just above them.
       anchor: TOUR_ANCHORS.orderSummary,
-      spotlight: TOUR_ANCHORS.shipmentLines,
+      spotlight: TOUR_ANCHORS.orderLines,
       title: 'onboarding.orders-shipment.lines.title',
       content: 'onboarding.orders-shipment.lines.content',
     },
     {
       anchor: TOUR_ANCHORS.shipmentFill,
-      spotlight: TOUR_ANCHORS.shipmentLines,
+      spotlight: TOUR_ANCHORS.orderLines,
       column: 'orders.shipment.fill',
       title: 'onboarding.orders-shipment.fill.title',
       content: 'onboarding.orders-shipment.fill.content',
@@ -121,7 +148,7 @@ const shipmentTour: Tour = {
       placement: 'top',
     },
     {
-      anchor: TOUR_ANCHORS.shipmentActions,
+      anchor: TOUR_ANCHORS.orderActions,
       title: 'onboarding.orders-shipment.actions.title',
       content: 'onboarding.orders-shipment.actions.content',
       placement: 'top',
@@ -138,18 +165,21 @@ const podTour: Tour = {
       title: 'onboarding.orders-pod.picker.title',
       content: 'onboarding.orders-pod.picker.content',
     },
-    viewMenuStep,
+    viewSortStep,
     {
       anchor: TOUR_ANCHORS.listView,
       spotlight: TOUR_ANCHORS.listTable,
       title: 'onboarding.orders-pod.results.title',
       content: 'onboarding.orders-pod.results.content',
     },
-    {
-      anchor: TOUR_ANCHORS.listSort,
-      title: 'onboarding.orders-pod.sort.title',
-      content: 'onboarding.orders-pod.sort.content',
-    },
+    statusStep('orders.pod.columns.status', [
+      'ready-to-pack',
+      'shipped',
+      'in-route',
+      'received',
+      'transfer-failed',
+    ]),
+    sortStep,
     {
       anchor: TOUR_ANCHORS.podManage,
       title: 'onboarding.orders-pod.manage.title',
@@ -177,13 +207,13 @@ const podDetailTour: Tour = {
     {
       // The lines fill the screen, so the tooltip hangs from the summary just above them.
       anchor: TOUR_ANCHORS.orderSummary,
-      spotlight: TOUR_ANCHORS.podLines,
+      spotlight: TOUR_ANCHORS.orderLines,
       title: 'onboarding.orders-pod-detail.lines.title',
       content: 'onboarding.orders-pod-detail.lines.content',
     },
     {
       anchor: TOUR_ANCHORS.podAccepted,
-      spotlight: TOUR_ANCHORS.podLines,
+      spotlight: TOUR_ANCHORS.orderLines,
       column: 'orders.pod.accepted',
       title: 'onboarding.orders-pod-detail.accepted.title',
       content: 'onboarding.orders-pod-detail.accepted.content',
@@ -196,7 +226,7 @@ const podDetailTour: Tour = {
       placement: 'top',
     },
     {
-      anchor: TOUR_ANCHORS.podActions,
+      anchor: TOUR_ANCHORS.orderActions,
       title: 'onboarding.orders-pod-detail.actions.title',
       content: 'onboarding.orders-pod-detail.actions.content',
       placement: 'top',

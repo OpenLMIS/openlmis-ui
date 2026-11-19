@@ -1,4 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
+import { pagerStep, viewMenuStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const initiateTour: Tour = {
@@ -44,11 +45,7 @@ const approveTour: Tour = {
       title: 'onboarding.requisitions-approve.sort.title',
       content: 'onboarding.requisitions-approve.sort.content',
     },
-    {
-      anchor: TOUR_ANCHORS.listView,
-      title: 'onboarding.requisitions-approve.view-menu.title',
-      content: 'onboarding.requisitions-approve.view-menu.content',
-    },
+    viewSortStep,
     {
       // A tall list leaves no room above it, so the tooltip hangs from View just above it.
       anchor: TOUR_ANCHORS.listView,
@@ -67,12 +64,7 @@ const approveTour: Tour = {
       title: 'onboarding.requisitions-approve.select.title',
       content: 'onboarding.requisitions-approve.select.content',
     },
-    {
-      anchor: TOUR_ANCHORS.listPager,
-      title: 'onboarding.list.pager.title',
-      content: 'onboarding.list.pager.content',
-      placement: 'top',
-    },
+    pagerStep,
   ],
 };
 
@@ -128,11 +120,7 @@ const convertTour: Tour = {
       title: 'onboarding.requisitions-convert.filters.title',
       content: 'onboarding.requisitions-convert.filters.content',
     },
-    {
-      anchor: TOUR_ANCHORS.listView,
-      title: 'onboarding.list.view-menu.title',
-      content: 'onboarding.list.view-menu.content',
-    },
+    viewMenuStep,
     {
       // A tall list leaves no room above it, so the tooltip hangs from View just above it.
       anchor: TOUR_ANCHORS.listView,
@@ -153,12 +141,7 @@ const convertTour: Tour = {
       title: 'onboarding.requisitions-convert.select.title',
       content: 'onboarding.requisitions-convert.select.content',
     },
-    {
-      anchor: TOUR_ANCHORS.listPager,
-      title: 'onboarding.list.pager.title',
-      content: 'onboarding.list.pager.content',
-      placement: 'top',
-    },
+    pagerStep,
   ],
 };
 
