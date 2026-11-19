@@ -20,6 +20,7 @@ import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { openReport } from '@/lib/open-report';
 import { getSessionUserId } from '@/lib/session-scope';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function PodRowButtons({
   order,
@@ -103,9 +104,11 @@ export function PodRowButtons({
     onSelect: print.print,
   };
   return cards ? (
-    <CardActions label={label} actions={[action, printAction]} />
+    <div className="flex shrink-0" data-tour={TOUR_ANCHORS.podManage}>
+      <CardActions label={label} actions={[action, printAction]} />
+    </div>
   ) : (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex items-center justify-end gap-1" data-tour={TOUR_ANCHORS.podManage}>
       <Button
         size="sm"
         variant={action.variant}

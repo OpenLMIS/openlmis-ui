@@ -29,6 +29,7 @@ import {
 } from '@/features/orders/lib/pod-validation';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { orEmpty, tableValue } from '@/lib/empty-value';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { vvmStages } from '@/lib/vvm';
 
 const columns = [
@@ -133,7 +134,7 @@ export function PodGrid({
       )),
     );
   return (
-    <div ref={measure}>
+    <div data-tour={TOUR_ANCHORS.orderLines} ref={measure}>
       {cards ? (
         <CardList>
           {groups.map((group, index) => (
@@ -267,14 +268,16 @@ function PodRow({
       >
         {(field) =>
           key === 'accepted' ? (
-            <field.NumberField
-              label={t('orders.pod.accepted-for', { product: name, lot })}
-              layout="inline"
-              hideErrors
-              required
-              disabled={disabled}
-              controlSize={cards ? undefined : 'sm'}
-            />
+            <div data-tour={TOUR_ANCHORS.podAccepted}>
+              <field.NumberField
+                label={t('orders.pod.accepted-for', { product: name, lot })}
+                layout="inline"
+                hideErrors
+                required
+                disabled={disabled}
+                controlSize={cards ? undefined : 'sm'}
+              />
+            </div>
           ) : key === 'reason' || key === 'vvm' ? (
             <field.SelectField
               label={t(`orders.pod.${key}-for`, { product: name, lot })}

@@ -2,6 +2,7 @@ import type { Tour } from '@/features/onboarding/lib/types';
 import { adminListTour } from '@/features/onboarding/tours/admin-list.tour';
 import { homeTour } from '@/features/onboarding/tours/home.tour';
 import { offlineEventsTour } from '@/features/onboarding/tours/offline-events.tour';
+import { ordersTours } from '@/features/onboarding/tours/orders.tour';
 import { physicalInventoryTour } from '@/features/onboarding/tours/physical-inventory.tour';
 import { physicalInventoryDraftTour } from '@/features/onboarding/tours/physical-inventory-draft.tour';
 import { requisitionDetailTour } from '@/features/onboarding/tours/requisition-detail.tour';
@@ -26,6 +27,7 @@ const TOURS: readonly Tour[] = [
   physicalInventoryDraftTour,
   ...stockEventTours,
   offlineEventsTour,
+  ...ordersTours,
   adminListTour,
 ];
 

@@ -10,7 +10,8 @@ export type TourLegendItem = {
   label: ParseKeys;
   text: ParseKeys;
   tone: 'secondary' | 'success' | 'info' | 'warning' | 'destructive' | 'outline';
-  icon: LucideIcon;
+  /** Left out where the screen's badge has no icon. */
+  icon?: LucideIcon;
 };
 
 export type TourStep = {

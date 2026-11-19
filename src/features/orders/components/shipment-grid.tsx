@@ -26,6 +26,7 @@ import { shipmentFieldKey } from '@/features/orders/lib/shipment-form';
 import { shipmentGroups, validateShipmentFill } from '@/features/orders/lib/shipment-lines';
 import { availableShipmentPacks } from '@/features/orders/lib/shipment-quantities';
 import { useCardLayout } from '@/hooks/use-card-view';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function ShipmentGrid(props: ShipmentGridProps) {
   const { t } = useTranslation();
@@ -52,7 +53,7 @@ export function ShipmentGrid(props: ShipmentGridProps) {
   for (const row of rows)
     if (row.line && !firstRows.has(row.line.key)) firstRows.set(row.line.key, row.key);
   return (
-    <div ref={measure}>
+    <div data-tour={TOUR_ANCHORS.orderLines} ref={measure}>
       {cards ? (
         <ShipmentCards {...props} groups={groups} />
       ) : (

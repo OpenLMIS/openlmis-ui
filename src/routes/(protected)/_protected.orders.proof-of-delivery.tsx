@@ -53,6 +53,7 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { ORDER_LISTS_KEY } from '@/lib/order-queries';
 import { RIGHTS } from '@/lib/rights';
 import { getSessionUserId } from '@/lib/session-scope';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const NO_DIALOGS = {};
 export const Route = createFileRoute('/(protected)/_protected/orders/proof-of-delivery')({
@@ -222,25 +223,27 @@ function PodBody({
       />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={columnView.measure}>
-          <PodSearchPicker
-            applied={search}
-            requesting={facilities.filter(({ id }) =>
-              data.allowed.requestingFacilityIds.includes(id),
-            )}
-            supplying={facilities.filter(({ id }) =>
-              data.allowed.supplyingFacilityIds.includes(id),
-            )}
-            programs={data.programs}
-            onDraftChange={setDraft}
-            onSearch={(selection) => {
-              if (!pending)
-                void client.invalidateQueries({
-                  queryKey: ORDER_LISTS_KEY,
-                  refetchType: search.page ? 'none' : 'active',
-                });
-              updateSearch({ ...selection, page: undefined });
-            }}
-          />
+          <div data-tour={data.programs.length ? TOUR_ANCHORS.podPicker : undefined}>
+            <PodSearchPicker
+              applied={search}
+              requesting={facilities.filter(({ id }) =>
+                data.allowed.requestingFacilityIds.includes(id),
+              )}
+              supplying={facilities.filter(({ id }) =>
+                data.allowed.supplyingFacilityIds.includes(id),
+              )}
+              programs={data.programs}
+              onDraftChange={setDraft}
+              onSearch={(selection) => {
+                if (!pending)
+                  void client.invalidateQueries({
+                    queryKey: ORDER_LISTS_KEY,
+                    refetchType: search.page ? 'none' : 'active',
+                  });
+                updateSearch({ ...selection, page: undefined });
+              }}
+            />
+          </div>
           {ready ? (
             <>
               <DataTableToolbar align="end">

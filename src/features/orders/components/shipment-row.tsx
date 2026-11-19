@@ -12,6 +12,7 @@ import {
 import { groupQuantities, lineQuantities } from '@/features/orders/lib/shipment-quantities';
 import type { Order } from '@/features/orders/lib/types';
 import type { QuantityUnit } from '@/lib/quantity';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { vvmStages } from '@/lib/vvm';
 import { toWholeNumber, wholeNumberError } from '@/lib/whole-number';
 
@@ -150,7 +151,7 @@ export function ShipmentFill({
       }));
   }, [show, issue, form, name]);
   return (
-    <div className="min-w-24">
+    <div className="min-w-24" data-tour={TOUR_ANCHORS.shipmentFill}>
       <form.AppField
         name={name}
         validators={{

@@ -60,6 +60,7 @@ import { openReport } from '@/lib/open-report';
 import { revealField } from '@/lib/reveal-field';
 import { getSessionUserId } from '@/lib/session-scope';
 import { homeStockRefreshKey } from '@/lib/stock-programs';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function PodEditor({
   initial,
@@ -230,6 +231,7 @@ export function PodEditor({
             <Button
               size="lg"
               variant="outline"
+              data-tour={print.offline ? undefined : TOUR_ANCHORS.podPrint}
               disabled={pending || print.offline}
               onClick={print.print}
             >
@@ -240,46 +242,48 @@ export function PodEditor({
         </WorkspaceHeader>
         <WorkspaceContent>
           <div className="flex flex-col gap-4">
-            <RecordSummary>
-              <RecordSummaryHeading>
-                <span className="font-normal text-muted-foreground text-xs">
-                  {t('orders.pod.columns.order-code')}
-                </span>
-                <span className="break-words">
-                  <bdi>{order.orderCode ?? order.id}</bdi>
-                </span>
-              </RecordSummaryHeading>
-              <RecordSummaryFields>
-                <RecordSummaryField label={t('orders.pod.columns.status')}>
-                  <OrderStatusBadge status={order.status} />
-                </RecordSummaryField>
-                <RecordSummaryField label={t('orders.pod.ordering-facility')}>
-                  {[order.facility.code, order.facility.name].filter(Boolean).join(' - ')}
-                </RecordSummaryField>
-                <RecordSummaryField label={t('orders.pod.columns.created-date')}>
-                  {orEmpty(
-                    formatTimestamp(order.createdDate, i18n.language, { time: true, timeZone }),
-                  )}
-                </RecordSummaryField>
-                <RecordSummaryField label={t('orders.pod.reporting-period')}>
-                  {order.processingPeriod
-                    ? [order.processingPeriod.startDate, order.processingPeriod.endDate]
-                        .map((date) => formatDateValue(date ?? '', i18n.language))
-                        .join(' - ')
-                    : orEmpty(null)}
-                </RecordSummaryField>
-                <RecordSummaryField label={t('orders.pod.supplying-facility')}>
-                  {order.supplyingFacility.name ?? order.supplyingFacility.id}
-                </RecordSummaryField>
-                <RecordSummaryField label={t('orders.pod.columns.emergency')}>
-                  <FlagBadge
-                    value={order.emergency ?? false}
-                    trueLabel={t('orders.yes')}
-                    falseLabel={t('orders.no')}
-                  />
-                </RecordSummaryField>
-              </RecordSummaryFields>
-            </RecordSummary>
+            <div data-tour={TOUR_ANCHORS.orderSummary}>
+              <RecordSummary>
+                <RecordSummaryHeading>
+                  <span className="font-normal text-muted-foreground text-xs">
+                    {t('orders.pod.columns.order-code')}
+                  </span>
+                  <span className="break-words">
+                    <bdi>{order.orderCode ?? order.id}</bdi>
+                  </span>
+                </RecordSummaryHeading>
+                <RecordSummaryFields>
+                  <RecordSummaryField label={t('orders.pod.columns.status')}>
+                    <OrderStatusBadge status={order.status} />
+                  </RecordSummaryField>
+                  <RecordSummaryField label={t('orders.pod.ordering-facility')}>
+                    {[order.facility.code, order.facility.name].filter(Boolean).join(' - ')}
+                  </RecordSummaryField>
+                  <RecordSummaryField label={t('orders.pod.columns.created-date')}>
+                    {orEmpty(
+                      formatTimestamp(order.createdDate, i18n.language, { time: true, timeZone }),
+                    )}
+                  </RecordSummaryField>
+                  <RecordSummaryField label={t('orders.pod.reporting-period')}>
+                    {order.processingPeriod
+                      ? [order.processingPeriod.startDate, order.processingPeriod.endDate]
+                          .map((date) => formatDateValue(date ?? '', i18n.language))
+                          .join(' - ')
+                      : orEmpty(null)}
+                  </RecordSummaryField>
+                  <RecordSummaryField label={t('orders.pod.supplying-facility')}>
+                    {order.supplyingFacility.name ?? order.supplyingFacility.id}
+                  </RecordSummaryField>
+                  <RecordSummaryField label={t('orders.pod.columns.emergency')}>
+                    <FlagBadge
+                      value={order.emergency ?? false}
+                      trueLabel={t('orders.yes')}
+                      falseLabel={t('orders.no')}
+                    />
+                  </RecordSummaryField>
+                </RecordSummaryFields>
+              </RecordSummary>
+            </div>
             {pod.lineItems.some(
               (line) => shippedQuantity(line, pod.shipment.lineItems) === null,
             ) && (
@@ -305,7 +309,7 @@ export function PodEditor({
                 disabled={pending && mutation.variables?.confirming === true}
                 attempted={attempted}
               />
-              <div className="ms-auto w-full max-w-2xl">
+              <div className="ms-auto w-full max-w-2xl" data-tour={TOUR_ANCHORS.podDelivery}>
                 <SettingsList>
                   {(['deliveredBy', 'receivedBy', 'receivedDate'] as const).map((key) =>
                     editable ? (
@@ -376,7 +380,7 @@ export function PodEditor({
           {t('orders.edit.cancel')}
         </Button>
         {editable && (
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2" data-tour={TOUR_ANCHORS.orderActions}>
             <Button
               size="lg"
               variant="outline"
