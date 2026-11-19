@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { buqAccess } from '@/features/buq/lib/access';
+import { approveAccess, buqAccess } from '@/features/buq/lib/access';
 import { parsePermissions } from '@/lib/permissions';
 
 const BUQ = { id: 'g1', code: 'BUQ', name: 'BUQ' };
@@ -148,4 +148,12 @@ it('carries the program setting that lets Submit authorize at once', () => {
       support: 'listed',
     }),
   ).toMatchObject({ kind: 'ready', skipAuthorization: true });
+});
+
+it('approves within the BUQ program from the user programs, without a home facility', () => {
+  expect(approveAccess([{ id: 'g2', code: 'EPI', name: 'EPI' }, BUQ])).toEqual({
+    kind: 'ready',
+    programId: 'g1',
+  });
+  expect(approveAccess([{ id: 'g2', code: 'EPI', name: 'EPI' }])).toEqual({ kind: 'no-program' });
 });
