@@ -5,6 +5,7 @@ import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type SaveFeedbackProps = {
   conflict: boolean;
@@ -60,7 +61,13 @@ export function SettingsSaveFooter({ canSave, pending, onCancel, form }: Setting
       <Button disabled={pending || !canSave} onClick={onCancel} size="lg" variant="outline">
         {t('system-settings.cancel')}
       </Button>
-      <Button disabled={pending || !canSave} form={form} size="lg" type="submit">
+      <Button
+        data-tour={pending || !canSave ? undefined : TOUR_ANCHORS.accountSave}
+        disabled={pending || !canSave}
+        form={form}
+        size="lg"
+        type="submit"
+      >
         {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
         {t('system-settings.save')}
       </Button>

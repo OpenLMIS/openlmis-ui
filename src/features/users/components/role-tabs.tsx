@@ -87,7 +87,7 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
         value={tab.id}
       >
         {/* A size container, so the tabs go two by two when four do not fit in a row. */}
-        <div className="@container">
+        <div className="@container" data-tour={TOUR_ANCHORS.roleTypes}>
           <TabsList
             aria-label={t('users.roles.tabs-label')}
             data-tour={TOUR_ANCHORS.editorTabs}

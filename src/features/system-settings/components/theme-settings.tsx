@@ -20,6 +20,7 @@ import {
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { APPEARANCES } from '@/lib/app-configuration';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const FORM_ID = 'theme-form';
 
@@ -96,7 +97,13 @@ export function ThemeSettings({ saved }: { saved: AppConfigurationDto }) {
       />
       <div className="flex flex-col gap-6">
         <SaveFeedback {...settings.feedback} />
-        <form className="flex flex-col gap-6" id={FORM_ID} noValidate onSubmit={settings.submit}>
+        <form
+          className="flex flex-col gap-6"
+          data-tour={TOUR_ANCHORS.settingsTheme}
+          id={FORM_ID}
+          noValidate
+          onSubmit={settings.submit}
+        >
           <form.AppField name="preset">
             {(field) => (
               <field.RadioGroupField

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Logo } from '@/components/app-shell/logo';
 import { appConfig } from '@/lib/config';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type BrandingPreviewProps = {
   appName: string;
@@ -29,7 +30,11 @@ export function BrandingPreview({ appName, logoUrl, showAppName }: BrandingPrevi
 
   return (
     <section aria-labelledby="branding-preview-title" className="flex flex-col gap-3">
-      <h2 className="font-medium text-sm" id="branding-preview-title">
+      <h2
+        className="font-medium text-sm"
+        data-tour={TOUR_ANCHORS.settingsPreview}
+        id="branding-preview-title"
+      >
         {t('system-settings.branding.preview-title')}
       </h2>
       <div className="grid gap-3 @xl/main:grid-cols-3">

@@ -16,6 +16,7 @@ import {
 } from '@/components/workspace/workspace';
 import { WorkspaceSlots, WorkspaceTabs } from '@/components/workspace/workspace-tabs';
 import { markDialogOpened } from '@/hooks/use-search-navigation';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const PROFILE_TABS = [
   { to: '/profile', labelKey: 'profile.tabs.basic' },
@@ -53,6 +54,7 @@ export function ProfileWorkspace({ username, children }: ProfileWorkspaceProps) 
               <Block className="h-9 w-40" />
             ) : (
               <Button
+                data-tour={TOUR_ANCHORS.profilePassword}
                 nativeButton={false}
                 render={
                   <Link

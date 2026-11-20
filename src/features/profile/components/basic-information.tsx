@@ -27,6 +27,7 @@ import type { Profile } from '@/features/profile/lib/types';
 import { homeFacilityOptions } from '@/features/reference-data/api/queries';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const FORM_ID = 'profile-form';
 
@@ -95,7 +96,13 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
         >
           {t('profile.cancel')}
         </Button>
-        <Button disabled={!changed || save.isPending} form={FORM_ID} size="lg" type="submit">
+        <Button
+          data-tour={!changed || save.isPending ? undefined : TOUR_ANCHORS.accountSave}
+          disabled={!changed || save.isPending}
+          form={FORM_ID}
+          size="lg"
+          type="submit"
+        >
           {save.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
           {t('profile.save')}
         </Button>
@@ -116,80 +123,84 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
           />
         )}
         <PendingEmail userId={user.id} />
-        <SettingsList>
-          <SettingsItem label={t('users.username')}>{user.username}</SettingsItem>
-          <SettingsItem label={t('users.form.job-title')}>{user.jobTitle || <None />}</SettingsItem>
-          <SettingsItem label={t('users.form.home-facility')}>
-            {user.homeFacilityId ? <FacilityName id={user.homeFacilityId} /> : <None />}
-          </SettingsItem>
-          <form.AppField name="firstName">
-            {(field) => (
-              <field.TextField
-                autoComplete="given-name"
-                label={t('users.form.first-name')}
-                layout="row"
-                required
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="lastName">
-            {(field) => (
-              <field.TextField
-                autoComplete="family-name"
-                label={t('users.form.last-name')}
-                layout="row"
-                required
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="email">
-            {(field) => {
-              const typed = field.state.value.trim();
-              // The saved address shows whether it is verified; a new one, that it waits for its link.
-              const isSaved = typed !== '' && typed === savedEmail;
-              return (
+        <div data-tour={TOUR_ANCHORS.profileDetails}>
+          <SettingsList>
+            <SettingsItem label={t('users.username')}>{user.username}</SettingsItem>
+            <SettingsItem label={t('users.form.job-title')}>
+              {user.jobTitle || <None />}
+            </SettingsItem>
+            <SettingsItem label={t('users.form.home-facility')}>
+              {user.homeFacilityId ? <FacilityName id={user.homeFacilityId} /> : <None />}
+            </SettingsItem>
+            <form.AppField name="firstName">
+              {(field) => (
                 <field.TextField
-                  autoComplete="email"
-                  badge={isSaved && <EmailStatus verified={emailVerified} />}
-                  description={typed && !isSaved && t('profile.email.change-hint')}
-                  dir="ltr"
-                  label={t('users.email')}
+                  autoComplete="given-name"
+                  label={t('users.form.first-name')}
                   layout="row"
-                  type="email"
+                  required
                 />
-              );
-            }}
-          </form.AppField>
-          <form.AppField name="phoneNumber">
-            {(field) => (
-              <field.TextField
-                autoComplete="tel"
-                dir="ltr"
-                label={t('users.form.phone-number')}
-                layout="row"
-                type="tel"
-              />
-            )}
-          </form.AppField>
-          <form.Subscribe selector={(state) => state.values.email.trim() !== ''}>
-            {(hasEmail) => (
-              <form.AppField name="allowNotify">
-                {(field) => (
-                  <field.SwitchField
-                    description={t(
-                      emailVerified && hasEmail
-                        ? 'profile.allow-notify.description'
-                        : 'profile.allow-notify.needs-verified',
-                    )}
-                    disabled={!emailVerified || !hasEmail}
-                    label={t('users.form.allow-notify')}
+              )}
+            </form.AppField>
+            <form.AppField name="lastName">
+              {(field) => (
+                <field.TextField
+                  autoComplete="family-name"
+                  label={t('users.form.last-name')}
+                  layout="row"
+                  required
+                />
+              )}
+            </form.AppField>
+            <form.AppField name="email">
+              {(field) => {
+                const typed = field.state.value.trim();
+                // The saved address shows whether it is verified; a new one, that it waits for its link.
+                const isSaved = typed !== '' && typed === savedEmail;
+                return (
+                  <field.TextField
+                    autoComplete="email"
+                    badge={isSaved && <EmailStatus verified={emailVerified} />}
+                    description={typed && !isSaved && t('profile.email.change-hint')}
+                    dir="ltr"
+                    label={t('users.email')}
                     layout="row"
+                    type="email"
                   />
-                )}
-              </form.AppField>
-            )}
-          </form.Subscribe>
-        </SettingsList>
+                );
+              }}
+            </form.AppField>
+            <form.AppField name="phoneNumber">
+              {(field) => (
+                <field.TextField
+                  autoComplete="tel"
+                  dir="ltr"
+                  label={t('users.form.phone-number')}
+                  layout="row"
+                  type="tel"
+                />
+              )}
+            </form.AppField>
+            <form.Subscribe selector={(state) => state.values.email.trim() !== ''}>
+              {(hasEmail) => (
+                <form.AppField name="allowNotify">
+                  {(field) => (
+                    <field.SwitchField
+                      description={t(
+                        emailVerified && hasEmail
+                          ? 'profile.allow-notify.description'
+                          : 'profile.allow-notify.needs-verified',
+                      )}
+                      disabled={!emailVerified || !hasEmail}
+                      label={t('users.form.allow-notify')}
+                      layout="row"
+                    />
+                  )}
+                </form.AppField>
+              )}
+            </form.Subscribe>
+          </SettingsList>
+        </div>
       </form>
       <DiscardChangesDialog description={t('profile.discard-description')} {...guard.dialog} />
     </>
@@ -253,7 +264,7 @@ function FacilityName({ id }: { id: string }) {
 
   if (isPending) {
     return (
-      <span className="flex h-5 items-center">
+      <span aria-busy className="flex h-5 items-center">
         <span className="h-3.5 w-40">
           <Skeleton fill />
         </span>
@@ -267,7 +278,7 @@ function FacilityName({ id }: { id: string }) {
 /** A changed email waits for its link to be opened; until then the old one stays in use. */
 function PendingEmail({ userId }: { userId: string }) {
   const { t } = useTranslation();
-  const { data: email } = useQuery(pendingEmailOptions(userId));
+  const { data: email, isPending } = useQuery(pendingEmailOptions(userId));
   const resend = useSessionMutation({
     mutationFn: () => resendVerification(userId),
     onSuccess: () => {
@@ -282,6 +293,8 @@ function PendingEmail({ userId }: { userId: string }) {
     },
   });
 
+  // Marks the check as loading, so a guide waits for the alert that may push the form down.
+  if (isPending) return <div aria-busy hidden />;
   if (!email) return null;
 
   return (

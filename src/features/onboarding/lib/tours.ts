@@ -1,4 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
+import { accountTours } from '@/features/onboarding/tours/account.tour';
 import { adminEditorTours } from '@/features/onboarding/tours/admin-editor.tour';
 import { adminListTour } from '@/features/onboarding/tours/admin-list.tour';
 import { cceInventoryTour } from '@/features/onboarding/tours/cce-inventory.tour';
@@ -37,6 +38,7 @@ const TOURS: readonly Tour[] = [
   reverseTour,
   cceInventoryTour,
   ...reportsTours,
+  ...accountTours,
 ];
 
 export function tourForRoute(routeId: string | undefined): Tour | undefined {

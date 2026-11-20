@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { THEME_PRESETS, type ThemePresetName } from '@/lib/theme-presets';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const CHART_COLORS = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5'];
 const CHART_BARS = [
@@ -116,7 +117,11 @@ export function ThemePreview({ preset }: { preset: ThemePresetName }) {
   const { t } = useTranslation();
   return (
     <section aria-labelledby="theme-preview-title" className="flex flex-col gap-3">
-      <h2 className="font-medium text-sm" id="theme-preview-title">
+      <h2
+        className="font-medium text-sm"
+        data-tour={TOUR_ANCHORS.settingsPreview}
+        id="theme-preview-title"
+      >
         {t('system-settings.theme.preview-title')}
       </h2>
       <div className="grid gap-4 @xl/main:grid-cols-2">
