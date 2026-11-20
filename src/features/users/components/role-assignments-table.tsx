@@ -58,7 +58,7 @@ type ColumnOptions = RowActions & {
 
 function Pending() {
   return (
-    <span className="block h-4 w-2/3">
+    <span aria-busy className="block h-4 w-2/3">
       <Skeleton fill />
     </span>
   );

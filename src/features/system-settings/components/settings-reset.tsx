@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { WorkspaceActionsPortal } from '@/components/workspace/workspace-tabs';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type SettingsResetProps = {
   label: string;
@@ -40,6 +41,7 @@ export function SettingsReset({
     <>
       <WorkspaceActionsPortal>
         <Button
+          data-tour={disabled ? undefined : TOUR_ANCHORS.settingsReset}
           disabled={disabled}
           focusableWhenDisabled
           onClick={() => setOpen(true)}

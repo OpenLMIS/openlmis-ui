@@ -36,6 +36,12 @@ const guidedPages = [
   '/cce/inventory',
   '/reports',
   '/reports_/$module/$reportId/generate',
+  '/profile/',
+  '/profile/notifications',
+  '/profile/roles',
+  '/settings/',
+  '/settings/theme',
+  '/settings/feature-flags',
 ];
 
 describe('tourForRoute', () => {

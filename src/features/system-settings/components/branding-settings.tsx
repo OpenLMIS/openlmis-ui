@@ -27,6 +27,7 @@ import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { DEFAULT_LOGO_URL, getLogoUrl } from '@/lib/app-configuration';
 import { appConfig } from '@/lib/config';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const FORM_ID = 'branding-form';
 
@@ -104,7 +105,12 @@ export function BrandingSettings({ saved }: { saved: AppConfigurationDto }) {
       />
       <div className="flex flex-col gap-6">
         <SaveFeedback {...settings.feedback} />
-        <form id={FORM_ID} noValidate onSubmit={settings.submit}>
+        <form
+          data-tour={TOUR_ANCHORS.settingsBranding}
+          id={FORM_ID}
+          noValidate
+          onSubmit={settings.submit}
+        >
           <SettingsList>
             <form.AppField name="appName">
               {(field) => (

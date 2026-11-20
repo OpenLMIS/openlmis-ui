@@ -52,6 +52,7 @@ import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { revealField } from '@/lib/reveal-field';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const FORM_ID = 'notification-settings-form';
 
@@ -281,7 +282,13 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
           >
             {t('profile.cancel')}
           </Button>
-          <Button disabled={changes === 0 || save.isPending} form={FORM_ID} size="lg" type="submit">
+          <Button
+            data-tour={changes === 0 || save.isPending ? undefined : TOUR_ANCHORS.accountSave}
+            disabled={changes === 0 || save.isPending}
+            form={FORM_ID}
+            size="lg"
+            type="submit"
+          >
             {save.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
             {t('profile.notifications.save')}
           </Button>
@@ -311,86 +318,90 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
               title={t('profile.notifications.save-error-title')}
             />
           )}
-          {cards ? (
-            <CardList>
-              {rows.map((row, index) => {
-                const fields = rowFields(row, index);
-                return (
-                  <CardListItem key={row.configurationId}>
-                    <CardBand>
-                      <bdi className="min-w-0 wrap-anywhere">{tagLabel(row.tag)}</bdi>
-                    </CardBand>
-                    <CardRows>
-                      <CardControlRow label={t('profile.notifications.channel')}>
-                        {fields.channel}
-                      </CardControlRow>
-                      <CardControlRow label={t('profile.notifications.use-digest')} width="fit">
-                        {fields.digest}
-                      </CardControlRow>
-                      {row.useDigest && (
-                        <CardControlRow label={t('profile.notifications.frequency')}>
-                          {fields.frequency}
+          <div data-tour={TOUR_ANCHORS.profileNotifications}>
+            {cards ? (
+              <CardList>
+                {rows.map((row, index) => {
+                  const fields = rowFields(row, index);
+                  return (
+                    <CardListItem key={row.configurationId}>
+                      <CardBand>
+                        <bdi className="min-w-0 wrap-anywhere">{tagLabel(row.tag)}</bdi>
+                      </CardBand>
+                      <CardRows>
+                        <CardControlRow label={t('profile.notifications.channel')}>
+                          {fields.channel}
                         </CardControlRow>
-                      )}
-                      {row.useDigest && row.schedule.frequency === 'weekly' && (
-                        <CardControlRow label={t('profile.notifications.weekday')}>
-                          {fields.weekday}
+                        <CardControlRow label={t('profile.notifications.use-digest')} width="fit">
+                          {fields.digest}
                         </CardControlRow>
-                      )}
-                      {row.useDigest && (
-                        <CardControlRow
-                          label={t(
-                            row.schedule.frequency === 'custom'
-                              ? 'profile.notifications.cron'
-                              : 'profile.notifications.time',
-                          )}
-                        >
-                          {fields.timing}
-                        </CardControlRow>
-                      )}
-                    </CardRows>
-                  </CardListItem>
-                );
-              })}
-            </CardList>
-          ) : (
-            <DataTableCard>
-              <Table density="comfortable">
-                <NotificationsHeader />
-                <TableBody>
-                  {rows.map((row, index) => {
-                    const fields = rowFields(row, index);
-                    return (
-                      <TableRow key={row.configurationId}>
-                        <TableCell>
-                          <span className="whitespace-normal font-medium">{tagLabel(row.tag)}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="min-w-28">{fields.channel}</div>
-                        </TableCell>
-                        <TableCell>{fields.digest}</TableCell>
-                        <TableCell>
-                          {row.useDigest ? (
-                            <div className="flex items-start gap-2 whitespace-normal">
-                              <div className="min-w-28">{fields.frequency}</div>
-                              {row.schedule.frequency === 'weekly' && (
-                                <div className="min-w-36">{fields.weekday}</div>
-                              )}
-                              <div
-                                className={row.schedule.frequency === 'custom' ? 'w-44' : 'w-32'}
-                              >
-                                {fields.timing}
+                        {row.useDigest && (
+                          <CardControlRow label={t('profile.notifications.frequency')}>
+                            {fields.frequency}
+                          </CardControlRow>
+                        )}
+                        {row.useDigest && row.schedule.frequency === 'weekly' && (
+                          <CardControlRow label={t('profile.notifications.weekday')}>
+                            {fields.weekday}
+                          </CardControlRow>
+                        )}
+                        {row.useDigest && (
+                          <CardControlRow
+                            label={t(
+                              row.schedule.frequency === 'custom'
+                                ? 'profile.notifications.cron'
+                                : 'profile.notifications.time',
+                            )}
+                          >
+                            {fields.timing}
+                          </CardControlRow>
+                        )}
+                      </CardRows>
+                    </CardListItem>
+                  );
+                })}
+              </CardList>
+            ) : (
+              <DataTableCard>
+                <Table density="comfortable">
+                  <NotificationsHeader />
+                  <TableBody>
+                    {rows.map((row, index) => {
+                      const fields = rowFields(row, index);
+                      return (
+                        <TableRow key={row.configurationId}>
+                          <TableCell>
+                            <span className="whitespace-normal font-medium">
+                              {tagLabel(row.tag)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="min-w-28">{fields.channel}</div>
+                          </TableCell>
+                          <TableCell>{fields.digest}</TableCell>
+                          <TableCell>
+                            {row.useDigest ? (
+                              <div className="flex items-start gap-2 whitespace-normal">
+                                <div className="min-w-28">{fields.frequency}</div>
+                                {row.schedule.frequency === 'weekly' && (
+                                  <div className="min-w-36">{fields.weekday}</div>
+                                )}
+                                <div
+                                  className={row.schedule.frequency === 'custom' ? 'w-44' : 'w-32'}
+                                >
+                                  {fields.timing}
+                                </div>
                               </div>
-                            </div>
-                          ) : null}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </DataTableCard>
-          )}
+                            ) : null}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </DataTableCard>
+            )}
+          </div>
           {rows.some((row) => row.useDigest) && (
             <p className="text-muted-foreground text-sm">
               {rows.some((row) => row.useDigest && row.schedule.frequency === 'custom')
