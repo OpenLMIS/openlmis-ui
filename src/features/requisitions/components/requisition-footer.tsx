@@ -61,7 +61,10 @@ export function RequisitionFooter({
         {button('delete')}
         {button('skip')}
       </div>
-      <div className="flex flex-wrap justify-end gap-2" data-tour={TOUR_ANCHORS.requisitionActions}>
+      <div
+        className="flex flex-wrap justify-end gap-2"
+        data-tour={pending || disabled || !online ? undefined : TOUR_ANCHORS.requisitionActions}
+      >
         {button('sync')}
         {button('submit')}
         {button('submitAndAuthorize')}

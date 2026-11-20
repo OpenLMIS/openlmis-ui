@@ -14,8 +14,8 @@ import type { Tour } from '@/features/onboarding/lib/types';
 import { offlineEventsTab, TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 // The list fills the screen, so its steps hang from the toolbar above it, each on its own tab.
-const ON_LIST = {
-  anchor: TOUR_ANCHORS.offlineEventsView,
+const ON_EVENTS = {
+  anchor: TOUR_ANCHORS.listView,
   spotlight: TOUR_ANCHORS.offlineEventsList,
 } as const;
 
@@ -29,23 +29,23 @@ export const offlineEventsTour: Tour = {
       content: 'onboarding.offline-events.tabs.content',
     },
     {
-      anchor: TOUR_ANCHORS.offlineEventsFilters,
+      anchor: TOUR_ANCHORS.listFilters,
       title: 'onboarding.offline-events.filters.title',
       content: 'onboarding.offline-events.filters.content',
     },
     {
-      anchor: TOUR_ANCHORS.offlineEventsView,
+      anchor: TOUR_ANCHORS.listView,
       title: 'onboarding.offline-events.view.title',
       content: 'onboarding.offline-events.view.content',
     },
     {
-      ...ON_LIST,
+      ...ON_EVENTS,
       select: offlineEventsTab('pending'),
       title: 'onboarding.offline-events.events.title',
       content: 'onboarding.offline-events.events.content',
     },
     {
-      ...ON_LIST,
+      ...ON_EVENTS,
       select: offlineEventsTab('pending'),
       title: 'onboarding.offline-events.actions.title',
       content: 'onboarding.offline-events.actions.content',
@@ -79,7 +79,7 @@ export const offlineEventsTour: Tour = {
       ],
     },
     {
-      ...ON_LIST,
+      ...ON_EVENTS,
       select: offlineEventsTab('pending'),
       title: 'onboarding.offline-events.pending.title',
       content: 'onboarding.offline-events.pending.content',
@@ -113,7 +113,7 @@ export const offlineEventsTour: Tour = {
       ],
     },
     {
-      ...ON_LIST,
+      ...ON_EVENTS,
       select: offlineEventsTab('errors'),
       title: 'onboarding.offline-events.refused.title',
       content: 'onboarding.offline-events.refused.content',
@@ -141,7 +141,7 @@ export const offlineEventsTour: Tour = {
       ],
     },
     {
-      ...ON_LIST,
+      ...ON_EVENTS,
       select: offlineEventsTab('errors'),
       title: 'onboarding.offline-events.review.title',
       content: 'onboarding.offline-events.review.content',
@@ -157,7 +157,7 @@ export const offlineEventsTour: Tour = {
       ],
     },
     {
-      ...ON_LIST,
+      ...ON_EVENTS,
       select: offlineEventsTab('synced'),
       title: 'onboarding.offline-events.synced.title',
       content: 'onboarding.offline-events.synced.content',

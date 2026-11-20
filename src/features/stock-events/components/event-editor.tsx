@@ -865,7 +865,7 @@ export function EventEditor({
                   }
                   errorComponent={StockCardsError}
                 >
-                  <div data-tour={TOUR_ANCHORS.stockEventPicker}>
+                  <div data-tour={locked || !ready ? undefined : TOUR_ANCHORS.stockEventPicker}>
                     <ProductLotPicker
                       bundleScope={bundleScope}
                       kind={kind}
@@ -905,11 +905,7 @@ export function EventEditor({
                   />
                 )}
               <DataTableToolbar>
-                <fieldset
-                  className="w-full @2xl/main:me-auto @2xl/main:w-72"
-                  data-tour={TOUR_ANCHORS.stockEventSearch}
-                  disabled={pending}
-                >
+                <fieldset className="w-full @2xl/main:me-auto @2xl/main:w-72" disabled={pending}>
                   <DataTableSearch
                     size="lg"
                     value={keyword}
@@ -952,7 +948,6 @@ export function EventEditor({
                     )}
                     <div
                       className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}
-                      data-tour={TOUR_ANCHORS.stockEventView}
                     >
                       <DataTableViewOptions
                         size="lg"
@@ -1033,7 +1028,7 @@ export function EventEditor({
       </Workspace>
       <WorkspaceFooter width={config.width}>
         <Button
-          data-tour={TOUR_ANCHORS.stockEventClear}
+          data-tour={!filtered.length || locked ? undefined : TOUR_ANCHORS.stockEventClear}
           disabled={!filtered.length || locked}
           onClick={() => setClearOpen(true)}
           size="lg"
@@ -1042,7 +1037,7 @@ export function EventEditor({
           {t('stock-events.clear')}
         </Button>
         <Button
-          data-tour={TOUR_ANCHORS.stockEventSubmit}
+          data-tour={!lines.length || locked || !ready ? undefined : TOUR_ANCHORS.stockEventSubmit}
           disabled={!lines.length || locked || !ready}
           ref={submitButton}
           form={config.formId}

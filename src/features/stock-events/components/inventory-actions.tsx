@@ -400,7 +400,11 @@ export function InventoryActions(props: Props) {
       <WorkspaceFooterPortal width="wide">
         <ActionTooltip reason={deleteReason}>
           <Button
-            data-tour={TOUR_ANCHORS.physicalInventoryDelete}
+            data-tour={
+              disabled || props.conflicted || !online
+                ? undefined
+                : TOUR_ANCHORS.physicalInventoryDelete
+            }
             size="lg"
             variant="destructive"
             disabled={disabled || props.conflicted || !online}
@@ -413,7 +417,11 @@ export function InventoryActions(props: Props) {
         </ActionTooltip>
         <div
           className="flex flex-wrap justify-end gap-2"
-          data-tour={TOUR_ANCHORS.physicalInventoryActions}
+          data-tour={
+            disabled || props.writeDisabled || eligibleFetching
+              ? undefined
+              : TOUR_ANCHORS.physicalInventoryActions
+          }
         >
           <ActionTooltip reason={writeReason}>
             <Button

@@ -26,10 +26,11 @@ export const requisitionDetailTour: Tour = {
       content: 'onboarding.requisition-detail.grid-toolbar.content',
     },
     {
-      anchor: TOUR_ANCHORS.requisitionGrid,
+      // The grid fills the screen, so the tooltip hangs from its toolbar just above it.
+      anchor: TOUR_ANCHORS.requisitionGridToolbar,
+      spotlight: TOUR_ANCHORS.requisitionGrid,
       title: 'onboarding.requisition-detail.grid.title',
       content: 'onboarding.requisition-detail.grid.content',
-      placement: 'top',
     },
     {
       anchor: TOUR_ANCHORS.requisitionTotals,

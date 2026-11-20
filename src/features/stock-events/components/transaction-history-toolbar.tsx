@@ -8,7 +8,6 @@ import { DatePicker } from '@/components/form/form-fields';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import type { TransactionHistorySearch } from '@/features/stock-events/lib/search';
 import { EVENT_TYPES, type EventTypeFilter } from '@/features/stock-events/lib/types';
-import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type TransactionHistoryToolbarProps = {
   search: TransactionHistorySearch;
@@ -38,7 +37,7 @@ export function TransactionHistoryToolbar({
   }));
   return (
     <DataTableToolbar>
-      <div className="w-full @2xl/main:w-72" data-tour={TOUR_ANCHORS.transactionHistorySearch}>
+      <div className="w-full @2xl/main:w-72">
         <DataTableSearch
           size="lg"
           onValueChange={(value) => change({ documentNumber: value || undefined })}
@@ -46,10 +45,7 @@ export function TransactionHistoryToolbar({
           value={search.documentNumber ?? ''}
         />
       </div>
-      <div
-        className="flex-1 @2xl/main:me-auto @2xl/main:flex-none"
-        data-tour={TOUR_ANCHORS.transactionHistoryFilters}
-      >
+      <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
         <DataTableFilters
           size="lg"
           activeCount={activeFilters(search)}

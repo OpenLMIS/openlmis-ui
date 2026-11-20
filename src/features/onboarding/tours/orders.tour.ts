@@ -1,5 +1,5 @@
 import type { Tour, TourLegendItem, TourStep } from '@/features/onboarding/lib/types';
-import { sortStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
+import { ON_LIST, sortStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const STATUS_TONES = {
@@ -24,8 +24,7 @@ const statusLegend = (statuses: readonly StatusKey[]): TourLegendItem[] =>
   }));
 
 const statusStep = (column: TourStep['column'], statuses: readonly StatusKey[]): TourStep => ({
-  anchor: TOUR_ANCHORS.listView,
-  spotlight: TOUR_ANCHORS.listTable,
+  ...ON_LIST,
   column,
   title: 'onboarding.orders-status.title',
   content: 'onboarding.orders-status.content',
@@ -49,9 +48,7 @@ const ordersViewTour: Tour = {
     },
     viewSortStep,
     {
-      // A tall list leaves no room above it, so the tooltip hangs from View just above it.
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       title: 'onboarding.orders-view.results.title',
       content: 'onboarding.orders-view.results.content',
     },
@@ -68,9 +65,7 @@ const ordersViewTour: Tour = {
     ]),
     sortStep,
     {
-      // Rows offer different actions by status and rights, so the step highlights the column.
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       column: 'orders.view.columns.actions',
       title: 'onboarding.orders-view.actions.title',
       content: 'onboarding.orders-view.actions.content',
@@ -95,8 +90,7 @@ const fulfillmentTour: Tour = {
     },
     viewSortStep,
     {
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       title: 'onboarding.orders-fulfillment.results.title',
       content: 'onboarding.orders-fulfillment.results.content',
     },
@@ -165,8 +159,7 @@ const podTour: Tour = {
     },
     viewSortStep,
     {
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       title: 'onboarding.orders-pod.results.title',
       content: 'onboarding.orders-pod.results.content',
     },

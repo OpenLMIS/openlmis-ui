@@ -148,5 +148,5 @@ it('keeps guide anchors off the loading toolbar, so a guide never starts on plac
   const { container, rerender } = render(<InventoryToolbar {...props} disabled />);
   expect(container.querySelector('[data-tour]')).toBeNull();
   rerender(<InventoryToolbar {...props} />);
-  expect(container.querySelectorAll('[data-tour^="physical-inventory-"]')).toHaveLength(6);
+  expect(container.querySelectorAll('[data-tour^="physical-inventory-"]')).toHaveLength(4);
 });

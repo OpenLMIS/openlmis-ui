@@ -1,4 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
+import { viewSortStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const requisitionsViewTour: Tour = {
@@ -11,20 +12,17 @@ export const requisitionsViewTour: Tour = {
       content: 'onboarding.requisitions-view.picker.content',
     },
     {
-      anchor: TOUR_ANCHORS.requisitionsFilters,
+      anchor: TOUR_ANCHORS.listFilters,
       title: 'onboarding.requisitions-view.filters.title',
       content: 'onboarding.requisitions-view.filters.content',
     },
+    viewSortStep,
     {
-      anchor: TOUR_ANCHORS.requisitionsResults,
+      // A tall list leaves no room above it, so the tooltip hangs from View just above it.
+      anchor: TOUR_ANCHORS.listView,
+      spotlight: TOUR_ANCHORS.requisitionsResults,
       title: 'onboarding.requisitions-view.results.title',
       content: 'onboarding.requisitions-view.results.content',
-      placement: 'top',
-    },
-    {
-      anchor: TOUR_ANCHORS.requisitionsViewMenu,
-      title: 'onboarding.requisitions-view.view-menu.title',
-      content: 'onboarding.requisitions-view.view-menu.content',
     },
   ],
 };

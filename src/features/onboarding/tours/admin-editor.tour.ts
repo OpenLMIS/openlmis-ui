@@ -1,5 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
-import { searchStep } from '@/features/onboarding/tours/list-steps';
+import { adminViewStep, searchStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const ADMIN_EDITORS = [
@@ -49,11 +49,7 @@ const adminEditorTour: Tour = {
       content: 'onboarding.admin-editor.fields.content',
     },
     searchStep,
-    {
-      anchor: TOUR_ANCHORS.listView,
-      title: 'onboarding.admin-list.view.title',
-      content: 'onboarding.admin-list.view.content',
-    },
+    adminViewStep,
     {
       anchor: TOUR_ANCHORS.editorAdd,
       title: 'onboarding.admin-editor.add.title',

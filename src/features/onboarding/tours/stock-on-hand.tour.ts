@@ -1,4 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
+import { viewMenuStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const stockOnHandTour: Tour = {
@@ -11,12 +12,12 @@ export const stockOnHandTour: Tour = {
       content: 'onboarding.stock-on-hand.picker.content',
     },
     {
-      anchor: TOUR_ANCHORS.stockOnHandSearch,
+      anchor: TOUR_ANCHORS.listSearch,
       title: 'onboarding.stock-on-hand.search.title',
       content: 'onboarding.stock-on-hand.search.content',
     },
     {
-      anchor: TOUR_ANCHORS.stockOnHandFilters,
+      anchor: TOUR_ANCHORS.listFilters,
       title: 'onboarding.stock-on-hand.filters.title',
       content: 'onboarding.stock-on-hand.filters.content',
     },
@@ -25,11 +26,7 @@ export const stockOnHandTour: Tour = {
       title: 'onboarding.stock-on-hand.unit.title',
       content: 'onboarding.stock-on-hand.unit.content',
     },
-    {
-      anchor: TOUR_ANCHORS.stockOnHandView,
-      title: 'onboarding.stock-on-hand.view.title',
-      content: 'onboarding.stock-on-hand.view.content',
-    },
+    viewMenuStep,
     {
       anchor: TOUR_ANCHORS.stockOnHandPrint,
       title: 'onboarding.stock-on-hand.print.title',

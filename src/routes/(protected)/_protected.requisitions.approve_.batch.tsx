@@ -1011,7 +1011,10 @@ function BatchPage() {
         <Button size="lg" variant="outline" disabled={pending} onClick={() => void returnToList()}>
           {t('dialog.cancel')}
         </Button>
-        <div className="flex flex-wrap justify-end gap-2" data-tour={TOUR_ANCHORS.batchActions}>
+        <div
+          className="flex flex-wrap justify-end gap-2"
+          data-tour={pending || !online || !records.length ? undefined : TOUR_ANCHORS.batchActions}
+        >
           {!online && (
             <p role="note" className="basis-full text-end text-muted-foreground text-sm">
               {t('offline.action-description')}

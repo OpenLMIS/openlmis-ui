@@ -237,10 +237,7 @@ function StockCardColumns({
 }) {
   const { t } = useTranslation();
   return (
-    <div
-      className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}
-      data-tour={TOUR_ANCHORS.stockCardView}
-    >
+    <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
       <DataTableViewOptions
         size="lg"
         columns={STOCK_CARD_HIDEABLE_COLUMNS.map(({ id, labelKey }) => ({
@@ -285,7 +282,7 @@ function StockCardPrint({
   return (
     <ActionTooltip reason={disabledReason}>
       <Button
-        data-tour={TOUR_ANCHORS.stockCardPrint}
+        data-tour={offline || print.isPending ? undefined : TOUR_ANCHORS.stockCardPrint}
         size="lg"
         disabled={offline || print.isPending}
         onClick={print.print}

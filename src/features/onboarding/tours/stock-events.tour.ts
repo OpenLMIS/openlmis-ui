@@ -1,4 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
+import { viewMenuStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const KINDS = ['issue', 'receive', 'adjustments', 'unpack'] as const;
@@ -25,7 +26,7 @@ export const stockEventTours: readonly Tour[] = KINDS.flatMap((kind): Tour[] => 
         content: `onboarding.stock-${kind}.picker.content`,
       },
       {
-        anchor: TOUR_ANCHORS.stockEventSearch,
+        anchor: TOUR_ANCHORS.listSearch,
         title: 'onboarding.stock-event.search.title',
         content: 'onboarding.stock-event.search.content',
       },
@@ -39,14 +40,10 @@ export const stockEventTours: readonly Tour[] = KINDS.flatMap((kind): Tour[] => 
         title: 'onboarding.stock-event.unit.title',
         content: 'onboarding.stock-event.unit.content',
       },
-      {
-        anchor: TOUR_ANCHORS.stockEventView,
-        title: 'onboarding.stock-event.view.title',
-        content: 'onboarding.stock-event.view.content',
-      },
+      viewMenuStep,
       {
         // The lines fill the screen, so the tooltip hangs from the toolbar just above them.
-        anchor: TOUR_ANCHORS.stockEventView,
+        anchor: TOUR_ANCHORS.listView,
         spotlight: TOUR_ANCHORS.stockEventLines,
         title: 'onboarding.stock-event.lines.title',
         content: `onboarding.stock-${kind}.lines.content`,

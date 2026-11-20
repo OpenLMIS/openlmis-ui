@@ -129,7 +129,7 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
         </Button>
         {!readOnly && (
           <Button
-            data-tour={TOUR_ANCHORS.editorActions}
+            data-tour={!changed || save.isPending ? undefined : TOUR_ANCHORS.editorActions}
             disabled={!changed || save.isPending}
             focusableWhenDisabled={save.isPending}
             form={FORM_ID}

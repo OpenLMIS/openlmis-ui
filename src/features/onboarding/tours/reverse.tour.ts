@@ -1,5 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
-import { viewMenuStep } from '@/features/onboarding/tours/list-steps';
+import { ON_LIST, viewMenuStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const reverseTour: Tour = {
@@ -18,23 +18,19 @@ export const reverseTour: Tour = {
     },
     viewMenuStep,
     {
-      // The lines fill the screen, so the tooltip hangs from View just above them.
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       title: 'onboarding.reverse.lines.title',
       content: 'onboarding.reverse.lines.content',
     },
     {
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       column: 'stock-event-reverse.reverse',
       title: 'onboarding.reverse.select.title',
       content: 'onboarding.reverse.select.content',
       placement: 'inline-start',
     },
     {
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       column: 'stock-event-reverse.cancel-reason',
       title: 'onboarding.reverse.reason.title',
       content: 'onboarding.reverse.reason.content',

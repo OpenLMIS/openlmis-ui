@@ -1,4 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
+import { viewMenuStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const transactionDetailsTour: Tour = {
@@ -25,11 +26,7 @@ export const transactionDetailsTour: Tour = {
       title: 'onboarding.transaction-details.unit.title',
       content: 'onboarding.transaction-details.unit.content',
     },
-    {
-      anchor: TOUR_ANCHORS.transactionDetailsView,
-      title: 'onboarding.transaction-details.view.title',
-      content: 'onboarding.transaction-details.view.content',
-    },
+    viewMenuStep,
     {
       anchor: TOUR_ANCHORS.transactionDetailsLines,
       title: 'onboarding.transaction-details.lines.title',

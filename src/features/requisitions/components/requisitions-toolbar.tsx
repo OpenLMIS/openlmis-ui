@@ -16,7 +16,6 @@ import {
   type RequisitionStatus,
 } from '@/lib/requisition-status';
 import { isSecureOrigin } from '@/lib/secure-context';
-import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function RequisitionsToolbar({
   search,
@@ -36,10 +35,7 @@ export function RequisitionsToolbar({
     onFilterChange({ ...patch, page: undefined });
   return (
     <DataTableToolbar>
-      <div
-        className="flex-1 @2xl/main:me-auto @2xl/main:flex-none"
-        data-tour={TOUR_ANCHORS.requisitionsFilters}
-      >
+      <div className="flex-1 @2xl/main:me-auto @2xl/main:flex-none">
         <DataTableFilters
           size="lg"
           activeCount={activeRequisitionFilterCount(search)}
@@ -101,11 +97,7 @@ export function RequisitionsToolbar({
           />
         </DataTableFilters>
       </div>
-      {view && (
-        <div className="flex-1 @2xl/main:flex-none" data-tour={TOUR_ANCHORS.requisitionsViewMenu}>
-          {view}
-        </div>
-      )}
+      {view && <div className="flex-1 @2xl/main:flex-none">{view}</div>}
     </DataTableToolbar>
   );
 }
