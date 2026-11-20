@@ -46,9 +46,9 @@ export function SystemNotifications() {
           render={
             <PopoverTrigger
               aria-label={label}
-              render={<Button padding="none" size="lg" type="button" variant="ghost" />}
+              render={<Button size="icon" type="button" variant="ghost" />}
             >
-              <span className="relative grid h-8 w-11 place-items-center">
+              <span className="relative grid size-full place-items-center">
                 <BellIcon aria-hidden />
                 {count !== undefined && count > 0 && (
                   <span
@@ -66,7 +66,9 @@ export function SystemNotifications() {
       </Tooltip>
       <PopoverContent
         align="end"
-        initialFocus={() => listRef.current ?? popupRef.current}
+        initialFocus={(openType) =>
+          openType === 'keyboard' ? (listRef.current ?? popupRef.current) : popupRef.current
+        }
         padding="none"
         ref={popupRef}
         width="notifications"
