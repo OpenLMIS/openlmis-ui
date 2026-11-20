@@ -21,7 +21,7 @@ export const stockCardTour: Tour = {
       content: 'onboarding.stock-card.unit.content',
     },
     {
-      anchor: TOUR_ANCHORS.stockCardView,
+      anchor: TOUR_ANCHORS.listView,
       title: 'onboarding.stock-card.view.title',
       content: 'onboarding.stock-card.view.content',
     },

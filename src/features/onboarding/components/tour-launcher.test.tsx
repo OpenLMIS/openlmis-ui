@@ -29,7 +29,7 @@ const TOUR: Tour = {
       content: 'onboarding.requisitions-view.picker.content',
     },
     {
-      anchor: TOUR_ANCHORS.requisitionsFilters,
+      anchor: TOUR_ANCHORS.requisitionsResults,
       title: 'onboarding.requisitions-view.filters.title',
       content: 'onboarding.requisitions-view.filters.content',
     },
@@ -58,6 +58,12 @@ const SECTION_TOUR: Tour = {
   ],
 };
 
+const toastInfo = vi.hoisted(() => vi.fn());
+vi.mock('sonner', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('sonner')>()),
+  toast: { info: toastInfo },
+}));
+
 vi.mock('@/features/onboarding/lib/tours', () => ({
   tourForRoute: () => state.tour,
 }));
@@ -70,7 +76,7 @@ function LoadingFilters() {
     return () => clearTimeout(timer);
   }, []);
   return loaded ? (
-    <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Filters</div>
+    <div data-tour={TOUR_ANCHORS.requisitionsResults}>Filters</div>
   ) : (
     <div aria-busy="true">Loading</div>
   );
@@ -97,7 +103,7 @@ function renderLauncher({ filters = true } = {}) {
     <TooltipProvider>
       <TourLauncher />
       <div data-tour={TOUR_ANCHORS.requisitionsPicker}>Picker</div>
-      {filters && <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Filters</div>}
+      {filters && <div data-tour={TOUR_ANCHORS.requisitionsResults}>Filters</div>}
       <Sections />
     </TooltipProvider>,
   );
@@ -132,6 +138,61 @@ describe('TourLauncher', () => {
     expect(button).toHaveFocus();
   });
 
+  it('keeps focus in the tour between steps, so Escape on a later step still ends it', async () => {
+    const user = userEvent.setup();
+    renderLauncher();
+    const guide = await screen.findByRole('button', { name: 'onboarding.show-guide' });
+    await user.click(guide);
+    const next = within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'onboarding.next',
+    });
+    const focusedGuide = vi.fn();
+    guide.addEventListener('focus', focusedGuide);
+    await user.click(next);
+    await screen.findByRole('alertdialog', { name: 'onboarding.requisitions-view.filters.title' });
+    expect(focusedGuide).not.toHaveBeenCalled();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  });
+
+  it('cancels a guide still waiting for the page with Escape', async () => {
+    const user = userEvent.setup();
+    renderPage(
+      <TooltipProvider>
+        <div data-slot="sidebar-inset">
+          <header>
+            <TourLauncher />
+          </header>
+          <div aria-busy="true">Loading</div>
+        </div>
+      </TooltipProvider>,
+    );
+    const guide = await screen.findByRole('button', { name: 'onboarding.show-guide' });
+    await user.click(guide);
+    expect(guide).toHaveAttribute('aria-busy', 'true');
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(guide).not.toHaveAttribute('aria-busy'));
+  });
+
+  it('says the guide is unavailable without taking focus from what the user moved to', async () => {
+    const user = userEvent.setup();
+    renderPage(
+      <TooltipProvider>
+        <TourLauncher />
+        <input aria-label="Notes" />
+      </TooltipProvider>,
+    );
+    await user.click(await screen.findByRole('button', { name: 'onboarding.show-guide' }));
+    await user.click(screen.getByRole('textbox', { name: 'Notes' }));
+
+    await waitFor(() =>
+      expect(toastInfo).toHaveBeenCalledWith('onboarding.unavailable.title', expect.anything()),
+    );
+    expect(screen.getByRole('textbox', { name: 'Notes' })).toHaveFocus();
+  });
+
   it('does not restart by itself when the user leaves mid-tour and comes back', async () => {
     const user = userEvent.setup();
     const router = renderLauncher();
@@ -153,7 +214,7 @@ describe('TourLauncher', () => {
       if (how === 'spotlit but missing')
         state.tour = {
           ...TOUR,
-          steps: [TOUR.steps[0], { ...TOUR.steps[0], spotlight: TOUR_ANCHORS.requisitionsFilters }],
+          steps: [TOUR.steps[0], { ...TOUR.steps[0], spotlight: TOUR_ANCHORS.requisitionsResults }],
         };
       renderLauncher({ filters: how === 'hidden' });
       if (how === 'hidden') (await screen.findByText('Filters')).style.display = 'none';
@@ -170,8 +231,8 @@ describe('TourLauncher', () => {
       <TooltipProvider>
         <TourLauncher />
         <div data-tour={TOUR_ANCHORS.requisitionsPicker}>Picker</div>
-        <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Hidden Filters</div>
-        <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Shown Filters</div>
+        <div data-tour={TOUR_ANCHORS.requisitionsResults}>Hidden Filters</div>
+        <div data-tour={TOUR_ANCHORS.requisitionsResults}>Shown Filters</div>
       </TooltipProvider>,
     );
     (await screen.findByText('Hidden Filters')).style.display = 'none';
@@ -263,7 +324,7 @@ describe('TourLauncher', () => {
         getParentRoute: () => rootRoute,
         path: '/next',
         loader: () => new Promise((resolve) => setTimeout(resolve, 2000)),
-        component: () => <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Next Page</div>,
+        component: () => <div data-tour={TOUR_ANCHORS.requisitionsResults}>Next Page</div>,
       }),
     ]);
     const router = createRouter({ routeTree, history: createMemoryHistory() });
@@ -325,7 +386,7 @@ describe('TourLauncher', () => {
           <>
             <Tabs />
             <div data-tour={TOUR_ANCHORS.requisitionsPicker}>Picker</div>
-            <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Filters</div>
+            <div data-tour={TOUR_ANCHORS.requisitionsResults}>Filters</div>
           </>
         ),
       }),
@@ -350,6 +411,51 @@ describe('TourLauncher', () => {
     await waitFor(() =>
       expect(screen.getByRole('tab', { name: 'pending' })).toHaveAttribute('aria-selected', 'true'),
     );
+  });
+
+  it('ends the tour when the user leaves after it switched a tab that keeps the address', async () => {
+    const user = userEvent.setup();
+    state.tour = {
+      ...TOUR,
+      steps: [TOUR.steps[0], { ...TOUR.steps[1], select: offlineEventsTab('errors') }],
+    };
+    function LocalTabs() {
+      const [tab, setTab] = useState('pending');
+      return (
+        <div role="tablist">
+          {(['pending', 'errors'] as const).map((value) => (
+            <button
+              aria-selected={tab === value}
+              data-tour={offlineEventsTab(value)}
+              key={value}
+              onClick={() => setTab(value)}
+              role="tab"
+              type="button"
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    const router = renderPage(
+      <TooltipProvider>
+        <TourLauncher />
+        <LocalTabs />
+        <div data-tour={TOUR_ANCHORS.requisitionsPicker}>Picker</div>
+        <div data-tour={TOUR_ANCHORS.requisitionsResults}>Filters</div>
+      </TooltipProvider>,
+    );
+    await user.click(await screen.findByRole('button', { name: 'onboarding.show-guide' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'onboarding.next',
+      }),
+    );
+    await screen.findByRole('alertdialog', { name: 'onboarding.requisitions-view.filters.title' });
+
+    await router.navigate({ to: '/', search: { page: 2 } });
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
   });
 
   it('still plays every step in browsers without Element.checkVisibility', async () => {

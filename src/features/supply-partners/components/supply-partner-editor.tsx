@@ -246,7 +246,7 @@ export function SupplyPartnerEditor({
           {t('dialog.cancel')}
         </Button>
         <Button
-          data-tour={TOUR_ANCHORS.editorActions}
+          data-tour={pending || !refs.complete ? undefined : TOUR_ANCHORS.editorActions}
           disabled={pending || !refs.complete}
           form={FORM_ID}
           type="submit"

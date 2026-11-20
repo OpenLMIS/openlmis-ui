@@ -122,7 +122,7 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
       id: program.id,
       label: recordLabel(program),
       status: result.isPending ? (
-        <div className="h-4 w-20">
+        <div aria-busy className="h-4 w-20">
           <Skeleton fill />
         </div>
       ) : result.isError ? (
@@ -172,7 +172,11 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
           }}
         />
       )}
-      <div data-tour={TOUR_ANCHORS.physicalInventoryPrograms}>
+      <div
+        data-tour={
+          hasHomeFacility && rows.length ? TOUR_ANCHORS.physicalInventoryPrograms : undefined
+        }
+      >
         <StockProgramPicker
           rows={rows}
           hasHomeFacility={hasHomeFacility}

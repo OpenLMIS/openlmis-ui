@@ -1,4 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
+import { viewMenuStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 // The grid fills the screen, so the tooltip hangs from the toolbar just above it.
@@ -17,7 +18,7 @@ export const physicalInventoryDraftTour: Tour = {
       content: 'onboarding.physical-inventory-draft.progress.content',
     },
     {
-      anchor: TOUR_ANCHORS.physicalInventoryFilters,
+      anchor: TOUR_ANCHORS.listFilters,
       title: 'onboarding.physical-inventory-draft.filters.title',
       content: 'onboarding.physical-inventory-draft.filters.content',
     },
@@ -31,11 +32,7 @@ export const physicalInventoryDraftTour: Tour = {
       title: 'onboarding.physical-inventory-draft.unit.title',
       content: 'onboarding.physical-inventory-draft.unit.content',
     },
-    {
-      anchor: TOUR_ANCHORS.physicalInventoryView,
-      title: 'onboarding.physical-inventory-draft.view.title',
-      content: 'onboarding.physical-inventory-draft.view.content',
-    },
+    viewMenuStep,
     {
       anchor: TOUR_ANCHORS.physicalInventoryAdd,
       title: 'onboarding.physical-inventory-draft.add.title',

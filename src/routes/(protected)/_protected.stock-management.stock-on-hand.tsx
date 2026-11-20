@@ -629,10 +629,12 @@ function StockOnHandPrintButton({
   });
   const offline = print.offline;
   const disabledReason = print.disabledReason;
+  const disabled = offline || !page || page.totalElements === 0 || print.isPending;
   return (
     <ActionTooltip reason={disabledReason}>
       <Button
-        disabled={offline || !page || page.totalElements === 0 || print.isPending}
+        data-tour={disabled ? undefined : TOUR_ANCHORS.stockOnHandPrint}
+        disabled={disabled}
         onClick={print.print}
         focusableWhenDisabled={offline}
         aria-description={disabledReason}

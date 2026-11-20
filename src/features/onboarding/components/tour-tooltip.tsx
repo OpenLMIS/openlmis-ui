@@ -1,5 +1,5 @@
 import { XIcon } from 'lucide-react';
-import { useId } from 'react';
+import { type KeyboardEvent, useEffect, useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TooltipRenderProps } from 'react-joyride';
 import { Button } from '@/components/ui/button';
@@ -38,11 +38,27 @@ export function TourTooltip({
   const titleId = useId();
   const progressId = useId();
   const contentId = useId();
+  const primary = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (index >= 0) primary.current?.focus({ preventScroll: true });
+  }, [index]);
+
+  // Tab cycles through the tooltip's buttons, so focus never falls behind the overlay.
+  const trapTab = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const buttons = Array.from(event.currentTarget.querySelectorAll('button'));
+    const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    const next = (at + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
+    event.preventDefault();
+    buttons[next]?.focus();
+  };
 
   return (
     <div className="w-80">
       <Card
         {...tooltipProps}
+        onKeyDown={trapTab}
         aria-labelledby={titleId}
         aria-describedby={`${progressId} ${contentId}`}
       >
@@ -76,7 +92,7 @@ export function TourTooltip({
                   {t('onboarding.back')}
                 </Button>
               )}
-              <Button {...joyrideButton(primaryProps)}>
+              <Button {...joyrideButton(primaryProps)} ref={primary}>
                 {t(isLastStep ? 'onboarding.finish' : 'onboarding.next')}
               </Button>
             </div>

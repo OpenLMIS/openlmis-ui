@@ -164,7 +164,10 @@ export function CreateOrderForm({
           onChange={changeFacilities}
         />
       </div>
-      <div className="min-w-0" data-tour={TOUR_ANCHORS.orderSupplier}>
+      <div
+        className="min-w-0"
+        data-tour={!programId || !ids.length ? undefined : TOUR_ANCHORS.orderSupplier}
+      >
         <OrderSelect
           required
           label={t('orders.create.supplying-facility')}
@@ -198,7 +201,7 @@ export function CreateOrderForm({
       )}
       <div className="flex justify-end">
         <Button
-          data-tour={TOUR_ANCHORS.orderCreate}
+          data-tour={!readable || mutation.isPending ? undefined : TOUR_ANCHORS.orderCreate}
           type="button"
           size="lg"
           disabled={!readable || mutation.isPending}

@@ -321,10 +321,7 @@ export function OfflineEventsPage({
               className="flex min-w-0 flex-col gap-4 @lg/main:gap-6"
             >
               <DataTableToolbar>
-                <div
-                  className="flex-1 @2xl/main:flex-none"
-                  data-tour={TOUR_ANCHORS.offlineEventsFilters}
-                >
+                <div className="flex-1 @2xl/main:flex-none">
                   <DataTableFilters
                     size="lg"
                     activeCount={activeEventFilters(search)}
@@ -383,7 +380,7 @@ export function OfflineEventsPage({
                     />
                   </DataTableFilters>
                 </div>
-                <div className="@2xl/main:ms-auto" data-tour={TOUR_ANCHORS.offlineEventsView}>
+                <div className="@2xl/main:ms-auto">
                   <DataTableViewOptions
                     size="lg"
                     sort={{

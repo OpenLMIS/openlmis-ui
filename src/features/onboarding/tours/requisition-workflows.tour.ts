@@ -1,5 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
-import { viewMenuStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
+import { ON_LIST, viewMenuStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const initiateTour: Tour = {
@@ -47,9 +47,7 @@ const approveTour: Tour = {
     },
     viewSortStep,
     {
-      // A tall list leaves no room above it, so the tooltip hangs from View just above it.
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       title: 'onboarding.requisitions-approve.results.title',
       content: 'onboarding.requisitions-approve.results.content',
     },
@@ -121,9 +119,7 @@ const convertTour: Tour = {
     },
     viewMenuStep,
     {
-      // A tall list leaves no room above it, so the tooltip hangs from View just above it.
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       title: 'onboarding.requisitions-convert.results.title',
       content: 'onboarding.requisitions-convert.results.content',
     },

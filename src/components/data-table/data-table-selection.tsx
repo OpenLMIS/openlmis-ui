@@ -56,7 +56,12 @@ export function selectionColumn<TData extends RowData>(rowLabel: (row: TData) =>
   return createColumnHelper<DataTableFeatures, TData>().display({
     id: 'select',
     header: ({ table }) => (
-      <div className="flex items-center justify-center" data-tour="list-select">
+      <div
+        className="flex items-center justify-center"
+        data-tour={
+          table.getRowModel().rows.some((row) => row.getCanSelect()) ? 'list-select' : undefined
+        }
+      >
         <SelectPageCheckbox table={table} />
       </div>
     ),

@@ -1,6 +1,14 @@
-import { CheckIcon, EllipsisIcon, EyeIcon, PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
+import {
+  CheckIcon,
+  EllipsisIcon,
+  EyeIcon,
+  PencilIcon,
+  SettingsIcon,
+  Trash2Icon,
+  XIcon,
+} from 'lucide-react';
 import type { Tour } from '@/features/onboarding/lib/types';
-import { searchStep } from '@/features/onboarding/tours/list-steps';
+import { adminViewStep, searchStep, sortStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const ADMIN_LISTS = [
@@ -37,21 +45,13 @@ export const adminListTour: Tour = {
       title: 'onboarding.admin-list.filters.title',
       content: 'onboarding.admin-list.filters.content',
     },
-    {
-      anchor: TOUR_ANCHORS.listView,
-      title: 'onboarding.admin-list.view.title',
-      content: 'onboarding.admin-list.view.content',
-    },
+    adminViewStep,
     {
       anchor: TOUR_ANCHORS.listCreate,
       title: 'onboarding.admin-list.create.title',
       content: 'onboarding.admin-list.create.content',
     },
-    {
-      anchor: TOUR_ANCHORS.listSort,
-      title: 'onboarding.admin-list.sort.title',
-      content: 'onboarding.admin-list.sort.content',
-    },
+    sortStep,
     {
       anchor: TOUR_ANCHORS.listFlag,
       title: 'onboarding.admin-list.statuses.title',
@@ -91,6 +91,12 @@ export const adminListTour: Tour = {
           text: 'onboarding.admin-list.legend.view',
           tone: 'outline',
           icon: EyeIcon,
+        },
+        {
+          label: 'requisition-templates.configure',
+          text: 'onboarding.admin-list.legend.configure',
+          tone: 'outline',
+          icon: SettingsIcon,
         },
         {
           label: 'onboarding.admin-list.label.more',

@@ -214,10 +214,7 @@ function StockEventColumns({
 }) {
   const { t } = useTranslation();
   return (
-    <div
-      className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}
-      data-tour={TOUR_ANCHORS.transactionDetailsView}
-    >
+    <div className={canSwitch ? 'shrink-0' : 'flex-1 @2xl/main:flex-none'}>
       <DataTableViewOptions
         size="lg"
         layout={layout}
@@ -265,13 +262,15 @@ function StockEventActions({
     errorDescription: t('stock-event.print-error'),
     refusedDescription: t('stock-event.print-refused'),
   });
+  const noLines = !lines.data?.totalElements || !!lines.error;
+  const printDisabled = print.offline || print.isPending || noLines;
   return (
     <>
       {canReverse && (
         <Button
-          data-tour={TOUR_ANCHORS.transactionDetailsReverse}
+          data-tour={noLines ? undefined : TOUR_ANCHORS.transactionDetailsReverse}
           size="lg"
-          disabled={!lines.data?.totalElements || !!lines.error}
+          disabled={noLines}
           nativeButton={false}
           render={
             <Link
@@ -287,9 +286,9 @@ function StockEventActions({
       )}
       <ActionTooltip reason={print.disabledReason}>
         <Button
-          data-tour={TOUR_ANCHORS.transactionDetailsPrint}
+          data-tour={printDisabled ? undefined : TOUR_ANCHORS.transactionDetailsPrint}
           size="lg"
-          disabled={print.offline || print.isPending || !lines.data?.totalElements || !!lines.error}
+          disabled={printDisabled}
           onClick={print.print}
           focusableWhenDisabled={print.offline}
           aria-description={print.disabledReason}

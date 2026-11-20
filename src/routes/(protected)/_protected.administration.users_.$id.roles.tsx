@@ -269,7 +269,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
           {t('users.roles.cancel')}
         </Button>
         <Button
-          data-tour={TOUR_ANCHORS.editorActions}
+          data-tour={draft.changes === 0 || save.isPending ? undefined : TOUR_ANCHORS.editorActions}
           disabled={draft.changes === 0 || save.isPending}
           onClick={() => save.mutate(draft.draft)}
           size="lg"

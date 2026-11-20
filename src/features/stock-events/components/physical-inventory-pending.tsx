@@ -70,7 +70,7 @@ export function InventoryToolbar({
         >
           {progress}
         </div>
-        <div className="shrink-0" data-tour={anchors.physicalInventoryFilters}>
+        <div className="shrink-0">
           <DataTableFilters
             size="lg"
             activeCount={[search.keyword, search.includeInactive].filter(Boolean).length}
@@ -114,10 +114,7 @@ export function InventoryToolbar({
             />
           </div>
         )}
-        <div
-          className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @4xl/main:flex-none'}
-          data-tour={anchors.physicalInventoryView}
-        >
+        <div className={quantityUnit.canSwitch ? 'shrink-0' : 'flex-1 @4xl/main:flex-none'}>
           <DataTableViewOptions
             size="lg"
             disabled={disabled}

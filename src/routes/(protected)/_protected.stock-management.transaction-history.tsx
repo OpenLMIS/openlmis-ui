@@ -127,7 +127,7 @@ function useColumnView() {
 function ColumnsMenu({ columnView }: { columnView: ColumnView }) {
   const { t } = useTranslation();
   return (
-    <div data-tour={TOUR_ANCHORS.transactionHistoryView}>
+    <div>
       <DataTableViewOptions
         size="lg"
         layout={columnView.layout}

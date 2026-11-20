@@ -1,6 +1,6 @@
 import type { ParseKeys } from 'i18next';
 import type { Tour, TourLegendItem } from '@/features/onboarding/lib/types';
-import { sortStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
+import { ON_LIST, sortStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
 import {
   EQUIPMENT_STATUS,
   EQUIPMENT_STATUSES,
@@ -47,15 +47,12 @@ export const cceInventoryTour: Tour = {
       content: 'onboarding.cce-inventory.add.content',
     },
     {
-      // A tall list leaves no room above it, so the tooltip hangs from View just above it.
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       title: 'onboarding.cce-inventory.results.title',
       content: 'onboarding.cce-inventory.results.content',
     },
     {
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       column: 'cce-inventory.functional-status',
       title: 'onboarding.cce-inventory.status.title',
       content: 'onboarding.cce-inventory.status.content',
@@ -64,8 +61,7 @@ export const cceInventoryTour: Tour = {
     },
     sortStep,
     {
-      anchor: TOUR_ANCHORS.listView,
-      spotlight: TOUR_ANCHORS.listTable,
+      ...ON_LIST,
       column: 'cce-inventory.actions',
       title: 'onboarding.cce-inventory.open.title',
       content: 'onboarding.cce-inventory.open.content',

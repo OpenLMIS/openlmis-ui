@@ -62,9 +62,7 @@ export function useTemplatesTable(templates = NO_TEMPLATES, types = NO_TYPES) {
         }),
         helper.display({
           id: 'actions',
-          header: () => (
-            <DataTableHeaderLabel>{t('requisition-templates.action')}</DataTableHeaderLabel>
-          ),
+          header: () => <DataTableHeaderLabel>{t('data-table.actions')}</DataTableHeaderLabel>,
           cell: ({ row }) => (
             <RowActions
               label={t('card-actions.actions-for', { name: row.original.name })}

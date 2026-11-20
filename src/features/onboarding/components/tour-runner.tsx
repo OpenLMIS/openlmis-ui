@@ -68,12 +68,13 @@ const isSelected = (anchor: TourAnchor) =>
   document.querySelector(anchorSelector(anchor))?.getAttribute('aria-selected') === 'true';
 
 /** Clicks the tab and waits until it is selected, at most two seconds. */
-async function selectTab(anchor: TourAnchor, follow: () => void) {
+async function selectTab(anchor: TourAnchor, follow: (following: boolean) => void) {
   if (isSelected(anchor)) return;
-  follow();
+  follow(true);
   document.querySelector<HTMLElement>(anchorSelector(anchor))?.click();
   for (let frame = 0; frame < 120 && !isSelected(anchor); frame++) await nextFrame();
   await nextFrame();
+  follow(false);
 }
 
 /** The header cell of the column with this label inside the part, when the part is a table. */
@@ -112,15 +113,17 @@ function tokenPixels(property: 'borderTopLeftRadius' | 'height', token: string) 
 type TourRunnerProps = {
   tour: Tour;
   onEnd: () => void;
+  /** Called when the page shows none of the tour's parts, so there is nothing to play. */
+  onUnavailable: () => void;
   onReady: () => void;
-  /** Called before the tour changes the address itself, by switching a tab. */
-  onFollow: () => void;
+  /** Called with true before the tour switches a tab itself, and with false once it has. */
+  onFollow: (following: boolean) => void;
 };
 
 /** Plays the steps whose part of the page is shown, once the page stops loading. */
-export function TourRunner({ tour, onEnd, onReady, onFollow }: TourRunnerProps) {
+export function TourRunner({ tour, onEnd, onUnavailable, onReady, onFollow }: TourRunnerProps) {
   const [steps, setSteps] = useState(() => presentSteps(tour));
-  const giveUp = useEffectEvent(onEnd);
+  const giveUp = useEffectEvent(onUnavailable);
   const ready = useEffectEvent(onReady);
 
   useEffect(() => {
@@ -153,7 +156,7 @@ function TourPlayer({
 }: {
   steps: readonly TourStep[];
   onEnd: () => void;
-  onFollow: () => void;
+  onFollow: (following: boolean) => void;
 }) {
   const { t } = useTranslation();
   const direction = useDirection();
@@ -231,7 +234,8 @@ function TourPlayer({
               await nextFrame();
               return;
             }
-            if (step.select) await selectTab(step.select, () => followRef.current());
+            if (step.select)
+              await selectTab(step.select, (following) => followRef.current(following));
             await reveal();
           },
           ...(step.expand && { after: () => setSectionOpen(step.anchor, false) }),
@@ -266,6 +270,8 @@ function TourPlayer({
     options: {
       ...layout,
       skipBeacon: true,
+      // Joyride's trap hands focus back to Show Guide between steps; the tooltip moves it instead.
+      disableFocusTrap: true,
       blockTargetInteraction: true,
       closeButtonAction: 'skip',
       dismissKeyAction: false,

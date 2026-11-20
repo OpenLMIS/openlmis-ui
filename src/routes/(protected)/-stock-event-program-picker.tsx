@@ -176,7 +176,13 @@ export function StockEventProgramPicker(props: PickerProps) {
             renderTable={
               'kind' in props
                 ? (table) => (
-                    <div data-tour={TOUR_ANCHORS.stockEventPrograms}>
+                    <div
+                      data-tour={
+                        table.hasHomeFacility && table.programs.length
+                          ? TOUR_ANCHORS.stockEventPrograms
+                          : undefined
+                      }
+                    >
                       <ProgramsTable
                         {...table}
                         kind={props.kind}

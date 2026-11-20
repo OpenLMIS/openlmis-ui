@@ -279,7 +279,7 @@ const RequisitionTabsView = memo(function RequisitionTabsView({
           size="lg"
           wrap="column"
           aria-label={t('requisitions.requisition.tabs')}
-          data-tour={TOUR_ANCHORS.requisitionTabs}
+          data-tour={tabs.length > 1 ? TOUR_ANCHORS.requisitionTabs : undefined}
         >
           {tabs.map(({ value, label }) => (
             <TabsTrigger key={value} value={value}>
