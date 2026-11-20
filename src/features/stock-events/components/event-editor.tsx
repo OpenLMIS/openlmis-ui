@@ -153,7 +153,6 @@ import { type ScanMessage, scanMessage } from '@/lib/scan-messages';
 import { resolveScan, type ScanProduct } from '@/lib/stock-scan';
 import type { SearchChange } from '@/lib/table-search';
 
-// The grid shell tracks row layout; editable values are read by their own fields.
 function sameLineLayout(previous: EventLine[], next: EventLine[]) {
   return (
     previous.length === next.length &&

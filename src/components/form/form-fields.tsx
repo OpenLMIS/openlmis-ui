@@ -1697,7 +1697,6 @@ type DatePickerProps = {
   onEnter?: () => void;
   resetKey?: boolean | number;
   calendarSide?: 'top' | 'bottom';
-  /** Change this to close the calendar while keeping the entered text. */
   calendarDismissKey?: number | undefined;
 };
 
