@@ -1,5 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
-import { pagerStep, searchStep } from '@/features/onboarding/tours/list-steps';
+import { searchStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const ADMIN_EDITORS = [
@@ -80,7 +80,6 @@ const adminEditorTour: Tour = {
       content: 'onboarding.admin-editor.reorder.content',
       placement: 'inline-end',
     },
-    pagerStep,
     {
       anchor: TOUR_ANCHORS.editorActions,
       title: 'onboarding.admin-editor.actions.title',

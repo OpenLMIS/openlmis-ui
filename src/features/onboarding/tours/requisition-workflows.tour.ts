@@ -1,5 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
-import { pagerStep, viewMenuStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
+import { viewMenuStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const initiateTour: Tour = {
@@ -64,7 +64,6 @@ const approveTour: Tour = {
       title: 'onboarding.requisitions-approve.select.title',
       content: 'onboarding.requisitions-approve.select.content',
     },
-    pagerStep,
   ],
 };
 
@@ -141,7 +140,6 @@ const convertTour: Tour = {
       title: 'onboarding.requisitions-convert.select.title',
       content: 'onboarding.requisitions-convert.select.content',
     },
-    pagerStep,
   ],
 };
 

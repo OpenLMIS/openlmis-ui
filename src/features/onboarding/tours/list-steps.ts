@@ -26,10 +26,3 @@ export const sortStep: TourStep = {
   title: 'onboarding.list.sort.title',
   content: 'onboarding.list.sort.content',
 };
-
-export const pagerStep: TourStep = {
-  anchor: TOUR_ANCHORS.listPager,
-  title: 'onboarding.list.pager.title',
-  content: 'onboarding.list.pager.content',
-  placement: 'top',
-};

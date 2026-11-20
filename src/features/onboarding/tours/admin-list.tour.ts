@@ -111,11 +111,5 @@ export const adminListTour: Tour = {
       title: 'onboarding.admin-list.select.title',
       content: 'onboarding.admin-list.select.content',
     },
-    {
-      anchor: TOUR_ANCHORS.listPager,
-      title: 'onboarding.admin-list.pager.title',
-      content: 'onboarding.admin-list.pager.content',
-      placement: 'top',
-    },
   ],
 };

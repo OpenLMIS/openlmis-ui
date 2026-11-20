@@ -1,5 +1,5 @@
 import type { Tour, TourLegendItem, TourStep } from '@/features/onboarding/lib/types';
-import { pagerStep, sortStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
+import { sortStep, viewSortStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const STATUS_TONES = {
@@ -76,7 +76,6 @@ const ordersViewTour: Tour = {
       content: 'onboarding.orders-view.actions.content',
       placement: 'inline-start',
     },
-    pagerStep,
   ],
 };
 
@@ -108,7 +107,6 @@ const fulfillmentTour: Tour = {
       content: 'onboarding.orders-fulfillment.start.content',
       placement: 'inline-start',
     },
-    pagerStep,
   ],
 };
 
@@ -186,7 +184,6 @@ const podTour: Tour = {
       content: 'onboarding.orders-pod.manage.content',
       placement: 'inline-start',
     },
-    pagerStep,
   ],
 };
 

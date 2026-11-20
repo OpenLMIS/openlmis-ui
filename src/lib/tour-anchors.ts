@@ -113,7 +113,6 @@ export const TOUR_ANCHORS = {
   listSort: 'list-sort',
   listTable: 'list-table',
   listSelect: 'list-select',
-  listPager: 'list-pager',
   listCreate: 'list-create',
   listFlag: 'list-flag',
   listRowActions: 'list-row-actions',
