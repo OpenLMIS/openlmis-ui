@@ -38,6 +38,9 @@ import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.receive';
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.receive_.$programId';
 
+vi.mock('@/features/system-notifications/api/api', () => ({
+  fetchSystemNotifications: async () => [],
+}));
 vi.mock('@/components/app-shell/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));

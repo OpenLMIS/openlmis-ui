@@ -1,4 +1,9 @@
-import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+} from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -17,6 +22,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { NavUser } from '@/components/app-shell/nav-user';
 import { OfflineNavigationProvider } from '@/components/app-shell/offline-navigation';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { systemNotificationsOptions } from '@/features/system-notifications/api/queries';
 import { userMatchesOptions, usersListOptions } from '@/features/users/api/queries';
 import { client } from '@/integrations/axios';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
@@ -112,6 +118,34 @@ beforeEach(() => {
   });
 });
 
+it('refreshes the shell notification list when refreshing Home', async () => {
+  const pending = Promise.withResolvers<{ data: { content: unknown[]; totalPages: number } }>();
+  const get = vi.mocked(client.get).getMockImplementation();
+  vi.mocked(client.get).mockImplementation(async (url, config) =>
+    url === '/systemNotifications' ? pending.promise : get?.(url, config),
+  );
+  const cache = openPage();
+  const options = systemNotificationsOptions();
+  const { queryKey } = options;
+  cache.setQueryData(queryKey, []);
+  const observer = new QueryObserver(cache, { ...options, staleTime: Infinity });
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    const refresh = await screen.findByRole('button', { name: 'home.refresh' });
+    await waitFor(() => expect(refresh).toBeEnabled());
+    await userEvent.click(refresh);
+    expect(client.get).toHaveBeenCalledWith('/systemNotifications', expect.anything());
+    expect(refresh).toBeDisabled();
+    expect(cache.getQueryData(queryKey)).toEqual([]);
+    const notice = { id: 'published', title: 'New Notice', message: 'Maintenance tonight' };
+    pending.resolve({ data: { content: [notice], totalPages: 1 } });
+    await waitFor(() => expect(refresh).toBeEnabled());
+    expect(cache.getQueryData(queryKey)).toEqual([notice]);
+  } finally {
+    unsubscribe();
+  }
+});
+
 const userReads = () => vi.mocked(client.get).mock.calls.filter(([url]) => url === '/users/u1');
 
 it('shares the warm user across Home, the avatar menu and Profile', async () => {
@@ -201,10 +235,16 @@ it('shows the changed server name when Home is refreshed', async () => {
   expect(userReads()).toHaveLength(1);
 });
 
-it('finds a user by their new name after a cached search had no matches', async () => {
+it('refreshes notice authors and cached user search after a Profile name save', async () => {
   let serverUser = { ...userRecord, lastName: 'Byron' };
+  const notification = { id: 'notice', title: 'Published', message: 'Maintenance' };
+  const pending = Promise.withResolvers<void>();
   const get = vi.mocked(client.get).getMockImplementation();
   vi.mocked(client.get).mockImplementation(async (url, config) => {
+    if (url === '/systemNotifications') {
+      await pending.promise;
+      return { data: { content: [{ ...notification, author: serverUser }], totalPages: 1 } };
+    }
     if (url === '/users/u1') return { data: serverUser };
     if (url === '/userContactDetails') return { data: { content: [] } };
     if (url === '/users') {
@@ -219,21 +259,39 @@ it('finds a user by their new name after a cached search had no matches', async 
   });
   vi.spyOn(client, 'post').mockImplementation(async () => ({ data: { content: [serverUser] } }));
   const queryClient = openPage({ seedUser: true, path: '/profile' });
-  const search = usersListOptions({ page: 0, size: 20, sort: 'username,asc', q: 'Augusta' });
-  queryClient.setQueryDefaults(userMatchesOptions('Augusta').queryKey, { staleTime: Infinity });
-  const firstName = await screen.findByRole('textbox', { name: /users.form.first-name/ });
-  expect((await queryClient.fetchQuery(search)).content).toEqual([]);
+  const options = systemNotificationsOptions();
+  queryClient.setQueryData(options.queryKey, [{ ...notification, author: serverUser }]);
+  const observer = new QueryObserver(queryClient, { ...options, staleTime: Infinity });
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    const search = usersListOptions({ page: 0, size: 20, sort: 'username,asc', q: 'Augusta' });
+    queryClient.setQueryDefaults(userMatchesOptions('Augusta').queryKey, { staleTime: Infinity });
+    const firstName = await screen.findByRole('textbox', { name: /users.form.first-name/ });
+    expect((await queryClient.fetchQuery(search)).content).toEqual([]);
 
-  const user = userEvent.setup();
-  await user.clear(firstName);
-  await user.type(firstName, 'Augusta');
-  await user.click(screen.getByRole('button', { name: 'profile.save' }));
-  await waitFor(() => expect(queryClient.getQueryState(search.queryKey)?.isInvalidated).toBe(true));
+    const user = userEvent.setup();
+    await user.clear(firstName);
+    await user.type(firstName, 'Augusta');
+    const save = screen.getByRole('button', { name: 'profile.save' });
+    await user.click(save);
+    await waitFor(() =>
+      expect(queryClient.getQueryState(search.queryKey)?.isInvalidated).toBe(true),
+    );
 
-  expect(screen.getByRole('textbox', { name: /users.form.last-name/ })).toHaveValue('Byron');
-  expect((await queryClient.fetchQuery(search)).content).toEqual([
-    expect.objectContaining({ id: 'u1', firstName: 'Augusta' }),
-  ]);
+    await waitFor(() => expect(save).toBeDisabled());
+    expect(queryClient.getQueryState(options.queryKey)?.fetchStatus).toBe('fetching');
+    await act(async () => pending.resolve());
+    await waitFor(() =>
+      expect(queryClient.getQueryData(options.queryKey)?.[0]?.author?.firstName).toBe('Augusta'),
+    );
+    expect(screen.getByRole('textbox', { name: /users.form.last-name/ })).toHaveValue('Byron');
+    expect((await queryClient.fetchQuery(search)).content).toEqual([
+      expect.objectContaining({ id: 'u1', firstName: 'Augusta' }),
+    ]);
+  } finally {
+    unsubscribe();
+    pending.resolve();
+  }
 });
 
 it.each([

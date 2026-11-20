@@ -1,6 +1,6 @@
 import '@/routes/-offline-pages';
 import { onlineManager, QueryClient } from '@tanstack/react-query';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppSidebar } from '@/components/app-shell/app-sidebar';
@@ -32,7 +32,7 @@ function renderSidebar(
   useLoginData.setState({ referenceDataUserId: 'u1', username: 'admin' });
   const queryClient = new QueryClient();
   queryClient.setQueryData(permissionsOptions('u1').queryKey, parsePermissions(rights));
-  renderPage(
+  return renderPage(
     <TooltipProvider>
       <SidebarProvider defaultOpen={defaultOpen}>
         <DeviceWorkContext
@@ -58,6 +58,7 @@ function renderSidebar(
       path,
       queryClient,
       routeStaticData: {
+        '/administration/users': { rights: ['USERS_MANAGE'] },
         '/settings': { rights: ['SYSTEM_SETTINGS_MANAGE'] },
         '/stock-management/adjustments': { rights: ['STOCK_ADJUST'] },
         '/stock-management/unpack': { rights: ['STOCK_ADJUST'] },
@@ -67,6 +68,7 @@ function renderSidebar(
 }
 
 afterEach(() => {
+  localStorage.removeItem('sidebar.open-sections.u1');
   act(() => useLoginData.setState({ referenceDataUserId: null, username: null }));
   vi.restoreAllMocks();
 });
@@ -141,6 +143,96 @@ describe('AppSidebar account links', () => {
     await waitFor(() => {
       expect(screen.queryByRole('link', { name: 'nav-user.account' })).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('AppSidebar sections', () => {
+  const rights = ['STOCK_ADJUST', 'USERS_MANAGE'];
+  const stock = 'nav.stock-management';
+  const administration = 'nav.administration';
+  const section = (name: string) => screen.getByRole('button', { name });
+
+  it('opens sections independently with the keyboard and pointer', async () => {
+    renderSidebar(rights);
+
+    const stockTrigger = await screen.findByRole('button', { name: stock });
+    stockTrigger.focus();
+    await userEvent.keyboard('{Enter}');
+    await userEvent.click(section(administration));
+
+    expect(stockTrigger).toHaveAttribute('aria-expanded', 'true');
+    expect(section(administration)).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.click(stockTrigger);
+    expect(stockTrigger).toHaveAttribute('aria-expanded', 'false');
+    expect(section(administration)).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('opens the active section on navigation and keeps other sections open', async () => {
+    const router = renderSidebar(rights, { path: '/stock-management/adjustments' });
+
+    expect(await screen.findByRole('button', { name: stock })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(section(administration)).toHaveAttribute('aria-expanded', 'false');
+
+    await act(() => router.navigate({ to: '/administration/users' }));
+
+    expect(section(stock)).toHaveAttribute('aria-expanded', 'true');
+    expect(section(administration)).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.click(section(stock));
+    await act(() => router.navigate({ to: '/stock-management/adjustments' }));
+    await userEvent.click(section(stock));
+    await act(() => router.navigate({ to: '/stock-management/unpack' }));
+
+    expect(section(stock)).toHaveAttribute('aria-expanded', 'true');
+    expect(section(administration)).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('expands and collapses every visible section and disables redundant actions', async () => {
+    renderSidebar(rights, { path: '/stock-management/adjustments' });
+
+    const expand = await screen.findByRole('button', { name: 'sidebar.expand-all' });
+    const collapse = section('sidebar.collapse-all');
+    expect(expand).not.toHaveAttribute('aria-disabled', 'true');
+    expect(collapse).not.toHaveAttribute('aria-disabled', 'true');
+
+    await userEvent.click(expand);
+    expect(section(stock)).toHaveAttribute('aria-expanded', 'true');
+    expect(section(administration)).toHaveAttribute('aria-expanded', 'true');
+    expect(expand).toHaveAttribute('aria-disabled', 'true');
+
+    await userEvent.click(collapse);
+    expect(section(stock)).toHaveAttribute('aria-expanded', 'false');
+    expect(section(administration)).toHaveAttribute('aria-expanded', 'false');
+    expect(collapse).toHaveAttribute('aria-disabled', 'true');
+    expect(expand).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('hides bulk actions when sections render as rail flyouts', async () => {
+    renderSidebar(rights, { defaultOpen: false });
+
+    expect(await screen.findByRole('button', { name: stock })).toHaveAttribute(
+      'aria-haspopup',
+      'menu',
+    );
+    expect(screen.queryByRole('button', { name: 'sidebar.expand-all' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'sidebar.collapse-all' })).not.toBeInTheDocument();
+  });
+
+  it('restores the expanded sections on remount', async () => {
+    renderSidebar(rights);
+    await userEvent.click(await screen.findByRole('button', { name: administration }));
+    cleanup();
+
+    renderSidebar(rights);
+    expect(await screen.findByRole('button', { name: administration })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(section(stock)).toHaveAttribute('aria-expanded', 'false');
   });
 });
 

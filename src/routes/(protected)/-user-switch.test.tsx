@@ -22,6 +22,9 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { Route } from '@/routes/(protected)/_protected';
 import { expectRouteWarning } from '@/test-utils/expect-route-warning';
 
+vi.mock('@/features/system-notifications/api/api', () => ({
+  fetchSystemNotifications: async () => [],
+}));
 vi.mock('@/routes/-requisition-preload', () => ({
   preloadRequisitionReferences: vi.fn(async () => {}),
   hasRequisitionReferences: vi.fn(async () => false),

@@ -7,12 +7,16 @@ import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { OfflineNotice } from '@/components/app-shell/offline-notice';
 import { PageVisibility } from '@/components/shared/page-visibility';
 import { useLoginData } from '@/features/auth/store/login-data';
+import {
+  SYSTEM_NOTIFICATIONS_STALE_TIME,
+  systemNotificationsOptions,
+} from '@/features/system-notifications/api/queries';
 import { queryClient } from '@/integrations/tanstack-query';
 import { OfflinePageUnavailableError } from '@/lib/offline-capability';
 import { canRetainPageOffline, isOfflineCapable } from '@/lib/offline-pages';
 import { isOnline, seedOnline, useOnline } from '@/lib/online';
 import { loginSearch } from '@/lib/redirect';
-import { getSessionScope, useSessionScope } from '@/lib/session-scope';
+import { getSessionScope, isSessionAuthenticated, useSessionScope } from '@/lib/session-scope';
 import {
   hasRequisitionReferences,
   preloadRequisitionReferences,
@@ -31,8 +35,19 @@ export const Route = createFileRoute('/(protected)/_protected')({
     )
       throw new OfflinePageUnavailableError();
     const userId = useLoginData.getState().referenceDataUserId;
-    if (userId && isOnline())
-      void preloadRequisitionReferences(context.queryClient, userId).catch(() => {});
+    if (isOnline()) {
+      if (isSessionAuthenticated()) {
+        const options = systemNotificationsOptions();
+        const state = context.queryClient.getQueryState(options.queryKey);
+        if (
+          state?.status !== 'error' ||
+          Date.now() - state.errorUpdatedAt >= SYSTEM_NOTIFICATIONS_STALE_TIME
+        ) {
+          void context.queryClient.prefetchQuery(options);
+        }
+      }
+      if (userId) void preloadRequisitionReferences(context.queryClient, userId).catch(() => {});
+    }
     return { sessionScope: getSessionScope() };
   },
   component: ProtectedLayout,
