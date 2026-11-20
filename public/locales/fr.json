@@ -2977,6 +2977,8 @@
   "session.signing-in": "Connexion en cours...",
   "session.wrong-password": "Le mot de passe est incorrect. Réessayez.",
   "sidebar.change-language": "Changer de langue",
+  "sidebar.collapse-all": "Tout Réduire",
+  "sidebar.expand-all": "Tout Développer",
   "sidebar.theme": "Thème",
   "sidebar.theme.dark": "Sombre",
   "sidebar.theme.default": "Utiliser le réglage par défaut",

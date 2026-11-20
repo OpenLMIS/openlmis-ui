@@ -2977,6 +2977,8 @@
   "session.signing-in": "Iniciando sesión...",
   "session.wrong-password": "La contraseña es incorrecta. Inténtelo de nuevo.",
   "sidebar.change-language": "Cambiar idioma",
+  "sidebar.collapse-all": "Contraer Todo",
+  "sidebar.expand-all": "Expandir Todo",
   "sidebar.theme": "Tema",
   "sidebar.theme.dark": "Oscuro",
   "sidebar.theme.default": "Usar predeterminado",

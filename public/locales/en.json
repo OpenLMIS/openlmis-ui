@@ -2977,6 +2977,8 @@
   "session.signing-in": "Signing In...",
   "session.wrong-password": "The password is incorrect. Try again.",
   "sidebar.change-language": "Change Language",
+  "sidebar.collapse-all": "Collapse All",
+  "sidebar.expand-all": "Expand All",
   "sidebar.theme": "Theme",
   "sidebar.theme.dark": "Dark",
   "sidebar.theme.default": "Use Default",

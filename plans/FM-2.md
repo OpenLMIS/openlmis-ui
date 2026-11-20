@@ -5,9 +5,10 @@ https://openlmis.atlassian.net/browse/FM-2 · Parent: [FM-1](https://openlmis.at
 ## Scope
 
 Add a notifications icon button to the top bar that opens a popover listing the system
-notifications. Everything else in FM-2 (rights-based menu in legacy order,
-breadcrumbs and titles, shared loading and errors, 404 in the shell, phone layout) is already on
-master.
+notifications. Let users open multiple sidebar sections, remember the open sections per user,
+and add Expand All and Collapse All to the Menu row. The rights-based menu in legacy order,
+breadcrumbs and titles, shared loading and errors, 404 in the shell, and phone layout are
+already on master.
 
 Not in scope:
 
@@ -32,6 +33,7 @@ Notifications" when there are none. Legacy's "Software last updated on" date is 
 |---|---|---|
 | Top bar shows the notifications indicator, last updated info, user (profile), language switcher and Logout | Indicator added; avatar menu already opens Profile and Log Out; the last updated info is dropped; the language switcher sits in the bottom left corner by design (scope above) | Header tests; browser check |
 | Menu in legacy order; rights-based; empty modules hidden | Shipped (FM-3, FM-15) | Existing registry tests |
+| Sidebar sections open independently and stay open across navigation and reloads | Navigation adds the destination section. Expand All and Collapse All act on visible sections in the expanded sidebar and phone sheet. | Sidebar tests and browser checks in English and Arabic |
 | Breadcrumbs and title on every page | Shipped (FM-4) | Existing tests |
 | Loading and errors consistent | Shipped (shared boundaries and fallbacks) | Existing tests |
 | 404 inside the shell | Shipped (FM-6) | Existing tests |
@@ -124,6 +126,7 @@ Notifications" when there are none. Legacy's "Software last updated on" date is 
 
 ## Decisions
 
+- Multiple sections open, Expand All / Collapse All in the Menu row (user, 2026-11-20).
 - The language switcher stays in the bottom left corner of the redesigned shell (user, 2026-11-20).
 - "Software last updated on" is not carried over: not needed (user, 2026-11-20).
 - The shell imports the indicator from its feature rather than through a slot, as it already does

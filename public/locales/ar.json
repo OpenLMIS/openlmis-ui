@@ -2977,6 +2977,8 @@
   "session.signing-in": "جاري تسجيل الدخول...",
   "session.wrong-password": "كلمة المرور غير صحيحة. حاول مرة أخرى.",
   "sidebar.change-language": "تغيير اللغة",
+  "sidebar.collapse-all": "طي الكل",
+  "sidebar.expand-all": "توسيع الكل",
   "sidebar.theme": "السمة",
   "sidebar.theme.dark": "داكن",
   "sidebar.theme.default": "استخدام الافتراضي",
