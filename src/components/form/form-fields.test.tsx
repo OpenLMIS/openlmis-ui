@@ -595,7 +595,7 @@ describe('date field', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ started: '2024-02-01' }));
     await user.tab();
     expect(input).toHaveValue('01/02/2024');
-    expect(screen.getByRole('button', { name: 'Open Calendar Started' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveFocus();
   });
   it('replaces the focused spelling when an external form reset restores the same canonical value', async () => {
     const user = userEvent.setup();
@@ -673,30 +673,39 @@ describe('date field', () => {
     await screen.findByRole('dialog', { name: 'Opened' });
 
     await user.tab();
-    expect(screen.getByRole('button', { name: 'Open Calendar Opened' })).toHaveFocus();
-    expect(screen.queryByRole('dialog', { name: 'Opened' })).not.toBeInTheDocument();
-    await user.tab();
-    expect(screen.getByRole('button', { name: 'Clear Opened' })).toHaveFocus();
-    await user.tab();
     expect(screen.getByRole('textbox', { name: 'Kept' })).toHaveFocus();
+    expect(screen.queryByRole('dialog', { name: 'Opened' })).not.toBeInTheDocument();
     await screen.findByRole('dialog', { name: 'Kept' });
+
+    await user.tab({ shift: true });
+    expect(screen.getByRole('button', { name: 'Clear Opened' })).toHaveFocus();
   });
 
-  it.each(['{ArrowDown}', '{Tab}'])(
-    'enters a calendar from its button with %s and tabs to the next field',
-    async (key) => {
-      const user = userEvent.setup();
-      render(<DateForm onSubmit={vi.fn()} />);
-      const calendar = await openCalendar(user, /^Open Calendar Opened$/);
-      await user.keyboard(key);
-      expect(calendar).toContainElement(document.activeElement as HTMLElement);
+  it('skips the calendar button on Tab and opens it with focus in the textbox on click', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+    const opened = screen.getByRole('textbox', { name: 'Opened' });
+    const button = screen.getByRole('button', { name: 'Open Calendar Opened' });
 
-      await user.tab();
-      expect(screen.getByRole('textbox', { name: 'Kept' })).toHaveFocus();
-      expect(screen.queryByRole('dialog', { name: 'Opened' })).not.toBeInTheDocument();
-      await screen.findByRole('dialog', { name: 'Kept' });
-    },
-  );
+    await user.tab();
+    expect(opened).toHaveFocus();
+    await screen.findByRole('dialog', { name: 'Opened' });
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Opened' })).not.toBeInTheDocument();
+
+    const calendar = await openCalendar(user, /^Open Calendar Opened$/);
+    expect(opened).toHaveFocus();
+    await user.click(button);
+    expect(opened).toHaveFocus();
+    expect(calendar).toBeVisible();
+    await user.keyboard('{ArrowDown}');
+    expect(calendar).toContainElement(document.activeElement as HTMLElement);
+
+    await user.tab();
+    expect(screen.getByRole('textbox', { name: 'Kept' })).toHaveFocus();
+    expect(screen.queryByRole('dialog', { name: 'Opened' })).not.toBeInTheDocument();
+    await screen.findByRole('dialog', { name: 'Kept' });
+  });
 
   it('reopens when the focused input is clicked after Escape', async () => {
     const user = userEvent.setup();

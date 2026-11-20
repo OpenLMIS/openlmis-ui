@@ -153,15 +153,14 @@ describe('LotsToolbar', () => {
     await user.click(latest);
     expect(input).toHaveAccessibleDescription('form.date-invalid');
     await user.clear(input);
-    await user.type(input, '12/01/2019');
-    await screen.findByRole('dialog', { name: 'lots.earliest-expiry' });
-    await user.tab();
-    expect(
-      screen.getByRole('button', { name: 'Open Calendar lots.earliest-expiry' }),
-    ).toHaveFocus();
+    await user.type(input, '12/1/2019');
+    const calendar = await screen.findByRole('dialog', { name: 'lots.earliest-expiry' });
+    await user.click(screen.getByRole('button', { name: 'Open Calendar lots.earliest-expiry' }));
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue('12/1/2019');
+    expect(calendar).toBeVisible();
     expect(onFilterChange).not.toHaveBeenCalled();
     await user.keyboard('{ArrowDown}');
-    const calendar = await screen.findByRole('dialog', { name: 'lots.earliest-expiry' });
     expect(calendar).toContainElement(document.activeElement as HTMLElement);
     expect(onFilterChange).not.toHaveBeenCalled();
 

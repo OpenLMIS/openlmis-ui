@@ -795,8 +795,11 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   the calendar's 1900 to current year plus 100 range.
 - Lazy-load the calendar and language (`loadDateLocale` through `FormMessagesProvider`) on mount
   and retry failed loads on open. Pointer and Tab focus open the calendar and keep typing in the
-  textbox. Programmatic focus leaves it closed. ArrowDown from the textbox or calendar button
-  enters the calendar. Tab from the open calendar button also enters it. Inline dates use 28px and `size="lg"` uses 36px.
+  textbox. Programmatic focus leaves it closed. The named calendar button sits at the logical
+  start after any filter label and opens the calendar with focus in the textbox. Tab skips the
+  calendar button. ArrowDown from the textbox enters the calendar, and Tab continues to the next
+  field. Clear sits at the logical end and remains reachable by reverse Tab. Inline dates use 28px
+  and `size="lg"` uses 36px.
   Required dates announce the provider's `requiredLabel` with their name. Outside forms use
   `DatePicker`. Toolbar and popover date filters use `DateFilter` from `components/pickers` to commit
   valid edits on Enter, leaving the control or closing Filters. Use localized `formatDateValue`

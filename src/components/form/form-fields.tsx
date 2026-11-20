@@ -1769,7 +1769,6 @@ export function DatePicker({
   const group = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const popup = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
   const afterCalendar = useRef<HTMLSpanElement>(null);
   const insidePointer = useRef(false);
   const withinControl = useRef(false);
@@ -1786,6 +1785,7 @@ export function DatePicker({
   const selected = useMemo(() => parseEditableDate(calendarValue), [calendarValue]);
   const shown = activeEdit?.text ?? formatDateText(value, editingFormat ?? dateFormat);
   const clearable = Boolean(clearLabel && !required);
+  const showClear = clearable && Boolean(value) && !disabled;
   const first = useMemo(() => (earliest ? parseDateValue(earliest) : undefined), [earliest]);
   const last = useMemo(() => (latest ? parseDateValue(latest) : undefined), [latest]);
   const calendarRequest = useRef(0);
@@ -1941,8 +1941,8 @@ export function DatePicker({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.nativeEvent.isComposing || !open) return;
-    if (event.key === 'Escape') {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === 'Escape' && open) {
       event.preventDefault();
       event.stopPropagation();
       closeCalendar();
@@ -1950,23 +1950,16 @@ export function DatePicker({
     }
     if (event.key !== 'Tab') return;
     if (event.target instanceof Node && popup.current?.contains(event.target)) {
-      closeCalendar();
       if (event.shiftKey) {
         event.preventDefault();
-        trigger.current?.focus();
+        input.current?.focus();
       } else {
         afterCalendar.current?.focus();
       }
-    } else if (event.target === trigger.current && !event.shiftKey) {
-      event.preventDefault();
-      focusOpenCalendar();
-    } else {
-      closeCalendar();
-      if (event.target === input.current && !event.shiftKey) {
-        event.preventDefault();
-        trigger.current?.focus();
-      }
+    } else if (showClear && event.target === input.current && !event.shiftKey) {
+      afterCalendar.current?.focus();
     }
+    if (open) closeCalendar();
   };
 
   return (
@@ -2020,6 +2013,27 @@ export function DatePicker({
             {requiredLabel}
           </span>
         )}
+        <InputGroupAddon align="inline-start">
+          <InputGroupButton
+            aria-controls={calendarOpen ? calendarId : undefined}
+            aria-expanded={calendarOpen}
+            aria-haspopup="dialog"
+            aria-labelledby={`${calendarLabelId} ${labelId}`}
+            disabled={disabled}
+            onClick={() => {
+              openCalendar();
+              input.current?.focus();
+            }}
+            onMouseDown={(event) => event.preventDefault()}
+            size="icon-xs"
+            tabIndex={-1}
+          >
+            <span className="sr-only" id={calendarLabelId}>
+              {calendarLabel}
+            </span>
+            <CalendarIcon data-icon="inline-start" />
+          </InputGroupButton>
+        </InputGroupAddon>
         <InputGroupInput
           aria-controls={calendarOpen ? calendarId : undefined}
           aria-describedby={describedBy}
@@ -2057,35 +2071,13 @@ export function DatePicker({
           type="text"
           value={shown}
         />
-        <InputGroupAddon align="inline-end">
-          <PopoverTrigger
-            onClick={(event) => event.currentTarget.focus()}
-            onKeyDown={(event) => {
-              if (!event.nativeEvent.isComposing && event.key === 'ArrowDown') {
-                event.preventDefault();
-                focusOpenCalendar();
-              }
-            }}
-            ref={trigger}
-            render={
-              <InputGroupButton
-                aria-labelledby={`${calendarLabelId} ${labelId}`}
-                disabled={disabled}
-                size="icon-xs"
-              />
-            }
-          >
-            <span className="sr-only" id={calendarLabelId}>
-              {calendarLabel}
-            </span>
-            <CalendarIcon data-icon="inline-start" />
-          </PopoverTrigger>
-          {clearable && value && !disabled && (
+        {showClear && (
+          <InputGroupAddon align="inline-end">
             <InputGroupButton aria-label={clearLabel} onClick={() => pick('')} size="icon-xs">
               <XIcon data-icon="inline-start" />
             </InputGroupButton>
-          )}
-        </InputGroupAddon>
+          </InputGroupAddon>
+        )}
         <PopoverContent
           align="start"
           anchor={group}
