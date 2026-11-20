@@ -496,18 +496,7 @@ const LineCell = memo(function LineCell({
       );
     case 'total':
       return (
-        <bdi className="tabular-nums" dir="ltr">
-          {value(
-            cardQuantity(
-              /^[0-9]+$/.test(toLatinDigits(line.quantity.doses.trim()))
-                ? toWholeNumber(line.quantity.doses)
-                : null,
-              line.netContent,
-              'DOSES',
-              i18n.language,
-            ),
-          )}
-        </bdi>
+        <EventLineTotal form={form} index={index} netContent={line.netContent} cards={cards} />
       );
     case 'vvm':
       return line.useVVM ? (
@@ -593,6 +582,34 @@ const LineCell = memo(function LineCell({
       );
   }
 });
+
+function EventLineTotal({
+  form,
+  index,
+  netContent,
+  cards,
+}: {
+  form: EventForm;
+  index: number;
+  netContent: EventLine['netContent'];
+  cards: boolean;
+}) {
+  const { i18n } = useTranslation();
+  const doses = useStore(form.store, (state) => state.values.lines[index]?.quantity.doses ?? '');
+  const value = cards ? orEmpty : tableValue;
+  return (
+    <bdi className="tabular-nums" dir="ltr">
+      {value(
+        cardQuantity(
+          /^[0-9]+$/.test(toLatinDigits(doses.trim())) ? toWholeNumber(doses) : null,
+          netContent,
+          'DOSES',
+          i18n.language,
+        ),
+      )}
+    </bdi>
+  );
+}
 
 type Props = Omit<CellProps, 'id' | 'line' | 'index' | 'compactSelects'> & {
   lines: EventLine[];

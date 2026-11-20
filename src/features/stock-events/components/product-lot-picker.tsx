@@ -462,6 +462,7 @@ function ApprovedProductLotPicker({
   const [lotValue, setLotValue] = useState<string | null>(null);
   const [draft, setDraft] = useState({ lotCode: '', expirationDate: '' });
   const [attempted, setAttempted] = useState(false);
+  const [calendarDismissKey, dismissCalendar] = useState(0);
   const [newLotDialog, setNewLotDialog] = useState<{ check: boolean } | null>(null);
   const [solePicked, setSolePicked] = useState(false);
   const sole =
@@ -597,6 +598,7 @@ function ApprovedProductLotPicker({
         setNewLotDialog({ check: true });
         return;
       }
+      dismissCalendar((key) => key + 1);
       const invalid = result?.error?.issues[0]?.path[0];
       document.getElementById(`${id}-${invalid === 'expirationDate' ? 'expiry' : 'code'}`)?.focus();
       return;
@@ -785,6 +787,7 @@ function ApprovedProductLotPicker({
               <DatePicker
                 size="lg"
                 id={`${id}-expiry`}
+                calendarDismissKey={calendarDismissKey}
                 clearLabel={t('stock-events.clear-expiry-date')}
                 describedBy={errors.expirationDate ? `${id}-expiry-error` : undefined}
                 disabled={disabled}

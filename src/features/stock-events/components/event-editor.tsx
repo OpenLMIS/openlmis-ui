@@ -153,6 +153,29 @@ import { type ScanMessage, scanMessage } from '@/lib/scan-messages';
 import { resolveScan, type ScanProduct } from '@/lib/stock-scan';
 import type { SearchChange } from '@/lib/table-search';
 
+// The grid shell tracks row layout; editable values are read by their own fields.
+function sameLineLayout(previous: EventLine[], next: EventLine[]) {
+  return (
+    previous.length === next.length &&
+    previous.every((line, index) => {
+      const other = next[index];
+      return (
+        line === other ||
+        (line.key === other.key &&
+          line.stockProblem === other.stockProblem &&
+          line.orderable === other.orderable &&
+          line.lot === other.lot &&
+          line.stockOnHand === other.stockOnHand &&
+          line.productHasLots === other.productHasLots &&
+          line.netContent === other.netContent &&
+          line.useVVM === other.useVVM &&
+          line.counterparty === other.counterparty &&
+          line.reasonId === other.reasonId)
+      );
+    })
+  );
+}
+
 export type EventSearch = {
   page?: number | undefined;
   size?: number | undefined;
@@ -361,7 +384,14 @@ export function EventEditor({
       });
     setValidationOpen(true);
   };
-  const lines = useStore(form.store, (state) => state.values.lines);
+  const lines = useStore(form.store, (state) => state.values.lines, sameLineLayout);
+  useEffect(() => {
+    const subscription = form.store.subscribe(({ values }) => {
+      const latest = values.lines.find((line) => line.key === lastAdded.current?.key);
+      if (latest) lastAdded.current = latest;
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
   const submission = useDeviceSubmission({
     kind,
     facilityId,
@@ -437,8 +467,6 @@ export function EventEditor({
       ready,
     ],
   );
-  const latestAdded = lines.find((line) => line.key === lastAdded.current?.key);
-  if (latestAdded) lastAdded.current = latestAdded;
   const keyword = search.keyword ?? '';
   const lineKeys = JSON.stringify(lines.map((line) => line.key));
   const language = i18n.language;
@@ -452,7 +480,7 @@ export function EventEditor({
   if (keyword !== filter.keyword || lineKeys !== filter.lineKeys || language !== filter.language) {
     matches = new Set(
       filterEventLines(
-        lines,
+        form.state.values.lines,
         keyword,
         reasons,
         (value) => formatDateValue(value, i18n.language),

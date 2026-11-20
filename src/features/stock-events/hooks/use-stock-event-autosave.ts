@@ -61,9 +61,11 @@ export function useStockEventAutosave(
     setState({ status: 'loading' });
     const onStatus = (next: DraftSaveState) => {
       if (!current()) return;
-      setState((previous) =>
-        next.status === 'saving' ? { ...next, error: previous.error } : next,
-      );
+      setState((previous) => {
+        if (next.status !== 'saving') return next;
+        if (previous.status === 'saving') return previous;
+        return { ...next, error: previous.error };
+      });
       if (next.status === 'failed') {
         if (!failed) announceDeviceSave('stock-events.draft-failed');
         failed = true;

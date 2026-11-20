@@ -709,6 +709,40 @@ describe('ProductLotPicker with approved products', () => {
     expect(code).not.toHaveAttribute('aria-invalid');
   });
 
+  it.each([
+    { layout: 'table', cards: false },
+    { layout: 'cards', cards: true },
+  ])(
+    'closes the invalid new-lot expiry calendar after Enter and Add in $layout',
+    async ({ cards }) => {
+      const { user, onAdd, onSubmit } = renderApproved({ canManageLots: true, cards });
+      await pickProduct(user, 'Aspirin');
+      await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+      await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+      const fields = cards
+        ? within(await screen.findByRole('dialog', { name: 'Add New Lot' }))
+        : screen;
+      await user.type(fields.getByRole('textbox', { name: 'New Lot Code' }), 'NEW-2');
+      const expiry = fields.getByRole('textbox', { name: 'Expiry Date' });
+      await user.type(expiry, '31/02/2031');
+      expect(await screen.findByRole('grid')).toBeVisible();
+
+      await user.keyboard('{Enter}');
+      expect(fields.getByText('This text is not a valid date')).toBeVisible();
+      expect(expiry).toHaveAccessibleDescription('This text is not a valid date');
+      expect(expiry).toHaveFocus();
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+
+      await user.click(expiry);
+      expect(await screen.findByRole('grid')).toBeVisible();
+      await user.click(fields.getByRole('button', { name: 'Add' }));
+      expect(expiry).toHaveFocus();
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+      expect(onAdd).not.toHaveBeenCalled();
+      expect(onSubmit).not.toHaveBeenCalled();
+    },
+  );
+
   it('adds a new lot through a dialog on phones and keeps the previous lot on Cancel', async () => {
     const { user, onAdd, onSubmit } = renderApproved({ canManageLots: true, cards: true });
     await pickProduct(user, 'Aspirin');

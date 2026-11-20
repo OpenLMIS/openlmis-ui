@@ -1616,6 +1616,7 @@ export function TagsField({
 }
 
 type DateFieldProps = FieldProps & {
+  calendarDismissKey?: number | undefined;
   size?: 'sm' | 'default' | 'lg';
   clearLabel?: string;
   earliest?: string;
@@ -1630,10 +1631,9 @@ type LoadedCalendar = {
 };
 
 const FIRST_MONTH = new Date(FIRST_DATE_YEAR, 0);
-const weekdayName = (date: Date, locale: string) =>
-  date.toLocaleDateString(locale, { weekday: 'narrow' });
 
 export function DateField({
+  calendarDismissKey,
   label,
   size,
   layout,
@@ -1659,6 +1659,7 @@ export function DateField({
       state={state}
     >
       <DatePicker
+        calendarDismissKey={calendarDismissKey}
         size={size ?? (layout === 'inline' ? 'sm' : 'default')}
         clearLabel={clearLabel}
         earliest={earliest}
@@ -1696,9 +1697,16 @@ type DatePickerProps = {
   onEnter?: () => void;
   resetKey?: boolean | number;
   calendarSide?: 'top' | 'bottom';
+  /** Change this to close the calendar while keeping the entered text. */
+  calendarDismissKey?: number | undefined;
 };
 
-type DateEdit = { text: string; value: string; resetKey: DatePickerProps['resetKey'] };
+type DateEdit = {
+  text: string;
+  value: string;
+  calendarValue: string;
+  resetKey: DatePickerProps['resetKey'];
+};
 
 let tabKey: KeyboardEvent['nativeEvent'] | undefined;
 
@@ -1750,6 +1758,7 @@ export function DatePicker({
   onEnter,
   resetKey,
   calendarSide = 'bottom',
+  calendarDismissKey = 0,
 }: DatePickerProps) {
   const labelId = `${id}-label`;
   const requiredId = `${id}-required`;
@@ -1767,19 +1776,19 @@ export function DatePicker({
   const withinControl = useRef(false);
   const moveFocusToCalendar = useRef(false);
   const focusInputOnClose = useRef(false);
-  const [open, setOpen] = useState(false);
+  const [openedFor, setOpenedFor] = useState<number>();
+  const open = openedFor === calendarDismissKey;
   const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
   const [edit, setEdit] = useState<DateEdit>();
   const [editingFormat, setEditingFormat] = useState<string>();
   const [month, setMonth] = useState<Date>();
-  const selected = parseEditableDate(value);
-  const shown =
-    edit?.value === value && edit.resetKey === resetKey
-      ? edit.text
-      : formatDateText(value, editingFormat ?? dateFormat);
+  const activeEdit = edit?.value === value && edit.resetKey === resetKey ? edit : undefined;
+  const calendarValue = activeEdit?.calendarValue ?? value;
+  const selected = useMemo(() => parseEditableDate(calendarValue), [calendarValue]);
+  const shown = activeEdit?.text ?? formatDateText(value, editingFormat ?? dateFormat);
   const clearable = Boolean(clearLabel && !required);
-  const first = earliest ? parseDateValue(earliest) : undefined;
-  const last = latest ? parseDateValue(latest) : undefined;
+  const first = useMemo(() => (earliest ? parseDateValue(earliest) : undefined), [earliest]);
+  const last = useMemo(() => (latest ? parseDateValue(latest) : undefined), [latest]);
   const calendarRequest = useRef(0);
   const calendarOpen = open && loaded !== null && !disabled;
 
@@ -1805,14 +1814,17 @@ export function DatePicker({
     input.current?.focus();
   }, [calendarOpen]);
 
-  if (edit && (edit.value !== value || edit.resetKey !== resetKey)) {
+  if (edit && !activeEdit) {
     setEdit(undefined);
     setMonth(undefined);
   }
 
   const openCalendar = () => {
-    if (!open) setMonth(undefined);
-    setOpen(true);
+    if (!open) {
+      moveFocusToCalendar.current = false;
+      setMonth(selected ?? first ?? last ?? new Date());
+    }
+    setOpenedFor(calendarDismissKey);
     if (!loaded) void loadCalendar();
   };
 
@@ -1833,10 +1845,10 @@ export function DatePicker({
     [focusCalendar],
   );
 
-  const closeCalendar = () => {
+  const closeCalendar = useCallback(() => {
     moveFocusToCalendar.current = false;
-    setOpen(false);
-  };
+    setOpenedFor(undefined);
+  }, []);
 
   const containsFocus = (target: EventTarget | null) =>
     target instanceof Node && (group.current?.contains(target) || popup.current?.contains(target));
@@ -1863,21 +1875,62 @@ export function DatePicker({
     }, 0);
   };
 
-  const pick = (next: string) => {
-    focusInputOnClose.current = calendarOpen;
-    setEdit(undefined);
-    setMonth(undefined);
-    closeCalendar();
-    onValueChange(next);
-    if (!calendarOpen) input.current?.focus();
-  };
+  const pick = useCallback(
+    (next: string) => {
+      focusInputOnClose.current = calendarOpen;
+      setEdit(undefined);
+      setMonth(undefined);
+      closeCalendar();
+      onValueChange(next);
+      if (!calendarOpen) input.current?.focus();
+    },
+    [calendarOpen, closeCalendar, onValueChange],
+  );
+  const calendar = useMemo(() => {
+    if (!loaded) return null;
+    let weekday: Intl.DateTimeFormat | undefined;
+    return (
+      <loaded.Calendar
+        captionLayout="dropdown"
+        month={month ?? selected ?? first ?? last ?? new Date()}
+        onMonthChange={setMonth}
+        dir={direction}
+        disabled={[...(first ? [{ before: first }] : []), ...(last ? [{ after: last }] : [])]}
+        endMonth={new Date(lastDateYear(), 11)}
+        formatters={{
+          formatWeekdayName: (date) => {
+            weekday ??= new Intl.DateTimeFormat(dateLanguage, { weekday: 'narrow' });
+            return weekday.format(date);
+          },
+        }}
+        locale={loaded.locale}
+        mode="single"
+        onSelect={(date: Date | undefined) => pick(date ? toDateValue(date) : '')}
+        required={!clearable}
+        selected={selected}
+        startMonth={FIRST_MONTH}
+      />
+    );
+  }, [loaded, dateLanguage, month, selected, first, last, direction, pick, clearable]);
 
   const changeText = (text: string) => {
     const parsed = parseDateText(text, editingFormat ?? dateFormat);
     const next = parsed ?? unparsedDateValue(text);
     if (!open) openCalendar();
-    setEdit({ text, value: next, resetKey: typeof resetKey === 'boolean' ? true : resetKey });
-    if (parsed) setMonth(parseEditableDate(parsed));
+    setEdit({
+      text,
+      value: next,
+      calendarValue: parsed ?? (text ? calendarValue : ''),
+      resetKey: typeof resetKey === 'boolean' ? true : resetKey,
+    });
+    const date = parsed ? parseEditableDate(parsed) : undefined;
+    if (date) {
+      setMonth((shown) =>
+        shown?.getFullYear() === date.getFullYear() && shown.getMonth() === date.getMonth()
+          ? shown
+          : date,
+      );
+    }
     const change = onTextChange ?? onValueChange;
     change(next);
   };
@@ -2047,23 +2100,7 @@ export function DatePicker({
           side={calendarSide}
           width="auto"
         >
-          {loaded && (
-            <loaded.Calendar
-              captionLayout="dropdown"
-              month={month ?? selected ?? first ?? last ?? new Date()}
-              onMonthChange={setMonth}
-              dir={direction}
-              disabled={[...(first ? [{ before: first }] : []), ...(last ? [{ after: last }] : [])]}
-              endMonth={new Date(lastDateYear(), 11)}
-              formatters={{ formatWeekdayName: (date) => weekdayName(date, dateLanguage) }}
-              locale={loaded.locale}
-              mode="single"
-              onSelect={(date: Date | undefined) => pick(date ? toDateValue(date) : '')}
-              required={!clearable}
-              selected={selected}
-              startMonth={FIRST_MONTH}
-            />
-          )}
+          {calendar}
         </PopoverContent>
         <span className="sr-only" ref={afterCalendar} tabIndex={-1} />
       </InputGroup>
