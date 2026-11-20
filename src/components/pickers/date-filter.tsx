@@ -12,7 +12,15 @@ import { FieldError } from '@/components/ui/field';
 
 type DateFilterProps = Pick<
   ComponentProps<typeof DatePicker>,
-  'id' | 'label' | 'value' | 'earliest' | 'latest' | 'clearLabel' | 'disabled' | 'size'
+  | 'id'
+  | 'label'
+  | 'value'
+  | 'earliest'
+  | 'latest'
+  | 'clearLabel'
+  | 'disabled'
+  | 'size'
+  | 'calendarSide'
 > & { onValueChange: (value: string) => void };
 
 function dateFilterError(value: string, earliest?: string, latest?: string) {

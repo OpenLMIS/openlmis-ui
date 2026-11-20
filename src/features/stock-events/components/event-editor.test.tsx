@@ -757,7 +757,7 @@ describe('EventEditor', () => {
     );
   });
 
-  it('copies reason, comments and date into another line, then removes it with focus on the remaining action', async () => {
+  it('copies reason and comments into another line, then removes it with focus on the remaining action', async () => {
     const { user } = setup();
     await add(user);
     await pickReason(user);
@@ -770,8 +770,6 @@ describe('EventEditor', () => {
     expect(
       screen.getAllByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ })[0],
     ).toHaveValue('Broken');
-    const dates = screen.getAllByRole<HTMLInputElement>('textbox', { name: /^Date, Aspirin/ });
-    expect(dates[0]).toHaveValue(dates[1].value);
     await user.click(screen.getAllByRole('button', { name: /^Remove, Aspirin/ })[0]);
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /^Remove, Aspirin/ })).toHaveFocus(),

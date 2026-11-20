@@ -58,6 +58,7 @@ export function LotsToolbar({ search, onFilterChange, columnView, layout }: Lots
             value={search.product}
           />
           <DateFilter
+            calendarSide="top"
             clearLabel={t('data-table.clear-filter', { label: t('lots.earliest-expiry') })}
             id="lots-earliest-expiry"
             label={t('lots.earliest-expiry')}

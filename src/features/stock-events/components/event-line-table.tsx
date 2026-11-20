@@ -31,7 +31,7 @@ import {
   CardRows,
 } from '@/components/display/card-list';
 import { QuantityHeaderSizer } from '@/components/display/quantity-header-sizer';
-import { formatDateText, formatDateValue } from '@/components/form/date-value';
+import { formatDateValue } from '@/components/form/date-value';
 import { useDateFormat } from '@/components/form/form-messages';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
@@ -228,7 +228,7 @@ function DateSizer() {
       aria-hidden
       className="invisible flex h-0 w-max items-center overflow-hidden ps-2.5 pe-8 text-sm"
     >
-      <span>{formatDateText('2000-12-28', dateFormat)}</span>
+      <span>{dateFormat.replace(/d+|M+/g, '00').replace('yyyy', '0000')}</span>
     </div>
   );
 }

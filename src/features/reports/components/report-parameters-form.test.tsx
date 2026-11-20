@@ -286,6 +286,8 @@ it('blocks a malformed report date and sends the corrected date in ISO format', 
   expect(date).toHaveAccessibleDescription('form.date-invalid');
   expect(generateReport).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() => expect(date).toHaveFocus());
+  expect(screen.queryByRole('dialog', { name: 'Date' })).not.toBeInTheDocument();
   await user.clear(date);
   await user.type(date, '28/02/2026');
   await user.click(generate);

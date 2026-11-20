@@ -188,6 +188,18 @@ describe('PeriodsDialog', () => {
     expect(start).toHaveAccessibleDescription('processing-schedules.periods.start-hint');
   });
 
+  it('rejects a typed end date equal to the locked start date', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.type(await screen.findByLabelText(/processing-schedules.periods.name/), 'February');
+    const end = screen.getByRole('textbox', { name: /processing-schedules.periods.end-date/ });
+    await user.type(end, '01/02/2026');
+    await user.click(screen.getByRole('button', { name: 'processing-schedules.period-form.add' }));
+
+    expect(end).toHaveAccessibleDescription('processing-schedules.period-form.end-after-start');
+    expect(createProcessingPeriod).not.toHaveBeenCalled();
+  });
+
   it('keeps a refused draft, shows the server reason and refreshes its locked start', async () => {
     const user = userEvent.setup();
     vi.mocked(createProcessingPeriod).mockRejectedValue(

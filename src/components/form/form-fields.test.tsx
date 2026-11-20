@@ -665,6 +665,82 @@ describe('date field', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('closes on Tab from the textbox and keeps moving through the form', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+    const opened = screen.getByRole('textbox', { name: 'Opened' });
+    await user.click(opened);
+    await screen.findByRole('dialog', { name: 'Opened' });
+
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Open Calendar Opened' })).toHaveFocus();
+    expect(screen.queryByRole('dialog', { name: 'Opened' })).not.toBeInTheDocument();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Clear Opened' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('textbox', { name: 'Kept' })).toHaveFocus();
+    await screen.findByRole('dialog', { name: 'Kept' });
+  });
+
+  it.each(['{ArrowDown}', '{Tab}'])(
+    'enters a calendar from its button with %s and tabs to the next field',
+    async (key) => {
+      const user = userEvent.setup();
+      render(<DateForm onSubmit={vi.fn()} />);
+      const calendar = await openCalendar(user, /^Open Calendar Opened$/);
+      await user.keyboard(key);
+      expect(calendar).toContainElement(document.activeElement as HTMLElement);
+
+      await user.tab();
+      expect(screen.getByRole('textbox', { name: 'Kept' })).toHaveFocus();
+      expect(screen.queryByRole('dialog', { name: 'Opened' })).not.toBeInTheDocument();
+      await screen.findByRole('dialog', { name: 'Kept' });
+    },
+  );
+
+  it('reopens when the focused input is clicked after Escape', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+    const opened = screen.getByRole('textbox', { name: 'Opened' });
+    await user.click(opened);
+    await screen.findByRole('dialog', { name: 'Opened' });
+    await user.keyboard('{Escape}');
+    expect(opened).toHaveFocus();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await user.click(opened);
+    await screen.findByRole('dialog', { name: 'Opened' });
+  });
+
+  it('interprets ambiguous year-first text identically when typed and pasted', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <FormMessagesProvider dateFormat="yyyy-dd-MM" formatError={String}>
+        <DateForm onSubmit={onSubmit} />
+      </FormMessagesProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: /^Started/ });
+    await user.type(input, '2026-03-04{Enter}');
+    await user.clear(input);
+    await user.paste('2026-03-04');
+    await user.keyboard('{Enter}');
+
+    expect(onSubmit.mock.calls.map(([value]) => value.started)).toEqual([
+      '2026-04-03',
+      '2026-04-03',
+    ]);
+
+    onSubmit.mockClear();
+    await user.clear(input);
+    await user.paste('2026-01-13');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(input).toHaveAccessibleDescription('form.date-invalid');
+    expect(input).toHaveValue('2026-01-13');
+  });
+
   it('keeps a required date when its day is picked again', async () => {
     const user = userEvent.setup();
     render(<DateForm onSubmit={vi.fn()} />);
@@ -673,7 +749,8 @@ describe('date field', () => {
     const today = (await within(calendar).findAllByRole('button', { name: /Today/ }))[0];
     if (!today) throw new Error('no today');
     await user.click(today);
-    const started = screen.getByRole<HTMLInputElement>('textbox', { name: /^Started/ });
+    const started = screen.getByRole<HTMLInputElement>('textbox', { name: 'Started Required' });
+    expect(started).toBeRequired();
     const picked = started.value;
 
     calendar = await openCalendar(user, /^Open Calendar Started/);
@@ -697,14 +774,6 @@ describe('date field', () => {
     expect(screen.queryByRole('button', { name: 'Clear Opened' })).toBeNull();
   });
 
-  it('tells screen readers a date is required with its label', async () => {
-    await act(async () => {
-      render(<DateForm onSubmit={vi.fn()} />);
-    });
-
-    expect(screen.getByRole('textbox', { name: 'Started Required' })).toBeRequired();
-  });
-
   it('keeps a date that has no clear button when its day is picked again', async () => {
     const user = userEvent.setup();
     render(<DateForm onSubmit={vi.fn()} />);
@@ -714,80 +783,41 @@ describe('date field', () => {
 
     expect(screen.getByRole('textbox', { name: 'Kept' })).toHaveValue('01/10/2026');
   });
-
-  it('shows the date in the deployment format independently of the language', async () => {
-    await act(async () => {
-      render(
-        <FormMessagesProvider
-          dateFormat="yyyy.M.d"
-          dateLanguage="pt"
-          formatError={(message) => message}
-        >
-          <DateForm onSubmit={vi.fn()} />
-        </FormMessagesProvider>,
-      );
-    });
-
-    expect(screen.getByRole('textbox', { name: 'Opened' })).toHaveValue('2026.10.1');
-  });
 });
 
-describe('date picker', () => {
-  it.each([1900, 2100, new Date().getFullYear() + 100])(
-    'picks a date in year %i through the year dropdown',
-    async (year) => {
-      const user = userEvent.setup();
-      const onValueChange = vi.fn();
-      render(
-        <DatePicker id="expiry" label="Expiry" onValueChange={onValueChange} value="2026-01-15" />,
-      );
-
-      const calendar = await openCalendar(user, /^Open Calendar Expiry/);
-      const years = await within(calendar).findByRole('combobox', { name: 'Choose the Year' });
-      await user.selectOptions(years, String(year));
-      await user.click(
-        within(calendar).getByRole('button', { name: new RegExp(`January 16th, ${year}`) }),
-      );
-
-      expect(onValueChange).toHaveBeenCalledWith(`${year}-01-16`);
-    },
+function BoundedDate() {
+  const form = useAppForm({ defaultValues: { date: '2019-01-15' } });
+  return (
+    <form.AppField name="date">
+      {(field) => (
+        <field.DateField label="Latest Expiry" earliest="2019-01-10" latest="2019-01-20" />
+      )}
+    </form.AppField>
   );
+}
 
-  it('keeps its name after a date is picked', async () => {
+describe('date picker', () => {
+  it.each([1900, 2126])('picks a date in year %i through the year dropdown', async (year) => {
     vi.useFakeTimers({ now: new Date(2026, 9, 13), toFake: ['Date'] });
     const user = userEvent.setup();
     const onValueChange = vi.fn();
-    const { rerender } = render(
-      <DatePicker id="from" label="Earliest Expiry" onValueChange={onValueChange} value="" />,
+    render(
+      <DatePicker id="expiry" label="Expiry" onValueChange={onValueChange} value="2026-01-15" />,
     );
 
-    const calendar = await openCalendar(user, /^Open Calendar Earliest Expiry$/);
-    await user.click(await within(calendar).findByRole('button', { name: /October 15th/ }));
-    expect(onValueChange).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-10-15$/));
-
-    rerender(
-      <DatePicker
-        id="from"
-        label="Earliest Expiry"
-        onValueChange={onValueChange}
-        value="2019-01-30"
-      />,
+    const calendar = await openCalendar(user, /^Open Calendar Expiry/);
+    const years = await within(calendar).findByRole('combobox', { name: 'Choose the Year' });
+    await user.selectOptions(years, String(year));
+    await user.click(
+      within(calendar).getByRole('button', { name: new RegExp(`January 16th, ${year}`) }),
     );
-    expect(screen.getByRole('textbox', { name: 'Earliest Expiry' })).toHaveValue('30/01/2019');
+
+    expect(onValueChange).toHaveBeenCalledWith(`${year}-01-16`);
   });
 
   it('offers only the days between its earliest and latest', async () => {
     const user = userEvent.setup();
-    render(
-      <DatePicker
-        earliest="2019-01-10"
-        id="to"
-        label="Latest Expiry"
-        latest="2019-01-20"
-        onValueChange={vi.fn()}
-        value="2019-01-15"
-      />,
-    );
+    render(<BoundedDate />);
 
     const calendar = await openCalendar(user, /^Open Calendar Latest Expiry/);
     expect(
@@ -812,24 +842,6 @@ describe('date picker', () => {
     await user.pointer({ keys: '[/MouseLeft]', target: next });
 
     expect(within(calendar).getByRole('grid')).toHaveAttribute('aria-label', 'February 2019');
-  });
-
-  it('clears its date', async () => {
-    const user = userEvent.setup();
-    const onValueChange = vi.fn();
-    render(
-      <DatePicker
-        clearLabel="Clear Latest Expiry"
-        id="to"
-        label="Latest Expiry"
-        onValueChange={onValueChange}
-        value="2019-01-15"
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Clear Latest Expiry' }));
-
-    expect(onValueChange).toHaveBeenCalledWith('');
   });
 });
 

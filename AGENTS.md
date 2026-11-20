@@ -280,6 +280,7 @@ edits, which have no prop for TypeScript to detect:
 |---|---|
 | `dialog.tsx` | Keep the app `@/components/shared/page-visibility` dependency, hidden portal state and release after visible close |
 | `sheet.tsx` / `dropdown-menu.tsx` / `popover.tsx` / `select.tsx` | Keep page-visibility gates and close transient overlays when the page hides |
+| `popover.tsx` | Pass the `anchor` and `collisionAvoidance` props to the positioner; keep auto-width content within the available height |
 | `alert-dialog.tsx` | Keep the page-visibility gate and retained close target; DiscardChangesDialog opts out so navigation/logout remain answerable. Preserve destructive media, the `lg` size and header/media/title `group-not-data-[size=sm]` classes so large dialogs retain the default layout |
 | `breadcrumb.tsx` | Keep Breadcrumb `min-w-0`, BreadcrumbList `flex-nowrap whitespace-nowrap`, BreadcrumbPage `truncate`, BreadcrumbSeparator `shrink-0`, BreadcrumbItem `current` prop and no sr-only "More" in BreadcrumbEllipsis |
 | `dropdown-menu.tsx` | Preserve the warning item variant for Back To Legacy |
@@ -764,7 +765,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 | `ComboboxField` | Searchable choices; item `description` appears muted after label; `loading` puts a spinner inside the input in place of its chevron |
 | `ImageField` | `undefined` keeps saved image, `null` removes it, `File` replaces it; validate `onChange` immediately |
 | `FileField` | `File` selects a file; `undefined` clears it and its errors; pass translated `emptyLabel`, `removeLabel`, `accept` and optional external `describedBy`; the entire paperclip/filename row opens the file chooser, and the selected-file card takes a caller-localized `fileSize` and a destructive clear control; required validation stays in the schema |
-| `DateField` | Deployment-format text with a page-language calendar; draft is `yyyy-MM-dd`, empty or the exact invalid text; optional dates get `clearLabel` |
+| `DateField` | Deployment-format text with a page-language calendar; draft is `yyyy-MM-dd`, empty or invalid text; optional dates get `clearLabel` |
 | `RadioGroupField` | `variant="tile"` for option grids, `variant="segmented"` for 2-3 short options, `columns="row"` for cards side by side when room permits |
 
 - `TextField`/`NumberField`, `TextareaField` and `SelectField` accept `errorDescriptionId`
@@ -793,8 +794,9 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   display valid values in the deployment format after blur. Typed and picked days share
   the calendar's 1900 to current year plus 100 range.
 - Lazy-load the calendar and language (`loadDateLocale` through `FormMessagesProvider`) on mount
-  and retry failed loads on open. Textbox focus opens the calendar while keeping keyboard input in
-  the field. ArrowDown enters the calendar. Inline dates use 28px and `size="lg"` uses 36px.
+  and retry failed loads on open. Pointer and Tab focus open the calendar and keep typing in the
+  textbox. Programmatic focus leaves it closed. ArrowDown from the textbox or calendar button
+  enters the calendar. Tab from the open calendar button also enters it. Inline dates use 28px and `size="lg"` uses 36px.
   Required dates announce the provider's `requiredLabel` with their name. Outside forms use
   `DatePicker`. Toolbar and popover date filters use `DateFilter` from `components/pickers` to commit
   valid edits on Enter, leaving the control or closing Filters. Use localized `formatDateValue`
@@ -823,7 +825,7 @@ features or i18next. Allowed variants: `DialogContent size/height/layout`, `Dial
 `DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `InputGroup size`, `InputGroupAddon width`, `Field spacing/surface`,
 `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel/size`,
 `ComboboxChip removeLabel`, `ComboboxChips size`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
-`Button align/width/variant="warning"`, `PopoverContent anchor/width/padding`. `InputGroup size="sm"` becomes `h-7`. Each `lg` size is a plain
+`Button align/width/variant="warning"`, `PopoverContent anchor/collisionAvoidance/width/padding`. `InputGroup size="sm"` becomes `h-7`. Each `lg` size is a plain
 `h-9` className in the registry.
 `ComboboxVirtualList` and `useComboboxFilter` are accepted UI exports for virtualized fields;
 keep their filtering and virtualization dependencies behind `ui/combobox.tsx`.

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -135,6 +135,75 @@ describe('LotsToolbar', () => {
     expect(onFilterChange.mock.calls).toEqual([[{ expiryFrom: '2019-01-10', page: undefined }]]);
   });
 
+  it('commits a valid correction only when focus leaves its input, buttons and calendar', async () => {
+    const onFilterChange = vi.fn();
+    renderPage(
+      <LotsToolbar
+        columnView={columnView}
+        layout="table"
+        onFilterChange={onFilterChange}
+        search={{ expiryFrom: '2019-01-01' }}
+      />,
+    );
+    const user = await openFilters();
+    const input = screen.getByRole('textbox', { name: 'lots.earliest-expiry' });
+    await user.clear(input);
+    await user.type(input, '31/02/2019');
+    const latest = screen.getByRole('textbox', { name: 'lots.latest-expiry' });
+    await user.click(latest);
+    expect(input).toHaveAccessibleDescription('form.date-invalid');
+    await user.clear(input);
+    await user.type(input, '12/01/2019');
+    await screen.findByRole('dialog', { name: 'lots.earliest-expiry' });
+    await user.tab();
+    expect(
+      screen.getByRole('button', { name: 'Open Calendar lots.earliest-expiry' }),
+    ).toHaveFocus();
+    expect(onFilterChange).not.toHaveBeenCalled();
+    await user.keyboard('{ArrowDown}');
+    const calendar = await screen.findByRole('dialog', { name: 'lots.earliest-expiry' });
+    expect(calendar).toContainElement(document.activeElement as HTMLElement);
+    expect(onFilterChange).not.toHaveBeenCalled();
+
+    await user.tab();
+    expect(latest).toHaveFocus();
+    await waitFor(() =>
+      expect(onFilterChange.mock.calls).toEqual([[{ expiryFrom: '2019-01-12', page: undefined }]]),
+    );
+    expect(input).not.toHaveAccessibleDescription();
+  });
+
+  it('keeps the calendar open on a pointer blur and applies only the clicked day', async () => {
+    const onFilterChange = vi.fn();
+    renderPage(
+      <LotsToolbar
+        columnView={columnView}
+        layout="table"
+        onFilterChange={onFilterChange}
+        search={{}}
+      />,
+    );
+    const user = await openFilters();
+    const input = screen.getByRole('textbox', { name: 'lots.earliest-expiry' });
+    await user.type(input, '12/01/2019');
+    const calendar = await screen.findByRole('dialog', { name: 'lots.earliest-expiry' });
+
+    fireEvent.pointerDown(calendar);
+    await act(async () => input.blur());
+    fireEvent.pointerUp(calendar);
+    fireEvent.click(calendar);
+    expect(calendar).toBeVisible();
+    expect(onFilterChange).not.toHaveBeenCalled();
+
+    await user.click(input);
+    const day = within(calendar).getByRole('button', { name: /January 10th, 2019/ });
+    fireEvent.pointerDown(day);
+    await act(async () => input.blur());
+    fireEvent.pointerUp(day);
+    fireEvent.click(day);
+    expect(onFilterChange.mock.calls).toEqual([[{ expiryFrom: '2019-01-10', page: undefined }]]);
+  });
+
   it('filters by the earliest expiry date, never after the latest', async () => {
     const onFilterChange = vi.fn();
     renderPage(
@@ -142,10 +211,13 @@ describe('LotsToolbar', () => {
         columnView={columnView}
         layout="table"
         onFilterChange={onFilterChange}
-        search={{ expiryTo: '2019-01-20' }}
+        search={{ expiryFrom: '2019-01-09', expiryTo: '2019-01-20' }}
       />,
     );
     const user = await openFilters();
+
+    expect(screen.getByRole('textbox', { name: 'lots.earliest-expiry' })).toHaveValue('09/01/2019');
+    expect(screen.getByRole('textbox', { name: 'lots.latest-expiry' })).toHaveValue('20/01/2019');
 
     await user.click(
       await screen.findByRole('button', { name: 'Open Calendar lots.earliest-expiry' }),
@@ -264,22 +336,5 @@ describe('LotsToolbar', () => {
     await openFilters();
 
     expect(await screen.findByDisplayValue('lots.unknown-product')).toBeInTheDocument();
-  });
-
-  it('keeps naming each expiry date once it is picked', async () => {
-    renderPage(
-      <LotsToolbar
-        columnView={columnView}
-        layout="table"
-        onFilterChange={vi.fn()}
-        search={{ expiryFrom: '2019-01-10', expiryTo: '2019-01-20' }}
-      />,
-    );
-    await openFilters();
-
-    expect(await screen.findByRole('textbox', { name: 'lots.earliest-expiry' })).toHaveValue(
-      '10/01/2019',
-    );
-    expect(screen.getByRole('textbox', { name: 'lots.latest-expiry' })).toHaveValue('20/01/2019');
   });
 });

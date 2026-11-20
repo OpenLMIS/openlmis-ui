@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
 import { type ReactNode, Suspense, useState } from 'react';
+import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DatePicker } from '@/components/form/form-fields';
 import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
@@ -11,6 +13,10 @@ import {
 } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { client } from '@/integrations/axios';
+
+vi.hoisted(() => {
+  localStorage.setItem('openlmis-ui.date-format', 'MM/dd/yyyy');
+});
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
 
@@ -31,6 +37,7 @@ beforeEach(() => {
 afterEach(() => {
   localStorage.clear();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('useDeploymentTimeZone', () => {
@@ -132,11 +139,18 @@ function SettingsDate() {
   );
 }
 
-it('shows the stored date format immediately, keeps it offline and finishes an edit in that format', async () => {
+it('renders the stored deployment format in Portuguese, keeps it offline and finishes an edit in that format', async () => {
   const user = userEvent.setup();
-  localStorage.setItem('openlmis-ui.date-format', 'MM/dd/yyyy');
+  const i18n = createInstance();
+  await i18n.init({ lng: 'pt', resources: { pt: { translation: {} } } });
+  const readStorage = vi.spyOn(Storage.prototype, 'getItem');
   vi.mocked(client.get).mockRejectedValueOnce(new Error('offline'));
-  render(<SettingsDate />, { wrapper });
+  render(
+    <I18nextProvider i18n={i18n}>
+      <SettingsDate />
+    </I18nextProvider>,
+    { wrapper },
+  );
   const date = screen.getByRole('textbox', { name: 'Date' });
 
   expect(date).toHaveValue('02/01/2024');
@@ -146,6 +160,7 @@ it('shows the stored date format immediately, keeps it offline and finishes an e
   expect(date).toHaveValue('02/01/2024');
   await user.clear(date);
   await user.type(date, '2/');
+  expect(readStorage).not.toHaveBeenCalledWith('openlmis-ui.date-format');
 
   vi.mocked(client.get).mockResolvedValue({
     data: { dateFormat: 'yyyy.MM.dd', timeZoneId: 'UTC' },

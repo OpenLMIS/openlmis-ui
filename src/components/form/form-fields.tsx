@@ -12,8 +12,8 @@ import {
   XIcon,
 } from 'lucide-react';
 import {
-  type ClipboardEvent,
   type ComponentProps,
+  type FocusEvent,
   Fragment,
   type KeyboardEvent,
   type ReactNode,
@@ -30,8 +30,8 @@ import {
   parseDateText,
   parseDateValue,
   parseEditableDate,
-  parsePastedDate,
   toDateValue,
+  unparsedDateValue,
 } from '@/components/form/date-value';
 import { useFieldContext } from '@/components/form/form-context';
 import {
@@ -1695,9 +1695,41 @@ type DatePickerProps = {
   onLeave?: () => void;
   onEnter?: () => void;
   resetKey?: boolean | number;
+  calendarSide?: 'top' | 'bottom';
 };
 
 type DateEdit = { text: string; value: string; resetKey: DatePickerProps['resetKey'] };
+
+let tabKey: KeyboardEvent['nativeEvent'] | undefined;
+
+if (typeof document !== 'undefined') {
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      tabKey = event.key === 'Tab' ? event : undefined;
+      if (tabKey) {
+        setTimeout(() => {
+          if (tabKey === event) tabKey = undefined;
+        }, 0);
+      }
+    },
+    true,
+  );
+  document.addEventListener(
+    'keyup',
+    () => {
+      tabKey = undefined;
+    },
+    true,
+  );
+  document.addEventListener(
+    'pointerdown',
+    () => {
+      tabKey = undefined;
+    },
+    true,
+  );
+}
 
 export function DatePicker({
   size = 'default',
@@ -1717,6 +1749,7 @@ export function DatePicker({
   onLeave,
   onEnter,
   resetKey,
+  calendarSide = 'bottom',
 }: DatePickerProps) {
   const labelId = `${id}-label`;
   const requiredId = `${id}-required`;
@@ -1728,8 +1761,12 @@ export function DatePicker({
   const group = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const popup = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const afterCalendar = useRef<HTMLSpanElement>(null);
+  const insidePointer = useRef(false);
+  const withinControl = useRef(false);
   const moveFocusToCalendar = useRef(false);
-  const ignoreFocus = useRef(false);
+  const focusInputOnClose = useRef(false);
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
   const [edit, setEdit] = useState<DateEdit>();
@@ -1761,6 +1798,12 @@ export function DatePicker({
       calendarRequest.current += 1;
     };
   }, [loadCalendar]);
+
+  useEffect(() => {
+    if (calendarOpen || !focusInputOnClose.current) return;
+    focusInputOnClose.current = false;
+    input.current?.focus();
+  }, [calendarOpen]);
 
   if (edit && (edit.value !== value || edit.resetKey !== resetKey)) {
     setEdit(undefined);
@@ -1795,22 +1838,43 @@ export function DatePicker({
     setOpen(false);
   };
 
-  const returnFocus = () => {
-    ignoreFocus.current = true;
-    input.current?.focus();
-    ignoreFocus.current = false;
+  const containsFocus = (target: EventTarget | null) =>
+    target instanceof Node && (group.current?.contains(target) || popup.current?.contains(target));
+
+  const leaveControl = () => {
+    if (!withinControl.current) return;
+    withinControl.current = false;
+    insidePointer.current = false;
+    setEdit(undefined);
+    setEditingFormat(undefined);
+    closeCalendar();
+    onLeave?.();
+  };
+
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (
+      containsFocus(event.relatedTarget) ||
+      (event.relatedTarget === null && insidePointer.current)
+    )
+      return;
+    const document = event.currentTarget.ownerDocument;
+    setTimeout(() => {
+      if (group.current && !containsFocus(document.activeElement)) leaveControl();
+    }, 0);
   };
 
   const pick = (next: string) => {
+    focusInputOnClose.current = calendarOpen;
     setEdit(undefined);
     setMonth(undefined);
     closeCalendar();
     onValueChange(next);
-    returnFocus();
+    if (!calendarOpen) input.current?.focus();
   };
 
-  const changeText = (text: string, parsed: string | undefined) => {
-    const next = parsed ?? text;
+  const changeText = (text: string) => {
+    const parsed = parseDateText(text, editingFormat ?? dateFormat);
+    const next = parsed ?? unparsedDateValue(text);
     if (!open) openCalendar();
     setEdit({ text, value: next, resetKey: typeof resetKey === 'boolean' ? true : resetKey });
     if (parsed) setMonth(parseEditableDate(parsed));
@@ -1818,54 +1882,75 @@ export function DatePicker({
     change(next);
   };
 
-  const pasteDate = (event: ClipboardEvent<HTMLInputElement>) => {
-    const { selectionStart, selectionEnd, value: text } = event.currentTarget;
-    if (selectionStart !== 0 || selectionEnd !== text.length) return;
-    const pasted = event.clipboardData.getData('text');
-    const parsed = parsePastedDate(pasted);
-    if (!parsed) return;
-    event.preventDefault();
-    changeText(pasted, parsed);
+  const focusOpenCalendar = () => {
+    if (!open) openCalendar();
+    if (popup.current && calendarOpen) focusCalendar(popup.current);
+    else moveFocusToCalendar.current = true;
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape' && open) {
+    if (event.nativeEvent.isComposing || !open) return;
+    if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
       closeCalendar();
-      returnFocus();
+      input.current?.focus();
     }
-    if (event.key === 'Tab') closeCalendar();
+    if (event.key !== 'Tab') return;
+    if (event.target instanceof Node && popup.current?.contains(event.target)) {
+      closeCalendar();
+      if (event.shiftKey) {
+        event.preventDefault();
+        trigger.current?.focus();
+      } else {
+        afterCalendar.current?.focus();
+      }
+    } else if (event.target === trigger.current && !event.shiftKey) {
+      event.preventDefault();
+      focusOpenCalendar();
+    } else {
+      closeCalendar();
+      if (event.target === input.current && !event.shiftKey) {
+        event.preventDefault();
+        trigger.current?.focus();
+      }
+    }
   };
 
   return (
     <Popover
       onOpenChange={(next, details) => {
-        if (next) openCalendar();
-        else {
-          if (
-            details.reason === 'outside-press' &&
-            details.event.target instanceof Node &&
-            group.current?.contains(details.event.target)
-          ) {
-            details.cancel();
-            return;
-          }
+        if (next) {
+          openCalendar();
+        } else if (
+          details.reason === 'focus-out' ||
+          (details.reason === 'outside-press' && containsFocus(details.event.target))
+        ) {
+          details.cancel();
+        } else if (details.reason === 'outside-press') {
           closeCalendar();
-          if (details.reason === 'escape-key') returnFocus();
+          if (!containsFocus(group.current?.ownerDocument.activeElement ?? null)) leaveControl();
+        } else {
+          closeCalendar();
+          if (details.reason === 'escape-key') input.current?.focus();
         }
       }}
       open={calendarOpen}
     >
       <InputGroup
-        onBlur={(event) => {
-          const target = event.relatedTarget;
-          if (target && (group.current?.contains(target) || popup.current?.contains(target)))
-            return;
-          setEdit(undefined);
-          setEditingFormat(undefined);
-          closeCalendar();
-          onLeave?.();
+        onBlur={handleBlur}
+        onFocusCapture={() => {
+          withinControl.current = true;
+        }}
+        onPointerDownCapture={() => {
+          withinControl.current = true;
+          insidePointer.current = true;
+        }}
+        onPointerUpCapture={() => {
+          insidePointer.current = false;
+        }}
+        onPointerCancelCapture={() => {
+          insidePointer.current = false;
         }}
         onKeyDown={handleKeyDown}
         ref={group}
@@ -1898,28 +1983,23 @@ export function DatePicker({
             setEditingFormat(undefined);
             onBlur?.();
           }}
-          onChange={(event) => {
-            const text = event.target.value;
-            changeText(text, parseDateText(text, editingFormat ?? dateFormat));
-          }}
+          onChange={(event) => changeText(event.target.value)}
           onFocus={() => {
             setEditingFormat((format) => format ?? dateFormat);
-            if (!ignoreFocus.current) openCalendar();
+            if (tabKey) openCalendar();
           }}
           onKeyDown={(event) => {
             if (event.nativeEvent.isComposing) return;
             if (event.key === 'ArrowDown') {
               event.preventDefault();
-              if (!open) openCalendar();
-              if (popup.current && calendarOpen) focusCalendar(popup.current);
-              else moveFocusToCalendar.current = true;
+              focusOpenCalendar();
             }
             if (event.key === 'Enter' && onEnter) {
               event.preventDefault();
               onEnter();
             }
           }}
-          onPaste={pasteDate}
+          onPointerDown={openCalendar}
           ref={input}
           spellCheck={false}
           type="text"
@@ -1927,6 +2007,14 @@ export function DatePicker({
         />
         <InputGroupAddon align="inline-end">
           <PopoverTrigger
+            onClick={(event) => event.currentTarget.focus()}
+            onKeyDown={(event) => {
+              if (!event.nativeEvent.isComposing && event.key === 'ArrowDown') {
+                event.preventDefault();
+                focusOpenCalendar();
+              }
+            }}
+            ref={trigger}
             render={
               <InputGroupButton
                 aria-labelledby={`${calendarLabelId} ${labelId}`}
@@ -1950,11 +2038,13 @@ export function DatePicker({
           align="start"
           anchor={group}
           aria-labelledby={labelId}
+          collisionAvoidance={calendarSide === 'top' ? { side: 'none', align: 'shift' } : undefined}
           finalFocus={false}
           id={calendarId}
           initialFocus={false}
           padding="none"
           ref={attachPopup}
+          side={calendarSide}
           width="auto"
         >
           {loaded && (
@@ -1975,6 +2065,7 @@ export function DatePicker({
             />
           )}
         </PopoverContent>
+        <span className="sr-only" ref={afterCalendar} tabIndex={-1} />
       </InputGroup>
     </Popover>
   );
