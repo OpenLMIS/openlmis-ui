@@ -3,7 +3,6 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { formatDateValue } from '@/components/form/date-value';
 import { fetchLot, updateLot } from '@/features/lots/api/api';
 import { lotsListOptions } from '@/features/lots/api/queries';
 import { LotFormDialog } from '@/features/lots/components/lot-form-dialog';
@@ -56,15 +55,13 @@ beforeEach(() => {
 });
 
 describe('LotFormDialog', () => {
-  it("fills the form with the lot's current values, dates as the table shows them", async () => {
+  it("fills the form with the lot's current values, dates in the deployment format", async () => {
     renderDialog();
 
     expect(await screen.findByDisplayValue('LC2017A')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /lots.expiration-date/ })).toHaveTextContent(
-      formatDateValue('2019-01-30', 'en'),
-    );
-    expect(screen.getByRole('button', { name: /lots.manufacture-date/ })).toHaveTextContent(
-      formatDateValue('2017-01-30', 'en'),
+    expect(screen.getByRole('textbox', { name: 'lots.expiration-date' })).toHaveValue('30/01/2019');
+    expect(screen.getByRole('textbox', { name: 'lots.manufacture-date' })).toHaveValue(
+      '30/01/2017',
     );
     expect(await screen.findByText('lots.form.product')).toBeInTheDocument();
     expect(fetchOrderablesByTradeItems).toHaveBeenCalledWith(['t1']);
@@ -107,10 +104,18 @@ describe('LotFormDialog', () => {
     await user.clear(code);
     await user.type(code, 'LC2017B');
     await user.click(screen.getByRole('button', { name: 'lots.form.clear-expiration-date' }));
+    const manufacture = screen.getByRole('textbox', { name: 'lots.manufacture-date' });
+    await user.clear(manufacture);
+    await user.type(manufacture, '02/02/2017');
     await user.click(screen.getByRole('button', { name: 'lots.form.save' }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(updateLot).toHaveBeenCalledWith({ ...lot, lotCode: 'LC2017B', expirationDate: null });
+    expect(updateLot).toHaveBeenCalledWith({
+      ...lot,
+      lotCode: 'LC2017B',
+      expirationDate: null,
+      manufactureDate: '2017-02-02',
+    });
     expect(toast.success).toHaveBeenCalledWith('lots.form.saved-title', {
       description: 'lots.form.saved',
     });

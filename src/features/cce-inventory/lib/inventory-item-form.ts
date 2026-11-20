@@ -16,6 +16,7 @@ import {
   type EquipmentReason,
   type EquipmentStatus,
 } from '@/lib/cce-equipment-status';
+import { dateValue } from '@/lib/date-value';
 import type { SelectionMode } from '@/lib/facility-program-selection';
 import { toOptionalWholeNumber, toWholeNumber, wholeNumberText } from '@/lib/whole-number';
 
@@ -83,7 +84,7 @@ const year = (optional: boolean) =>
 const statusFields = z.object({
   functionalStatus: choice(EQUIPMENT_STATUSES),
   reasonNotWorkingOrNotInUse: optionalChoice(EQUIPMENT_REASONS),
-  decommissionDate: z.string(),
+  decommissionDate: dateValue({ optional: true }),
 });
 
 function requireStatusDetails(details: z.output<typeof statusFields>, context: z.RefinementCtx) {

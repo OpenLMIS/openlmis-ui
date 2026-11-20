@@ -52,6 +52,7 @@ import {
 } from '@/features/reference-data/api/api';
 import { uniqueIdentities } from '@/features/reference-data/lib/identities';
 import type { ValidReasonsFilter } from '@/features/reference-data/lib/types';
+import { rememberDateFormat } from '@/lib/deployment-date-format';
 import { readDeploymentTimeZone } from '@/lib/deployment-time-zone';
 import { deviceQuery } from '@/lib/device-query';
 import {
@@ -492,7 +493,11 @@ export const currencySettingsOptions = (config?: AxiosRequestConfig) =>
       seedForegroundLookup(
         client,
         [...queryKeys.localeSettings.all, 'currency'],
-        () => fetchCurrencySettings(config),
+        async () => {
+          const settings = await fetchCurrencySettings(config);
+          rememberDateFormat(settings?.dateFormat);
+          return settings;
+        },
         config,
       ),
     staleTime: LOOKUP_STALE_TIME,

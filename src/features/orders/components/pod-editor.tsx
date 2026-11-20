@@ -324,7 +324,6 @@ export function PodEditor({
                           key === 'receivedDate' ? (
                             <field.DateField
                               label={t('orders.pod.received-date')}
-                              placeholder={t('orders.pod.received-date')}
                               layout="row"
                               hideErrors
                               required

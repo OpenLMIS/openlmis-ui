@@ -81,7 +81,6 @@ export const ReportParameterField = withForm({
                 <control.DateField
                   {...common}
                   size="lg"
-                  placeholder={t('reports.generate.choose-date')}
                   clearLabel={parameter.required ? undefined : t('reports.generate.clear-date')}
                 />
               );

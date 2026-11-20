@@ -298,7 +298,7 @@ it('focuses the current Save blocker after Confirm left other errors highlighted
     within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
   );
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: /orders.pod.received-date/ })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: /orders.pod.received-date/ })).toHaveFocus(),
   );
   expect(saveProofOfDelivery).not.toHaveBeenCalled();
 });

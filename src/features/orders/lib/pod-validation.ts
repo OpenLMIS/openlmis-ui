@@ -1,4 +1,4 @@
-import { parseDateValue, toDateValue } from '@/components/form/date-value';
+import { parseEditableDate, toDateValue } from '@/components/form/date-value';
 import { ORDER_NUMBER_MESSAGES } from '@/features/orders/lib/order-numbers';
 import type { PodFooter, PodLineDraft } from '@/features/orders/lib/pod-types';
 import { toWholeNumber, wholeNumberError } from '@/lib/whole-number';
@@ -69,7 +69,7 @@ export function validatePodFooter(
     for (const key of ['deliveredBy', 'receivedBy', 'receivedDate'] as const)
       if (!fields[key].trim()) errors[key] = POD_ERRORS.required;
   if (fields.receivedDate) {
-    if (!parseDateValue(fields.receivedDate)) errors.receivedDate = POD_ERRORS.invalidDate;
+    if (!parseEditableDate(fields.receivedDate)) errors.receivedDate = POD_ERRORS.invalidDate;
     else if (fields.receivedDate > toDateValue(now, timeZone))
       errors.receivedDate = POD_ERRORS.futureDate;
   }

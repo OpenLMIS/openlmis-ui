@@ -229,7 +229,6 @@ function PeriodForm({
                         }
                         label={t('processing-schedules.periods.start-date')}
                         latest={!startLocked && endDate ? previousDate(endDate) : undefined}
-                        placeholder={t('processing-schedules.period-form.pick-date')}
                         required
                       />
                     )}
@@ -243,7 +242,6 @@ function PeriodForm({
                       <field.DateField
                         earliest={startDate ? nextStartDate(startDate) : undefined}
                         label={t('processing-schedules.periods.end-date')}
-                        placeholder={t('processing-schedules.period-form.pick-date')}
                         required
                       />
                     )}

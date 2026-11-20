@@ -171,7 +171,6 @@ function LotForm({ lot, onDone }: { lot: Lot; onDone: () => void }) {
               <field.DateField
                 clearLabel={t('lots.form.clear-expiration-date')}
                 label={t('lots.expiration-date')}
-                placeholder={t('lots.form.pick-date')}
               />
             )}
           </form.AppField>
@@ -180,7 +179,6 @@ function LotForm({ lot, onDone }: { lot: Lot; onDone: () => void }) {
               <field.DateField
                 clearLabel={t('lots.form.clear-manufacture-date')}
                 label={t('lots.manufacture-date')}
-                placeholder={t('lots.form.pick-date')}
               />
             )}
           </form.AppField>

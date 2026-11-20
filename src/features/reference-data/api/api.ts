@@ -462,16 +462,15 @@ export async function fetchProgramLookup(id: string) {
 }
 
 export async function fetchCurrencySettings(config?: AxiosRequestConfig) {
-  const { data } = await client.get<CurrencySettings & { timeZoneId?: string | null }>(
-    '/localeSettings',
-    {
-      ...config,
-      baseURL: '/',
-      anonymous: true,
-      connectionStatus: false,
-      timeout: 10_000,
-    },
-  );
+  const { data } = await client.get<
+    CurrencySettings & { dateFormat?: string | null; timeZoneId?: string | null }
+  >('/localeSettings', {
+    ...config,
+    baseURL: '/',
+    anonymous: true,
+    connectionStatus: false,
+    timeout: 10_000,
+  });
   return data;
 }
 

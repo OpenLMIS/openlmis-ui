@@ -3,7 +3,6 @@ import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { formatDateValue } from '@/components/form/date-value';
 import {
   createProcessingPeriod,
   fetchLatestPeriod,
@@ -171,22 +170,34 @@ describe('PeriodsDialog', () => {
 
   it('prefills and locks the start from the latest period', async () => {
     renderDialog();
-    const start = await screen.findByRole('button', {
+    const start = await screen.findByRole('textbox', {
       name: /processing-schedules.periods.start-date/,
     });
     expect(start).toBeDisabled();
-    expect(start).toHaveTextContent(formatDateValue('2026-02-01', 'en'));
+    expect(start).toHaveValue('01/02/2026');
   });
 
   it('keeps the first start empty and editable with its guidance', async () => {
     vi.mocked(fetchLatestPeriod).mockResolvedValue({ ...latest, content: [], totalElements: 0 });
     renderDialog();
-    const start = await screen.findByRole('button', {
+    const start = await screen.findByRole('textbox', {
       name: /processing-schedules.periods.start-date/,
     });
     expect(start).toBeEnabled();
-    expect(start).toHaveTextContent('processing-schedules.period-form.pick-date');
+    expect(start).toHaveValue('');
     expect(start).toHaveAccessibleDescription('processing-schedules.periods.start-hint');
+  });
+
+  it('rejects a typed end date equal to the locked start date', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.type(await screen.findByLabelText(/processing-schedules.periods.name/), 'February');
+    const end = screen.getByRole('textbox', { name: /processing-schedules.periods.end-date/ });
+    await user.type(end, '01/02/2026');
+    await user.click(screen.getByRole('button', { name: 'processing-schedules.period-form.add' }));
+
+    expect(end).toHaveAccessibleDescription('processing-schedules.period-form.end-after-start');
+    expect(createProcessingPeriod).not.toHaveBeenCalled();
   });
 
   it('keeps a refused draft, shows the server reason and refreshes its locked start', async () => {
@@ -202,7 +213,9 @@ describe('PeriodsDialog', () => {
     await user.click(
       screen.getByRole('switch', { name: /processing-schedules.periods.report-only/ }),
     );
-    await user.click(screen.getByRole('button', { name: /processing-schedules.periods.end-date/ }));
+    await user.click(
+      screen.getByRole('button', { name: /Open Calendar processing-schedules.periods.end-date/ }),
+    );
     const calendar = await screen.findByRole('dialog', {
       name: /processing-schedules.periods.end-date/,
     });
@@ -218,14 +231,14 @@ describe('PeriodsDialog', () => {
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /processing-schedules.periods.start-date/ }),
-      ).toHaveTextContent(formatDateValue('2026-02-11', 'en')),
+        screen.getByRole('textbox', { name: /processing-schedules.periods.start-date/ }),
+      ).toHaveValue('11/02/2026'),
     );
     expect(screen.getByDisplayValue('February')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Keep this draft')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /processing-schedules.periods.end-date/ }),
-    ).toHaveTextContent(formatDateValue('2026-02-28', 'en'));
+      screen.getByRole('textbox', { name: /processing-schedules.periods.end-date/ }),
+    ).toHaveValue('28/02/2026');
     expect(
       screen.getByRole('switch', { name: /processing-schedules.periods.report-only/ }),
     ).toBeChecked();
@@ -252,7 +265,9 @@ describe('PeriodsDialog', () => {
     );
     const { onAdded, queryClient } = renderDialog();
     await user.type(await screen.findByLabelText(/processing-schedules.periods.name/), 'February');
-    await user.click(screen.getByRole('button', { name: /processing-schedules.periods.end-date/ }));
+    await user.click(
+      screen.getByRole('button', { name: /Open Calendar processing-schedules.periods.end-date/ }),
+    );
     const calendar = await screen.findByRole('dialog', {
       name: /processing-schedules.periods.end-date/,
     });
@@ -278,7 +293,9 @@ describe('PeriodsDialog', () => {
     });
     const { onAdded } = renderDialog();
     await user.type(await screen.findByLabelText(/processing-schedules.periods.name/), 'February');
-    await user.click(screen.getByRole('button', { name: /processing-schedules.periods.end-date/ }));
+    await user.click(
+      screen.getByRole('button', { name: /Open Calendar processing-schedules.periods.end-date/ }),
+    );
     const calendar = await screen.findByRole('dialog', {
       name: /processing-schedules.periods.end-date/,
     });
@@ -288,12 +305,12 @@ describe('PeriodsDialog', () => {
     await waitFor(() => expect(onAdded).toHaveBeenCalledWith(schedule.id, 2));
     expect(screen.getByLabelText(/processing-schedules.periods.name/)).toHaveValue('');
     expect(screen.getByLabelText(/processing-schedules.description/)).toHaveValue('');
-    const start = screen.getByRole('button', { name: /processing-schedules.periods.start-date/ });
+    const start = screen.getByRole('textbox', { name: /processing-schedules.periods.start-date/ });
     expect(start).toBeDisabled();
-    expect(start).toHaveTextContent(formatDateValue('2026-03-01', 'en'));
+    expect(start).toHaveValue('01/03/2026');
     expect(
-      screen.getByRole('button', { name: /processing-schedules.periods.end-date/ }),
-    ).toHaveTextContent('processing-schedules.period-form.pick-date');
+      screen.getByRole('textbox', { name: /processing-schedules.periods.end-date/ }),
+    ).toHaveValue('');
     expect(
       screen.getByRole('switch', { name: /processing-schedules.periods.report-only/ }),
     ).not.toBeChecked();

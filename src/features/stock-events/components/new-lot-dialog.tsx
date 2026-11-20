@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
@@ -70,6 +70,7 @@ function NewLotForm({
   const formatError = useFormatError();
   const dateMessages = useDateMessages();
   const aboutLabel = useAboutLabel();
+  const [calendarDismissKey, dismissCalendar] = useState(0);
   const form = useAppForm({
     defaultValues: values,
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
@@ -77,6 +78,11 @@ function NewLotForm({
     onSubmit: ({ value }) => {
       if (!onDone()) return;
       onAdd(value);
+    },
+    onSubmitInvalid: ({ formApi }) => {
+      dismissCalendar((key) => key + 1);
+      const invalid = formApi.getFieldMeta('lotCode')?.errors.length ? 'lotCode' : 'expirationDate';
+      document.getElementById(invalid)?.focus();
     },
   });
   useEffect(() => {
@@ -114,10 +120,10 @@ function NewLotForm({
             <form.AppField name="expirationDate">
               {(field) => (
                 <field.DateField
+                  calendarDismissKey={calendarDismissKey}
                   clearLabel={t('stock-events.clear-expiry-date')}
                   earliest={today}
                   label={t('stock-events.expiry-date')}
-                  placeholder={t('stock-events.pick-date')}
                 />
               )}
             </form.AppField>

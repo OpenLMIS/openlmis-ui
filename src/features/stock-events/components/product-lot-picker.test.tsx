@@ -454,7 +454,7 @@ describe('ProductLotPicker with approved products', () => {
     await user.click(screen.getByRole('combobox', { name: 'Lot Code' }));
     await user.click(screen.getByRole('option', { name: 'Add New Lot' }));
     await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'new-1');
-    await user.click(screen.getByRole('button', { name: 'Expiry Date Pick A Date' }));
+    await user.click(screen.getByRole('button', { name: 'Open Calendar Expiry Date' }));
     await user.selectOptions(
       await screen.findByRole('combobox', { name: 'Choose the Year' }),
       '2031',
@@ -680,7 +680,7 @@ describe('ProductLotPicker with approved products', () => {
     await pickProduct(user, 'Aspirin');
     await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
     await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
-    expect(screen.getByRole('button', { name: 'Expiry Date Pick A Date' })).toBeInTheDocument();
+    const expiry = screen.getByRole('textbox', { name: 'Expiry Date' });
     const code = screen.getByRole('textbox', { name: 'New Lot Code' });
     await user.type(code, '{Enter}');
     expect(code).toHaveAccessibleDescription('This field is required');
@@ -690,12 +690,17 @@ describe('ProductLotPicker with approved products', () => {
     await user.type(code, 'new-1{Enter}');
     expect(code).toHaveAccessibleDescription('This lot code already exists.');
     await user.clear(code);
-    await user.type(code, 'NEW-2{Enter}');
+    await user.type(code, 'NEW-2');
+    await user.type(expiry, '31/02/2031{Enter}');
+    expect(expiry).toHaveAccessibleDescription('This text is not a valid date');
+    expect(onAdd).not.toHaveBeenCalled();
+    await user.clear(expiry);
+    await user.type(expiry, '28/02/2031{Enter}');
     expect(onSubmit).not.toHaveBeenCalled();
     expect(onAdd).toHaveBeenCalledWith(
       {
         orderable: aspirin,
-        lot: { lotCode: 'NEW-2', expirationDate: null, tradeItemId: 'trade' },
+        lot: { lotCode: 'NEW-2', expirationDate: '2031-02-28', tradeItemId: 'trade' },
         stockOnHand: 0,
       },
       true,
@@ -703,6 +708,40 @@ describe('ProductLotPicker with approved products', () => {
     expect(code).toHaveValue('NEW-2');
     expect(code).not.toHaveAttribute('aria-invalid');
   });
+
+  it.each([
+    { layout: 'table', cards: false },
+    { layout: 'cards', cards: true },
+  ])(
+    'closes the invalid new-lot expiry calendar after Enter and Add in $layout',
+    async ({ cards }) => {
+      const { user, onAdd, onSubmit } = renderApproved({ canManageLots: true, cards });
+      await pickProduct(user, 'Aspirin');
+      await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
+      await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
+      const fields = cards
+        ? within(await screen.findByRole('dialog', { name: 'Add New Lot' }))
+        : screen;
+      await user.type(fields.getByRole('textbox', { name: 'New Lot Code' }), 'NEW-2');
+      const expiry = fields.getByRole('textbox', { name: 'Expiry Date' });
+      await user.type(expiry, '31/02/2031');
+      expect(await screen.findByRole('grid')).toBeVisible();
+
+      await user.keyboard('{Enter}');
+      expect(fields.getByText('This text is not a valid date')).toBeVisible();
+      expect(expiry).toHaveAccessibleDescription('This text is not a valid date');
+      expect(expiry).toHaveFocus();
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+
+      await user.click(expiry);
+      expect(await screen.findByRole('grid')).toBeVisible();
+      await user.click(fields.getByRole('button', { name: 'Add' }));
+      expect(expiry).toHaveFocus();
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+      expect(onAdd).not.toHaveBeenCalled();
+      expect(onSubmit).not.toHaveBeenCalled();
+    },
+  );
 
   it('adds a new lot through a dialog on phones and keeps the previous lot on Cancel', async () => {
     const { user, onAdd, onSubmit } = renderApproved({ canManageLots: true, cards: true });

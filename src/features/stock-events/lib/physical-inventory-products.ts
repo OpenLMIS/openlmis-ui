@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { parseDateValue } from '@/components/form/date-value';
 import type { QuantityValue } from '@/components/form/quantity-value';
 import type { Reason } from '@/features/reference-data/lib/types';
 import { inventoryLineKey } from '@/features/stock-events/lib/physical-inventory-lines';
@@ -7,6 +6,7 @@ import type {
   InventoryLine,
   InventoryStockLine,
 } from '@/features/stock-events/lib/physical-inventory-types';
+import { dateValue } from '@/lib/date-value';
 
 export type InventoryReasonAssignment = {
   hidden: boolean;
@@ -61,12 +61,9 @@ export function inventoryLotSchema(
         )
           ctx.addIssue({ code: 'custom', message: 'physical-inventory.lot-code-duplicate' });
       }),
-    expirationDate: z
-      .string()
-      .refine(
-        (date) => !date || (Boolean(parseDateValue(date)) && date >= today),
-        'physical-inventory.lot-expiry-past',
-      ),
+    expirationDate: dateValue({ optional: true }).pipe(
+      z.string().refine((date) => !date || date >= today, 'physical-inventory.lot-expiry-past'),
+    ),
   });
 }
 

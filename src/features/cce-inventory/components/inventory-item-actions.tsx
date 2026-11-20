@@ -265,11 +265,7 @@ export function StatusItem({
           {statusUsesDecommission(status) && (
             <form.AppField name="decommissionDate">
               {(field) => (
-                <field.DateField
-                  label={t('cce-inventory.form.decommission-date')}
-                  placeholder={t('cce-inventory.form.decommission-date-placeholder')}
-                  required
-                />
+                <field.DateField label={t('cce-inventory.form.decommission-date')} required />
               )}
             </form.AppField>
           )}

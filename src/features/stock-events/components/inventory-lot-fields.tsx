@@ -20,7 +20,6 @@ export const InventoryLotFields = withForm({
           {(field) => (
             <field.DateField
               label={t('stock-events.expiry-date')}
-              placeholder={t('stock-events.expiry-date')}
               earliest={today}
               clearLabel={t('stock-events.clear')}
             />

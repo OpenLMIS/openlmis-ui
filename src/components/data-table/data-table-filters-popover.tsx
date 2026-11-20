@@ -7,6 +7,11 @@ import { useDataTableLabels } from './data-table-labels';
 
 export const DataTableFilterFlushContext = createContext<Set<() => void> | null>(null);
 
+export const DataTableFilterResetContext = createContext<{
+  resetters: Set<() => void>;
+  setPending: (id: string, pending: boolean) => void;
+} | null>(null);
+
 type DataTableFiltersProps = {
   activeCount: number;
   onClear: () => void;
@@ -24,6 +29,18 @@ export function DataTableFilters({
 }: DataTableFiltersProps) {
   const labels = useDataTableLabels();
   const [flushers] = useState(() => new Set<() => void>());
+  const [hasPending, setHasPending] = useState(false);
+  const [reset] = useState(() => {
+    const pendingControls = new Set<string>();
+    return {
+      resetters: new Set<() => void>(),
+      setPending(id: string, pending: boolean) {
+        if (pending) pendingControls.add(id);
+        else pendingControls.delete(id);
+        setHasPending(pendingControls.size > 0);
+      },
+    };
+  });
   return (
     <Popover
       onOpenChange={(open) => {
@@ -48,11 +65,19 @@ export function DataTableFilters({
       </PopoverTrigger>
       <PopoverContent align="start" aria-label={labels.filters} side="bottom" width="wide">
         <div className="flex flex-col gap-3">
-          <DataTableFilterFlushContext value={flushers}>{children}</DataTableFilterFlushContext>
+          <DataTableFilterFlushContext value={flushers}>
+            <DataTableFilterResetContext value={reset}>{children}</DataTableFilterResetContext>
+          </DataTableFilterFlushContext>
           <Button
-            disabled={activeCount === 0}
+            disabled={activeCount === 0 && !hasPending}
             focusableWhenDisabled
-            onClick={onClear}
+            onClick={() => {
+              for (const discard of reset.resetters) discard();
+              onClear();
+            }}
+            onMouseDown={(event) => {
+              if (hasPending) event.preventDefault();
+            }}
             type="button"
             variant="destructive"
             width="full"

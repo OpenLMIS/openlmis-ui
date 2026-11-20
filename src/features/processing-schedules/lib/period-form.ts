@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { parseDateValue, toDateValue } from '@/components/form/date-value';
+import { parseDateValue, parseEditableDate, toDateValue } from '@/components/form/date-value';
 import type {
   ProcessingPeriod,
   ProcessingPeriodBody,
 } from '@/features/processing-schedules/lib/types';
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
+import { dateValue } from '@/lib/date-value';
 
 export function isReportOnly(extraData?: Record<string, unknown> | null) {
   return extraData?.reportOnly === true || extraData?.reportOnly === 'true';
@@ -20,11 +21,7 @@ function shiftDate(value: string, days: number) {
 export const nextStartDate = (endDate: string) => shiftDate(endDate, 1);
 export const previousDate = (startDate: string) => shiftDate(startDate, -1);
 
-const dateSchema = (required: string, invalid: string) =>
-  z
-    .string()
-    .min(1, required)
-    .refine((value) => !value || !!parseDateValue(value), invalid);
+const dateSchema = (required: string, invalid: string) => dateValue({ required, invalid });
 
 export const periodFormSchema = z
   .object({
@@ -42,7 +39,7 @@ export const periodFormSchema = z
   })
   .refine(
     ({ startDate, endDate }) =>
-      !parseDateValue(startDate) || !parseDateValue(endDate) || endDate > startDate,
+      !parseEditableDate(startDate) || !parseEditableDate(endDate) || endDate > startDate,
     { path: ['endDate'], message: 'processing-schedules.period-form.end-after-start' },
   );
 

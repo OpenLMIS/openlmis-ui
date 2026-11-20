@@ -62,3 +62,64 @@ export function formatTimestamp(
     timeZone: knownTimeZone(timeZone),
   }).format(date);
 }
+
+export const DEFAULT_DATE_FORMAT = 'dd/MM/yyyy';
+export const FIRST_DATE_YEAR = 1900;
+export const lastDateYear = () => new Date().getFullYear() + 100;
+
+const DATE_FORMAT = /^(?:dd?|MM?|yyyy)(?:[/ .-](?:dd?|MM?|yyyy)){2}$/;
+const DATE_PARTS = /dd?|MM?|yyyy/g;
+const INVALID_DATE_PREFIX = '\u0000';
+const ARABIC_DATE_DIGITS = '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹';
+
+export function supportedDateFormat(format: unknown): format is string {
+  return (
+    typeof format === 'string' &&
+    DATE_FORMAT.test(format) &&
+    new Set(format.match(DATE_PARTS)?.map((token) => token[0])).size === 3
+  );
+}
+
+export function parseEditableDate(value: string): Date | undefined {
+  const date = parseDateValue(value);
+  if (!date) return undefined;
+  const year = date.getFullYear();
+  return year >= FIRST_DATE_YEAR && year <= lastDateYear() ? date : undefined;
+}
+
+function normalizeDateDigits(text: string) {
+  return text
+    .trim()
+    .replace(/[٠-٩۰-۹]/g, (digit) => String(ARABIC_DATE_DIGITS.indexOf(digit) % 10));
+}
+
+export function parseDateText(text: string, format = DEFAULT_DATE_FORMAT): string | undefined {
+  const digits = normalizeDateDigits(text);
+  const pattern = supportedDateFormat(format) ? format : DEFAULT_DATE_FORMAT;
+  const tokens = pattern.match(DATE_PARTS) ?? [];
+  const expression = pattern
+    .replaceAll('.', '\\.')
+    .replace(DATE_PARTS, (token) => (token === 'yyyy' ? '(\\d{4})' : '(\\d{1,2})'));
+  const match = new RegExp(`^${expression}$`).exec(digits);
+  if (!match) return parseEditableDate(digits) ? digits : undefined;
+  const parts = Object.fromEntries(tokens.map((token, index) => [token[0], match[index + 1]]));
+  const value = `${parts.y}-${parts.M.padStart(2, '0')}-${parts.d.padStart(2, '0')}`;
+  return parseEditableDate(value) ? value : undefined;
+}
+
+export function unparsedDateValue(text: string): string {
+  return text.startsWith(INVALID_DATE_PREFIX) || parseDateValue(text)
+    ? INVALID_DATE_PREFIX + text
+    : text;
+}
+
+export function formatDateText(value: string, format = DEFAULT_DATE_FORMAT): string {
+  if (value.startsWith(INVALID_DATE_PREFIX)) return value.slice(INVALID_DATE_PREFIX.length);
+  const date = parseDateValue(value);
+  if (!date) return value;
+  const pattern = supportedDateFormat(format) ? format : DEFAULT_DATE_FORMAT;
+  const parts = { d: date.getDate(), M: date.getMonth() + 1, y: date.getFullYear() };
+  return pattern.replace(DATE_PARTS, (token) =>
+    String(parts[token[0] as keyof typeof parts]).padStart(token.length, '0'),
+  );
+}

@@ -32,8 +32,8 @@ import { useInCards } from '@/components/display/card-actions';
 import { DialogNotFound } from '@/components/display/dialog-parts';
 import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
-import { DatePicker } from '@/components/form/form-fields';
 import { FormDialog } from '@/components/form-dialog/form-dialog';
+import { DateFilter } from '@/components/pickers/date-filter';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -339,10 +339,9 @@ export function OfflineEventsPage({
                         )
                       }
                     />
-                    <DatePicker
+                    <DateFilter
                       id="offline-events-start-date"
                       label={t('offline-events.start-date')}
-                      placeholder={t('offline-events.start-date')}
                       value={search.startDate ?? ''}
                       latest={search.endDate}
                       clearLabel={t('data-table.clear-filter', {
@@ -355,10 +354,9 @@ export function OfflineEventsPage({
                         )
                       }
                     />
-                    <DatePicker
+                    <DateFilter
                       id="offline-events-end-date"
                       label={t('offline-events.end-date')}
-                      placeholder={t('offline-events.end-date')}
                       value={search.endDate ?? ''}
                       earliest={search.startDate}
                       clearLabel={t('data-table.clear-filter', {

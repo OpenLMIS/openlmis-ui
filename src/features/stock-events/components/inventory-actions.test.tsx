@@ -139,6 +139,11 @@ it('checks the server once for Save and caches the accepted draft without anothe
   });
   unsubscribe();
 });
+function confirmationDialog(action: 'save' | 'delete' | 'submit') {
+  const name = action === 'submit' ? 'physical-inventory.occurred-title' : undefined;
+  return screen.getByRole('dialog', { name });
+}
+
 async function confirmAction(action: 'save' | 'delete' | 'submit') {
   const user = userEvent.setup();
   await user.click(
@@ -147,7 +152,7 @@ async function confirmAction(action: 'save' | 'delete' | 'submit') {
     }),
   );
   await user.click(
-    within(screen.getByRole('dialog')).getByRole('button', {
+    within(confirmationDialog(action)).getByRole('button', {
       name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
     }),
   );
@@ -180,7 +185,7 @@ it('uses inventory wording for an unknown submit outcome and prevents a retry', 
   setup();
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await user.click(
-    within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
+    within(confirmationDialog('submit')).getByRole('button', { name: 'stock-events.confirm' }),
   );
   const alert = await screen.findByRole('alertdialog');
   expect(alert).toHaveTextContent('physical-inventory.unknown-outcome-description');
@@ -209,7 +214,7 @@ it.each(['save', 'submit'] as const)(
       refresh = client.fetchQuery({ ...eligibleInventoryProductsOptions(draft), staleTime: 0 });
     });
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
+      within(confirmationDialog(action)).getByRole('button', {
         name: action === 'save' ? 'physical-inventory.save' : 'stock-events.confirm',
       }),
     );
@@ -309,7 +314,7 @@ it.each(['save', 'delete', 'submit'] as const)(
       }),
     );
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
+      within(confirmationDialog(type)).getByRole('button', {
         name: type === 'submit' ? 'stock-events.confirm' : `physical-inventory.${type}`,
       }),
     );
@@ -411,7 +416,7 @@ it.each(['save', 'delete', 'submit'] as const)(
       }),
     );
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
+      within(confirmationDialog(action)).getByRole('button', {
         name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
       }),
     );
@@ -488,7 +493,7 @@ it.each(['save', 'delete', 'submit'] as const)(
     );
     act(() => onlineManager.setOnline(false));
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
+      within(confirmationDialog(action)).getByRole('button', {
         name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
       }),
     );
@@ -530,7 +535,7 @@ it.each(['save', 'submit'] as const)(
       }),
     );
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', {
+      within(confirmationDialog(action)).getByRole('button', {
         name: action === 'submit' ? 'stock-events.confirm' : 'physical-inventory.save',
       }),
     );

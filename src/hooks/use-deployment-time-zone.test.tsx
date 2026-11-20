@@ -1,13 +1,22 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
-import { type ReactNode, Suspense } from 'react';
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
+import { type ReactNode, Suspense, useState } from 'react';
+import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DatePicker } from '@/components/form/form-fields';
+import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
 import {
   currencySettingsOptions,
   deploymentTimeZoneOptions,
 } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { client } from '@/integrations/axios';
+
+vi.hoisted(() => {
+  localStorage.setItem('openlmis-ui.date-format', 'MM/dd/yyyy');
+});
 
 vi.mock('@/integrations/axios', () => ({ client: { get: vi.fn() } }));
 
@@ -28,6 +37,7 @@ beforeEach(() => {
 afterEach(() => {
   localStorage.clear();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('useDeploymentTimeZone', () => {
@@ -117,4 +127,49 @@ it('falls back after one failed settings request even when queries retry by defa
     read: false,
   });
   expect(client.get).toHaveBeenCalledTimes(1);
+});
+
+function SettingsDate() {
+  const [value, setValue] = useState('2024-02-01');
+  return (
+    <TranslatedFormMessages>
+      <DatePicker id="date" label="Date" onValueChange={setValue} value={value} />
+      <button type="button">Next</button>
+    </TranslatedFormMessages>
+  );
+}
+
+it('renders the stored deployment format in Portuguese, keeps it offline and finishes an edit in that format', async () => {
+  const user = userEvent.setup();
+  const i18n = createInstance();
+  await i18n.init({ lng: 'pt', resources: { pt: { translation: {} } } });
+  const readStorage = vi.spyOn(Storage.prototype, 'getItem');
+  vi.mocked(client.get).mockRejectedValueOnce(new Error('offline'));
+  render(
+    <I18nextProvider i18n={i18n}>
+      <SettingsDate />
+    </I18nextProvider>,
+    { wrapper },
+  );
+  const date = screen.getByRole('textbox', { name: 'Date' });
+
+  expect(date).toHaveValue('02/01/2024');
+  await waitFor(() =>
+    expect(queryClient.getQueryState(currencySettingsOptions().queryKey)?.status).toBe('error'),
+  );
+  expect(date).toHaveValue('02/01/2024');
+  await user.clear(date);
+  await user.type(date, '2/');
+  expect(readStorage).not.toHaveBeenCalledWith('openlmis-ui.date-format');
+
+  vi.mocked(client.get).mockResolvedValue({
+    data: { dateFormat: 'yyyy.MM.dd', timeZoneId: 'UTC' },
+  });
+  await act(() => queryClient.invalidateQueries({ queryKey: currencySettingsOptions().queryKey }));
+  expect(localStorage.getItem('openlmis-ui.date-format')).toBe('yyyy.MM.dd');
+  expect(date).toHaveValue('2/');
+  await user.type(date, '3/2024');
+  expect(date).toHaveValue('2/3/2024');
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+  expect(date).toHaveValue('2024.02.03');
 });

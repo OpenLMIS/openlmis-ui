@@ -10,7 +10,7 @@ import { PackageIcon, PlusIcon } from 'lucide-react';
 import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorAlert, RetryButton } from '@/components/display/dialog-parts';
-import { formatDateValue, toDateValue } from '@/components/form/date-value';
+import { formatDateValue, parseEditableDate, toDateValue } from '@/components/form/date-value';
 import { DatePicker, FieldLabelText } from '@/components/form/form-fields';
 import {
   PickerAdd,
@@ -462,6 +462,7 @@ function ApprovedProductLotPicker({
   const [lotValue, setLotValue] = useState<string | null>(null);
   const [draft, setDraft] = useState({ lotCode: '', expirationDate: '' });
   const [attempted, setAttempted] = useState(false);
+  const [calendarDismissKey, dismissCalendar] = useState(0);
   const [newLotDialog, setNewLotDialog] = useState<{ check: boolean } | null>(null);
   const [solePicked, setSolePicked] = useState(false);
   const sole =
@@ -566,7 +567,15 @@ function ApprovedProductLotPicker({
   const shownLot = addingNewLot && typedLot ? typedLot : pickedLot;
   const pickLot = (value: string | null) => {
     if (cards && value === ADD_NEW_LOT) setNewLotDialog({ check: false });
-    else setLotValue(value === TYPED_NEW_LOT ? ADD_NEW_LOT : value);
+    else {
+      const next = value === TYPED_NEW_LOT ? ADD_NEW_LOT : value;
+      if (next !== lotValue) {
+        setAttempted(false);
+        if (!cards && draft.expirationDate && !parseEditableDate(draft.expirationDate))
+          setDraft({ ...draft, expirationDate: '' });
+      }
+      setLotValue(next);
+    }
   };
 
   const pick = (item: ApprovedProductOption | null) => {
@@ -589,6 +598,7 @@ function ApprovedProductLotPicker({
         setNewLotDialog({ check: true });
         return;
       }
+      dismissCalendar((key) => key + 1);
       const invalid = result?.error?.issues[0]?.path[0];
       document.getElementById(`${id}-${invalid === 'expirationDate' ? 'expiry' : 'code'}`)?.focus();
       return;
@@ -777,13 +787,14 @@ function ApprovedProductLotPicker({
               <DatePicker
                 size="lg"
                 id={`${id}-expiry`}
+                calendarDismissKey={calendarDismissKey}
                 clearLabel={t('stock-events.clear-expiry-date')}
                 describedBy={errors.expirationDate ? `${id}-expiry-error` : undefined}
                 disabled={disabled}
                 earliest={today}
                 invalid={!!errors.expirationDate || undefined}
                 onValueChange={(expirationDate) => setDraft({ ...draft, expirationDate })}
-                placeholder={t('stock-events.pick-date')}
+                onEnter={add}
                 value={draft.expirationDate}
               />
               {errors.expirationDate && (

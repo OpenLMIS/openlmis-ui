@@ -272,6 +272,36 @@ it.each(['failed', 'loading'])(
   },
 );
 
+it('blocks a malformed report date and sends the corrected date in ISO format', async () => {
+  const user = userEvent.setup();
+  vi.mocked(generateReport).mockResolvedValue(pdf());
+  renderPage(<ReportParametersForm template={STOCK_ON_HAND} module="common" userId={USER} />, {
+    queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  });
+  const date = await screen.findByRole('textbox', { name: /^Date/ });
+  const generate = screen.getByRole('button', { name: 'reports.generate.submit' });
+  await user.type(date, '31/02/2026');
+  await user.click(generate);
+  expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+  expect(date).toHaveAccessibleDescription('form.date-invalid');
+  expect(generateReport).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() => expect(date).toHaveFocus());
+  expect(screen.queryByRole('dialog', { name: 'Date' })).not.toBeInTheDocument();
+  await user.clear(date);
+  await user.type(date, '28/02/2026');
+  await user.click(generate);
+  await waitFor(() =>
+    expect(generateReport).toHaveBeenCalledWith(
+      'common',
+      'soh',
+      'pdf',
+      { date: '2026-02-28', lang: 'en' },
+      expect.any(AbortSignal),
+    ),
+  );
+});
+
 it('offers only True and False for an optional boolean and clears either choice with its X button', async () => {
   const user = userEvent.setup();
   renderPage(<ReportParametersForm template={STOCK_ON_HAND} module="common" userId={USER} />, {

@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { Lot } from '@/features/lots/lib/types';
+import { dateValue } from '@/lib/date-value';
 import { lotCodeSchema } from '@/lib/lot-code';
 
 const errorKey = (key: ParseKeys) => key;
@@ -14,8 +15,8 @@ export function lotFormSchema(refusedCodes: readonly string[]) {
       tooLong: 'lots.form.code-too-long',
       invalid: 'lots.form.code-invalid',
     }).refine((code) => !refused.has(code.toLowerCase()), errorKey('lots.form.code-taken')),
-    expirationDate: z.string(),
-    manufactureDate: z.string(),
+    expirationDate: dateValue({ optional: true }),
+    manufactureDate: dateValue({ optional: true }),
   });
 }
 

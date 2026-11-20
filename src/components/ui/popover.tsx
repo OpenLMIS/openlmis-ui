@@ -26,6 +26,8 @@ function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
 
 function PopoverContent({
   className,
+  anchor,
+  collisionAvoidance,
   align = "center",
   alignOffset = 0,
   side = "bottom",
@@ -36,7 +38,7 @@ function PopoverContent({
 }: PopoverPrimitive.Popup.Props &
   Pick<
     PopoverPrimitive.Positioner.Props,
-    "align" | "alignOffset" | "side" | "sideOffset"
+    "anchor" | "align" | "alignOffset" | "collisionAvoidance" | "side" | "sideOffset"
   > & {
     width?: "default" | "auto" | "wide" | "notifications" | "table"
     padding?: "default" | "none"
@@ -44,8 +46,10 @@ function PopoverContent({
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
+        anchor={anchor}
         align={align}
         alignOffset={alignOffset}
+        collisionAvoidance={collisionAvoidance}
         side={side}
         sideOffset={sideOffset}
         className="isolate z-50"
@@ -59,7 +63,7 @@ function PopoverContent({
               : width === "notifications"
                 ? "w-88 max-w-(--available-width) max-h-[min(32rem,var(--available-height))] gap-0 overflow-hidden"
                 : width === "auto"
-                  ? "w-auto"
+                  ? "w-auto max-h-(--available-height) overflow-y-auto"
                   : width === "wide"
                     ? "w-80 max-w-(--available-width)"
                     : "w-72",
