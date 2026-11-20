@@ -25,6 +25,7 @@ import { requireRight } from '@/features/auth/lib/access';
 import { RIGHTS } from '@/features/auth/lib/rights';
 import { IDEAL_STOCK_AMOUNTS_API } from '@/features/ideal-stock-amounts/api/api';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/ideal-stock-amounts')({
   validateSearch: instructionsSearchSchema,
@@ -70,6 +71,7 @@ function IdealStockAmountsPage() {
       <Workspace width="narrow">
         <IdealStockAmountsHeader>
           <Button
+            data-tour={TOUR_ANCHORS.csvInstructions}
             onClick={() => void openDialog({ instructions: true })}
             ref={instructionsButton}
             size="lg"

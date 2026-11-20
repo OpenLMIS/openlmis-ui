@@ -30,11 +30,13 @@ const isPageLoading = () =>
     (element) => !element.closest('header'),
   );
 
-/** Shown and loaded: a skeleton's anchor never plays, even once the load wait runs out. */
-const shownAnchor = (anchor: TourAnchor) => {
-  const element = document.querySelector(anchorSelector(anchor));
-  return isShown(element) && !element?.closest('[aria-busy="true"]');
-};
+/** First shown, loaded match: hidden tab panels and skeletons never play, even after the wait. */
+const liveElement = (selector: string) =>
+  Array.from(document.querySelectorAll<HTMLElement>(selector)).find(
+    (element) => isShown(element) && !element.closest('[aria-busy="true"]'),
+  ) ?? null;
+
+const shownAnchor = (anchor: TourAnchor) => !!liveElement(anchorSelector(anchor));
 
 /** None while the page is loading, unless `anyway` because the load wait ran out. */
 const presentSteps = (tour: Tour, anyway = false) =>
@@ -188,14 +190,11 @@ function TourPlayer({
         // In a table, a column step sits beside and highlights that column's header.
         const column = step.column && t(step.column);
         // The spotlit part holding the target, so a page with several lists keeps them together.
+        const targetElement = () => liveElement(target);
         const holder = () => {
           const outer = anchorSelector(step.spotlight ?? step.anchor);
-          return (
-            document.querySelector(target)?.closest<HTMLElement>(outer) ??
-            document.querySelector<HTMLElement>(outer)
-          );
+          return targetElement()?.closest<HTMLElement>(outer) ?? liveElement(outer);
         };
-        const targetElement = () => document.querySelector<HTMLElement>(target);
         const inColumn = column
           ? (fallback: () => HTMLElement | null) => () =>
               columnHeader(holder(), column) ?? fallback()
@@ -210,11 +209,11 @@ function TourPlayer({
           await nextFrame();
         };
         return {
-          target: columnTarget ?? target,
+          target: columnTarget ?? targetElement,
           // Joyride would scroll to the spotlight, hiding a target above it under the header.
           ...(step.spotlight && {
-            spotlightTarget: inColumn?.(holder) ?? anchorSelector(step.spotlight),
-            scrollTarget: columnTarget ?? target,
+            spotlightTarget: inColumn?.(holder) ?? holder,
+            scrollTarget: columnTarget ?? targetElement,
           }),
           title: t(step.title),
           content: step.legend ? (

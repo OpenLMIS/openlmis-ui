@@ -37,6 +37,7 @@ import {
 } from '@/features/requisition-templates/lib/template-validation';
 import { orEmpty } from '@/lib/empty-value';
 import type { TemplateColumn } from '@/lib/requisition-template';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { cn } from '@/lib/utils';
 
 type Props = { form: TemplateEditorForm; column: TemplateColumn };
@@ -116,6 +117,7 @@ const DragHandle = memo(function DragHandle({
         {...attributes}
         {...listeners}
         aria-label={label}
+        data-tour={TOUR_ANCHORS.editorReorder}
       >
         <GripVerticalIcon />
       </Button>

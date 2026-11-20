@@ -1,4 +1,5 @@
 import type { Tour } from '@/features/onboarding/lib/types';
+import { adminEditorTours } from '@/features/onboarding/tours/admin-editor.tour';
 import { adminListTour } from '@/features/onboarding/tours/admin-list.tour';
 import { homeTour } from '@/features/onboarding/tours/home.tour';
 import { offlineEventsTour } from '@/features/onboarding/tours/offline-events.tour';
@@ -29,6 +30,7 @@ const TOURS: readonly Tour[] = [
   offlineEventsTour,
   ...ordersTours,
   adminListTour,
+  ...adminEditorTours,
 ];
 
 export function tourForRoute(routeId: string | undefined): Tour | undefined {

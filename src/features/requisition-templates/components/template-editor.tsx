@@ -50,6 +50,7 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
 import { revealField } from '@/lib/reveal-field';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export type TemplateTab = 'columns' | 'settings';
 const schema = z.custom<TemplateDraft>().superRefine((draft, context) => {
@@ -197,7 +198,11 @@ export function TemplateEditor({
                 onValueChange={(value: TemplateTab) => onTabChange(value)}
                 spacing="page"
               >
-                <TabsList aria-label={t('requisition-templates.configure.tabs-label')} size="lg">
+                <TabsList
+                  aria-label={t('requisition-templates.configure.tabs-label')}
+                  data-tour={TOUR_ANCHORS.editorTabs}
+                  size="lg"
+                >
                   <TabsTrigger value="columns">
                     {t('requisition-templates.configure.columns')}
                   </TabsTrigger>
@@ -225,6 +230,7 @@ export function TemplateEditor({
           {t('requisition-templates.configure.cancel')}
         </Button>
         <Button
+          data-tour={TOUR_ANCHORS.editorActions}
           disabled={save.isPending || confirmation !== null}
           form="template-editor"
           size="lg"

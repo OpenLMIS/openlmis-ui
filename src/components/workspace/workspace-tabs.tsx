@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { usePageHidden } from '@/components/shared/page-visibility';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkspaceActions, WorkspaceFooter } from '@/components/workspace/workspace';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type WorkspaceTab = {
   to: NonNullable<LinkProps['to']>;
@@ -44,7 +45,12 @@ export function WorkspaceTabs({
   return (
     <Tabs spacing="page" value={tab}>
       <div className="@container">
-        <TabsList aria-label={label} size="lg" wrap={wrap === 'grid' ? true : 'column'}>
+        <TabsList
+          aria-label={label}
+          data-tour={TOUR_ANCHORS.editorTabs}
+          size="lg"
+          wrap={wrap === 'grid' ? true : 'column'}
+        >
           {tabs.map((item) => (
             <TabsTrigger
               key={item.to}

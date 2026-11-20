@@ -1,5 +1,6 @@
 import { CheckIcon, EllipsisIcon, EyeIcon, PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
 import type { Tour } from '@/features/onboarding/lib/types';
+import { searchStep } from '@/features/onboarding/tours/list-steps';
 import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const ADMIN_LISTS = [
@@ -30,11 +31,7 @@ export const adminListTour: Tour = {
   id: 'admin-list',
   routeIds: ADMIN_LISTS.map((slug) => `/(protected)/_protected/administration/${slug}` as const),
   steps: [
-    {
-      anchor: TOUR_ANCHORS.listSearch,
-      title: 'onboarding.admin-list.search.title',
-      content: 'onboarding.admin-list.search.content',
-    },
+    searchStep,
     {
       anchor: TOUR_ANCHORS.listFilters,
       title: 'onboarding.admin-list.filters.title',

@@ -52,6 +52,7 @@ import {
 import type { SupervisoryNode } from '@/features/supervisory-nodes/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const FORM_ID = 'supervisory-node-form';
 
@@ -130,7 +131,10 @@ export function NodeEditor({
           >
             <FieldGroup>
               <div className="flex flex-col gap-10">
-                <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+                <div
+                  className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2"
+                  data-tour={TOUR_ANCHORS.editorFields}
+                >
                   <form.AppField name="code">
                     {(field) => (
                       <field.TextField
@@ -196,7 +200,13 @@ export function NodeEditor({
         <Button disabled={pending} onClick={onCancel} size="lg" variant="outline">
           {t('supervisory-nodes.form.cancel')}
         </Button>
-        <Button disabled={pending} form={FORM_ID} size="lg" type="submit">
+        <Button
+          data-tour={TOUR_ANCHORS.editorActions}
+          disabled={pending}
+          form={FORM_ID}
+          size="lg"
+          type="submit"
+        >
           {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
           {t('supervisory-nodes.form.update')}
         </Button>

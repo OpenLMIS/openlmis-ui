@@ -113,6 +113,7 @@ import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const LOOKUPS = {
   types: reasonTypesOptions(),
@@ -323,6 +324,7 @@ export function ReasonEditor({
           {t('reasons.form.cancel')}
         </Button>
         <Button
+          data-tour={TOUR_ANCHORS.editorActions}
           disabled={mutation.isPending}
           focusableWhenDisabled
           form={FORM_ID}
@@ -377,7 +379,10 @@ function ReasonFields({ form, saved }: { form: ReasonForm; saved: Reason | undef
 
   return (
     <FieldGroup>
-      <div className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+      <div
+        className="grid grid-cols-1 gap-x-6 gap-y-5 @3xl/main:grid-cols-2"
+        data-tour={TOUR_ANCHORS.editorFields}
+      >
         <form.AppField name="name">
           {(field) => (
             <field.TextField
@@ -550,7 +555,13 @@ function PairsFields({ form }: { form: ReasonForm }) {
   return (
     <div className="flex flex-col gap-4" ref={measure}>
       <div className="flex justify-end">
-        <Button onClick={() => setAdding(true)} ref={addButton} size="lg" variant="outline">
+        <Button
+          data-tour={TOUR_ANCHORS.editorAdd}
+          onClick={() => setAdding(true)}
+          ref={addButton}
+          size="lg"
+          variant="outline"
+        >
           <PlusIcon data-icon="inline-start" />
           {t('reasons.form.add-pair-title')}
         </Button>
@@ -561,7 +572,7 @@ function PairsFields({ form }: { form: ReasonForm }) {
         open={adding}
         rows={rows}
       />
-      <div ref={table}>
+      <div data-tour={TOUR_ANCHORS.listTable} ref={table}>
         {cards ? (
           <CardList empty={rows.length === 0 && <PairsEmpty />}>
             {rows.map((row, index) => {
@@ -786,7 +797,7 @@ function PairsSkeleton({ rows }: { rows: number }) {
   const { t } = useTranslation();
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   return (
-    <div className="flex flex-col gap-4" ref={measure}>
+    <div aria-busy className="flex flex-col gap-4" ref={measure}>
       <div className="flex justify-end">
         <Button disabled size="lg" variant="outline">
           <PlusIcon data-icon="inline-start" />

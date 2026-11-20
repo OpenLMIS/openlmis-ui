@@ -29,6 +29,7 @@ import {
   type DraftNode,
   partnerOptions,
 } from '@/features/supervisory-nodes/lib/node-form';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type NodeItem = { value: string; label: string };
 const NO_ITEMS: NodeItem[] = [];
@@ -63,7 +64,11 @@ export function AddNodePicker(props: AddNodePickerProps) {
 }
 
 export function AddNodePickerSkeleton({ kind }: { kind: NodeLinkKind }) {
-  return <NodePickerRow kind={kind} items={NO_ITEMS} disabled onAdd={noop} />;
+  return (
+    <div aria-busy className="contents">
+      <NodePickerRow kind={kind} items={NO_ITEMS} disabled onAdd={noop} />
+    </div>
+  );
 }
 
 function LoadedNodePicker({ kind, selfId, rows, parentId, disabled, onAdd }: AddNodePickerProps) {
@@ -143,7 +148,11 @@ function NodePickerRow({
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
-      <PickerAddButton disabled={disabled || !picked} onClick={add}>
+      <PickerAddButton
+        data-tour={disabled ? undefined : TOUR_ANCHORS.editorAdd}
+        disabled={disabled || !picked}
+        onClick={add}
+      >
         {t('supervisory-nodes.form.add')}
       </PickerAddButton>
     </PickerAdd>

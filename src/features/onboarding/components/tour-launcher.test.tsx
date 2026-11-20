@@ -164,6 +164,31 @@ describe('TourLauncher', () => {
     },
   );
 
+  it('plays a step on the shown copy of its part when an earlier copy is hidden', async () => {
+    const user = userEvent.setup();
+    renderPage(
+      <TooltipProvider>
+        <TourLauncher />
+        <div data-tour={TOUR_ANCHORS.requisitionsPicker}>Picker</div>
+        <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Hidden Filters</div>
+        <div data-tour={TOUR_ANCHORS.requisitionsFilters}>Shown Filters</div>
+      </TooltipProvider>,
+    );
+    (await screen.findByText('Hidden Filters')).style.display = 'none';
+    await user.click(await screen.findByRole('button', { name: 'onboarding.show-guide' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'onboarding.next',
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+        'onboarding.requisitions-view.filters.title',
+      ),
+    );
+  });
+
   it('opens a menu section for its step, then gives the user back the section they had open', async () => {
     const user = userEvent.setup();
     state.tour = SECTION_TOUR;

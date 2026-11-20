@@ -51,6 +51,7 @@ import type { SupplyPartner, SupplyPartnerDraft } from '@/features/supply-partne
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import type { SearchChange } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const FORM_ID = 'supply-partner-form';
 const schema = z.object({
@@ -179,7 +180,10 @@ export function SupplyPartnerEditor({
             }}
           >
             <FieldGroup>
-              <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+              <div
+                className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2"
+                data-tour={TOUR_ANCHORS.editorFields}
+              >
                 <Field data-disabled spacing="tight">
                   <FieldLabel htmlFor="supply-partner-code">{t('supply-partners.code')}</FieldLabel>
                   <Input id="supply-partner-code" value={saved.code} disabled />
@@ -203,6 +207,7 @@ export function SupplyPartnerEditor({
                     {t('supply-partners.associations')}
                   </h2>
                   <Button
+                    data-tour={TOUR_ANCHORS.editorAdd}
                     type="button"
                     size="lg"
                     variant="outline"
@@ -240,7 +245,13 @@ export function SupplyPartnerEditor({
         <Button disabled={pending} size="lg" variant="outline" onClick={onCancel}>
           {t('dialog.cancel')}
         </Button>
-        <Button disabled={pending || !refs.complete} form={FORM_ID} type="submit" size="lg">
+        <Button
+          data-tour={TOUR_ANCHORS.editorActions}
+          disabled={pending || !refs.complete}
+          form={FORM_ID}
+          type="submit"
+          size="lg"
+        >
           {pending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
           {t('supply-partners.update')}
         </Button>

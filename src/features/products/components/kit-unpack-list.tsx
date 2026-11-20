@@ -44,6 +44,7 @@ import type { Product, ProductDetail } from '@/features/products/lib/types';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const FORM_ID = 'kit-unpack-list-form';
 
@@ -178,7 +179,14 @@ export function KitUnpackList({
         {!readOnly && (
           <DataTableToolbar>
             <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">
-              <Button size="lg" onClick={onAddOpen} ref={addButton} type="button" width="full">
+              <Button
+                data-tour={TOUR_ANCHORS.editorAdd}
+                size="lg"
+                onClick={onAddOpen}
+                ref={addButton}
+                type="button"
+                width="full"
+              >
                 <PlusIcon data-icon="inline-start" />
                 {t('products.kit.add')}
               </Button>
@@ -191,7 +199,11 @@ export function KitUnpackList({
             title={t('products.kit.save-error-title')}
           />
         )}
-        <section aria-label={t('products.kit.products')} ref={listRegion}>
+        <section
+          aria-label={t('products.kit.products')}
+          data-tour={TOUR_ANCHORS.listTable}
+          ref={listRegion}
+        >
           {cards ? (
             <CardList empty={rows.length === 0 && empty}>
               {rows.map((row, index) => {
@@ -286,6 +298,7 @@ export function KitUnpackList({
         </Button>
         {!readOnly && (
           <Button
+            data-tour={TOUR_ANCHORS.editorActions}
             disabled={!changed || save.isPending}
             focusableWhenDisabled={save.isPending}
             form={FORM_ID}
