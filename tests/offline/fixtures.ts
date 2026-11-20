@@ -81,6 +81,7 @@ export async function stub(
           { id: ids.home, code: 'HOME', name: 'Fixture Clinic', supportedPrograms: programs },
         ],
       },
+      '/api/systemNotifications': { content: [], totalElements: 0, totalPages: 0 },
       '/api/stockCardSummaries': { content: [], totalElements: 0, totalPages: 0 },
       '/api/orderables/search': {
         content: [

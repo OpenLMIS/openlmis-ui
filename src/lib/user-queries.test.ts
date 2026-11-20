@@ -1,7 +1,7 @@
 import { QueryClient, type QueryKey } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
-import { systemNotificationsOptions } from '@/features/home/api/queries';
 import { contactDetailsOptions } from '@/features/profile/api/queries';
+import { systemNotificationsOptions } from '@/features/system-notifications/api/queries';
 import { allUsersOptions, userMatchesOptions } from '@/features/users/api/queries';
 import { queryKeys, userProgramsKey, userRecordKey, userRightsKey } from '@/lib/key-factory';
 import { invalidateUserQueries, invalidateUsersAdminQueries } from '@/lib/user-queries';
@@ -15,17 +15,23 @@ const adminKeys = [
   userMatchesOptions('Augusta').queryKey,
   allUsersOptions().queryKey,
 ];
+const notificationsKey = systemNotificationsOptions().queryKey;
 const sessionKeys = [
   userRightsKey(userId),
   contactDetailsOptions(userId).queryKey,
-  systemNotificationsOptions().queryKey,
   userRecordKey(userId),
   userProgramsKey(userId),
 ];
 
 function seeded() {
   const queryClient = new QueryClient();
-  for (const queryKey of [...adminKeys, ...sessionKeys, roles, queryKeys.users.detail('other')]) {
+  for (const queryKey of [
+    ...adminKeys,
+    ...sessionKeys,
+    notificationsKey,
+    roles,
+    queryKeys.users.detail('other'),
+  ]) {
     queryClient.setQueryData(queryKey, {});
   }
   const invalidated = (queryKey: QueryKey) => queryClient.getQueryState(queryKey)?.isInvalidated;
@@ -33,12 +39,12 @@ function seeded() {
 }
 
 describe('invalidateUserQueries', () => {
-  it("invalidates Users admin data and the user's rights, Profile and Home", async () => {
+  it("invalidates Users admin data and the user's rights, Profile, Home and system notifications", async () => {
     const { queryClient, invalidated } = seeded();
 
     await invalidateUserQueries(queryClient, userId);
 
-    for (const queryKey of [...adminKeys, ...sessionKeys]) {
+    for (const queryKey of [...adminKeys, ...sessionKeys, notificationsKey]) {
       expect(invalidated(queryKey), JSON.stringify(queryKey)).toBe(true);
     }
     expect(invalidated(roles)).toBe(false);
@@ -46,12 +52,12 @@ describe('invalidateUserQueries', () => {
 });
 
 describe('invalidateUsersAdminQueries', () => {
-  it('leaves session data, roles and other user details fresh after a self-service save', async () => {
+  it('invalidates admin and notification data after a self-service save', async () => {
     const { queryClient, invalidated } = seeded();
 
     await invalidateUsersAdminQueries(queryClient, userId);
 
-    for (const queryKey of adminKeys) {
+    for (const queryKey of [...adminKeys, notificationsKey]) {
       expect(invalidated(queryKey), JSON.stringify(queryKey)).toBe(true);
     }
     for (const queryKey of [...sessionKeys, roles, queryKeys.users.detail('other')]) {

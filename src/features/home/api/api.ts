@@ -1,9 +1,8 @@
 import type { AxiosRequestConfig } from 'axios';
-import type { RequisitionSummary, SystemNotification } from '@/features/home/lib/types';
+import type { RequisitionSummary } from '@/features/home/lib/types';
 import { client } from '@/integrations/axios';
 import { EQUIPMENT_STATUSES, type EquipmentStatus } from '@/lib/cce-equipment-status';
 import type { RequisitionStatus } from '@/lib/requisition-status';
-import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
 // Spring binds repeated params (`status=a&status=b`), not axios's default `status[]=a`.
@@ -105,23 +104,4 @@ export function fetchEquipmentStatusCounts(
   return countEach(EQUIPMENT_STATUSES, (functionalStatus) =>
     countOf('/inventoryItems', { functionalStatus }, config),
   );
-}
-
-/** Notices an administrator has published for everyone. */
-export async function fetchSystemNotifications(
-  config?: AxiosRequestConfig,
-): Promise<SystemNotification[]> {
-  const scope = getSessionScope();
-  const notifications: SystemNotification[] = [];
-  for (let page = 0; ; page += 1) {
-    assertSessionScope(scope);
-    const { data } = await client.get<Page<SystemNotification>>('/systemNotifications', {
-      ...config,
-      params: { isDisplayed: true, expand: 'author', page, size: 100, sort: 'createdDate,desc' },
-    });
-    assertSessionScope(scope);
-    notifications.push(...data.content);
-    if (page + 1 >= data.totalPages) break;
-  }
-  return notifications;
 }

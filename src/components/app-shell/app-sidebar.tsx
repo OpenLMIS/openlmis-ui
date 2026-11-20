@@ -1,7 +1,13 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { ChevronRightIcon, WifiOffIcon } from 'lucide-react';
-import { memo, useState } from 'react';
+import {
+  ChevronRightIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  WifiOffIcon,
+} from 'lucide-react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { BackToLegacyButton } from '@/components/app-shell/back-to-legacy-button';
 import { CustomTrigger } from '@/components/app-shell/custom-trigger';
 import { useDeviceWork } from '@/components/app-shell/device-work';
@@ -13,6 +19,7 @@ import { SidebarNotices } from '@/components/app-shell/sidebar-notices';
 import { ThemeSwitcher } from '@/components/app-shell/theme-switcher';
 import { UpdateButton } from '@/components/app-shell/update-button';
 import { LocalizedCount } from '@/components/i18n/localized-count';
+import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useDirection } from '@/components/ui/direction';
@@ -41,8 +48,10 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { useAppName, useShowAppName } from '@/lib/app-configuration';
 import { getNavTrail, isNavActive, isNavParent } from '@/lib/config';
+import { getSessionUserId } from '@/lib/session-scope';
 import type { LiveNavItem, LiveNavLink, LiveNavParent } from '@/lib/types';
 
 export const AppSidebar = memo(function AppSidebar() {
@@ -51,6 +60,8 @@ export const AppSidebar = memo(function AppSidebar() {
   const railTooltipSide = !isMobile && state === 'collapsed' ? 'inline-end' : 'top';
   const appName = useAppName();
   const showAppName = useShowAppName();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const [openSections, setOpenSections] = useOpenNavSections(pathname);
 
   // The rail only has room for a smaller mark; the mobile sheet is always full width.
   const isCollapsed = !isMobile && state === 'collapsed';
@@ -88,7 +99,13 @@ export const AppSidebar = memo(function AppSidebar() {
         <CustomTrigger place="sidebar" />
       </SidebarHeader>
 
-      <SidebarNavigation isCollapsed={isCollapsed} onNavigate={closeMobileSidebar} />
+      <SidebarNavigation
+        isCollapsed={isCollapsed}
+        onNavigate={closeMobileSidebar}
+        openSections={openSections}
+        pathname={pathname}
+        setOpenSections={setOpenSections}
+      />
 
       <SidebarFooter>
         <div className="max-h-64 scroll-py-2 overflow-y-auto overscroll-contain pb-2">
@@ -112,15 +129,42 @@ const findActiveParent = (pathname: string) => {
   return trail.length > 1 ? (trail[0]?.titleKey ?? null) : null;
 };
 
+const openSectionsSchema = z.array(z.string());
+
+function useOpenNavSections(pathname: string) {
+  const activeParent = findActiveParent(pathname);
+  const [openSections, setOpenSections] = useStoredState(
+    `sidebar.open-sections.${getSessionUserId()}`,
+    openSectionsSchema,
+    activeParent ? [activeParent] : [],
+  );
+  const previousPathname = useRef(pathname);
+
+  useEffect(() => {
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
+    if (activeParent && !openSections.includes(activeParent)) {
+      setOpenSections([...openSections, activeParent]);
+    }
+  }, [activeParent, openSections, pathname, setOpenSections]);
+
+  return [openSections, setOpenSections] as const;
+}
+
 function SidebarNavigation({
   isCollapsed,
   onNavigate,
+  openSections,
+  pathname,
+  setOpenSections,
 }: {
   isCollapsed: boolean;
   onNavigate: () => void;
+  openSections: string[];
+  pathname: string;
+  setOpenSections: (sections: string[]) => void;
 }) {
   const { t } = useTranslation();
-  const pathname = useLocation({ select: (location) => location.pathname });
   const navGroups = useNavGroups();
   const accountLinks = useAccountLinks();
   const sidebarGroups = navGroups.map((group) => ({
@@ -134,45 +178,74 @@ function SidebarNavigation({
         : [item],
     ),
   }));
-  const { openParent, setOpenParent } = useOpenNavParent(pathname);
   return (
     <SidebarContent>
-      {sidebarGroups.map((group) => (
-        <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
-          {group.labelKey && <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {group.items.map((item) => (
-                <NavMenuItem
-                  isCollapsed={isCollapsed}
-                  item={item}
-                  key={item.titleKey}
-                  onNavigate={onNavigate}
-                  onOpenChange={(open) => setOpenParent(open ? item.titleKey : null)}
-                  open={openParent === item.titleKey}
-                  pathname={pathname}
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      ))}
+      {sidebarGroups.map((group) => {
+        const sections = group.items.filter(isNavParent).map((item) => item.titleKey);
+
+        return (
+          <SidebarGroup key={group.labelKey ?? group.items[0]?.titleKey}>
+            {group.labelKey && (
+              <SidebarGroupLabel>
+                {t(group.labelKey)}
+                {!isCollapsed && sections.length > 0 && (
+                  <div className="ms-auto flex shrink-0 items-center gap-1">
+                    <ActionTooltip reason={t('sidebar.expand-all')}>
+                      <Button
+                        aria-label={t('sidebar.expand-all')}
+                        disabled={sections.every((section) => openSections.includes(section))}
+                        focusableWhenDisabled
+                        onClick={() => setOpenSections(sections)}
+                        size="icon-xs"
+                        tone="sidebar"
+                        variant="ghost"
+                      >
+                        <ChevronsUpDownIcon aria-hidden />
+                      </Button>
+                    </ActionTooltip>
+                    <ActionTooltip reason={t('sidebar.collapse-all')}>
+                      <Button
+                        aria-label={t('sidebar.collapse-all')}
+                        disabled={!sections.some((section) => openSections.includes(section))}
+                        focusableWhenDisabled
+                        onClick={() => setOpenSections([])}
+                        size="icon-xs"
+                        tone="sidebar"
+                        variant="ghost"
+                      >
+                        <ChevronsDownUpIcon aria-hidden />
+                      </Button>
+                    </ActionTooltip>
+                  </div>
+                )}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <NavMenuItem
+                    isCollapsed={isCollapsed}
+                    item={item}
+                    key={item.titleKey}
+                    onNavigate={onNavigate}
+                    onOpenChange={(open) =>
+                      setOpenSections(
+                        open
+                          ? [...openSections, item.titleKey]
+                          : openSections.filter((section) => section !== item.titleKey),
+                      )
+                    }
+                    open={openSections.includes(item.titleKey)}
+                    pathname={pathname}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        );
+      })}
     </SidebarContent>
   );
-}
-
-// Accordion: opening one parent closes the rest, and navigating opens the new one.
-function useOpenNavParent(pathname: string) {
-  const activeParent = findActiveParent(pathname);
-  const [openParent, setOpenParent] = useState<LiveNavParent['titleKey'] | null>(activeParent);
-  const [trackedParent, setTrackedParent] = useState(activeParent);
-
-  if (activeParent !== trackedParent) {
-    setTrackedParent(activeParent);
-    if (activeParent) setOpenParent(activeParent);
-  }
-
-  return { openParent, setOpenParent };
 }
 
 type NavMenuItemProps = {

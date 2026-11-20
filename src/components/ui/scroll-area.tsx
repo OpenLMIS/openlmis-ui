@@ -7,10 +7,15 @@ function ScrollArea({
   children,
   fade = false,
   height = "default",
+  viewportProps,
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
   fade?: boolean
   height?: "default" | "fill"
+  viewportProps?: Pick<
+    React.ComponentProps<typeof ScrollAreaPrimitive.Viewport>,
+    "aria-labelledby" | "ref" | "role" | "style"
+  >
 }) {
   return (
     <ScrollAreaPrimitive.Root
@@ -30,6 +35,7 @@ function ScrollArea({
           fade &&
             "mask-no-repeat mask-[linear-gradient(to_bottom,transparent_0,black_min(2.5rem,var(--scroll-area-overflow-y-start)),black_calc(100%_-_min(2.5rem,var(--scroll-area-overflow-y-end,0px))),transparent_100%)]"
         )}
+        {...viewportProps}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

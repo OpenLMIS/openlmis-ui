@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { syncOtherTab, useLoginData } from '@/features/auth/store/login-data';
 import { stockEventTransport } from '@/features/stock-events/lib/queue-transport';
+import { fetchSystemNotifications } from '@/features/system-notifications/api/api';
 import { client } from '@/integrations/axios';
 import { isOnline, reportConnectionFailure } from '@/lib/online';
 
@@ -42,6 +43,22 @@ afterEach(() => {
 });
 
 describe('client', () => {
+  it('keeps the app online when a system notifications request gets no response', async () => {
+    const adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      throw new AxiosError('Network Error', AxiosError.ERR_NETWORK, config);
+    });
+    client.defaults.adapter = adapter;
+
+    await expect(fetchSystemNotifications()).rejects.toMatchObject({
+      code: AxiosError.ERR_NETWORK,
+    });
+
+    expect(adapter).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ url: '/systemNotifications' }),
+    );
+    expect(isOnline()).toBe(true);
+  });
+
   it('refuses a request retained for a different user before sending it', async () => {
     const { sent } = serve('old-token');
 

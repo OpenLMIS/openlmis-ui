@@ -25,15 +25,14 @@ import {
   openOrdersCountOptions,
   recentRequisitionsOptions,
   requisitionStatusCountsOptions,
-  systemNotificationsOptions,
 } from '@/features/home/api/queries';
 import { WaitingSummary, WelcomeTitle } from '@/features/home/components/dashboard-greeting';
 import { DashboardRevision } from '@/features/home/components/dashboard-parts';
 import { ActionsSkeleton, DashboardSkeleton } from '@/features/home/components/dashboard-skeleton';
 import { HomeDashboard, preloadCharts } from '@/features/home/components/home-dashboard';
-import { SystemNotifications } from '@/features/home/components/system-notifications';
 import type { DashboardAccess } from '@/features/home/lib/types';
 import { userRecordOptions } from '@/features/reference-data/api/queries';
+import { systemNotificationsOptions } from '@/features/system-notifications/api/queries';
 import { queryKeys, userRecordKey } from '@/lib/key-factory';
 import { isOnline, useOnline } from '@/lib/online';
 
@@ -53,7 +52,6 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
     const userId = useLoginData.getState().referenceDataUserId;
     if (!userId) return;
     queryClient.prefetchQuery(userRecordOptions(userId));
-    queryClient.prefetchQuery(systemNotificationsOptions());
 
     // What to load depends on the user's rights, so the page waits for those, as for any permission check.
     const access = toAccess((await queryClient.fetchQuery(permissionsOptions(userId))).rights);
@@ -100,7 +98,6 @@ function HomeContent({ userId }: { userId: string }) {
           </WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
-          <SystemNotifications revision={revision} />
           <RefreshButton onRefresh={() => setRevision((current) => current + 1)} userId={userId} />
           {canOpen('/administration/users', rights, rightsFor) && (
             <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
@@ -137,13 +134,16 @@ function RefreshButton({ userId, onRefresh }: { userId: string; onRefresh: () =>
   const queryClient = useQueryClient();
   const fetchingDashboard = useIsFetching({ queryKey: queryKeys.home.all });
   const fetchingUser = useIsFetching({ queryKey: userRecordKey(userId), exact: true });
-  const isFetching = fetchingDashboard + fetchingUser > 0;
+  const notifications = { queryKey: systemNotificationsOptions().queryKey, exact: true };
+  const fetchingNotifications = useIsFetching(notifications);
+  const isFetching = fetchingDashboard + fetchingUser + fetchingNotifications > 0;
 
   const refresh = () => {
     if (!isOnline()) return;
     void queryClient.invalidateQueries({ queryKey: rightsOptions(userId).queryKey });
     void queryClient.refetchQueries({ queryKey: userRecordKey(userId), exact: true });
     void queryClient.resetQueries({ queryKey: queryKeys.home.all });
+    void queryClient.invalidateQueries(notifications);
     onRefresh();
   };
 

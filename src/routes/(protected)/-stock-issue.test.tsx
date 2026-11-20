@@ -39,6 +39,9 @@ import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-mana
 import { Route as EditorRoute } from '@/routes/(protected)/_protected.stock-management.issue_.$programId';
 import { Route as StockRoute } from '@/routes/(protected)/_protected.stock-management.stock-on-hand';
 
+vi.mock('@/features/system-notifications/api/api', () => ({
+  fetchSystemNotifications: async () => [],
+}));
 vi.mock('@/components/app-shell/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -333,10 +336,12 @@ describe('Issue report after submit', () => {
       expect(reload.defaultPrevented).toBe(false);
       await user.click(screen.getByRole('button', { name: answer }));
     }
-    expect(await screen.findByRole('heading', { name: 'stock-on-hand.title' })).toBeInTheDocument();
-    expect(await screen.findByRole('combobox', { name: 'facility-program.program' })).toHaveValue(
-      'Family Planning',
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'facility-program.program' })).toHaveValue(
+        'Family Planning',
+      ),
     );
+    expect(screen.getByRole('heading', { name: 'stock-on-hand.title' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'facility-program.facility' })).toHaveTextContent(
       'Comfort Health Clinic',
     );

@@ -6,10 +6,11 @@ import {
   createRouter,
 } from '@tanstack/react-router';
 import { expect, it } from 'vitest';
+import { systemNotificationsOptions } from '@/features/system-notifications/api/queries';
 import { cancelHomeOnNavigation } from '@/lib/home-navigation';
 import { queryKeys } from '@/lib/key-factory';
 
-it('cancels Home requests before the destination loader settles', async () => {
+it('cancels Home requests before the destination loader settles and keeps shell notifications', async () => {
   const root = createRootRoute();
   const pending = Promise.withResolvers<void>();
   const home = createRoute({ getParentRoute: () => root, path: '/home' });
@@ -33,10 +34,19 @@ it('cancels Home requests before the destination loader settles', async () => {
       return pending.promise;
     },
   });
+  let notificationSignal!: AbortSignal;
+  const notifications = client.prefetchQuery({
+    queryKey: systemNotificationsOptions().queryKey,
+    queryFn: (context) => {
+      notificationSignal = context.signal;
+      return pending.promise.then(() => []);
+    },
+  });
   const navigating = router.navigate({ to: '/page' as never });
   expect(signal.aborted).toBe(true);
+  expect(notificationSignal.aborted).toBe(false);
   pending.resolve();
-  await navigating;
+  await Promise.all([navigating, notifications]);
   stop();
   client.clear();
 });
