@@ -90,6 +90,7 @@ import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { revealField } from '@/lib/reveal-field';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const FACILITY_EDITOR_LOOKUPS = {
   types: facilityTypesOptions({ active: true }),
@@ -250,7 +251,11 @@ export function FacilityEditor({
                 spacing="page"
                 value={tab}
               >
-                <TabsList aria-label={t('facilities.form.tabs-label')} size="lg">
+                <TabsList
+                  aria-label={t('facilities.form.tabs-label')}
+                  data-tour={TOUR_ANCHORS.editorTabs}
+                  size="lg"
+                >
                   <TabsTrigger value="information">{t('facilities.form.information')}</TabsTrigger>
                   <TabsTrigger value="programs">
                     {t('facilities.form.programs')}
@@ -282,7 +287,13 @@ export function FacilityEditor({
         <Button disabled={mutation.isPending} onClick={onCancel} size="lg" variant="outline">
           {t('facilities.form.cancel')}
         </Button>
-        <Button disabled={mutation.isPending} form={FORM_ID} size="lg" type="submit">
+        <Button
+          data-tour={TOUR_ANCHORS.editorActions}
+          disabled={mutation.isPending}
+          form={FORM_ID}
+          size="lg"
+          type="submit"
+        >
           {mutation.isPending && <Loader2Icon className="animate-spin" data-icon="inline-start" />}
           {submitLabel}
         </Button>
@@ -313,7 +324,10 @@ function InformationFields({ form, locked, saved }: InformationFieldsProps) {
 
   return (
     <FieldGroup>
-      <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+      <div
+        className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2"
+        data-tour={TOUR_ANCHORS.editorTabFields}
+      >
         <form.AppField name="name">
           {(field) => (
             <field.TextField
@@ -556,7 +570,13 @@ function ProgramsFields({ form, cards }: { form: FacilityForm; cards: boolean })
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <Button onClick={() => setAdding(true)} ref={addButton} size="lg" variant="outline">
+        <Button
+          data-tour={TOUR_ANCHORS.editorAdd}
+          onClick={() => setAdding(true)}
+          ref={addButton}
+          size="lg"
+          variant="outline"
+        >
           <PlusIcon data-icon="inline-start" />
           {t('facilities.form.add-program')}
         </Button>
@@ -567,7 +587,7 @@ function ProgramsFields({ form, cards }: { form: FacilityForm; cards: boolean })
         open={adding}
         rows={rows}
       />
-      <div ref={table}>
+      <div data-tour={TOUR_ANCHORS.listTable} ref={table}>
         {cards ? (
           <CardList empty={rows.length === 0 && empty}>
             {rows.map((row, index) => {

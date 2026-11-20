@@ -15,6 +15,12 @@ export const viewSortStep: TourStep = {
   content: 'onboarding.list.view-sort.content',
 };
 
+export const searchStep: TourStep = {
+  anchor: TOUR_ANCHORS.listSearch,
+  title: 'onboarding.admin-list.search.title',
+  content: 'onboarding.admin-list.search.content',
+};
+
 export const sortStep: TourStep = {
   anchor: TOUR_ANCHORS.listSort,
   title: 'onboarding.list.sort.title',

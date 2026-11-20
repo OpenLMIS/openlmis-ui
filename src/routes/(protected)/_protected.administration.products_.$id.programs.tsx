@@ -29,6 +29,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const productRoute = getRouteApi('/(protected)/_protected/administration/products_/$id');
 
@@ -91,7 +92,12 @@ function ProgramsTab() {
         </div>
         {canEditProduct && (
           <div className="flex-1 @2xl/main:flex-none">
-            <Button size="lg" onClick={() => openDialog({ program: 'new' })} width="full">
+            <Button
+              data-tour={TOUR_ANCHORS.editorAdd}
+              size="lg"
+              onClick={() => openDialog({ program: 'new' })}
+              width="full"
+            >
               <PlusIcon data-icon="inline-start" />
               {t('products.programs.add')}
             </Button>

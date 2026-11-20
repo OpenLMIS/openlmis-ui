@@ -17,6 +17,7 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { csvFileSchema } from '@/lib/csv-upload';
 import { downloadFile } from '@/lib/download-file';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type CsvTransferProps = {
   api: CsvTransferApi;
@@ -95,6 +96,7 @@ export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps
         </ExportSection>
         <Separator />
         <form
+          data-tour={TOUR_ANCHORS.csvUpload}
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
@@ -230,7 +232,12 @@ function UploadErrorText({ explanation, message }: { explanation?: string; messa
 function ExportSection({ children }: { children: ReactNode }) {
   return (
     <CardContent>
-      <div className="flex flex-wrap items-center justify-between gap-3">{children}</div>
+      <div
+        className="flex flex-wrap items-center justify-between gap-3"
+        data-tour={TOUR_ANCHORS.csvExport}
+      >
+        {children}
+      </div>
     </CardContent>
   );
 }

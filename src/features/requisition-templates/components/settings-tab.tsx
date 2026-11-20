@@ -10,12 +10,13 @@ import { FacilityTypesFields } from '@/features/requisition-templates/components
 import type { TemplateEditorForm } from '@/features/requisition-templates/components/template-editor';
 import { eligibleForTemplate } from '@/features/requisition-templates/lib/eligible-facility-types';
 import type { RequisitionTemplate } from '@/features/requisition-templates/lib/types';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type Props = { form: TemplateEditorForm; saved: RequisitionTemplate };
 export function SettingsTab({ form, saved }: Props) {
   const { t } = useTranslation();
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl" data-tour={TOUR_ANCHORS.editorTabFields}>
       <FieldGroup>
         <form.AppField name="name">
           {(field) => (

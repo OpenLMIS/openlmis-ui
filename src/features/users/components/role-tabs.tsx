@@ -34,6 +34,7 @@ import {
 import { useRoleLookups } from '@/features/users/lib/use-role-lookups';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { type SearchChange, searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import type { RoleAssignment } from '@/lib/user-types';
 import { cn } from '@/lib/utils';
 
@@ -87,7 +88,12 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
       >
         {/* A size container, so the tabs go two by two when four do not fit in a row. */}
         <div className="@container">
-          <TabsList aria-label={t('users.roles.tabs-label')} size="lg" wrap>
+          <TabsList
+            aria-label={t('users.roles.tabs-label')}
+            data-tour={TOUR_ANCHORS.editorTabs}
+            size="lg"
+            wrap
+          >
             {ROLE_TABS.map((item) => (
               <TabsTrigger key={item.id} value={item.id}>
                 {t(item.labelKey)}
@@ -129,7 +135,12 @@ export function RoleTabs({ tab, draft, search, onSearchChange, ...props }: RoleT
                   )}
                   {props.onAdd && (
                     <div className={cards ? undefined : 'ms-auto'}>
-                      <Button size="lg" data-add-role onClick={props.onAdd}>
+                      <Button
+                        size="lg"
+                        data-add-role
+                        data-tour={TOUR_ANCHORS.editorAdd}
+                        onClick={props.onAdd}
+                      >
                         <PlusIcon data-icon="inline-start" />
                         {t('users.roles.add')}
                       </Button>

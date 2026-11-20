@@ -109,6 +109,7 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { tableValue } from '@/lib/empty-value';
 import { queryKeys } from '@/lib/key-factory';
 import { type SearchChange, searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const REQUISITION_GROUP_LOOKUPS = {
   nodes: supervisoryNodesOptions(),
@@ -258,7 +259,13 @@ export function RequisitionGroupEditor({
           {t('requisition-groups.form.cancel')}
         </Button>
         {!readOnly && (
-          <Button disabled={mutation.isPending} form={FORM_ID} size="lg" type="submit">
+          <Button
+            data-tour={TOUR_ANCHORS.editorActions}
+            disabled={mutation.isPending}
+            form={FORM_ID}
+            size="lg"
+            type="submit"
+          >
             {mutation.isPending && (
               <Loader2Icon className="animate-spin" data-icon="inline-start" />
             )}
@@ -304,7 +311,11 @@ function EditorHeader({ title, description }: { title?: string; description: str
 function EditorTabs() {
   const { t } = useTranslation();
   return (
-    <TabsList aria-label={t('requisition-groups.form.tabs-label')} size="lg">
+    <TabsList
+      aria-label={t('requisition-groups.form.tabs-label')}
+      data-tour={TOUR_ANCHORS.editorTabs}
+      size="lg"
+    >
       <TabsTrigger value="programs">{t('requisition-groups.form.programs')}</TabsTrigger>
       <TabsTrigger value="facilities">{t('requisition-groups.form.facilities')}</TabsTrigger>
     </TabsList>
@@ -346,7 +357,10 @@ function GeneralFields({
   const savedNodes = useMemo(() => (saved ? [saved.supervisoryNode] : []), [saved]);
   return (
     <FieldGroup>
-      <div className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2">
+      <div
+        className="grid gap-x-6 gap-y-5 @3xl/main:grid-cols-2"
+        data-tour={TOUR_ANCHORS.editorFields}
+      >
         {fields.map(({ name, labelKey }) =>
           name === 'nodeId' ? (
             <LookupField key={name} label={t(labelKey)} required={!readOnly}>
@@ -600,7 +614,14 @@ function ProgramsToolbar({
         />
       </div>
       {!readOnly && (
-        <Button size="lg" ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
+        <Button
+          data-tour={disabled ? undefined : TOUR_ANCHORS.editorAdd}
+          size="lg"
+          ref={addRef}
+          disabled={disabled}
+          variant="outline"
+          onClick={onAdd}
+        >
           <PlusIcon data-icon="inline-start" />
           {t('requisition-groups.form.add-program')}
         </Button>
@@ -805,7 +826,14 @@ function MembersToolbar({
         />
       </div>
       {!readOnly && (
-        <Button size="lg" ref={addRef} disabled={disabled} variant="outline" onClick={onAdd}>
+        <Button
+          data-tour={disabled ? undefined : TOUR_ANCHORS.editorAdd}
+          size="lg"
+          ref={addRef}
+          disabled={disabled}
+          variant="outline"
+          onClick={onAdd}
+        >
           <PlusIcon data-icon="inline-start" />
           {t('requisition-groups.form.add-facility')}
         </Button>

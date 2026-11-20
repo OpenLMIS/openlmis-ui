@@ -28,6 +28,7 @@ import { productName } from '@/features/reference-data/lib/product-name';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const FORM_ID = 'product-general-form';
 
@@ -94,6 +95,7 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
     <>
       <form
         className="max-w-xl"
+        data-tour={TOUR_ANCHORS.editorTabFields}
         id={FORM_ID}
         noValidate
         onSubmit={(event) => {
@@ -127,6 +129,7 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
         </Button>
         {!readOnly && (
           <Button
+            data-tour={TOUR_ANCHORS.editorActions}
             disabled={!changed || save.isPending}
             focusableWhenDisabled={save.isPending}
             form={FORM_ID}

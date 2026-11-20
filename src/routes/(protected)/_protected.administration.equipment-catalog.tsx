@@ -26,6 +26,7 @@ import { RIGHTS } from '@/features/auth/lib/rights';
 import { CCE_CATALOG_API } from '@/features/cce-catalog/api/api';
 import { describeCatalogUploadError } from '@/features/cce-catalog/lib/upload-errors';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export const Route = createFileRoute('/(protected)/_protected/administration/equipment-catalog')({
   validateSearch: instructionsSearchSchema,
@@ -70,6 +71,7 @@ function EquipmentCatalogPage() {
       <Workspace width="narrow">
         <EquipmentCatalogHeader>
           <Button
+            data-tour={TOUR_ANCHORS.csvInstructions}
             onClick={() => void openDialog({ instructions: true })}
             ref={instructionsButton}
             size="lg"

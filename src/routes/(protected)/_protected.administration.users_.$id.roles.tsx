@@ -60,6 +60,7 @@ import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { fullName } from '@/lib/text';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { invalidateUserQueries } from '@/lib/user-queries';
 import type { RoleAssignment } from '@/lib/user-types';
 
@@ -197,7 +198,12 @@ function RolesEditor({ details }: { details: UserDetails }) {
             </WorkspaceDescription>
           </WorkspaceHeading>
           <WorkspaceActions>
-            <Button onClick={() => openDialog({ dialog: 'import' })} size="lg" variant="outline">
+            <Button
+              data-tour={TOUR_ANCHORS.editorImport}
+              onClick={() => openDialog({ dialog: 'import' })}
+              size="lg"
+              variant="outline"
+            >
               <CopyPlusIcon data-icon="inline-start" />
               {t('users.roles.import')}
             </Button>
@@ -263,6 +269,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
           {t('users.roles.cancel')}
         </Button>
         <Button
+          data-tour={TOUR_ANCHORS.editorActions}
           disabled={draft.changes === 0 || save.isPending}
           onClick={() => save.mutate(draft.draft)}
           size="lg"

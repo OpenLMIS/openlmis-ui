@@ -113,7 +113,7 @@ export function FieldSkeleton({
   control = 'input',
 }: FieldSkeletonProps) {
   return (
-    <Field spacing="tight">
+    <Field aria-busy spacing="tight">
       <FieldLabel>
         <FieldLabelText label={label} required={required} />
       </FieldLabel>
