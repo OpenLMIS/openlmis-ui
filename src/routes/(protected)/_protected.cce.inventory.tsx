@@ -77,6 +77,7 @@ import {
   programGrants,
 } from '@/lib/permissions';
 import { type SearchChange, searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const RIGHT = RIGHTS.cceInventoryView;
 const EXPORT_FILENAME = 'inventory_items.csv';
@@ -392,12 +393,14 @@ function InventoryBody({
 
   return (
     <>
-      <FacilityProgramSelector
-        applied={applied}
-        onDraftChange={noop}
-        onSearch={onSearch}
-        options={options}
-      />
+      <div data-tour={TOUR_ANCHORS.ccePicker}>
+        <FacilityProgramSelector
+          applied={applied}
+          onDraftChange={noop}
+          onSearch={onSearch}
+          options={options}
+        />
+      </div>
       <InventoryOutcome
         applied={applied}
         columnView={columnView}
