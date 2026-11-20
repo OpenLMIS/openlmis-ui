@@ -10,7 +10,7 @@ import { PackageIcon, PlusIcon } from 'lucide-react';
 import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorAlert, RetryButton } from '@/components/display/dialog-parts';
-import { formatDateValue, toDateValue } from '@/components/form/date-value';
+import { formatDateValue, parseEditableDate, toDateValue } from '@/components/form/date-value';
 import { DatePicker, FieldLabelText } from '@/components/form/form-fields';
 import {
   PickerAdd,
@@ -566,7 +566,15 @@ function ApprovedProductLotPicker({
   const shownLot = addingNewLot && typedLot ? typedLot : pickedLot;
   const pickLot = (value: string | null) => {
     if (cards && value === ADD_NEW_LOT) setNewLotDialog({ check: false });
-    else setLotValue(value === TYPED_NEW_LOT ? ADD_NEW_LOT : value);
+    else {
+      const next = value === TYPED_NEW_LOT ? ADD_NEW_LOT : value;
+      if (next !== lotValue) {
+        setAttempted(false);
+        if (!cards && draft.expirationDate && !parseEditableDate(draft.expirationDate))
+          setDraft({ ...draft, expirationDate: '' });
+      }
+      setLotValue(next);
+    }
   };
 
   const pick = (item: ApprovedProductOption | null) => {
@@ -783,7 +791,7 @@ function ApprovedProductLotPicker({
                 earliest={today}
                 invalid={!!errors.expirationDate || undefined}
                 onValueChange={(expirationDate) => setDraft({ ...draft, expirationDate })}
-                placeholder={t('stock-events.pick-date')}
+                onEnter={add}
                 value={draft.expirationDate}
               />
               {errors.expirationDate && (

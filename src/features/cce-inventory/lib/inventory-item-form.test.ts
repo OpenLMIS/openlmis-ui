@@ -68,6 +68,12 @@ describe('inventoryItemDetailsSchema', () => {
     );
   });
 
+  it('rejects a malformed decommission date', () => {
+    expect(
+      issues({ ...filled, functionalStatus: 'UNSERVICEABLE', decommissionDate: '31/02/2026' }),
+    ).toContain('decommissionDate: form.date-invalid');
+  });
+
   it('treats a serial number or reference name of only spaces as empty', () => {
     expect(issues({ ...filled, equipmentTrackingId: '  ', referenceName: ' ' })).toEqual([
       'equipmentTrackingId: cce-inventory.form.required',

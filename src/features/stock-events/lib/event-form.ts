@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseDateValue } from '@/components/form/date-value';
+import { parseEditableDate } from '@/components/form/date-value';
 import {
   type QuantityValue,
   quantityValue,
@@ -88,7 +88,10 @@ export function newEventLine(
     reasonId: previousLine?.reasonId || listedDefaultReasonId(reasons, defaultReasonId),
     reasonFreeText: previousLine?.reasonFreeText ?? '',
     quantity: quantityValue('', card.orderable.netContent),
-    occurredDate: previousLine?.occurredDate || today,
+    occurredDate:
+      previousLine && parseEditableDate(previousLine.occurredDate)
+        ? previousLine.occurredDate
+        : today,
     vvmStatus: '',
   };
 }
@@ -178,7 +181,7 @@ export function eventLinesSchema({
     }
 
     if (!line.occurredDate.trim()) issue(['occurredDate'], 'stock-events.required');
-    else if (!parseDateValue(line.occurredDate)) {
+    else if (!parseEditableDate(line.occurredDate)) {
       issue(['occurredDate'], 'stock-events.date-invalid');
     } else if (line.occurredDate > today) {
       issue(['occurredDate'], 'stock-events.date-future');

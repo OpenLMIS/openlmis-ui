@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { FacilityBody } from '@/features/facilities/lib/types';
 import { programName } from '@/features/reference-data/lib/programs';
 import type { Facility, Program } from '@/features/reference-data/lib/types';
+import { dateValue } from '@/lib/date-value';
 
 const errorKey = (key: ParseKeys) => key;
 
@@ -25,7 +26,7 @@ const programRowSchema = z
     name: z.string().nullable(),
     supportActive: z.boolean(),
     supportLocallyFulfilled: z.boolean(),
-    supportStartDate: z.string(),
+    supportStartDate: dateValue({ optional: true }),
     saved: z.boolean(),
   })
   .superRefine((row, context) => {
@@ -57,9 +58,10 @@ export function facilityFormSchema(
         ),
     typeId: requiredChoice('facilities.form.type-required'),
     zoneId: requiredChoice('facilities.form.zone-required'),
-    goLiveDate: goLiveDateRequired
-      ? requiredText('facilities.form.go-live-date-required')
-      : z.string(),
+    goLiveDate: dateValue({
+      optional: !goLiveDateRequired,
+      required: 'facilities.form.go-live-date-required',
+    }),
     active: z.boolean(),
     enabled: z.boolean(),
     description: z.string(),
@@ -70,7 +72,7 @@ export function facilityFormSchema(
 
 export const addProgramSchema = z.object({
   programId: requiredChoice('facilities.form.program-required'),
-  startDate: requiredText('facilities.form.start-date-required'),
+  startDate: dateValue({ required: 'facilities.form.start-date-required' }),
 });
 
 export type FacilityFormValues = z.input<ReturnType<typeof facilityFormSchema>>;

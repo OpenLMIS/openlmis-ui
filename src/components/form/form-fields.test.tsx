@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
@@ -9,6 +9,7 @@ import { useAppForm } from '@/components/form/form';
 import { DatePicker } from '@/components/form/form-fields';
 import { FormMessagesProvider } from '@/components/form/form-messages';
 import { TranslatedFormMessages } from '@/components/i18n/translated-form-messages';
+import { dateValue } from '@/lib/date-value';
 
 afterEach(() => vi.useRealTimers());
 
@@ -534,7 +535,7 @@ describe('a multi combobox', () => {
 const dateSchema = z.object({
   opened: z.string(),
   kept: z.string(),
-  started: z.string().min(1, 'started.required'),
+  started: dateValue({ optional: true }).pipe(z.string().min(1, 'started.required')),
 });
 
 function DateForm({ onSubmit }: { onSubmit: (value: z.infer<typeof dateSchema>) => void }) {
@@ -553,17 +554,16 @@ function DateForm({ onSubmit }: { onSubmit: (value: z.infer<typeof dateSchema>) 
       }}
     >
       <form.AppField name="opened">
-        {(field) => (
-          <field.DateField clearLabel="Clear Opened" label="Opened" placeholder="Pick A Date" />
-        )}
+        {(field) => <field.DateField clearLabel="Clear Opened" label="Opened" />}
       </form.AppField>
-      <form.AppField name="kept">
-        {(field) => <field.DateField label="Kept" placeholder="Pick A Date" />}
-      </form.AppField>
+      <form.AppField name="kept">{(field) => <field.DateField label="Kept" />}</form.AppField>
       <form.AppField name="started">
-        {(field) => <field.DateField label="Started" placeholder="Pick A Date" required />}
+        {(field) => <field.DateField label="Started" required />}
       </form.AppField>
       <button type="submit">Save</button>
+      <button type="button" onClick={() => form.reset()}>
+        Reset
+      </button>
     </form>
   );
 }
@@ -574,24 +574,59 @@ const openCalendar = async (user: ReturnType<typeof userEvent.setup>, name: RegE
 };
 
 describe('date field', () => {
-  it('names the picker by its label and its day, and stores the picked day as yyyy-MM-dd', async () => {
+  it('keeps typed text in focus, blocks invalid submits and submits valid text without a blur', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<DateForm onSubmit={onSubmit} />);
+    const input = screen.getByRole('textbox', { name: /^Started/ });
+    await user.type(input, '9999-01-01{Enter}');
+    expect(input).toHaveValue('9999-01-01');
+    expect(input).toHaveAccessibleDescription('form.date-invalid');
+    expect(onSubmit).not.toHaveBeenCalled();
+    await user.clear(input);
+    await user.type(input, '1/2/2024');
+    expect(input).toHaveValue('1/2/2024');
+    expect(await screen.findByRole('grid')).toHaveAttribute('aria-label', 'February 2024');
+    await user.keyboard('{Escape}');
+    expect(input).toHaveFocus();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    expect(input).toHaveFocus();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ started: '2024-02-01' }));
+    await user.tab();
+    expect(input).toHaveValue('01/02/2024');
+    expect(screen.getByRole('button', { name: 'Open Calendar Started' })).toHaveFocus();
+  });
+  it('replaces the focused spelling when an external form reset restores the same canonical value', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+    const input = screen.getByRole('textbox', { name: 'Opened' });
+    await user.clear(input);
+    await user.type(input, '1/10/2026');
+    expect(input).toHaveValue('1/10/2026');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue('01/10/2026');
+  });
+
+  it('names the textbox by its label and stores the picked day as yyyy-MM-dd', async () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 13), toFake: ['Date'] });
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<DateForm onSubmit={onSubmit} />);
 
-    const calendar = await openCalendar(user, /^Opened Oct 1, 2026$/);
+    const calendar = await openCalendar(user, /^Open Calendar Opened$/);
     expect(calendar).toHaveAccessibleName('Opened');
     await user.click(await within(calendar).findByRole('button', { name: /October 15th, 2026/ }));
-    expect(screen.getByRole('button', { name: 'Opened Oct 15, 2026' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Opened' })).toHaveValue('15/10/2026');
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: /^Started/ })).toHaveAccessibleDescription(
+    expect(screen.getByRole('textbox', { name: /^Started/ })).toHaveAccessibleDescription(
       'started.required',
     );
 
-    const startedCalendar = await openCalendar(user, /^Started/);
+    const startedCalendar = await openCalendar(user, /^Open Calendar Started/);
     await user.click(
       await within(startedCalendar).findByRole('button', { name: /October 16th, 2026/ }),
     );
@@ -607,7 +642,11 @@ describe('date field', () => {
     const user = userEvent.setup();
     render(<DateForm onSubmit={vi.fn()} />);
 
-    const calendar = await openCalendar(user, /^Opened/);
+    const opened = screen.getByRole('textbox', { name: 'Opened' });
+    await user.tab();
+    expect(opened).toHaveFocus();
+    const calendar = await screen.findByRole('dialog', { name: 'Opened' });
+    await user.keyboard('{ArrowDown}');
     await waitFor(() =>
       expect(within(calendar).getByRole('button', { name: /October 1st, 2026/ })).toHaveFocus(),
     );
@@ -621,26 +660,29 @@ describe('date field', () => {
     );
     await user.keyboard('{Enter}');
 
-    expect(screen.getByRole('button', { name: 'Opened Oct 9, 2026' })).toBeInTheDocument();
+    expect(opened).toHaveValue('09/10/2026');
+    expect(opened).toHaveFocus();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('keeps a required date when its day is picked again', async () => {
     const user = userEvent.setup();
     render(<DateForm onSubmit={vi.fn()} />);
 
-    let calendar = await openCalendar(user, /^Started/);
+    let calendar = await openCalendar(user, /^Open Calendar Started/);
     const today = (await within(calendar).findAllByRole('button', { name: /Today/ }))[0];
     if (!today) throw new Error('no today');
     await user.click(today);
-    const picked = screen.getByRole('button', { name: /^Started/ }).textContent;
+    const started = screen.getByRole<HTMLInputElement>('textbox', { name: /^Started/ });
+    const picked = started.value;
 
-    calendar = await openCalendar(user, /^Started/);
+    calendar = await openCalendar(user, /^Open Calendar Started/);
     await user.click(
       (await within(calendar).findAllByRole('button', { name: /Today/ }))[0] as HTMLElement,
     );
 
-    expect(screen.getByRole('button', { name: /^Started/ })).toHaveTextContent(picked ?? '');
-    expect(screen.getByRole('button', { name: /^Started/ })).not.toHaveTextContent('Pick A Date');
+    expect(started).toHaveValue(picked);
+    expect(started).not.toHaveValue('');
   });
 
   it('empties an optional date with its clear button and keeps the focus on the field', async () => {
@@ -649,41 +691,44 @@ describe('date field', () => {
 
     await user.click(screen.getByRole('button', { name: 'Clear Opened' }));
 
-    const opened = screen.getByRole('button', { name: 'Opened Pick A Date' });
+    const opened = screen.getByRole('textbox', { name: 'Opened' });
+    expect(opened).toHaveValue('');
     expect(opened).toHaveFocus();
     expect(screen.queryByRole('button', { name: 'Clear Opened' })).toBeNull();
   });
 
-  it('tells screen readers a date is required, with its label and value', async () => {
+  it('tells screen readers a date is required with its label', async () => {
     await act(async () => {
       render(<DateForm onSubmit={vi.fn()} />);
     });
 
-    expect(
-      screen.getByRole('button', { name: 'Started Required Pick A Date' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Started Required' })).toBeRequired();
   });
 
   it('keeps a date that has no clear button when its day is picked again', async () => {
     const user = userEvent.setup();
     render(<DateForm onSubmit={vi.fn()} />);
 
-    const calendar = await openCalendar(user, /^Kept/);
+    const calendar = await openCalendar(user, /^Open Calendar Kept/);
     await user.click(await within(calendar).findByRole('button', { name: /October 1st, 2026/ }));
 
-    expect(screen.getByRole('button', { name: 'Kept Oct 1, 2026' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Kept' })).toHaveValue('01/10/2026');
   });
 
-  it('shows the date in the language it is given', async () => {
+  it('shows the date in the deployment format independently of the language', async () => {
     await act(async () => {
       render(
-        <FormMessagesProvider dateLanguage="pt" formatError={(message) => message}>
+        <FormMessagesProvider
+          dateFormat="yyyy.M.d"
+          dateLanguage="pt"
+          formatError={(message) => message}
+        >
           <DateForm onSubmit={vi.fn()} />
         </FormMessagesProvider>,
       );
     });
 
-    expect(screen.getByRole('button', { name: /^Opened/ })).toHaveTextContent('1 de out. de 2026');
+    expect(screen.getByRole('textbox', { name: 'Opened' })).toHaveValue('2026.10.1');
   });
 });
 
@@ -694,16 +739,10 @@ describe('date picker', () => {
       const user = userEvent.setup();
       const onValueChange = vi.fn();
       render(
-        <DatePicker
-          id="expiry"
-          label="Expiry"
-          onValueChange={onValueChange}
-          placeholder="Expiry"
-          value="2026-01-15"
-        />,
+        <DatePicker id="expiry" label="Expiry" onValueChange={onValueChange} value="2026-01-15" />,
       );
 
-      const calendar = await openCalendar(user, /^Expiry/);
+      const calendar = await openCalendar(user, /^Open Calendar Expiry/);
       const years = await within(calendar).findByRole('combobox', { name: 'Choose the Year' });
       await user.selectOptions(years, String(year));
       await user.click(
@@ -714,21 +753,15 @@ describe('date picker', () => {
     },
   );
 
-  it('is named by its label, then by its date once one is picked', async () => {
+  it('keeps its name after a date is picked', async () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 13), toFake: ['Date'] });
     const user = userEvent.setup();
     const onValueChange = vi.fn();
     const { rerender } = render(
-      <DatePicker
-        id="from"
-        label="Earliest Expiry"
-        onValueChange={onValueChange}
-        placeholder="Earliest Expiry"
-        value=""
-      />,
+      <DatePicker id="from" label="Earliest Expiry" onValueChange={onValueChange} value="" />,
     );
 
-    const calendar = await openCalendar(user, /^Earliest Expiry$/);
+    const calendar = await openCalendar(user, /^Open Calendar Earliest Expiry$/);
     await user.click(await within(calendar).findByRole('button', { name: /October 15th/ }));
     expect(onValueChange).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-10-15$/));
 
@@ -737,13 +770,10 @@ describe('date picker', () => {
         id="from"
         label="Earliest Expiry"
         onValueChange={onValueChange}
-        placeholder="Earliest Expiry"
         value="2019-01-30"
       />,
     );
-    expect(
-      screen.getByRole('button', { name: 'Earliest Expiry: Jan 30, 2019' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Earliest Expiry' })).toHaveValue('30/01/2019');
   });
 
   it('offers only the days between its earliest and latest', async () => {
@@ -755,12 +785,11 @@ describe('date picker', () => {
         label="Latest Expiry"
         latest="2019-01-20"
         onValueChange={vi.fn()}
-        placeholder="Latest Expiry"
         value="2019-01-15"
       />,
     );
 
-    const calendar = await openCalendar(user, /^Latest Expiry/);
+    const calendar = await openCalendar(user, /^Open Calendar Latest Expiry/);
     expect(
       await within(calendar).findByRole('button', { name: /January 9th, 2019/ }),
     ).toBeDisabled();
@@ -772,17 +801,11 @@ describe('date picker', () => {
   it('keeps a click on the calendar that a page update interrupts', async () => {
     const user = userEvent.setup();
     const picker = (onValueChange: (value: string) => void) => (
-      <DatePicker
-        id="expiry"
-        label="Expiry"
-        onValueChange={onValueChange}
-        placeholder="Expiry"
-        value="2019-01-15"
-      />
+      <DatePicker id="expiry" label="Expiry" onValueChange={onValueChange} value="2019-01-15" />
     );
     const { rerender } = render(picker(vi.fn()));
 
-    const calendar = await openCalendar(user, /^Expiry/);
+    const calendar = await openCalendar(user, /^Open Calendar Expiry/);
     const next = await within(calendar).findByRole('button', { name: /next month/i });
     await user.pointer({ keys: '[MouseLeft>]', target: next });
     rerender(picker(vi.fn()));
@@ -800,7 +823,6 @@ describe('date picker', () => {
         id="to"
         label="Latest Expiry"
         onValueChange={onValueChange}
-        placeholder="Latest Expiry"
         value="2019-01-15"
       />,
     );

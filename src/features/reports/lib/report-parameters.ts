@@ -7,6 +7,7 @@ import {
   toLookup,
 } from '@/features/reports/lib/report-lookups';
 import type { ReportFormat, ReportTemplateParameter } from '@/features/reports/lib/types';
+import { dateValue } from '@/lib/date-value';
 import { toLatinDigits, wholeNumberText } from '@/lib/whole-number';
 
 export const REPORT_FORMATS = [
@@ -117,6 +118,7 @@ function fieldSchema(field: ReportField) {
         optional: !field.required,
       },
     );
+  if (field.kind === 'date') return dateValue({ optional: !field.required, required: REQUIRED });
   const value = z.string().nullable();
   return field.required ? value.refine((text) => Boolean(text), REQUIRED) : value;
 }

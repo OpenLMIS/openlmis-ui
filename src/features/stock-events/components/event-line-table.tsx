@@ -1,7 +1,7 @@
 import { useStore } from '@tanstack/react-form';
 import { type ColumnVisibilityState, createColumnHelper, useTable } from '@tanstack/react-table';
 import type { ParseKeys } from 'i18next';
-import { CalendarIcon, CircleAlertIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
+import { CircleAlertIcon, ClipboardPenLineIcon, Trash2Icon } from 'lucide-react';
 import {
   type CSSProperties,
   memo,
@@ -31,7 +31,8 @@ import {
   CardRows,
 } from '@/components/display/card-list';
 import { QuantityHeaderSizer } from '@/components/display/quantity-header-sizer';
-import { formatDateValue } from '@/components/form/date-value';
+import { formatDateText, formatDateValue } from '@/components/form/date-value';
+import { useDateFormat } from '@/components/form/form-messages';
 import { SettingsItem } from '@/components/form/settings-list';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -220,21 +221,17 @@ const ExpirySizer = memo(function ExpirySizer({
   return <TextSizer labels={monthLabels(year, language)} />;
 });
 
-const DateSizer = memo(function DateSizer({ year, language }: { year: string; language: string }) {
-  const labels = useMemo(() => monthLabels(year, language), [year, language]);
+function DateSizer() {
+  const dateFormat = useDateFormat();
   return (
-    <div aria-hidden className="invisible grid h-0 w-max overflow-hidden">
-      {labels.map((label) => (
-        <span key={label} className="col-start-1 row-start-1">
-          <Button align="start" disabled size="sm" tabIndex={-1} variant="outline">
-            <CalendarIcon data-icon="inline-start" />
-            {label}
-          </Button>
-        </span>
-      ))}
+    <div
+      aria-hidden
+      className="invisible flex h-0 w-max items-center overflow-hidden ps-2.5 pe-8 text-sm"
+    >
+      <span>{formatDateText('2000-12-28', dateFormat)}</span>
     </div>
   );
-});
+}
 
 type CellProps = {
   kind: ConfiguredEventKind;
@@ -548,7 +545,6 @@ const LineCell = memo(function LineCell({
                   latest={today}
                   layout="inline"
                   hideErrors
-                  placeholder={t('stock-events.date')}
                   required
                 />
               )}
@@ -700,7 +696,7 @@ export function EventLineTable({
                   {id === 'vvm' && <div className="w-24" />}
                   {!measured && id === 'date' && <div className="w-32" />}
                   {id === 'actions' && <div className="w-7" />}
-                  {measured && id === 'date' && <DateSizer year={year} language={i18n.language} />}
+                  {measured && id === 'date' && <DateSizer />}
                 </div>
               </>
             ),

@@ -1,13 +1,28 @@
-import { type ComponentProps, createContext, type ReactNode, use, useMemo } from 'react';
+import {
+  type ComponentProps,
+  createContext,
+  type ReactNode,
+  use,
+  useMemo,
+  useSyncExternalStore,
+} from 'react';
+import { DEFAULT_DATE_FORMAT } from '@/components/form/date-value';
 import type { Calendar } from '@/components/ui/calendar';
 
 type Locale = NonNullable<ComponentProps<typeof Calendar>['locale']>;
+
+type DateFormatSource = {
+  subscribe: (onChange: () => void) => () => void;
+  getSnapshot: () => string;
+};
 
 type FormMessages = {
   formatError: (message: string) => string;
   aboutLabel: (label: string) => string;
   requiredLabel: string;
   dateLanguage: string;
+  dateFormat: string | DateFormatSource;
+  calendarLabel: string;
   loadDateLocale: (() => Promise<Locale>) | undefined;
 };
 
@@ -18,6 +33,8 @@ const FormMessagesContext = createContext<FormMessages>({
   aboutLabel: defaultAboutLabel,
   requiredLabel: 'Required',
   dateLanguage: 'en-US',
+  dateFormat: DEFAULT_DATE_FORMAT,
+  calendarLabel: 'Open Calendar',
   loadDateLocale: undefined,
 });
 
@@ -30,6 +47,8 @@ type FormMessagesProviderProps = {
   requiredLabel?: string;
   /** The language dates are shown in. */
   dateLanguage?: string;
+  dateFormat?: FormMessages['dateFormat'];
+  calendarLabel?: string;
   /** The calendar's language, loaded with the calendar; English when left out. */
   loadDateLocale?: () => Promise<Locale>;
   children: ReactNode;
@@ -40,12 +59,24 @@ export function FormMessagesProvider({
   aboutLabel = defaultAboutLabel,
   requiredLabel = 'Required',
   dateLanguage = 'en-US',
+  dateFormat,
+  calendarLabel = 'Open Calendar',
   loadDateLocale,
   children,
 }: FormMessagesProviderProps) {
+  const inheritedFormat = use(FormMessagesContext).dateFormat;
+  const format = dateFormat ?? inheritedFormat;
   const messages = useMemo(
-    () => ({ formatError, aboutLabel, requiredLabel, dateLanguage, loadDateLocale }),
-    [formatError, aboutLabel, requiredLabel, dateLanguage, loadDateLocale],
+    () => ({
+      formatError,
+      aboutLabel,
+      requiredLabel,
+      dateLanguage,
+      dateFormat: format,
+      calendarLabel,
+      loadDateLocale,
+    }),
+    [formatError, aboutLabel, requiredLabel, dateLanguage, format, calendarLabel, loadDateLocale],
   );
   return <FormMessagesContext value={messages}>{children}</FormMessagesContext>;
 }
@@ -63,6 +94,15 @@ export function useRequiredLabel() {
 }
 
 export function useDateMessages() {
-  const { requiredLabel, dateLanguage, loadDateLocale } = use(FormMessagesContext);
-  return { requiredLabel, dateLanguage, loadDateLocale };
+  const { requiredLabel, dateLanguage, calendarLabel, loadDateLocale } = use(FormMessagesContext);
+  return { requiredLabel, dateLanguage, calendarLabel, loadDateLocale };
+}
+
+const subscribeToStaticFormat = () => () => {};
+
+export function useDateFormat() {
+  const { dateFormat } = use(FormMessagesContext);
+  const subscribe = typeof dateFormat === 'string' ? subscribeToStaticFormat : dateFormat.subscribe;
+  const getSnapshot = typeof dateFormat === 'string' ? () => dateFormat : dateFormat.getSnapshot;
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

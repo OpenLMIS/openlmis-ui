@@ -1,7 +1,7 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { parseDateValue, toDateValue } from '@/components/form/date-value';
+import { toDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -15,13 +15,13 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { FieldGroup } from '@/components/ui/field';
+import { dateValue } from '@/lib/date-value';
 
 export const inventoryOccurredSchema = (today: string) =>
   z.object({
-    occurredDate: z
-      .string()
-      .min(1, 'stock-events.required')
-      .refine((date) => Boolean(parseDateValue(date)) && date <= today, 'stock-events.date-future'),
+    occurredDate: dateValue({ required: 'stock-events.required' }).pipe(
+      z.string().refine((date) => date <= today, 'stock-events.date-future'),
+    ),
     signature: z.string().max(255, 'stock-events.signature-too-long'),
   });
 export function InventoryOccurredDateDialog({
@@ -70,7 +70,6 @@ export function InventoryOccurredDateDialog({
               {(field) => (
                 <field.DateField
                   label={t('physical-inventory.occurred-date')}
-                  placeholder={t('physical-inventory.occurred-date')}
                   latest={today}
                   required
                   disabled={pending}

@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -624,7 +624,7 @@ it('filters by event type and date bounds, then Clear Filters restores every eve
   await screen.findByText('Issued');
   expect(screen.queryByText('Adjusted')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /Filters/ }));
-  await user.click(screen.getByRole('button', { name: /offline-events.end-date/ }));
+  await user.click(screen.getByRole('button', { name: /Open Calendar offline-events.end-date/ }));
   expect(await screen.findByRole('button', { name: /October 12/ })).toBeDisabled();
   await user.keyboard('{Escape}');
   await user.click(screen.getByRole('combobox', { name: 'offline-events.pending-event' }));
@@ -637,6 +637,57 @@ it('filters by event type and date bounds, then Clear Filters restores every eve
   await user.click(screen.getByRole('button', { name: 'data-table.clear-filters' }));
   expect(await screen.findByText('Adjusted')).toBeVisible();
   expect(screen.getByText('Issued')).toBeVisible();
+  expect(router.state.location.search).toEqual({});
+});
+
+it('commits typed date filters on Enter and on close without a blur, and discards pending text on Clear Filters', async () => {
+  const user = userEvent.setup();
+  local.width = 1440;
+  local.events = [fixture('Adjusted', 'queued', 1, 10)];
+  const { router } = mount();
+  await screen.findByText('Adjusted');
+  const filters = () => screen.getByRole('button', { name: /^Filters/ });
+  await user.click(filters());
+  const start = screen.getByRole('textbox', { name: 'offline-events.start-date' });
+  await user.type(start, '12/10/2026');
+  expect(router.state.location.search).toEqual({});
+  await user.keyboard('{Enter}');
+  await waitFor(() => expect(router.state.location.search).toEqual({ startDate: '2026-10-12' }));
+
+  const end = screen.getByRole('textbox', { name: 'offline-events.end-date' });
+  await user.type(end, '11/10/2026{Enter}');
+  expect(end).toHaveAccessibleDescription('form.date-too-early');
+  expect(router.state.location.search).toEqual({ startDate: '2026-10-12' });
+  await user.clear(end);
+  await user.type(end, '20/10/2026');
+  expect(end).toHaveFocus();
+  fireEvent.click(filters());
+  await waitFor(() =>
+    expect(router.state.location.search).toEqual({
+      startDate: '2026-10-12',
+      endDate: '2026-10-20',
+    }),
+  );
+
+  await user.click(filters());
+  const clear = () =>
+    within(screen.getByRole('dialog', { name: 'Filters' })).getByRole('button', {
+      name: 'Clear Filters',
+    });
+  await user.click(clear());
+  await waitFor(() => expect(router.state.location.search).toEqual({}));
+  const clearedEnd = screen.getByRole('textbox', { name: 'offline-events.end-date' });
+  await user.type(clearedEnd, '31/02/2026');
+  await user.click(clear());
+  expect(clearedEnd).toHaveValue('');
+  expect(clearedEnd).not.toHaveAttribute('aria-invalid');
+  expect(router.state.location.search).toEqual({});
+
+  act(() => router.history.push('/?eventType=issue'));
+  await waitFor(() => expect(router.state.location.search).toEqual({ eventType: 'issue' }));
+  await user.type(clearedEnd, '31/02/2026');
+  act(() => router.history.back());
+  await waitFor(() => expect(clearedEnd).toHaveValue(''));
   expect(router.state.location.search).toEqual({});
 });
 

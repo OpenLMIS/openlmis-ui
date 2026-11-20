@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSelectFilter } from '@/components/data-table/data-table-filters';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
-import { DatePicker } from '@/components/form/form-fields';
+import { DateFilter } from '@/components/pickers/date-filter';
 import {
   activeRequisitionFilterCount,
   CLEARED_REQUISITION_FILTERS,
@@ -73,7 +73,7 @@ export function RequisitionsToolbar({
               onValueChange={(value) => change({ offline: value === 'yes' || undefined })}
             />
           )}
-          <DatePicker
+          <DateFilter
             clearLabel={t('data-table.clear-filter', {
               label: t('requisitions.filters.initiated-from'),
             })}
@@ -81,10 +81,9 @@ export function RequisitionsToolbar({
             label={t('requisitions.filters.initiated-from')}
             latest={search.initiatedTo}
             onValueChange={(initiatedFrom) => change({ initiatedFrom: initiatedFrom || undefined })}
-            placeholder={t('requisitions.filters.initiated-from')}
             value={search.initiatedFrom ?? ''}
           />
-          <DatePicker
+          <DateFilter
             clearLabel={t('data-table.clear-filter', {
               label: t('requisitions.filters.initiated-to'),
             })}
@@ -92,7 +91,6 @@ export function RequisitionsToolbar({
             id="requisitions-initiated-to"
             label={t('requisitions.filters.initiated-to')}
             onValueChange={(initiatedTo) => change({ initiatedTo: initiatedTo || undefined })}
-            placeholder={t('requisitions.filters.initiated-to')}
             value={search.initiatedTo ?? ''}
           />
         </DataTableFilters>

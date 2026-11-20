@@ -6,7 +6,7 @@ import { DataTableComboboxFilter } from '@/components/data-table/data-table-filt
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
-import { DatePicker } from '@/components/form/form-fields';
+import { DateFilter } from '@/components/pickers/date-filter';
 import { LOT_HIDEABLE_COLUMNS, type LotsSearch } from '@/features/lots/lib/search';
 import {
   orderablesByIdsOptions,
@@ -57,7 +57,7 @@ export function LotsToolbar({ search, onFilterChange, columnView, layout }: Lots
             }
             value={search.product}
           />
-          <DatePicker
+          <DateFilter
             clearLabel={t('data-table.clear-filter', { label: t('lots.earliest-expiry') })}
             id="lots-earliest-expiry"
             label={t('lots.earliest-expiry')}
@@ -65,10 +65,9 @@ export function LotsToolbar({ search, onFilterChange, columnView, layout }: Lots
             onValueChange={(expiryFrom) =>
               onFilterChange({ expiryFrom: expiryFrom || undefined, page: undefined })
             }
-            placeholder={t('lots.earliest-expiry')}
             value={search.expiryFrom ?? ''}
           />
-          <DatePicker
+          <DateFilter
             clearLabel={t('data-table.clear-filter', { label: t('lots.latest-expiry') })}
             earliest={search.expiryFrom}
             id="lots-latest-expiry"
@@ -76,7 +75,6 @@ export function LotsToolbar({ search, onFilterChange, columnView, layout }: Lots
             onValueChange={(expiryTo) =>
               onFilterChange({ expiryTo: expiryTo || undefined, page: undefined })
             }
-            placeholder={t('lots.latest-expiry')}
             value={search.expiryTo ?? ''}
           />
         </DataTableFilters>

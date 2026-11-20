@@ -6,7 +6,7 @@ import {
   DataTableSelectFilter,
 } from '@/components/data-table/data-table-filters';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
-import { DatePicker } from '@/components/form/form-fields';
+import { DateFilter } from '@/components/pickers/date-filter';
 import type { ViewOrdersSearch } from '@/features/orders/lib/order-search';
 import type { OrderKind } from '@/features/orders/lib/order-status';
 import {
@@ -104,10 +104,9 @@ export function OrdersToolbar({
           />
           {kind === 'view' && (
             <>
-              <DatePicker
+              <DateFilter
                 id="orders-period-start"
                 label={t('orders.view.filters.period-start')}
-                placeholder={t('orders.view.filters.period-start')}
                 clearLabel={t('data-table.clear-filter', {
                   label: t('orders.view.filters.period-start'),
                 })}
@@ -115,10 +114,9 @@ export function OrdersToolbar({
                 latest={search.periodEnd}
                 onValueChange={(value) => change({ periodStart: value || undefined })}
               />
-              <DatePicker
+              <DateFilter
                 id="orders-period-end"
                 label={t('orders.view.filters.period-end')}
-                placeholder={t('orders.view.filters.period-end')}
                 clearLabel={t('data-table.clear-filter', {
                   label: t('orders.view.filters.period-end'),
                 })}

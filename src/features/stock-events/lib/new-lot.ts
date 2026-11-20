@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { LotSummary } from '@/features/reference-data/lib/types';
 import { isNewLot } from '@/features/stock-events/lib/event-form';
 import type { EventLot, NewLot } from '@/features/stock-events/lib/types';
+import { dateValue } from '@/lib/date-value';
 import { conflictingDeviceLot, lotCodeSchema, sameLotCode } from '@/lib/lot-code';
 
 type DraftLine = { key: string; lot: EventLot | null };
@@ -22,9 +23,9 @@ const lotFields = (today: string) =>
       tooLong: 'stock-events.lot-code-too-long',
       invalid: 'stock-events.lot-code-invalid',
     }),
-    expirationDate: z
-      .string()
-      .refine((date) => !date || date >= today, errorKey('stock-events.lot-expiry-past')),
+    expirationDate: dateValue({ optional: true }).pipe(
+      z.string().refine((date) => !date || date >= today, errorKey('stock-events.lot-expiry-past')),
+    ),
   });
 
 export type NewLotValues = z.infer<ReturnType<typeof lotFields>>;

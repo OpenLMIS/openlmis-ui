@@ -4,7 +4,7 @@ import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSelectFilter } from '@/components/data-table/data-table-filters';
 import { DataTableFilters } from '@/components/data-table/data-table-filters-popover';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
-import { DatePicker } from '@/components/form/form-fields';
+import { DateFilter } from '@/components/pickers/date-filter';
 import { eventTypeKey } from '@/features/stock-events/lib/event-list';
 import type { TransactionHistorySearch } from '@/features/stock-events/lib/search';
 import { EVENT_TYPES, type EventTypeFilter } from '@/features/stock-events/lib/types';
@@ -59,7 +59,7 @@ export function TransactionHistoryToolbar({
             options={typeOptions}
             value={search.type ?? ''}
           />
-          <DatePicker
+          <DateFilter
             clearLabel={t('data-table.clear-filter', {
               label: t('transaction-history.start-date'),
             })}
@@ -67,10 +67,9 @@ export function TransactionHistoryToolbar({
             label={t('transaction-history.start-date')}
             latest={search.endDate}
             onValueChange={(startDate) => change({ startDate: startDate || undefined })}
-            placeholder={t('transaction-history.start-date')}
             value={search.startDate ?? ''}
           />
-          <DatePicker
+          <DateFilter
             clearLabel={t('data-table.clear-filter', {
               label: t('transaction-history.end-date'),
             })}
@@ -78,7 +77,6 @@ export function TransactionHistoryToolbar({
             id="transaction-history-end-date"
             label={t('transaction-history.end-date')}
             onValueChange={(endDate) => change({ endDate: endDate || undefined })}
-            placeholder={t('transaction-history.end-date')}
             value={search.endDate ?? ''}
           />
         </DataTableFilters>

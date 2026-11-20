@@ -111,6 +111,30 @@ describe('LotsToolbar', () => {
     expect(fetchOrderablesByIds).toHaveBeenCalledWith([acid.id]);
   });
 
+  it('preserves the applied date on invalid blur and only applies the calendar pick', async () => {
+    const onFilterChange = vi.fn();
+    renderPage(
+      <LotsToolbar
+        columnView={columnView}
+        layout="table"
+        onFilterChange={onFilterChange}
+        search={{ expiryFrom: '2019-01-01' }}
+      />,
+    );
+    const user = await openFilters();
+    const input = screen.getByRole('textbox', { name: 'lots.earliest-expiry' });
+    await user.clear(input);
+    await user.type(input, '31/02/2019');
+    await user.click(screen.getByRole('textbox', { name: 'lots.latest-expiry' }));
+    expect(input).toHaveAccessibleDescription('form.date-invalid');
+    expect(onFilterChange).not.toHaveBeenCalled();
+    await user.clear(input);
+    await user.type(input, '12/01/2019');
+    const calendar = await screen.findByRole('dialog', { name: 'lots.earliest-expiry' });
+    await user.click(within(calendar).getByRole('button', { name: /January 10th, 2019/ }));
+    expect(onFilterChange.mock.calls).toEqual([[{ expiryFrom: '2019-01-10', page: undefined }]]);
+  });
+
   it('filters by the earliest expiry date, never after the latest', async () => {
     const onFilterChange = vi.fn();
     renderPage(
@@ -123,7 +147,9 @@ describe('LotsToolbar', () => {
     );
     const user = await openFilters();
 
-    await user.click(await screen.findByRole('button', { name: 'lots.earliest-expiry' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Open Calendar lots.earliest-expiry' }),
+    );
     const calendar = await screen.findByRole('dialog', { name: 'lots.earliest-expiry' });
     expect(
       await within(calendar).findByRole('button', { name: /January 21st, 2019/ }),
@@ -251,11 +277,9 @@ describe('LotsToolbar', () => {
     );
     await openFilters();
 
-    expect(await screen.findByRole('button', { name: /^lots.earliest-expiry/ })).toHaveTextContent(
-      'lots.earliest-expiry',
+    expect(await screen.findByRole('textbox', { name: 'lots.earliest-expiry' })).toHaveValue(
+      '10/01/2019',
     );
-    expect(screen.getByRole('button', { name: /^lots.latest-expiry/ })).toHaveTextContent(
-      'lots.latest-expiry',
-    );
+    expect(screen.getByRole('textbox', { name: 'lots.latest-expiry' })).toHaveValue('20/01/2019');
   });
 });

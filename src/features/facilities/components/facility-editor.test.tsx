@@ -282,11 +282,8 @@ describe('FacilityEditor', () => {
 
     await user.click(within(dialog).getByRole('combobox', { name: 'facilities.form.program' }));
     await user.click(await screen.findByRole('option', { name: 'Family Planning' }));
-    await user.click(within(dialog).getByRole('button', { name: /^facilities\.form\.start-date/ }));
-    const calendar = await screen.findByRole('dialog', { name: /facilities\.form\.start-date/ });
-    await user.click(
-      (await within(calendar).findAllByRole('button', { name: /Today/ }))[0] as HTMLElement,
-    );
+    const start = within(dialog).getByRole('textbox', { name: /^facilities\.form\.start-date/ });
+    await user.type(start, '01/02/2026');
     await user.click(within(dialog).getByRole('button', { name: 'facilities.form.add' }));
 
     await waitFor(() =>
@@ -369,7 +366,7 @@ describe('FacilityEditor', () => {
       renderEdit(facility);
 
       expect(
-        await screen.findByRole('button', { name: /^facilities\.form\.go-live-date Required/ }),
+        await screen.findByRole('textbox', { name: /^facilities\.form\.go-live-date Required/ }),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: 'facilities.form.clear-go-live-date' }),

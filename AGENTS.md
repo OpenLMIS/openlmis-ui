@@ -287,6 +287,7 @@ edits, which have no prop for TypeScript to detect:
 | `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` | Preserve covered-parent shrink, dim and blur styles, reduced-motion support and explicit body portal containers |
 | `checkbox.tsx` | Indeterminate minus in checked colors; dim on Base UI's `data-disabled`; `surface="background"` keeps an opaque box on tinted card rows |
 | `skeleton.tsx` | Keep `inline`, which renders a span so placeholders can sit inside text such as `WorkspaceDescription` |
+| `input-group.tsx` | Preserve `size="sm"` (28px), `size="lg"` (36px) and `InputGroupAddon width="label"` so long filter labels leave room for the date |
 | `input.tsx` | Preserve `controlSize`, `sizing` and the exported `InputSizer` width formula; `text-sm` at every width (also `textarea.tsx`), as `index.html` stops iOS focus zoom |
 | `calendar.tsx` | Pass `CalendarDayButton`'s ref to `Button` for keyboard focus; keep `components` parts module-level and memoize DayButton, so re-renders never remount the calendar mid-click |
 | `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
@@ -483,9 +484,9 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   matches, keep fitted visibility and the last rendered column widths until rows return. Their
   quantity inputs fill their cell while reserving a character-unit minimum based only on their
   translated placeholder, with room for at least five digits; extra digits scroll inside the input.
-  Their date column minimum measures all 12 months in the page language. Quantity sizers live
-  once in the column header for every stock event layout; VVM select and date-button sizers only
-  serve measured layouts. Every header also reserves its cells' minimums (Product, the translated
+  The editable date column reserves the deployment format and calendar button. The read-only Expiry
+  column measures all 12 months in the page language. Quantity sizers live once in the column
+  header for every stock event layout; VVM select and editable date sizers serve measured layouts. Every header also reserves its cells' minimums (Product, the translated
   no-lot labels in Lot Code, Expiry months, comments, VVM, Date, Remove) and Receive decides VVM
   from its offered products, so Adds never resize columns. Adjustments keeps full-width inputs, with each quantity input reserving its placeholder
   and at least five digits. At or above 672px, the table scrolls sideways when its column
@@ -616,7 +617,7 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - Server-search filters pass `onSearch` and display `options` as given. Fetch only on first
   opening; retain the picked option, using its own lookup for linked selections. `status`
   announces listed/matching counts and that typing finds more. Products on Lots is the example.
-- Date filters use `DatePicker`; pair `earliest`/`latest` for from/to bounds.
+- Date filters use `DateFilter`; pair `earliest`/`latest` for from/to bounds.
 - Cover rows, loading skeleton, empty and error with retry. Distinguish no records from
   no filter matches; the latter has Clear Filters.
 
@@ -763,7 +764,7 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 | `ComboboxField` | Searchable choices; item `description` appears muted after label; `loading` puts a spinner inside the input in place of its chevron |
 | `ImageField` | `undefined` keeps saved image, `null` removes it, `File` replaces it; validate `onChange` immediately |
 | `FileField` | `File` selects a file; `undefined` clears it and its errors; pass translated `emptyLabel`, `removeLabel`, `accept` and optional external `describedBy`; the entire paperclip/filename row opens the file chooser, and the selected-file card takes a caller-localized `fileSize` and a destructive clear control; required validation stays in the schema |
-| `DateField` | Page-language calendar; draft is `yyyy-MM-dd` or empty; optional dates get `clearLabel` |
+| `DateField` | Deployment-format text with a page-language calendar; draft is `yyyy-MM-dd`, empty or the exact invalid text; optional dates get `clearLabel` |
 | `RadioGroupField` | `variant="tile"` for option grids, `variant="segmented"` for 2-3 short options, `columns="row"` for cards side by side when room permits |
 
 - `TextField`/`NumberField`, `TextareaField` and `SelectField` accept `errorDescriptionId`
@@ -785,11 +786,19 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 - Decimals accept a dot or the language's comma. Reject comma before exactly three digits
   as ambiguous with thousands separators; `toNumberText` uses a dot for those values.
   Set `maxDecimals` to cap precision.
-- Dates use `earliest`/`latest` calendar bounds and schema validation too. Lazy-load the
-  calendar and language (`loadDateLocale` through `FormMessagesProvider`) on mount; retry
-  failed loads when opened. `DateField size="lg"` uses a 36px control. Required dates announce the provider's `requiredLabel` with
-  their name. Outside forms use `DatePicker`, which `DateField` wraps; display dates with
-  localized `formatDateValue` (`src/components/form/date-value.ts`).
+- Dates use `earliest`/`latest` calendar bounds and schema validation with `dateValue` or
+  `parseEditableDate`. Input uses the deployment's numeric format from `/localeSettings` through
+  `FormMessagesProvider`, with `dd/MM/yyyy` as fallback. Only date controls and their layout and filter
+  helpers subscribe to the settings query. Keep the active format and spelling through edits, and
+  display valid values in the deployment format after blur. Typed and picked days share
+  the calendar's 1900 to current year plus 100 range.
+- Lazy-load the calendar and language (`loadDateLocale` through `FormMessagesProvider`) on mount
+  and retry failed loads on open. Textbox focus opens the calendar while keeping keyboard input in
+  the field. ArrowDown enters the calendar. Inline dates use 28px and `size="lg"` uses 36px.
+  Required dates announce the provider's `requiredLabel` with their name. Outside forms use
+  `DatePicker`. Toolbar and popover date filters use `DateFilter` from `components/pickers` to commit
+  valid edits on Enter, leaving the control or closing Filters. Use localized `formatDateValue`
+  (`src/components/form/date-value.ts`) for read-only dates.
 - Timestamps use `formatTimestamp` with `useDeploymentTimeZone()` (`src/hooks/`). It suspends
   on reference-data's `deploymentTimeZoneOptions`, reading public `/localeSettings` and
   retaining it on failure, so both UIs use deployment time rather than the viewer's clock.
@@ -811,10 +820,10 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
 Both form folders follow registry boundaries: stock shadcn primitives, `@/lib/utils`,
 `@tanstack/react-form`, `lucide-react` and sibling files only; no app hooks, other lib modules,
 features or i18next. Allowed variants: `DialogContent size/height/layout`, `DialogHeader spacing`,
-`DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `Field spacing/surface`,
+`DialogTitle size`, `Input controlSize/sizing`, `InputSizer`, `InputGroup size`, `InputGroupAddon width`, `Field spacing/surface`,
 `FieldLabel weight`, `Textarea size`, `ComboboxInput width/clearLabel/size`,
 `ComboboxChip removeLabel`, `ComboboxChips size`, `RadioGroup columns/size`, `SelectTrigger width/wrap/size="lg"`,
-`Button align/width/variant="warning"`, `PopoverContent width/padding`. Each `lg` size is a plain
+`Button align/width/variant="warning"`, `PopoverContent anchor/width/padding`. `InputGroup size="sm"` becomes `h-7`. Each `lg` size is a plain
 `h-9` className in the registry.
 `ComboboxVirtualList` and `useComboboxFilter` are accepted UI exports for virtualized fields;
 keep their filtering and virtualization dependencies behind `ui/combobox.tsx`.
@@ -1103,7 +1112,8 @@ Keep business data in Dexie, server cache in Query and app assets in the service
 - Foreground bundle reads retain ordinary renewal behavior; only background downloads fail fast.
   Accepted events request scoped refreshes. Preserve trigger priority and visible retry feedback.
 - Keep business payloads, access snapshots, drafts and queues out of localStorage. The deployment
-  time zone and per-database download schedule are intentional localStorage metadata.
+  time zone, deployment date format and per-database download schedule are intentional localStorage
+  metadata.
 
 ### Data, session and identity
 

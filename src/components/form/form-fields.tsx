@@ -12,8 +12,10 @@ import {
   XIcon,
 } from 'lucide-react';
 import {
+  type ClipboardEvent,
   type ComponentProps,
   Fragment,
+  type KeyboardEvent,
   type ReactNode,
   useCallback,
   useEffect,
@@ -21,10 +23,20 @@ import {
   useRef,
   useState,
 } from 'react';
-import { formatDateValue, parseDateValue, toDateValue } from '@/components/form/date-value';
+import {
+  FIRST_DATE_YEAR,
+  formatDateText,
+  lastDateYear,
+  parseDateText,
+  parseDateValue,
+  parseEditableDate,
+  parsePastedDate,
+  toDateValue,
+} from '@/components/form/date-value';
 import { useFieldContext } from '@/components/form/form-context';
 import {
   useAboutLabel,
+  useDateFormat,
   useDateMessages,
   useFormatError,
   useRequiredLabel,
@@ -1605,7 +1617,6 @@ export function TagsField({
 
 type DateFieldProps = FieldProps & {
   size?: 'sm' | 'default' | 'lg';
-  placeholder: string;
   clearLabel?: string;
   earliest?: string;
   latest?: string;
@@ -1618,10 +1629,7 @@ type LoadedCalendar = {
   locale: ComponentProps<CalendarComponent>['locale'];
 };
 
-const FIRST_MONTH = new Date(1900, 0);
-const lastMonth = () => new Date(new Date().getFullYear() + 100, 11);
-
-/** Narrow, since a day column is too small for the full name in many languages. */
+const FIRST_MONTH = new Date(FIRST_DATE_YEAR, 0);
 const weekdayName = (date: Date, locale: string) =>
   date.toLocaleDateString(locale, { weekday: 'narrow' });
 
@@ -1633,7 +1641,6 @@ export function DateField({
   description,
   required,
   disabled,
-  placeholder,
   clearLabel,
   earliest,
   latest,
@@ -1662,8 +1669,8 @@ export function DateField({
         invalid={state.isInvalid}
         onBlur={field.handleBlur}
         onValueChange={field.handleChange}
-        placeholder={placeholder}
         required={required}
+        resetKey={field.state.meta.isTouched}
         value={field.state.value}
       />
     </FieldFrame>
@@ -1673,31 +1680,31 @@ export function DateField({
 type DatePickerProps = {
   size?: 'sm' | 'default' | 'lg';
   id: string;
-  /** `yyyy-MM-dd`, or an empty string for no date. */
   value: string;
   onValueChange: (value: string) => void;
-  placeholder: string;
-  /** Names the picker where no field label does, as in a toolbar; shown before a picked date. */
+  onTextChange?: (value: string) => void;
   label?: string | undefined;
   required?: boolean | undefined;
   disabled?: boolean | undefined;
-  /** Shows a clear button while a date is picked, unless the date is required. */
   clearLabel?: string | undefined;
-  /** The first and last days that can be picked, as `yyyy-MM-dd`. */
   earliest?: string | undefined;
   latest?: string | undefined;
   invalid?: boolean | undefined;
   describedBy?: string | undefined;
   onBlur?: (() => void) | undefined;
+  onLeave?: () => void;
+  onEnter?: () => void;
+  resetKey?: boolean | number;
 };
 
-/** A date picked from a calendar, shown in the page's language; the calendar loads as it mounts. */
+type DateEdit = { text: string; value: string; resetKey: DatePickerProps['resetKey'] };
+
 export function DatePicker({
   size = 'default',
   id,
   value,
   onValueChange,
-  placeholder,
+  onTextChange,
   label,
   required,
   disabled,
@@ -1707,131 +1714,268 @@ export function DatePicker({
   invalid,
   describedBy,
   onBlur,
+  onLeave,
+  onEnter,
+  resetKey,
 }: DatePickerProps) {
   const labelId = `${id}-label`;
   const requiredId = `${id}-required`;
-  const valueId = `${id}-value`;
-  const { requiredLabel, dateLanguage, loadDateLocale } = useDateMessages();
+  const calendarId = `${id}-calendar`;
+  const calendarLabelId = `${id}-calendar-label`;
+  const { requiredLabel, dateLanguage, loadDateLocale, calendarLabel } = useDateMessages();
+  const dateFormat = useDateFormat();
   const direction = useDirection();
-  const trigger = useRef<HTMLButtonElement>(null);
+  const group = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const moveFocusToCalendar = useRef(false);
+  const ignoreFocus = useRef(false);
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
-  const selected = parseDateValue(value);
-  const shown = formatDateValue(value, dateLanguage);
+  const [edit, setEdit] = useState<DateEdit>();
+  const [editingFormat, setEditingFormat] = useState<string>();
+  const [month, setMonth] = useState<Date>();
+  const selected = parseEditableDate(value);
+  const shown =
+    edit?.value === value && edit.resetKey === resetKey
+      ? edit.text
+      : formatDateText(value, editingFormat ?? dateFormat);
   const clearable = Boolean(clearLabel && !required);
-  const canClear = clearable && Boolean(shown) && !disabled;
   const first = earliest ? parseDateValue(earliest) : undefined;
   const last = latest ? parseDateValue(latest) : undefined;
-  const mounted = useRef(true);
+  const calendarRequest = useRef(0);
+  const calendarOpen = open && loaded !== null && !disabled;
 
-  const loadCalendar = useCallback(
-    () =>
-      Promise.all([import('@/components/ui/calendar'), loadDateLocale?.()])
-        .then(([module, locale]) => {
-          if (mounted.current) setLoaded({ Calendar: module.Calendar, locale });
-        })
-        .catch(() => undefined),
-    [loadDateLocale],
-  );
+  const loadCalendar = useCallback(() => {
+    const request = ++calendarRequest.current;
+    return Promise.all([import('@/components/ui/calendar'), loadDateLocale?.()])
+      .then(([module, locale]) => {
+        if (calendarRequest.current === request) setLoaded({ Calendar: module.Calendar, locale });
+      })
+      .catch(() => undefined);
+  }, [loadDateLocale]);
 
   useEffect(() => {
-    mounted.current = true;
     void loadCalendar();
     return () => {
-      mounted.current = false;
+      calendarRequest.current += 1;
     };
   }, [loadCalendar]);
 
+  if (edit && (edit.value !== value || edit.resetKey !== resetKey)) {
+    setEdit(undefined);
+    setMonth(undefined);
+  }
+
+  const openCalendar = () => {
+    if (!open) setMonth(undefined);
+    setOpen(true);
+    if (!loaded) void loadCalendar();
+  };
+
+  const focusCalendar = useCallback((node: HTMLDivElement) => {
+    const day = node.querySelector<HTMLElement>('[role="grid"] button[tabindex="0"]');
+    const target = day ?? node.querySelector<HTMLElement>('select:not(:disabled)');
+    if (target) {
+      moveFocusToCalendar.current = false;
+      target.focus();
+    }
+  }, []);
+
+  const attachPopup = useCallback(
+    (node: HTMLDivElement | null) => {
+      popup.current = node;
+      if (node && moveFocusToCalendar.current) focusCalendar(node);
+    },
+    [focusCalendar],
+  );
+
+  const closeCalendar = () => {
+    moveFocusToCalendar.current = false;
+    setOpen(false);
+  };
+
+  const returnFocus = () => {
+    ignoreFocus.current = true;
+    input.current?.focus();
+    ignoreFocus.current = false;
+  };
+
+  const pick = (next: string) => {
+    setEdit(undefined);
+    setMonth(undefined);
+    closeCalendar();
+    onValueChange(next);
+    returnFocus();
+  };
+
+  const changeText = (text: string, parsed: string | undefined) => {
+    const next = parsed ?? text;
+    if (!open) openCalendar();
+    setEdit({ text, value: next, resetKey: typeof resetKey === 'boolean' ? true : resetKey });
+    if (parsed) setMonth(parseEditableDate(parsed));
+    const change = onTextChange ?? onValueChange;
+    change(next);
+  };
+
+  const pasteDate = (event: ClipboardEvent<HTMLInputElement>) => {
+    const { selectionStart, selectionEnd, value: text } = event.currentTarget;
+    if (selectionStart !== 0 || selectionEnd !== text.length) return;
+    const pasted = event.clipboardData.getData('text');
+    const parsed = parsePastedDate(pasted);
+    if (!parsed) return;
+    event.preventDefault();
+    changeText(pasted, parsed);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' && open) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCalendar();
+      returnFocus();
+    }
+    if (event.key === 'Tab') closeCalendar();
+  };
+
   return (
-    <div className="relative">
-      <Popover
-        onOpenChange={(next) => {
-          setOpen(next);
-          // A calendar that failed to load is tried again when the user asks for it.
-          if (next && !loaded) void loadCalendar();
-        }}
-        open={open && loaded !== null}
-      >
-        <PopoverTrigger
-          render={
-            <Button
-              align="start"
-              aria-describedby={describedBy}
-              aria-invalid={invalid}
-              aria-labelledby={[labelId, required ? requiredId : '', shown || !label ? valueId : '']
-                .filter(Boolean)
-                .join(' ')}
-              disabled={disabled}
-              id={id}
-              onBlur={onBlur}
-              ref={trigger}
-              size={size}
-              type="button"
-              variant="outline"
-              width="full"
-            />
+    <Popover
+      onOpenChange={(next, details) => {
+        if (next) openCalendar();
+        else {
+          if (
+            details.reason === 'outside-press' &&
+            details.event.target instanceof Node &&
+            group.current?.contains(details.event.target)
+          ) {
+            details.cancel();
+            return;
           }
-        >
-          <CalendarIcon data-icon="inline-start" />
-          {required && (
-            <span className="sr-only" id={requiredId}>
-              {requiredLabel}
+          closeCalendar();
+          if (details.reason === 'escape-key') returnFocus();
+        }
+      }}
+      open={calendarOpen}
+    >
+      <InputGroup
+        onBlur={(event) => {
+          const target = event.relatedTarget;
+          if (target && (group.current?.contains(target) || popup.current?.contains(target)))
+            return;
+          setEdit(undefined);
+          setEditingFormat(undefined);
+          closeCalendar();
+          onLeave?.();
+        }}
+        onKeyDown={handleKeyDown}
+        ref={group}
+        size={size}
+      >
+        {label && (
+          <InputGroupAddon width="label">
+            <span className="truncate" id={labelId} title={label}>
+              {label}
             </span>
-          )}
-          <span className={canClear ? 'flex min-w-0 gap-1 pe-6' : 'flex min-w-0 gap-1'}>
-            {label && (
-              <span className={shown ? 'shrink-0 text-muted-foreground' : 'sr-only'} id={labelId}>
-                {shown ? `${label}:` : label}
-              </span>
-            )}
-            <span
-              className={shown ? 'min-w-0 truncate' : 'min-w-0 truncate text-muted-foreground'}
-              id={valueId}
-            >
-              {shown || placeholder}
-            </span>
+          </InputGroupAddon>
+        )}
+        {required && (
+          <span className="sr-only" id={requiredId}>
+            {requiredLabel}
           </span>
-        </PopoverTrigger>
-        <PopoverContent align="start" aria-labelledby={labelId} padding="none" width="auto">
+        )}
+        <InputGroupInput
+          aria-controls={calendarOpen ? calendarId : undefined}
+          aria-describedby={describedBy}
+          aria-haspopup="dialog"
+          aria-invalid={invalid}
+          aria-labelledby={`${labelId}${required ? ` ${requiredId}` : ''}`}
+          aria-required={required || undefined}
+          autoComplete="off"
+          disabled={disabled}
+          id={id}
+          onBlur={() => {
+            setEdit(undefined);
+            setEditingFormat(undefined);
+            onBlur?.();
+          }}
+          onChange={(event) => {
+            const text = event.target.value;
+            changeText(text, parseDateText(text, editingFormat ?? dateFormat));
+          }}
+          onFocus={() => {
+            setEditingFormat((format) => format ?? dateFormat);
+            if (!ignoreFocus.current) openCalendar();
+          }}
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return;
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              if (!open) openCalendar();
+              if (popup.current && calendarOpen) focusCalendar(popup.current);
+              else moveFocusToCalendar.current = true;
+            }
+            if (event.key === 'Enter' && onEnter) {
+              event.preventDefault();
+              onEnter();
+            }
+          }}
+          onPaste={pasteDate}
+          ref={input}
+          spellCheck={false}
+          type="text"
+          value={shown}
+        />
+        <InputGroupAddon align="inline-end">
+          <PopoverTrigger
+            render={
+              <InputGroupButton
+                aria-labelledby={`${calendarLabelId} ${labelId}`}
+                disabled={disabled}
+                size="icon-xs"
+              />
+            }
+          >
+            <span className="sr-only" id={calendarLabelId}>
+              {calendarLabel}
+            </span>
+            <CalendarIcon data-icon="inline-start" />
+          </PopoverTrigger>
+          {clearable && value && !disabled && (
+            <InputGroupButton aria-label={clearLabel} onClick={() => pick('')} size="icon-xs">
+              <XIcon data-icon="inline-start" />
+            </InputGroupButton>
+          )}
+        </InputGroupAddon>
+        <PopoverContent
+          align="start"
+          anchor={group}
+          aria-labelledby={labelId}
+          finalFocus={false}
+          id={calendarId}
+          initialFocus={false}
+          padding="none"
+          ref={attachPopup}
+          width="auto"
+        >
           {loaded && (
             <loaded.Calendar
-              autoFocus
               captionLayout="dropdown"
-              defaultMonth={selected ?? first ?? last}
+              month={month ?? selected ?? first ?? last ?? new Date()}
+              onMonthChange={setMonth}
               dir={direction}
               disabled={[...(first ? [{ before: first }] : []), ...(last ? [{ after: last }] : [])]}
-              endMonth={lastMonth()}
+              endMonth={new Date(lastDateYear(), 11)}
               formatters={{ formatWeekdayName: (date) => weekdayName(date, dateLanguage) }}
               locale={loaded.locale}
               mode="single"
-              onSelect={(date: Date | undefined) => {
-                onValueChange(date ? toDateValue(date) : '');
-                setOpen(false);
-              }}
+              onSelect={(date: Date | undefined) => pick(date ? toDateValue(date) : '')}
               required={!clearable}
               selected={selected}
               startMonth={FIRST_MONTH}
             />
           )}
         </PopoverContent>
-      </Popover>
-      {/* A sibling of the trigger, since a button cannot hold another button. */}
-      {canClear && (
-        <div className="absolute inset-y-0 end-1 flex items-center">
-          <Button
-            aria-label={clearLabel}
-            onClick={() => {
-              onValueChange('');
-              trigger.current?.focus();
-            }}
-            size="icon-xs"
-            type="button"
-            variant="ghost"
-          >
-            <XIcon className="size-4" />
-          </Button>
-        </div>
-      )}
-    </div>
+      </InputGroup>
+    </Popover>
   );
 }

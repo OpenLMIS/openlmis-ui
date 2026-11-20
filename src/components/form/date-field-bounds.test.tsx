@@ -14,14 +14,7 @@ function BoundedDate() {
   const form = useAppForm({ defaultValues: { date: '2026-10-01' } });
   return (
     <form.AppField name="date">
-      {(field) => (
-        <field.DateField
-          label="Date"
-          placeholder="Pick A Date"
-          earliest="2026-09-01"
-          latest="2026-10-07"
-        />
-      )}
+      {(field) => <field.DateField label="Date" earliest="2026-09-01" latest="2026-10-07" />}
     </form.AppField>
   );
 }
@@ -30,7 +23,7 @@ describe('DateField bounds', () => {
   it('forwards both limits to its date picker', async () => {
     const user = userEvent.setup();
     render(<BoundedDate />);
-    await user.click(screen.getByRole('button', { name: /^Date/ }));
+    await user.click(screen.getByRole('button', { name: 'Open Calendar Date' }));
     await screen.findByRole('dialog');
     expect(calendar).toHaveBeenCalledWith(
       expect.objectContaining({

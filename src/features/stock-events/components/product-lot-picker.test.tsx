@@ -454,7 +454,7 @@ describe('ProductLotPicker with approved products', () => {
     await user.click(screen.getByRole('combobox', { name: 'Lot Code' }));
     await user.click(screen.getByRole('option', { name: 'Add New Lot' }));
     await user.type(screen.getByRole('textbox', { name: 'New Lot Code' }), 'new-1');
-    await user.click(screen.getByRole('button', { name: 'Expiry Date Pick A Date' }));
+    await user.click(screen.getByRole('button', { name: 'Open Calendar Expiry Date' }));
     await user.selectOptions(
       await screen.findByRole('combobox', { name: 'Choose the Year' }),
       '2031',
@@ -680,7 +680,7 @@ describe('ProductLotPicker with approved products', () => {
     await pickProduct(user, 'Aspirin');
     await user.click(await screen.findByRole('combobox', { name: 'Lot Code' }));
     await user.click(await screen.findByRole('option', { name: 'Add New Lot' }));
-    expect(screen.getByRole('button', { name: 'Expiry Date Pick A Date' })).toBeInTheDocument();
+    const expiry = screen.getByRole('textbox', { name: 'Expiry Date' });
     const code = screen.getByRole('textbox', { name: 'New Lot Code' });
     await user.type(code, '{Enter}');
     expect(code).toHaveAccessibleDescription('This field is required');
@@ -690,12 +690,17 @@ describe('ProductLotPicker with approved products', () => {
     await user.type(code, 'new-1{Enter}');
     expect(code).toHaveAccessibleDescription('This lot code already exists.');
     await user.clear(code);
-    await user.type(code, 'NEW-2{Enter}');
+    await user.type(code, 'NEW-2');
+    await user.type(expiry, '31/02/2031{Enter}');
+    expect(expiry).toHaveAccessibleDescription('This text is not a valid date');
+    expect(onAdd).not.toHaveBeenCalled();
+    await user.clear(expiry);
+    await user.type(expiry, '28/02/2031{Enter}');
     expect(onSubmit).not.toHaveBeenCalled();
     expect(onAdd).toHaveBeenCalledWith(
       {
         orderable: aspirin,
-        lot: { lotCode: 'NEW-2', expirationDate: null, tradeItemId: 'trade' },
+        lot: { lotCode: 'NEW-2', expirationDate: '2031-02-28', tradeItemId: 'trade' },
         stockOnHand: 0,
       },
       true,

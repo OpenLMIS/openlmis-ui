@@ -135,7 +135,6 @@ function EditLotForm({
                   clearLabel={t('stock-events.clear-expiration-date')}
                   earliest={today}
                   label={t('stock-events.expiration-date')}
-                  placeholder={t('stock-events.pick-date')}
                 />
               )}
             </form.AppField>

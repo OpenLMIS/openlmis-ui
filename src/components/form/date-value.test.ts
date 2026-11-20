@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  formatDateText,
   formatDateValue,
   formatTimestamp,
+  lastDateYear,
+  parseDateText,
   parseDateValue,
   toDateValue,
 } from '@/components/form/date-value';
@@ -99,4 +102,25 @@ it('uses the deployment calendar day around UTC midnight', () => {
   const instant = new Date('2026-10-28T00:30:00Z');
   expect(toDateValue(instant, 'America/Los_Angeles')).toBe('2026-10-27');
   expect(toDateValue(instant, 'Asia/Tokyo')).toBe('2026-10-28');
+});
+
+describe('editable dates', () => {
+  it.each([
+    ['31/12/2018', 'dd/MM/yyyy', '2018-12-31'],
+    ['2024-07-02', 'yyyy-dd-MM', '2024-02-07'],
+    ['7.2.2024', 'MM.dd.yyyy', '2024-07-02'],
+    ['۲۰۲۴-۰۲-۲۹', 'dd/MM/yyyy', '2024-02-29'],
+    ['٢٩/٢/٢٠٢٤', 'unsupported', '2024-02-29'],
+    ['29/02/2025', 'dd/MM/yyyy', undefined],
+    ['01/02/24', 'dd/MM/yyyy', undefined],
+    ['9999-01-01', 'dd/MM/yyyy', undefined],
+  ])('parses %s with %s', (text, pattern, expected) => {
+    expect(parseDateText(text, pattern)).toBe(expected);
+  });
+
+  it('formats deployment patterns and still displays a stored date outside the entry range', () => {
+    expect(formatDateText('2024-02-01', 'yyyy-M-d')).toBe('2024-2-1');
+    expect(formatDateText('9999-01-01', 'unsupported')).toBe('01/01/9999');
+    expect(parseDateText(`31/12/${lastDateYear()}`)).toBe(`${lastDateYear()}-12-31`);
+  });
 });

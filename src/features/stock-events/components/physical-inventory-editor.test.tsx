@@ -508,7 +508,10 @@ it('never resends a Submit whose outcome is unknown and retains the copy', async
   await screen.findByRole('textbox', { name: 'stock-events.field-of' });
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await user.click(
-    within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
+    within(screen.getByRole('dialog', { name: 'physical-inventory.occurred-title' })).getByRole(
+      'button',
+      { name: 'stock-events.confirm' },
+    ),
   );
   const alert = await screen.findByRole('alertdialog');
   expect(alert).toHaveTextContent('physical-inventory.unknown-outcome-description');
@@ -619,7 +622,10 @@ it('keeps the local copy after a refused Submit and offers another deliberate at
   await screen.findByRole('textbox', { name: 'stock-events.field-of' });
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await user.click(
-    within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
+    within(screen.getByRole('dialog', { name: 'physical-inventory.occurred-title' })).getByRole(
+      'button',
+      { name: 'stock-events.confirm' },
+    ),
   );
   await user.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'dialog.close' }),
@@ -647,7 +653,10 @@ it('submits exactly once, clears the copy, and offers the print choice', async (
   await screen.findByRole('textbox', { name: 'stock-events.field-of' });
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
   await user.click(
-    within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
+    within(screen.getByRole('dialog', { name: 'physical-inventory.occurred-title' })).getByRole(
+      'button',
+      { name: 'stock-events.confirm' },
+    ),
   );
   await screen.findByRole('heading', { name: 'physical-inventory.print-title' });
   expect(submitPhysicalInventory).toHaveBeenCalledTimes(1);
@@ -893,7 +902,10 @@ it.each([false, true])(
     }
     await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
+      within(screen.getByRole('dialog', { name: 'physical-inventory.occurred-title' })).getByRole(
+        'button',
+        { name: 'stock-events.confirm' },
+      ),
     );
     await waitFor(() => expect(submitPhysicalInventory).toHaveBeenCalled());
     const submitted = vi.mocked(submitPhysicalInventory).mock.calls[0][0].lineItems;
@@ -1000,7 +1012,10 @@ it.each([false, true])(
     }
     await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
     await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'stock-events.confirm' }),
+      within(screen.getByRole('dialog', { name: 'physical-inventory.occurred-title' })).getByRole(
+        'button',
+        { name: 'stock-events.confirm' },
+      ),
     );
     await waitFor(() => expect(submitPhysicalInventory).toHaveBeenCalled());
     const submitted = vi.mocked(submitPhysicalInventory).mock.calls[0][0].lineItems;

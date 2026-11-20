@@ -496,15 +496,15 @@ describe('EventEditor', () => {
       );
       await add(user, 'No Lot Defined');
       await filter(user, i18n.getFixedT(language)('stock-events.no-lot-defined'));
-      expect(screen.queryAllByRole('textbox', { name: /Aspirin/ })).toHaveLength(
-        language === 'en' ? 1 : 0,
-      );
+      expect(
+        screen.queryAllByRole('textbox', { name: /^(Quantity|Quantité), Aspirin/ }),
+      ).toHaveLength(language === 'en' ? 1 : 0);
       await act(async () => {
         await i18n.changeLanguage('fr');
       });
-      expect(screen.queryAllByRole('textbox', { name: /Aspirin/ })).toHaveLength(
-        language === 'fr' ? 1 : 0,
-      );
+      expect(
+        screen.queryAllByRole('textbox', { name: /^(Quantity|Quantité), Aspirin/ }),
+      ).toHaveLength(language === 'fr' ? 1 : 0);
     },
   );
 
@@ -514,15 +514,15 @@ describe('EventEditor', () => {
       const { user } = setup();
       await add(user);
       await filter(user, formatDateValue('2099-01-30', language));
-      expect(screen.queryAllByRole('textbox', { name: /Aspirin/ })).toHaveLength(
-        language === 'en' ? 1 : 0,
-      );
+      expect(
+        screen.queryAllByRole('textbox', { name: /^(Quantity|Quantité), Aspirin/ }),
+      ).toHaveLength(language === 'en' ? 1 : 0);
       await act(async () => {
         await i18n.changeLanguage('fr');
       });
-      expect(screen.queryAllByRole('textbox', { name: /Aspirin/ })).toHaveLength(
-        language === 'fr' ? 1 : 0,
-      );
+      expect(
+        screen.queryAllByRole('textbox', { name: /^(Quantity|Quantité), Aspirin/ }),
+      ).toHaveLength(language === 'fr' ? 1 : 0);
     },
   );
 
@@ -694,9 +694,9 @@ describe('EventEditor', () => {
         screen.getByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ }),
         'Broken',
       );
-      await user.click(screen.getByRole('button', { name: /^Date, Aspirin/ }));
-      await user.click(await screen.findByRole('button', { name: /October 1st, 2026/ }));
-      const date = screen.getByRole('button', { name: /^Date, Aspirin/ }).textContent;
+      const date = screen.getByRole('textbox', { name: /^Date, Aspirin/ });
+      await user.clear(date);
+      await user.type(date, '01/10/2026');
       await user.click(screen.getByRole('button', { name: /^Remove, Aspirin/ }));
       if (method === 'manual') await user.click(screen.getByRole('button', { name: 'Add' }));
       else
@@ -710,7 +710,7 @@ describe('EventEditor', () => {
         await screen.findByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ }),
       ).toHaveValue('Broken');
       expect(screen.getByRole('combobox', { name: /^Reason, Aspirin/ })).toHaveTextContent('Lost');
-      expect(screen.getByRole('button', { name: /^Date, Aspirin/ })).toHaveTextContent(date ?? '');
+      expect(screen.getByRole('textbox', { name: /^Date, Aspirin/ })).toHaveValue('01/10/2026');
     },
   );
   it('drops a scan lookup that finishes while signing', async () => {
@@ -770,12 +770,52 @@ describe('EventEditor', () => {
     expect(
       screen.getAllByRole('textbox', { name: /^Reason Comments, Aspirin LOT/ })[0],
     ).toHaveValue('Broken');
-    const dates = screen.getAllByRole('button', { name: /^Date, Aspirin/ });
-    expect(dates[0]).toHaveTextContent(dates[1].textContent ?? '');
+    const dates = screen.getAllByRole<HTMLInputElement>('textbox', { name: /^Date, Aspirin/ });
+    expect(dates[0]).toHaveValue(dates[1].value);
     await user.click(screen.getAllByRole('button', { name: /^Remove, Aspirin/ })[0]);
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /^Remove, Aspirin/ })).toHaveFocus(),
     );
+  });
+  it('keeps a bad date on its draft line and uses today when adding another line', async () => {
+    const { user } = setup();
+    await add(user);
+    const input = screen.getByRole<HTMLInputElement>('textbox', { name: /^Date, Aspirin/ });
+    const today = input.value;
+    await user.clear(input);
+    await user.type(input, '31/02/2024');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    const dates = screen.getAllByRole('textbox', { name: /^Date, Aspirin/ });
+    expect(dates.map((date) => (date as HTMLInputElement).value)).toEqual(
+      expect.arrayContaining(['31/02/2024', today]),
+    );
+  });
+  it('blocks submission for an invalid date on another page and clears the mark after correction', async () => {
+    const { user, navigateSearch } = setup();
+    await validLine(user);
+    act(() => navigateSearch({ size: 1 }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin/ }), '1');
+    await user.click(screen.getByRole('button', { name: 'Page 2' }));
+    let date = screen.getByRole('textbox', { name: /^Date, Aspirin/ });
+    await user.clear(date);
+    await user.type(date, '31/02/2024');
+    await user.click(screen.getByRole('button', { name: 'Page 1' }));
+    expect(screen.queryByDisplayValue('31/02/2024')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Close' }),
+    );
+    expect(submitStockEvent).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Page 2: Contains Invalid Rows' }));
+    date = await screen.findByRole('textbox', { name: /^Date, Aspirin/ });
+    expect(date).toHaveValue('31/02/2024');
+    expect(date).toHaveAccessibleDescription('This text is not a valid date');
+    await user.clear(date);
+    await user.type(date, '29/02/2024');
+    expect(screen.queryByRole('button', { name: /Contains Invalid Rows/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(await screen.findByRole('button', { name: 'Confirm' })).toBeInTheDocument();
   });
   it('keeps the quantity through Packs and Doses switches', async () => {
     const { user } = setup();
@@ -1984,7 +2024,9 @@ describe('Receive editor', () => {
     await waitFor(() =>
       expect(within(dialog).getByRole('textbox', { name: 'Lot Code' })).toHaveFocus(),
     );
-    await user.click(within(dialog).getByRole('button', { name: /^Expiration Date/ }));
+    await user.click(
+      within(dialog).getByRole('button', { name: /^Open Calendar Expiration Date/ }),
+    );
     const calendar = await screen.findByRole('dialog', { name: /Expiration Date/ });
     await user.click(within(calendar).getByRole('button', { name: /next month/i }));
     const next = new Date();
@@ -2501,7 +2543,8 @@ describe('Unpack editor', () => {
     const quantity = screen.getByRole('textbox', { name: /^Quantity, Delivery Kit LOT/ });
     expect(quantity).toBeDisabled();
     expect(submit()).toBeDisabled();
-    for (const name of ['Add', 'Clear', /^Date, Delivery Kit/, /^Remove, Delivery Kit/])
+    expect(screen.getByRole('textbox', { name: /^Date, Delivery Kit/ })).toBeDisabled();
+    for (const name of ['Add', 'Clear', /^Remove, Delivery Kit/])
       expect(screen.getByRole('button', { name })).toBeDisabled();
     await user.type(quantity, '9');
     expect(quantity).toHaveValue('3');

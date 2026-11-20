@@ -347,7 +347,6 @@ function InformationFields({ form, locked, saved }: InformationFieldsProps) {
               clearLabel={t('facilities.form.clear-go-live-date')}
               description={t('facilities.form.go-live-date-description')}
               label={t('facilities.form.go-live-date')}
-              placeholder={t('facilities.form.pick-date')}
               required={Boolean(saved)}
             />
           )}
@@ -495,7 +494,6 @@ function ProgramsFields({ form, cards }: { form: FacilityForm; cards: boolean })
             <field.DateField
               label={named(t('facilities.form.start-date'))}
               layout="inline"
-              placeholder={t('facilities.form.pick-date')}
               required={!row.saved}
             />
           )}
@@ -745,7 +743,6 @@ function AddProgramForm({ rows, onAdd }: Pick<AddProgramDialogProps, 'rows' | 'o
               <field.DateField
                 description={t('facilities.form.start-date-description')}
                 label={t('facilities.form.start-date')}
-                placeholder={t('facilities.form.pick-date')}
                 required
               />
             )}

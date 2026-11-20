@@ -117,7 +117,6 @@ function NewLotForm({
                   clearLabel={t('stock-events.clear-expiry-date')}
                   earliest={today}
                   label={t('stock-events.expiry-date')}
-                  placeholder={t('stock-events.pick-date')}
                 />
               )}
             </form.AppField>

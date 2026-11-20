@@ -8,7 +8,7 @@ import { RequisitionsToolbar } from './requisitions-toolbar';
 vi.mock('@/lib/secure-context', () => ({ isSecureOrigin: false }));
 vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof import('@tanstack/react-router')>()),
-  useRouter: () => ({ invalidate: vi.fn() }),
+  useRouter: () => ({ invalidate: vi.fn(), history: { subscribe: () => vi.fn() } }),
 }));
 vi.mock('@/features/requisitions/hooks/use-offline-copies', () => ({ useOfflineCopies: () => [] }));
 afterEach(cleanup);

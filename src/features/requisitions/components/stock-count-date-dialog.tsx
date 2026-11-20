@@ -1,7 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { parseDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -15,16 +14,13 @@ import {
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
 import { FieldGroup } from '@/components/ui/field';
+import { dateValue } from '@/lib/date-value';
 
 export const stockCountDateSchema = (today: string) =>
   z.object({
-    date: z
-      .string()
-      .min(1, 'stock-events.required')
-      .refine(
-        (date) => Boolean(parseDateValue(date)) && date <= today,
-        'requisitions.edit.date-future',
-      ),
+    date: dateValue({ required: 'stock-events.required' }).pipe(
+      z.string().refine((date) => date <= today, 'requisitions.edit.date-future'),
+    ),
   });
 export function StockCountDateDialog({
   action,
@@ -72,7 +68,6 @@ export function StockCountDateDialog({
               {(field) => (
                 <field.DateField
                   label={t('requisitions.edit.stock-count-date')}
-                  placeholder={t('requisitions.edit.stock-count-date')}
                   latest={today}
                   required
                 />

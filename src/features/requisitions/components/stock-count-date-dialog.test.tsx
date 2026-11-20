@@ -3,6 +3,9 @@ import { stockCountDateSchema } from '@/features/requisitions/components/stock-c
 
 it('requires a real stock count date no later than today', () => {
   const schema = stockCountDateSchema('2026-10-28');
+  expect(schema.safeParse({ date: '31/02/2026' }).error?.issues[0]?.message).toBe(
+    'form.date-invalid',
+  );
   for (const date of ['', '2026-10-29', '2026-02-30']) {
     expect(schema.safeParse({ date }).success).toBe(false);
   }
