@@ -32,6 +32,10 @@ const guidedPages = [
   '/administration/requisition-groups_/$id_/edit',
   '/administration/supervisory-nodes_/$id',
   '/administration/supply-partners_/$id',
+  '/stock-management/transaction-history_/$eventId_/reverse',
+  '/cce/inventory',
+  '/reports',
+  '/reports_/$module/$reportId/generate',
 ];
 
 describe('tourForRoute', () => {

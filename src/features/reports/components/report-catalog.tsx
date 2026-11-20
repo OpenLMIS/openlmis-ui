@@ -34,6 +34,7 @@ import type { CatalogReport } from '@/features/reports/lib/types';
 import { useBackToLegacy } from '@/hooks/use-back-to-legacy';
 import { isRefused } from '@/lib/http';
 import { reportCaughtError } from '@/lib/report-error';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function ReportCatalog({ userId, modules }: { userId: string; modules: readonly string[] }) {
   const { t } = useTranslation();
@@ -94,7 +95,8 @@ export function ReportCatalog({ userId, modules }: { userId: string; modules: re
     <div
       ref={catalog}
       className="flex flex-col gap-4"
-      aria-busy={pending}
+      aria-busy={pending && reports.length === 0}
+      data-tour={TOUR_ANCHORS.reportsCatalog}
       onFocusCapture={(event) => {
         focusedReport.current =
           event.target instanceof HTMLAnchorElement && event.target.dataset.reportKey
@@ -120,7 +122,12 @@ export function ReportCatalog({ userId, modules }: { userId: string; modules: re
             <TableHeader surface="muted">
               <TableRow>
                 <TableHead scope="col">
-                  <h2 className="whitespace-normal wrap-anywhere">{group.name}</h2>
+                  <h2
+                    className="whitespace-normal wrap-anywhere"
+                    data-tour={TOUR_ANCHORS.reportsCategory}
+                  >
+                    {group.name}
+                  </h2>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -197,6 +204,7 @@ function ReportLink({ report }: { report: CatalogReport }) {
   return (
     <Button
       data-report-key={reportKey(report)}
+      data-tour={TOUR_ANCHORS.reportsLink}
       role="link"
       variant="link"
       padding="none"
@@ -221,6 +229,7 @@ function DashboardLink({ report, children }: { report: CatalogReport; children: 
   return (
     <Button
       data-report-key={reportKey(report)}
+      data-tour={TOUR_ANCHORS.reportsLink}
       role="link"
       variant="link"
       padding="none"

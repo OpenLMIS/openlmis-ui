@@ -27,6 +27,7 @@ import {
   serializeReportParams,
 } from '@/features/reports/lib/report-parameters';
 import type { ReportFormat, ReportTemplate } from '@/features/reports/lib/types';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type Props = { template: ReportTemplate; module: string; userId: string };
 
@@ -64,6 +65,7 @@ export function ReportParametersForm({ template, module, userId }: Props) {
     onSubmitInvalid: () => setInvalidOpen(true),
   });
 
+  const generateDisabled = generation.isPending || generation.offline;
   return (
     <form
       ref={formRef}
@@ -86,17 +88,22 @@ export function ReportParametersForm({ template, module, userId }: Props) {
             </EmptyHeader>
           </Empty>
         )}
-        {fields.map((field) => (
-          <ReportParameterField
-            key={field.key}
-            form={form}
-            field={field}
-            fields={fields}
-            userId={userId}
-          />
-        ))}
-        {fields.length > 0 && <Separator />}
-        <div className="flex flex-col gap-2">
+        {fields.length > 0 && (
+          <>
+            <div className="flex flex-col gap-5" data-tour={TOUR_ANCHORS.reportOptions}>
+              {fields.map((field, index) => (
+                <div
+                  data-tour={index === 0 ? TOUR_ANCHORS.reportFirstOption : undefined}
+                  key={field.key}
+                >
+                  <ReportParameterField form={form} field={field} fields={fields} userId={userId} />
+                </div>
+              ))}
+            </div>
+            <Separator />
+          </>
+        )}
+        <div className="flex flex-col gap-2" data-tour={TOUR_ANCHORS.reportFormat}>
           <form.AppField name="format">
             {(field) => (
               <field.RadioGroupField
@@ -130,11 +137,12 @@ export function ReportParametersForm({ template, module, userId }: Props) {
               </Button>
             )}
             <Button
+              data-tour={generateDisabled ? undefined : TOUR_ANCHORS.reportGenerate}
               ref={generateRef}
               type="submit"
               size="lg"
               focusableWhenDisabled
-              disabled={generation.isPending || generation.offline}
+              disabled={generateDisabled}
             >
               {generation.isPending ? (
                 <Spinner data-icon="inline-start" />

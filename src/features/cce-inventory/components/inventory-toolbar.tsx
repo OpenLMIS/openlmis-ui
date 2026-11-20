@@ -11,6 +11,7 @@ import {
   type InventorySearch,
 } from '@/features/cce-inventory/lib/search';
 import { EQUIPMENT_STATUS, EQUIPMENT_STATUSES } from '@/lib/cce-equipment-status';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type InventoryToolbarProps = {
   search: InventorySearch;
@@ -38,11 +39,13 @@ export function InventoryToolbar({
     value: status,
     label: t(EQUIPMENT_STATUS[status].labelKey),
   }));
+  const exportDisabled = disabled || !onExport || exporting;
   return (
     <DataTableToolbar>
       <div className="order-2 w-full @2xl/main:order-none @2xl/main:w-auto">
         <Button
-          disabled={disabled || !onExport || exporting}
+          data-tour={exportDisabled ? undefined : TOUR_ANCHORS.cceExport}
+          disabled={exportDisabled}
           focusableWhenDisabled={exporting}
           onClick={onExport}
           size="lg"
@@ -80,7 +83,13 @@ export function InventoryToolbar({
       {view && <div className="@2xl/main:ms-auto">{view}</div>}
       {adding && (
         <div className="order-3 w-full @2xl/main:order-none @2xl/main:w-auto">
-          <Button disabled={disabled || !onAdd} onClick={onAdd} size="lg" width="full">
+          <Button
+            data-tour={disabled || !onAdd ? undefined : TOUR_ANCHORS.cceAdd}
+            disabled={disabled || !onAdd}
+            onClick={onAdd}
+            size="lg"
+            width="full"
+          >
             <PlusIcon data-icon="inline-start" />
             {t('cce-inventory.add')}
           </Button>

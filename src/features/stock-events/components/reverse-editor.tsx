@@ -114,6 +114,7 @@ import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
 import { revealField } from '@/lib/reveal-field';
 import { namedWithFreeText } from '@/lib/stock-labels';
 import { type SearchChange, type TableSearch, useTableSearchState } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 const COLUMNS = [
   ['reverse', 'stock-event-reverse.reverse'],
@@ -227,6 +228,8 @@ export function ReverseEditor({
   });
   const [readingSummary, setReadingSummary] = useState(false);
   const pending = mutation.isPending || readingSummary;
+  const submitDisabled =
+    !reasonsQuery.data || !lines.length || pending || !!summary || stock.isFetching;
   const guard = useDiscardGuard(ticked.size > 0 && !summary, {
     allowLeave: () => leaving.current,
     pending: pending || !!summary,
@@ -483,7 +486,9 @@ export function ReverseEditor({
         {children}
         <WorkspaceContent>
           <div className="flex min-w-0 flex-col gap-4" ref={measure}>
-            <EventHeader event={event} showSignature={false} />
+            <div data-tour={TOUR_ANCHORS.reverseSummary}>
+              <EventHeader event={event} showSignature={false} />
+            </div>
             <form
               id={FORM_ID}
               className="flex min-w-0 flex-col gap-4 **:scroll-mt-14 **:scroll-mb-18"
@@ -495,7 +500,7 @@ export function ReverseEditor({
             >
               <DataTableToolbar align="end">
                 {quantityUnit.canSwitch && (
-                  <div className="flex-1 @2xl/main:flex-none">
+                  <div className="flex-1 @2xl/main:flex-none" data-tour={TOUR_ANCHORS.reverseUnit}>
                     <QuantityUnitToggle
                       unit={quantityUnit.unit}
                       onUnitChange={quantityUnit.setUnit}
@@ -568,7 +573,8 @@ export function ReverseEditor({
       <WorkspaceFooter width="wide">
         {cancel}
         <Button
-          disabled={!reasonsQuery.data || !lines.length || pending || !!summary || stock.isFetching}
+          data-tour={submitDisabled ? undefined : TOUR_ANCHORS.reverseSubmit}
+          disabled={submitDisabled}
           form={FORM_ID}
           ref={submitButton}
           size="lg"
@@ -880,7 +886,7 @@ function ReverseBalanceCell(props: CellProps) {
       className={mark?.stock ? 'text-destructive' : undefined}
     >
       {fetching ? (
-        <div className="h-4 w-12">
+        <div aria-busy className="h-4 w-12">
           <Skeleton fill />
         </div>
       ) : (
@@ -941,7 +947,7 @@ function ReverseReadOnlyCell(props: CellProps) {
       return quantity(line.quantity);
     case 'current':
       return fetching ? (
-        <div className="h-4 w-12">
+        <div aria-busy className="h-4 w-12">
           <Skeleton fill />
         </div>
       ) : (
