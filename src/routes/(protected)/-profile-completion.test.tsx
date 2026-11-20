@@ -27,6 +27,9 @@ import { queryClient } from '@/integrations/tanstack-query';
 import { userRecordKey } from '@/lib/key-factory';
 import { Route } from '@/routes/(protected)/_protected';
 
+vi.mock('@/features/system-notifications/api/api', () => ({
+  fetchSystemNotifications: async () => [],
+}));
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', async (original) => ({
   ...(await original<typeof import('@/features/reference-data/api/api')>()),

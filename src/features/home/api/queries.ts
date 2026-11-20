@@ -6,7 +6,6 @@ import {
   fetchOpenOrdersCount,
   fetchRecentRequisitions,
   fetchRequisitionStatusCounts,
-  fetchSystemNotifications,
 } from '@/features/home/api/api';
 import { queryKeys } from '@/lib/key-factory';
 
@@ -52,10 +51,4 @@ export const equipmentStatusCountsOptions = () =>
   queryOptions({
     queryKey: key('equipment-statuses'),
     queryFn: ({ signal }) => fetchEquipmentStatusCounts({ signal }),
-  });
-
-export const systemNotificationsOptions = () =>
-  queryOptions({
-    queryKey: key('notifications'),
-    queryFn: ({ signal }) => fetchSystemNotifications({ signal }),
   });

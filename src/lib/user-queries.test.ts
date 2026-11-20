@@ -1,7 +1,7 @@
 import { QueryClient, type QueryKey } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
-import { systemNotificationsOptions } from '@/features/home/api/queries';
 import { contactDetailsOptions } from '@/features/profile/api/queries';
+import { systemNotificationsOptions } from '@/features/system-notifications/api/queries';
 import { allUsersOptions, userMatchesOptions } from '@/features/users/api/queries';
 import { queryKeys, userProgramsKey, userRecordKey, userRightsKey } from '@/lib/key-factory';
 import { invalidateUserQueries, invalidateUsersAdminQueries } from '@/lib/user-queries';
@@ -33,7 +33,7 @@ function seeded() {
 }
 
 describe('invalidateUserQueries', () => {
-  it("invalidates Users admin data and the user's rights, Profile and Home", async () => {
+  it("invalidates Users admin data and the user's rights, Profile, Home and system notifications", async () => {
     const { queryClient, invalidated } = seeded();
 
     await invalidateUserQueries(queryClient, userId);

@@ -11,14 +11,6 @@ export type RequisitionSummary = {
   statusChanges?: Partial<Record<RequisitionStatus, { changeDate: string }>>;
 };
 
-export type SystemNotification = {
-  id: string;
-  title: string | null;
-  message: string;
-  author?: { firstName?: string | null; lastName?: string | null } | null;
-  createdDate?: string | null;
-};
-
 /** What the signed-in user's rights let the dashboard show; the route works it out from their rights. */
 export type DashboardAccess = {
   approve: boolean;

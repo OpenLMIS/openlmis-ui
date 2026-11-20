@@ -6,6 +6,7 @@ import { CustomTrigger } from '@/components/app-shell/custom-trigger';
 import { NavUser } from '@/components/app-shell/nav-user';
 import { OfflineDot, StatusAnnouncer } from '@/components/app-shell/sidebar-notices';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SystemNotifications } from '@/features/system-notifications/components/system-notifications';
 
 export const AppHeader = memo(function AppHeader() {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export const AppHeader = memo(function AppHeader() {
       <StatusAnnouncer />
       <CommandPalette />
       <div className="ms-auto flex items-center gap-1.5">
+        <SystemNotifications />
         <NavUser
           trigger={
             <button

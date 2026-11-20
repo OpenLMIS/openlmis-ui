@@ -66,6 +66,9 @@ import {
 import { expectRouteWarning } from '@/test-utils/expect-route-warning';
 import { renderPage } from '@/test-utils/render-page';
 
+vi.mock('@/features/system-notifications/api/api', () => ({
+  fetchSystemNotifications: async () => [],
+}));
 vi.mock('@/components/app-shell/app-shell', () => ({
   AppShellContext: createContext(false),
   AppShell: ({ children }: { children: React.ReactNode }) => children,

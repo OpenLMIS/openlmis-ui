@@ -1,4 +1,9 @@
-import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+} from '@tanstack/react-query';
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -17,6 +22,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { NavUser } from '@/components/app-shell/nav-user';
 import { OfflineNavigationProvider } from '@/components/app-shell/offline-navigation';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { systemNotificationsOptions } from '@/features/system-notifications/api/queries';
 import { userMatchesOptions, usersListOptions } from '@/features/users/api/queries';
 import { client } from '@/integrations/axios';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
@@ -110,6 +116,34 @@ beforeEach(() => {
     if (url.startsWith('/userContactDetails/')) return { data: null };
     return { data: [] };
   });
+});
+
+it('refreshes the shell notification list when refreshing Home', async () => {
+  const pending = Promise.withResolvers<{ data: { content: unknown[]; totalPages: number } }>();
+  const get = vi.mocked(client.get).getMockImplementation();
+  vi.mocked(client.get).mockImplementation(async (url, config) =>
+    url === '/systemNotifications' ? pending.promise : get?.(url, config),
+  );
+  const cache = openPage();
+  const options = systemNotificationsOptions();
+  const { queryKey } = options;
+  cache.setQueryData(queryKey, []);
+  const observer = new QueryObserver(cache, { ...options, staleTime: Infinity });
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    const refresh = await screen.findByRole('button', { name: 'home.refresh' });
+    await waitFor(() => expect(refresh).toBeEnabled());
+    await userEvent.click(refresh);
+    expect(client.get).toHaveBeenCalledWith('/systemNotifications', expect.anything());
+    expect(refresh).toBeDisabled();
+    expect(cache.getQueryData(queryKey)).toEqual([]);
+    const notice = { id: 'published', title: 'New Notice', message: 'Maintenance tonight' };
+    pending.resolve({ data: { content: [notice], totalPages: 1 } });
+    await waitFor(() => expect(refresh).toBeEnabled());
+    expect(cache.getQueryData(queryKey)).toEqual([notice]);
+  } finally {
+    unsubscribe();
+  }
 });
 
 const userReads = () => vi.mocked(client.get).mock.calls.filter(([url]) => url === '/users/u1');
