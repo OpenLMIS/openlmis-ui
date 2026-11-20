@@ -1,6 +1,7 @@
 import type { AxiosRequestConfig } from 'axios';
 import type { SystemNotification } from '@/features/system-notifications/lib/types';
 import { client } from '@/integrations/axios';
+import { requireOnline } from '@/lib/local-data';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
 
@@ -11,6 +12,7 @@ export async function fetchSystemNotifications(
   const notifications: SystemNotification[] = [];
   for (let page = 0; ; page += 1) {
     assertSessionScope(scope);
+    requireOnline();
     const { data } = await client.get<Page<SystemNotification>>('/systemNotifications', {
       ...config,
       connectionStatus: false,

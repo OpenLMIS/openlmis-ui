@@ -20,7 +20,27 @@ test('offline navigation explains unavailable pages and blocks direct routes wit
     channel === 'chrome' && browser.version().startsWith('152.'),
     'Chrome 152 offline emulation resets navigator.onLine after worker navigation.',
   );
+  const notices = Array.from({ length: 16 }, (_, index) => ({
+    id: `notice-${index}`,
+    title: `Service notice ${index + 1}`,
+    message: 'A service update for the clinic.',
+  }));
+  await context.route('**/api/systemNotifications?*', (route) =>
+    route.fulfill({ json: { content: notices, totalPages: 1 } }),
+  );
   await login(page);
+  const bell = page.getByRole('button', { name: /System Notifications/ });
+  await expect(bell).toHaveAccessibleName('System Notifications (16)');
+  await bell.focus();
+  await page.keyboard.press('Enter');
+  const list = page.getByRole('region', { name: 'System Notifications' });
+  await expect(list).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await page.keyboard.press('PageDown');
+  await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
+  await page.keyboard.press('Escape');
+  await expect(bell).toBeFocused();
   await expect.poll(() => generation(page)).not.toBeNull();
   await waitForOfflineShell(page);
   await context.setOffline(true);
@@ -56,6 +76,7 @@ test('offline navigation explains unavailable pages and blocks direct routes wit
   await page.reload();
   // The optional server name lookup is unavailable after an offline reload.
   await expect(page.getByRole('heading', { name: /^(Home|Welcome.*)$/ })).toBeVisible();
+  await expect(bell).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Add User', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeDisabled();
 });

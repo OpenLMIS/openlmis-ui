@@ -3580,7 +3580,7 @@
   "supply-partners.view-products": "Produtos associados",
   "system-notifications.count": "{count, plural, one {Notificação do Sistema (#)} other {Notificações do Sistema (#)}}",
   "system-notifications.empty": "Sem Notificações do Sistema",
-  "system-notifications.error": "Não Foi Possível Carregar as Notificações",
+  "system-notifications.error": "Não foi possível carregar as notificações.",
   "system-notifications.loading": "A Carregar Notificações…",
   "system-settings.branding.errors.logo-too-large": "Escolha uma imagem com no máximo 512 KB.",
   "system-settings.branding.errors.logo-type": "Escolha uma imagem PNG, JPEG ou WebP.",

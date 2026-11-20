@@ -62,24 +62,6 @@ const notice: SystemNotification = {
 };
 
 describe('SystemNotifications', () => {
-  it('shows an unbadged bell and an empty popover after a successful empty read', async () => {
-    show([]);
-    const button = screen.getByRole('button', { name: 'system-notifications.empty' });
-    expect(button).not.toHaveTextContent(/\d/);
-    await userEvent.click(button);
-    expect(
-      screen.getByRole('dialog', { name: 'nav.administration.system-notifications' }),
-    ).toHaveTextContent('system-notifications.empty');
-    expect(get).not.toHaveBeenCalled();
-  });
-
-  it('hides uncached server data offline', () => {
-    onlineManager.setOnline(false);
-    show();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(get).not.toHaveBeenCalled();
-  });
-
   it('shows a count and opens the messages with legacy creation details', async () => {
     const user = userEvent.setup();
     show([notice, { id: 'second', title: null, message: 'Another notice' }]);
@@ -95,7 +77,10 @@ describe('SystemNotifications', () => {
     expect(within(popup).getByText('Another notice')).toBeInTheDocument();
     expect(within(popup).getByText('Jane Doe')).toBeInTheDocument();
     expect(within(popup).getByText('Oct 8, 2026, 2:35 PM')).toBeInTheDocument();
-    await waitFor(() => expect(popup).toHaveFocus());
+    const list = within(popup).getByRole('region', {
+      name: 'nav.administration.system-notifications',
+    });
+    await waitFor(() => expect(list).toHaveFocus());
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await waitFor(() => expect(button).toHaveFocus());
@@ -120,27 +105,36 @@ describe('SystemNotifications', () => {
     'keeps stale cached notices offline (empty: %s) and refreshes on reconnect',
     async (empty) => {
       const cached = empty ? [] : [notice];
+      const updated = { ...notice, id: 'updated', message: 'Maintenance complete' };
+      get.mockResolvedValue({ data: { content: [updated], totalPages: 1 } });
+      const { queryKey } = systemNotificationsOptions();
       const cache = show(cached);
       act(() => {
         onlineManager.setOnline(false);
-        cache.setQueryData(systemNotificationsOptions().queryKey, cached, { updatedAt: 1 });
+        cache.setQueryData(queryKey, cached, { updatedAt: 1 });
       });
-      await userEvent.click(
-        screen.getByRole('button', {
-          name: empty ? 'system-notifications.empty' : 'system-notifications.count',
-        }),
-      );
+      const button = screen.getByRole('button', {
+        name: empty ? 'system-notifications.empty' : 'system-notifications.count',
+      });
+      if (empty) expect(button).not.toHaveTextContent(/\d/);
+      await userEvent.click(button);
       expect(screen.getByRole('dialog')).toHaveTextContent(
         empty ? 'system-notifications.empty' : 'Maintenance tonight',
       );
-      act(() => focusManager.setFocused(false));
-      act(() => focusManager.setFocused(true));
+      await act(async () => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+      await act(async () => {
+        await cache.getQueryCache().find({ queryKey })?.promise;
+      });
       expect(get).not.toHaveBeenCalled();
       act(() => onlineManager.setOnline(true));
       await waitFor(() =>
         expect(get).toHaveBeenCalledWith('/systemNotifications', expect.anything()),
       );
-      expect(await screen.findByText('Maintenance tonight')).toBeInTheDocument();
+      expect(await screen.findByText('Maintenance complete')).toBeInTheDocument();
+      expect(screen.queryByText('Maintenance tonight')).not.toBeInTheDocument();
     },
   );
 
@@ -169,7 +163,6 @@ describe('SystemNotifications', () => {
     await user.click(screen.getByRole('button'));
     const popup = screen.getByRole('dialog');
     const link = within(popup).getByRole('link', { name: 'Details' });
-    await waitFor(() => expect(popup).toHaveFocus());
     expect(link).toHaveAttribute('href', 'https://test.openlmis.org/v2/');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).not.toHaveAttribute('onclick');

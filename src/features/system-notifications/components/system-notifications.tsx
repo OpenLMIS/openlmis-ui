@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { BellIcon, MegaphoneIcon } from 'lucide-react';
-import { useMemo, useRef } from 'react';
+import { type Ref, useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatTimestamp } from '@/components/form/date-value';
 import { LocalizedCount } from '@/components/i18n/localized-count';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
@@ -21,6 +22,8 @@ export function SystemNotifications() {
   const authenticated = isSessionAuthenticated();
   const { t } = useTranslation();
   const popupRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const { data, isError, isFetching, refetch } = useQuery({
     ...systemNotificationsOptions(),
     enabled: authenticated && online,
@@ -63,17 +66,17 @@ export function SystemNotifications() {
       </Tooltip>
       <PopoverContent
         align="end"
-        initialFocus={popupRef}
+        initialFocus={() => listRef.current ?? popupRef.current}
         padding="none"
         ref={popupRef}
         width="notifications"
       >
         <div className="px-4 py-3">
-          <PopoverTitle>{title}</PopoverTitle>
+          <PopoverTitle id={titleId}>{title}</PopoverTitle>
         </div>
         <Separator />
         {data?.length ? (
-          <NotificationList notifications={data} />
+          <NotificationList labelledBy={titleId} notifications={data} ref={listRef} />
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-muted-foreground">
             {data ? (
@@ -103,17 +106,35 @@ export function SystemNotifications() {
   );
 }
 
-function NotificationList({ notifications }: { notifications: SystemNotification[] }) {
+function NotificationList({
+  labelledBy,
+  notifications,
+  ref,
+}: {
+  labelledBy: string;
+  notifications: SystemNotification[];
+  ref: Ref<HTMLDivElement>;
+}) {
   const online = useOnline();
   const { data } = useQuery({ ...deploymentTimeZoneOptions(), enabled: online });
   const timeZone = data?.zone ?? 'UTC';
 
   return (
-    <ul className="min-h-0 divide-y overflow-y-auto overscroll-contain">
-      {notifications.map((notification) => (
-        <Notification key={notification.id} notification={notification} timeZone={timeZone} />
-      ))}
-    </ul>
+    <ScrollArea
+      height="fill"
+      viewportProps={{
+        'aria-labelledby': labelledBy,
+        ref,
+        role: 'region',
+        style: { overscrollBehavior: 'contain' },
+      }}
+    >
+      <ul className="divide-y">
+        {notifications.map((notification) => (
+          <Notification key={notification.id} notification={notification} timeZone={timeZone} />
+        ))}
+      </ul>
+    </ScrollArea>
   );
 }
 

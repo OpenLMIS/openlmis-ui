@@ -55,7 +55,7 @@ async function show(language: 'en' | 'ar') {
   return cache;
 }
 
-it('shows a single bell in the top bar through loading, count, zero and cached offline states', async () => {
+it('shows a single bell in the top bar through loading, count and zero states', async () => {
   const read = Promise.withResolvers<{ data: { content: unknown[]; totalPages: number } }>();
   get.mockReturnValue(read.promise);
   const cache = await show('en');
@@ -70,8 +70,6 @@ it('shows a single bell in the top bar through loading, count, zero and cached o
   act(() => cache.setQueryData(systemNotificationsOptions().queryKey, []));
   expect(await screen.findByRole('button', { name: 'No System Notifications' })).toBe(bell);
   expect(bell).not.toHaveTextContent(/\d/);
-  act(() => onlineManager.setOnline(false));
-  expect(screen.getByRole('button', { name: 'No System Notifications' })).toBe(bell);
 });
 
 it('hides the bell when the shell starts offline without cached notifications', async () => {

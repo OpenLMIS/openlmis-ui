@@ -65,10 +65,9 @@ Notifications" when there are none. Legacy's "Software last updated on" date is 
   so a failed first read can recover and a failed refetch keeps the last result. Freshness: the
   existing 30 s stale time, `refetchOnWindowFocus: true` for this query only, and a stale-aware
   `prefetchQuery(systemNotificationsOptions())` in `_protected.tsx` `beforeLoad` next to the
-  existing signed-in, online preload (so navigating refreshes at most once per 30 s). Gate reads on
-  `isSessionAuthenticated()`; the mounted bell's `enabled` uses `useOnline()` so it reacts to
-  disconnect and reconnect, and the route prefetch uses `isOnline()` (queries use
-  `networkMode: 'always'`).
+  existing signed-in, online preload. Navigation skips prefetch for 30 s after a failed read.
+  Gate reads on `isSessionAuthenticated()`; the mounted bell's `enabled` uses `useOnline()` so
+  it reacts to disconnect and reconnect, and the route prefetch uses `isOnline()`.
 - **Home**: remove the bell, its loader prefetch, the `revision` prop and the import. Home Refresh
   (in `_protected.home.tsx`) also invalidates the exact displayed-list key and counts it in its
   fetching state. Dashboard reset and both cancellation paths stay on `home.all`, so leaving Home
@@ -82,18 +81,23 @@ Notifications" when there are none. Legacy's "Software last updated on" date is 
   className, `no-restyle`), one localized accessible name via ICU (`{count, plural, ...}` with the
   number formatted for the language), decorative icon and badge `aria-hidden`, a tooltip with the
   same name. Before the first successful read: neutral bell named "System Notifications", no count; if
-  opened it shows loading, or "Could not load notifications" with Try Again after a failure. Zero
+  opened it shows loading, or "Could not load notifications." with Try Again after a failure. Zero
   after a successful read: no badge, name "No System Notifications", popover shows the empty
   state. A failed refetch keeps the previous count and list. Popover: existing
-  `PopoverContent width="notifications"`, logical end alignment, titled, Escape closes and focus
-  returns to the bell. No live region.
+  `PopoverContent width="notifications"` with logical end alignment. Focus the named scrollable
+  list when it is available on open so Page Down and arrow keys scroll it. Escape closes the
+  popover and returns focus to the bell. No live region.
 - **Offline**: show the last successful result of the current tab (including an empty list); hide
   the bell when there is none, including after an offline reload (the Query cache is in memory
-  only). Skip new reads offline. Cached notices may stay visible past their expiry until the next
-  online refresh.
+  only). The reader checks connectivity before each page and retains the previous complete result
+  if paging is interrupted. The query uses `networkMode: 'online'` to pause scheduled retries
+  during a disconnect. The reader keeps `connectionStatus: false`, like other optional shell reads,
+  so a failure specific to notifications does not change app-wide connectivity. Cached notices may
+  stay visible past their expiry until the next online refresh.
 - **Layout**: reserve stable space for the bell so nothing shifts; logical classes only.
-- **User saves**: `invalidateUserQueries` also invalidates `queryKeys.systemNotifications.all`
-  (notices show author names); update `src/lib/user-queries.test.ts`.
+- **User saves**: Edit User's `invalidateUserQueries` and Profile's `invalidateUsersAdminQueries`
+  refresh `queryKeys.systemNotifications.all` in the background so changed author names appear
+  without delaying either save.
 - **Translations**: the indicator's name with count and its zero name, popover empty state; remove the unused `home.notifications.title`
   through `sync-translations`; every catalog.
 - **Tests**: move the bell, paging and sanitizer tests (the six-request dashboard cancellation
@@ -103,7 +107,8 @@ Notifications" when there are none. Legacy's "Software last updated on" date is 
   paged `/api/systemNotifications` response to `tests/offline/fixtures.ts`; update the zero-state test (now a visible
   bell) and names; header test for neutral, count, zero and offline states; extend
   `home-navigation.test.ts` to prove an in-flight notification read survives leaving Home; a check
-  that Home Refresh refreshes the shell's key. Budget for route
+  that Home Refresh refreshes the shell's key. The signed-in offline browser scenario covers
+  keyboard scrolling and the bell disappearing after an offline reload. Budget for route
   tests that count `client.get` calls (the shell now reads notifications on every page).
 - **Risks**: header crowding at 768 to 1024 px with the sidebar expanded; extra request on every
   route test.

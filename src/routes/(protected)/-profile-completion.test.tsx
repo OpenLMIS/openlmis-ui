@@ -22,13 +22,15 @@ import { BasicInformation } from '@/features/profile/components/basic-informatio
 import { NotificationSettings } from '@/features/profile/components/notification-settings';
 import { ProfileWorkspace } from '@/features/profile/components/profile-workspace';
 import { fetchUserRecord } from '@/features/reference-data/api/api';
+import { fetchSystemNotifications } from '@/features/system-notifications/api/api';
+import { systemNotificationsOptions } from '@/features/system-notifications/api/queries';
 import { client } from '@/integrations/axios';
 import { queryClient } from '@/integrations/tanstack-query';
 import { userRecordKey } from '@/lib/key-factory';
 import { Route } from '@/routes/(protected)/_protected';
 
 vi.mock('@/features/system-notifications/api/api', () => ({
-  fetchSystemNotifications: async () => [],
+  fetchSystemNotifications: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', async (original) => ({
@@ -117,6 +119,38 @@ beforeEach(() => {
     { digestConfiguration: { id: 'd1' }, preferredChannel: 'SMS', useDigest: false },
   ]);
 });
+it('skips navigation prefetch for 30 seconds after a failed first notification read', async () => {
+  const fetch = vi.mocked(fetchSystemNotifications).mockRejectedValueOnce(new Error('Unavailable'));
+  const { queryKey } = systemNotificationsOptions();
+  const now = vi.spyOn(Date, 'now');
+  const beforeLoad = Route.options.beforeLoad as (args: unknown) => void;
+  const navigate = (pathname: string) =>
+    beforeLoad({ location: { pathname }, context: { queryClient } });
+  const settle = async () => {
+    await queryClient
+      .getQueryCache()
+      .find({ queryKey })
+      ?.promise?.catch(() => undefined);
+  };
+
+  navigate('/profile');
+  await settle();
+  const failedAt = queryClient.getQueryState(queryKey)?.errorUpdatedAt ?? 0;
+  expect(failedAt).toBeGreaterThan(0);
+  expect(fetch).toHaveBeenCalledOnce();
+
+  now.mockReturnValue(failedAt + 29_999);
+  navigate('/home');
+  await settle();
+  expect(fetch).toHaveBeenCalledOnce();
+
+  now.mockReturnValue(failedAt + 30_000);
+  navigate('/profile');
+  await settle();
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(queryClient.getQueryData(queryKey)).toEqual([]);
+});
+
 it('profile completion must not repopulate the previous identity cache after the shared boundary unmounts', async () => {
   notifications = false;
   queryClient.setQueryData(userRecordKey('u1'), profile.user);
