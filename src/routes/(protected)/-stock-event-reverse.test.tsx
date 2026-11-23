@@ -585,7 +585,7 @@ it('asks again on Cancel after a navigation attempt during a POST that returns 4
   await act(async () =>
     rejectCancel(httpError(400, { messageKey: 'stockmanagement.error.test', message: 'Refused' })),
   );
-  await screen.findByRole('alertdialog', { name: 'Refused' });
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('Refused');
   await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.cancel' }));
