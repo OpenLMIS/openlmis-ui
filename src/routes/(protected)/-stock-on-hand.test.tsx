@@ -644,7 +644,10 @@ describe('stock on hand page', () => {
   it('tells the user when printing fails, with the server message', async () => {
     const user = userEvent.setup();
     vi.mocked(fetchStockOnHandReport).mockRejectedValue(
-      httpError(403, { message: 'Permission check failed.' }),
+      httpError(403, {
+        messageKey: 'referenceData.error.unauthorized',
+        message: 'Permission check failed.',
+      }),
     );
     renderRoute(appliedPath());
 

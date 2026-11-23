@@ -21,7 +21,10 @@ it('keeps Fulfill results open when shipment entry is refused', async () => {
   vi.mocked(fetchOrder).mockRejectedValueOnce(
     new AxiosError('Forbidden', undefined, undefined, undefined, {
       status: 403,
-      data: { message: 'You cannot view this order.' },
+      data: {
+        messageKey: 'fulfillment.error.authorization.failed',
+        message: 'You cannot view this order.',
+      },
     } as never),
   );
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });

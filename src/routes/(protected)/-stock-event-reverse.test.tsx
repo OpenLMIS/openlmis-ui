@@ -339,23 +339,21 @@ describe('reverse transaction', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'stock-events.confirm' }));
     await screen.findByText('stock-event-reverse.summary-unavailable');
   });
-  it.each([httpError(500, { message: 'Server refuses' }), networkError()])(
-    'shows a plain failure and keeps ticks for retry',
-    async (error) => {
-      vi.mocked(cancelStockEvent).mockRejectedValue(error);
-      renderRoute();
-      const dialog = await signing();
-      await userEvent.click(within(dialog).getByRole('button', { name: 'stock-events.confirm' }));
-      await screen.findByText(
-        error.response ? 'Server refuses' : 'stock-event-reverse.failed-description',
-      );
-      await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
-      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-      expect(screen.getAllByRole('checkbox')[0]).toBeChecked();
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled();
-    },
-  );
+  it.each([
+    httpError(500, { messageKey: 'stockmanagement.error.test', message: 'Server refuses' }),
+    networkError(),
+  ])('shows a plain failure and keeps ticks for retry', async (error) => {
+    vi.mocked(cancelStockEvent).mockRejectedValue(error);
+    renderRoute();
+    const dialog = await signing();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'stock-events.confirm' }));
+    await screen.findByText(error.response ? 'Server refuses' : 'error.check-connection');
+    await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(screen.getAllByRole('checkbox')[0]).toBeChecked();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeEnabled();
+  });
   it('puts line errors on the Reverse cell and clears them on reason change', async () => {
     vi.mocked(cancelStockEvent).mockRejectedValue(
       httpError(400, {
@@ -584,7 +582,9 @@ it('asks again on Cancel after a navigation attempt during a POST that returns 4
         params: { eventId: 'event1' },
       }),
   );
-  await act(async () => rejectCancel(httpError(400, { message: 'Refused' })));
+  await act(async () =>
+    rejectCancel(httpError(400, { messageKey: 'stockmanagement.error.test', message: 'Refused' })),
+  );
   await screen.findByRole('alertdialog', { name: 'Refused' });
   await userEvent.click(screen.getByRole('button', { name: 'stock-event-reverse.close' }));
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
