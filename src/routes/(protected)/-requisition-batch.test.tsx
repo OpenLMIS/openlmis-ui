@@ -412,7 +412,7 @@ it('renders phone cards and updates costs and totals while typing', async () => 
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.getAllByText('$51.00').length).toBeGreaterThan(1);
 });
-it('keeps every record after an exception-style approval 400 and shows the reason', async () => {
+it('keeps every record after an unkeyed approval 400 and shows the general message', async () => {
   vi.mocked(approveBatchRequisitions).mockRejectedValue(
     new AxiosError('400', '400', undefined, undefined, {
       status: 400,
@@ -424,7 +424,8 @@ it('keeps every record after an exception-style approval 400 and shows the reaso
   await waitFor(() => expect(approve).toBeEnabled());
   await userEvent.click(approve);
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
-  await screen.findAllByText(/The period has not ended/);
+  await screen.findAllByText(/error.description/);
+  expect(screen.queryByText(/The period has not ended/)).not.toBeInTheDocument();
   expect(screen.queryByText('Approval List')).not.toBeInTheDocument();
   expect(approveBatchRequisitions).toHaveBeenCalledOnce();
 });
@@ -537,7 +538,8 @@ it('refreshes after a failed Sync and names only affected records for review', a
   await waitFor(() => expect(inputs[0]).toBeEnabled());
   await userEvent.type(inputs[1], '2147483648');
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
-  await screen.findByText('Lost save');
+  await screen.findByText('error.description');
+  expect(screen.queryByText('Lost save')).not.toBeInTheDocument();
   expect(screen.getAllByRole('textbox', { hidden: true })[0]).toHaveAccessibleName(
     /Refreshed facility/,
   );
@@ -1360,8 +1362,8 @@ it('translates a Sync timeout again when the page language changes', async () =>
   labels.addResource(
     'fr',
     'translation',
-    'requisitions.batch.verification-failed',
-    'Vérification impossible',
+    'api-error.timeout-write',
+    'Le serveur n’a pas répondu à temps.',
   );
   vi.mocked(saveBatchRequisitions).mockRejectedValueOnce(
     new AxiosError('timeout of 60000ms exceeded', 'ECONNABORTED'),
@@ -1370,10 +1372,10 @@ it('translates a Sync timeout again when the page language changes', async () =>
   const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
   await waitFor(() => expect(sync).toBeEnabled());
   await userEvent.click(sync);
-  await screen.findByText('requisitions.batch.verification-failed');
+  await screen.findByText('api-error.timeout-write');
   try {
     await act(() => labels.changeLanguage('fr'));
-    expect(screen.getByText('Vérification impossible')).toBeVisible();
+    expect(screen.getByText('Le serveur n’a pas répondu à temps.')).toBeVisible();
   } finally {
     await act(() => labels.changeLanguage('en'));
     queryClient.clear();

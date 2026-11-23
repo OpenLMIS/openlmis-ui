@@ -5,8 +5,10 @@ import { appConfigurationOptions } from '@/features/system-settings/api/queries'
 import { PartialSaveError } from '@/features/system-settings/lib/partial-save-error';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { isSilentApiError } from '@/lib/api-error';
 import { rememberAppConfiguration } from '@/lib/app-configuration';
 import { isConflict } from '@/lib/http';
+import { reportApiError } from '@/lib/report-error';
 
 type SettingsForm<Values> = {
   reset: (values: Values) => void;
@@ -74,6 +76,7 @@ export function useConfigurationSave<Values, Variables>({
       toast.success(title, { description });
     },
     onError: (error, variables) => {
+      reportApiError(error instanceof PartialSaveError ? error.cause : error);
       if (error instanceof PartialSaveError) {
         settle(error.saved);
         onPartiallySaved?.(variables);
@@ -104,7 +107,8 @@ export function useConfigurationSave<Values, Variables>({
       }
       setReloaded((count) => count + 1);
     } catch (error) {
-      setReloadError(error);
+      reportApiError(error);
+      if (!isSilentApiError(error)) setReloadError(error);
     }
   };
 

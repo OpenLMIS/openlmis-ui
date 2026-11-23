@@ -10,7 +10,6 @@ import {
   ErrorAlert,
   FieldSkeleton,
   SkeletonLine,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -29,7 +28,7 @@ import { FieldGroup } from '@/components/ui/field';
 import { updateLot } from '@/features/lots/api/api';
 import { lotDetailOptions } from '@/features/lots/api/queries';
 import {
-  isDuplicateLotCode,
+  LOT_FIELD_ERRORS,
   type LotFormValues,
   lotFormSchema,
   toLotBody,
@@ -40,8 +39,10 @@ import { orderablesByTradeItemsOptions } from '@/features/reference-data/api/que
 import { productName } from '@/features/reference-data/lib/product-name';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { isNotFound, isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const saveKey = (id: string) => [...queryKeys.lots.all, 'save', id] as const;
 
@@ -132,7 +133,8 @@ function LotForm({ lot, onDone }: { lot: Lot; onDone: () => void }) {
       });
     },
     onError: (error, values) => {
-      if (isDuplicateLotCode(error)) setRefused((taken) => [...taken, values.lotCode]);
+      reportApiError(error);
+      if (fieldErrorFor(error, LOT_FIELD_ERRORS)) setRefused((taken) => [...taken, values.lotCode]);
     },
   });
 
@@ -155,9 +157,9 @@ function LotForm({ lot, onDone }: { lot: Lot; onDone: () => void }) {
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
-          {save.isError && !isDuplicateLotCode(save.error) && (
+          {save.isError && !fieldErrorFor(save.error, LOT_FIELD_ERRORS) && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('lots.form.save-error')}
+              description={apiErrorText(save.error, 'lots.form.save-error', t, { write: true })}
               title={t('lots.form.save-error-title')}
             />
           )}

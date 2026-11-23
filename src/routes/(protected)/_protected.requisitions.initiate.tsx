@@ -51,6 +51,7 @@ import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { InitiateQuery } from '@/features/requisitions/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { isSilentApiError } from '@/lib/api-error';
 import {
   type CompleteSelection,
   type FacilityProgramSelection,
@@ -62,6 +63,7 @@ import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
 import { hasProgramGrant, type Permissions } from '@/lib/permissions';
 import { randomId } from '@/lib/random-id';
+import { reportApiError } from '@/lib/report-error';
 import { RIGHTS } from '@/lib/rights';
 import { assertSessionScope } from '@/lib/session-scope';
 
@@ -267,6 +269,8 @@ function InitiateBody({ userId }: { userId: string }) {
 }
 function PeriodsError({ error, reset }: { error: unknown; reset: () => void }) {
   const { t } = useTranslation();
+  const description = initiateFailureMessage(error, t, false);
+  if (description === null) return null;
   return (
     <ListError
       error={error}
@@ -277,9 +281,7 @@ function PeriodsError({ error, reset }: { error: unknown; reset: () => void }) {
           ? 'requisitions.initiate.error.not-supported'
           : 'requisitions.initiate.load-failed',
       )}
-      description={
-        initiateFailureMessage(error, t) ?? t('requisitions.initiate.load-failed-description')
-      }
+      description={description}
     />
   );
 }
@@ -353,6 +355,8 @@ function Periods({
       });
     },
     onError: async (error) => {
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
       if (unresolved.current) {
         toast.error(t('requisitions.initiate.load-failed'), {
           description: t('requisitions.initiate.load-failed-description'),
@@ -369,11 +373,9 @@ function Periods({
         attempt.key = randomId();
       }
       assertSessionScope(attempt.sessionScope);
-      toast.error(t('requisitions.initiate.initiate-failed'), {
-        description:
-          initiateFailureMessage(error, t) ??
-          t('requisitions.initiate.initiate-failed-description'),
-      });
+      const description = initiateFailureMessage(error, t);
+      if (description !== null)
+        toast.error(t('requisitions.initiate.initiate-failed'), { description });
     },
     onSettled: () => {
       posting.current = false;

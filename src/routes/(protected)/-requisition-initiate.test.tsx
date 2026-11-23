@@ -131,7 +131,7 @@ it.each([1200, 390])(
   },
 );
 it.each([
-  [{ message: 'Server reason' }, 'Server reason'],
+  [{ messageKey: 'requisition.error.unknown', message: 'Server reason' }, 'Server reason'],
   [
     {
       messageKey: 'requisition.error.initiate.finishPreviousRequisition',

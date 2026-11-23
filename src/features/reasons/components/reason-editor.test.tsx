@@ -281,7 +281,10 @@ describe('ReasonEditor', () => {
 
   it('names the pairs that failed, keeps the draft, and retries only those on the same reason', async () => {
     vi.mocked(createValidReason).mockRejectedValueOnce(
-      httpError(400, { message: 'Program is no longer active.' }),
+      httpError(400, {
+        messageKey: 'stockmanagement.error.program.inactive',
+        message: 'Program is no longer active.',
+      }),
     );
     const { user, onSaved } = renderEditor();
 
@@ -325,7 +328,12 @@ describe('ReasonEditor', () => {
   });
 
   it("shows the server's reason when the reason itself is refused", async () => {
-    vi.mocked(updateReason).mockRejectedValue(httpError(400, { message: 'Tags are invalid.' }));
+    vi.mocked(updateReason).mockRejectedValue(
+      httpError(400, {
+        messageKey: 'stockmanagement.error.reason.tags',
+        message: 'Tags are invalid.',
+      }),
+    );
     const { user } = renderEditor({ reason: damage, pairs: [] });
 
     await user.click(await screen.findByRole('button', { name: 'Save' }));

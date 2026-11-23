@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   EMPTY_PROGRAM_FORM,
-  isDuplicateCode,
   type ProgramFormValues,
   programFormSchema,
   toProgramBody,
   toProgramFormValues,
 } from '@/features/programs/lib/program-form';
 import type { Program } from '@/features/reference-data/lib/types';
-import { httpError } from '@/test-utils/http-error';
 
 const arv: Program = {
   id: 'p5',
@@ -104,22 +102,5 @@ describe('toProgramBody', () => {
       ...spaced,
       name: 'ARV Program',
     });
-  });
-});
-
-describe('isDuplicateCode', () => {
-  const refusal = (messageKey: string) => {
-    const error = httpError(400);
-    Object.assign(error.response ?? {}, { data: { messageKey } });
-    return error;
-  };
-
-  it('spots the server refusing a code in use', () => {
-    expect(isDuplicateCode(refusal('referenceData.error.program.code.duplicated'))).toBe(true);
-  });
-
-  it('ignores any other failure', () => {
-    expect(isDuplicateCode(refusal('referenceData.error.program.notFound'))).toBe(false);
-    expect(isDuplicateCode(new Error('offline'))).toBe(false);
   });
 });

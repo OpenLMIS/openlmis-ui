@@ -360,7 +360,10 @@ describe('RequisitionGroupEditor', () => {
       statusText: 'Bad Request',
       headers: {},
       config: { headers: new AxiosHeaders() },
-      data: { message: 'Code Is Already Used' },
+      data: {
+        messageKey: 'referenceData.error.requisitionGroup.code.duplicated',
+        message: 'Code Is Already Used',
+      },
     });
     vi.mocked(updateRequisitionGroup).mockRejectedValue(error);
     renderEditor({ saved: group });

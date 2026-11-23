@@ -32,7 +32,7 @@ import {
 } from '@/components/data-table/data-table-selection';
 import type { ResponsiveColumn } from '@/components/data-table/responsive-columns';
 import { CardActions, useInCards } from '@/components/display/card-actions';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import {
   RecordSummary,
   RecordSummaryField,
@@ -81,7 +81,9 @@ import {
 } from '@/features/reference-data/api/queries';
 import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const columnHelper = createColumnHelper<DataTableFeatures, NationalRow>();
 
@@ -401,6 +403,7 @@ function FinalApproveDialog({
   const { shown, close, dialogProps } = useDialogTarget(targets, onClose);
   const count = shown?.size ?? 0;
   const approve = useSessionMutation({
+    onError: reportApiError,
     mutationFn: async (ids: string[]) => {
       const fresh = await queryClient.fetchQuery({
         ...buqsForFinalApprovalOptions(listQuery),
@@ -414,7 +417,10 @@ function FinalApproveDialog({
     onSuccess: ({ approved, error, skipped }) => {
       onApproved(approved, !!error);
       void queryClient.invalidateQueries({ queryKey: [...queryKeys.buq.all, 'detail'] });
-      if (error) return;
+      if (error) {
+        reportApiError(error);
+        return;
+      }
       close();
       if (approved.length) {
         toast.success(t('buq.national.approved-title'), {
@@ -439,7 +445,7 @@ function FinalApproveDialog({
   });
   const failure = approve.isError ? approve.error : approve.data?.error;
   const partly = approve.data?.approved.length ?? 0;
-  const reason = serverMessage(failure) ?? t('buq.national.approve-error');
+  const reason = apiErrorText(failure, 'buq.national.approve-error', t, { write: true });
   const props = dialogProps(approve.isPending);
   return (
     <AlertDialog
@@ -466,7 +472,7 @@ function FinalApproveDialog({
             {t('buq.national.confirm', { count, name: shown?.values().next().value ?? '' })}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {failure != null && (
+        {failure != null && reason !== null && (
           <ErrorAlert
             description={
               partly ? `${t('buq.national.partly-approved', { count: partly })} ${reason}` : reason

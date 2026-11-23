@@ -90,6 +90,6 @@ it('refuses the previous signed-in user Edit User Roles draft', async () => {
       .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' }),
   );
   await userEvent.setup().click(screen.getByRole('button', { name: /users.roles.save/ }));
-  expect(await screen.findByText('users.roles.save-error-title')).toBeInTheDocument();
+  expect(screen.queryByText('users.roles.save-error-title')).not.toBeInTheDocument();
   expect(updateUserRoles).not.toHaveBeenCalled();
 });

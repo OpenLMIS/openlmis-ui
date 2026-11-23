@@ -56,7 +56,7 @@ beforeEach(() => vi.clearAllMocks());
 const refusalMessage =
   'You do not have permission STOCK_CARDS_VIEW for program Family Planning facility Ntcheu District Warehouse to perform this action.';
 function stockRefusal() {
-  return new AxiosError<{ message: string }>(
+  return new AxiosError<{ messageKey: string; message: string }>(
     'Request failed with status code 403',
     'ERR_BAD_REQUEST',
     undefined,
@@ -67,6 +67,7 @@ function stockRefusal() {
       headers: {},
       config: { headers: new AxiosHeaders() },
       data: {
+        messageKey: 'stockmanagement.error.permission.missing',
         message: refusalMessage,
       },
     },

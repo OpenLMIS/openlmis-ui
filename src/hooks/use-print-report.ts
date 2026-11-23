@@ -1,16 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { isAxiosError, isCancel } from 'axios';
+import { isAxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { permissionsOptions } from '@/features/auth/api/queries';
 import { ForbiddenError } from '@/features/auth/lib/access';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import type { DeviceSnapshot } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
 import type { ReportDelivery } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
+import { reportApiError } from '@/lib/report-error';
 
 type PrintAccess =
   | { serverAuthorized: true; facilityId?: string; programId?: string; right?: string }
@@ -78,16 +79,18 @@ export function usePrintReport(options: PrintReportOptions) {
       toast.success(sent.successTitle, { description: sent.successDescription });
     },
     onError: (error, sent) => {
-      if (!sent.isCurrent() || isCancel(error)) return;
-      toast.error(sent.errorTitle, {
-        description: !isOnline()
-          ? t('offline.print-description')
-          : error instanceof ForbiddenError
-            ? sent.refusedDescription
-            : sent.describeError?.(error) ||
-              (!isServerError(error) && serverMessage(error)) ||
-              sent.errorDescription,
-      });
+      if (!sent.isCurrent() || isSilentApiError(error)) return;
+      reportApiError(error);
+      const description = !isOnline()
+        ? t('offline.print-description')
+        : error instanceof ForbiddenError
+          ? sent.refusedDescription
+          : (sent.describeError?.(error) ??
+            apiErrorText(error, () => sent.errorDescription, t, {
+              write: false,
+              allowServerMessage: !isServerError(error),
+            }));
+      if (description !== null) toast.error(sent.errorTitle, { description });
     },
   });
   return {

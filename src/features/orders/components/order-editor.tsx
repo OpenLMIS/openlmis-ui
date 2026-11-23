@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableToolbar } from '@/components/data-table/data-table';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
@@ -53,9 +52,11 @@ import type { Order } from '@/features/orders/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { invalidateOrderLists } from '@/lib/order-queries';
 import type { QuantityUnit } from '@/lib/quantity';
 import { randomId } from '@/lib/random-id';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 
 function useOrderForm(initial: Record<string, DraftLine[]>) {
@@ -168,14 +169,16 @@ export function OrderEditor({
             failed.flatMap((item) => (item.problem ? [[item.id, item.problem]] : [])),
           ),
         }));
-      if (failed.length) {
-        const facilities = failed
-          .map((item) => records[item.id]?.requestingFacility.name ?? item.id)
+      const visibleFailures = failed.flatMap((item) => {
+        if (item.error) reportApiError(item.error);
+        const reason = apiErrorText(item.error, 'error.description', t, { write: true });
+        return reason === null ? [] : [{ item, reason }];
+      });
+      if (visibleFailures.length) {
+        const facilities = visibleFailures
+          .map(({ item }) => records[item.id]?.requestingFacility.name ?? item.id)
           .join(', ');
-        const reason =
-          [...new Set(failed.map((item) => serverMessage(item.error)).filter(Boolean))].join(
-            '; ',
-          ) || t('error.description');
+        const reason = [...new Set(visibleFailures.map((item) => item.reason))].join('; ');
         const key =
           action.kind === 'save'
             ? 'save-failed'
@@ -186,7 +189,7 @@ export function OrderEditor({
           title: t(`orders.edit.${key}-title`),
           description: t(`orders.edit.${key}-description`, { facilities, reason }),
         });
-      } else {
+      } else if (!failed.length) {
         const key =
           action.kind === 'save' ? 'saved' : action.kind === 'send' ? 'created' : 'deleted';
         toast.success(t(`orders.edit.${key}-title`), {
@@ -215,10 +218,9 @@ export function OrderEditor({
             : 'delete-failed';
       setSummary(null);
       setDeleting(null);
-      setFailure({
-        title: t(`orders.edit.${key}-title`),
-        description: serverMessage(error) ?? t('error.description'),
-      });
+      reportApiError(error);
+      const description = apiErrorText(error, 'error.description', t, { write: true });
+      if (description !== null) setFailure({ title: t(`orders.edit.${key}-title`), description });
     },
   });
   const pending = mutation.isPending;

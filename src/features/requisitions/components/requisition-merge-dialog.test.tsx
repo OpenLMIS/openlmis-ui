@@ -34,7 +34,12 @@ it('clears a server failure while retrying the selected field choices', async ()
   const retry = Promise.withResolvers<void>();
   const onResolve = vi
     .fn()
-    .mockRejectedValueOnce(httpError(400, { message: 'Server refused recovery' }))
+    .mockRejectedValueOnce(
+      httpError(400, {
+        messageKey: 'requisition.error.sync.refused',
+        message: 'Server refused recovery',
+      }),
+    )
     .mockImplementationOnce(() => retry.promise);
   render(
     <RequisitionMergeDialog

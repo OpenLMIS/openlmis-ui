@@ -14,7 +14,7 @@ import {
 } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { RowActions } from '@/components/display/card-actions';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
@@ -36,8 +36,10 @@ import { type BuqRow, buqRows } from '@/features/buq/lib/rows';
 import type { BuqListSearch, BuqTableProps } from '@/features/buq/lib/search';
 import type { Buq, BuqPeriod, NamedItem } from '@/features/buq/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { downloadFile } from '@/lib/download-file';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 type RowHandlers = {
   onDownload: (buq: BuqRow) => void;
@@ -166,10 +168,11 @@ export function PreparedTable({
         }),
       });
     },
-    onError: (error) =>
-      toast.error(t('buq.prepare.download-error-title'), {
-        description: serverMessage(error) ?? t('buq.prepare.download-error'),
-      }),
+    onError: (error) => {
+      reportApiError(error);
+      const description = apiErrorText(error, 'buq.prepare.download-error', t, { write: false });
+      if (description !== null) toast.error(t('buq.prepare.download-error-title'), { description });
+    },
   });
   const listRef = useRef<HTMLElement>(null);
   const handlers = useMemo<RowHandlers>(
@@ -237,6 +240,7 @@ function DeleteBuqDialog({
   const { shown, close, dialogProps } = useDialogTarget(buq, onClose);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const remove = useSessionMutation({
+    onError: reportApiError,
     mutationFn: deleteBuq,
     onSuccess: (_, id) => {
       toast.success(t('buq.prepare.deleted-title'), {
@@ -283,7 +287,7 @@ function DeleteBuqDialog({
             description={
               remove.error instanceof BuqMovedError
                 ? t('buq.prepare.delete-moved')
-                : (serverMessage(remove.error) ?? t('buq.prepare.delete-error'))
+                : apiErrorText(remove.error, 'buq.prepare.delete-error', t, { write: true })
             }
             title={t('buq.prepare.delete-error-title')}
           />

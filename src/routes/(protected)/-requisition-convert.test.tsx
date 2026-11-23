@@ -30,7 +30,10 @@ vi.mock('@/lib/local-data', async (original) => ({
   ...(await original<typeof import('@/lib/local-data')>()),
   requireOnline: vi.fn(),
 }));
-vi.mock('@/lib/report-error', () => ({ reportCaughtError: vi.fn() }));
+vi.mock('@/lib/report-error', async (original) => ({
+  ...(await original<typeof import('@/lib/report-error')>()),
+  reportCaughtError: vi.fn(),
+}));
 vi.mock('@/features/auth/api/api', () => ({ fetchPermissionStrings: vi.fn() }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchCurrencySettings: vi.fn(async () => ({ timeZoneId: 'UTC' })),
@@ -680,7 +683,7 @@ it('clears a definite refused selection and restores list focus after closing it
   vi.mocked(releaseRequisitions).mockRejectedValueOnce(
     new AxiosError('Refused', undefined, undefined, undefined, {
       status: 400,
-      data: { message: 'Refused March' },
+      data: { messageKey: 'requisition.error.release.refused', message: 'Refused March' },
     } as never),
   );
   const { queryClient } = renderRoute('/requisitions/convert');

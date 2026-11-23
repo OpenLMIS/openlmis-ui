@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { Lot } from '@/features/lots/lib/types';
@@ -39,9 +38,6 @@ export function toLotBody(values: LotFormValues, saved: Lot): Lot {
   };
 }
 
-export function isDuplicateLotCode(error: unknown) {
-  return (
-    isAxiosError<{ messageKey?: string }>(error) &&
-    error.response?.data?.messageKey === 'referenceData.error.lot.lotCode.mustBeUnique'
-  );
-}
+export const LOT_FIELD_ERRORS = {
+  'referenceData.error.lot.lotCode.mustBeUnique': { field: 'lotCode', key: 'lots.form.code-taken' },
+} as const;

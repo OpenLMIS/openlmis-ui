@@ -12,7 +12,6 @@ import {
   FieldSkeleton,
   SkeletonLine,
   SwitchSkeleton,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -32,7 +31,7 @@ import { createProgram, updateProgram } from '@/features/programs/api/api';
 import { programDetailOptions } from '@/features/programs/api/queries';
 import {
   EMPTY_PROGRAM_FORM,
-  isDuplicateCode,
+  PROGRAM_FIELD_ERRORS,
   type ProgramFormValues,
   programFormSchema,
   toProgramBody,
@@ -43,8 +42,10 @@ import { programName } from '@/features/reference-data/lib/programs';
 import type { Program } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { isNotFound } from '@/lib/http';
 import { queryKeys, userProgramsKey } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const NO_PROGRAMS: Program[] = [];
 
@@ -180,7 +181,8 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
       void queryClient.invalidateQueries({ queryKey: userProgramsKey() });
     },
     onError: (error, values) => {
-      if (!isDuplicateCode(error)) return;
+      reportApiError(error);
+      if (!fieldErrorFor(error, PROGRAM_FIELD_ERRORS)) return;
       setRefused((taken) => [...taken, values.code]);
     },
   });
@@ -206,9 +208,9 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
-          {save.isError && !isDuplicateCode(save.error) && (
+          {save.isError && !fieldErrorFor(save.error, PROGRAM_FIELD_ERRORS) && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('programs.form.save-error')}
+              description={apiErrorText(save.error, 'programs.form.save-error', t, { write: true })}
               title={t('programs.form.save-error-title')}
             />
           )}

@@ -2651,7 +2651,8 @@ it.each(['submit', 'authorize', 'delete'] as const)(
         }),
       );
     } else await confirmAction(kind);
-    await screen.findByText('Action refused by server');
+    await screen.findByText('requisitions.edit.error-description');
+    expect(screen.queryByText('Action refused by server')).not.toBeInTheDocument();
     expect(put).toHaveBeenCalledTimes(kind === 'delete' ? 0 : 1);
     expect(success).not.toHaveBeenCalled();
     queryClient.clear();

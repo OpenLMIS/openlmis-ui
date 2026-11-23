@@ -339,7 +339,16 @@ it('clears every mark of a row when it is unticked', async () => {
 });
 it.each([
   new Error('No response'),
-  { isAxiosError: true, response: { status: 400, data: { message: 'Server refused reversal' } } },
+  {
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: {
+        messageKey: 'stockmanagement.error.event.cancellation.refused',
+        message: 'Server refused reversal',
+      },
+    },
+  },
   {
     isAxiosError: true,
     response: {

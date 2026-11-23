@@ -76,7 +76,7 @@ describe('ProductGeneralForm', () => {
         .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' }),
     );
     await rename('Old user draft');
-    expect(await screen.findByText('products.form.save-error-title')).toBeInTheDocument();
+    expect(screen.queryByText('products.form.save-error-title')).not.toBeInTheDocument();
     expect(saveProductChange).not.toHaveBeenCalled();
   });
 

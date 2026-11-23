@@ -20,7 +20,6 @@ import {
   FieldSkeleton,
   LookupBoundary,
   SwitchRowSkeleton,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
@@ -69,10 +68,10 @@ import {
 import {
   addProgramSchema,
   availablePrograms,
+  FACILITY_FIELD_ERRORS,
   type FacilityFormValues,
   type FacilityTab,
   facilityFormSchema,
-  isDuplicateCode,
   isManagedExternally,
   tabWithFirstError,
   toProgramRow,
@@ -89,6 +88,8 @@ import { toZoneOption } from '@/features/reference-data/lib/zone-filter';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 
 export const FACILITY_EDITOR_LOOKUPS = {
@@ -185,7 +186,8 @@ export function FacilityEditor({
       onSaved(facility);
     },
     onError: (error, values) => {
-      if (!isDuplicateCode(error)) return;
+      reportApiError(error);
+      if (!fieldErrorFor(error, FACILITY_FIELD_ERRORS)) return;
       setRefused((codes) => [...codes, values.code]);
       onTabChange('information');
     },
@@ -238,9 +240,11 @@ export function FacilityEditor({
                 <AlertDescription>{t('facilities.form.managed-externally')}</AlertDescription>
               </Alert>
             )}
-            {mutation.isError && !isDuplicateCode(mutation.error) && (
+            {mutation.isError && !fieldErrorFor(mutation.error, FACILITY_FIELD_ERRORS) && (
               <ErrorAlert
-                description={serverMessage(mutation.error) ?? t('facilities.form.save-error')}
+                description={apiErrorText(mutation.error, 'facilities.form.save-error', t, {
+                  write: true,
+                })}
                 title={t('facilities.form.save-error-title')}
               />
             )}

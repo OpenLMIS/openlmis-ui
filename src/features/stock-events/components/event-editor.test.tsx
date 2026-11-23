@@ -1119,47 +1119,50 @@ describe('EventEditor', () => {
     expect(drafts).toHaveLength(1);
     expect(drafts[0].state).toBe('editing');
   });
-  it.each([httpError(400, { message: 'Stock changed' }), networkError()])(
-    'keeps lines after submit failure without retrying',
-    async (error) => {
-      vi.mocked(submitStockEvent).mockRejectedValueOnce(error);
-      const { user, onSubmitted } = onlineUnpackSetup();
-      await validUnpackLine(user);
+  it.each([
+    httpError(400, {
+      messageKey: 'stockmanagement.error.event.stockChanged',
+      message: 'Stock changed',
+    }),
+    networkError(),
+  ])('keeps lines after submit failure without retrying', async (error) => {
+    vi.mocked(submitStockEvent).mockRejectedValueOnce(error);
+    const { user, onSubmitted } = onlineUnpackSetup();
+    await validUnpackLine(user);
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      error.response
+        ? 'Stock changed'
+        : 'Check the stock card before submitting again. The server may already have recorded this stock event.',
+    );
+    await user.click(screen.getByRole('button', { name: /^Close$/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toHaveFocus());
+    expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
+    if (error.response) expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    else
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Check the stock card before submitting again. The server may already have recorded this stock event.',
+      );
+    expect(submitStockEvent).toHaveBeenCalledOnce();
+    expect(onSubmitted).not.toHaveBeenCalled();
+    if (!error.response) {
+      let finish!: (id: string) => void;
+      vi.mocked(submitStockEvent).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
       await user.click(screen.getByRole('button', { name: 'Submit' }));
       await user.click(await screen.findByRole('button', { name: 'Confirm' }));
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-        error.response
-          ? 'Stock changed'
-          : 'Check the stock card before submitting again. The server may already have recorded this stock event.',
-      );
-      await user.click(screen.getByRole('button', { name: /^Close$/ }));
-      await waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toHaveFocus());
-      expect(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ })).toHaveValue('17');
-      if (error.response) expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-      else
-        expect(screen.getByRole('alert')).toHaveTextContent(
-          'Check the stock card before submitting again. The server may already have recorded this stock event.',
-        );
-      expect(submitStockEvent).toHaveBeenCalledOnce();
-      expect(onSubmitted).not.toHaveBeenCalled();
-      if (!error.response) {
-        let finish!: (id: string) => void;
-        vi.mocked(submitStockEvent).mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              finish = resolve;
-            }),
-        );
-        await user.click(screen.getByRole('button', { name: 'Submit' }));
-        await user.click(await screen.findByRole('button', { name: 'Confirm' }));
-        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-        await waitFor(() => expect(finish).toBeTypeOf('function'));
-        await act(async () => finish('event'));
-        await waitFor(() => expect(onSubmitted).toHaveBeenCalledOnce());
-      }
-    },
-  );
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await waitFor(() => expect(finish).toBeTypeOf('function'));
+      await act(async () => finish('event'));
+      await waitFor(() => expect(onSubmitted).toHaveBeenCalledOnce());
+    }
+  });
   it('adds a scanned product, counts its next scan and reveals it without changing focus', async () => {
     const { user } = setup();
     await filter(user, 'missing');
@@ -2606,7 +2609,9 @@ describe('Unpack editor', () => {
       await user.click(submit());
       const dialog = await screen.findByRole('alertdialog');
       expect(dialog).toHaveTextContent(
-        error.response ? 'Cannot read kits' : en['stock-unpack.refresh-offline'],
+        error.response
+          ? en['stock-unpack.submit-error-description']
+          : en['stock-unpack.refresh-offline'],
       );
       expect(dialog).not.toHaveTextContent(en['stock-events.unknown-outcome-description']);
       await user.click(screen.getByRole('button', { name: 'Close' }));

@@ -4,7 +4,6 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
-import { serverMessage } from '@/components/display/dialog-parts';
 import {
   Workspace,
   WorkspaceContent,
@@ -108,7 +107,7 @@ function GeographicZonesPage() {
           <QueryBoundary
             errorComponent={({ error, reset }) => (
               <ListError
-                description={serverMessage(error) ?? t('geographic-zones.error-description')}
+                description={t('geographic-zones.error-description')}
                 error={error}
                 reset={reset}
                 title={t('geographic-zones.error-title')}

@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Block } from '@/components/app-shell/skeleton-block';
 import { EmailStatus } from '@/components/auth/email-status';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { FieldLabelText } from '@/components/form/form-fields';
@@ -36,7 +36,9 @@ import {
 } from '@/features/reference-data/api/queries';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { userRecordKey } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 
 const FORM_ID = 'profile-form';
@@ -54,6 +56,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
   const emailVerified = contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = contact?.emailDetails?.email ?? '';
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationFn: async (values: ProfileFormValues) => {
       const changes = profileChanges(startingValues, values);
       let confirmedNames: Pick<UserRecord, 'firstName' | 'lastName'> | undefined;
@@ -187,7 +190,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
       >
         {save.isError && (
           <ErrorAlert
-            description={serverMessage(save.error) ?? t('users.form.save-error')}
+            description={apiErrorText(save.error, 'users.form.save-error', t, { write: true })}
             title={t('profile.save-error-title')}
           />
         )}
@@ -352,9 +355,9 @@ function PendingEmail({ userId }: { userId: string }) {
       });
     },
     onError: (error) => {
-      toast.error(t('profile.email.resend-error-title'), {
-        description: serverMessage(error) ?? t('users.form.save-error'),
-      });
+      reportApiError(error);
+      const description = apiErrorText(error, 'users.form.save-error', t, { write: true });
+      if (description !== null) toast.error(t('profile.email.resend-error-title'), { description });
     },
   });
 

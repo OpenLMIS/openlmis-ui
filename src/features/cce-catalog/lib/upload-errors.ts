@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios';
 import type { TFunction } from 'i18next';
-import { serverMessage, serverMessageKey } from '@/components/display/dialog-parts';
+import { serverMessage, serverMessageKey } from '@/lib/api-error';
 
 type InvalidValueKind = 'energy-source' | 'storage-temperature' | 'dimensions' | 'integer';
 

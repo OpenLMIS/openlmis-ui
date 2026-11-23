@@ -12,7 +12,6 @@ import {
   ErrorAlert,
   FieldSkeleton,
   SwitchRowSkeleton,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -55,8 +54,10 @@ import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import type { SearchChange } from '@/lib/table-search';
 
 const saveKey = (id: string) => [...queryKeys.processingPeriods.all, 'save', id] as const;
@@ -168,7 +169,8 @@ function PeriodForm({
       void queryClient.invalidateQueries({ queryKey: queryKeys.processingSchedules.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.processingPeriods.all });
     },
-    onError: async () => {
+    onError: async (error) => {
+      reportApiError(error);
       const refreshed = await refetch();
       if (!save.isCurrent()) return;
       const end = refreshed.data?.content[0]?.endDate;
@@ -201,7 +203,9 @@ function PeriodForm({
           <FieldGroup>
             {save.isError && (
               <ErrorAlert
-                description={serverMessage(save.error) ?? t('processing-schedules.save-error')}
+                description={apiErrorText(save.error, 'processing-schedules.save-error', t, {
+                  write: true,
+                })}
                 title={t('processing-schedules.period-form.save-error-title')}
               />
             )}

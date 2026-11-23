@@ -3,12 +3,7 @@ import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  ErrorAlert,
-  RetryButton,
-  SkeletonLine,
-  serverMessage,
-} from '@/components/display/dialog-parts';
+import { ErrorAlert, RetryButton, SkeletonLine } from '@/components/display/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -28,6 +23,8 @@ import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
+import { reportApiError } from '@/lib/report-error';
 
 type RemoveApprovalDialogProps = {
   product: ProductDetail;
@@ -48,6 +45,7 @@ export function RemoveApprovalDialog({
   const approvals = useQuery(productApprovalsOptions(product.id));
   const cancelRef = useRef<HTMLButtonElement>(null);
   const remove = useSessionMutation({
+    onError: reportApiError,
     mutationFn: (removed: Approval) => removeApproval(removed.id),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: productApprovalsOptions(product.id).queryKey }),
@@ -105,7 +103,7 @@ export function RemoveApprovalDialog({
         </AlertDialogHeader>
         {remove.isError && (
           <ErrorAlert
-            description={serverMessage(remove.error) ?? t('products.form.save-error')}
+            description={apiErrorText(remove.error, 'products.form.save-error', t, { write: true })}
             title={t('products.approvals.remove-error-title')}
           />
         )}

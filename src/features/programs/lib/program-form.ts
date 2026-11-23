@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { ProgramBody } from '@/features/programs/lib/types';
@@ -66,9 +65,6 @@ export function toProgramBody(values: ProgramFormValues, saved?: Program): Progr
   };
 }
 
-export function isDuplicateCode(error: unknown) {
-  return (
-    isAxiosError<{ messageKey?: string }>(error) &&
-    error.response?.data?.messageKey === 'referenceData.error.program.code.duplicated'
-  );
-}
+export const PROGRAM_FIELD_ERRORS = {
+  'referenceData.error.program.code.duplicated': { field: 'code', key: 'programs.form.code-taken' },
+} as const;

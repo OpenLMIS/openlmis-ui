@@ -83,7 +83,7 @@ it.each([false, true])(
     vi.mocked(fetchShipmentSummaries).mockRejectedValue(
       new AxiosError('Forbidden', undefined, undefined, undefined, {
         status: 403,
-        data: { message },
+        data: { messageKey: 'stockmanagement.error.permission.missing', message },
       } as never),
     );
     const client = new QueryClient({

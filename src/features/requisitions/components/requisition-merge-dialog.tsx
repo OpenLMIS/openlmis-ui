@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { formatDateValue } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -18,7 +17,9 @@ import { FieldGroup } from '@/components/ui/field';
 import type { DraftFieldConflict } from '@/features/requisitions/lib/draft-merge';
 import { patientRowLabel } from '@/features/requisitions/lib/patients';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import { apiErrorText } from '@/lib/api-error';
 import { EMPTY_VALUE } from '@/lib/empty-value';
+import { reportApiError } from '@/lib/report-error';
 
 export function RequisitionMergeDialog({
   conflicts,
@@ -49,7 +50,8 @@ export function RequisitionMergeDialog({
           ),
         );
       } catch (error) {
-        setFailure(serverMessage(error) ?? t('error.description'));
+        reportApiError(error);
+        setFailure(apiErrorText(error, 'error.description', t, { write: true }));
       } finally {
         setPending(false);
       }

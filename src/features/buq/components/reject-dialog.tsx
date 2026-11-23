@@ -3,12 +3,7 @@ import { useIsMutating, useSuspenseQuery } from '@tanstack/react-query';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
-import {
-  DialogLoadError,
-  ErrorAlert,
-  FieldSkeleton,
-  serverMessage,
-} from '@/components/display/dialog-parts';
+import { DialogLoadError, ErrorAlert, FieldSkeleton } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -33,7 +28,9 @@ import {
 import type { BuqForecast } from '@/features/buq/lib/types';
 import { rejectionReasonsOptions } from '@/features/reference-data/api/queries';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 type RejectHandlers = {
   ensureStillOpen: () => Promise<void>;
@@ -132,7 +129,10 @@ function RejectForm({
       return rejectBuqForecast(forecastId, values);
     },
     onSuccess: onRejected,
-    onError: onFailed,
+    onError: (error) => {
+      reportApiError(error);
+      if (!isSilentApiError(error)) onFailed?.();
+    },
   });
   const form = useAppForm({
     defaultValues: EMPTY,
@@ -149,7 +149,7 @@ function RejectForm({
             description={
               reject.error instanceof BuqMovedError
                 ? t('buq.forecast.moved')
-                : (serverMessage(reject.error) ?? t('buq.approve.reject-error'))
+                : apiErrorText(reject.error, 'buq.approve.reject-error', t, { write: true })
             }
             title={t('buq.approve.reject-error-title')}
           />

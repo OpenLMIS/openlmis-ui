@@ -59,7 +59,10 @@ it.each(['false', 'true', 'rejected'] as const)(
       response.reject(
         new AxiosError('Denied', undefined, undefined, undefined, {
           status: 400,
-          data: { message: 'Cannot transfer this order' },
+          data: {
+            messageKey: 'fulfillment.error.orderRetry.invalidStatus',
+            message: 'Cannot transfer this order',
+          },
         } as never),
       );
     else response.resolve({ result: outcome === 'true' });

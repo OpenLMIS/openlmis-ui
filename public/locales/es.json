@@ -1,4 +1,13 @@
 {
+  "api-error.fulfillment.error.proofOfDelivery.alreadyConfirmed": "Este comprobante de entrega ya se ha confirmado.",
+  "api-error.fulfillment.error.shipment.order.duplicate": "Ya existe un envío para este pedido.",
+  "api-error.fulfillment.error.shipmentDraft.order.duplicate": "Ya existe un borrador de envío para este pedido.",
+  "api-error.notification.error.userContactDetails.email.duplicated": "Otro usuario ya utiliza esta dirección de correo electrónico.",
+  "api-error.referenceData.error.user.username.duplicated": "Otro usuario ya utiliza este nombre de usuario.",
+  "api-error.stockmanagement.error.event.cannot.unpack.when.extra.constituents.credited": "No se pudo desarmar el kit porque se añadieron componentes adicionales al inventario.",
+  "api-error.stockmanagement.error.physicalInventory.isSubmitted": "Este inventario físico ya se ha enviado y no se puede modificar.",
+  "api-error.timeout-read": "El servidor tardó demasiado en responder. Vuelve a intentarlo.",
+  "api-error.timeout-write": "El servidor no respondió a tiempo. Es posible que el cambio se haya guardado. Recarga la página antes de volver a intentarlo.",
   "auth.login-error": "Compruebe su nombre de usuario y contraseña e inténtelo de nuevo.",
   "auth.login-error-title": "No se pudo iniciar sesión",
   "auth.login-success": "Bienvenido de nuevo, {username}.",

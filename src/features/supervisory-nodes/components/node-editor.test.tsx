@@ -208,7 +208,12 @@ describe('supervisory node editor', () => {
   });
 
   it('keeps the draft and location when saving fails and shows the server message', async () => {
-    vi.mocked(client.put).mockRejectedValue(httpError(400, { message: 'Code already exists' }));
+    vi.mocked(client.put).mockRejectedValue(
+      httpError(400, {
+        messageKey: 'referenceData.error.supervisoryNode.code.mustBeUnique',
+        message: 'Code already exists',
+      }),
+    );
     const { user, router, onSaved } = renderEditor();
     const name = await screen.findByRole('textbox', { name: /^Supervisory Node Name/ });
     await user.clear(name);

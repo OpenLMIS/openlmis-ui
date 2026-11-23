@@ -4,7 +4,7 @@ import { WifiOffIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import {
   FormDialog,
@@ -57,13 +57,14 @@ import type {
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isApiTimeout, isSilentApiError } from '@/lib/api-error';
 import { DraftConflictError } from '@/lib/draft-store';
 import { isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
-import { reportCaughtError } from '@/lib/report-error';
+import { reportApiError, reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 class UnknownSubmit extends Error {}
@@ -257,7 +258,8 @@ export function InventoryActions(props: Props) {
             inventorySubmitPayload(props.draft, prepared, action.occurredDate, action.signature),
           );
         } catch (error) {
-          if (isAxiosError(error) && !error.response) throw new UnknownSubmit();
+          if (isAxiosError(error) && !error.response && !isSilentApiError(error))
+            throw new UnknownSubmit();
           throw error;
         }
       }
@@ -305,7 +307,19 @@ export function InventoryActions(props: Props) {
       next = await mutation.mutateAsync(action);
     } catch (error) {
       if (!mutation.isCurrent()) return;
-      if (!(error instanceof UnknownSubmit) && (isOfflineError(error) || !isOnline())) {
+      const cause = error instanceof InventoryLotError ? error.cause : error;
+      if (isSilentApiError(cause)) {
+        setDialog(null);
+        props.onBusy(false);
+        posting.current = false;
+        return;
+      }
+      reportApiError(cause);
+      if (
+        !(error instanceof UnknownSubmit) &&
+        !isApiTimeout(error) &&
+        (isOfflineError(error) || !isOnline())
+      ) {
         if (action.type === 'submit') showOffline();
         else
           toast.error(t(ACTION_KEYS[action.type].errorTitle), {
@@ -316,7 +330,9 @@ export function InventoryActions(props: Props) {
         posting.current = false;
         return;
       }
-      let description = serverMessage(error) ?? t(ACTION_KEYS[action.type].errorDescription);
+      let description = apiErrorText(error, ACTION_KEYS[action.type].errorDescription, t, {
+        write: true,
+      });
       if (error instanceof InventoryOrphaned)
         description = t(
           error.keptCounts
@@ -331,20 +347,23 @@ export function InventoryActions(props: Props) {
               ? t('physical-inventory.lot-trade-item-error', { codes: error.codes.join(', ') })
               : t('physical-inventory.lot-error', {
                   codes: error.codes.join(', '),
-                  message: serverMessage(error.cause) ?? description,
+                  message: apiErrorText(cause, ACTION_KEYS[action.type].errorDescription, t, {
+                    write: true,
+                  }),
                 });
       if (error instanceof UnknownSubmit) {
         setUnknown(true);
         description = t('physical-inventory.unknown-outcome-description');
       }
-      showFailure({
-        title: t(
-          error instanceof UnknownSubmit
-            ? 'stock-events.unknown-outcome-title'
-            : ACTION_KEYS[action.type].errorTitle,
-        ),
-        description,
-      });
+      if (description !== null)
+        showFailure({
+          title: t(
+            error instanceof UnknownSubmit
+              ? 'stock-events.unknown-outcome-title'
+              : ACTION_KEYS[action.type].errorTitle,
+          ),
+          description,
+        });
       setDialog(null);
       props.onBusy(false);
       posting.current = false;

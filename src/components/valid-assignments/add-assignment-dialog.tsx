@@ -4,7 +4,7 @@ import { BuildingIcon, UsersIcon } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, LookupBoundary, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert, LookupBoundary } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ComboboxField, SelectField } from '@/components/form/form-fields';
 import {
@@ -38,6 +38,8 @@ import {
 import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import { programName } from '@/features/reference-data/lib/programs';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
+import { reportApiError } from '@/lib/report-error';
 
 type AddAssignmentDialogProps = {
   api: AssignmentsApi;
@@ -88,6 +90,7 @@ function AddAssignmentForm({
   const queryClient = useQueryClient();
 
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationKey: saveKey(api),
     mutationFn: (values: AssignmentFormValues) => api.create(toAssignmentBody(values)),
     onSuccess: ({ assignment, created }) => {
@@ -137,7 +140,9 @@ function AddAssignmentForm({
         <FieldGroup>
           {save.isError && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('valid-assignments.form.save-error')}
+              description={apiErrorText(save.error, 'valid-assignments.form.save-error', t, {
+                write: true,
+              })}
               title={t('valid-assignments.form.save-error-title')}
             />
           )}

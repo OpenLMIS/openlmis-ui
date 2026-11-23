@@ -1,16 +1,18 @@
 import { isAxiosError } from 'axios';
-import { serverMessage } from '@/components/display/dialog-parts';
+import type { ParseKeys } from 'i18next';
+import { apiErrorText, apiFieldMessages, keyedApiErrorText } from '@/lib/api-error';
 
 export class RequisitionRetryConflict extends Error {}
 export class ApprovalInProgress extends Error {}
 export type RequisitionFailure =
-  | { kind: 'server'; message?: string }
+  | { kind: 'server'; message: string }
+  | { kind: 'request'; error: unknown; write: boolean }
   | { kind: 'reconciling' }
   | { kind: 'forbidden' }
   | { kind: 'conflict' }
   | { kind: 'key-used' };
 
-export function toRequisitionFailure(error: unknown): RequisitionFailure {
+export function toRequisitionFailure(error: unknown, write = true): RequisitionFailure {
   if (error instanceof ApprovalInProgress) return { kind: 'server', message: error.message };
   const status = isAxiosError(error) ? error.response?.status : undefined;
   if (status === 409) {
@@ -22,18 +24,20 @@ export function toRequisitionFailure(error: unknown): RequisitionFailure {
   }
   if (error instanceof RequisitionRetryConflict) return { kind: 'conflict' };
   if (status === 403) return { kind: 'forbidden' };
-  const fields =
-    status === 400 && isAxiosError(error)
-      ? Object.values(error.response?.data ?? {})
-          .flatMap((value) =>
-            value &&
-            typeof value === 'object' &&
-            'message' in value &&
-            typeof value.message === 'string'
-              ? [value.message]
-              : [],
-          )
-          .join('\n')
-      : '';
-  return { kind: 'server', message: serverMessage(error) || fields || undefined };
+  return { kind: 'request', error, write };
+}
+
+export function requisitionFailureText(
+  failure: Extract<RequisitionFailure, { kind: 'server' | 'request' }>,
+  fallback: ParseKeys,
+  t: (key: ParseKeys) => string,
+) {
+  if (failure.kind === 'server') return failure.message;
+  const { error, write } = failure;
+  const description = apiErrorText(error, fallback, t, { write });
+  if (description === null) return null;
+  const fields = apiFieldMessages(error)
+    .map(({ key, message }) => keyedApiErrorText(key, message, t))
+    .filter(Boolean);
+  return fields.length ? fields.join('\n') : description;
 }

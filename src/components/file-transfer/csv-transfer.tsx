@@ -17,6 +17,7 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { csvFileSchema } from '@/lib/csv-upload';
 import { downloadFile } from '@/lib/download-file';
+import { reportApiError } from '@/lib/report-error';
 
 type CsvTransferProps = {
   api: CsvTransferApi;
@@ -28,15 +29,21 @@ type CsvTransferProps = {
 export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps) {
   const { t, i18n } = useTranslation();
   const errorId = useId();
-  const errorMessage = (error: unknown, fallback: string) =>
-    transferErrorMessage(error, {
-      fallback,
-      emptyFile: t('file-transfer.file-empty'),
-      tooLarge: t('file-transfer.file-too-large'),
-      emptyFileKeys: api.emptyFileKeys,
-    });
+  const errorMessage = (error: unknown, fallback: string, write: boolean) =>
+    transferErrorMessage(
+      error,
+      {
+        fallback,
+        emptyFile: t('file-transfer.file-empty'),
+        tooLarge: t('file-transfer.file-too-large'),
+        emptyFileKeys: api.emptyFileKeys,
+      },
+      t,
+      write,
+    );
   const upload = useSessionMutation({
     mutationFn: api.uploadCsv,
+    onError: reportApiError,
     retry: false,
     networkMode: 'always',
     onSuccess: ({ amount }) => {
@@ -50,9 +57,9 @@ export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps
     mutationFn: api.exportCsv,
     onSuccess: (blob) => downloadFile(blob, api.exportFilename),
     onError: (error) => {
-      toast.error(t('file-transfer.export-error-title'), {
-        description: errorMessage(error, t('file-transfer.export-error')),
-      });
+      reportApiError(error);
+      const description = errorMessage(error, t('file-transfer.export-error'), false);
+      if (description !== null) toast.error(t('file-transfer.export-error-title'), { description });
     },
   });
   const form = useAppForm({
@@ -67,6 +74,7 @@ export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps
   const selected = useStore(form.store, (state) => Boolean(state.values.file));
   const submitting = useStore(form.store, (state) => state.isSubmitting);
   const pending = submitting || upload.isPending;
+  const uploadError = upload.isError ? errorMessage(upload.error, copy.uploadError, true) : null;
   const guard = useDiscardGuard(selected, { pending });
 
   return (
@@ -112,7 +120,7 @@ export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps
                     {(field) => (
                       <field.FileField
                         accept=".csv"
-                        describedBy={upload.isError ? errorId : undefined}
+                        describedBy={uploadError !== null ? errorId : undefined}
                         disabled={pending}
                         emptyLabel={t('file-transfer.no-file')}
                         fileSize={
@@ -126,13 +134,13 @@ export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps
                       />
                     )}
                   </form.AppField>
-                  {upload.isError && (
+                  {uploadError !== null && (
                     <div id={errorId}>
                       <ErrorAlert
                         description={
                           <UploadErrorText
                             explanation={describeUploadError?.(upload.error)}
-                            message={errorMessage(upload.error, copy.uploadError)}
+                            message={uploadError}
                           />
                         }
                         title={t('file-transfer.upload-error-title')}

@@ -15,7 +15,6 @@ import {
   ErrorAlert,
   FieldSkeleton,
   SkeletonLine,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { SettingsItem, SettingsList } from '@/components/form/settings-list';
@@ -46,9 +45,11 @@ import { geographicLevelsOptions } from '@/features/reference-data/api/queries';
 import type { GeographicLevel, GeographicZone } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { orEmpty } from '@/lib/empty-value';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import type { Page } from '@/lib/types';
 
 const saveKey = (id: string) => [...queryKeys.geographicZones.all, 'save', id] as const;
@@ -205,6 +206,7 @@ function ZoneEditForm({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationKey: saveKey(zone.id),
     mutationFn: (values: ZoneFormValues) => {
       if (!geographicZonePolicy(zone, levels, automatic)?.editable)
@@ -253,9 +255,9 @@ function ZoneEditForm({
         <div className="flex flex-col gap-4">
           {save.isError && (
             <ErrorAlert
-              description={
-                serverMessage(save.error) ?? t('geographic-zones.save-error-description')
-              }
+              description={apiErrorText(save.error, 'geographic-zones.save-error-description', t, {
+                write: true,
+              })}
               title={t('geographic-zones.save-error-title')}
             />
           )}

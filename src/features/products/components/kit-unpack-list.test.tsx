@@ -136,7 +136,12 @@ describe('KitUnpackList', () => {
   });
 
   it('says why a save failed and keeps the quantities typed', async () => {
-    updateProduct.mockRejectedValueOnce(httpError(400, { message: 'Refused by the server' }));
+    updateProduct.mockRejectedValueOnce(
+      httpError(400, {
+        messageKey: 'referenceData.error.orderable.refused',
+        message: 'Refused by the server',
+      }),
+    );
     const onDone = vi.fn();
     renderPage(<Kit onDone={onDone} />);
     const user = userEvent.setup();

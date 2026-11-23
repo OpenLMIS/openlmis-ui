@@ -4,7 +4,7 @@ import { Loader2Icon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,8 @@ import { ProductFormFields } from '@/features/products/components/product-form-f
 import { productSaveKey } from '@/features/products/hooks/use-product-save';
 import {
   hasProductChanges,
-  isDuplicateCode,
   needsDispensingUnit,
+  PRODUCT_FIELD_ERRORS,
   type ProductFormValues,
   productFormSchema,
   toProductFormValues,
@@ -27,7 +27,9 @@ import type { ProductDetail } from '@/features/products/lib/types';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const FORM_ID = 'product-general-form';
 
@@ -62,10 +64,12 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
       });
     },
     onError: (error, values) => {
-      if (isDuplicateCode(error)) setRefusedCodes((codes) => [...codes, values.productCode]);
+      reportApiError(error);
+      if (fieldErrorFor(error, PRODUCT_FIELD_ERRORS))
+        setRefusedCodes((codes) => [...codes, values.productCode]);
     },
   });
-  const codeRefused = isDuplicateCode(save.error);
+  const codeRefused = fieldErrorFor(save.error, PRODUCT_FIELD_ERRORS);
 
   const form = useAppForm({
     defaultValues: toProductFormValues(product),
@@ -104,7 +108,7 @@ export function ProductGeneralForm({ product, readOnly, onDone }: ProductGeneral
         <FieldGroup>
           {save.isError && !codeRefused && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('products.form.save-error')}
+              description={apiErrorText(save.error, 'products.form.save-error', t, { write: true })}
               title={t('products.form.save-error-title')}
             />
           )}

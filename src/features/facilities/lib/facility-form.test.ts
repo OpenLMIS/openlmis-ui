@@ -1,4 +1,3 @@
-import { AxiosError, AxiosHeaders } from 'axios';
 import { describe, expect, it } from 'vitest';
 import {
   addProgramSchema,
@@ -6,7 +5,6 @@ import {
   EMPTY_FACILITY_FORM,
   type FacilityFormValues,
   facilityFormSchema,
-  isDuplicateCode,
   isManagedExternally,
   tabWithFirstError,
   toFacilityBody,
@@ -139,22 +137,6 @@ describe('tabWithFirstError', () => {
     expect(tabWithFirstError(['programs[0].supportStartDate', 'code'])).toBe('information');
     expect(tabWithFirstError(['programs[0].supportStartDate'])).toBe('programs');
     expect(tabWithFirstError([])).toBeUndefined();
-  });
-});
-
-describe('isDuplicateCode', () => {
-  it('recognises the server refusing a code in use', () => {
-    const refusal = (messageKey: string) =>
-      new AxiosError('Bad Request', '400', undefined, undefined, {
-        status: 400,
-        statusText: 'Bad Request',
-        headers: {},
-        config: { headers: new AxiosHeaders() },
-        data: { messageKey },
-      });
-    expect(isDuplicateCode(refusal('referenceData.error.facility.code.mustBeUnique'))).toBe(true);
-    expect(isDuplicateCode(refusal('referenceData.error.facility.code.required'))).toBe(false);
-    expect(isDuplicateCode(new Error('offline'))).toBe(false);
   });
 });
 

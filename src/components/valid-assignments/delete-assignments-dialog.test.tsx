@@ -66,7 +66,12 @@ beforeEach(() => {
 
 describe('DeleteAssignmentsDialog', () => {
   it("shows the server's reason when it refuses every delete", async () => {
-    remove.mockRejectedValue(httpError(403, { message: 'You do not have the right.' }));
+    remove.mockRejectedValue(
+      httpError(403, {
+        messageKey: 'stockmanagement.error.permission.missing',
+        message: 'You do not have the right.',
+      }),
+    );
     renderPage(<Harness onDeleted={vi.fn()} />);
 
     await confirmDelete();

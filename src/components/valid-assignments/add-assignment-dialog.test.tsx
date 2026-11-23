@@ -169,7 +169,10 @@ describe('AddAssignmentDialog', () => {
   it('shows the server message when it refuses, and stays open', async () => {
     const onClose = vi.fn();
     create.mockRejectedValueOnce(
-      httpError(400, { message: 'Program with ID p1 can not be found' }),
+      httpError(400, {
+        messageKey: 'stockmanagement.error.program.notFound',
+        message: 'Program with ID p1 can not be found',
+      }),
     );
     renderPage(<AddAssignmentDialog api={api} canPickOrganizations onClose={onClose} open />);
 

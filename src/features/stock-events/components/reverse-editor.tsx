@@ -45,7 +45,6 @@ import {
   CardSelectBand,
   SkeletonBar,
 } from '@/components/display/card-list';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
 import { formatDateValue } from '@/components/form/date-value';
@@ -107,10 +106,12 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { namedWithFreeText } from '@/lib/stock-labels';
 import { type SearchChange, type TableSearch, useTableSearchState } from '@/lib/table-search';
@@ -332,6 +333,10 @@ export function ReverseEditor({
       setSummary({ lines: saved, unavailable });
     } catch (error) {
       if (!mutation.isCurrent()) return;
+      setSignatureOpen(false);
+      setConfirmOpen(false);
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
       const lineErrors: StockEventCancelLineError[] | undefined =
         isAxiosError<StockEventCancelError>(error) && error.response?.status === 400
           ? error.response.data?.lineErrors
@@ -350,9 +355,10 @@ export function ReverseEditor({
           const invalidPage = Math.floor(rows.indexOf(first) / size) + 1;
           alertTarget.current = { id: `reverse-${first.id}`, page: invalidPage };
         }
-      } else setFailure(serverMessage(error) ?? t('stock-event-reverse.failed-description'));
-      setSignatureOpen(false);
-      setConfirmOpen(false);
+      } else
+        setFailure(
+          apiErrorText(error, 'stock-event-reverse.failed-description', t, { write: true }),
+        );
     } finally {
       posting.current = false;
     }

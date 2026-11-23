@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { FacilityTypeBody } from '@/features/facility-types/lib/types';
@@ -74,13 +73,13 @@ export function toFacilityTypeBody(
   };
 }
 
-const DUPLICATE_KEYS: Record<string, 'code' | 'name'> = {
-  'referenceData.error.facilityType.code.duplicated': 'code',
-  'referenceData.error.facilityType.name.duplicated': 'name',
-};
-
-export function duplicateField(error: unknown) {
-  if (!isAxiosError<{ messageKey?: string }>(error)) return undefined;
-  const key = error.response?.data?.messageKey;
-  return key ? DUPLICATE_KEYS[key] : undefined;
-}
+export const FACILITY_TYPE_FIELD_ERRORS = {
+  'referenceData.error.facilityType.code.duplicated': {
+    field: 'code',
+    key: 'facility-types.form.code-taken',
+  },
+  'referenceData.error.facilityType.name.duplicated': {
+    field: 'name',
+    key: 'facility-types.form.name-taken',
+  },
+} as const;

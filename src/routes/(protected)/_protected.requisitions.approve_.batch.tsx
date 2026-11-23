@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { DataTableEmpty } from '@/components/data-table/data-table';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { DraftStatus, DraftStatusSkeleton } from '@/components/display/draft-status';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
@@ -94,9 +93,11 @@ import {
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
 import { onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { RIGHTS } from '@/lib/rights';
 import { isSecureOrigin } from '@/lib/secure-context';
@@ -350,7 +351,9 @@ function BatchPage() {
   const [reasons, setReasons] = useState(new Map<string, BatchReason>());
   const [action, setAction] = useState<Action | null>(null);
   const [target, setTarget] = useState<string[]>([]);
-  const [dialog, setDialog] = useState<string | Map<string, string> | null>(() =>
+  const [dialog, setDialog] = useState<
+    string | Map<string, string> | { error: unknown; write: boolean } | null
+  >(() =>
     loaded.removed.size
       ? [...loaded.removed.values()]
           .map((label) =>
@@ -744,12 +747,16 @@ function BatchPage() {
           }
         } catch (error) {
           assertSessionScope(scope);
+          if (isSilentApiError(error)) throw error;
+          reportApiError(error);
           const uncertain = !isAxiosError(error) || !error.response || error.response.status >= 500;
           if (!uncertain) {
             await drafts.mark(saved, false);
           }
-          for (const id of saved)
-            failures.set(id, uncertain ? 'requisitions.batch.uncertain' : errorMessage(error));
+          const message = uncertain
+            ? 'requisitions.batch.uncertain'
+            : apiErrorText(error, 'error.description', t, { write: true });
+          if (message !== null) for (const id of saved) failures.set(id, message);
           try {
             const latest = await refresh();
             await retireUnavailable(latest);
@@ -798,6 +805,8 @@ function BatchPage() {
       assertSessionScope(scope);
     },
     onError: (error, kind) => {
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
       if (kind === 'approve' && leaving.current) {
         toast.warning(t('requisitions.offline.unavailable-label'), {
           description: t('requisitions.offline.unavailable-description'),
@@ -805,9 +814,7 @@ function BatchPage() {
         return;
       }
       setDialogCount(1);
-      setDialog(
-        ids.reduce((message, id) => message.replaceAll(id, recordLabel(id)), errorMessage(error)),
-      );
+      setDialog({ error, write: kind !== 'check' });
     },
     onSettled: (_data, _error, kind) => {
       if (kind === 'approve' && leaving.current) return;
@@ -820,6 +827,10 @@ function BatchPage() {
     busy.current = true;
     mutation.mutate(kind);
   };
+  const requestFailure =
+    dialog && typeof dialog === 'object' && !(dialog instanceof Map)
+      ? apiErrorText(dialog.error, 'error.description', t, { write: dialog.write })
+      : null;
   const pending = mutation.isPending;
   const recoveryRecords = pending ? [] : unresolved;
   const guard = useDiscardGuard(dirty, {
@@ -1109,7 +1120,13 @@ function BatchPage() {
                     });
                   })
                   .join('\n')
-              : dialog && batchReasonText(batchReason(dialog), t)}
+              : typeof dialog === 'string'
+                ? batchReasonText(batchReason(dialog), t)
+                : requestFailure &&
+                  ids.reduce(
+                    (message, id) => message.replaceAll(id, recordLabel(id)),
+                    requestFailure,
+                  )}
           </span>
         }
         closeLabel={t('dialog.close')}
@@ -1127,9 +1144,4 @@ function BatchPage() {
       />
     </RequisitionCopyContext>
   );
-}
-function errorMessage(error: unknown) {
-  if (isAxiosError(error) && error.code === 'ECONNABORTED')
-    return 'requisitions.batch.verification-failed';
-  return serverMessage(error) ?? (error instanceof Error ? error.message : String(error));
 }

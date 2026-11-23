@@ -1,4 +1,13 @@
 {
+  "api-error.fulfillment.error.proofOfDelivery.alreadyConfirmed": "Cette preuve de livraison a déjà été confirmée.",
+  "api-error.fulfillment.error.shipment.order.duplicate": "Une expédition existe déjà pour cette commande.",
+  "api-error.fulfillment.error.shipmentDraft.order.duplicate": "Un brouillon d’expédition existe déjà pour cette commande.",
+  "api-error.notification.error.userContactDetails.email.duplicated": "Un autre utilisateur utilise déjà cette adresse e-mail.",
+  "api-error.referenceData.error.user.username.duplicated": "Un autre utilisateur utilise déjà ce nom d’utilisateur.",
+  "api-error.stockmanagement.error.event.cannot.unpack.when.extra.constituents.credited": "Le kit n’a pas pu être décomposé, car des composants supplémentaires ont été ajoutés au stock.",
+  "api-error.stockmanagement.error.physicalInventory.isSubmitted": "Cet inventaire physique a déjà été soumis et ne peut plus être modifié.",
+  "api-error.timeout-read": "Le serveur a mis trop de temps à répondre. Réessayez.",
+  "api-error.timeout-write": "Le serveur n’a pas répondu à temps. La modification a peut-être été enregistrée. Rechargez la page avant de réessayer.",
   "auth.login-error": "Vérifiez votre nom d’utilisateur et votre mot de passe, puis réessayez.",
   "auth.login-error-title": "Échec de la connexion",
   "auth.login-success": "Heureux de vous revoir, {username}.",

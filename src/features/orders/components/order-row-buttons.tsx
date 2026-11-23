@@ -12,7 +12,6 @@ import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { type CardAction, CardActions, useInCards } from '@/components/display/card-actions';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -31,10 +30,12 @@ import { loadShipmentEntry } from '@/features/orders/lib/shipment-entry';
 import type { OrderSummary } from '@/features/orders/lib/types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { downloadFile } from '@/lib/download-file';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { openReport } from '@/lib/open-report';
+import { reportApiError } from '@/lib/report-error';
 import { getSessionUserId } from '@/lib/session-scope';
 
 const RETRY_KEY = [...queryKeys.orders.all, 'retry'];
@@ -68,12 +69,18 @@ export function OrderRowButtons({
     mutationFn: () => fetchOrderCsv(order.id),
     onSuccess: ({ blob, filename }) =>
       downloadFile(blob, filename ?? `${order.orderCode ?? order.id}.csv`),
-    onError: (error) =>
-      toast.error(t('orders.download-error-title'), {
-        description: isRefused(error)
-          ? t('orders.download-refused-description')
-          : t('orders.download-error-description'),
-      }),
+    onError: (error) => {
+      reportApiError(error);
+      const description = apiErrorText(
+        error,
+        isRefused(error)
+          ? 'orders.download-refused-description'
+          : 'orders.download-error-description',
+        t,
+        { write: false, allowServerMessage: false },
+      );
+      if (description !== null) toast.error(t('orders.download-error-title'), { description });
+    },
   });
   const retry = useSessionMutation({
     mutationKey: RETRY_KEY,
@@ -93,16 +100,15 @@ export function OrderRowButtons({
         client.invalidateQueries({ queryKey: queryKeys.home.all }),
       ]);
     },
-    onError: (error) =>
-      toast.error(t('orders.retry-error-title'), {
-        description:
-          (isAxiosError(error) &&
-            error.response &&
-            error.response.status >= 400 &&
-            error.response.status < 500 &&
-            serverMessage(error)) ||
-          t('orders.retry-error-description'),
-      }),
+    onError: (error) => {
+      reportApiError(error);
+      const status = isAxiosError(error) ? error.response?.status : undefined;
+      const description = apiErrorText(error, 'orders.retry-error-description', t, {
+        write: true,
+        allowServerMessage: status !== undefined && status >= 400 && status < 500,
+      });
+      if (description !== null) toast.error(t('orders.retry-error-title'), { description });
+    },
   });
   const named = (action: string) =>
     t('orders.action-for', { action, order: order.orderCode ?? order.id });
@@ -177,6 +183,7 @@ export function FulfillOrderButton({
   const trigger = useRef<HTMLButtonElement>(null);
   const pending = useIsMutating({ mutationKey: SHIPMENT_ENTRY_KEY }) > 0;
   const entry = useSessionMutation({
+    onError: reportApiError,
     mutationKey: SHIPMENT_ENTRY_KEY,
     mutationFn: () => loadShipmentEntry(client, order.id),
     onSuccess: (shipmentEntry) =>
@@ -201,6 +208,11 @@ export function FulfillOrderButton({
   const label = t(continuing ? 'orders.continue-fulfillment' : 'orders.start-fulfillment');
   const name = t('orders.action-for', { action: label, order: order.orderCode ?? order.id });
   const refused = isRefused(entry.error);
+  const description = entry.error
+    ? apiErrorText(entry.error, refused ? 'orders.shipment.cannot-view' : 'error.description', t, {
+        write: false,
+      })
+    : null;
   return (
     <>
       {cards ? (
@@ -238,18 +250,13 @@ export function FulfillOrderButton({
         </Button>
       )}
       <InvalidSubmitDialog
-        open={!!entry.error}
+        open={description !== null}
         onOpenChange={(open) => {
           if (!open) entry.reset();
         }}
         finalFocus={trigger}
         title={t(refused ? 'orders.shipment.not-authorized' : 'orders.shipment.load-error')}
-        description={
-          <bdi>
-            {serverMessage(entry.error) ??
-              t(refused ? 'orders.shipment.cannot-view' : 'error.description')}
-          </bdi>
-        }
+        description={<bdi>{description}</bdi>}
         closeLabel={t('dialog.close')}
       />
     </>

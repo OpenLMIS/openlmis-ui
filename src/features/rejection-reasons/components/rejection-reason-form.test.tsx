@@ -70,7 +70,10 @@ async function choose(user: ReturnType<typeof userEvent.setup>, label: string) {
 it('keeps a rejected edit and posts the whole chosen inactive category with unknown saved fields on retry', async () => {
   const { user, onSaved } = setup(false, [category, other]);
   vi.mocked(client.post).mockRejectedValueOnce(
-    httpError(400, { message: 'That name is already used.' }),
+    httpError(400, {
+      messageKey: 'requisition.error.rejectionReason.name.duplicated',
+      message: 'That name is already used.',
+    }),
   );
   vi.mocked(client.post).mockResolvedValueOnce({
     data: { ...saved, name: ' Entered ', rejectionReasonCategory: other },

@@ -12,7 +12,6 @@ import {
   FieldSkeleton,
   RetryButton,
   SkeletonLine,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ChoiceCard, ComboboxField, SwitchField } from '@/components/form/form-fields';
@@ -47,8 +46,10 @@ import {
   userFormSchema,
 } from '@/features/users/lib/user-form';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { useAppName } from '@/lib/app-configuration';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import { invalidateUserQueries } from '@/lib/user-queries';
 
 type DialogTarget = NonNullable<UsersSearch['user']>;
@@ -114,6 +115,21 @@ type UserFormProps = {
   onCreated?: (userId: string) => void;
 };
 
+const USER_FIELD_ERRORS = {
+  'referenceData.error.user.username.duplicated': {
+    field: 'username',
+    key: 'api-error.referenceData.error.user.username.duplicated',
+  },
+  'notification.error.userContactDetails.email.duplicated': {
+    field: 'email',
+    key: 'api-error.notification.error.userContactDetails.email.duplicated',
+  },
+  'notification.error.userContactDetails.email.invalid': {
+    field: 'email',
+    key: 'users.form.email-invalid',
+  },
+} as const;
+
 function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const { t } = useTranslation();
   const appName = useAppName();
@@ -126,6 +142,17 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const mismatch = details && statusMismatch(details);
 
   const save = useSessionMutation({
+    onError: (error) => {
+      reportApiError(error);
+      const fieldError = fieldErrorFor(error, USER_FIELD_ERRORS);
+      if (fieldError) {
+        form.setFieldMeta(fieldError.field, (meta) => ({
+          ...meta,
+          isTouched: true,
+          errorMap: { ...meta.errorMap, onServer: fieldError.key },
+        }));
+      }
+    },
     mutationKey: saveKey(details?.user.id ?? 'new'),
     mutationFn: async (values: UserFormValues) => {
       if (details) {
@@ -168,6 +195,15 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
         .catch(() => undefined),
   });
 
+  const clearServerError = (name: 'username' | 'email') => {
+    if (!form.getFieldMeta(name)?.errorMap.onServer) return;
+    form.setFieldMeta(name, (meta) => ({
+      ...meta,
+      errorMap: { ...meta.errorMap, onServer: undefined },
+    }));
+  };
+  const fieldRefusal = fieldErrorFor(save.error, USER_FIELD_ERRORS);
+
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
       <FormDialogHeader>
@@ -182,14 +218,17 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
-          {save.isError && (
+          {save.isError && !fieldRefusal && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('users.form.save-error')}
+              description={apiErrorText(save.error, 'users.form.save-error', t, { write: true })}
               title={t('users.form.save-error-title')}
             />
           )}
 
-          <form.AppField name="username">
+          <form.AppField
+            name="username"
+            listeners={{ onChange: () => clearServerError('username') }}
+          >
             {(field) => (
               <field.TextField autoComplete="off" dir="ltr" label={t('users.username')} required />
             )}
@@ -208,7 +247,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
             </form.AppField>
           </FieldRow>
 
-          <form.AppField name="email">
+          <form.AppField name="email" listeners={{ onChange: () => clearServerError('email') }}>
             {(field) => (
               <field.TextField
                 autoComplete="off"

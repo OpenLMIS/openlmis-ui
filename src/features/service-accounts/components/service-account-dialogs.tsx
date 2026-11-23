@@ -3,7 +3,7 @@ import { KeyRoundIcon, Loader2Icon, Trash2Icon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -24,7 +24,9 @@ import {
 import { CopyKeyButton } from '@/features/service-accounts/components/copy-key-button';
 import type { ServiceAccount } from '@/features/service-accounts/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 type ServiceAccountDialogsProps = {
   adding: boolean;
@@ -48,6 +50,7 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
   const { close, dialogProps } = useDialogTarget(open || undefined, onClose);
 
   const add = useSessionMutation({
+    onError: reportApiError,
     mutationFn: createServiceAccount,
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.serviceAccounts.all });
@@ -100,7 +103,7 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
                 description={
                   add.error instanceof KeyLeftBehindError
                     ? t('service-accounts.key-left-behind', { key: add.error.token })
-                    : (serverMessage(add.error) ?? t('service-accounts.request-error'))
+                    : apiErrorText(add.error, 'service-accounts.request-error', t, { write: true })
                 }
                 title={t('service-accounts.add-error-title')}
               />
@@ -147,6 +150,7 @@ function DeleteServiceAccountDialog({
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   const remove = useSessionMutation({
+    onError: reportApiError,
     mutationFn: deleteServiceAccount,
     onSuccess: (_, deleted) => {
       toast.success(t('service-accounts.deleted-title'), {
@@ -182,7 +186,9 @@ function DeleteServiceAccountDialog({
         {shown && <KeyBox token={shown} />}
         {remove.isError && (
           <ErrorAlert
-            description={serverMessage(remove.error) ?? t('service-accounts.request-error')}
+            description={apiErrorText(remove.error, 'service-accounts.request-error', t, {
+              write: true,
+            })}
             title={t('service-accounts.delete-error-title')}
           />
         )}

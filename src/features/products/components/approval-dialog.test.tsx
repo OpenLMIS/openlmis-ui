@@ -58,7 +58,11 @@ const approval: Approval = {
   program: familyPlanning,
 };
 
-const refusal = () => httpError(400, { message: 'Refused by the server' });
+const refusal = () =>
+  httpError(400, {
+    messageKey: 'referenceData.error.facilityTypeApprovedProduct.duplicated',
+    message: 'Refused by the server',
+  });
 
 beforeEach(() => {
   vi.resetAllMocks();

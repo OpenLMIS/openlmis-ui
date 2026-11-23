@@ -4,7 +4,7 @@ import { Building2Icon } from 'lucide-react';
 import { memo, useCallback, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { serverMessage } from '@/components/display/dialog-parts';
+import { LoadError } from '@/components/app-shell/load-error';
 import { FieldLabelText } from '@/components/form/form-fields';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,9 @@ import { OrderSelect } from '@/features/orders/components/order-select';
 import { userProgramsOptions } from '@/features/reference-data/api/queries';
 import type { MinimalFacility, Program } from '@/features/reference-data/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { invalidateOrderLists } from '@/lib/order-queries';
+import { reportApiError } from '@/lib/report-error';
 import { settleFew } from '@/lib/settle-few';
 
 const EMPTY_PROGRAMS: Program[] = [];
@@ -107,8 +109,9 @@ export function CreateOrderForm({
         }),
       })),
     onSuccess: async (result) => {
-      const reason = serverMessage(result.error) ?? t('error.description');
-      if (result.failed.length) {
+      if (result.error) reportApiError(result.error);
+      const reason = apiErrorText(result.error, 'error.description', t, { write: true });
+      if (result.failed.length && reason !== null) {
         const names = result.failed
           .map((id) => facilities.find((f) => f.id === id)?.name ?? id)
           .join(', ');
@@ -129,12 +132,14 @@ export function CreateOrderForm({
         if (mutation.isCurrent()) onCreated(result.done.map((item) => item.order.id));
       }
     },
-    onError: (error) =>
-      toast.error(t('orders.create.create-failed-title'), {
-        description: t('orders.create.create-failed-description', {
-          reason: serverMessage(error) ?? t('error.description'),
-        }),
-      }),
+    onError: (error) => {
+      reportApiError(error);
+      const reason = apiErrorText(error, 'error.description', t, { write: true });
+      if (reason !== null)
+        toast.error(t('orders.create.create-failed-title'), {
+          description: t('orders.create.create-failed-description', { reason }),
+        });
+    },
   });
   return (
     <form className="flex flex-col gap-4" onSubmit={(event) => event.preventDefault()}>
@@ -169,15 +174,13 @@ export function CreateOrderForm({
           onChange={setSupplier}
         />
       </div>
-      {suppliers.isError && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {serverMessage(suppliers.error) ?? t('error.description')}{' '}
-            <Button variant="outline" onClick={() => suppliers.refetch()}>
-              {t('error.try-again')}
-            </Button>
-          </AlertDescription>
-        </Alert>
+      {suppliers.isError && !isSilentApiError(suppliers.error) && (
+        <LoadError
+          error={suppliers.error}
+          reset={() => void suppliers.refetch()}
+          title={t('error.title')}
+          description={t('error.description')}
+        />
       )}
       {!!programId && ids.length > 0 && suppliers.isSuccess && !options.length && (
         <Alert>

@@ -6,7 +6,6 @@ import {
   DataTableSelectionBar,
   SelectionBarLabel,
 } from '@/components/data-table/data-table-selection';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import {
   AlertDialog,
@@ -34,9 +33,11 @@ import {
 import { beginCopy, retireCopy } from '@/features/requisitions/lib/offline-copies';
 import type { ConvertListRow } from '@/features/requisitions/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError, requireOnline } from '@/lib/local-data';
 import { invalidateOrderLists } from '@/lib/order-queries';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { isSecureOrigin } from '@/lib/secure-context';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
@@ -130,6 +131,8 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
       focusList();
     },
     onError: async (error, body) => {
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
       if (error instanceof LocalDataUnavailableError) {
         setProblem({ kind: 'server', message: t('requisitions.convert.offline') }, filter);
         return;
@@ -154,8 +157,11 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
         const done = new Set(results.done.filter((result) => result.done).map(({ id }) => id));
         setUnresolved((previous) => new Set([...previous].filter((id) => !done.has(id))));
       } else {
-        let message = serverMessage(error);
-        for (const [id, row] of picked) message = message?.replaceAll(id, row.label);
+        let message = apiErrorText(error, 'requisitions.convert.failed-description', t, {
+          write: true,
+        });
+        if (message === null) return;
+        for (const [id, row] of picked) message = message.replaceAll(id, row.label);
         setPicked(new Map());
         setProblem({ kind: 'server', message }, filter);
         focusList();

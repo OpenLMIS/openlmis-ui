@@ -9,6 +9,7 @@ import { userDetailsOptions } from '@/features/users/api/queries';
 import { UserFormDialog } from '@/features/users/components/user-form-dialog';
 import { client } from '@/integrations/axios';
 import type { UserRecord } from '@/lib/user-types';
+import { httpError } from '@/test-utils/http-error';
 
 it('completes an Edit User save while the notification refresh is still pending', async () => {
   const editedUser: UserRecord = {
@@ -69,5 +70,47 @@ it('completes an Edit User save while the notification refresh is still pending'
     await act(async () => pending.resolve({ data: { content: [], totalPages: 0 } }));
     cache.clear();
     useLoginData.getState().clearLoginData();
+  }
+});
+
+it('shows the duplicate username refusal on Username and clears it on correction', async () => {
+  const cache = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+  });
+  cache.setQueryData(minimalFacilitiesOptions().queryKey, []);
+  const put = vi.spyOn(client, 'put').mockRejectedValueOnce(
+    httpError(400, {
+      messageKey: 'referenceData.error.user.username.duplicated',
+      message: 'Server-language detail',
+    }),
+  );
+  const dialog = render(
+    <QueryClientProvider client={cache}>
+      <UserFormDialog onClose={vi.fn()} onCreated={vi.fn()} target="new" />
+    </QueryClientProvider>,
+  );
+  try {
+    const user = userEvent.setup();
+    const username = await screen.findByRole('textbox', { name: /users.username/ });
+    await user.type(username, 'ada');
+    await user.type(screen.getByRole('textbox', { name: /users.form.first-name/ }), 'Ada');
+    await user.type(screen.getByRole('textbox', { name: /users.form.last-name/ }), 'Lovelace');
+    await user.click(screen.getByRole('button', { name: 'users.form.create' }));
+
+    await screen.findByText('api-error.referenceData.error.user.username.duplicated');
+    expect(username).toHaveAccessibleDescription(
+      'api-error.referenceData.error.user.username.duplicated',
+    );
+    expect(screen.queryByText('users.form.save-error-title')).not.toBeInTheDocument();
+
+    await user.type(username, '2');
+    expect(username).not.toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.queryByText('api-error.referenceData.error.user.username.duplicated'),
+    ).not.toBeInTheDocument();
+  } finally {
+    dialog.unmount();
+    put.mockRestore();
+    cache.clear();
   }
 });

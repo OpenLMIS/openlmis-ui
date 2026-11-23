@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import { AlertCircleIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,20 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 
-/** The server's own message when it sent one, e.g. that a username is taken. */
-export function serverMessage(error: unknown): string | undefined {
-  if (!isAxiosError(error)) return undefined;
-  const message = (error.response?.data as { message?: unknown } | undefined)?.message;
-  return typeof message === 'string' && message ? message : undefined;
-}
-
-/** The key of the server's message, e.g. `cce.error.file.empty`, when it sent one. */
-export function serverMessageKey(error: unknown): string | undefined {
-  if (!isAxiosError(error)) return undefined;
-  const key = (error.response?.data as { messageKey?: unknown } | undefined)?.messageKey;
-  return typeof key === 'string' && key ? key : undefined;
-}
-
 type ErrorAlertProps = {
   title: string;
   description: ReactNode;
@@ -39,6 +24,7 @@ type ErrorAlertProps = {
 };
 
 export function ErrorAlert({ title, description, action }: ErrorAlertProps) {
+  if (description === null) return null;
   return (
     <Alert variant="destructive">
       <AlertCircleIcon />

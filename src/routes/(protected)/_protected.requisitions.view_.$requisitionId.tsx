@@ -153,12 +153,14 @@ import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { isSilentApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError, onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isDeviceAccess } from '@/lib/offline-access';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
 import { randomId } from '@/lib/random-id';
+import { reportApiError } from '@/lib/report-error';
 import { REQUISITION_STATUS, REQUISITION_STATUSES } from '@/lib/requisition-status';
 import { revealField } from '@/lib/reveal-field';
 import { RIGHTS } from '@/lib/rights';
@@ -695,7 +697,9 @@ function RequisitionBody({
     if (refreshMode === 'wait') return refresh;
     savedRefresh.current = refresh;
     void refresh.catch((error: unknown) => {
-      if (scope === getSessionScope()) setFailure(toRequisitionFailure(error));
+      if (scope !== getSessionScope() || isSilentApiError(error)) return;
+      reportApiError(error);
+      setFailure(toRequisitionFailure(error, false));
     });
     void refresh
       .finally(() => {
@@ -985,7 +989,8 @@ function RequisitionBody({
     } catch (error) {
       if (!mutation.isCurrent()) return false;
       setAction(null);
-      if (error instanceof PatientsPayloadError) return false;
+      if (error instanceof PatientsPayloadError || isSilentApiError(error)) return false;
+      reportApiError(error);
       const failure =
         uncertain.current && isApprovalKind(uncertain.current.kind)
           ? { kind: 'reconciling' as const }
@@ -1009,8 +1014,9 @@ function RequisitionBody({
             return mutation.isCurrent();
           }
         } catch (recoveryError) {
-          if (!mutation.isCurrent()) return false;
-          setFailure(toRequisitionFailure(recoveryError));
+          if (!mutation.isCurrent() || isSilentApiError(recoveryError)) return false;
+          reportApiError(recoveryError);
+          setFailure(toRequisitionFailure(recoveryError, false));
           return false;
         }
       }

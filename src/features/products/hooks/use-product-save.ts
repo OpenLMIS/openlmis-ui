@@ -4,6 +4,7 @@ import { productDetailOptions } from '@/features/products/api/queries';
 import type { ProductDetail } from '@/features/products/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 export const productSaveKey = (productId: string) =>
   [...queryKeys.orderables.all, 'save', productId] as const;
@@ -13,6 +14,7 @@ type ProductChange = (latest: ProductDetail) => ProductDetail;
 export function useProductSave(productId: string) {
   const queryClient = useQueryClient();
   return useSessionMutation({
+    onError: reportApiError,
     mutationKey: productSaveKey(productId),
     mutationFn: (change: ProductChange) => saveProductChange(productId, change),
     onSuccess: (saved) => {

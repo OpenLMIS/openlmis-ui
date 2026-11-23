@@ -1,4 +1,13 @@
 {
+  "api-error.fulfillment.error.proofOfDelivery.alreadyConfirmed": "This proof of delivery has already been confirmed.",
+  "api-error.fulfillment.error.shipment.order.duplicate": "A shipment already exists for this order.",
+  "api-error.fulfillment.error.shipmentDraft.order.duplicate": "A shipment draft already exists for this order.",
+  "api-error.notification.error.userContactDetails.email.duplicated": "Another user already has this email address.",
+  "api-error.referenceData.error.user.username.duplicated": "Another user already has this username.",
+  "api-error.stockmanagement.error.event.cannot.unpack.when.extra.constituents.credited": "The kit could not be unpacked because extra components were entered into stock.",
+  "api-error.stockmanagement.error.physicalInventory.isSubmitted": "This physical inventory has already been submitted and cannot be changed.",
+  "api-error.timeout-read": "The server took too long to answer. Try again.",
+  "api-error.timeout-write": "The server did not answer in time. The change may have been saved. Reload before trying again.",
   "auth.login-error": "Check your username and password, then try again.",
   "auth.login-error-title": "Sign In Failed",
   "auth.login-success": "Welcome back, {username}.",

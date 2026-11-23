@@ -17,7 +17,6 @@ import {
   ErrorAlert,
   FieldSkeleton,
   SkeletonLine,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { formatDateValue, formatTimestamp } from '@/components/form/date-value';
@@ -81,6 +80,7 @@ import type {
 import { facilityOptions, programLookupOptions } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { useOpening } from '@/hooks/use-opening';
+import { apiErrorText } from '@/lib/api-error';
 import {
   EQUIPMENT_REASON_KEYS,
   EQUIPMENT_STATUS,
@@ -539,7 +539,9 @@ function EditItem({
           <div className="flex flex-col gap-6" inert={save.isPending} ref={fields}>
             {save.isError && (
               <ErrorAlert
-                description={serverMessage(save.error) ?? t('cce-inventory.form.save-error')}
+                description={apiErrorText(save.error, 'cce-inventory.form.save-error', t, {
+                  write: true,
+                })}
                 title={t('cce-inventory.form.save-error-title')}
               />
             )}

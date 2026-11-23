@@ -126,7 +126,7 @@ describe('FacilityEditor', () => {
         .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' }),
     );
     await userEvent.setup().click(screen.getByRole('button', { name: 'Create' }));
-    expect(await screen.findByText('facilities.form.save-error-title')).toBeInTheDocument();
+    expect(screen.queryByText('facilities.form.save-error-title')).not.toBeInTheDocument();
     expect(save).not.toHaveBeenCalled();
   });
 

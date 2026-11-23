@@ -5,7 +5,6 @@ import { Loader2Icon } from 'lucide-react';
 import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
@@ -82,8 +81,10 @@ import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { decimalMark } from '@/lib/decimal';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
@@ -368,13 +369,12 @@ export function ForecastForm({
     onError: (error, { action }) => {
       setConfirming(null);
       const failed = FAILED[action];
-      setFailure({
-        title: t(failed.title),
-        description:
-          error instanceof BuqMovedError
-            ? t('buq.forecast.moved')
-            : (serverMessage(error) ?? t(failed.description)),
-      });
+      reportApiError(error);
+      const description =
+        error instanceof BuqMovedError
+          ? t('buq.forecast.moved')
+          : apiErrorText(error, failed.description, t, { write: true });
+      if (description !== null) setFailure({ title: t(failed.title), description });
       refreshForecast();
     },
     onSettled: () => {

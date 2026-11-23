@@ -3,7 +3,6 @@ import { useNavigate } from '@tanstack/react-router';
 import { isAxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { serverMessage } from '@/components/display/dialog-parts';
 import type { ValidAssignment } from '@/components/valid-assignments/types';
 import type { Reason } from '@/features/reference-data/lib/types';
 import { submitStockEvent } from '@/features/stock-events/api/api';
@@ -22,8 +21,10 @@ import {
 import type { StockEventDisplay } from '@/features/stock-events/lib/stock-event-queue';
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
 import { isOnline } from '@/lib/online';
+import { reportApiError } from '@/lib/report-error';
 
 export function useDeviceSubmission({
   kind,
@@ -114,21 +115,22 @@ export function useDeviceSubmission({
     draft,
     mutation,
     failure(error: unknown, hadUnknownOutcome: boolean) {
+      reportApiError(error);
+      if (isSilentApiError(error)) return { unknown: hadUnknownOutcome, alert: null };
       const unknown = !deviceDrafts && isAxiosError(error) && !error.response;
+      const description = deviceDrafts
+        ? t('stock-events.draft-failed')
+        : unknown
+          ? t('stock-events.unknown-outcome-description')
+          : apiErrorText(error, config.copy.submitErrorDescription, t, { write: true });
+      const title = deviceDrafts
+        ? ('stock-events.draft-save-error-title' as const)
+        : unknown
+          ? ('stock-events.unknown-outcome-title' as const)
+          : config.copy.submitErrorTitle;
       return {
         unknown: unknown || (!deviceDrafts && hadUnknownOutcome),
-        alert: {
-          title: deviceDrafts
-            ? ('stock-events.draft-save-error-title' as const)
-            : unknown
-              ? ('stock-events.unknown-outcome-title' as const)
-              : config.copy.submitErrorTitle,
-          description: deviceDrafts
-            ? t('stock-events.draft-failed')
-            : unknown
-              ? t('stock-events.unknown-outcome-description')
-              : (serverMessage(error) ?? t(config.copy.submitErrorDescription)),
-        },
+        alert: description === null ? null : { title, description },
       };
     },
     async flush() {
