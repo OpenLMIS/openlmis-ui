@@ -79,19 +79,16 @@ export function hasApiErrorTranslation(key: string, exists: (key: ParseKeys) => 
 
 type TranslateError = (key: ParseKeys) => string;
 
-export function keyedApiErrorText(
-  key: string | undefined,
-  message: string | undefined,
-  t: TranslateError,
-) {
-  if (!key) return message?.trim() ? message : undefined;
+export function keyedApiErrorText(key: unknown, message: unknown, t: TranslateError) {
+  const text = typeof message === 'string' && message.trim() ? message : undefined;
+  if (typeof key !== 'string' || !key) return text;
   if (technicalKeys.has(key)) return undefined;
   const candidate = catalogKey(key);
   const translated = t(candidate);
   if (translated && translated !== candidate) return translated;
   const existing = existingTranslations.get(key);
   if (existing) return t(existing);
-  return message?.trim() && message !== key ? message : undefined;
+  return text !== key ? text : undefined;
 }
 
 export function apiErrorText(

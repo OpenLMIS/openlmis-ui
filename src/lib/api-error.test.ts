@@ -10,7 +10,7 @@ import { PROGRAM_FIELD_ERRORS } from '@/features/programs/lib/program-form';
 import { templateFieldErrors } from '@/features/requisition-templates/lib/server-errors';
 import { requisitionFailureText, toRequisitionFailure } from '@/features/requisitions/lib/failure';
 import { USER_FIELD_ERRORS } from '@/features/users/lib/user-form';
-import { apiErrorText, apiFieldMessages, fieldErrorFor } from '@/lib/api-error';
+import { apiErrorText, apiFieldMessages, fieldErrorFor, keyedApiErrorText } from '@/lib/api-error';
 import { reportApiError } from '@/lib/report-error';
 import { SessionEndedError } from '@/lib/session-scope';
 import { httpError, networkError } from '@/test-utils/http-error';
@@ -27,6 +27,13 @@ const fallback = 'error.description';
 const t = i18n.t.bind(i18n);
 const sessionless = httpError(401, { message: 'Credentials rejected' });
 sessionless.config = { headers: new AxiosHeaders(), session: false };
+
+it('uses only string keys and messages when resolving refusal text', () => {
+  expect(keyedApiErrorText('example.key', {}, t)).toBeUndefined();
+  expect(keyedApiErrorText(123, 'Server refused the action.', t)).toBe(
+    'Server refused the action.',
+  );
+});
 
 describe('apiErrorText', () => {
   it.each([

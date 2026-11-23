@@ -385,17 +385,28 @@ it.each([
 });
 it.each([
   [
-    { messageKey: 'stockmanagement.error.event.cancellation.reason.required', message: 'Refused' },
+    [
+      {
+        messageKey: 'stockmanagement.error.event.cancellation.reason.required',
+        message: 'Refused',
+      },
+    ],
     'stock-event-reverse.reason-required',
   ],
-  [{ message: 'Line refused' }, 'Line refused'],
-  [{ messageKey: 'stockmanagement.error.event.cancellation.refused' }, 'error.description'],
-])('shows the refusal in the dialog when no row matches %j', async (lineError, description) => {
+  [[{ message: 'Line refused' }], 'Line refused'],
+  [[{ messageKey: 'stockmanagement.error.event.cancellation.refused' }], 'error.description'],
+  [[{ messageKey: 123, message: {} }, { message: 'Usable refusal' }], 'Usable refusal'],
+])('shows the refusal in the dialog when no row matches %j', async (lineErrors, description) => {
   vi.mocked(cancelStockEvent).mockRejectedValueOnce({
     isAxiosError: true,
     response: {
       status: 400,
-      data: { lineErrors: [{ stockEventLineItemId: 'unknown-line', ...lineError }] },
+      data: {
+        lineErrors: lineErrors.map((lineError) => ({
+          stockEventLineItemId: 'unknown-line',
+          ...lineError,
+        })),
+      },
     },
   });
   editor();

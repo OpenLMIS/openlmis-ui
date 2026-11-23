@@ -1,5 +1,6 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
+import type { TFunction } from 'i18next';
 import { WifiOffIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -57,9 +58,17 @@ import type {
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { apiErrorText, isApiTimeout, isSilentApiError, isWriteApiTimeout } from '@/lib/api-error';
+import {
+  apiErrorText,
+  isApiTimeout,
+  isSilentApiError,
+  isWriteApiTimeout,
+  keyedApiErrorText,
+  serverMessage,
+  serverMessageKey,
+} from '@/lib/api-error';
 import { DraftConflictError } from '@/lib/draft-store';
-import { isOfflineError } from '@/lib/http';
+import { isAccessFallbackError, isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
@@ -76,6 +85,26 @@ class InventoryOrphaned extends Error {
 function reportUnlessConflict(error: unknown) {
   if (error instanceof DraftConflictError) throw error;
   reportCaughtError(error, {});
+}
+function inventoryKeepOpenText(error: unknown, t: TFunction, target: 'draft' | 'lots') {
+  if (isWriteApiTimeout(error))
+    return t(
+      target === 'lots'
+        ? 'physical-inventory.lot-timeout-keep-open'
+        : 'physical-inventory.save-timeout-keep-open',
+    );
+  if (!isApiTimeout(error) && !isOfflineError(error) && !isAccessFallbackError(error)) {
+    const key = serverMessageKey(error);
+    if (key) {
+      const refusal = keyedApiErrorText(
+        key,
+        target === 'draft' ? serverMessage(error) : undefined,
+        t,
+      );
+      if (refusal) return `${refusal} ${t('physical-inventory.counts-only-on-page')}`;
+    }
+  }
+  return t('physical-inventory.save-error-keep-open');
 }
 type Action =
   | { type: 'save' }
@@ -361,14 +390,11 @@ export function InventoryActions(props: Props) {
               ? t('physical-inventory.lot-trade-item-error', { codes: error.codes.join(', ') })
               : t('physical-inventory.lot-error', {
                   codes: error.codes.join(', '),
-                  message: apiErrorText(cause, fallback, t),
+                  message: keepOpen
+                    ? inventoryKeepOpenText(cause, t, 'lots')
+                    : apiErrorText(cause, fallback, t),
                 });
-      else if (keepOpen)
-        description = t(
-          isWriteApiTimeout(cause)
-            ? 'physical-inventory.save-timeout-keep-open'
-            : 'physical-inventory.save-error-keep-open',
-        );
+      else if (keepOpen) description = inventoryKeepOpenText(cause, t, 'draft');
       else description = apiErrorText(error, fallback, t);
       if (error instanceof UnknownSubmit) {
         setUnknown(true);
