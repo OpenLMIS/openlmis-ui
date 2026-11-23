@@ -210,7 +210,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
           <div className="flex flex-col gap-4 lg:gap-6">
             {save.isError && (
               <ErrorAlert
-                description={apiErrorText(save.error, 'users.roles.save-error', t, { write: true })}
+                description={apiErrorText(save.error, 'error.description', t, { write: true })}
                 title={t('users.roles.save-error-title')}
               />
             )}

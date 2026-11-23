@@ -500,7 +500,7 @@ function AssociationForm({
             {removal.isError && (
               <ErrorAlert
                 title={t('supply-partners.lookup-error-title')}
-                description={apiErrorText(removal.error, 'supply-partners.prune-error', t, {
+                description={apiErrorText(removal.error, 'error.description', t, {
                   write: true,
                 })}
               />

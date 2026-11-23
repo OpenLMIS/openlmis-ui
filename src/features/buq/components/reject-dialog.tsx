@@ -130,7 +130,7 @@ function RejectForm({
     },
     onSuccess: onRejected,
     onError: (error) => {
-      reportApiError(error);
+      if (!(error instanceof BuqMovedError)) reportApiError(error);
       if (!isSilentApiError(error)) onFailed?.();
     },
   });
@@ -149,7 +149,7 @@ function RejectForm({
             description={
               reject.error instanceof BuqMovedError
                 ? t('buq.forecast.moved')
-                : apiErrorText(reject.error, 'error.description', t, { write: true })
+                : apiErrorText(reject.error, 'error.description', t)
             }
             title={t('buq.approve.reject-error-title')}
           />

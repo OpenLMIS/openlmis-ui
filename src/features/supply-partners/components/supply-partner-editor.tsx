@@ -304,7 +304,7 @@ export function SupplyPartnerEditor({
             <AlertDialogDescription>
               {failure instanceof SupplyPartnerConflictError
                 ? t('supply-partners.conflict-description')
-                : apiErrorText(failure, 'supply-partners.save-error', t, { write: true })}
+                : apiErrorText(failure, 'error.description', t, { write: true })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

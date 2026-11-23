@@ -98,7 +98,7 @@ function AddPartnerForm({ search, onDone }: { search: SupplyPartnersSearch; onDo
           {mutation.isError && (
             <ErrorAlert
               title={t('supply-partners.save-error-title')}
-              description={apiErrorText(mutation.error, 'supply-partners.save-error', t, {
+              description={apiErrorText(mutation.error, 'error.description', t, {
                 write: true,
               })}
             />

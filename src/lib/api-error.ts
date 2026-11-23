@@ -38,6 +38,11 @@ const existingTranslations = new Map<string, ParseKeys>([
     'processing-schedules.form.name-taken',
   ],
   ['requisition.error.validation.templateNameDuplication', 'requisition-templates.form.name-taken'],
+  [
+    'stockmanagement.error.event.cancellation.reason.required',
+    'stock-event-reverse.reason-required',
+  ],
+  ['stockmanagement.error.event.cancellation.reason.invalid', 'stock-event-reverse.reason-invalid'],
 ]);
 
 export function isSilentApiError(error: unknown) {
@@ -113,24 +118,28 @@ export function fieldErrorFor<const Field extends string>(
 }
 
 const errorEnvelopeFields = new Set([
+  'detail',
   'error',
   'error_description',
   'exception',
+  'instance',
   'message',
   'messageKey',
   'path',
   'status',
   'timestamp',
+  'title',
   'trace',
+  'type',
 ]);
 
 export function apiFieldMessages(error: unknown) {
   if (!isAxiosError(error) || error.response?.status !== 400 || serverMessageKey(error)) return [];
   const data: unknown = error.response.data;
   if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
-  if (serverMessage(error)) return [];
-  return Object.entries(data).flatMap(([field, value]: [string, unknown]) => {
-    if (errorEnvelopeFields.has(field)) return [];
+  const entries = Object.entries(data);
+  if (entries.some(([field]) => errorEnvelopeFields.has(field))) return [];
+  return entries.flatMap(([field, value]: [string, unknown]) => {
     if (typeof value === 'string' && value.trim())
       return [{ field, message: value, key: undefined }];
     if (!value || typeof value !== 'object') return [];

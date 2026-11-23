@@ -342,7 +342,7 @@ export function ReverseEditor({
         isAxiosError<StockEventCancelError>(error) && error.response?.status === 400
           ? error.response.data?.lineErrors
           : undefined;
-      if (lineErrors?.length) {
+      if (Array.isArray(lineErrors) && lineErrors.length) {
         const byId: Record<string, StockEventCancelLineError> = {};
         const lineErrorsById = new Map(lineErrors.map((item) => [item.stockEventLineItemId, item]));
         for (const row of rows) {

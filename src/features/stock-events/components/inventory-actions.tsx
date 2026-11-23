@@ -112,7 +112,6 @@ type Failure = { title: string; description: string; offline?: boolean };
 const ACTION_KEYS = {
   save: {
     errorTitle: 'physical-inventory.save-error-title',
-    errorDescription: 'physical-inventory.save-error-description',
     successTitle: 'physical-inventory.saved-title',
     successDescription: 'physical-inventory.saved-description',
   },
@@ -172,7 +171,8 @@ export function InventoryActions(props: Props) {
   const finished = useRef(false);
   const mutation = useSessionMutation({
     retry: false,
-    mutationFn: async (action: Action) => {
+    mutationFn: async (attempt: { action: Action; flushed: boolean }) => {
+      const { action } = attempt;
       const scope = getSessionScope();
       const check = () => {
         assertSessionScope(scope);
@@ -181,6 +181,7 @@ export function InventoryActions(props: Props) {
       check();
       try {
         await props.flush();
+        attempt.flushed = true;
       } catch (error) {
         reportUnlessConflict(error);
       }
@@ -204,7 +205,7 @@ export function InventoryActions(props: Props) {
       try {
         await reconcileInventoryCopies(props.draft, current?.id, requestedAt);
       } catch (error) {
-        reportCaughtError(error, {});
+        if (!(error instanceof DraftConflictError)) reportCaughtError(error, {});
       }
       check();
       if (current?.id !== props.draft.id) {
@@ -302,9 +303,10 @@ export function InventoryActions(props: Props) {
     if (posting.current || finished.current || (action.type === 'submit' && unknown)) return;
     posting.current = true;
     props.onBusy(true);
+    const attempt = { action, flushed: false };
     let next: InventoryLine[];
     try {
-      next = await mutation.mutateAsync(action);
+      next = await mutation.mutateAsync(attempt);
     } catch (error) {
       if (!mutation.isCurrent()) return;
       const cause = error instanceof InventoryLotError ? error.cause : error;
@@ -314,7 +316,14 @@ export function InventoryActions(props: Props) {
         posting.current = false;
         return;
       }
-      reportApiError(cause);
+      if (
+        !(
+          cause instanceof DraftConflictError ||
+          cause instanceof InventoryOrphaned ||
+          cause instanceof UnknownSubmit
+        )
+      )
+        reportApiError(cause);
       if (
         !(error instanceof UnknownSubmit) &&
         !isApiTimeout(error) &&
@@ -330,7 +339,13 @@ export function InventoryActions(props: Props) {
         posting.current = false;
         return;
       }
-      let description = apiErrorText(error, ACTION_KEYS[action.type].errorDescription, t, {
+      const fallback =
+        action.type === 'save'
+          ? attempt.flushed
+            ? 'physical-inventory.save-error-description'
+            : 'physical-inventory.save-error-keep-open'
+          : ACTION_KEYS[action.type].errorDescription;
+      let description = apiErrorText(error, fallback, t, {
         write: true,
       });
       if (error instanceof InventoryOrphaned)
@@ -347,7 +362,7 @@ export function InventoryActions(props: Props) {
               ? t('physical-inventory.lot-trade-item-error', { codes: error.codes.join(', ') })
               : t('physical-inventory.lot-error', {
                   codes: error.codes.join(', '),
-                  message: apiErrorText(cause, ACTION_KEYS[action.type].errorDescription, t, {
+                  message: apiErrorText(cause, fallback, t, {
                     write: true,
                   }),
                 });
@@ -378,7 +393,7 @@ export function InventoryActions(props: Props) {
       else await props.clearLocal(props.draft.id);
     } catch (error) {
       localSaved = false;
-      reportCaughtError(error, {});
+      if (!(error instanceof DraftConflictError)) reportCaughtError(error, {});
       if (mutation.isCurrent() && action.type !== 'save')
         toast.error(t('physical-inventory.local-clear-error-title'), {
           description: t(ACTION_KEYS[action.type].localClearError),

@@ -181,6 +181,7 @@ it.each(['delete', 'submit'] as const)(
 );
 it('uses inventory wording for an unknown submit outcome and prevents a retry', async () => {
   const user = userEvent.setup();
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.mocked(submitPhysicalInventory).mockRejectedValue(new AxiosError('Network'));
   setup();
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
@@ -189,6 +190,7 @@ it('uses inventory wording for an unknown submit outcome and prevents a retry', 
   );
   const alert = await screen.findByRole('alertdialog');
   expect(alert).toHaveTextContent('physical-inventory.unknown-outcome-description');
+  expect(log).not.toHaveBeenCalled();
   await user.click(within(alert).getByRole('button', { name: 'dialog.close' }));
   expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
   await waitFor(() =>
@@ -297,6 +299,7 @@ it('opens an inactive Submit alert and returns focus to Submit after Close', asy
 });
 it.each([
   ['save', 'physical-inventory.save-error-description'],
+  ['save', 'physical-inventory.save-error-keep-open'],
   ['delete', 'error.description'],
   ['submit', 'error.description'],
 ] as const)('opens an alert for a %s server failure', async (type, description) => {
@@ -308,7 +311,11 @@ it.each([
         ? deletePhysicalInventory
         : submitPhysicalInventory;
   vi.mocked(request).mockRejectedValueOnce(new Error('Failed'));
-  setup();
+  setup(
+    description === 'physical-inventory.save-error-keep-open'
+      ? { flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')) }
+      : {},
+  );
   await user.click(
     screen.getByRole('button', {
       name: type === 'submit' ? 'stock-events.submit' : `physical-inventory.${type}`,
@@ -370,6 +377,7 @@ it.each([
   ...(['save', 'delete'] as const).map((action) => [action, 'orphaned'] as const),
 ])('keeps counts and stops %s when the device copy is %s', async (action, cause) => {
   const user = userEvent.setup();
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   const flush =
     cause === 'conflicted'
       ? vi.fn().mockRejectedValue(new DraftConflictError(undefined))
@@ -402,6 +410,7 @@ it.each([
   expect(submitPhysicalInventory).not.toHaveBeenCalled();
   expect(clearInventoryLocal).not.toHaveBeenCalled();
   expect(flush).toHaveBeenCalledOnce();
+  expect(log).not.toHaveBeenCalled();
 });
 
 it.each(['save', 'delete', 'submit'] as const)(

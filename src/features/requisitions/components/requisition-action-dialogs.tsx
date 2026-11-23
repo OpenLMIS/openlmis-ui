@@ -102,7 +102,7 @@ export function RequisitionErrorDialog({
     error.kind === 'reconciling'
       ? t('requisitions.edit.reconciling')
       : error.kind === 'server' || error.kind === 'request'
-        ? requisitionFailureText(error, 'requisitions.edit.error-description', t)
+        ? requisitionFailureText(error, 'error.description', t)
         : t(`requisitions.edit.error.${error.kind}`);
   if (description === null) return null;
   return (

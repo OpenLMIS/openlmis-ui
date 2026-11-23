@@ -7,6 +7,8 @@ import { LOT_FIELD_ERRORS } from '@/features/lots/lib/lot-form';
 import { SCHEDULE_FIELD_ERRORS } from '@/features/processing-schedules/lib/schedule-form';
 import { PRODUCT_FIELD_ERRORS } from '@/features/products/lib/product-form';
 import { PROGRAM_FIELD_ERRORS } from '@/features/programs/lib/program-form';
+import { templateFieldErrors } from '@/features/requisition-templates/lib/server-errors';
+import { requisitionFailureText, toRequisitionFailure } from '@/features/requisitions/lib/failure';
 import { USER_FIELD_ERRORS } from '@/features/users/lib/user-form';
 import { apiErrorText, apiFieldMessages, fieldErrorFor } from '@/lib/api-error';
 import { reportApiError } from '@/lib/report-error';
@@ -158,4 +160,37 @@ describe('apiErrorText', () => {
       warn.mockRestore();
     }
   });
+});
+
+it.each([
+  [
+    'RFC 9457 problem details',
+    {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'Internal detail',
+      instance: '/api/requisitions',
+    },
+  ],
+  [
+    'Spring default error',
+    {
+      timestamp: '2026-11-23T12:00:00Z',
+      status: 400,
+      error: 'Bad Request',
+      message: 'Internal detail',
+      path: '/api/requisitions',
+    },
+  ],
+  ['partial problem details', { instance: '/api/requisitions', programId: 'Internal detail' }],
+  ['partial Spring error', { path: '/api/requisitions', programId: 'Internal detail' }],
+])('uses the general fallback for %s', (_, body) => {
+  const error = httpError(400, body);
+  expect(apiErrorText(error, fallback, t)).toBe(t(fallback));
+  expect(apiFieldMessages(error)).toEqual([]);
+  expect(templateFieldErrors(error, t)).toBeUndefined();
+  const failure = toRequisitionFailure(error);
+  if (failure.kind !== 'request') throw new Error('Expected a request failure');
+  expect(requisitionFailureText(failure, fallback, t)).toBe(t(fallback));
 });

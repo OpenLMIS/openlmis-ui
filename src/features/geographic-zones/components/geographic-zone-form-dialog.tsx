@@ -255,7 +255,7 @@ function ZoneEditForm({
         <div className="flex flex-col gap-4">
           {save.isError && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'geographic-zones.save-error-description', t, {
+              description={apiErrorText(save.error, 'error.description', t, {
                 write: true,
               })}
               title={t('geographic-zones.save-error-title')}

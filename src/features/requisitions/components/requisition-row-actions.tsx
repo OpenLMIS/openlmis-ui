@@ -24,7 +24,9 @@ import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { RequisitionSearch } from '@/features/requisitions/lib/search-facilities';
 import type { RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { apiErrorText, isSilentApiError } from '@/lib/api-error';
+import { isSilentApiError } from '@/lib/api-error';
+import { DraftConflictError } from '@/lib/draft-store';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { reportApiError } from '@/lib/report-error';
 
 type Decision = Awaited<ReturnType<typeof removalDecision>>;
@@ -42,7 +44,7 @@ export function RequisitionRowActions({
   const copies = use(RequisitionCopiesContext);
   const copy = copies?.find((copy) => copy.id === record.id);
   const [decision, setDecision] = useState<Decision>();
-  const [failure, setFailure] = useState<{ error: unknown }>();
+  const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const mutation = useSessionMutation({
@@ -64,26 +66,28 @@ export function RequisitionRowActions({
     },
     onError: (error) => {
       if (isSilentApiError(error)) return;
-      reportApiError(error);
-      setFailure({ error });
+      if (!(error instanceof DraftConflictError || error instanceof LocalDataUnavailableError))
+        reportApiError(error);
+      setFailed(true);
     },
   });
   const start = useSessionMutation({
     mutationFn: () => removalDecision(record.id),
     onSuccess: (current) => {
       setDecision(current);
-      setFailure(undefined);
+      setFailed(false);
       setOpen(true);
     },
     onError: (error) => {
       if (isSilentApiError(error)) return;
-      reportApiError(error);
+      if (!(error instanceof DraftConflictError || error instanceof LocalDataUnavailableError))
+        reportApiError(error);
       setDecision(undefined);
-      setFailure({ error });
+      setFailed(true);
       setOpen(true);
     },
   });
-  const error = failure ? apiErrorText(failure.error, 'requisitions.offline.stale', t) : null;
+  const error = failed ? t('requisitions.offline.stale') : null;
   return (
     <>
       <ViewRequisition

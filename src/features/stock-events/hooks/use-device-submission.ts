@@ -122,7 +122,7 @@ export function useDeviceSubmission({
         ? t('stock-events.draft-failed')
         : unknown
           ? t('stock-events.unknown-outcome-description')
-          : apiErrorText(error, config.copy.submitErrorDescription, t, { write: true });
+          : apiErrorText(error, 'error.description', t, { write: true });
       const title = deviceDrafts
         ? ('stock-events.draft-save-error-title' as const)
         : unknown

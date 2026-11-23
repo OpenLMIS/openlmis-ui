@@ -33,7 +33,17 @@ export function reportApiError(error: unknown) {
     }
     const messageKey = serverMessageKey(error);
     const fields = messageKey ? [] : apiFieldMessages(error);
-    const keys = new Set(fields.length ? fields.map(({ key }) => key) : [messageKey]);
+    const keys = new Set(fields.map(({ key }) => key));
+    if (messageKey) keys.add(messageKey);
+    const lineErrors: unknown = error.response?.data?.lineErrors;
+    if (Array.isArray(lineErrors)) {
+      for (const line of lineErrors) {
+        if (!line || typeof line !== 'object' || !('messageKey' in line)) continue;
+        const key = line.messageKey;
+        if (typeof key === 'string' && key) keys.add(key);
+      }
+    }
+    if (!keys.size) keys.add(undefined);
     const { config } = error;
     const status = error.response?.status;
     const path = diagnosticPath(config?.url);

@@ -594,7 +594,7 @@ export function EventEditor({
       const description =
         !isApiTimeout(error) && isOfflineError(error)
           ? t(config.contents.copy.refreshOffline)
-          : apiErrorText(error, config.copy.submitErrorDescription, t, { write: false });
+          : apiErrorText(error, 'error.description', t, { write: false });
       if (description !== null) setFailure({ title: config.copy.submitErrorTitle, description });
     } finally {
       setRefreshing(false);

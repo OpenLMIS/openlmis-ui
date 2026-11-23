@@ -109,12 +109,7 @@ export function DeleteAssignmentsDialog({
         </AlertDialogHeader>
         {nothingDeleted && (
           <ErrorAlert
-            description={apiErrorText(
-              remove.data?.error,
-              'valid-assignments.delete-error-description',
-              t,
-              { write: true },
-            )}
+            description={apiErrorText(remove.data?.error, 'error.description', t, { write: true })}
             title={t('valid-assignments.delete-error-title')}
           />
         )}

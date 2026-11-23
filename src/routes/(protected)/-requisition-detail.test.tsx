@@ -2379,7 +2379,7 @@ it('uses the GET ETag after a failed Approve before retrying its PUT', async () 
   vi.mocked(fetchRequisition).mockResolvedValue({ ...base, eTag: '"fresh"' });
   vi.spyOn(client, 'post').mockRejectedValueOnce(httpError(400)).mockResolvedValue({ data: {} });
   await confirmApproval();
-  await screen.findByText('requisitions.edit.error-description');
+  await screen.findByText('error.description');
   const dialog = screen.getByRole('alertdialog');
   fireEvent.click(within(dialog).getByRole('button', { name: 'dialog.close' }));
   await confirmApproval();
@@ -2513,7 +2513,7 @@ it.each([true, false])(
     else post.mockRejectedValue(httpError(400));
     await confirmApproval();
     if (success) await screen.findByText('Approval List');
-    else await screen.findByText('requisitions.edit.error-description');
+    else await screen.findByText('error.description');
     expect(post).toHaveBeenCalledOnce();
     queryClient.clear();
   },
@@ -2651,7 +2651,7 @@ it.each(['submit', 'authorize', 'delete'] as const)(
         }),
       );
     } else await confirmAction(kind);
-    await screen.findByText('requisitions.edit.error-description');
+    await screen.findByText('error.description');
     expect(screen.queryByText('Action refused by server')).not.toBeInTheDocument();
     expect(put).toHaveBeenCalledTimes(kind === 'delete' ? 0 : 1);
     expect(success).not.toHaveBeenCalled();
@@ -2732,7 +2732,7 @@ it.each(['submitted', 'node'] as const)(
     });
     const put = vi.spyOn(client, 'put').mockResolvedValue({ data: base, headers: {} });
     fireEvent.click(screen.getByRole('button', { name: 'requisitions.edit.actions.sync' }));
-    await screen.findByText('requisitions.edit.error-description');
+    await screen.findByText('error.description');
     expect(put).not.toHaveBeenCalled();
     queryClient.clear();
   },
@@ -2761,7 +2761,7 @@ it('rechecks eligibility after the user resolves a field conflict on a submitted
   const dialog = await screen.findByRole('dialog');
   await user.click(within(dialog).getByRole('radio', { name: 'requisitions.merge.yours-value' }));
   await user.click(within(dialog).getByRole('button', { name: 'requisitions.merge.recover' }));
-  await screen.findByText('requisitions.edit.error-description');
+  await screen.findByText('error.description');
   expect(put).toHaveBeenCalledOnce();
   queryClient.clear();
 });

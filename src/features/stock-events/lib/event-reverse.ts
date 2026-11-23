@@ -170,11 +170,5 @@ export function lineErrorMessage(
   error: Pick<StockEventCancelLineError, 'messageKey' | 'message'>,
   t: (key: ParseKeys) => string,
 ) {
-  if (error.messageKey === 'stockmanagement.error.event.cancellation.reason.required') {
-    return t('stock-event-reverse.reason-required');
-  }
-  if (error.messageKey === 'stockmanagement.error.event.cancellation.reason.invalid') {
-    return t('stock-event-reverse.reason-invalid');
-  }
   return keyedApiErrorText(error.messageKey, error.message, t) ?? t('error.description');
 }

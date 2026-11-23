@@ -151,7 +151,6 @@ export type EventKindConfig = {
     | 'invalidTitle'
     | 'invalidDescription'
     | 'submitErrorTitle'
-    | 'submitErrorDescription'
     | 'submittedTitle'
     | 'submittedDescription',
     ParseKeys
@@ -201,7 +200,6 @@ export const EVENT_KINDS = {
       invalidTitle: 'stock-adjustment.invalid-title',
       invalidDescription: 'stock-adjustment.invalid-description',
       submitErrorTitle: 'stock-adjustment.submit-error-title',
-      submitErrorDescription: 'stock-adjustment.submit-error-description',
       submittedTitle: 'stock-adjustment.submitted-title',
       submittedDescription: 'stock-adjustment.submitted-description',
     },
@@ -257,7 +255,6 @@ export const EVENT_KINDS = {
       invalidTitle: 'stock-issue.invalid-title',
       invalidDescription: 'stock-issue.invalid-description',
       submitErrorTitle: 'stock-issue.submit-error-title',
-      submitErrorDescription: 'stock-issue.submit-error-description',
       submittedTitle: 'stock-issue.submitted-title',
       submittedDescription: 'stock-issue.submitted-description',
     },
@@ -313,7 +310,6 @@ export const EVENT_KINDS = {
       invalidTitle: 'stock-receive.invalid-title',
       invalidDescription: 'stock-receive.invalid-description',
       submitErrorTitle: 'stock-receive.submit-error-title',
-      submitErrorDescription: 'stock-receive.submit-error-description',
       submittedTitle: 'stock-receive.submitted-title',
       submittedDescription: 'stock-receive.submitted-description',
     },
@@ -375,7 +371,6 @@ export const EVENT_KINDS = {
       invalidTitle: 'stock-unpack.invalid-title',
       invalidDescription: 'stock-unpack.invalid-description',
       submitErrorTitle: 'stock-unpack.submit-error-title',
-      submitErrorDescription: 'stock-unpack.submit-error-description',
       submittedTitle: 'stock-unpack.submitted-title',
       submittedDescription: 'stock-unpack.submitted-description',
     },

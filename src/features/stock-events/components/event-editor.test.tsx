@@ -2609,9 +2609,7 @@ describe('Unpack editor', () => {
       await user.click(submit());
       const dialog = await screen.findByRole('alertdialog');
       expect(dialog).toHaveTextContent(
-        error.response
-          ? en['stock-unpack.submit-error-description']
-          : en['stock-unpack.refresh-offline'],
+        error.response ? en['error.description'] : en['stock-unpack.refresh-offline'],
       );
       expect(dialog).not.toHaveTextContent(en['stock-events.unknown-outcome-description']);
       await user.click(screen.getByRole('button', { name: 'Close' }));

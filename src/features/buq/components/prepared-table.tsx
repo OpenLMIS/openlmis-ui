@@ -240,7 +240,9 @@ function DeleteBuqDialog({
   const { shown, close, dialogProps } = useDialogTarget(buq, onClose);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const remove = useSessionMutation({
-    onError: reportApiError,
+    onError: (error) => {
+      if (!(error instanceof BuqMovedError)) reportApiError(error);
+    },
     mutationFn: deleteBuq,
     onSuccess: (_, id) => {
       toast.success(t('buq.prepare.deleted-title'), {
@@ -287,7 +289,7 @@ function DeleteBuqDialog({
             description={
               remove.error instanceof BuqMovedError
                 ? t('buq.prepare.delete-moved')
-                : apiErrorText(remove.error, 'error.description', t, { write: true })
+                : apiErrorText(remove.error, 'error.description', t)
             }
             title={t('buq.prepare.delete-error-title')}
           />

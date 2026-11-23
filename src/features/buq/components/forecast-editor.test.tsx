@@ -352,6 +352,7 @@ it("approves nothing once the forecast left this approver's list", async () => {
 
 it('rejects nothing once the forecast was approved elsewhere', async () => {
   const user = userEvent.setup();
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.mocked(fetchBuqForecast).mockResolvedValue({ ...AUTHORIZED, status: 'APPROVED' });
   await renderEditor({ forecast: AUTHORIZED, mode: { kind: 'approve', programId: 'g1' } });
 
@@ -364,6 +365,7 @@ it('rejects nothing once the forecast was approved elsewhere', async () => {
 
   expect(await within(dialog).findByText('buq.forecast.moved')).toBeInTheDocument();
   expect(rejectBuqForecast).not.toHaveBeenCalled();
+  expect(log).not.toHaveBeenCalled();
 });
 
 const APPROVED: BuqForecast = { ...AUTHORIZED, status: 'APPROVED' };

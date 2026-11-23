@@ -154,6 +154,7 @@ import { useReloadForUser } from '@/hooks/use-reload-for-user';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { isSilentApiError } from '@/lib/api-error';
+import { DraftConflictError } from '@/lib/draft-store';
 import { queryKeys } from '@/lib/key-factory';
 import { LocalDataUnavailableError, onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isDeviceAccess } from '@/lib/offline-access';
@@ -417,6 +418,17 @@ function lifecycleLanded(kind: EditorAction, fresh: RequisitionRecord, node?: st
 }
 
 class PatientsPayloadError extends Error {}
+
+function reportRequisitionActionError(error: unknown) {
+  if (
+    !(
+      error instanceof DraftConflictError ||
+      error instanceof RequisitionRetryConflict ||
+      error instanceof ApprovalInProgress
+    )
+  )
+    reportApiError(error);
+}
 
 function RequisitionBody({
   data,
@@ -698,7 +710,7 @@ function RequisitionBody({
     savedRefresh.current = refresh;
     void refresh.catch((error: unknown) => {
       if (scope !== getSessionScope() || isSilentApiError(error)) return;
-      reportApiError(error);
+      reportRequisitionActionError(error);
       setFailure(toRequisitionFailure(error, false));
     });
     void refresh
@@ -990,7 +1002,7 @@ function RequisitionBody({
       if (!mutation.isCurrent()) return false;
       setAction(null);
       if (error instanceof PatientsPayloadError || isSilentApiError(error)) return false;
-      reportApiError(error);
+      reportRequisitionActionError(error);
       const failure =
         uncertain.current && isApprovalKind(uncertain.current.kind)
           ? { kind: 'reconciling' as const }
@@ -1015,7 +1027,7 @@ function RequisitionBody({
           }
         } catch (recoveryError) {
           if (!mutation.isCurrent() || isSilentApiError(recoveryError)) return false;
-          reportApiError(recoveryError);
+          reportRequisitionActionError(recoveryError);
           setFailure(toRequisitionFailure(recoveryError, false));
           return false;
         }

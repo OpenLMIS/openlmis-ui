@@ -1236,7 +1236,9 @@ it('does not offer Update for a draft no longer awaiting approval', async () => 
 it('shows synchronization guidance when pending device edits cannot flush', async () => {
   const hooks = await import('@/features/requisitions/hooks/use-batch-drafts');
   const useDrafts = hooks.useBatchDrafts;
-  const flush = vi.fn().mockRejectedValue(new Error('Local write failed'));
+  const error = new Error('Local write failed');
+  const flush = vi.fn().mockRejectedValue(error);
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(hooks, 'useBatchDrafts').mockImplementation((records) => ({
     ...useDrafts(records),
     flush,
@@ -1246,6 +1248,7 @@ it('shows synchronization guidance when pending device edits cannot flush', asyn
   await waitFor(() => expect(sync).toBeEnabled());
   await userEvent.click(sync);
   expect(await screen.findByText('requisitions.batch.save-failed')).toBeVisible();
+  expect(log).toHaveBeenCalledExactlyOnceWith(error);
   expect(saveBatchRequisitions).not.toHaveBeenCalled();
   queryClient.clear();
 });

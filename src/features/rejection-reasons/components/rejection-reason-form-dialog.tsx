@@ -117,7 +117,7 @@ function RejectionReasonForm({
               {save.isError && (
                 <ErrorAlert
                   title={t('rejection-reasons.form.save-error-title')}
-                  description={apiErrorText(save.error, 'rejection-reasons.form.save-error', t, {
+                  description={apiErrorText(save.error, 'error.description', t, {
                     write: true,
                   })}
                 />

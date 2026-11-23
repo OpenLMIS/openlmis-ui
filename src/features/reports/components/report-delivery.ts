@@ -170,7 +170,7 @@ export function useReportGeneration({ userId, module, reportId, reportName }: Ge
     successTitle: t('reports.generate.success-title'),
     successDescription: t('reports.generate.success-description', { name: reportName }),
     errorTitle: t('reports.generate.error-title'),
-    errorDescription: t('reports.generate.error-description'),
+    errorDescription: t('error.description'),
     refusedDescription: t('reports.generate.refused'),
     describeError: (error) =>
       error instanceof UnexpectedReportFileError

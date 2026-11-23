@@ -123,12 +123,7 @@ function CategoryForm({
               {save.isError && (
                 <ErrorAlert
                   title={t('rejection-reason-categories.form.save-error-title')}
-                  description={apiErrorText(
-                    save.error,
-                    'rejection-reason-categories.form.save-error',
-                    t,
-                    { write: true },
-                  )}
+                  description={apiErrorText(save.error, 'error.description', t, { write: true })}
                 />
               )}
               <CategoryFields form={form} disabled={disabled} />

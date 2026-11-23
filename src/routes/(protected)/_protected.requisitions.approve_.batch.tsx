@@ -94,6 +94,7 @@ import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { apiErrorText, isSilentApiError } from '@/lib/api-error';
+import { DraftConflictError } from '@/lib/draft-store';
 import { queryKeys } from '@/lib/key-factory';
 import { onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
@@ -467,6 +468,7 @@ function BatchPage() {
         await drafts.flush();
       } catch (error) {
         if (isSilentApiError(error)) throw error;
+        if (!(error instanceof DraftConflictError)) reportApiError(error);
         throw new BatchActionError('requisitions.batch.save-failed');
       }
       if (kind !== 'revert' && kind !== 'remove' && accessEpoch.current !== uploadAccessEpoch()) {
@@ -764,7 +766,7 @@ function BatchPage() {
         } catch (error) {
           assertSessionScope(scope);
           if (isSilentApiError(error)) throw error;
-          reportApiError(error);
+          if (!(error instanceof DraftConflictError)) reportApiError(error);
           const uncertain = !isAxiosError(error) || !error.response || error.response.status >= 500;
           if (!uncertain) {
             await drafts.mark(saved, false);
@@ -822,7 +824,8 @@ function BatchPage() {
     },
     onError: (error, kind) => {
       if (isSilentApiError(error)) return;
-      if (!(error instanceof BatchActionError)) reportApiError(error);
+      if (!(error instanceof BatchActionError || error instanceof DraftConflictError))
+        reportApiError(error);
       if (kind === 'approve' && leaving.current) {
         toast.warning(t('requisitions.offline.unavailable-label'), {
           description: t('requisitions.offline.unavailable-description'),
