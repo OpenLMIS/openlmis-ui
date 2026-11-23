@@ -17,7 +17,7 @@ const lotLine = (code: string, expirationDate: string | null = null) =>
     quantityValue('0'),
     { clientId: code, lotCode: code, expirationDate, tradeItemId: 't' },
   );
-const noMatches = async () => [];
+const noMatches = async () => undefined;
 it('creates lots sequentially and persists each id before the next request', async () => {
   const order: string[] = [];
   const create = vi.fn(async (lot) => {
@@ -42,7 +42,7 @@ it('creates lots sequentially and persists each id before the next request', asy
 it('reuses a dated lot when no expiry was entered', async () => {
   const existing = { id: 'id', lotCode: 'A', expirationDate: '2030-05-01', tradeItemId: 't' };
   const create = vi.fn();
-  const result = await createInventoryLots([lotLine('A')], async () => [existing], create, vi.fn());
+  const result = await createInventoryLots([lotLine('A')], async () => existing, create, vi.fn());
 
   expect(result[0]).toMatchObject({ key: 'p|id', lot: existing, newLot: undefined });
   expect(create).not.toHaveBeenCalled();
@@ -56,13 +56,10 @@ it('keeps successful ids and stops the save with named lot errors', async () => 
         data: { messageKey: 'referenceData.error.lot.lotCode.mustBeUnique' },
       } as never),
     );
+  const lookup = vi.fn(noMatches);
   const persist = vi.fn().mockResolvedValue(undefined);
   try {
     const pending = [lotLine('A'), lotLine('B', '2030-05-01'), lotLine('C')];
-    const lookup = async (_tradeItemId: string, lotCode: string) =>
-      lotCode === 'B'
-        ? [{ id: 'conflict', lotCode: 'B', expirationDate: '2030-06-01', tradeItemId: 't' }]
-        : [];
     await createInventoryLots(pending, lookup, create, persist);
     throw new Error('expected refusal');
   } catch (error) {
@@ -70,6 +67,11 @@ it('keeps successful ids and stops the save with named lot errors', async () => 
     expect(error).toMatchObject({ codes: ['B'], reason: 'duplicate' });
   }
   expect(create).toHaveBeenCalledTimes(2);
+  expect(lookup.mock.calls).toEqual([
+    ['t', 'A', null],
+    ['t', 'B', '2030-05-01'],
+    ['t', 'B', '2030-05-01'],
+  ]);
   expect(persist).toHaveBeenCalledWith(
     expect.arrayContaining([expect.objectContaining({ key: 'p|id', newLot: undefined })]),
   );
@@ -86,4 +88,30 @@ it('names a missing trade item error', async () => {
     codes: ['B'],
     reason: 'trade-item',
   });
+});
+
+it('repeats the exact lookup once after a duplicate POST and persists the winning lot', async () => {
+  const expirationDate = '2030-05-01';
+  const winner = { id: 'winner', lotCode: 'a_%', expirationDate, tradeItemId: 't' };
+  const lookup = vi.fn().mockResolvedValueOnce(undefined).mockResolvedValueOnce(winner);
+  const duplicate = new AxiosError('duplicate', undefined, undefined, undefined, {
+    data: { messageKey: 'referenceData.error.lot.lotCode.mustBeUnique' },
+  } as never);
+  const create = vi.fn().mockRejectedValueOnce(duplicate);
+  const persist = vi.fn();
+
+  const result = await createInventoryLots(
+    [lotLine('A_%', expirationDate)],
+    lookup,
+    create,
+    persist,
+  );
+
+  expect(result).toEqual([expect.objectContaining({ key: 'p|winner', lot: winner })]);
+  expect(lookup).toHaveBeenCalledTimes(2);
+  expect(lookup).toHaveBeenNthCalledWith(1, 't', 'A_%', expirationDate);
+  expect(lookup).toHaveBeenNthCalledWith(2, 't', 'A_%', expirationDate);
+  expect(create).toHaveBeenCalledOnce();
+  expect(persist).toHaveBeenCalledOnce();
+  expect(persist).toHaveBeenCalledWith(result);
 });

@@ -17,6 +17,7 @@ import { toDateValue } from '@/components/form/date-value';
 import { quantityValue } from '@/components/form/quantity-value';
 import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { fetchLotByTradeItemAndCode } from '@/features/reference-data/api/api';
 import {
   createPhysicalInventoryLot,
   deactivateInventoryStockCard,
@@ -43,8 +44,9 @@ import {
   readInventoryLocal,
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
+import type { InventoryStockLine } from '@/features/stock-events/lib/physical-inventory-types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
-import { inventoryWrite } from '@/test-utils/inventory-writes';
+import { inventoryWrite, inventoryWrites } from '@/test-utils/inventory-writes';
 
 vi.mock('@/features/stock-events/lib/physical-inventory-lines', async (original) => {
   const actual =
@@ -61,12 +63,14 @@ vi.mock('react-i18next', () => ({
   Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
   useTranslation: () => ({
     i18n: { language: 'en' },
-    t: (key: string, options?: { field?: string }) =>
-      key === 'stock-events.field-of' &&
-      options?.field &&
-      options.field !== 'physical-inventory.current-stock'
-        ? `${key}:${options.field}`
-        : key,
+    t: (key: string, options?: { field?: string; codes?: string }) =>
+      key === 'physical-inventory.lot-duplicate-error'
+        ? `${key}:${options?.codes}`
+        : key === 'stock-events.field-of' &&
+            options?.field &&
+            options.field !== 'physical-inventory.current-stock'
+          ? `${key}:${options.field}`
+          : key,
   }),
 }));
 vi.mock('@/features/stock-events/lib/physical-inventory-local', async (original) => ({
@@ -89,7 +93,7 @@ vi.mock('@/hooks/use-discard-guard', () => ({
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchValidReasons: vi.fn().mockResolvedValue([]),
-  fetchLotsByTradeItemAndCode: vi.fn().mockResolvedValue([]),
+  fetchLotByTradeItemAndCode: vi.fn(),
 }));
 vi.mock('@/hooks/use-quantity-unit', () => ({
   useQuantityUnit: () => {
@@ -150,7 +154,7 @@ function setup(
   search = { size: 1, page: 1 },
   onDeleted: () => void = vi.fn(),
   onSubmitted = vi.fn(),
-  initialStock = stock,
+  initialStock: InventoryStockLine[] = stock,
   routed = false,
 ) {
   const client = new QueryClient({
@@ -600,6 +604,116 @@ it('keeps Delete on an added row after Save replaces its editable lot with the s
     screen.getByRole('button', { name: 'stock-events.field-of:physical-inventory.delete-row' }),
   ).toBeInTheDocument();
 });
+it.each([
+  ['empty', '', [], null],
+  ['counted', '4', [], null],
+  ['adjusted', '', [{ reason: { id: 'reason' }, quantity: 1 }], null],
+  ['VVM marked', '', [], 'STAGE_1'],
+] as const)(
+  'handles lot reuse when the existing draft row is %s',
+  async (_, count, adjustments, vvm) => {
+    const lot = { id: 'existing', lotCode: 'NEW', expirationDate: null, tradeItemId: 't' };
+    const existingStock = {
+      ...stock[0],
+      orderable: { ...stock[0].orderable, extraData: { useVVM: 'true' } },
+      lot,
+    };
+    const [existing] = buildInventoryLines([existingStock], []);
+    const pending = {
+      ...existing,
+      key: 'A|new:new',
+      lot: null,
+      stockCardId: null,
+      stockOnHand: 0,
+      isAdded: true,
+      justAdded: true,
+      quantity: quantityValue('7', 10),
+      stockAdjustments: [{ reason: { id: 'pending' }, quantity: 2 }],
+      vvmStatus: 'STAGE_2',
+      newLot: { clientId: 'new', lotCode: 'NEW', expirationDate: null, tradeItemId: 't' },
+    };
+    const original = [
+      {
+        ...existing,
+        quantity: quantityValue(count, 10),
+        stockAdjustments: [...adjustments],
+        vvmStatus: vvm,
+      },
+      pending,
+    ];
+    vi.mocked(readInventoryLocal).mockResolvedValue({
+      draftId: 'd',
+      programId: 'p',
+      facilityId: 'f',
+      modified: true,
+      savedAt: 1,
+      lines: original,
+    });
+    vi.mocked(fetchLotByTradeItemAndCode).mockResolvedValueOnce(lot);
+    const user = userEvent.setup();
+    setup({ size: 1, page: 1 }, undefined, undefined, [existingStock]);
+    expect(await screen.findByDisplayValue('7')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+    );
+
+    if (count || adjustments.length || vvm) {
+      const alert = await screen.findByRole('alertdialog');
+      expect(alert).toHaveTextContent('physical-inventory.lot-duplicate-error:NEW');
+      expect(savePhysicalInventory).not.toHaveBeenCalled();
+      for (const { copy } of inventoryWrites()) {
+        expect(copy.lines).toMatchObject(
+          original.map(({ key, quantity, stockAdjustments, vvmStatus }) => ({
+            key,
+            quantity,
+            stockAdjustments,
+            vvmStatus,
+          })),
+        );
+      }
+      await user.click(within(alert).getByRole('button', { name: 'dialog.close' }));
+      expect(screen.getByDisplayValue('7')).toBeInTheDocument();
+      if (count) expect(screen.getByDisplayValue(count)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'stock-events.field-of:physical-inventory.edit-lot' }),
+      ).toBeInTheDocument();
+    } else {
+      await waitFor(() =>
+        expect(savePhysicalInventory).toHaveBeenCalledWith({
+          ...draft,
+          lineItems: [
+            {
+              orderableId: 'A',
+              lotId: 'existing',
+              quantity: 7,
+              stockAdjustments: pending.stockAdjustments,
+              extraData: { vvmStatus: pending.vvmStatus },
+            },
+          ],
+        }),
+      );
+      expect(writeInventoryLocal).toHaveBeenCalledWith(
+        ...inventoryWrite(
+          expect.objectContaining({
+            lines: [
+              expect.objectContaining({
+                ...original[0],
+                quantity: pending.quantity,
+                stockAdjustments: pending.stockAdjustments,
+                vvmStatus: pending.vvmStatus,
+                isAdded: true,
+              }),
+            ],
+          }),
+        ),
+      );
+      expect(screen.getByDisplayValue('7')).toBeInTheDocument();
+    }
+    expect(createPhysicalInventoryLot).not.toHaveBeenCalled();
+  },
+);
+
 it('keeps the local copy after a refused Submit and offers another deliberate attempt', async () => {
   vi.mocked(submitPhysicalInventory).mockRejectedValue(
     new AxiosError('refused', undefined, undefined, undefined, {
@@ -1273,6 +1387,7 @@ it.each([
   { failed: true, changed: false },
 ])('flushes before leaving: failed=$failed changed=$changed', async ({ failed, changed }) => {
   if (failed) vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Quota'));
+  else vi.mocked(writeInventoryLocal).mockImplementation(async (copy) => copy);
   const user = userEvent.setup();
   setup();
   const input = await screen.findByRole('textbox', { name: 'stock-events.field-of' });

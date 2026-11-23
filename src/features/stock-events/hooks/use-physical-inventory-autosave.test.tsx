@@ -124,6 +124,32 @@ it('reports a failed commit to callers while retaining the device failure status
   await expect(view.result.current.flush()).rejects.toThrow();
 });
 
+it('reports that writes skipped by archival did not commit', async () => {
+  vi.mocked(writeInventoryLocal)
+    .mockRejectedValueOnce(new Error('full'))
+    .mockRejectedValueOnce(new DraftConflictError({ ...copy, orphaned: true }));
+  const onOrphaned = vi.fn();
+  const view = renderHook(() =>
+    usePhysicalInventoryAutosave(
+      noCopy,
+      usePhysicalInventoryForm([], false),
+      undefined,
+      undefined,
+      undefined,
+      onOrphaned,
+    ),
+  );
+  await act(async () => {
+    await expect(view.result.current.write(copy)).rejects.toThrow();
+  });
+  await act(async () => {
+    await expect(view.result.current.write(copy)).resolves.toBe(false);
+  });
+  expect(onOrphaned).toHaveBeenCalledOnce();
+  await expect(view.result.current.write(copy)).resolves.toBe(false);
+  expect(writeInventoryLocal).toHaveBeenCalledTimes(2);
+});
+
 it('shares one revision chain between the open snapshot, edits and a saved baseline', async () => {
   const commit = Promise.withResolvers<void>();
   vi.mocked(writeInventoryLocal)
@@ -153,8 +179,8 @@ it('shares one revision chain between the open snapshot, edits and a saved basel
     eligible: [],
     reasons: [],
   };
-  let opening!: Promise<void>;
-  let editing!: Promise<void>;
+  let opening!: Promise<boolean>;
+  let editing!: Promise<boolean>;
   act(() => {
     opening = view.result.current.write(opened, reference);
   });
@@ -166,7 +192,7 @@ it('shares one revision chain between the open snapshot, edits and a saved basel
   expect(writeInventoryLocal).toHaveBeenCalledTimes(1);
   await act(async () => {
     commit.resolve();
-    await Promise.all([opening, editing]);
+    await expect(Promise.all([opening, editing])).resolves.toEqual([true, true]);
   });
   await act(async () => {
     await view.result.current.write({ ...copy, modified: false, baselineKeys: ['saved'] });

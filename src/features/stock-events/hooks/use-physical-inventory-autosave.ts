@@ -16,6 +16,13 @@ import { getLocalDb } from '@/integrations/local-db';
 import { assertDraftRevision, DraftConflictError } from '@/lib/draft-store';
 import { getSessionScope } from '@/lib/session-scope';
 
+type InventoryWrite = {
+  copy: InventoryLocalCopy;
+  reference?: InventoryReference;
+  snapshotOnly: boolean;
+  committed?: boolean;
+};
+
 export function usePhysicalInventoryAutosave(
   copy: () => InventoryLocalCopy | null,
   form: PhysicalInventoryForm,
@@ -56,12 +63,10 @@ export function usePhysicalInventoryAutosave(
     let resolving = false;
     let draftId: string | undefined;
     let observed: DraftConflictError<InventoryLocalCopy> | undefined;
-    const serial = createInventoryWriter<{
-      copy: InventoryLocalCopy;
-      reference?: InventoryReference;
-      snapshotOnly?: boolean;
-    }>(
-      async ({ copy: value, reference, snapshotOnly }) => {
+    let latestWrite: InventoryWrite | undefined;
+    const serial = createInventoryWriter<InventoryWrite>(
+      async (request) => {
+        const { copy: value, reference, snapshotOnly } = request;
         if (getSessionScope() !== scope || orphaned) return;
         if (!referenceLoaded) {
           persistedReference = await captureReference();
@@ -108,6 +113,7 @@ export function usePhysicalInventoryAutosave(
             revision = error.stored.revision;
             saved = await commit();
           }
+          if (saved) request.committed = true;
           persistedReference = referenceToWrite;
           revision = saved?.revision;
           metadata = saved;
@@ -144,13 +150,30 @@ export function usePhysicalInventoryAutosave(
       if (orphaned) return;
       quiet = !value.modified;
       pendingReference = reference ?? pendingReference;
-      serial.enqueue({ copy: value, reference: pendingReference, snapshotOnly });
+      const request: InventoryWrite = { copy: value, reference: pendingReference, snapshotOnly };
+      latestWrite = request;
+      serial.enqueue(request);
+      return request;
     };
     return {
       ...serial,
       captureReference,
       enqueue,
       reset: serial.reset,
+      async flush() {
+        await serial.flush();
+        return (
+          getSessionScope() === scope &&
+          !orphaned &&
+          (latestWrite ? Boolean(latestWrite.committed) : Boolean(initialCopy))
+        );
+      },
+      async write(value: InventoryLocalCopy, reference?: InventoryReference, snapshotOnly = false) {
+        const request = enqueue(value, reference, snapshotOnly);
+        if (!request) return false;
+        await serial.flush();
+        return getSessionScope() === scope && !orphaned && Boolean(request.committed);
+      },
       async loadLatest() {
         const latest = draftId ? await readInventoryLocal(draftId) : undefined;
         if (getSessionScope() !== scope) return;
@@ -233,10 +256,7 @@ export function usePhysicalInventoryAutosave(
     flush: writer.flush,
     retry: writer.retry,
     clear: writer.clear,
-    async write(value: InventoryLocalCopy, reference?: InventoryReference, snapshotOnly = false) {
-      writer.enqueue(value, reference, snapshotOnly);
-      await writer.flush();
-    },
+    write: writer.write,
     reset: writer.reset,
   };
 }

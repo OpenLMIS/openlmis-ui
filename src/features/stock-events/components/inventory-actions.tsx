@@ -20,7 +20,7 @@ import {
 import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
-import { fetchLotsByTradeItemAndCode } from '@/features/reference-data/api/api';
+import { fetchLotByTradeItemAndCode } from '@/features/reference-data/api/api';
 import {
   createPhysicalInventoryLot,
   deletePhysicalInventory,
@@ -118,9 +118,9 @@ type Props = {
   writeDisabled?: boolean;
   conflicted?: boolean;
   writeDisabledReason?: string;
-  flush: () => Promise<void>;
+  flush: () => Promise<boolean>;
   clearLocal: (draftId: string) => Promise<void>;
-  writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<unknown>;
+  writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<boolean>;
   onBusy: (busy: boolean) => void;
   onOrphaned?: () => void;
   onLots: (lines: InventoryLine[]) => void;
@@ -203,8 +203,7 @@ export function InventoryActions(props: Props) {
       };
       check();
       try {
-        await props.flush();
-        attempt.countsOnDevice = true;
+        attempt.countsOnDevice = await props.flush();
       } catch (error) {
         attempt.countsOnDevice = false;
         reportUnlessConflict(error);
@@ -250,9 +249,9 @@ export function InventoryActions(props: Props) {
         throw new Error(t('physical-inventory.invalid-description'));
       const prepared = await createInventoryLots(
         lines,
-        (tradeItemId, lotCode) => {
+        (tradeItemId, lotCode, expirationDate) => {
           check();
-          return fetchLotsByTradeItemAndCode(tradeItemId, lotCode);
+          return fetchLotByTradeItemAndCode(tradeItemId, lotCode, expirationDate);
         },
         (body) => {
           check();
@@ -262,9 +261,11 @@ export function InventoryActions(props: Props) {
           assertSessionScope(scope);
           props.onLots(next);
           try {
-            await props.writeLocal(inventoryLocalCopy(props.draft, next, props.baseline));
-            attempt.countsOnDevice = true;
+            attempt.countsOnDevice = await props.writeLocal(
+              inventoryLocalCopy(props.draft, next, props.baseline),
+            );
           } catch (error) {
+            attempt.countsOnDevice = false;
             reportUnlessConflict(error);
           }
           assertSessionScope(scope);
@@ -346,6 +347,7 @@ export function InventoryActions(props: Props) {
         return;
       }
       if (
+        !(error instanceof InventoryLotError && cause === undefined) &&
         !(
           cause instanceof DraftConflictError ||
           cause instanceof InventoryOrphaned ||
@@ -357,6 +359,7 @@ export function InventoryActions(props: Props) {
       if (
         !keepOpen &&
         !(error instanceof UnknownSubmit) &&
+        !(error instanceof InventoryLotError && error.reason === 'duplicate') &&
         !isApiTimeout(cause) &&
         (isOfflineError(error) || !isOnline())
       ) {
@@ -389,11 +392,15 @@ export function InventoryActions(props: Props) {
               ? t('physical-inventory.lot-trade-item-error', { codes: error.codes.join(', ') })
               : t('physical-inventory.lot-error', {
                   codes: error.codes.join(', '),
-                  message: keepOpen
-                    ? isWriteApiTimeout(cause)
-                      ? t('physical-inventory.lot-timeout-keep-open')
-                      : inventoryKeepOpenText(cause, t)
-                    : apiErrorText(cause, fallback, t),
+                  message: isWriteApiTimeout(cause)
+                    ? t(
+                        keepOpen
+                          ? 'physical-inventory.lot-timeout-keep-open'
+                          : 'physical-inventory.lot-timeout',
+                      )
+                    : keepOpen
+                      ? inventoryKeepOpenText(cause, t)
+                      : apiErrorText(cause, fallback, t),
                 });
       else if (keepOpen) description = inventoryKeepOpenText(cause, t);
       else description = apiErrorText(error, fallback, t);
@@ -420,7 +427,7 @@ export function InventoryActions(props: Props) {
     let localSaved = true;
     try {
       if (action.type === 'save')
-        await props.writeLocal(inventoryLocalCopy(props.draft, next, next, false));
+        localSaved = await props.writeLocal(inventoryLocalCopy(props.draft, next, next, false));
       else await props.clearLocal(props.draft.id);
     } catch (error) {
       localSaved = false;

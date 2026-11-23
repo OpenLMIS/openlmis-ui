@@ -598,8 +598,7 @@ function InventoryDraftRows({
       flushBeforeLeave: async () => {
         if (!modified && !form.state.isDirty) return true;
         try {
-          await autosave.flush();
-          return true;
+          return await autosave.flush();
         } catch {
           return false;
         }

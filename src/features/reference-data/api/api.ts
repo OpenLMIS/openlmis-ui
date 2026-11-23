@@ -214,17 +214,28 @@ export async function fetchLotsByTradeItems(
   return [...new Map(lots.map((lot) => [lot.id, lot])).values()];
 }
 
-export async function fetchLotsByTradeItemAndCode(tradeItemId: string, lotCode: string) {
+const LOT_LOOKUP_MAX_PAGES = 3;
+
+export async function fetchLotByTradeItemAndCode(
+  tradeItemId: string,
+  lotCode: string,
+  expirationDate?: string | null,
+) {
   const scope = getSessionScope();
-  const lots: LotSummary[] = [];
-  for (let page = 0; ; page += 1) {
+  const code = lotCode.toUpperCase();
+  for (let page = 0; page < LOT_LOOKUP_MAX_PAGES; page += 1) {
     assertSessionScope(scope);
     const { data } = await client.get<Page<LotSummary>>('/lots', {
-      params: { tradeItemId, lotCode, page, size: 100 },
+      params: { tradeItemId, lotCode, ...(expirationDate && { expirationDate }), page, size: 100 },
     });
     assertSessionScope(scope);
-    lots.push(...data.content);
-    if (page + 1 >= data.totalPages) return lots;
+    const match = data.content.find(
+      (lot) =>
+        lot.tradeItemId === tradeItemId &&
+        lot.lotCode.toUpperCase() === code &&
+        (!expirationDate || lot.expirationDate === expirationDate),
+    );
+    if (match || page + 1 >= data.totalPages) return match;
   }
 }
 
