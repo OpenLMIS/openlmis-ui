@@ -445,7 +445,7 @@ function FinalApproveDialog({
   });
   const failure = approve.isError ? approve.error : approve.data?.error;
   const partly = approve.data?.approved.length ?? 0;
-  const reason = apiErrorText(failure, 'buq.national.approve-error', t, { write: true });
+  const reason = apiErrorText(failure, 'buq.national.approve-error', t);
   const props = dialogProps(approve.isPending);
   return (
     <AlertDialog

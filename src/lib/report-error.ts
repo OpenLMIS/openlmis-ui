@@ -27,11 +27,15 @@ function diagnosticPath(url: string | undefined) {
 export function reportApiError(error: unknown) {
   try {
     if (isSilentApiError(error) || (isOfflineError(error) && !isApiTimeout(error))) return;
+    if (!isAxiosError(error)) {
+      console.error(error);
+      return;
+    }
     const messageKey = serverMessageKey(error);
     const fields = messageKey ? [] : apiFieldMessages(error);
     const keys = new Set(fields.length ? fields.map(({ key }) => key) : [messageKey]);
-    const config = isAxiosError(error) ? error.config : undefined;
-    const status = isAxiosError(error) ? error.response?.status : undefined;
+    const { config } = error;
+    const status = error.response?.status;
     const path = diagnosticPath(config?.url);
     for (const key of keys) {
       if (key && hasApiErrorTranslation(key, (translation) => i18n.exists(translation))) continue;

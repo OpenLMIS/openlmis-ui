@@ -36,6 +36,7 @@ import {
 } from '@/features/requisition-templates/api/api';
 import { ColumnsTab } from '@/features/requisition-templates/components/columns-tab';
 import { SettingsTab } from '@/features/requisition-templates/components/settings-tab';
+import { TEMPLATE_FIELD_ERRORS } from '@/features/requisition-templates/lib/add-template-form';
 import { templateFieldErrors } from '@/features/requisition-templates/lib/server-errors';
 import {
   draftFromTemplate,
@@ -49,7 +50,7 @@ import type { RequisitionTemplate } from '@/features/requisition-templates/lib/t
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { apiErrorText } from '@/lib/api-error';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
 import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
@@ -126,19 +127,31 @@ export function TemplateEditor({
       onSaved();
     },
     onError: (error) => {
-      reportApiError(error);
+      const replaced = error instanceof ReplacedTemplateError;
+      if (!replaced) reportApiError(error);
+      const nameError = fieldErrorFor(error, TEMPLATE_FIELD_ERRORS);
       const fields = templateFieldErrors(error, t);
-      const description =
-        error instanceof ReplacedTemplateError
-          ? t('requisition-templates.configure.replaced')
+      const description = replaced
+        ? t('requisition-templates.configure.replaced')
+        : nameError
+          ? null
           : fields
             ? fields.general
-            : apiErrorText(error, 'requisition-templates.configure.save-error', t, { write: true });
+            : apiErrorText(error, 'requisition-templates.configure.save-error', t);
       if (description)
         toast.error(t('requisition-templates.configure.save-error-title'), { description });
+      if (nameError) {
+        form.setFieldMeta(nameError.field, (meta) => ({
+          ...meta,
+          isTouched: true,
+          errorMap: { ...meta.errorMap, onServer: nameError.key },
+        }));
+        setInvalidTab('settings');
+        onTabChange('settings');
+      }
       if (fields) {
         setFieldErrors(fields);
-        if (fields.periods) {
+        if (fields.periods && hasPeriodInput) {
           form.setFieldMeta('numberOfPeriodsToAverage', (meta) => ({
             ...meta,
             isTouched: true,
@@ -179,6 +192,12 @@ export function TemplateEditor({
     return () => cancelAnimationFrame(frame);
   }, [invalidTab, tab, cards]);
   const changed = useStore(form.store, (state) => !state.isDefaultValue);
+  const hasPeriodInput = Object.values(saved.columnsMap).some(
+    (column) => column.columnDefinition.name === 'averageConsumption',
+  );
+  const columnErrors = [fieldErrors?.columns, !hasPeriodInput && fieldErrors?.periods]
+    .filter(Boolean)
+    .join(' ');
   const guard = useDiscardGuard(changed, {
     pending: save.isPending,
     allowLeave: () => leaving.current,
@@ -227,10 +246,10 @@ export function TemplateEditor({
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent data-template-tab="columns" keepMounted value="columns">
-                  {fieldErrors?.columns && (
+                  {columnErrors && (
                     <ErrorAlert
                       title={t('requisition-templates.configure.save-error-title')}
-                      description={fieldErrors.columns}
+                      description={columnErrors}
                     />
                   )}
                   <ColumnsTab cards={cards} form={form} saved={saved} />

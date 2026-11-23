@@ -4,7 +4,7 @@
   "api-error.fulfillment.error.shipmentDraft.order.duplicate": "Já existe um rascunho de expedição para esta encomenda.",
   "api-error.notification.error.userContactDetails.email.duplicated": "Outro utilizador já usa este endereço de e-mail.",
   "api-error.referenceData.error.user.username.duplicated": "Outro utilizador já usa este nome de utilizador.",
-  "api-error.stockmanagement.error.event.cannot.unpack.when.extra.constituents.credited": "Não foi possível desmontar o kit porque foram adicionados componentes extra ao stock.",
+  "api-error.stockmanagement.error.event.cannot.unpack.when.extra.constituents.credited": "Não foi possível desembalar o kit porque foram adicionados componentes extra ao stock.",
   "api-error.stockmanagement.error.physicalInventory.isSubmitted": "Este inventário físico já foi submetido e não pode ser alterado.",
   "api-error.timeout-read": "O servidor demorou demasiado tempo a responder. Tente novamente.",
   "api-error.timeout-write": "O servidor não respondeu a tempo. A alteração pode ter sido guardada. Recarregue a página antes de tentar novamente.",

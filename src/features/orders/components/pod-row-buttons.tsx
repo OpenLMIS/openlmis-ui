@@ -18,7 +18,9 @@ import type { PodListSearch } from '@/features/orders/lib/pod-search';
 import type { OrderSummary } from '@/features/orders/lib/types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { openReport } from '@/lib/open-report';
+import { reportApiError } from '@/lib/report-error';
 import { getSessionUserId } from '@/lib/session-scope';
 
 export function PodRowButtons({
@@ -55,10 +57,11 @@ export function PodRowButtons({
         state: orderReturnState({ to: '/orders/proof-of-delivery', search }),
       });
     },
-    onError: () =>
-      toast.error(t('orders.view.error-title'), {
-        description: t('orders.view.error-description'),
-      }),
+    onError: (error) => {
+      reportApiError(error);
+      const description = apiErrorText(error, 'orders.view.error-description', t);
+      if (description !== null) toast.error(t('orders.view.error-title'), { description });
+    },
   });
   const printPodId = useRef('');
   const print = usePrintReport({

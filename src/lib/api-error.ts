@@ -15,7 +15,11 @@ export function serverMessageKey(error: unknown): string | undefined {
   return typeof key === 'string' && key ? key : undefined;
 }
 
-const technicalKeys = new Set(['error.sendRequest', 'cce.error.io']);
+const technicalKeys = new Set([
+  'error.sendRequest',
+  'cce.error.io',
+  'stockmanagement.error.authorization.failed',
+]);
 
 const existingTranslations = new Map<string, ParseKeys>([
   ['notification.error.userContactDetails.email.invalid', 'users.form.email-invalid'],
@@ -61,7 +65,12 @@ export function hasApiErrorTranslation(key: string, exists: (key: ParseKeys) => 
 
 type TranslateError = (key: ParseKeys) => string;
 
-export function keyedApiErrorText(key: string, message: string | undefined, t: TranslateError) {
+export function keyedApiErrorText(
+  key: string | undefined,
+  message: string | undefined,
+  t: TranslateError,
+) {
+  if (!key) return message?.trim() ? message : undefined;
   if (technicalKeys.has(key)) return undefined;
   const candidate = catalogKey(key);
   const translated = t(candidate);
@@ -103,21 +112,36 @@ export function fieldErrorFor<const Field extends string>(
   return key && Object.hasOwn(table, key) ? table[key] : undefined;
 }
 
+const errorEnvelopeFields = new Set([
+  'error',
+  'error_description',
+  'exception',
+  'message',
+  'messageKey',
+  'path',
+  'status',
+  'timestamp',
+  'trace',
+]);
+
 export function apiFieldMessages(error: unknown) {
   if (!isAxiosError(error) || error.response?.status !== 400 || serverMessageKey(error)) return [];
   const data: unknown = error.response.data;
   if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
+  if (serverMessage(error)) return [];
   return Object.entries(data).flatMap(([field, value]: [string, unknown]) => {
-    if (
-      !value ||
-      typeof value !== 'object' ||
-      !('messageKey' in value) ||
-      typeof value.messageKey !== 'string' ||
-      !value.messageKey
-    )
-      return [];
+    if (errorEnvelopeFields.has(field)) return [];
+    if (typeof value === 'string' && value.trim())
+      return [{ field, message: value, key: undefined }];
+    if (!value || typeof value !== 'object') return [];
+    const key =
+      'messageKey' in value && typeof value.messageKey === 'string' && value.messageKey
+        ? value.messageKey
+        : undefined;
     const message =
-      'message' in value && typeof value.message === 'string' ? value.message : undefined;
-    return [{ field, key: value.messageKey, message }];
+      'message' in value && typeof value.message === 'string' && value.message.trim()
+        ? value.message
+        : undefined;
+    return key || message ? [{ field, key, message }] : [];
   });
 }

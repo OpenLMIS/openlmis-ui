@@ -19,6 +19,7 @@ import { fetchFacility } from '@/features/reference-data/api/api';
 import { userRecordOptions } from '@/features/reference-data/api/queries';
 import { client } from '@/integrations/axios';
 import { userRecordKey } from '@/lib/key-factory';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/features/reference-data/api/api', async (original) => ({
   ...(await original<typeof import('@/features/reference-data/api/api')>()),
@@ -103,6 +104,20 @@ describe('BasicInformation', () => {
     expect(client.put).toHaveBeenNthCalledWith(2, '/userContactDetails/u1', expect.anything());
     expect(invalidate).toHaveBeenCalledWith({ queryKey: pendingEmailOptions('u1').queryKey });
     expect(screen.getByRole('textbox', { name: 'users.form.phone-number' })).toHaveValue('123');
+  });
+
+  it('shows the Notification email refusal on the email field and clears it on edit', async () => {
+    const key = 'notification.error.userContactDetails.email.duplicated';
+    vi.mocked(client.put).mockRejectedValueOnce(httpError(400, { messageKey: key }));
+    openProfile(new QueryClient(), <BasicInformation onSaved={vi.fn()} profile={profile} />);
+    const user = userEvent.setup();
+    const email = await screen.findByRole('textbox', { name: 'users.email' });
+    await user.type(email, 'ada@example.org');
+    await user.click(screen.getByRole('button', { name: 'profile.save' }));
+    await waitFor(() => expect(email).toHaveAccessibleDescription(expect.stringContaining(key)));
+    expect(screen.queryByText('profile.save-error-title')).not.toBeInTheDocument();
+    await user.type(email, 'x');
+    expect(email).not.toHaveAttribute('aria-invalid', 'true');
   });
 
   it('patches confirmed names into the current shared user when its refresh fails', async () => {

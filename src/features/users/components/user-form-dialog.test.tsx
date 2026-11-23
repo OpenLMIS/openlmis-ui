@@ -73,7 +73,7 @@ it('completes an Edit User save while the notification refresh is still pending'
   }
 });
 
-it('shows duplicate username refusals only while they match the current value', async () => {
+it('shows a banner when a duplicate username refusal arrives after the value changed', async () => {
   const cache = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
@@ -117,6 +117,7 @@ it('shows duplicate username refusals only while they match the current value', 
     await waitFor(() =>
       expect(cache.getMutationCache().getAll().at(-1)?.state.error).toBe(duplicate),
     );
+    expect(await screen.findByText('users.form.save-error-title')).toBeVisible();
     expect(username).toHaveValue('ada23');
     expect(username).not.toHaveAttribute('aria-invalid', 'true');
   } finally {

@@ -305,10 +305,12 @@ function useItemAlerts(item: InventoryItemRecord, userId: string) {
       historyButton.current?.focus();
       await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all });
     },
-    onError: () =>
-      toast.error(t('cce-inventory.status.dismiss-error-title'), {
-        description: t('cce-inventory.status.dismiss-error'),
-      }),
+    onError: (error) => {
+      reportApiError(error);
+      const description = apiErrorText(error, 'cce-inventory.status.dismiss-error', t);
+      if (description !== null)
+        toast.error(t('cce-inventory.status.dismiss-error-title'), { description });
+    },
   });
   const history = usePrintReport({
     userId,

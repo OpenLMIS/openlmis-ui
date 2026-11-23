@@ -58,6 +58,7 @@ import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries
 import { useCardView } from '@/hooks/use-card-view';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { downloadFile } from '@/lib/download-file';
 import {
   type CompleteSelection,
@@ -76,6 +77,7 @@ import {
   type ProgramGrant,
   programGrants,
 } from '@/lib/permissions';
+import { reportApiError } from '@/lib/report-error';
 import { type SearchChange, searchSort } from '@/lib/table-search';
 
 const RIGHT = RIGHTS.cceInventoryView;
@@ -494,10 +496,11 @@ function InventoryList({
   const exporting = useSessionMutation({
     mutationFn: () => exportInventoryItems(selection.facilityId, selection.programId),
     onSuccess: (blob) => downloadFile(blob, EXPORT_FILENAME),
-    onError: () =>
-      toast.error(t('cce-inventory.export-error-title'), {
-        description: t('cce-inventory.export-error'),
-      }),
+    onError: (error) => {
+      reportApiError(error);
+      const description = apiErrorText(error, 'cce-inventory.export-error', t);
+      if (description !== null) toast.error(t('cce-inventory.export-error-title'), { description });
+    },
   });
 
   return (

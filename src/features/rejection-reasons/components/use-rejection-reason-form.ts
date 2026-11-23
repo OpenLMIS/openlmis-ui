@@ -14,6 +14,7 @@ import {
 } from '@/features/rejection-reasons/lib/reason-form';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 export const rejectionReasonSaveKey = [...queryKeys.rejectionReasons.all, 'save'] as const;
 
@@ -30,6 +31,7 @@ export function useRejectionReasonForm({
   const categories = useQuery(rejectionReasonCategoriesOptions());
   const schema = useMemo(() => reasonFormSchema(categories.data), [categories.data]);
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationKey: rejectionReasonSaveKey,
     mutationFn: (values: ReasonFormValues) =>
       saveRejectionReason(toReasonBody(values, categories.data ?? [], saved)),

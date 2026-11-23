@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { createInstance } from 'i18next';
 import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -39,11 +40,17 @@ vi.mock('@/features/requisition-templates/api/api', async (original) => {
 
 const saved = liveTemplates[0];
 
-function Editor({ initialTab = 'columns' }: { initialTab?: TemplateTab }) {
+function Editor({
+  initialTab = 'columns',
+  template = saved,
+}: {
+  initialTab?: TemplateTab;
+  template?: typeof saved;
+}) {
   const [tab, setTab] = useState(initialTab);
   return (
     <TemplateEditor
-      saved={saved}
+      saved={template}
       programName="ARV"
       tab={tab}
       onTabChange={setTab}
@@ -177,6 +184,69 @@ describe('TemplateEditor', () => {
     expect(periods).toHaveAccessibleDescription(
       en['requisition-templates.configure.validation.periods-minimum'],
     );
+  });
+
+  it('shows a section alert for a period refusal when the template has no period input', async () => {
+    const template = {
+      ...saved,
+      columnsMap: Object.fromEntries(
+        Object.entries(saved.columnsMap).filter(
+          ([, column]) => column.columnDefinition.name !== 'averageConsumption',
+        ),
+      ),
+    };
+    vi.mocked(client.get).mockResolvedValueOnce({ data: template });
+    vi.mocked(client.put).mockRejectedValueOnce(
+      httpError(400, { numberOfPeriodsToAverage: { message: 'Invalid period count' } }),
+    );
+    const user = userEvent.setup();
+    renderPage(<Editor initialTab="settings" template={template} />, {
+      queryClient: seededClient(),
+    });
+    const save = 'requisition-templates.configure.save';
+    await user.click(await screen.findByRole('button', { name: save }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: save }),
+    );
+    expect(await screen.findByText('Invalid period count')).toBeVisible();
+  });
+
+  it('opens Settings for a duplicate name and clears the refusal on edit', async () => {
+    vi.mocked(client.put).mockRejectedValueOnce(
+      httpError(400, { messageKey: 'requisition.error.validation.templateNameDuplication' }),
+    );
+    const user = userEvent.setup();
+    renderPage(<Editor />, { queryClient: seededClient() });
+    const save = 'requisition-templates.configure.save';
+    await user.click(await screen.findByRole('button', { name: save }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: save }),
+    );
+    const name = await screen.findByRole('textbox', {
+      name: /requisition-templates.configure.name/,
+    });
+    expect(name).toHaveAccessibleDescription('requisition-templates.form.name-taken');
+    await user.type(name, ' updated');
+    expect(name).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('uses read-timeout copy when the fresh template read fails before saving', async () => {
+    vi.mocked(client.get).mockRejectedValueOnce(
+      new AxiosError('Timeout', 'ECONNABORTED', { method: 'get', headers: new AxiosHeaders() }),
+    );
+    const user = userEvent.setup();
+    renderPage(<Editor />, { queryClient: seededClient() });
+    const save = 'requisition-templates.configure.save';
+    await user.click(await screen.findByRole('button', { name: save }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: save }),
+    );
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('requisition-templates.configure.save-error-title', {
+        description: 'api-error.timeout-read',
+      }),
+    );
+    expect(client.put).not.toHaveBeenCalled();
   });
 
   it('refuses a previous user draft after confirmation', async () => {

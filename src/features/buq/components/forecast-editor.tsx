@@ -369,7 +369,7 @@ export function ForecastForm({
     onError: (error, { action }) => {
       setConfirming(null);
       const failed = FAILED[action];
-      reportApiError(error);
+      if (!(error instanceof BuqMovedError)) reportApiError(error);
       const description =
         error instanceof BuqMovedError
           ? t('buq.forecast.moved')

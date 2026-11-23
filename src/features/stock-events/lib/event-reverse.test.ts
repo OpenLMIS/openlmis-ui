@@ -263,15 +263,27 @@ describe('reverse payload and errors', () => {
       'stock-event-reverse.reason-invalid',
     ],
   ])('maps the raw placeholder message for %s', (messageKey, expected) => {
-    expect(lineErrorMessage({ messageKey, message: 'Reason {0}' })).toEqual({ key: expected });
+    expect(lineErrorMessage({ messageKey, message: 'Reason {0}' }, (key) => key)).toBe(expected);
   });
-  it('keeps other server messages and supplies the failed message when absent', () => {
-    expect(lineErrorMessage({ messageKey: 'other', message: 'Server says no' })).toEqual({
-      message: 'Server says no',
-    });
-    expect(lineErrorMessage({ message: 'stock-event-reverse.reason-required' })).toEqual({
-      message: 'stock-event-reverse.reason-required',
-    });
-    expect(lineErrorMessage({})).toEqual({ key: 'stock-event-reverse.failed-description' });
+  it.each([
+    [{ messageKey: 'other', message: 'Server says no' }, 'Server says no'],
+    [{ message: 'stock-event-reverse.reason-required' }, 'stock-event-reverse.reason-required'],
+    [
+      { messageKey: 'stockmanagement.error.physicalInventory.isSubmitted', message: 'Server text' },
+      'Translated inventory refusal',
+    ],
+    [
+      { messageKey: 'stockmanagement.error.authorization.failed', message: 'Upstream exception' },
+      'stock-event-reverse.failed-description',
+    ],
+    [{}, 'stock-event-reverse.failed-description'],
+  ])('resolves the line error %j', (error, expected) => {
+    expect(
+      lineErrorMessage(error, (key) =>
+        key === 'api-error.stockmanagement.error.physicalInventory.isSubmitted'
+          ? 'Translated inventory refusal'
+          : key,
+      ),
+    ).toBe(expected);
   });
 });

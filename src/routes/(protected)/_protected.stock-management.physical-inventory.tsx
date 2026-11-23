@@ -14,11 +14,13 @@ import { startPhysicalInventory } from '@/features/stock-events/api/physical-inv
 import { physicalInventoryDraftOptions } from '@/features/stock-events/api/physical-inventory-queries';
 import { useReloadOnConnectivityChange } from '@/hooks/use-reload-on-connectivity-change';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isApiTimeout, isSilentApiError } from '@/lib/api-error';
 import { recordLabel } from '@/lib/facility-program-selection';
 import { isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
 import { useOnline } from '@/lib/online';
+import { reportApiError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import {
   loadStockEventPrograms,
@@ -102,14 +104,16 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
         params: { programId: draft.programId },
       });
     },
-    onError: (error) =>
-      toast.error(t('physical-inventory.start-error-title'), {
-        description: t(
-          isOfflineError(error)
-            ? 'offline.action-description'
-            : 'physical-inventory.start-error-description',
-        ),
-      }),
+    onError: (error) => {
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
+      const description =
+        isOfflineError(error) && !isApiTimeout(error)
+          ? t('offline.action-description')
+          : apiErrorText(error, 'physical-inventory.start-error-description', t);
+      if (description !== null)
+        toast.error(t('physical-inventory.start-error-title'), { description });
+    },
   });
   const rows = programs.map((program, index) => {
     const result = drafts[index];

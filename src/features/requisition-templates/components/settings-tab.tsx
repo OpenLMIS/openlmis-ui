@@ -38,7 +38,18 @@ export function SettingsTab({
             <FieldError>{programError}</FieldError>
           </div>
         )}
-        <form.AppField name="name">
+        <form.AppField
+          name="name"
+          listeners={{
+            onChange: ({ fieldApi }) => {
+              if (!fieldApi.state.meta.errorMap.onServer) return;
+              fieldApi.setMeta((meta) => ({
+                ...meta,
+                errorMap: { ...meta.errorMap, onServer: undefined },
+              }));
+            },
+          }}
+        >
           {(field) => (
             <field.TextField
               dir="auto"

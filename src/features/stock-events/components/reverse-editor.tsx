@@ -749,7 +749,7 @@ function ReverseCheckboxCell(props: CellProps) {
 
 function ReverseLineError(props: CellProps) {
   const { t, rowId, errors } = useReverseCell(props);
-  const error = errors[rowId] ? lineErrorMessage(errors[rowId]) : undefined;
+  const error = errors[rowId] ? lineErrorMessage(errors[rowId], t) : undefined;
   return error ? (
     <p
       id={`reverse-error-${rowId}`}
@@ -763,7 +763,7 @@ function ReverseLineError(props: CellProps) {
       <span className="shrink-0">
         <CircleAlertIcon />
       </span>
-      <span className="min-w-0">{'key' in error ? t(error.key) : error.message}</span>
+      <span className="min-w-0">{error}</span>
     </p>
   ) : null;
 }

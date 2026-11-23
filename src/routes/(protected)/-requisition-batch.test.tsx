@@ -1233,6 +1233,23 @@ it('does not offer Update for a draft no longer awaiting approval', async () => 
   queryClient.clear();
 });
 
+it('shows synchronization guidance when pending device edits cannot flush', async () => {
+  const hooks = await import('@/features/requisitions/hooks/use-batch-drafts');
+  const useDrafts = hooks.useBatchDrafts;
+  const flush = vi.fn().mockRejectedValue(new Error('Local write failed'));
+  vi.spyOn(hooks, 'useBatchDrafts').mockImplementation((records) => ({
+    ...useDrafts(records),
+    flush,
+  }));
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  await userEvent.click(sync);
+  expect(await screen.findByText('requisitions.batch.save-failed')).toBeVisible();
+  expect(saveBatchRequisitions).not.toHaveBeenCalled();
+  queryClient.clear();
+});
+
 it('sends Sync while the opening offline capture is pending', async () => {
   const copy = Promise.withResolvers<void>();
   vi.spyOn(savedBatches, 'captureBatch').mockReturnValueOnce(copy.promise);

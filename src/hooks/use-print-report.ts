@@ -7,7 +7,7 @@ import { ForbiddenError } from '@/features/auth/lib/access';
 import { SessionEndedError } from '@/features/auth/lib/session';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { apiErrorText, isSilentApiError } from '@/lib/api-error';
-import type { DeviceSnapshot } from '@/lib/local-data';
+import { type DeviceSnapshot, LocalDataUnavailableError } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
 import type { ReportDelivery } from '@/lib/open-report';
 import { hasProgramGrant } from '@/lib/permissions';
@@ -48,7 +48,7 @@ export function usePrintReport(options: PrintReportOptions) {
     mutationFn: async (sent: PrintRequest) => {
       try {
         if (!sent.isCurrent()) throw new SessionEndedError();
-        if (sent.device || !isOnline()) throw new Error(t('offline.print-description'));
+        if (sent.device || !isOnline()) throw new LocalDataUnavailableError();
         if (!sent.serverAuthorized) {
           const permissions = await queryClient.fetchQuery(permissionsOptions(sent.userId));
           if (!sent.isCurrent()) throw new SessionEndedError();
@@ -56,13 +56,13 @@ export function usePrintReport(options: PrintReportOptions) {
             throw new ForbiddenError(sent.right);
           }
         }
-        if (sent.device || !isOnline()) throw new Error(t('offline.print-description'));
+        if (sent.device || !isOnline()) throw new LocalDataUnavailableError();
         if (sent.beforeRequest && !(await sent.beforeRequest())) {
           sent.delivery.close();
           return false;
         }
         if (!sent.isCurrent()) throw new SessionEndedError();
-        if (sent.device || !isOnline()) throw new Error(t('offline.print-description'));
+        if (sent.device || !isOnline()) throw new LocalDataUnavailableError();
         const report = await sent.request(sent.language);
         if (!sent.isCurrent()) throw new SessionEndedError();
         sent.delivery.deliver(report);
@@ -80,16 +80,19 @@ export function usePrintReport(options: PrintReportOptions) {
     },
     onError: (error, sent) => {
       if (!sent.isCurrent() || isSilentApiError(error)) return;
-      reportApiError(error);
-      const description = !isOnline()
-        ? t('offline.print-description')
-        : error instanceof ForbiddenError
-          ? sent.refusedDescription
-          : (sent.describeError?.(error) ??
-            apiErrorText(error, () => sent.errorDescription, t, {
-              write: false,
-              allowServerMessage: !isServerError(error),
-            }));
+      const unavailable = error instanceof LocalDataUnavailableError;
+      const forbidden = error instanceof ForbiddenError;
+      if (!unavailable && !forbidden) reportApiError(error);
+      const description =
+        !isOnline() || unavailable
+          ? t('offline.print-description')
+          : forbidden
+            ? sent.refusedDescription
+            : (sent.describeError?.(error) ??
+              apiErrorText(error, () => sent.errorDescription, t, {
+                write: false,
+                allowServerMessage: !isServerError(error),
+              }));
       if (description !== null) toast.error(sent.errorTitle, { description });
     },
   });

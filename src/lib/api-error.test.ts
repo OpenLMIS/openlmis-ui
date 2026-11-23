@@ -8,7 +8,7 @@ import { SCHEDULE_FIELD_ERRORS } from '@/features/processing-schedules/lib/sched
 import { PRODUCT_FIELD_ERRORS } from '@/features/products/lib/product-form';
 import { PROGRAM_FIELD_ERRORS } from '@/features/programs/lib/program-form';
 import { USER_FIELD_ERRORS } from '@/features/users/lib/user-form';
-import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
+import { apiErrorText, apiFieldMessages, fieldErrorFor } from '@/lib/api-error';
 import { reportApiError } from '@/lib/report-error';
 import { SessionEndedError } from '@/lib/session-scope';
 import { httpError, networkError } from '@/test-utils/http-error';
@@ -50,6 +50,14 @@ describe('apiErrorText', () => {
     [
       'CCE technical key',
       httpError(400, { messageKey: 'cce.error.io', message: 'I/O exception' }),
+      t(fallback),
+    ],
+    [
+      'Stock Management technical key',
+      httpError(400, {
+        messageKey: 'stockmanagement.error.authorization.failed',
+        message: 'Upstream permission exception',
+      }),
       t(fallback),
     ],
     ['offline', networkError(), t('error.check-connection')],
@@ -95,6 +103,32 @@ describe('apiErrorText', () => {
     ).toBeUndefined();
     expect(fieldErrorFor(httpError(401, { messageKey }), FACILITY_FIELD_ERRORS)).toBeUndefined();
     expect(fieldErrorFor(networkError(), FACILITY_FIELD_ERRORS)).toBeUndefined();
+  });
+
+  it.each([
+    [
+      { name: { message: 'Name is required.' } },
+      [{ field: 'name', key: undefined, message: 'Name is required.' }],
+    ],
+    [
+      { name: 'Name is required.' },
+      [{ field: 'name', key: undefined, message: 'Name is required.' }],
+    ],
+    [{ message: 'Internal exception', trace: 'Sensitive detail' }, []],
+    [{ messageKey: 'error.sendRequest', message: 'Upstream exception' }, []],
+  ])('extracts field messages from %j', (body, expected) => {
+    expect(apiFieldMessages(httpError(400, body))).toEqual(expected);
+  });
+
+  it('reports a non-Axios failure with its original error', () => {
+    const error = new Error('Local write failed');
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      reportApiError(error);
+      expect(log).toHaveBeenCalledExactlyOnceWith(error);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it('reports only diagnostic metadata for an unknown failure', () => {

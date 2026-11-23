@@ -24,6 +24,8 @@ import { returnState } from '@/features/requisitions/lib/requisition-return';
 import type { RequisitionSearch } from '@/features/requisitions/lib/search-facilities';
 import type { RequisitionSearchResult } from '@/features/requisitions/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
+import { reportApiError } from '@/lib/report-error';
 
 type Decision = Awaited<ReturnType<typeof removalDecision>>;
 export function RequisitionRowActions({
@@ -40,7 +42,7 @@ export function RequisitionRowActions({
   const copies = use(RequisitionCopiesContext);
   const copy = copies?.find((copy) => copy.id === record.id);
   const [decision, setDecision] = useState<Decision>();
-  const [error, setError] = useState(false);
+  const [failure, setFailure] = useState<{ error: unknown }>();
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const mutation = useSessionMutation({
@@ -60,23 +62,28 @@ export function RequisitionRowActions({
         }
       });
     },
-    onError: () => {
-      setError(true);
+    onError: (error) => {
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
+      setFailure({ error });
     },
   });
   const start = useSessionMutation({
     mutationFn: () => removalDecision(record.id),
     onSuccess: (current) => {
       setDecision(current);
-      setError(false);
+      setFailure(undefined);
       setOpen(true);
     },
-    onError: () => {
+    onError: (error) => {
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
       setDecision(undefined);
-      setError(true);
+      setFailure({ error });
       setOpen(true);
     },
   });
+  const error = failure ? apiErrorText(failure.error, 'requisitions.offline.stale', t) : null;
   return (
     <>
       <ViewRequisition
@@ -118,13 +125,12 @@ export function RequisitionRowActions({
           <AlertDialogHeader>
             <AlertDialogTitle>{t('requisitions.offline.remove')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t(
-                error
-                  ? 'requisitions.offline.stale'
-                  : decision?.batchBlocked
+              {error ??
+                t(
+                  decision?.batchBlocked
                     ? 'requisitions.offline.batch-blocked'
                     : 'requisitions.offline.remove-description',
-              )}
+                )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {decision?.dirty && !decision.batchBlocked && (
@@ -150,7 +156,7 @@ export function RequisitionRowActions({
             ) : (
               <Button
                 variant="destructive-solid"
-                disabled={!decision || error || mutation.isPending}
+                disabled={!decision || error !== null || mutation.isPending}
                 onClick={() => decision && mutation.mutate(decision)}
               >
                 {t('requisitions.offline.remove')}

@@ -285,7 +285,10 @@ const actionCopy = {
 type Action = 'approve' | 'revert' | 'anyway' | 'update' | 'remove';
 class BatchActionError extends Error {
   constructor(
-    readonly key: 'requisitions.batch.review-refreshed' | 'requisitions.offline.failed-description',
+    readonly key:
+      | 'requisitions.batch.review-refreshed'
+      | 'requisitions.batch.save-failed'
+      | 'requisitions.offline.failed-description',
   ) {
     super(key);
   }
@@ -460,7 +463,12 @@ function BatchPage() {
   const mutation = useSessionMutation({
     mutationFn: async (kind: 'sync' | Action | 'check') => {
       if (kind !== 'revert' && kind !== 'remove') requireOnline();
-      await drafts.flush();
+      try {
+        await drafts.flush();
+      } catch (error) {
+        if (isSilentApiError(error)) throw error;
+        throw new BatchActionError('requisitions.batch.save-failed');
+      }
       if (kind !== 'revert' && kind !== 'remove' && accessEpoch.current !== uploadAccessEpoch()) {
         const epoch = uploadAccessEpoch();
         const access = await freshRequisitionAccess(queryClient);
@@ -814,7 +822,7 @@ function BatchPage() {
     },
     onError: (error, kind) => {
       if (isSilentApiError(error)) return;
-      reportApiError(error);
+      if (!(error instanceof BatchActionError)) reportApiError(error);
       if (kind === 'approve' && leaving.current) {
         toast.warning(t('requisitions.offline.unavailable-label'), {
           description: t('requisitions.offline.unavailable-description'),

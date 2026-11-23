@@ -36,9 +36,10 @@ import {
 } from '@/features/reference-data/api/queries';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { apiErrorText } from '@/lib/api-error';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { userRecordKey } from '@/lib/key-factory';
 import { reportApiError } from '@/lib/report-error';
+import { EMAIL_FIELD_ERRORS } from '@/lib/user-contact-errors';
 import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 
 const FORM_ID = 'profile-form';
@@ -55,8 +56,21 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
   const [startingValues, setStartingValues] = useState(() => toProfileFormValues(profile));
   const emailVerified = contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = contact?.emailDetails?.email ?? '';
+  const [showSaveError, setShowSaveError] = useState(false);
   const save = useSessionMutation({
-    onError: reportApiError,
+    onError: (error, submitted) => {
+      reportApiError(error);
+      const fieldError = fieldErrorFor(error, EMAIL_FIELD_ERRORS);
+      const applies = fieldError && form.getFieldValue('email') === submitted.email;
+      setShowSaveError(!applies);
+      if (applies) {
+        form.setFieldMeta('email', (meta) => ({
+          ...meta,
+          isTouched: true,
+          errorMap: { ...meta.errorMap, onServer: fieldError.key },
+        }));
+      }
+    },
     mutationFn: async (values: ProfileFormValues) => {
       const changes = profileChanges(startingValues, values);
       let confirmedNames: Pick<UserRecord, 'firstName' | 'lastName'> | undefined;
@@ -188,9 +202,9 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
           if (changed) void form.handleSubmit();
         }}
       >
-        {save.isError && (
+        {save.isError && showSaveError && (
           <ErrorAlert
-            description={apiErrorText(save.error, 'users.form.save-error', t, { write: true })}
+            description={apiErrorText(save.error, 'users.form.save-error', t)}
             title={t('profile.save-error-title')}
           />
         )}
@@ -221,7 +235,18 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
               />
             )}
           </form.AppField>
-          <form.AppField name="email">
+          <form.AppField
+            name="email"
+            listeners={{
+              onChange: ({ fieldApi }) => {
+                if (!fieldApi.state.meta.errorMap.onServer) return;
+                fieldApi.setMeta((meta) => ({
+                  ...meta,
+                  errorMap: { ...meta.errorMap, onServer: undefined },
+                }));
+              },
+            }}
+          >
             {(field) => {
               const typed = field.state.value.trim();
               // The saved address shows whether it is verified; a new one, that it waits for its link.

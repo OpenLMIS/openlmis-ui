@@ -1,7 +1,7 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -126,12 +126,16 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const emailVerified = details?.contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = details?.contact?.emailDetails?.email ?? '';
   const mismatch = details && statusMismatch(details);
+  const [showSaveError, setShowSaveError] = useState(false);
 
   const save = useSessionMutation({
     onError: (error, submitted) => {
       reportApiError(error);
       const fieldError = fieldErrorFor(error, USER_FIELD_ERRORS);
-      if (fieldError && form.getFieldValue(fieldError.field) === submitted[fieldError.field]) {
+      const applies =
+        fieldError && form.getFieldValue(fieldError.field) === submitted[fieldError.field];
+      setShowSaveError(!applies);
+      if (applies) {
         form.setFieldMeta(fieldError.field, (meta) => ({
           ...meta,
           isTouched: true,
@@ -188,7 +192,6 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
       errorMap: { ...meta.errorMap, onServer: undefined },
     }));
   };
-  const fieldRefusal = fieldErrorFor(save.error, USER_FIELD_ERRORS);
 
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
@@ -204,9 +207,9 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
-          {save.isError && !fieldRefusal && (
+          {save.isError && showSaveError && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'users.form.save-error', t, { write: true })}
+              description={apiErrorText(save.error, 'users.form.save-error', t)}
               title={t('users.form.save-error-title')}
             />
           )}

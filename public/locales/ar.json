@@ -1,7 +1,7 @@
 {
   "api-error.fulfillment.error.proofOfDelivery.alreadyConfirmed": "تم بالفعل تأكيد إثبات التسليم هذا.",
-  "api-error.fulfillment.error.shipment.order.duplicate": "توجد بالفعل شحنة لهذا الطلب.",
-  "api-error.fulfillment.error.shipmentDraft.order.duplicate": "توجد بالفعل مسودة شحنة لهذا الطلب.",
+  "api-error.fulfillment.error.shipment.order.duplicate": "توجد بالفعل شحنة لهذا الأمر.",
+  "api-error.fulfillment.error.shipmentDraft.order.duplicate": "توجد بالفعل مسودة شحنة لهذا الأمر.",
   "api-error.notification.error.userContactDetails.email.duplicated": "عنوان البريد الإلكتروني هذا مستخدم بالفعل.",
   "api-error.referenceData.error.user.username.duplicated": "اسم المستخدم هذا مستخدم بالفعل.",
   "api-error.stockmanagement.error.event.cannot.unpack.when.extra.constituents.credited": "تعذّر تفكيك الطقم بسبب إضافة مكوّنات زائدة إلى المخزون.",
