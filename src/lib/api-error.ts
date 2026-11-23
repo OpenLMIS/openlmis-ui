@@ -62,6 +62,15 @@ export function isApiTimeout(error: unknown) {
   );
 }
 
+function isWriteRequest(error: unknown) {
+  const method = isAxiosError(error) ? error.config?.method?.toUpperCase() : undefined;
+  return method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+}
+
+export function isWriteApiTimeout(error: unknown) {
+  return isApiTimeout(error) && isWriteRequest(error);
+}
+
 const catalogKey = (key: string) => `api-error.${key}` as ParseKeys;
 
 export function hasApiErrorTranslation(key: string, exists: (key: ParseKeys) => boolean) {
@@ -92,12 +101,10 @@ export function apiErrorText(
   { write, allowServerMessage = true }: { write?: boolean; allowServerMessage?: boolean } = {},
 ): string | null {
   if (isSilentApiError(error)) return null;
-  if (isApiTimeout(error) && isAxiosError(error)) {
-    const method = error.config?.method?.toUpperCase();
-    const isWrite =
-      write ?? (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE');
-    return t(isWrite ? 'api-error.timeout-write' : 'api-error.timeout-read');
-  }
+  if (isApiTimeout(error))
+    return t(
+      (write ?? isWriteRequest(error)) ? 'api-error.timeout-write' : 'api-error.timeout-read',
+    );
   if (isOfflineError(error) || isAccessFallbackError(error)) return t('error.check-connection');
   const key = serverMessageKey(error);
   return (
@@ -138,7 +145,13 @@ export function apiFieldMessages(error: unknown) {
   const data: unknown = error.response.data;
   if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
   const entries = Object.entries(data);
-  if (entries.some(([field]) => errorEnvelopeFields.has(field))) return [];
+  if (
+    entries.some(
+      ([field, value]) =>
+        errorEnvelopeFields.has(field) && (value === null || typeof value !== 'object'),
+    )
+  )
+    return [];
   return entries.flatMap(([field, value]: [string, unknown]) => {
     if (typeof value === 'string' && value.trim())
       return [{ field, message: value, key: undefined }];

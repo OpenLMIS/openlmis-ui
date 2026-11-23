@@ -57,7 +57,7 @@ import type {
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { apiErrorText, isApiTimeout, isSilentApiError } from '@/lib/api-error';
+import { apiErrorText, isApiTimeout, isSilentApiError, isWriteApiTimeout } from '@/lib/api-error';
 import { DraftConflictError } from '@/lib/draft-store';
 import { isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
@@ -108,6 +108,7 @@ type Props = {
   onDeleted: () => void | Promise<void>;
   onSubmitted: () => void | Promise<void>;
 };
+type Attempt = { action: Action; flushFailed: boolean };
 type Failure = { title: string; description: string; offline?: boolean };
 const ACTION_KEYS = {
   save: {
@@ -171,7 +172,7 @@ export function InventoryActions(props: Props) {
   const finished = useRef(false);
   const mutation = useSessionMutation({
     retry: false,
-    mutationFn: async (attempt: { action: Action; flushed: boolean }) => {
+    mutationFn: async (attempt: Attempt) => {
       const { action } = attempt;
       const scope = getSessionScope();
       const check = () => {
@@ -181,8 +182,8 @@ export function InventoryActions(props: Props) {
       check();
       try {
         await props.flush();
-        attempt.flushed = true;
       } catch (error) {
+        attempt.flushFailed = true;
         reportUnlessConflict(error);
       }
       assertSessionScope(scope);
@@ -303,7 +304,7 @@ export function InventoryActions(props: Props) {
     if (posting.current || finished.current || (action.type === 'submit' && unknown)) return;
     posting.current = true;
     props.onBusy(true);
-    const attempt = { action, flushed: false };
+    const attempt: Attempt = { action, flushFailed: false };
     let next: InventoryLine[];
     try {
       next = await mutation.mutateAsync(attempt);
@@ -324,9 +325,11 @@ export function InventoryActions(props: Props) {
         )
       )
         reportApiError(cause);
+      const keepOpen = action.type === 'save' && attempt.flushFailed;
       if (
+        !keepOpen &&
         !(error instanceof UnknownSubmit) &&
-        !isApiTimeout(error) &&
+        !isApiTimeout(cause) &&
         (isOfflineError(error) || !isOnline())
       ) {
         if (action.type === 'submit') showOffline();
@@ -341,20 +344,22 @@ export function InventoryActions(props: Props) {
       }
       const fallback =
         action.type === 'save'
-          ? attempt.flushed
-            ? 'physical-inventory.save-error-description'
-            : 'physical-inventory.save-error-keep-open'
+          ? 'physical-inventory.save-error-description'
           : ACTION_KEYS[action.type].errorDescription;
-      let description = apiErrorText(error, fallback, t, {
-        write: true,
-      });
-      if (error instanceof InventoryOrphaned)
+      let description: string | null;
+      if (keepOpen)
+        description = t(
+          isWriteApiTimeout(cause)
+            ? 'physical-inventory.save-timeout-keep-open'
+            : 'physical-inventory.save-error-keep-open',
+        );
+      else if (error instanceof InventoryOrphaned)
         description = t(
           error.keptCounts
             ? 'physical-inventory.orphaned-action'
             : 'physical-inventory.no-draft-description',
         );
-      if (error instanceof InventoryLotError)
+      else if (error instanceof InventoryLotError)
         description =
           error.reason === 'duplicate'
             ? t('physical-inventory.lot-duplicate-error', { codes: error.codes.join(', ') })
@@ -362,10 +367,9 @@ export function InventoryActions(props: Props) {
               ? t('physical-inventory.lot-trade-item-error', { codes: error.codes.join(', ') })
               : t('physical-inventory.lot-error', {
                   codes: error.codes.join(', '),
-                  message: apiErrorText(cause, fallback, t, {
-                    write: true,
-                  }),
+                  message: apiErrorText(cause, fallback, t),
                 });
+      else description = apiErrorText(error, fallback, t);
       if (error instanceof UnknownSubmit) {
         setUnknown(true);
         description = t('physical-inventory.unknown-outcome-description');

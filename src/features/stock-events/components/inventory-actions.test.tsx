@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosHeaders } from 'axios';
 import type { ComponentProps } from 'react';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -334,6 +334,31 @@ it.each([
     expect(screen.getByRole('button', { name: 'stock-events.submit' })).toHaveFocus(),
   );
 });
+
+it.each([
+  ['get', false, fetchPhysicalInventoryDraft, 'physical-inventory.save-error-keep-open'],
+  ['put', false, savePhysicalInventory, 'physical-inventory.save-timeout-keep-open'],
+  ['get', true, fetchPhysicalInventoryDraft, 'api-error.timeout-read'],
+  ['put', true, savePhysicalInventory, 'api-error.timeout-write'],
+] as const)(
+  'describes a %s timeout after a local flush (succeeded: %s)',
+  async (method, flushed, request, description) => {
+    const user = userEvent.setup();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(request).mockRejectedValueOnce(
+      new AxiosError('Timed out', AxiosError.ECONNABORTED, { method, headers: new AxiosHeaders() }),
+    );
+    setup(flushed ? {} : { flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')) });
+
+    await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+    await user.click(
+      within(confirmationDialog('save')).getByRole('button', { name: 'physical-inventory.save' }),
+    );
+
+    const alert = await screen.findByRole('alertdialog');
+    expect(alert).toHaveTextContent(description);
+  },
+);
 
 it('saves with created lot ids even when their device write fails', async () => {
   const user = userEvent.setup();

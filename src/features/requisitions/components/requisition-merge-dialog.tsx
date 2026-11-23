@@ -18,6 +18,7 @@ import type { DraftFieldConflict } from '@/features/requisitions/lib/draft-merge
 import { patientRowLabel } from '@/features/requisitions/lib/patients';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
 import { apiErrorText } from '@/lib/api-error';
+import { DraftConflictError } from '@/lib/draft-store';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { reportApiError } from '@/lib/report-error';
 
@@ -50,7 +51,7 @@ export function RequisitionMergeDialog({
           ),
         );
       } catch (error) {
-        reportApiError(error);
+        if (!(error instanceof DraftConflictError)) reportApiError(error);
         setFailure(apiErrorText(error, 'error.description', t, { write: true }));
       } finally {
         setPending(false);

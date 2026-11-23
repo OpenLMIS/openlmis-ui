@@ -6,6 +6,7 @@ import { eventStockCardsOptions } from '@/features/stock-events/api/queries';
 import { useDeviceSubmission } from '@/features/stock-events/hooks/use-device-submission';
 import type { EventForm } from '@/features/stock-events/hooks/use-event-form';
 import type { StockEvent } from '@/features/stock-events/lib/types';
+import { DraftConflictError } from '@/lib/draft-store';
 
 const { submit } = vi.hoisted(() => ({
   submit: vi.fn(async () => ({ localEventId: 'event' })),
@@ -17,6 +18,36 @@ vi.mock('@/features/stock-events/hooks/use-stock-event-autosave', () => ({
 vi.mock('@/features/stock-events/lib/stock-event-delivery', () => ({
   waitForStockEventReceipt: async () => ({ kind: 'queued' }),
 }));
+
+function renderSubmission(
+  queryClient: QueryClient,
+  stockOptions: ReturnType<typeof eventStockCardsOptions>,
+) {
+  return renderHook(
+    () =>
+      useDeviceSubmission({
+        kind: 'receive',
+        facilityId: 'facility',
+        programId: 'program',
+        canViewStock: true,
+        form: {} as EventForm,
+        cards: undefined,
+        today: '2026-10-23',
+        stockOptions,
+        deviceDisplay: {
+          facility: { id: 'facility', code: 'HOME', name: 'Clinic' },
+          program: { id: 'program', code: 'MED', name: 'Medicines' },
+        },
+        reasons: [],
+        assignments: [],
+      }),
+    {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+}
 
 it.each([
   { name: 'typed new lot', lot: { lotCode: 'NEW-1' }, expected: [] },
@@ -54,30 +85,7 @@ it.each([
       },
     ],
   });
-  const { result, unmount } = renderHook(
-    () =>
-      useDeviceSubmission({
-        kind: 'receive',
-        facilityId: 'facility',
-        programId: 'program',
-        canViewStock: true,
-        form: {} as EventForm,
-        cards: undefined,
-        today: '2026-10-23',
-        stockOptions,
-        deviceDisplay: {
-          facility: { id: 'facility', code: 'HOME', name: 'Clinic' },
-          program: { id: 'program', code: 'MED', name: 'Medicines' },
-        },
-        reasons: [],
-        assignments: [],
-      }),
-    {
-      wrapper: ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      ),
-    },
-  );
+  const { result, unmount } = renderSubmission(queryClient, stockOptions);
   const body: StockEvent = {
     facilityId: 'facility',
     programId: 'program',
@@ -102,4 +110,20 @@ it.each([
   );
   unmount();
   queryClient.clear();
+});
+
+it('keeps draft conflict feedback without logging an error', () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const queryClient = new QueryClient();
+  const stockOptions = eventStockCardsOptions({ facilityId: 'facility', programId: 'program' });
+  const { result } = renderSubmission(queryClient, stockOptions);
+
+  expect(result.current.failure(new DraftConflictError(undefined), false)).toEqual({
+    unknown: false,
+    alert: {
+      title: 'stock-events.draft-save-error-title',
+      description: 'stock-events.draft-failed',
+    },
+  });
+  expect(log).not.toHaveBeenCalled();
 });

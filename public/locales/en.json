@@ -1452,6 +1452,7 @@
   "physical-inventory.save-error-description": "Your counts are kept on this device. Try saving again.",
   "physical-inventory.save-error-keep-open": "Keep this page open and try saving again.",
   "physical-inventory.save-error-title": "Draft Not Saved",
+  "physical-inventory.save-timeout-keep-open": "The server did not answer in time. The save may have gone through. Keep this page open and check the draft before trying again.",
   "physical-inventory.saved-description": "Save is successful.",
   "physical-inventory.saved-title": "Draft Saved",
   "physical-inventory.scan-new-lot-description": "Lot {lotCode} has not been recorded. Add it with expiry date {expiryDate} and count this pack?",

@@ -1452,6 +1452,7 @@
   "physical-inventory.save-error-description": "As suas contagens foram mantidas neste dispositivo. Tente guardar novamente.",
   "physical-inventory.save-error-keep-open": "Mantenha esta página aberta e tente guardar novamente.",
   "physical-inventory.save-error-title": "Rascunho Não Guardado",
+  "physical-inventory.save-timeout-keep-open": "O servidor não respondeu a tempo. O rascunho pode ter sido guardado. Mantenha esta página aberta e verifique o rascunho antes de tentar novamente.",
   "physical-inventory.saved-description": "Guardado com sucesso.",
   "physical-inventory.saved-title": "Rascunho Guardado",
   "physical-inventory.scan-new-lot-description": "O lote {lotCode} não está registado. Adicioná-lo com a data de validade {expiryDate} e contar esta embalagem?",

@@ -1452,6 +1452,7 @@
   "physical-inventory.save-error-description": "Los recuentos se conservan en este dispositivo. Intente guardar de nuevo.",
   "physical-inventory.save-error-keep-open": "Mantenga esta página abierta e intente guardar de nuevo.",
   "physical-inventory.save-error-title": "Borrador No Guardado",
+  "physical-inventory.save-timeout-keep-open": "El servidor no respondió a tiempo. Es posible que se haya guardado el borrador. Mantenga esta página abierta y revise el borrador antes de volver a intentarlo.",
   "physical-inventory.saved-description": "Se ha guardado correctamente.",
   "physical-inventory.saved-title": "Borrador Guardado",
   "physical-inventory.scan-new-lot-description": "El lote {lotCode} no está registrado. ¿Añadirlo con fecha de caducidad {expiryDate} y contar este paquete?",

@@ -116,6 +116,10 @@ describe('apiErrorText', () => {
       { name: 'Name is required.' },
       [{ field: 'name', key: undefined, message: 'Name is required.' }],
     ],
+    [
+      { status: { messageKey: 'validation.status', message: 'Status is required.' } },
+      [{ field: 'status', key: 'validation.status', message: 'Status is required.' }],
+    ],
     [{ message: 'Internal exception', trace: 'Sensitive detail' }, []],
     [{ messageKey: 'error.sendRequest', message: 'Upstream exception' }, []],
   ])('extracts field messages from %j', (body, expected) => {

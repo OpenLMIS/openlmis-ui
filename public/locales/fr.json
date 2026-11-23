@@ -1452,6 +1452,7 @@
   "physical-inventory.save-error-description": "Vos comptages sont conservés sur cet appareil. Réessayez de les enregistrer.",
   "physical-inventory.save-error-keep-open": "Laissez cette page ouverte et réessayez d’enregistrer.",
   "physical-inventory.save-error-title": "Brouillon Non Enregistré",
+  "physical-inventory.save-timeout-keep-open": "Le serveur n’a pas répondu à temps. Le brouillon a peut-être été enregistré. Laissez cette page ouverte et vérifiez le brouillon avant de réessayer.",
   "physical-inventory.saved-description": "L’enregistrement a réussi.",
   "physical-inventory.saved-title": "Brouillon Enregistré",
   "physical-inventory.scan-new-lot-description": "Le lot {lotCode} n’est pas enregistré. L’ajouter avec la date d’expiration {expiryDate} et compter cette boîte ?",

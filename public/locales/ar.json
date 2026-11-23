@@ -1452,6 +1452,7 @@
   "physical-inventory.save-error-description": "تم الاحتفاظ بالكميات التي جردتها على هذا الجهاز. حاول الحفظ مرة أخرى.",
   "physical-inventory.save-error-keep-open": "أبقِ هذه الصفحة مفتوحة وحاول الحفظ مرة أخرى.",
   "physical-inventory.save-error-title": "لم تُحفظ المسودة",
+  "physical-inventory.save-timeout-keep-open": "لم يستجب الخادم في الوقت المحدد. ربما تم الحفظ. أبقِ هذه الصفحة مفتوحة وتحقق من المسودة قبل المحاولة مرة أخرى.",
   "physical-inventory.saved-description": "تم الحفظ بنجاح.",
   "physical-inventory.saved-title": "تم حفظ المسودة",
   "physical-inventory.scan-new-lot-description": "التشغيلة {lotCode} غير مسجلة. هل تريد إضافتها بتاريخ انتهاء {expiryDate} وعدّ هذه العبوة؟",

@@ -383,6 +383,36 @@ it.each([
   );
   await pick('Other reason');
 });
+it.each([
+  [
+    { messageKey: 'stockmanagement.error.event.cancellation.reason.required', message: 'Refused' },
+    'stock-event-reverse.reason-required',
+  ],
+  [{ message: 'Line refused' }, 'Line refused'],
+  [{ messageKey: 'stockmanagement.error.event.cancellation.refused' }, 'error.description'],
+])('shows the refusal in the dialog when no row matches %j', async (lineError, description) => {
+  vi.mocked(cancelStockEvent).mockRejectedValueOnce({
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: { lineErrors: [{ stockEventLineItemId: 'unknown-line', ...lineError }] },
+    },
+  });
+  editor();
+  await tick();
+  await pick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+
+  const dialog = await screen.findByRole('alertdialog');
+  expect(dialog).toHaveAccessibleDescription(description);
+  await closeAlert();
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toHaveFocus(),
+  );
+});
+
 it('marks overlong comments without visible field text and focuses after Close', async () => {
   editor();
   await tick();

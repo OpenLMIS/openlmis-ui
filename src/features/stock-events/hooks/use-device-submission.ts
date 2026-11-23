@@ -22,6 +22,7 @@ import type { StockEventDisplay } from '@/features/stock-events/lib/stock-event-
 import type { EventStockCard, StockEvent } from '@/features/stock-events/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { apiErrorText, isSilentApiError } from '@/lib/api-error';
+import { DraftConflictError } from '@/lib/draft-store';
 import { queryKeys } from '@/lib/key-factory';
 import { isOnline } from '@/lib/online';
 import { reportApiError } from '@/lib/report-error';
@@ -115,7 +116,7 @@ export function useDeviceSubmission({
     draft,
     mutation,
     failure(error: unknown, hadUnknownOutcome: boolean) {
-      reportApiError(error);
+      if (!(error instanceof DraftConflictError)) reportApiError(error);
       if (isSilentApiError(error)) return { unknown: hadUnknownOutcome, alert: null };
       const unknown = !deviceDrafts && isAxiosError(error) && !error.response;
       const description = deviceDrafts

@@ -107,7 +107,7 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { apiErrorText, isSilentApiError } from '@/lib/api-error';
+import { apiErrorText, isSilentApiError, keyedApiErrorText } from '@/lib/api-error';
 import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
@@ -346,17 +346,27 @@ export function ReverseEditor({
         const byId: Record<string, StockEventCancelLineError> = {};
         const lineErrorsById = new Map(lineErrors.map((item) => [item.stockEventLineItemId, item]));
         for (const row of rows) {
-          const rowError = lineErrorsById.get(row.line.stockEventLineItemId);
+          const lineId = row.line.stockEventLineItemId;
+          const rowError = lineId ? lineErrorsById.get(lineId) : undefined;
           if (rowError) byId[row.id] = rowError;
         }
         setErrors(byId);
-        setFailure(t('stock-event-reverse.line-errors'));
         const first = rows.find((row) => byId[row.id]);
         if (first) {
+          setFailure(t('stock-event-reverse.line-errors'));
           const invalidPage = Math.floor(rows.indexOf(first) / size) + 1;
           alertTarget.current = { id: `reverse-${first.id}`, page: invalidPage };
+          return;
         }
-      } else setFailure(apiErrorText(error, 'error.description', t, { write: true }));
+        for (const lineError of lineErrors) {
+          const message = keyedApiErrorText(lineError.messageKey, lineError.message, t);
+          if (message) {
+            setFailure(message);
+            return;
+          }
+        }
+      }
+      setFailure(apiErrorText(error, 'error.description', t, { write: true }));
     } finally {
       posting.current = false;
     }
