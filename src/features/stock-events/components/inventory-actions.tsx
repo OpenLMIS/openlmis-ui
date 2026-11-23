@@ -347,13 +347,7 @@ export function InventoryActions(props: Props) {
           ? 'physical-inventory.save-error-description'
           : ACTION_KEYS[action.type].errorDescription;
       let description: string | null;
-      if (keepOpen)
-        description = t(
-          isWriteApiTimeout(cause)
-            ? 'physical-inventory.save-timeout-keep-open'
-            : 'physical-inventory.save-error-keep-open',
-        );
-      else if (error instanceof InventoryOrphaned)
+      if (error instanceof InventoryOrphaned)
         description = t(
           error.keptCounts
             ? 'physical-inventory.orphaned-action'
@@ -369,6 +363,12 @@ export function InventoryActions(props: Props) {
                   codes: error.codes.join(', '),
                   message: apiErrorText(cause, fallback, t),
                 });
+      else if (keepOpen)
+        description = t(
+          isWriteApiTimeout(cause)
+            ? 'physical-inventory.save-timeout-keep-open'
+            : 'physical-inventory.save-error-keep-open',
+        );
       else description = apiErrorText(error, fallback, t);
       if (error instanceof UnknownSubmit) {
         setUnknown(true);
