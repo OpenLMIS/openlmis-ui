@@ -73,17 +73,16 @@ it('completes an Edit User save while the notification refresh is still pending'
   }
 });
 
-it('shows the duplicate username refusal on Username and clears it on correction', async () => {
+it('shows duplicate username refusals only while they match the current value', async () => {
   const cache = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
   cache.setQueryData(minimalFacilitiesOptions().queryKey, []);
-  const put = vi.spyOn(client, 'put').mockRejectedValueOnce(
-    httpError(400, {
-      messageKey: 'referenceData.error.user.username.duplicated',
-      message: 'Server-language detail',
-    }),
-  );
+  const duplicate = httpError(400, {
+    messageKey: 'referenceData.error.user.username.duplicated',
+    message: 'Server-language detail',
+  });
+  const put = vi.spyOn(client, 'put').mockRejectedValueOnce(duplicate);
   const dialog = render(
     <QueryClientProvider client={cache}>
       <UserFormDialog onClose={vi.fn()} onCreated={vi.fn()} target="new" />
@@ -108,6 +107,18 @@ it('shows the duplicate username refusal on Username and clears it on correction
     expect(
       screen.queryByText('api-error.referenceData.error.user.username.duplicated'),
     ).not.toBeInTheDocument();
+
+    const pending = Promise.withResolvers<never>();
+    put.mockReturnValueOnce(pending.promise);
+    await user.click(screen.getByRole('button', { name: 'users.form.create' }));
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+    await user.type(username, '3');
+    await act(async () => pending.reject(duplicate));
+    await waitFor(() =>
+      expect(cache.getMutationCache().getAll().at(-1)?.state.error).toBe(duplicate),
+    );
+    expect(username).toHaveValue('ada23');
+    expect(username).not.toHaveAttribute('aria-invalid', 'true');
   } finally {
     dialog.unmount();
     put.mockRestore();

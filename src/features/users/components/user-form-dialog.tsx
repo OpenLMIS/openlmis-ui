@@ -42,6 +42,7 @@ import {
   toAuthUser,
   toContactDetails,
   toUserFormValues,
+  USER_FIELD_ERRORS,
   type UserFormValues,
   userFormSchema,
 } from '@/features/users/lib/user-form';
@@ -115,21 +116,6 @@ type UserFormProps = {
   onCreated?: (userId: string) => void;
 };
 
-const USER_FIELD_ERRORS = {
-  'referenceData.error.user.username.duplicated': {
-    field: 'username',
-    key: 'api-error.referenceData.error.user.username.duplicated',
-  },
-  'notification.error.userContactDetails.email.duplicated': {
-    field: 'email',
-    key: 'api-error.notification.error.userContactDetails.email.duplicated',
-  },
-  'notification.error.userContactDetails.email.invalid': {
-    field: 'email',
-    key: 'users.form.email-invalid',
-  },
-} as const;
-
 function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const { t } = useTranslation();
   const appName = useAppName();
@@ -142,10 +128,10 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const mismatch = details && statusMismatch(details);
 
   const save = useSessionMutation({
-    onError: (error) => {
+    onError: (error, submitted) => {
       reportApiError(error);
       const fieldError = fieldErrorFor(error, USER_FIELD_ERRORS);
-      if (fieldError) {
+      if (fieldError && form.getFieldValue(fieldError.field) === submitted[fieldError.field]) {
         form.setFieldMeta(fieldError.field, (meta) => ({
           ...meta,
           isTouched: true,

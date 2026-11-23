@@ -92,7 +92,7 @@ export function apiErrorText(
   );
 }
 
-export type ApiFieldError<Field extends string = string> = { field: Field; key: ParseKeys };
+type ApiFieldError<Field extends string> = { field: Field; key: ParseKeys };
 
 export function fieldErrorFor<const Field extends string>(
   error: unknown,

@@ -176,7 +176,6 @@ it.each([
   ],
   [httpError(413, '<html>too large</html>'), en['file-transfer.file-too-large']],
   [httpError(500, { message: 'Technical exception' }), copy.uploadError],
-  [httpError(400, { message: 'Framework exception' }), copy.uploadError],
   [networkError(), en['error.check-connection']],
 ])(
   'shows a safe upload error and clears it when removing the retained file (%#)',

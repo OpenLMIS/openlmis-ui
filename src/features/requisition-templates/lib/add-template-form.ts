@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 
@@ -35,9 +34,9 @@ export const EMPTY_ADD_TEMPLATE_FORM: AddTemplateFormValues = {
   facilityTypeIds: [],
 };
 
-export function isDuplicateName(error: unknown) {
-  return (
-    isAxiosError<{ messageKey?: string }>(error) &&
-    error.response?.data?.messageKey === 'requisition.error.validation.templateNameDuplication'
-  );
-}
+export const TEMPLATE_FIELD_ERRORS = {
+  'requisition.error.validation.templateNameDuplication': {
+    field: 'name',
+    key: 'requisition-templates.form.name-taken',
+  },
+} as const;

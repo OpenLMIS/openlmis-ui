@@ -7,6 +7,21 @@ import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 // Messages are translation keys so they follow a language switch, resolved at render.
 const errorKey = (key: ParseKeys) => key;
 
+export const USER_FIELD_ERRORS = {
+  'referenceData.error.user.username.duplicated': {
+    field: 'username',
+    key: 'api-error.referenceData.error.user.username.duplicated',
+  },
+  'notification.error.userContactDetails.email.duplicated': {
+    field: 'email',
+    key: 'api-error.notification.error.userContactDetails.email.duplicated',
+  },
+  'notification.error.userContactDetails.email.invalid': {
+    field: 'email',
+    key: 'users.form.email-invalid',
+  },
+} as const;
+
 const requiredText = (key: ParseKeys) => z.string().trim().min(1, errorKey(key));
 
 export const userFormSchema = z.object({

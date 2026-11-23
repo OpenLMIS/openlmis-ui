@@ -16,6 +16,7 @@ import {
   toFacilityFormValues,
 } from '@/features/facilities/lib/facility-form';
 import type { Facility } from '@/features/reference-data/lib/types';
+import { SessionEndedError } from '@/lib/session-scope';
 import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
@@ -118,7 +119,8 @@ describe('FacilityEditor', () => {
       .getState()
       .setLoginData({ referenceDataUserId: 'ada', username: 'ada', accessToken: 'token' });
     const save = vi.fn(async () => ({ id: 'new' }) as Facility);
-    renderPage(<Editor initialValues={filled} save={save} />, { queryClient: seededClient() });
+    const queryClient = seededClient();
+    renderPage(<Editor initialValues={filled} save={save} />, { queryClient });
     await screen.findByLabelText(/facilities.form.name/);
     act(() =>
       useLoginData
@@ -126,6 +128,11 @@ describe('FacilityEditor', () => {
         .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' }),
     );
     await userEvent.setup().click(screen.getByRole('button', { name: 'Create' }));
+    await waitFor(() =>
+      expect(queryClient.getMutationCache().getAll()[0]?.state.error).toBeInstanceOf(
+        SessionEndedError,
+      ),
+    );
     expect(screen.queryByText('facilities.form.save-error-title')).not.toBeInTheDocument();
     expect(save).not.toHaveBeenCalled();
   });

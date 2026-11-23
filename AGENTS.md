@@ -314,6 +314,10 @@ edits, which have no prop for TypeScript to detect:
 `src/integrations/` owns Axios, TanStack Query/Router and i18next singletons. Dev requests to
 `/api` and `/localeSettings` use the Vite proxy (`localhost:8080` unless configured).
 
+Resolve write and action failure text with `apiErrorText` and omit the alert or toast when it
+returns `null`. Call `reportApiError` at the failure boundary, outside render, and map field
+refusals with `fieldErrorFor`.
+
 ### UI components
 
 Generate shadcn components in `src/components/ui/` with

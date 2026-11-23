@@ -15,23 +15,34 @@ export function reportCaughtError(error: unknown, { componentStack }: ErrorInfo)
   console.error(error, componentStack);
 }
 
+function diagnosticPath(url: string | undefined) {
+  if (!url) return undefined;
+  try {
+    return new URL(url, 'https://openlmis.invalid').pathname;
+  } catch {
+    return undefined;
+  }
+}
+
 export function reportApiError(error: unknown) {
-  if (isSilentApiError(error) || (isOfflineError(error) && !isApiTimeout(error))) return;
-  const messageKey = serverMessageKey(error);
-  const fields = messageKey ? [] : apiFieldMessages(error);
-  const keys = new Set(fields.length ? fields.map(({ key }) => key) : [messageKey]);
-  const config = isAxiosError(error) ? error.config : undefined;
-  const status = isAxiosError(error) ? error.response?.status : undefined;
-  const path = config?.url
-    ? URL.parse(config.url, 'https://openlmis.invalid')?.pathname
-    : undefined;
-  for (const key of keys) {
-    if (key && hasApiErrorTranslation(key, (translation) => i18n.exists(translation))) continue;
-    console.warn('API request failed', {
-      method: config?.method?.toUpperCase(),
-      path,
-      status,
-      messageKey: key,
-    });
+  try {
+    if (isSilentApiError(error) || (isOfflineError(error) && !isApiTimeout(error))) return;
+    const messageKey = serverMessageKey(error);
+    const fields = messageKey ? [] : apiFieldMessages(error);
+    const keys = new Set(fields.length ? fields.map(({ key }) => key) : [messageKey]);
+    const config = isAxiosError(error) ? error.config : undefined;
+    const status = isAxiosError(error) ? error.response?.status : undefined;
+    const path = diagnosticPath(config?.url);
+    for (const key of keys) {
+      if (key && hasApiErrorTranslation(key, (translation) => i18n.exists(translation))) continue;
+      console.warn('API request failed', {
+        method: config?.method?.toUpperCase(),
+        ...(path === undefined ? {} : { path }),
+        status,
+        messageKey: key,
+      });
+    }
+  } catch {
+    // Diagnostics must not interrupt failure handling.
   }
 }

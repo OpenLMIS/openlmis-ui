@@ -43,14 +43,14 @@ import {
   type AddTemplateFormValues,
   addTemplateFormSchema,
   EMPTY_ADD_TEMPLATE_FORM,
-  isDuplicateName,
+  TEMPLATE_FIELD_ERRORS,
 } from '@/features/requisition-templates/lib/add-template-form';
 import { eligibleForNewTemplate } from '@/features/requisition-templates/lib/eligible-facility-types';
 import { buildNewTemplate } from '@/features/requisition-templates/lib/new-template';
 import { templateFieldErrors } from '@/features/requisition-templates/lib/server-errors';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
-import { apiErrorText } from '@/lib/api-error';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
 import { reportApiError } from '@/lib/report-error';
 
@@ -99,7 +99,8 @@ function useTemplateForm() {
     },
     onError: (error, values) => {
       reportApiError(error);
-      if (isDuplicateName(error)) setRefused((names) => [...names, values.name.trim()]);
+      if (fieldErrorFor(error, TEMPLATE_FIELD_ERRORS))
+        setRefused((names) => [...names, values.name.trim()]);
       setFieldErrors(templateFieldErrors(error, t));
     },
   });
@@ -148,7 +149,7 @@ function AddTemplateForm({ cards }: { cards: boolean }) {
     clearFieldError('facilityTypes');
   };
   const generalError =
-    !save.isError || isDuplicateName(save.error)
+    !save.isError || fieldErrorFor(save.error, TEMPLATE_FIELD_ERRORS)
       ? null
       : fieldErrors
         ? [fieldErrors.general, fieldErrors.columns, fieldErrors.periods].filter(Boolean).join(' ')

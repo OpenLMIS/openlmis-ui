@@ -1,7 +1,9 @@
 import { QueryClient } from '@tanstack/react-query';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createInstance } from 'i18next';
 import { useState } from 'react';
+import { I18nextProvider } from 'react-i18next';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -17,7 +19,10 @@ import {
 } from '@/features/requisition-templates/components/template-editor';
 import { liveTemplates } from '@/features/requisition-templates/lib/test-templates';
 import { client } from '@/integrations/axios';
+import { IsolatingICU } from '@/lib/isolate-values';
+import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
+import en from '../../../../public/locales/en.json';
 
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -130,6 +135,48 @@ describe('TemplateEditor', () => {
     );
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(saveRequisitionTemplate).not.toHaveBeenCalled();
+  });
+
+  it('opens Columns and labels the period input when the server rejects its value', async () => {
+    const i18n = createInstance();
+    await i18n.use(IsolatingICU).init({
+      lng: 'en',
+      keySeparator: false,
+      nsSeparator: false,
+      resources: { en: { translation: en } },
+    });
+    const user = userEvent.setup();
+    vi.mocked(client.put).mockRejectedValueOnce(
+      httpError(400, {
+        numberOfPeriodsToAverage: {
+          messageKey: 'requisition.error.validation.fieldMustBeGreaterOrEqual',
+          message: 'Server-language detail',
+        },
+      }),
+    );
+    renderPage(
+      <I18nextProvider i18n={i18n}>
+        <Editor initialTab="settings" />
+      </I18nextProvider>,
+      { queryClient: seededClient() },
+    );
+    const save = en['requisition-templates.configure.save'];
+    await user.click(await screen.findByRole('button', { name: save }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: save }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('tab', { name: en['requisition-templates.configure.columns'] }),
+      ).toHaveAttribute('aria-selected', 'true'),
+    );
+    const periods = await screen.findByRole('textbox', {
+      name: /Number Of Periods To Average/,
+    });
+    expect(periods).toHaveAttribute('aria-invalid', 'true');
+    expect(periods).toHaveAccessibleDescription(
+      en['requisition-templates.configure.validation.periods-minimum'],
+    );
   });
 
   it('refuses a previous user draft after confirmation', async () => {

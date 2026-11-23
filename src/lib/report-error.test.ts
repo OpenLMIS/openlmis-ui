@@ -1,6 +1,6 @@
 import { onlineManager } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { reportCaughtError } from '@/lib/report-error';
+import { reportApiError, reportCaughtError } from '@/lib/report-error';
 import { httpError, networkError } from '@/test-utils/http-error';
 
 describe('reportCaughtError', () => {
@@ -30,4 +30,16 @@ describe('reportCaughtError', () => {
     expect(log).toHaveBeenCalledOnce();
     expect(log.mock.calls[0]?.[0]).toHaveProperty('message', 'Cannot read properties of undefined');
   });
+});
+
+it('keeps API failure handling running when diagnostic logging throws', () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementationOnce(() => {
+    throw new Error('Diagnostic logger unavailable');
+  });
+  try {
+    expect(() => reportApiError(httpError(500))).not.toThrow();
+    expect(warn).toHaveBeenCalledOnce();
+  } finally {
+    warn.mockRestore();
+  }
 });

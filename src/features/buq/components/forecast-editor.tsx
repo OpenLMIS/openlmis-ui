@@ -373,7 +373,7 @@ export function ForecastForm({
       const description =
         error instanceof BuqMovedError
           ? t('buq.forecast.moved')
-          : apiErrorText(error, failed.description, t, { write: true });
+          : apiErrorText(error, failed.description, t);
       if (description !== null) setFailure({ title: t(failed.title), description });
       refreshForecast();
     },

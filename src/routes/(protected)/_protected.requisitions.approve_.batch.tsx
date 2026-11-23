@@ -283,6 +283,14 @@ const actionCopy = {
   revert: ['requisitions.batch.revert', 'requisitions.batch.revert-confirm'],
 } as const;
 type Action = 'approve' | 'revert' | 'anyway' | 'update' | 'remove';
+class BatchActionError extends Error {
+  constructor(
+    readonly key: 'requisitions.batch.review-refreshed' | 'requisitions.offline.failed-description',
+  ) {
+    super(key);
+  }
+}
+
 function BatchPage() {
   const search = Route.useSearch();
   const loaded = Route.useLoaderData();
@@ -351,19 +359,18 @@ function BatchPage() {
   const [reasons, setReasons] = useState(new Map<string, BatchReason>());
   const [action, setAction] = useState<Action | null>(null);
   const [target, setTarget] = useState<string[]>([]);
-  const [dialog, setDialog] = useState<
-    string | Map<string, string> | { error: unknown; write: boolean } | null
-  >(() =>
-    loaded.removed.size
-      ? [...loaded.removed.values()]
-          .map((label) =>
-            t('requisitions.batch.failure-line', {
-              requisition: label,
-              reason: t('requisitions.batch.possibly-approved'),
-            }),
-          )
-          .join('\n')
-      : null,
+  const [dialog, setDialog] = useState<string | Map<string, string> | { error: unknown } | null>(
+    () =>
+      loaded.removed.size
+        ? [...loaded.removed.values()]
+            .map((label) =>
+              t('requisitions.batch.failure-line', {
+                requisition: label,
+                reason: t('requisitions.batch.possibly-approved'),
+              }),
+            )
+            .join('\n')
+        : null,
   );
   const [dialogCount, setDialogCount] = useState(loaded.removed.size || 1);
   const [invalid, setInvalid] = useState<string | null>(null);
@@ -462,7 +469,8 @@ function BatchPage() {
           const copy = await readCopy(record.id);
           assertSessionScope(scope);
           if (!copy) {
-            if (!loaded.accessEpoch) throw new Error(t('requisitions.offline.failed-description'));
+            if (!loaded.accessEpoch)
+              throw new BatchActionError('requisitions.offline.failed-description');
             continue;
           }
           const nodes = copy.summary.supervisoryNode
@@ -491,12 +499,12 @@ function BatchPage() {
             })
           ) {
             setResponse(fresh);
-            throw new Error(t('requisitions.batch.review-refreshed'));
+            throw new BatchActionError('requisitions.batch.review-refreshed');
           }
         }
         requireOnline();
         if (epoch !== uploadAccessEpoch())
-          throw new Error(t('requisitions.batch.review-refreshed'));
+          throw new BatchActionError('requisitions.batch.review-refreshed');
         accessEpoch.current = epoch;
       }
       if (kind === 'revert' || kind === 'update') {
@@ -814,7 +822,7 @@ function BatchPage() {
         return;
       }
       setDialogCount(1);
-      setDialog({ error, write: kind !== 'check' });
+      setDialog({ error });
     },
     onSettled: (_data, _error, kind) => {
       if (kind === 'approve' && leaving.current) return;
@@ -829,7 +837,9 @@ function BatchPage() {
   };
   const requestFailure =
     dialog && typeof dialog === 'object' && !(dialog instanceof Map)
-      ? apiErrorText(dialog.error, 'error.description', t, { write: dialog.write })
+      ? dialog.error instanceof BatchActionError
+        ? t(dialog.error.key)
+        : apiErrorText(dialog.error, 'error.description', t)
       : null;
   const pending = mutation.isPending;
   const recoveryRecords = pending ? [] : unresolved;
