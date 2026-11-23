@@ -214,6 +214,20 @@ export async function fetchLotsByTradeItems(
   return [...new Map(lots.map((lot) => [lot.id, lot])).values()];
 }
 
+export async function fetchLotsByTradeItemAndCode(tradeItemId: string, lotCode: string) {
+  const scope = getSessionScope();
+  const lots: LotSummary[] = [];
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<LotSummary>>('/lots', {
+      params: { tradeItemId, lotCode, page, size: 100 },
+    });
+    assertSessionScope(scope);
+    lots.push(...data.content);
+    if (page + 1 >= data.totalPages) return lots;
+  }
+}
+
 export async function fetchOrderableFulfills(ids: readonly string[]): Promise<OrderableFulfills> {
   const scope = getSessionScope();
   const unique = [...new Set(ids)];

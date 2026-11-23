@@ -17,6 +17,7 @@ import en from '@/../public/locales/en.json';
 import { quantityValue } from '@/components/form/quantity-value';
 import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { fetchLotsByTradeItemAndCode } from '@/features/reference-data/api/api';
 import {
   createPhysicalInventoryLot,
   deletePhysicalInventory,
@@ -41,6 +42,9 @@ import { addedInventoryLine } from '@/features/stock-events/lib/physical-invento
 import { DraftConflictError } from '@/lib/draft-store';
 import { httpError } from '@/test-utils/http-error';
 
+vi.mock('@/features/reference-data/api/api', () => ({
+  fetchLotsByTradeItemAndCode: vi.fn(),
+}));
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
   savePhysicalInventory: vi.fn(),
   submitPhysicalInventory: vi.fn(),
@@ -72,6 +76,7 @@ const lines = buildInventoryLines([stock], [{ orderableId: 'p', quantity: 5 }]);
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValue(draft);
+  vi.mocked(fetchLotsByTradeItemAndCode).mockResolvedValue([]);
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'user', username: 'user', accessToken: 'token' });
@@ -372,6 +377,17 @@ it.each([
   },
 );
 
+async function englishTranslations() {
+  const i18n = createInstance().use(ICU);
+  await i18n.init({
+    lng: 'en',
+    keySeparator: false,
+    nsSeparator: false,
+    resources: { en: { translation: en } },
+  });
+  return i18n;
+}
+
 it.each([
   [
     'duplicate lot',
@@ -386,13 +402,19 @@ it.each([
       method: 'post',
       headers: new AxiosHeaders(),
     }),
-    'Could not create lots: NEW. The server did not answer in time. The lots may have been created. Keep this page open and check the lots before trying again.',
+    'Could not create lots: NEW. The server did not answer in time. Keep this page open and save again. Lots that were already created will be reused.',
   ],
   [
     'unkeyed lot failure',
     createPhysicalInventoryLot,
     httpError(500, { message: 'Internal error' }),
     'Could not create lots: NEW. Keep this page open and try saving again.',
+  ],
+  [
+    'keyed lot refusal',
+    createPhysicalInventoryLot,
+    httpError(400, { messageKey: 'lot.refused', message: 'This trade item is inactive.' }),
+    'Could not create lots: NEW. This trade item is inactive. Your latest counts are only on this page, so keep it open.',
   ],
   [
     'submitted inventory',
@@ -403,19 +425,13 @@ it.each([
   [
     'untranslated inventory refusal',
     savePhysicalInventory,
-    httpError(400, { messageKey: 'inventory.refused', message: 'The server refused the counts.' }),
+    httpError(400, { messageKey: 'inventory.refused', message: 'The server refused the counts' }),
     'The server refused the counts. Your latest counts are only on this page, so keep it open.',
   ],
 ] as const)(
   'shows safe Save feedback after a failed device flush (%s)',
   async (_, request, error, description) => {
-    const i18n = createInstance().use(ICU);
-    await i18n.init({
-      lng: 'en',
-      keySeparator: false,
-      nsSeparator: false,
-      resources: { en: { translation: en } },
-    });
+    const i18n = await englishTranslations();
     vi.mocked(request).mockRejectedValueOnce(error);
     const pending =
       request === createPhysicalInventoryLot
@@ -445,6 +461,96 @@ it.each([
     expect(alert).not.toHaveTextContent(en['physical-inventory.save-error-description']);
   },
 );
+
+it('uses normal Save feedback once a later device write preserves the counts', async () => {
+  const pending = [
+    addedInventoryLine(stock, quantityValue('7'), {
+      clientId: 'new',
+      lotCode: 'NEW',
+      expirationDate: null,
+      tradeItemId: 'trade',
+    }),
+  ];
+  vi.mocked(createPhysicalInventoryLot).mockResolvedValueOnce({
+    id: 'created',
+    lotCode: 'NEW',
+    expirationDate: null,
+  });
+  vi.mocked(savePhysicalInventory).mockRejectedValueOnce(
+    httpError(400, { messageKey: 'stockmanagement.error.physicalInventory.isSubmitted' }),
+  );
+  setup(
+    {
+      displayed: pending,
+      getLines: () => pending,
+      flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')),
+    },
+    await englishTranslations(),
+  );
+
+  await confirmAction('save', en['physical-inventory.save']);
+
+  const alert = await screen.findByRole('alertdialog');
+  expect(alert).toHaveAccessibleDescription(
+    en['api-error.stockmanagement.error.physicalInventory.isSubmitted'],
+  );
+  expect(writeInventoryLocal).toHaveBeenCalledWith(
+    expect.objectContaining({
+      lines: [expect.objectContaining({ key: 'p|created', quantity: quantityValue('7') })],
+    }),
+  );
+});
+
+it('reuses a lot created by a timed-out POST and saves the entered count', async () => {
+  const pending = [
+    addedInventoryLine(stock, quantityValue('7'), {
+      clientId: 'new',
+      lotCode: 'NEW',
+      expirationDate: '2030-01-30',
+      tradeItemId: 'trade',
+    }),
+  ];
+  vi.mocked(fetchLotsByTradeItemAndCode)
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([
+      { id: 'partial', lotCode: 'NEW-2', expirationDate: '2030-01-30', tradeItemId: 'trade' },
+      { id: 'other-item', lotCode: 'NEW', expirationDate: '2030-01-30', tradeItemId: 'other' },
+      { id: 'created', lotCode: 'new', expirationDate: '2030-01-30', tradeItemId: 'trade' },
+    ]);
+  vi.mocked(createPhysicalInventoryLot).mockRejectedValueOnce(
+    new AxiosError('Timed out', AxiosError.ECONNABORTED, {
+      method: 'post',
+      headers: new AxiosHeaders(),
+    }),
+  );
+  setup(
+    {
+      displayed: pending,
+      getLines: () => pending,
+      flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')),
+    },
+    await englishTranslations(),
+  );
+
+  await confirmAction('save', en['physical-inventory.save']);
+
+  const alert = await screen.findByRole('alertdialog');
+  expect(alert).toHaveTextContent(en['physical-inventory.lot-timeout-keep-open']);
+  expect(savePhysicalInventory).not.toHaveBeenCalled();
+  await userEvent.click(within(alert).getByRole('button', { name: en['dialog.close'] }));
+  await confirmAction('save', en['physical-inventory.save']);
+
+  await waitFor(() =>
+    expect(savePhysicalInventory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lineItems: [expect.objectContaining({ lotId: 'created', quantity: 7 })],
+      }),
+    ),
+  );
+  expect(fetchLotsByTradeItemAndCode).toHaveBeenNthCalledWith(1, 'trade', 'NEW');
+  expect(fetchLotsByTradeItemAndCode).toHaveBeenNthCalledWith(2, 'trade', 'NEW');
+  expect(createPhysicalInventoryLot).toHaveBeenCalledOnce();
+});
 
 it('explains an orphaned draft after a failed device flush with its earlier device counts', async () => {
   vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(null);

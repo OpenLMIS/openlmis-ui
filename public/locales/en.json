@@ -1410,7 +1410,7 @@
   "physical-inventory.lot-duplicate-error": "Lot code must be unique: {codes}.",
   "physical-inventory.lot-error": "Could not create lots: {codes}. {message}",
   "physical-inventory.lot-expiry-past": "Lot expiration date should be a future date.",
-  "physical-inventory.lot-timeout-keep-open": "The server did not answer in time. The lots may have been created. Keep this page open and check the lots before trying again.",
+  "physical-inventory.lot-timeout-keep-open": "The server did not answer in time. Keep this page open and save again. Lots that were already created will be reused.",
   "physical-inventory.lot-trade-item-error": "Trade Item is required to add a Lot Code: {codes}.",
   "physical-inventory.new-lot-code": "New Lot Code",
   "physical-inventory.no": "No",

@@ -344,13 +344,10 @@ export function ReverseEditor({
           : undefined;
       if (Array.isArray(lineErrors) && lineErrors.length) {
         const byId: Record<string, StockEventCancelLineError> = {};
-        const usableErrors = lineErrors.filter(
-          (item) =>
-            (typeof item?.messageKey === 'string' && item.messageKey.trim()) ||
-            (typeof item?.message === 'string' && item.message.trim()),
-        );
         const lineErrorsById = new Map(
-          usableErrors.map((item) => [item.stockEventLineItemId, item]),
+          lineErrors
+            .filter((item) => item?.stockEventLineItemId)
+            .map((item) => [item.stockEventLineItemId, item]),
         );
         for (const row of rows) {
           const lineId = row.line.stockEventLineItemId;
@@ -365,7 +362,12 @@ export function ReverseEditor({
           alertTarget.current = { id: `reverse-${first.id}`, page: invalidPage };
           return;
         }
-        for (const lineError of usableErrors) {
+        for (const lineError of lineErrors) {
+          if (
+            !(typeof lineError?.messageKey === 'string' && lineError.messageKey.trim()) &&
+            !(typeof lineError?.message === 'string' && lineError.message.trim())
+          )
+            continue;
           const message = keyedApiErrorText(lineError.messageKey, lineError.message, t);
           if (message) {
             setFailure(message);

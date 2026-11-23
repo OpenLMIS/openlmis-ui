@@ -1410,7 +1410,7 @@
   "physical-inventory.lot-duplicate-error": "O código do lote deve ser único: {codes}.",
   "physical-inventory.lot-error": "Não foi possível criar os lotes: {codes}. {message}",
   "physical-inventory.lot-expiry-past": "A data de validade do lote deve ser uma data futura.",
-  "physical-inventory.lot-timeout-keep-open": "O servidor não respondeu a tempo. Os lotes podem ter sido criados. Mantenha esta página aberta e verifique os lotes antes de tentar novamente.",
+  "physical-inventory.lot-timeout-keep-open": "O servidor não respondeu a tempo. Mantenha esta página aberta e guarde novamente. Os lotes já criados serão reutilizados.",
   "physical-inventory.lot-trade-item-error": "É necessário um artigo comercial para adicionar um código de lote: {codes}.",
   "physical-inventory.new-lot-code": "Código do novo lote",
   "physical-inventory.no": "Não",

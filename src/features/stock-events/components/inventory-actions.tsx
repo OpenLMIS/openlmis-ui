@@ -20,6 +20,7 @@ import {
 import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
+import { fetchLotsByTradeItemAndCode } from '@/features/reference-data/api/api';
 import {
   createPhysicalInventoryLot,
   deletePhysicalInventory,
@@ -86,22 +87,14 @@ function reportUnlessConflict(error: unknown) {
   if (error instanceof DraftConflictError) throw error;
   reportCaughtError(error, {});
 }
-function inventoryKeepOpenText(error: unknown, t: TFunction, target: 'draft' | 'lots') {
-  if (isWriteApiTimeout(error))
-    return t(
-      target === 'lots'
-        ? 'physical-inventory.lot-timeout-keep-open'
-        : 'physical-inventory.save-timeout-keep-open',
-    );
+function inventoryKeepOpenText(error: unknown, t: TFunction) {
+  if (isWriteApiTimeout(error)) return t('physical-inventory.save-timeout-keep-open');
   if (!isApiTimeout(error) && !isOfflineError(error) && !isAccessFallbackError(error)) {
     const key = serverMessageKey(error);
-    if (key) {
-      const refusal = keyedApiErrorText(
-        key,
-        target === 'draft' ? serverMessage(error) : undefined,
-        t,
-      );
-      if (refusal) return `${refusal} ${t('physical-inventory.counts-only-on-page')}`;
+    const refusal = key && keyedApiErrorText(key, serverMessage(error), t)?.trimEnd();
+    if (refusal) {
+      const punctuation = /[.!?؟。！？]$/.test(refusal) ? '' : '.';
+      return `${refusal}${punctuation} ${t('physical-inventory.counts-only-on-page')}`;
     }
   }
   return t('physical-inventory.save-error-keep-open');
@@ -137,7 +130,7 @@ type Props = {
   onDeleted: () => void | Promise<void>;
   onSubmitted: () => void | Promise<void>;
 };
-type Attempt = { action: Action; flushFailed: boolean };
+type Attempt = { action: Action; countsOnDevice?: boolean };
 type Failure = { title: string; description: string; offline?: boolean };
 const ACTION_KEYS = {
   save: {
@@ -211,8 +204,9 @@ export function InventoryActions(props: Props) {
       check();
       try {
         await props.flush();
+        attempt.countsOnDevice = true;
       } catch (error) {
-        attempt.flushFailed = true;
+        attempt.countsOnDevice = false;
         reportUnlessConflict(error);
       }
       assertSessionScope(scope);
@@ -256,6 +250,10 @@ export function InventoryActions(props: Props) {
         throw new Error(t('physical-inventory.invalid-description'));
       const prepared = await createInventoryLots(
         lines,
+        (tradeItemId, lotCode) => {
+          check();
+          return fetchLotsByTradeItemAndCode(tradeItemId, lotCode);
+        },
         (body) => {
           check();
           return createPhysicalInventoryLot(body);
@@ -265,6 +263,7 @@ export function InventoryActions(props: Props) {
           props.onLots(next);
           try {
             await props.writeLocal(inventoryLocalCopy(props.draft, next, props.baseline));
+            attempt.countsOnDevice = true;
           } catch (error) {
             reportUnlessConflict(error);
           }
@@ -333,7 +332,7 @@ export function InventoryActions(props: Props) {
     if (posting.current || finished.current || (action.type === 'submit' && unknown)) return;
     posting.current = true;
     props.onBusy(true);
-    const attempt: Attempt = { action, flushFailed: false };
+    const attempt: Attempt = { action };
     let next: InventoryLine[];
     try {
       next = await mutation.mutateAsync(attempt);
@@ -354,7 +353,7 @@ export function InventoryActions(props: Props) {
         )
       )
         reportApiError(cause);
-      const keepOpen = action.type === 'save' && attempt.flushFailed;
+      const keepOpen = action.type === 'save' && attempt.countsOnDevice === false;
       if (
         !keepOpen &&
         !(error instanceof UnknownSubmit) &&
@@ -391,10 +390,12 @@ export function InventoryActions(props: Props) {
               : t('physical-inventory.lot-error', {
                   codes: error.codes.join(', '),
                   message: keepOpen
-                    ? inventoryKeepOpenText(cause, t, 'lots')
+                    ? isWriteApiTimeout(cause)
+                      ? t('physical-inventory.lot-timeout-keep-open')
+                      : inventoryKeepOpenText(cause, t)
                     : apiErrorText(cause, fallback, t),
                 });
-      else if (keepOpen) description = inventoryKeepOpenText(cause, t, 'draft');
+      else if (keepOpen) description = inventoryKeepOpenText(cause, t);
       else description = apiErrorText(error, fallback, t);
       if (error instanceof UnknownSubmit) {
         setUnknown(true);

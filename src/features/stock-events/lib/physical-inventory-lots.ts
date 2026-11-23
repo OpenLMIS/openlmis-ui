@@ -1,7 +1,7 @@
-import { isAxiosError } from 'axios';
 import type { LotSummary } from '@/features/reference-data/lib/types';
 import { inventoryLineKey } from '@/features/stock-events/lib/physical-inventory-lines';
 import type { InventoryLine } from '@/features/stock-events/lib/physical-inventory-types';
+import { serverMessageKey } from '@/lib/api-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export type InventoryLotBody = {
@@ -21,6 +21,7 @@ export class InventoryLotError extends Error {
 }
 export async function createInventoryLots(
   lines: readonly InventoryLine[],
+  lookup: (tradeItemId: string, lotCode: string) => Promise<LotSummary[]>,
   create: (body: InventoryLotBody) => Promise<LotSummary>,
   persist: (lines: InventoryLine[]) => Promise<void>,
 ) {
@@ -31,12 +32,17 @@ export async function createInventoryLots(
     try {
       const pending = line.newLot;
       if (!pending) continue;
-      const lot = await create({
-        lotCode: pending.lotCode,
-        expirationDate: pending.expirationDate,
-        tradeItemId: pending.tradeItemId,
-        active: true,
-      });
+      const { lotCode, expirationDate, tradeItemId } = pending;
+      const candidates = await lookup(tradeItemId, lotCode);
+      assertSessionScope(scope);
+      const existing = candidates.find(
+        (lot) =>
+          lot.tradeItemId === tradeItemId &&
+          lot.lotCode.toUpperCase() === lotCode.toUpperCase() &&
+          (!expirationDate || lot.expirationDate === expirationDate),
+      );
+      const lot =
+        existing ?? (await create({ lotCode, expirationDate, tradeItemId, active: true }));
       assertSessionScope(scope);
       current = current.map((entry) =>
         entry.key === line.key
@@ -53,7 +59,7 @@ export async function createInventoryLots(
     } catch (error) {
       assertSessionScope(scope);
       if (error instanceof Error && error.name === 'SessionEndedError') throw error;
-      const key = isAxiosError(error) ? error.response?.data?.messageKey : '';
+      const key = serverMessageKey(error);
       throw new InventoryLotError(
         [line.newLot?.lotCode ?? ''],
         key?.endsWith('lotCode.mustBeUnique')

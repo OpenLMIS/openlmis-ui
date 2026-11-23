@@ -89,6 +89,7 @@ vi.mock('@/hooks/use-discard-guard', () => ({
 }));
 vi.mock('@/features/reference-data/api/api', () => ({
   fetchValidReasons: vi.fn().mockResolvedValue([]),
+  fetchLotsByTradeItemAndCode: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/hooks/use-quantity-unit', () => ({
   useQuantityUnit: () => {

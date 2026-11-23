@@ -10,6 +10,7 @@ import {
   fetchGeographicLevels,
   fetchGeographicZones,
   fetchLotsByIds,
+  fetchLotsByTradeItemAndCode,
   fetchLotsByTradeItems,
   fetchOrderableDisplayCategories,
   fetchOrderableFulfills,
@@ -290,6 +291,22 @@ describe('fetchLotsByIds', () => {
   it('asks for nothing when there is nothing to name', async () => {
     await expect(fetchLotsByIds([])).resolves.toEqual([]);
     expect(get).not.toHaveBeenCalled();
+  });
+});
+
+it('reads all pages for the trade item and lot code', async () => {
+  const first = { id: 'l1', lotCode: 'X-12', tradeItemId: 't1', expirationDate: null };
+  const second = { id: 'l2', lotCode: 'X-1', tradeItemId: 't1', expirationDate: null };
+  get
+    .mockResolvedValueOnce({ data: { content: [first], totalPages: 2 } })
+    .mockResolvedValueOnce({ data: { content: [second], totalPages: 2 } });
+
+  await expect(fetchLotsByTradeItemAndCode('t1', 'X-1')).resolves.toEqual([first, second]);
+  expect(get).toHaveBeenNthCalledWith(1, '/lots', {
+    params: { tradeItemId: 't1', lotCode: 'X-1', page: 0, size: 100 },
+  });
+  expect(get).toHaveBeenNthCalledWith(2, '/lots', {
+    params: { tradeItemId: 't1', lotCode: 'X-1', page: 1, size: 100 },
   });
 });
 

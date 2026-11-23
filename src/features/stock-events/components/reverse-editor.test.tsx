@@ -383,6 +383,29 @@ it.each([
   );
   await pick('Other reason');
 });
+it('marks a matching row with fallback text when its refusal is malformed', async () => {
+  vi.mocked(cancelStockEvent).mockRejectedValueOnce({
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: { lineErrors: [{ stockEventLineItemId: 'line', messageKey: 123, message: {} }] },
+    },
+  });
+  editor();
+  await tick();
+  await pick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+
+  expect(await screen.findByRole('alertdialog')).toHaveAccessibleDescription(
+    'stock-event-reverse.line-errors',
+  );
+  await closeAlert();
+  expect(screen.getByRole('alert')).toHaveTextContent('error.description');
+  expect(screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' })).toBeInTheDocument();
+});
+
 it.each([
   [
     [
