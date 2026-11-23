@@ -107,7 +107,7 @@ function ScheduleForm({ onDone }: { onDone: () => void }) {
         <FieldGroup>
           {save.isError && !refusedField && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'processing-schedules.save-error', t, {
+              description={apiErrorText(save.error, 'error.description', t, {
                 write: true,
               })}
               title={t('processing-schedules.form.save-error-title')}

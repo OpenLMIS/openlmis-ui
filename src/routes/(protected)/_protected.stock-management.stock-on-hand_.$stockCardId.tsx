@@ -272,7 +272,7 @@ function StockCardPrint({
     successTitle: t('stock-card.printed-title'),
     successDescription: t('stock-card.printed', { product: card.orderable.fullProductName }),
     errorTitle: t('stock-card.print-error-title'),
-    errorDescription: t('stock-card.print-error'),
+    errorDescription: t('error.description'),
     refusedDescription: t('stock-card.print-refused'),
   });
   const offline = print.offline;

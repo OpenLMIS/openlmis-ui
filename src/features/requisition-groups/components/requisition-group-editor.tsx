@@ -204,7 +204,7 @@ export function RequisitionGroupEditor({
             {mutation.isError && (
               <ErrorAlert
                 title={t('requisition-groups.form.save-error-title')}
-                description={apiErrorText(mutation.error, 'requisition-groups.form.save-error', t, {
+                description={apiErrorText(mutation.error, 'error.description', t, {
                   write: true,
                 })}
               />
@@ -1182,7 +1182,7 @@ function AddFacilityForm({ rows, onAdd }: Pick<AddFacilityProps, 'rows' | 'onAdd
         {mutation.isError && (
           <ErrorAlert
             title={t('requisition-groups.form.facility-error-title')}
-            description={apiErrorText(mutation.error, 'requisition-groups.form.facility-error', t, {
+            description={apiErrorText(mutation.error, 'error.description', t, {
               write: false,
             })}
           />

@@ -121,7 +121,7 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
   const serverError = (error: unknown) => {
     if (isSilentApiError(error)) return null;
     const key = passwordErrorKey(error);
-    return key ? t(key) : apiErrorText(error, 'users.form.save-error', t, { write: true });
+    return key ? t(key) : apiErrorText(error, 'error.description', t, { write: true });
   };
 
   const description = target.created

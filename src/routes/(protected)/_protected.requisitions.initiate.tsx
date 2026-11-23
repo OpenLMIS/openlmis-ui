@@ -359,7 +359,7 @@ function Periods({
       reportApiError(error);
       if (unresolved.current) {
         toast.error(t('requisitions.initiate.load-failed'), {
-          description: t('requisitions.initiate.load-failed-description'),
+          description: t('error.description'),
         });
         return;
       }

@@ -185,7 +185,7 @@ function ProgramLinkForm({ product, link, readOnly, onDone }: ProgramLinkFormPro
         <FieldGroup>
           {save.isError && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'products.form.save-error', t, { write: true })}
+              description={apiErrorText(save.error, 'error.description', t, { write: true })}
               title={t('products.programs.form.save-error-title')}
             />
           )}

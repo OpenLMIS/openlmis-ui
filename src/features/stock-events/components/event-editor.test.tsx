@@ -2658,7 +2658,7 @@ it('shows failed local commits with Retry and leave protection until a successfu
     new Error('quota'),
   );
   await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
-  await screen.findByText('Could not save on this device. Your latest edits are not saved.');
+  await screen.findByText(en['stock-events.draft-failed']);
   expect(screen.queryByText('Saved On This Device')).not.toBeInTheDocument();
   const unload = new Event('beforeunload', { cancelable: true });
   fireEvent(window, unload);
@@ -2703,7 +2703,7 @@ it.each(['leave', 'sign-out'] as const)(
     const before = await table.toArray();
     vi.spyOn(table, 'put').mockRejectedValueOnce(new Error('quota'));
     await user.type(screen.getByRole('textbox', { name: /^Quantity, Aspirin LOT/ }), '0012');
-    await screen.findByText('Could not save on this device. Your latest edits are not saved.');
+    await screen.findByText(en['stock-events.draft-failed']);
     const leave = vi.fn();
     act(() => whenLeaveAllowed(leave, intent));
     const discard = await screen.findByRole('button', {

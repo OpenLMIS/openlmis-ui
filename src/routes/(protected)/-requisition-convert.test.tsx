@@ -479,7 +479,7 @@ it('keeps a refused release status explicitly unknown', async () => {
   expect(
     screen.getByRole('heading', { name: 'requisitions.convert.release-unknown' }),
   ).toBeInTheDocument();
-  expect(screen.queryByText('requisitions.convert.failed-description')).not.toBeInTheDocument();
+  expect(screen.queryByText('error.description')).not.toBeInTheDocument();
   queryClient.clear();
 });
 it('clears validation when ticks no longer include a missing depot', async () => {

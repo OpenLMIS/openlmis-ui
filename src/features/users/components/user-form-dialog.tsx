@@ -209,7 +209,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
         <FieldGroup>
           {save.isError && showSaveError && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'users.form.save-error', t)}
+              description={apiErrorText(save.error, 'error.description', t)}
               title={t('users.form.save-error-title')}
             />
           )}

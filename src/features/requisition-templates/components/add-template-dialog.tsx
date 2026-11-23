@@ -88,7 +88,7 @@ function useTemplateForm() {
     onMutate: () => setFieldErrors(undefined),
     mutationFn: async (values: AddTemplateFormValues) => {
       const catalog = await queryClient.ensureQueryData(availableColumnsOptions());
-      if (!save.isCurrent()) throw new Error(t('requisition-templates.form.save-error'));
+      if (!save.isCurrent()) throw new Error(t('error.description'));
       return createRequisitionTemplate(buildNewTemplate(catalog, values));
     },
     onSuccess: () => {
@@ -153,7 +153,7 @@ function AddTemplateForm({ cards }: { cards: boolean }) {
       ? null
       : fieldErrors
         ? [fieldErrors.general, fieldErrors.columns, fieldErrors.periods].filter(Boolean).join(' ')
-        : apiErrorText(save.error, 'requisition-templates.form.save-error', t, { write: true });
+        : apiErrorText(save.error, 'error.description', t, { write: true });
   const program = queryClient
     .getQueryData(programsOptions().queryKey)
     ?.find(({ id }) => id === confirmation?.programId);

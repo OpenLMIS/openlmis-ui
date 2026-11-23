@@ -141,7 +141,7 @@ function ActionForm({
           </h3>
           {error !== null && (
             <ErrorAlert
-              description={apiErrorText(error, 'cce-inventory.form.save-error', t, { write: true })}
+              description={apiErrorText(error, 'error.description', t, { write: true })}
               title={t('cce-inventory.form.save-error-title')}
             />
           )}
@@ -307,7 +307,7 @@ function useItemAlerts(item: InventoryItemRecord, userId: string) {
     },
     onError: (error) => {
       reportApiError(error);
-      const description = apiErrorText(error, 'cce-inventory.status.dismiss-error', t);
+      const description = apiErrorText(error, 'error.description', t);
       if (description !== null)
         toast.error(t('cce-inventory.status.dismiss-error-title'), { description });
     },
@@ -323,7 +323,7 @@ function useItemAlerts(item: InventoryItemRecord, userId: string) {
     successTitle: t('cce-inventory.status.history-title'),
     successDescription: t('cce-inventory.status.history-ready'),
     errorTitle: t('cce-inventory.status.history-error-title'),
-    errorDescription: t('cce-inventory.status.history-error'),
+    errorDescription: t('error.description'),
     refusedDescription: t('cce-inventory.status.history-refused'),
   });
   const legend = t('cce-inventory.alerts-title');

@@ -1,7 +1,7 @@
 import type { ParseKeys } from 'i18next';
 import { apiFieldMessages, keyedApiErrorText } from '@/lib/api-error';
 
-const fallback = 'requisition-templates.form.save-error';
+const fallback = 'error.description';
 
 export function templateFieldErrors(error: unknown, t: (key: ParseKeys) => string) {
   const fields = new Map<string, string>();

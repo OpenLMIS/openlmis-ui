@@ -149,7 +149,7 @@ function RejectForm({
             description={
               reject.error instanceof BuqMovedError
                 ? t('buq.forecast.moved')
-                : apiErrorText(reject.error, 'buq.approve.reject-error', t, { write: true })
+                : apiErrorText(reject.error, 'error.description', t, { write: true })
             }
             title={t('buq.approve.reject-error-title')}
           />

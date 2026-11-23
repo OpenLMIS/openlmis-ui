@@ -59,7 +59,7 @@ export function PodRowButtons({
     },
     onError: (error) => {
       reportApiError(error);
-      const description = apiErrorText(error, 'orders.view.error-description', t);
+      const description = apiErrorText(error, 'error.description', t);
       if (description !== null) toast.error(t('orders.view.error-title'), { description });
     },
   });
@@ -82,7 +82,7 @@ export function PodRowButtons({
     successTitle: t('orders.print-success-title'),
     successDescription: t('orders.print-success-description'),
     errorTitle: t('orders.print-error-title'),
-    errorDescription: t('orders.print-error-description'),
+    errorDescription: t('error.description'),
     refusedDescription: t('orders.print-refused-description'),
   });
   const named = (action: string) =>

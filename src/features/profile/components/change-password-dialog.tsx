@@ -92,7 +92,7 @@ function ChangePasswordForm({
               description={
                 errorKey
                   ? t(errorKey)
-                  : apiErrorText(save.error, 'users.form.save-error', t, { write: true })
+                  : apiErrorText(save.error, 'error.description', t, { write: true })
               }
               title={t('profile.password.error-title')}
             />

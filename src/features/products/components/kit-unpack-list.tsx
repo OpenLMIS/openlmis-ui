@@ -188,7 +188,7 @@ export function KitUnpackList({
         )}
         {save.isError && (
           <ErrorAlert
-            description={apiErrorText(save.error, 'products.form.save-error', t, { write: true })}
+            description={apiErrorText(save.error, 'error.description', t, { write: true })}
             title={t('products.kit.save-error-title')}
           />
         )}

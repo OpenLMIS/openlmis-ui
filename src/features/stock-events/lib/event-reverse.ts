@@ -176,8 +176,5 @@ export function lineErrorMessage(
   if (error.messageKey === 'stockmanagement.error.event.cancellation.reason.invalid') {
     return t('stock-event-reverse.reason-invalid');
   }
-  return (
-    keyedApiErrorText(error.messageKey, error.message, t) ??
-    t('stock-event-reverse.failed-description')
-  );
+  return keyedApiErrorText(error.messageKey, error.message, t) ?? t('error.description');
 }

@@ -21,7 +21,7 @@ await i18n.init({
   resources: { en: { translation: en } },
 });
 
-const fallback = 'users.form.save-error';
+const fallback = 'error.description';
 const t = i18n.t.bind(i18n);
 const sessionless = httpError(401, { message: 'Credentials rejected' });
 sessionless.config = { headers: new AxiosHeaders(), session: false };

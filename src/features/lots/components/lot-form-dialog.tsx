@@ -159,7 +159,7 @@ function LotForm({ lot, onDone }: { lot: Lot; onDone: () => void }) {
         <FieldGroup>
           {save.isError && !fieldErrorFor(save.error, LOT_FIELD_ERRORS) && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'lots.form.save-error', t, { write: true })}
+              description={apiErrorText(save.error, 'error.description', t, { write: true })}
               title={t('lots.form.save-error-title')}
             />
           )}

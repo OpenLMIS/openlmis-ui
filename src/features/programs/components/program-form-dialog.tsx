@@ -210,7 +210,7 @@ function ProgramForm({ program, onDone }: ProgramFormProps) {
         <FieldGroup>
           {save.isError && !fieldErrorFor(save.error, PROGRAM_FIELD_ERRORS) && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'programs.form.save-error', t, { write: true })}
+              description={apiErrorText(save.error, 'error.description', t, { write: true })}
               title={t('programs.form.save-error-title')}
             />
           )}

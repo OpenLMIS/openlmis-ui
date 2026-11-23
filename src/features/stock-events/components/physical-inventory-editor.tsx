@@ -582,7 +582,7 @@ function InventoryDraftRows({
       const description =
         isOfflineError(error) && !isApiTimeout(error)
           ? t('offline.action-description')
-          : apiErrorText(error, 'physical-inventory.deactivate-error-description', t);
+          : apiErrorText(error, 'error.description', t);
       if (description !== null)
         toast.error(t('physical-inventory.deactivate-error-title'), { description });
     },

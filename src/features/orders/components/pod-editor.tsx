@@ -210,7 +210,7 @@ export function PodEditor({
     successTitle: t('orders.print-success-title'),
     successDescription: t('orders.print-success-description'),
     errorTitle: t('orders.print-error-title'),
-    errorDescription: t('orders.print-error-description'),
+    errorDescription: t('error.description'),
     refusedDescription: t('orders.print-refused-description'),
   });
   const pending = mutation.isPending || print.isPending;

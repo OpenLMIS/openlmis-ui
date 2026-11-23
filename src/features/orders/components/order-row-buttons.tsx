@@ -62,7 +62,7 @@ export function OrderRowButtons({
     successTitle: t('orders.print-success-title'),
     successDescription: t('orders.print-success-description'),
     errorTitle: t('orders.print-error-title'),
-    errorDescription: t('orders.print-error-description'),
+    errorDescription: t('error.description'),
     refusedDescription: t('orders.print-refused-description'),
   });
   const download = useSessionMutation({
@@ -73,9 +73,7 @@ export function OrderRowButtons({
       reportApiError(error);
       const description = apiErrorText(
         error,
-        isRefused(error)
-          ? 'orders.download-refused-description'
-          : 'orders.download-error-description',
+        isRefused(error) ? 'orders.download-refused-description' : 'error.description',
         t,
         { write: false, allowServerMessage: false },
       );
@@ -88,7 +86,7 @@ export function OrderRowButtons({
     onSuccess: async ({ result }) => {
       if (!result) {
         toast.error(t('orders.retry-error-title'), {
-          description: t('orders.retry-error-description'),
+          description: t('error.description'),
         });
         return;
       }
@@ -103,7 +101,7 @@ export function OrderRowButtons({
     onError: (error) => {
       reportApiError(error);
       const status = isAxiosError(error) ? error.response?.status : undefined;
-      const description = apiErrorText(error, 'orders.retry-error-description', t, {
+      const description = apiErrorText(error, 'error.description', t, {
         write: true,
         allowServerMessage: status !== undefined && status >= 400 && status < 500,
       });

@@ -498,7 +498,7 @@ function InventoryList({
     onSuccess: (blob) => downloadFile(blob, EXPORT_FILENAME),
     onError: (error) => {
       reportApiError(error);
-      const description = apiErrorText(error, 'cce-inventory.export-error', t);
+      const description = apiErrorText(error, 'error.description', t);
       if (description !== null) toast.error(t('cce-inventory.export-error-title'), { description });
     },
   });

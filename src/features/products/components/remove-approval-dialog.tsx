@@ -103,7 +103,7 @@ export function RemoveApprovalDialog({
         </AlertDialogHeader>
         {remove.isError && (
           <ErrorAlert
-            description={apiErrorText(remove.error, 'products.form.save-error', t, { write: true })}
+            description={apiErrorText(remove.error, 'error.description', t, { write: true })}
             title={t('products.approvals.remove-error-title')}
           />
         )}

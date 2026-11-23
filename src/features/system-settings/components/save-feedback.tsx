@@ -41,7 +41,7 @@ export function SaveFeedback({ conflict, error, reloadError, onReload }: SaveFee
   if (!error) return null;
   return (
     <ErrorAlert
-      description={apiErrorText(error, 'system-settings.save-error-description', t, {
+      description={apiErrorText(error, 'error.description', t, {
         write: true,
       })}
       title={t('system-settings.save-error-title')}

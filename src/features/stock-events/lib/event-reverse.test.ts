@@ -274,9 +274,9 @@ describe('reverse payload and errors', () => {
     ],
     [
       { messageKey: 'stockmanagement.error.authorization.failed', message: 'Upstream exception' },
-      'stock-event-reverse.failed-description',
+      'error.description',
     ],
-    [{}, 'stock-event-reverse.failed-description'],
+    [{}, 'error.description'],
   ])('resolves the line error %j', (error, expected) => {
     expect(
       lineErrorMessage(error, (key) =>

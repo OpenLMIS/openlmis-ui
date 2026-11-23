@@ -232,7 +232,7 @@ export function NodeEditor({
                 ? t('supervisory-nodes.form.invalid-description')
                 : alert === 'conflict'
                   ? t('supervisory-nodes.form.conflict-description')
-                  : apiErrorText(failure, 'supervisory-nodes.form.save-error', t, { write: true })}
+                  : apiErrorText(failure, 'error.description', t, { write: true })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

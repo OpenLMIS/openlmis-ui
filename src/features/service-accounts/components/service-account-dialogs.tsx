@@ -103,7 +103,7 @@ function AddServiceAccountDialog({ open, onClose }: { open: boolean; onClose: ()
                 description={
                   add.error instanceof KeyLeftBehindError
                     ? t('service-accounts.key-left-behind', { key: add.error.token })
-                    : apiErrorText(add.error, 'service-accounts.request-error', t, { write: true })
+                    : apiErrorText(add.error, 'error.description', t, { write: true })
                 }
                 title={t('service-accounts.add-error-title')}
               />
@@ -186,7 +186,7 @@ function DeleteServiceAccountDialog({
         {shown && <KeyBox token={shown} />}
         {remove.isError && (
           <ErrorAlert
-            description={apiErrorText(remove.error, 'service-accounts.request-error', t, {
+            description={apiErrorText(remove.error, 'error.description', t, {
               write: true,
             })}
             title={t('service-accounts.delete-error-title')}

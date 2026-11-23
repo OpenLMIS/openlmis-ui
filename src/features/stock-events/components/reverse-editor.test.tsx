@@ -365,9 +365,10 @@ it.each([
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   const dialog = await screen.findByRole('alertdialog');
-  expect(dialog).toHaveTextContent(
+  expect(dialog).toHaveAccessibleName('stock-event-reverse.failed-title');
+  expect(dialog).toHaveAccessibleDescription(
     error instanceof Error
-      ? 'stock-event-reverse.failed-description'
+      ? 'error.description'
       : 'message' in error.response.data
         ? 'Server refused reversal'
         : 'stock-event-reverse.line-errors',

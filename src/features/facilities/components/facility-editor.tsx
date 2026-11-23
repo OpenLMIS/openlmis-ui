@@ -242,7 +242,7 @@ export function FacilityEditor({
             )}
             {mutation.isError && !fieldErrorFor(mutation.error, FACILITY_FIELD_ERRORS) && (
               <ErrorAlert
-                description={apiErrorText(mutation.error, 'facilities.form.save-error', t, {
+                description={apiErrorText(mutation.error, 'error.description', t, {
                   write: true,
                 })}
                 title={t('facilities.form.save-error-title')}

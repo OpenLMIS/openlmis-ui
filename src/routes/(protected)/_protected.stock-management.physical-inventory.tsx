@@ -110,7 +110,7 @@ function ProgramsTable({ programs, hasHomeFacility, facilityId = '' }: ProgramsT
       const description =
         isOfflineError(error) && !isApiTimeout(error)
           ? t('offline.action-description')
-          : apiErrorText(error, 'physical-inventory.start-error-description', t);
+          : apiErrorText(error, 'error.description', t);
       if (description !== null)
         toast.error(t('physical-inventory.start-error-title'), { description });
     },

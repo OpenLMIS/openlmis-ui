@@ -310,7 +310,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
         >
           {save.isError && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'users.form.save-error', t, { write: true })}
+              description={apiErrorText(save.error, 'error.description', t, { write: true })}
               title={t('profile.notifications.save-error-title')}
             />
           )}

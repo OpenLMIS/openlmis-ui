@@ -95,7 +95,7 @@ export function RemoveProgramLinkDialog({
         </AlertDialogHeader>
         {save.isError && (
           <ErrorAlert
-            description={apiErrorText(save.error, 'products.form.save-error', t, { write: true })}
+            description={apiErrorText(save.error, 'error.description', t, { write: true })}
             title={t('products.programs.remove-error-title')}
           />
         )}

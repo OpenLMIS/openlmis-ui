@@ -230,10 +230,24 @@ describe('TemplateEditor', () => {
     expect(name).not.toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('uses read-timeout copy when the fresh template read fails before saving', async () => {
-    vi.mocked(client.get).mockRejectedValueOnce(
-      new AxiosError('Timeout', 'ECONNABORTED', { method: 'get', headers: new AxiosHeaders() }),
-    );
+  it.each([
+    [
+      'read-timeout',
+      'get',
+      new AxiosError('Timeout', 'ECONNABORTED', {
+        method: 'get',
+        headers: new AxiosHeaders(),
+      }),
+      'api-error.timeout-read',
+    ],
+    [
+      'shared fallback',
+      'put',
+      httpError(500, { message: 'Internal exception' }),
+      'error.description',
+    ],
+  ] as const)('uses %s copy in the save failure toast', async (_, method, error, description) => {
+    vi.mocked(client[method]).mockRejectedValueOnce(error);
     const user = userEvent.setup();
     renderPage(<Editor />, { queryClient: seededClient() });
     const save = 'requisition-templates.configure.save';
@@ -243,10 +257,10 @@ describe('TemplateEditor', () => {
     );
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('requisition-templates.configure.save-error-title', {
-        description: 'api-error.timeout-read',
+        description,
       }),
     );
-    expect(client.put).not.toHaveBeenCalled();
+    if (method === 'get') expect(client.put).not.toHaveBeenCalled();
   });
 
   it('refuses a previous user draft after confirmation', async () => {

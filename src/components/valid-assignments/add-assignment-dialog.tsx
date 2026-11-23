@@ -140,7 +140,7 @@ function AddAssignmentForm({
         <FieldGroup>
           {save.isError && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'valid-assignments.form.save-error', t, {
+              description={apiErrorText(save.error, 'error.description', t, {
                 write: true,
               })}
               title={t('valid-assignments.form.save-error-title')}

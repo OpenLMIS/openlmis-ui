@@ -54,6 +54,7 @@ import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogMedia,
@@ -355,10 +356,7 @@ export function ReverseEditor({
           const invalidPage = Math.floor(rows.indexOf(first) / size) + 1;
           alertTarget.current = { id: `reverse-${first.id}`, page: invalidPage };
         }
-      } else
-        setFailure(
-          apiErrorText(error, 'stock-event-reverse.failed-description', t, { write: true }),
-        );
+      } else setFailure(apiErrorText(error, 'error.description', t, { write: true }));
     } finally {
       posting.current = false;
     }
@@ -608,7 +606,12 @@ export function ReverseEditor({
             <AlertDialogMedia>
               <CircleAlertIcon className="text-destructive" />
             </AlertDialogMedia>
-            <AlertDialogTitle>{validationMessage || failure}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {validationMessage || t('stock-event-reverse.failed-title')}
+            </AlertDialogTitle>
+            {!validationMessage && failure && (
+              <AlertDialogDescription>{failure}</AlertDialogDescription>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('stock-event-reverse.close')}</AlertDialogCancel>

@@ -191,7 +191,7 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
         <FieldGroup>
           {save.isError && !refusedField && (
             <ErrorAlert
-              description={apiErrorText(save.error, 'facility-types.form.save-error', t, {
+              description={apiErrorText(save.error, 'error.description', t, {
                 write: true,
               })}
               title={t('facility-types.form.save-error-title')}

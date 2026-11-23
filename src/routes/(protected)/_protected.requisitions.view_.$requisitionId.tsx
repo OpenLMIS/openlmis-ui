@@ -1050,7 +1050,7 @@ function RequisitionBody({
     successTitle: t('requisitions.requisition.printed-title'),
     successDescription: t('requisitions.requisition.printed'),
     errorTitle: t('requisitions.requisition.print-error-title'),
-    errorDescription: t('requisitions.requisition.print-error'),
+    errorDescription: t('error.description'),
     refusedDescription: t('requisitions.requisition.print-refused'),
   });
   const pending = busy || print.isPending;

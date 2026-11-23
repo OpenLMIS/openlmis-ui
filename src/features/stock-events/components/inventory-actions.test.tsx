@@ -295,38 +295,38 @@ it('opens an inactive Submit alert and returns focus to Submit after Close', asy
   expect(onInvalid).not.toHaveBeenCalled();
   expect(toast.error).not.toHaveBeenCalled();
 });
-it.each(['save', 'delete', 'submit'] as const)(
-  'opens an alert for a %s server failure',
-  async (action) => {
-    const user = userEvent.setup();
-    const type = action;
-    const request =
-      type === 'save'
-        ? savePhysicalInventory
-        : type === 'delete'
-          ? deletePhysicalInventory
-          : submitPhysicalInventory;
-    vi.mocked(request).mockRejectedValueOnce(new Error('Failed'));
-    setup();
-    await user.click(
-      screen.getByRole('button', {
-        name: type === 'submit' ? 'stock-events.submit' : `physical-inventory.${type}`,
-      }),
-    );
-    await user.click(
-      within(confirmationDialog(type)).getByRole('button', {
-        name: type === 'submit' ? 'stock-events.confirm' : `physical-inventory.${type}`,
-      }),
-    );
-    const alert = await screen.findByRole('alertdialog');
-    expect(alert).toHaveTextContent(`physical-inventory.${type}-error-description`);
-    expect(toast.error).not.toHaveBeenCalled();
-    await user.click(within(alert).getByRole('button', { name: 'dialog.close' }));
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'stock-events.submit' })).toHaveFocus(),
-    );
-  },
-);
+it.each([
+  ['save', 'physical-inventory.save-error-description'],
+  ['delete', 'error.description'],
+  ['submit', 'error.description'],
+] as const)('opens an alert for a %s server failure', async (type, description) => {
+  const user = userEvent.setup();
+  const request =
+    type === 'save'
+      ? savePhysicalInventory
+      : type === 'delete'
+        ? deletePhysicalInventory
+        : submitPhysicalInventory;
+  vi.mocked(request).mockRejectedValueOnce(new Error('Failed'));
+  setup();
+  await user.click(
+    screen.getByRole('button', {
+      name: type === 'submit' ? 'stock-events.submit' : `physical-inventory.${type}`,
+    }),
+  );
+  await user.click(
+    within(confirmationDialog(type)).getByRole('button', {
+      name: type === 'submit' ? 'stock-events.confirm' : `physical-inventory.${type}`,
+    }),
+  );
+  const alert = await screen.findByRole('alertdialog');
+  expect(alert).toHaveTextContent(description);
+  expect(toast.error).not.toHaveBeenCalled();
+  await user.click(within(alert).getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toHaveFocus(),
+  );
+});
 
 it('saves with created lot ids even when their device write fails', async () => {
   const user = userEvent.setup();

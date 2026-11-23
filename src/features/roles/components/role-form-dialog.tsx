@@ -223,7 +223,7 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
               <FieldGroup>
                 {save.isError && (
                   <ErrorAlert
-                    description={apiErrorText(save.error, 'roles.form.save-error', t, {
+                    description={apiErrorText(save.error, 'error.description', t, {
                       write: true,
                     })}
                     title={t('roles.form.save-error-title')}

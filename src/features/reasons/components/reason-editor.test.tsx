@@ -295,7 +295,7 @@ describe('ReasonEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(await screen.findByText('Some Places Not Saved')).toBeVisible();
-    expect(screen.getByText(/these places are not: EPI, Health Center/)).toBeVisible();
+    expect(screen.getByText(/Assignments for EPI, Health Center are still pending/)).toBeVisible();
     expect(screen.getByText(/Program is no longer active\./)).toBeVisible();
     expect(onSaved).not.toHaveBeenCalled();
     expect(within(pairsTable()).getByText('EPI')).toBeVisible();

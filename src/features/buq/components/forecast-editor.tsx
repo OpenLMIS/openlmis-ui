@@ -152,21 +152,13 @@ const DONE: Record<ForecastAction, Message> = {
   reject: { title: 'buq.approve.rejected-title', description: 'buq.approve.rejected' },
 };
 
-const SEND_FAILED: Message = {
-  title: 'buq.forecast.send-error-title',
-  description: 'buq.forecast.send-error',
-};
-
-const FAILED: Record<WriteAction, Message> = {
-  save: SEND_FAILED,
-  submit: SEND_FAILED,
-  authorize: SEND_FAILED,
-  submitAndAuthorize: SEND_FAILED,
-  approve: { title: 'buq.approve.approve-error-title', description: 'buq.approve.approve-error' },
-  finalApprove: {
-    title: 'buq.national.approve-error-title',
-    description: 'buq.national.approve-one-error',
-  },
+const FAILURE_TITLES: Record<WriteAction, ParseKeys> = {
+  save: 'buq.forecast.send-error-title',
+  submit: 'buq.forecast.send-error-title',
+  authorize: 'buq.forecast.send-error-title',
+  submitAndAuthorize: 'buq.forecast.send-error-title',
+  approve: 'buq.approve.approve-error-title',
+  finalApprove: 'buq.national.approve-error-title',
 };
 
 export function ForecastEditor({
@@ -368,13 +360,12 @@ export function ForecastForm({
     },
     onError: (error, { action }) => {
       setConfirming(null);
-      const failed = FAILED[action];
       if (!(error instanceof BuqMovedError)) reportApiError(error);
       const description =
         error instanceof BuqMovedError
           ? t('buq.forecast.moved')
-          : apiErrorText(error, failed.description, t);
-      if (description !== null) setFailure({ title: t(failed.title), description });
+          : apiErrorText(error, 'error.description', t);
+      if (description !== null) setFailure({ title: t(FAILURE_TITLES[action]), description });
       refreshForecast();
     },
     onSettled: () => {

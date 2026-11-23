@@ -203,7 +203,7 @@ function PeriodForm({
           <FieldGroup>
             {save.isError && (
               <ErrorAlert
-                description={apiErrorText(save.error, 'processing-schedules.save-error', t, {
+                description={apiErrorText(save.error, 'error.description', t, {
                   write: true,
                 })}
                 title={t('processing-schedules.period-form.save-error-title')}

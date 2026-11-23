@@ -137,7 +137,7 @@ export function TemplateEditor({
           ? null
           : fields
             ? fields.general
-            : apiErrorText(error, 'requisition-templates.configure.save-error', t);
+            : apiErrorText(error, 'error.description', t);
       if (description)
         toast.error(t('requisition-templates.configure.save-error-title'), { description });
       if (nameError) {

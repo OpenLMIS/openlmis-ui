@@ -58,7 +58,7 @@ export function CsvTransfer({ api, copy, describeUploadError }: CsvTransferProps
     onSuccess: (blob) => downloadFile(blob, api.exportFilename),
     onError: (error) => {
       reportApiError(error);
-      const description = errorMessage(error, t('file-transfer.export-error'), false);
+      const description = errorMessage(error, t('error.description'), false);
       if (description !== null) toast.error(t('file-transfer.export-error-title'), { description });
     },
   });

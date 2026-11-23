@@ -248,7 +248,7 @@ function AddEquipmentForm({
               <>
                 {mutation.isError && (
                   <ErrorAlert
-                    description={apiErrorText(mutation.error, 'cce-inventory.form.save-error', t, {
+                    description={apiErrorText(mutation.error, 'error.description', t, {
                       write: true,
                     })}
                     title={t('cce-inventory.form.save-error-title')}

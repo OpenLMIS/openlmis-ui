@@ -157,7 +157,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
         const done = new Set(results.done.filter((result) => result.done).map(({ id }) => id));
         setUnresolved((previous) => new Set([...previous].filter((id) => !done.has(id))));
       } else {
-        let message = apiErrorText(error, 'requisitions.convert.failed-description', t, {
+        let message = apiErrorText(error, 'error.description', t, {
           write: true,
         });
         if (message === null) return;
@@ -263,9 +263,7 @@ export function useConvertActions(search: ConvertSearch, cards: boolean) {
     server: {
       title: t('requisitions.convert.failed'),
       description:
-        problem?.kind === 'server' && problem.message
-          ? problem.message
-          : t('requisitions.convert.failed-description'),
+        problem?.kind === 'server' && problem.message ? problem.message : t('error.description'),
     },
   };
   const { title, description } = messages[problem?.kind ?? 'server'];

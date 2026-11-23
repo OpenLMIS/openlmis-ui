@@ -170,7 +170,7 @@ export function PreparedTable({
     },
     onError: (error) => {
       reportApiError(error);
-      const description = apiErrorText(error, 'buq.prepare.download-error', t, { write: false });
+      const description = apiErrorText(error, 'error.description', t, { write: false });
       if (description !== null) toast.error(t('buq.prepare.download-error-title'), { description });
     },
   });
@@ -287,7 +287,7 @@ function DeleteBuqDialog({
             description={
               remove.error instanceof BuqMovedError
                 ? t('buq.prepare.delete-moved')
-                : apiErrorText(remove.error, 'buq.prepare.delete-error', t, { write: true })
+                : apiErrorText(remove.error, 'error.description', t, { write: true })
             }
             title={t('buq.prepare.delete-error-title')}
           />

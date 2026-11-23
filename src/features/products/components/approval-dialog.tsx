@@ -243,7 +243,7 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
               description={
                 save.error instanceof ApprovalRemovedError
                   ? t('products.approvals.form.not-found')
-                  : apiErrorText(save.error, 'products.form.save-error', t, { write: true })
+                  : apiErrorText(save.error, 'error.description', t, { write: true })
               }
               title={t('products.approvals.form.save-error-title')}
             />

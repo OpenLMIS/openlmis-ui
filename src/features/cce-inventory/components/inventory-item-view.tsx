@@ -539,7 +539,7 @@ function EditItem({
           <div className="flex flex-col gap-6" inert={save.isPending} ref={fields}>
             {save.isError && (
               <ErrorAlert
-                description={apiErrorText(save.error, 'cce-inventory.form.save-error', t, {
+                description={apiErrorText(save.error, 'error.description', t, {
                   write: true,
                 })}
                 title={t('cce-inventory.form.save-error-title')}

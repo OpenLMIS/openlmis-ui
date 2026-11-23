@@ -204,7 +204,7 @@ export function BasicInformation({ profile, onSaved }: BasicInformationProps) {
       >
         {save.isError && showSaveError && (
           <ErrorAlert
-            description={apiErrorText(save.error, 'users.form.save-error', t)}
+            description={apiErrorText(save.error, 'error.description', t)}
             title={t('profile.save-error-title')}
           />
         )}
@@ -381,7 +381,7 @@ function PendingEmail({ userId }: { userId: string }) {
     },
     onError: (error) => {
       reportApiError(error);
-      const description = apiErrorText(error, 'users.form.save-error', t, { write: true });
+      const description = apiErrorText(error, 'error.description', t, { write: true });
       if (description !== null) toast.error(t('profile.email.resend-error-title'), { description });
     },
   });

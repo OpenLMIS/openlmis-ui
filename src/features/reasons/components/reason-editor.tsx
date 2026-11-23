@@ -284,7 +284,7 @@ export function ReasonEditor({
           <div className="flex flex-col gap-8" inert={mutation.isPending} ref={page}>
             {mutation.isError && !isDuplicateName(mutation.error) && (
               <ErrorAlert
-                description={apiErrorText(mutation.error, 'reasons.form.save-error', t, {
+                description={apiErrorText(mutation.error, 'error.description', t, {
                   write: true,
                 })}
                 title={t('reasons.form.save-error-title')}
@@ -348,16 +348,12 @@ function PairsFailedAlert({ failed, error }: { failed: PairRef[]; error: unknown
   const { data: types } = useQuery(LOOKUPS.facilityTypes);
   const names = pairNames(t, programs, types);
   if (isSilentApiError(error)) return null;
+  const fallback = t('reasons.form.pairs-error', { pairs: failed.map(names.pair).join('; ') });
   const reason =
-    failed.length === 1 ? apiErrorText(error, () => '', t, { write: true }) : undefined;
+    failed.length === 1 ? apiErrorText(error, () => fallback, t, { write: true }) : fallback;
   return (
     <ErrorAlert
-      description={[
-        t('reasons.form.pairs-error', { pairs: failed.map(names.pair).join('; ') }),
-        reason,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      description={reason && reason !== fallback ? `${fallback} ${reason}` : fallback}
       title={t('reasons.form.pairs-error-title')}
     />
   );

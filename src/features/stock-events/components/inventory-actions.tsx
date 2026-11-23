@@ -118,14 +118,14 @@ const ACTION_KEYS = {
   },
   delete: {
     errorTitle: 'physical-inventory.delete-error-title',
-    errorDescription: 'physical-inventory.delete-error-description',
+    errorDescription: 'error.description',
     successTitle: 'physical-inventory.deleted-title',
     successDescription: 'physical-inventory.deleted-description',
     localClearError: 'physical-inventory.delete-local-clear-error',
   },
   submit: {
     errorTitle: 'physical-inventory.submit-error-title',
-    errorDescription: 'physical-inventory.submit-error-description',
+    errorDescription: 'error.description',
     successTitle: 'physical-inventory.submitted-title',
     successDescription: 'physical-inventory.submitted-description',
     localClearError: 'physical-inventory.submit-local-clear-error',
@@ -278,7 +278,7 @@ export function InventoryActions(props: Props) {
     successTitle: t('physical-inventory.printed-title'),
     successDescription: t('physical-inventory.printed-description'),
     errorTitle: t('physical-inventory.print-error-title'),
-    errorDescription: t('physical-inventory.print-error-description'),
+    errorDescription: t('error.description'),
     refusedDescription: t('physical-inventory.print-refused'),
   });
   const submit = () => {

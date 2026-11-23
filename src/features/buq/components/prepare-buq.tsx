@@ -133,8 +133,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
       disabled={prepare.isPending || !taken.isSuccess}
       error={
         prepare.isError
-          ? (apiErrorText(prepare.error, 'buq.prepare.prepare-error', t, { write: true }) ??
-            undefined)
+          ? (apiErrorText(prepare.error, 'error.description', t, { write: true }) ?? undefined)
           : undefined
       }
       onChange={prepare.reset}

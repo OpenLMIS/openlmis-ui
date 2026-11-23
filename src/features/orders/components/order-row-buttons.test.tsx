@@ -71,7 +71,7 @@ it.each(['false', 'true', 'rejected'] as const)(
         ? 'Cannot transfer this order'
         : outcome === 'true'
           ? 'orders.retry-success-description'
-          : 'orders.retry-error-description',
+          : 'error.description',
     );
     await waitFor(() => expect(description).toBeVisible());
     expect(description.closest('[data-sonner-toast]')).toHaveTextContent(

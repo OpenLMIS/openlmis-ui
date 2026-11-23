@@ -26,10 +26,7 @@ export function initiateFailureMessage(
   if (typeof key === 'string' && MESSAGES[key]) return t(MESSAGES[key]);
   const failure = toRequisitionFailure(error, write);
   if (failure.kind === 'forbidden') return t('no-access.description');
-  const fallback = write
-    ? 'requisitions.initiate.initiate-failed-description'
-    : 'requisitions.initiate.load-failed-description';
   return failure.kind === 'server' || failure.kind === 'request'
-    ? requisitionFailureText(failure, fallback, t)
-    : t(fallback);
+    ? requisitionFailureText(failure, 'error.description', t)
+    : t('error.description');
 }

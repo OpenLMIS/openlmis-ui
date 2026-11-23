@@ -702,7 +702,7 @@ describe('stock on hand page', () => {
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('stock-on-hand.print-error-title', {
-        description: 'stock-on-hand.print-error',
+        description: 'error.description',
       }),
     );
   });

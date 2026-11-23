@@ -187,7 +187,7 @@ export function OrderEditor({
               : 'delete-failed';
         setFailure({
           title: t(`orders.edit.${key}-title`),
-          description: t(`orders.edit.${key}-description`, { facilities, reason }),
+          description: t('orders.edit.affected-facilities', { facilities, reason }),
         });
       } else if (!failed.length) {
         const key =
