@@ -360,6 +360,7 @@ function InventoryDraftRows({
   const noticeOnline = useSnapshotNotice(true, false);
   const [wasOffline, setWasOffline] = useState(!online);
   if (!online && !wasOffline) setWasOffline(true);
+  const [refreshedPickerProducts, setRefreshedPickerProducts] = useState<InventoryStockLine[]>();
   const eligible = useQuery(
     deviceCopy
       ? inventoryDeviceOptions(deviceCopy).eligible
@@ -906,6 +907,7 @@ function InventoryDraftRows({
         clearLocal={autosave.clear}
         onBusy={setBusy}
         onOrphaned={onOrphaned}
+        onDevicePickerProducts={deviceCopy ? setRefreshedPickerProducts : undefined}
         onLots={(next) =>
           form.setFieldValue('lines', Object.fromEntries(next.map((line) => [line.key, line])))
         }
@@ -959,7 +961,7 @@ function InventoryDraftRows({
       />
       {addOpen && (
         <InventoryAddProductsDialog
-          eligible={eligible.data}
+          eligible={refreshedPickerProducts ?? eligible.data}
           error={eligible.error}
           onRetry={() => {
             void eligible.refetch();

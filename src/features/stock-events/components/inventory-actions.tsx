@@ -54,6 +54,7 @@ import {
 } from '@/features/stock-events/lib/physical-inventory-lots';
 import type {
   InventoryLine,
+  InventoryStockLine,
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { usePrintReport } from '@/hooks/use-print-report';
@@ -122,6 +123,7 @@ type Props = {
   writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<boolean>;
   onBusy: (busy: boolean) => void;
   onOrphaned?: () => void;
+  onDevicePickerProducts?: (products: InventoryStockLine[]) => void;
   onLots: (lines: InventoryLine[]) => void;
   onSaved: (lines: InventoryLine[], terminal: boolean, localSaved: boolean) => void;
   onDialogChange: (open: boolean) => void;
@@ -158,7 +160,7 @@ export function InventoryActions(props: Props) {
   const online = useOnline();
   const offlineReason = !online ? t('offline.action-description') : undefined;
   const eligibleOptions = eligibleInventoryProductsOptions(props.draft, props.eligibleUpdatedAfter);
-  const eligibleFetching = useIsFetching({ queryKey: eligibleOptions.queryKey }) > 0;
+  const eligibleFetching = useIsFetching({ queryKey: eligibleOptions.queryKey, exact: true }) > 0;
   const [dialog, setDialog] = useState<'save' | 'delete' | 'submit' | 'print' | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [failureCopy, setFailureCopy] = useState(failure);
@@ -293,6 +295,26 @@ export function InventoryActions(props: Props) {
       return prepared;
     },
   });
+  const refreshLots = () => {
+    const updatePicker = props.onDevicePickerProducts;
+    void queryClient.invalidateQueries({
+      queryKey: eligibleOptions.queryKey,
+      exact: true,
+      refetchType: updatePicker ? 'none' : 'active',
+    });
+    if (!updatePicker || !isOnline()) return;
+    void queryClient
+      .fetchQuery({
+        ...eligibleOptions,
+        queryKey: [...eligibleOptions.queryKey, 'device-picker', props.draft.id],
+        staleTime: 0,
+        retry: false,
+      })
+      .then((products) => {
+        if (mutation.isCurrent()) updatePicker(products);
+      })
+      .catch(reportApiError);
+  };
   const print = usePrintReport({
     userId: props.userId,
     facilityId: props.draft.facilityId,
@@ -379,8 +401,7 @@ export function InventoryActions(props: Props) {
             : 'physical-inventory.no-draft-description',
         );
       else if (error instanceof InventoryLotError) {
-        if (error.reason === 'duplicate' || isWriteApiTimeout(cause))
-          void queryClient.invalidateQueries({ queryKey: eligibleOptions.queryKey, exact: true });
+        if (error.reason === 'duplicate' || isWriteApiTimeout(cause)) refreshLots();
         description =
           error.reason === 'duplicate'
             ? t('physical-inventory.lot-duplicate-error', { codes: error.codes.join(', ') })
