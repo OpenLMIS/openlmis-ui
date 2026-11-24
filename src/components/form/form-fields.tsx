@@ -19,6 +19,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1777,6 +1778,8 @@ export function DatePicker({
   const focusInputOnClose = useRef(false);
   const advancedText = useRef<string | undefined>(undefined);
   const compositionBase = useRef<string | undefined>(undefined);
+  const compositionCommit = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const commitComposition = useRef<(base: string) => void>(() => undefined);
   const [openedFor, setOpenedFor] = useState<number>();
   const open = openedFor === calendarDismissKey;
   const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
@@ -1938,11 +1941,25 @@ export function DatePicker({
   };
 
   const advanceText = (previous: string, text: string) => {
-    const afterAdded = advancedText.current === previous;
+    const afterAdded = activeEdit !== undefined && advancedText.current === previous;
     const advanced = advanceDateText(previous, text, editingFormat ?? dateFormat, afterAdded);
-    advancedText.current = advanced.length > text.length ? advanced : undefined;
+    const addedSeparator = advanced.length > text.length && /[/ .-]$/.test(advanced);
+    advancedText.current = addedSeparator ? advanced : undefined;
     return advanced;
   };
+
+  useEffect(() => () => clearTimeout(compositionCommit.current), []);
+
+  useLayoutEffect(() => {
+    commitComposition.current = (base) => {
+      const field = input.current;
+      if (!field || field.ownerDocument.activeElement !== field) return;
+      const text = field.value;
+      if (field.selectionStart !== text.length) return;
+      const advanced = advanceText(base, text);
+      if (advanced !== text) changeText(advanced);
+    };
+  });
 
   const focusOpenCalendar = () => {
     if (!open) openCalendar();
@@ -2055,6 +2072,9 @@ export function DatePicker({
           disabled={disabled}
           id={id}
           onBlur={() => {
+            clearTimeout(compositionCommit.current);
+            compositionBase.current = undefined;
+            advancedText.current = undefined;
             setEdit(undefined);
             setEditingFormat(undefined);
             onBlur?.();
@@ -2066,19 +2086,22 @@ export function DatePicker({
               nativeEvent.inputType === 'insertText' &&
               !nativeEvent.isComposing &&
               selectionStart === text.length;
-            if (!typedAtEnd) advancedText.current = undefined;
+            const composing =
+              nativeEvent.isComposing || nativeEvent.inputType === 'insertCompositionText';
+            if (!typedAtEnd && !composing) advancedText.current = undefined;
             changeText(typedAtEnd ? advanceText(shown, text) : text);
           }}
-          onCompositionEnd={(event) => {
-            const { value: text, selectionStart } = event.currentTarget;
+          onCompositionEnd={() => {
             const base = compositionBase.current;
             compositionBase.current = undefined;
-            if (base === undefined || selectionStart !== text.length) return;
-            const advanced = advanceText(base, text);
-            if (advanced !== text) changeText(advanced);
+            if (base === undefined) return;
+            clearTimeout(compositionCommit.current);
+            compositionCommit.current = setTimeout(() => commitComposition.current(base), 0);
           }}
-          onCompositionStart={() => {
-            compositionBase.current = shown;
+          onCompositionStart={(event) => {
+            const { value, selectionStart, selectionEnd } = event.currentTarget;
+            const atEnd = selectionStart === selectionEnd && selectionEnd === value.length;
+            compositionBase.current = atEnd ? shown : undefined;
           }}
           onFocus={() => {
             setEditingFormat((format) => format ?? dateFormat);
