@@ -25,6 +25,8 @@ describe('advanceDateText', () => {
     ['Arabic day padding', '', '٥', 'dd/MM/yyyy', '٠٥/'],
     ['Persian month padding', '٠٥/', '٠٥/۳', 'dd/MM/yyyy', '٠٥/۰۳/'],
     ['separator typed by hand', '1/', '1//', 'dd/MM/yyyy', '1//'],
+    ['space', '12', '12 ', 'dd/MM/yyyy', '12 '],
+    ['space after a short part', '12/7', '12/7 ', 'dd/MM/yyyy', '12/7 '],
     ['removal', '05/05', '05/5', 'dd/MM/yyyy', '05/5'],
     ['middle edit', '1/2', '15/2', 'dd/MM/yyyy', '15/2'],
     ['past the format', '05/05/2026', '05/05/20261', 'dd/MM/yyyy', '05/05/20261'],
