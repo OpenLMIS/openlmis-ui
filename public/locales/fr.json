@@ -1359,7 +1359,7 @@
   "orders.view.title": "Voir les commandes",
   "orders.whole-number": "Saisissez un nombre entier.",
   "orders.yes": "Oui",
-  "physical-inventory.action-timeout-keep-open": "Gardez cette page ouverte. Le serveur a mis trop de temps à répondre. Vérifiez si l’action a abouti avant de réessayer.",
+  "physical-inventory.action-timeout-keep-open": "Gardez cette page ouverte et vérifiez si l’action a abouti avant de réessayer.",
   "physical-inventory.actions": "Actions",
   "physical-inventory.add-items": "{count, plural, one {Ajouter # article à l’inventaire physique} other {Ajouter # articles à l’inventaire physique}}",
   "physical-inventory.add-new-lot": "Ajouter un nouveau lot",

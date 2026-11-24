@@ -1359,7 +1359,7 @@
   "orders.view.title": "عرض الأوامر",
   "orders.whole-number": "أدخل عددًا صحيحًا.",
   "orders.yes": "نعم",
-  "physical-inventory.action-timeout-keep-open": "أبقِ هذه الصفحة مفتوحة. انتهت مهلة استجابة الخادم، لذا تحقق مما إذا نجح الإجراء قبل المحاولة مرة أخرى.",
+  "physical-inventory.action-timeout-keep-open": "أبقِ هذه الصفحة مفتوحة وتحقق مما إذا نجح الإجراء قبل المحاولة مرة أخرى.",
   "physical-inventory.actions": "الإجراءات",
   "physical-inventory.add-items": "{count, plural, zero {إضافة # عناصر إلى الجرد الفعلي} one {إضافة عنصر واحد إلى الجرد الفعلي} two {إضافة عنصرين إلى الجرد الفعلي} few {إضافة # عناصر إلى الجرد الفعلي} many {إضافة # عنصرًا إلى الجرد الفعلي} other {إضافة # عنصر إلى الجرد الفعلي}}",
   "physical-inventory.add-new-lot": "إضافة تشغيلة جديدة",

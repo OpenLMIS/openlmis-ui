@@ -1359,7 +1359,7 @@
   "orders.view.title": "View Orders",
   "orders.whole-number": "Enter a whole number.",
   "orders.yes": "Yes",
-  "physical-inventory.action-timeout-keep-open": "Keep this page open. The server timed out, so check whether the action succeeded before trying again.",
+  "physical-inventory.action-timeout-keep-open": "Keep this page open and check whether the action worked before trying again.",
   "physical-inventory.actions": "Actions",
   "physical-inventory.add-items": "{count, plural, one {Add # Item To Physical Inventory} other {Add # Items To Physical Inventory}}",
   "physical-inventory.add-new-lot": "Add New Lot",
