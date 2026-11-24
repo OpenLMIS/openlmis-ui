@@ -1777,7 +1777,7 @@ export function DatePicker({
   const focusInputOnClose = useRef(false);
   const advancedText = useRef<string | undefined>(undefined);
   const compositionBase = useRef<string | undefined>(undefined);
-  const lateCompositionBase = useRef<string | undefined>(undefined);
+  const lateComposition = useRef<{ base: string; text: string; result: string }>(undefined);
   const [openedFor, setOpenedFor] = useState<number>();
   const open = openedFor === calendarDismissKey;
   const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
@@ -2061,7 +2061,7 @@ export function DatePicker({
           id={id}
           onBlur={() => {
             compositionBase.current = undefined;
-            lateCompositionBase.current = undefined;
+            lateComposition.current = undefined;
             advancedText.current = undefined;
             setEdit(undefined);
             setEditingFormat(undefined);
@@ -2075,10 +2075,14 @@ export function DatePicker({
               !nativeEvent.isComposing &&
               selectionStart === text.length;
             const composing = nativeEvent.isComposing || /Composition/.test(nativeEvent.inputType);
-            const lateBase = composing ? lateCompositionBase.current : undefined;
-            lateCompositionBase.current = undefined;
-            if (lateBase !== undefined && !nativeEvent.isComposing) {
-              changeText(selectionStart === text.length ? advanceComposed(lateBase, text) : text);
+            const late = composing ? lateComposition.current : undefined;
+            lateComposition.current = undefined;
+            if (late && !nativeEvent.isComposing) {
+              if (text === late.text) changeText(late.result);
+              else
+                changeText(
+                  selectionStart === text.length ? advanceComposed(late.base, text) : text,
+                );
               return;
             }
             if (!typedAtEnd && !composing) advancedText.current = undefined;
@@ -2087,17 +2091,17 @@ export function DatePicker({
           onCompositionEnd={(event) => {
             const base = compositionBase.current;
             compositionBase.current = undefined;
-            lateCompositionBase.current = base;
+            if (base === undefined) return;
             const { value: text, selectionStart } = event.currentTarget;
-            if (base === undefined || selectionStart !== text.length) return;
-            const advanced = advanceComposed(base, text);
-            if (advanced !== text) changeText(advanced);
+            const result = selectionStart === text.length ? advanceComposed(base, text) : text;
+            lateComposition.current = { base, text, result };
+            if (result !== text) changeText(result);
           }}
           onCompositionStart={(event) => {
             const { value, selectionStart, selectionEnd } = event.currentTarget;
             const atEnd = selectionStart === selectionEnd && selectionEnd === value.length;
             compositionBase.current = atEnd ? shown : undefined;
-            lateCompositionBase.current = undefined;
+            lateComposition.current = undefined;
             if (!atEnd) advancedText.current = undefined;
           }}
           onFocus={() => {

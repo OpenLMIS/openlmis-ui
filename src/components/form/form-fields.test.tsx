@@ -641,6 +641,12 @@ describe('date field', () => {
     compose('٠٥/٠', true);
     compose('٠٥/٠٣', false);
     expect(input).toHaveValue('٠٥/٠٣/');
+    const separator = { target: { value: '٠٥/٠٣//' }, inputType: 'insertCompositionText' };
+    fireEvent.compositionStart(input);
+    fireEvent.input(input, { ...separator, isComposing: true });
+    fireEvent.compositionEnd(input);
+    fireEvent.input(input, { ...separator, isComposing: false });
+    expect(input).toHaveValue('٠٥/٠٣/');
 
     input.setSelectionRange(0, input.value.length);
     compose('5', true);
