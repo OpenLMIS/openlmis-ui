@@ -1359,6 +1359,7 @@
   "orders.view.title": "Ver encomendas",
   "orders.whole-number": "Introduza um número inteiro.",
   "orders.yes": "Sim",
+  "physical-inventory.action-timeout-keep-open": "Mantenha esta página aberta. O servidor demorou demais para responder. Verifique se a ação foi concluída antes de tentar novamente.",
   "physical-inventory.actions": "Ações",
   "physical-inventory.add-items": "{count, plural, one {Adicionar # item ao inventário físico} other {Adicionar # itens ao inventário físico}}",
   "physical-inventory.add-new-lot": "Adicionar novo lote",

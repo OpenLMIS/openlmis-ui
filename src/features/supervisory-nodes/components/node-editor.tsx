@@ -101,9 +101,10 @@ export function NodeEditor({
     },
     onError: (error) => {
       if (isSilentApiError(error)) return;
-      reportApiError(error);
+      const conflict = error instanceof SupervisoryNodeConflictError;
+      if (!conflict) reportApiError(error);
       setFailure(error);
-      setAlert(error instanceof SupervisoryNodeConflictError ? 'conflict' : 'failure');
+      setAlert(conflict ? 'conflict' : 'failure');
     },
   });
   const form = useNodeForm(

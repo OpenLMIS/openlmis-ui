@@ -153,7 +153,7 @@ function AddTemplateForm({ cards }: { cards: boolean }) {
       ? null
       : fieldErrors
         ? [fieldErrors.general, fieldErrors.columns, fieldErrors.periods].filter(Boolean).join(' ')
-        : apiErrorText(save.error, 'error.description', t, { write: true });
+        : apiErrorText(save.error, 'error.description', t);
   const program = queryClient
     .getQueryData(programsOptions().queryKey)
     ?.find(({ id }) => id === confirmation?.programId);

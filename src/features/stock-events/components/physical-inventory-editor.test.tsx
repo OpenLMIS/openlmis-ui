@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-router';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -44,6 +44,7 @@ import {
   writeInventoryLocal,
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { httpError } from '@/test-utils/http-error';
 import { inventoryWrite } from '@/test-utils/inventory-writes';
 
 vi.mock('@/features/stock-events/lib/physical-inventory-lines', async (original) => {
@@ -1082,6 +1083,65 @@ it.each([false, true])(
   },
 );
 
+it('refreshes Add Products after a duplicate lot refusal so the existing lot can be selected', async () => {
+  const user = userEvent.setup();
+  const product = {
+    orderable: {
+      id: 'C',
+      productCode: 'C',
+      fullProductName: 'C',
+      description: null,
+      identifiers: { tradeItem: 'trade' },
+    },
+    lot: null,
+    stockOnHand: null,
+  };
+  vi.mocked(createPhysicalInventoryLot).mockRejectedValueOnce(
+    httpError(400, { messageKey: 'referenceData.error.lot.lotCode.mustBeUnique' }),
+  );
+  vi.mocked(fetchEligibleInventoryProducts).mockResolvedValue([
+    ...stock,
+    product,
+    {
+      ...product,
+      lot: { id: 'lot', lotCode: 'New Batch', expirationDate: null, tradeItemId: 'trade' },
+    },
+  ]);
+  const { client } = setup({ size: 10, page: 1 });
+  client.setQueryData(eligibleInventoryProductsOptions(draft).queryKey, [...stock, product]);
+
+  await screen.findAllByRole('textbox', { name: 'stock-events.field-of' });
+  const openLotPicker = async () => {
+    await user.click(await screen.findByRole('button', { name: 'physical-inventory.add-product' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('combobox', { name: 'stock-events.product' }));
+    await user.click(screen.getByRole('option', { name: 'C' }));
+    await user.click(within(dialog).getByRole('combobox', { name: 'stock-events.lot-code' }));
+    return dialog;
+  };
+  const add = await openLotPicker();
+  await user.click(screen.getByRole('option', { name: 'physical-inventory.add-new-lot' }));
+  await user.type(
+    within(add).getByRole('textbox', { name: 'physical-inventory.new-lot-code' }),
+    'New Batch',
+  );
+  await user.click(within(add).getByRole('button', { name: 'stock-events.add' }));
+  await user.type(within(add).getByRole('textbox', { name: 'stock-events.field-of' }), '1');
+  await user.click(within(add).getByRole('button', { name: 'physical-inventory.add-items' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+  );
+  const alert = await screen.findByRole('alertdialog');
+  expect(alert).toHaveTextContent('physical-inventory.lot-duplicate-error');
+  await user.click(within(alert).getByRole('button', { name: 'dialog.close' }));
+
+  await waitFor(() => expect(fetchEligibleInventoryProducts).toHaveBeenCalledTimes(1));
+  await openLotPicker();
+  expect(await screen.findByRole('option', { name: 'New Batch' })).toBeInTheDocument();
+});
+
 it('hides an optional column when the rendered table exceeds its container by 15 px', async () => {
   const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
     width: 2000,
@@ -1360,6 +1420,40 @@ it('refuses Deactivate offline after its confirmation was opened', async () => {
   await waitFor(() =>
     expect(error).toHaveBeenCalledWith('physical-inventory.deactivate-error-title', {
       description: 'offline.action-description',
+    }),
+  );
+});
+
+it('keeps the page open after a Deactivate timeout when counts could not be saved on the device', async () => {
+  const error = vi.spyOn(toast, 'error');
+  vi.mocked(writeInventoryLocal).mockRejectedValue(new Error('Quota exceeded'));
+  vi.mocked(deactivateInventoryStockCard).mockRejectedValueOnce(
+    new AxiosError('Timed out', AxiosError.ECONNABORTED, {
+      method: 'post',
+      headers: new AxiosHeaders(),
+    }),
+  );
+  const user = userEvent.setup();
+  const { client } = setup({ size: 10, page: 1 });
+  client.setQueryData(inventoryStockLinesOptions(draft).queryKey, [
+    { ...stock[0], stockOnHand: 0 },
+    stock[1],
+  ]);
+  const counts = await screen.findAllByRole('textbox', { name: 'stock-events.field-of' });
+  await user.type(counts[1], '8');
+  await screen.findByText('stock-events.draft-failed');
+  await user.click(
+    screen.getByRole('button', { name: 'stock-events.field-of:physical-inventory.deactivate' }),
+  );
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', {
+      name: 'physical-inventory.deactivate',
+    }),
+  );
+
+  await waitFor(() =>
+    expect(error).toHaveBeenCalledWith('physical-inventory.deactivate-error-title', {
+      description: 'physical-inventory.action-timeout-keep-open',
     }),
   );
 });

@@ -246,6 +246,7 @@ describe('supervisory node editor', () => {
   });
 
   it('refuses a conflicting reread before PUT and offers Reload', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.mocked(client.get).mockResolvedValue({
       data: { ...saved, parentNode: { id: 'child' }, childNodes: [{ id: 'child' }] },
     });
@@ -255,5 +256,6 @@ describe('supervisory node editor', () => {
     expect(client.put).not.toHaveBeenCalled();
     await user.click(within(alert).getByRole('button', { name: 'Reload' }));
     expect(onReload).toHaveBeenCalledOnce();
+    expect(log).not.toHaveBeenCalled();
   });
 });

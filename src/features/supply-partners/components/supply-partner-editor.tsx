@@ -127,7 +127,7 @@ export function SupplyPartnerEditor({
     },
     onError: (error) => {
       if (isSilentApiError(error)) return;
-      reportApiError(error);
+      if (!(error instanceof SupplyPartnerConflictError)) reportApiError(error);
       setFailure(error);
       setAlert(true);
     },

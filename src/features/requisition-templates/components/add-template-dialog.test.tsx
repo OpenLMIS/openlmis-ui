@@ -1,9 +1,13 @@
 import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
-import { createRequisitionTemplate } from '@/features/requisition-templates/api/api';
+import {
+  createRequisitionTemplate,
+  fetchAvailableColumns,
+} from '@/features/requisition-templates/api/api';
 import {
   availableColumnsOptions,
   requisitionTemplatesOptions,
@@ -55,14 +59,14 @@ const type = {
   displayOrder: 1,
   primaryHealthCare: true,
 };
-function renderAdd() {
+function renderAdd({ seedColumns = true } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
   queryClient.setQueryData(programsOptions().queryKey, [program]);
   queryClient.setQueryData(facilityTypesOptions({ active: true }).queryKey, [type]);
   queryClient.setQueryData(requisitionTemplatesOptions().queryKey, []);
-  queryClient.setQueryData(availableColumnsOptions().queryKey, []);
+  if (seedColumns) queryClient.setQueryData(availableColumnsOptions().queryKey, []);
   const router = renderPage(<AddTemplateDialog onClose={vi.fn()} target="new" />, { queryClient });
   return { queryClient, router };
 }
@@ -111,6 +115,23 @@ it('posts id references only after confirmation, refreshes templates and opens C
   expect(create.mock.calls[0][0].facilityTypes).toEqual([{ id: 't' }]);
   expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.requisitionTemplates.all });
 });
+it.each([
+  ['get', fetchAvailableColumns, 'api-error.timeout-read'],
+  ['post', createRequisitionTemplate, 'api-error.timeout-write'],
+] as const)(
+  'uses %s timeout guidance for the failing request',
+  async (method, request, description) => {
+    vi.mocked(request).mockRejectedValue(
+      new AxiosError('Timed out', AxiosError.ECONNABORTED, { method, headers: new AxiosHeaders() }),
+    );
+    renderAdd({ seedColumns: method === 'post' });
+    await fillAndConfirm();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(description);
+    if (method === 'get') expect(create).not.toHaveBeenCalled();
+  },
+);
+
 it('puts a server duplicate name on the Name field', async () => {
   const error = httpError(400);
   Object.assign(error.response ?? {}, {

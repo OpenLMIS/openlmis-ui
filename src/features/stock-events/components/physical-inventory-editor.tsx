@@ -115,7 +115,7 @@ import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { apiErrorText, isApiTimeout, isSilentApiError } from '@/lib/api-error';
+import { apiErrorText, isApiTimeout, isSilentApiError, isWriteApiTimeout } from '@/lib/api-error';
 import { deviceDraftLeaveCopy } from '@/lib/device-draft-leave-copy';
 import { useFlag } from '@/lib/feature-flags';
 import { isOfflineError, isRefused } from '@/lib/http';
@@ -580,9 +580,11 @@ function InventoryDraftRows({
       if (isSilentApiError(error)) return;
       reportApiError(error);
       const description =
-        isOfflineError(error) && !isApiTimeout(error)
-          ? t('offline.action-description')
-          : apiErrorText(error, 'error.description', t);
+        (modified || dirty) && status === 'failed' && isWriteApiTimeout(error)
+          ? t('physical-inventory.action-timeout-keep-open')
+          : isOfflineError(error) && !isApiTimeout(error)
+            ? t('offline.action-description')
+            : apiErrorText(error, 'error.description', t);
       if (description !== null)
         toast.error(t('physical-inventory.deactivate-error-title'), { description });
     },

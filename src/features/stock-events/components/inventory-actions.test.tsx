@@ -372,6 +372,26 @@ it.each([
   },
 );
 
+it('keeps the page open after a Delete timeout when the device flush failed', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.mocked(deletePhysicalInventory).mockRejectedValueOnce(
+    new AxiosError('Timed out', AxiosError.ECONNABORTED, {
+      method: 'delete',
+      headers: new AxiosHeaders(),
+    }),
+  );
+  const { onDeleted } = setup({
+    flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')),
+  });
+
+  await confirmAction('delete');
+
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'physical-inventory.action-timeout-keep-open',
+  );
+  expect(onDeleted).not.toHaveBeenCalled();
+});
+
 async function englishTranslations() {
   const i18n = createInstance().use(ICU);
   await i18n.init({

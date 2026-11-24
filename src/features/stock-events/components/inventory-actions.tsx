@@ -378,7 +378,9 @@ export function InventoryActions(props: Props) {
             ? 'physical-inventory.orphaned-action'
             : 'physical-inventory.no-draft-description',
         );
-      else if (error instanceof InventoryLotError)
+      else if (error instanceof InventoryLotError) {
+        if (error.reason === 'duplicate' || isWriteApiTimeout(cause))
+          void queryClient.invalidateQueries({ queryKey: eligibleOptions.queryKey, exact: true });
         description =
           error.reason === 'duplicate'
             ? t('physical-inventory.lot-duplicate-error', { codes: error.codes.join(', ') })
@@ -396,7 +398,13 @@ export function InventoryActions(props: Props) {
                       ? inventoryKeepOpenText(cause, t)
                       : apiErrorText(cause, fallback, t),
                 });
-      else if (keepOpen) description = inventoryKeepOpenText(cause, t);
+      } else if (keepOpen) description = inventoryKeepOpenText(cause, t);
+      else if (
+        action.type === 'delete' &&
+        attempt.countsOnDevice === false &&
+        isWriteApiTimeout(cause)
+      )
+        description = t('physical-inventory.action-timeout-keep-open');
       else description = apiErrorText(error, fallback, t);
       if (error instanceof UnknownSubmit) {
         setUnknown(true);
