@@ -1946,6 +1946,9 @@ export function DatePicker({
     return advanced;
   };
 
+  const advanceComposed = (base: string, text: string) =>
+    text.length === base.length + 1 && text.startsWith(base) ? advanceText(base, text) : text;
+
   const focusOpenCalendar = () => {
     if (!open) openCalendar();
     if (popup.current && calendarOpen) focusCalendar(popup.current);
@@ -2071,12 +2074,11 @@ export function DatePicker({
               nativeEvent.inputType === 'insertText' &&
               !nativeEvent.isComposing &&
               selectionStart === text.length;
-            const composing =
-              nativeEvent.isComposing || nativeEvent.inputType === 'insertCompositionText';
+            const composing = nativeEvent.isComposing || /Composition/.test(nativeEvent.inputType);
             const lateBase = composing ? lateCompositionBase.current : undefined;
             lateCompositionBase.current = undefined;
             if (lateBase !== undefined && !nativeEvent.isComposing) {
-              changeText(selectionStart === text.length ? advanceText(lateBase, text) : text);
+              changeText(selectionStart === text.length ? advanceComposed(lateBase, text) : text);
               return;
             }
             if (!typedAtEnd && !composing) advancedText.current = undefined;
@@ -2088,7 +2090,7 @@ export function DatePicker({
             lateCompositionBase.current = base;
             const { value: text, selectionStart } = event.currentTarget;
             if (base === undefined || selectionStart !== text.length) return;
-            const advanced = advanceText(base, text);
+            const advanced = advanceComposed(base, text);
             if (advanced !== text) changeText(advanced);
           }}
           onCompositionStart={(event) => {
