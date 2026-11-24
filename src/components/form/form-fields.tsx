@@ -222,6 +222,7 @@ function FieldFrame({
 }: FieldFrameProps) {
   const field = useFieldContext<unknown>();
   const [errorOpen, setErrorOpen] = useState(false);
+  const errorTrigger = useRef<HTMLDivElement>(null);
   const labelText = <FieldLabelText label={label} required={required} />;
   const descriptionNode = description && (
     <FieldDescription id={descriptionId}>{description}</FieldDescription>
@@ -247,15 +248,23 @@ function FieldFrame({
         disabled={!isInvalid || externalError}
         triggerId={`${field.name}-error-trigger`}
         open={!externalError && isInvalid && errorOpen}
-        onOpenChange={setErrorOpen}
+        onOpenChange={(open, { event }) => {
+          const fromPopup =
+            event?.target instanceof Node && !errorTrigger.current?.contains(event.target);
+          if (!open || !fromPopup) setErrorOpen(open);
+        }}
       >
         <TooltipTrigger
           id={`${field.name}-error-trigger`}
-          render={<div className="min-w-0" />}
+          render={<div className="min-w-0" ref={errorTrigger} />}
           tabIndex={-1}
-          onFocusCapture={() => setErrorOpen(true)}
+          onFocusCapture={(event) => {
+            if (event.currentTarget.contains(event.target)) setErrorOpen(true);
+          }}
           onBlurCapture={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) setErrorOpen(false);
+            const { currentTarget, target, relatedTarget } = event;
+            if (currentTarget.contains(target) && !currentTarget.contains(relatedTarget))
+              setErrorOpen(false);
           }}
         >
           {children}

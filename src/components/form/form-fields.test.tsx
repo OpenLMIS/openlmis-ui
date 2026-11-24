@@ -431,6 +431,39 @@ it.each(['row', 'inline'] as const)(
   },
 );
 
+function TooltipSelectForm() {
+  const form = useAppForm({ defaultValues: { reason: 'r1' } });
+  return (
+    <form.AppField name="reason" validators={{ onMount: () => 'Reason not allowed' }}>
+      {(field) => (
+        <field.SelectField
+          hideErrors
+          items={[
+            { value: 'r1', label: 'Damage' },
+            { value: 'r2', label: 'Expired' },
+            { value: 'r3', label: 'Lost' },
+          ]}
+          label="Reason"
+          layout="inline"
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+it('keeps the error tooltip closed while the field list is open', async () => {
+  const user = userEvent.setup();
+  render(<TooltipSelectForm />);
+  await user.click(screen.getByRole('combobox', { name: 'Reason' }));
+  const options = await screen.findAllByRole('option');
+  await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
+
+  for (const option of options) {
+    await user.hover(option);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  }
+});
+
 describe('field layouts', () => {
   it('reads a row badge out with its field', () => {
     render(<LayoutForm />);
