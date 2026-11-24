@@ -9,7 +9,6 @@ import {
   fetchFacilityTypes,
   fetchGeographicLevels,
   fetchGeographicZones,
-  fetchLotByTradeItemAndCode,
   fetchLotsByIds,
   fetchLotsByTradeItems,
   fetchOrderableDisplayCategories,
@@ -292,60 +291,6 @@ describe('fetchLotsByIds', () => {
     await expect(fetchLotsByIds([])).resolves.toEqual([]);
     expect(get).not.toHaveBeenCalled();
   });
-});
-
-it('finds a dated exact lot on a later page when expiry is omitted', async () => {
-  const first = { id: 'l1', lotCode: 'X-12', tradeItemId: 't1', expirationDate: null };
-  const second = { id: 'l2', lotCode: 'X-1', tradeItemId: 't1', expirationDate: '2030-05-01' };
-  get
-    .mockResolvedValueOnce({ data: { content: [first], totalPages: 2 } })
-    .mockResolvedValueOnce({ data: { content: [second], totalPages: 2 } });
-
-  await expect(fetchLotByTradeItemAndCode('t1', 'X-1')).resolves.toEqual(second);
-  expect(get).toHaveBeenNthCalledWith(1, '/lots', {
-    params: { tradeItemId: 't1', lotCode: 'X-1', page: 0, size: 100 },
-  });
-  expect(get).toHaveBeenNthCalledWith(2, '/lots', {
-    params: { tradeItemId: 't1', lotCode: 'X-1', page: 1, size: 100 },
-  });
-});
-
-it('stops paging on the first reusable match and filters by the entered expiry', async () => {
-  const expirationDate = '2030-05-01';
-  const match = { id: 'exact', lotCode: 'x_%', tradeItemId: 't1', expirationDate };
-  get
-    .mockResolvedValueOnce({
-      data: {
-        content: [
-          { ...match, id: 'partial', lotCode: 'X_%2' },
-          { ...match, id: 'wrong-trade-item', tradeItemId: 't2' },
-          { ...match, id: 'wrong-expiry', expirationDate: null },
-        ],
-        totalPages: 50,
-      },
-    })
-    .mockResolvedValueOnce({ data: { content: [match], totalPages: 50 } })
-    .mockResolvedValue({ data: { content: [], totalPages: 3 } });
-
-  const result = await fetchLotByTradeItemAndCode('t1', 'X_%', expirationDate);
-  expect(get).toHaveBeenNthCalledWith(1, '/lots', {
-    params: { tradeItemId: 't1', lotCode: 'X_%', expirationDate, page: 0, size: 100 },
-  });
-  expect(get).toHaveBeenCalledTimes(2);
-  expect(result).toEqual(match);
-});
-
-it('bounds paging when a wildcard search returns only partial matches', async () => {
-  get.mockResolvedValue({
-    data: {
-      content: [{ id: 'partial', lotCode: 'X_1', tradeItemId: 't1', expirationDate: null }],
-      totalPages: 50,
-    },
-  });
-
-  const result = await fetchLotByTradeItemAndCode('t1', 'X_%');
-  expect(get).toHaveBeenCalledTimes(3);
-  expect(result).toBeUndefined();
 });
 
 it('forwards owner and cancellation policy through both user access reads', async () => {

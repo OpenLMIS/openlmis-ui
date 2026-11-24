@@ -17,7 +17,6 @@ import en from '@/../public/locales/en.json';
 import { quantityValue } from '@/components/form/quantity-value';
 import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { useLoginData } from '@/features/auth/store/login-data';
-import { fetchLotByTradeItemAndCode } from '@/features/reference-data/api/api';
 import {
   createPhysicalInventoryLot,
   deletePhysicalInventory,
@@ -42,9 +41,6 @@ import { addedInventoryLine } from '@/features/stock-events/lib/physical-invento
 import { DraftConflictError } from '@/lib/draft-store';
 import { httpError } from '@/test-utils/http-error';
 
-vi.mock('@/features/reference-data/api/api', () => ({
-  fetchLotByTradeItemAndCode: vi.fn(),
-}));
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
   savePhysicalInventory: vi.fn(),
   submitPhysicalInventory: vi.fn(),
@@ -76,7 +72,6 @@ const lines = buildInventoryLines([stock], [{ orderableId: 'p', quantity: 5 }]);
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValue(draft);
-  vi.mocked(fetchLotByTradeItemAndCode).mockResolvedValue(undefined);
   useLoginData
     .getState()
     .setLoginData({ referenceDataUserId: 'user', username: 'user', accessToken: 'token' });
@@ -402,7 +397,7 @@ it.each([
       method: 'post',
       headers: new AxiosHeaders(),
     }),
-    'Could not create lots: NEW. The server did not answer in time. Keep this page open and save again. Lots that were already created will be reused.',
+    'Could not create lots: NEW. The server did not answer in time, so the lot may have been created. Keep this page open and try again. If the lot code is then reported as already used, pick that lot from the list instead of adding it.',
   ],
   [
     'unkeyed lot failure',
@@ -552,24 +547,16 @@ it('explains how to retry a lot POST timeout after a successful device flush', a
 
   const alert = await screen.findByRole('alertdialog');
   expect(alert).toHaveAccessibleDescription(
-    'Could not create lots: NEW. The server did not answer in time. Save again. Lots that were already created will be reused.',
+    'Could not create lots: NEW. The server did not answer in time, so the lot may have been created. Try again. If the lot code is then reported as already used, pick that lot from the list instead of adding it.',
   );
   expect(savePhysicalInventory).not.toHaveBeenCalled();
 });
 
-it('reuses a lot created by a timed-out POST and saves the entered count', async () => {
-  const pending = [
-    addedInventoryLine(stock, quantityValue('7'), {
-      clientId: 'new',
-      lotCode: 'NEW',
-      expirationDate: '2030-01-30',
-      tradeItemId: 'trade',
-    }),
-  ];
-  vi.mocked(fetchLotByTradeItemAndCode).mockResolvedValueOnce(undefined).mockResolvedValueOnce({
-    id: 'created',
-    lotCode: 'new',
-    expirationDate: '2030-01-30',
+it('asks users to keep the page open after a lot POST timeout on Submit without a device write', async () => {
+  const pending = addedInventoryLine(stock, quantityValue('0'), {
+    clientId: 'new',
+    lotCode: 'NEW',
+    expirationDate: null,
     tradeItemId: 'trade',
   });
   vi.mocked(createPhysicalInventoryLot).mockRejectedValueOnce(
@@ -579,32 +566,20 @@ it('reuses a lot created by a timed-out POST and saves the entered count', async
     }),
   );
   setup(
-    {
-      displayed: pending,
-      getLines: () => pending,
-      flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')),
-    },
+    { displayed: [pending], getLines: () => [pending], flush: vi.fn().mockResolvedValue(false) },
     await englishTranslations(),
   );
 
-  await confirmAction('save', en['physical-inventory.save']);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: en['stock-events.submit'] }));
+  const dialog = screen.getByRole('dialog', { name: en['physical-inventory.occurred-title'] });
+  await user.click(within(dialog).getByRole('button', { name: en['stock-events.confirm'] }));
 
   const alert = await screen.findByRole('alertdialog');
-  expect(alert).toHaveTextContent(en['physical-inventory.lot-timeout-keep-open']);
-  expect(savePhysicalInventory).not.toHaveBeenCalled();
-  await userEvent.click(within(alert).getByRole('button', { name: en['dialog.close'] }));
-  await confirmAction('save', en['physical-inventory.save']);
-
-  await waitFor(() =>
-    expect(savePhysicalInventory).toHaveBeenCalledWith(
-      expect.objectContaining({
-        lineItems: [expect.objectContaining({ lotId: 'created', quantity: 7 })],
-      }),
-    ),
+  expect(alert).toHaveAccessibleDescription(
+    `Could not create lots: NEW. ${en['physical-inventory.lot-timeout-keep-open']}`,
   );
-  expect(fetchLotByTradeItemAndCode).toHaveBeenNthCalledWith(1, 'trade', 'NEW', '2030-01-30');
-  expect(fetchLotByTradeItemAndCode).toHaveBeenNthCalledWith(2, 'trade', 'NEW', '2030-01-30');
-  expect(createPhysicalInventoryLot).toHaveBeenCalledOnce();
+  expect(submitPhysicalInventory).not.toHaveBeenCalled();
 });
 
 it('explains an orphaned draft after a failed device flush with its earlier device counts', async () => {

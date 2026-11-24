@@ -20,7 +20,6 @@ import {
 import { ActionTooltip } from '@/components/shared/action-tooltip';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
-import { fetchLotByTradeItemAndCode } from '@/features/reference-data/api/api';
 import {
   createPhysicalInventoryLot,
   deletePhysicalInventory,
@@ -249,10 +248,6 @@ export function InventoryActions(props: Props) {
         throw new Error(t('physical-inventory.invalid-description'));
       const prepared = await createInventoryLots(
         lines,
-        (tradeItemId, lotCode, expirationDate) => {
-          check();
-          return fetchLotByTradeItemAndCode(tradeItemId, lotCode, expirationDate);
-        },
         (body) => {
           check();
           return createPhysicalInventoryLot(body);
@@ -347,7 +342,6 @@ export function InventoryActions(props: Props) {
         return;
       }
       if (
-        !(error instanceof InventoryLotError && cause === undefined) &&
         !(
           cause instanceof DraftConflictError ||
           cause instanceof InventoryOrphaned ||
@@ -394,7 +388,7 @@ export function InventoryActions(props: Props) {
                   codes: error.codes.join(', '),
                   message: isWriteApiTimeout(cause)
                     ? t(
-                        keepOpen
+                        attempt.countsOnDevice === false
                           ? 'physical-inventory.lot-timeout-keep-open'
                           : 'physical-inventory.lot-timeout',
                       )
