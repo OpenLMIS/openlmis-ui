@@ -15,7 +15,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { RequisitionAction } from '@/features/requisitions/lib/capabilities';
-import type { RequisitionFailure } from '@/features/requisitions/lib/failure';
+import {
+  type RequisitionFailure,
+  requisitionFailureText,
+} from '@/features/requisitions/lib/failure';
 import { useOnline } from '@/lib/online';
 
 type ConfirmAction =
@@ -92,20 +95,21 @@ export function RequisitionErrorDialog({
   onUpdate,
 }: RequisitionErrorDialogProps) {
   const { t } = useTranslation();
-  const update = error.kind !== 'server';
+  const update = error.kind !== 'server' && error.kind !== 'request';
   const online = useOnline();
   const reason = online ? undefined : t('offline.action-description');
+  const description =
+    error.kind === 'reconciling'
+      ? t('requisitions.edit.reconciling')
+      : error.kind === 'server' || error.kind === 'request'
+        ? requisitionFailureText(error, 'error.description', t)
+        : t(`requisitions.edit.error.${error.kind}`);
+  if (description === null) return null;
   return (
     <InvalidSubmitDialog
       open
       title={t('requisitions.edit.error-title')}
-      description={
-        error.kind === 'reconciling'
-          ? t('requisitions.edit.reconciling')
-          : error.kind === 'server'
-            ? (error.message ?? t('requisitions.edit.error-description'))
-            : t(`requisitions.edit.error.${error.kind}`)
-      }
+      description={description}
       onOpenChange={(open) => {
         if (!open && !pending) onClose();
       }}

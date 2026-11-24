@@ -3,12 +3,7 @@ import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  ErrorAlert,
-  RetryButton,
-  SkeletonLine,
-  serverMessage,
-} from '@/components/display/dialog-parts';
+import { ErrorAlert, RetryButton, SkeletonLine } from '@/components/display/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -27,6 +22,7 @@ import type { ProductDetail } from '@/features/products/lib/types';
 import { programsOptions } from '@/features/reference-data/api/queries';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
+import { apiErrorText } from '@/lib/api-error';
 
 type RemoveProgramLinkDialogProps = {
   product: ProductDetail;
@@ -99,7 +95,7 @@ export function RemoveProgramLinkDialog({
         </AlertDialogHeader>
         {save.isError && (
           <ErrorAlert
-            description={serverMessage(save.error) ?? t('products.form.save-error')}
+            description={apiErrorText(save.error, 'error.description', t, { write: true })}
             title={t('products.programs.remove-error-title')}
           />
         )}

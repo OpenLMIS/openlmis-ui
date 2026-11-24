@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { ListError } from '@/components/app-shell/list-error';
 import { LoadError } from '@/components/app-shell/load-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import {
   PickerAdd,
   PickerAddButton,
@@ -31,7 +31,9 @@ import type { BuqListProps, BuqListSearch } from '@/features/buq/lib/search';
 import type { BuqPeriod, NamedItem, TakenPeriod } from '@/features/buq/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 type PrepareBuqProps = { facility: NamedItem; program: NamedItem };
 
@@ -108,6 +110,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
   const periods = useBuqPeriods();
   const taken = useQuery(takenPeriodsOptions(facility.id));
   const prepare = useSessionMutation({
+    onError: reportApiError,
     mutationFn: prepareBuq,
     onSuccess: (buq, { processingPeriodId }) => {
       const period = periods.find(({ id }) => id === processingPeriodId)?.name ?? '';
@@ -130,7 +133,7 @@ function LoadedPeriodPicker({ facility, program }: PrepareBuqProps) {
       disabled={prepare.isPending || !taken.isSuccess}
       error={
         prepare.isError
-          ? (serverMessage(prepare.error) ?? t('buq.prepare.prepare-error'))
+          ? (apiErrorText(prepare.error, 'error.description', t, { write: true }) ?? undefined)
           : undefined
       }
       onChange={prepare.reset}

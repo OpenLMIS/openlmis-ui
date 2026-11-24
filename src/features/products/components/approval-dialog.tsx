@@ -10,7 +10,6 @@ import {
   ErrorAlert,
   FieldSkeleton,
   SkeletonLine,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -42,9 +41,11 @@ import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { decimalMark } from '@/lib/decimal';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const saveKey = (productId: string) =>
   [...queryKeys.facilityTypeApprovedProducts.all, 'save', productId] as const;
@@ -167,6 +168,7 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
   });
 
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationKey: saveKey(product.id),
     mutationFn: (values: ApprovalFormValues) => {
       const stock = toApprovalStock(values);
@@ -241,7 +243,7 @@ function ApprovalForm({ product, approval, readOnly, onDone }: ApprovalFormProps
               description={
                 save.error instanceof ApprovalRemovedError
                   ? t('products.approvals.form.not-found')
-                  : (serverMessage(save.error) ?? t('products.form.save-error'))
+                  : apiErrorText(save.error, 'error.description', t, { write: true })
               }
               title={t('products.approvals.form.save-error-title')}
             />

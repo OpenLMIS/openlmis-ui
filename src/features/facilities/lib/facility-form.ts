@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { FacilityBody } from '@/features/facilities/lib/types';
@@ -177,12 +176,12 @@ export function tabWithFirstError(fieldNames: readonly string[]): FacilityTab | 
   return fieldNames.some((name) => !name.startsWith('programs')) ? 'information' : 'programs';
 }
 
-export function isDuplicateCode(error: unknown) {
-  return (
-    isAxiosError<{ messageKey?: string }>(error) &&
-    error.response?.data?.messageKey === 'referenceData.error.facility.code.mustBeUnique'
-  );
-}
+export const FACILITY_FIELD_ERRORS = {
+  'referenceData.error.facility.code.mustBeUnique': {
+    field: 'code',
+    key: 'facilities.form.code-taken',
+  },
+} as const;
 
 export function isManagedExternally(facility: Facility) {
   return String(facility.extraData?.isManagedExternally) === 'true';

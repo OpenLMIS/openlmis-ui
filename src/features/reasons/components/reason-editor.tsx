@@ -37,7 +37,6 @@ import {
   LookupBoundary,
   SwitchRowSkeleton,
   SwitchSkeleton,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
@@ -112,7 +111,9 @@ import type { FacilityType, Program, Reason } from '@/features/reference-data/li
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const LOOKUPS = {
   types: reasonTypesOptions(),
@@ -240,10 +241,12 @@ export function ReasonEditor({
         onSaved(result.reason);
         return;
       }
+      if (result.error) reportApiError(result.error);
       setStored({ reason: result.reason, pairs: result.pairs });
       setFailure({ failed: result.failed, error: result.error });
     },
     onError: (error, values) => {
+      reportApiError(error);
       if (isDuplicateName(error)) setRefused((names) => [...names, values.name.trim()]);
     },
   });
@@ -281,7 +284,9 @@ export function ReasonEditor({
           <div className="flex flex-col gap-8" inert={mutation.isPending} ref={page}>
             {mutation.isError && !isDuplicateName(mutation.error) && (
               <ErrorAlert
-                description={serverMessage(mutation.error) ?? t('reasons.form.save-error')}
+                description={apiErrorText(mutation.error, 'error.description', t, {
+                  write: true,
+                })}
                 title={t('reasons.form.save-error-title')}
               />
             )}
@@ -342,15 +347,13 @@ function PairsFailedAlert({ failed, error }: { failed: PairRef[]; error: unknown
   const { data: programs } = useQuery(LOOKUPS.programs);
   const { data: types } = useQuery(LOOKUPS.facilityTypes);
   const names = pairNames(t, programs, types);
-  const reason = failed.length === 1 ? serverMessage(error) : undefined;
+  if (isSilentApiError(error)) return null;
+  const fallback = t('reasons.form.pairs-error', { pairs: failed.map(names.pair).join('; ') });
+  const reason =
+    failed.length === 1 ? apiErrorText(error, () => fallback, t, { write: true }) : fallback;
   return (
     <ErrorAlert
-      description={[
-        t('reasons.form.pairs-error', { pairs: failed.map(names.pair).join('; ') }),
-        reason,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      description={reason && reason !== fallback ? `${fallback} ${reason}` : fallback}
       title={t('reasons.form.pairs-error-title')}
     />
   );

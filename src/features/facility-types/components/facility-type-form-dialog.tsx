@@ -11,7 +11,6 @@ import {
   FieldSkeleton,
   SkeletonLine,
   SwitchSkeleton,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -30,8 +29,8 @@ import { FieldGroup } from '@/components/ui/field';
 import { createFacilityType, updateFacilityType } from '@/features/facility-types/api/api';
 import { facilityTypeDetailOptions } from '@/features/facility-types/api/queries';
 import {
-  duplicateField,
   EMPTY_FACILITY_TYPE_FORM,
+  FACILITY_TYPE_FIELD_ERRORS,
   type FacilityTypeFormValues,
   facilityTypeFormSchema,
   type TakenFacilityType,
@@ -43,8 +42,10 @@ import { facilityTypeName } from '@/features/reference-data/lib/facility-types';
 import type { FacilityType } from '@/features/reference-data/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const NO_TYPES: FacilityType[] = [];
 
@@ -146,7 +147,8 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
       });
     },
     onError: (error, values) => {
-      const field = duplicateField(error);
+      reportApiError(error);
+      const field = fieldErrorFor(error, FACILITY_TYPE_FIELD_ERRORS)?.field;
       if (!field) return;
       setRefused((taken) => [
         ...taken,
@@ -158,7 +160,7 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
       ]);
     },
   });
-  const refusedField = duplicateField(save.error);
+  const refusedField = fieldErrorFor(save.error, FACILITY_TYPE_FIELD_ERRORS)?.field;
 
   const form = useAppForm({
     defaultValues: type ? toFacilityTypeFormValues(type) : EMPTY_FACILITY_TYPE_FORM,
@@ -189,7 +191,9 @@ function FacilityTypeForm({ type, onDone }: FacilityTypeFormProps) {
         <FieldGroup>
           {save.isError && !refusedField && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('facility-types.form.save-error')}
+              description={apiErrorText(save.error, 'error.description', t, {
+                write: true,
+              })}
               title={t('facility-types.form.save-error-title')}
             />
           )}

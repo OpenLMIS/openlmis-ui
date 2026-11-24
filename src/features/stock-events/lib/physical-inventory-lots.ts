@@ -1,7 +1,7 @@
-import { isAxiosError } from 'axios';
 import type { LotSummary } from '@/features/reference-data/lib/types';
 import { inventoryLineKey } from '@/features/stock-events/lib/physical-inventory-lines';
 import type { InventoryLine } from '@/features/stock-events/lib/physical-inventory-types';
+import { serverMessageKey } from '@/lib/api-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 export type InventoryLotBody = {
@@ -53,7 +53,7 @@ export async function createInventoryLots(
     } catch (error) {
       assertSessionScope(scope);
       if (error instanceof Error && error.name === 'SessionEndedError') throw error;
-      const key = isAxiosError(error) ? error.response?.data?.messageKey : '';
+      const key = serverMessageKey(error);
       throw new InventoryLotError(
         [line.newLot?.lotCode ?? ''],
         key?.endsWith('lotCode.mustBeUnique')

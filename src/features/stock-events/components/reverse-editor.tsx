@@ -45,7 +45,6 @@ import {
   CardSelectBand,
   SkeletonBar,
 } from '@/components/display/card-list';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
 import { formatDateValue } from '@/components/form/date-value';
@@ -55,6 +54,7 @@ import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogMedia,
@@ -107,10 +107,12 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError, keyedApiErrorText } from '@/lib/api-error';
 import { EMPTY_VALUE, orEmpty, tableValue } from '@/lib/empty-value';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { cardQuantity, type QuantityUnit } from '@/lib/quantity';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { namedWithFreeText } from '@/lib/stock-labels';
 import { type SearchChange, type TableSearch, useTableSearchState } from '@/lib/table-search';
@@ -332,27 +334,48 @@ export function ReverseEditor({
       setSummary({ lines: saved, unavailable });
     } catch (error) {
       if (!mutation.isCurrent()) return;
+      setSignatureOpen(false);
+      setConfirmOpen(false);
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
       const lineErrors: StockEventCancelLineError[] | undefined =
         isAxiosError<StockEventCancelError>(error) && error.response?.status === 400
           ? error.response.data?.lineErrors
           : undefined;
-      if (lineErrors?.length) {
+      if (Array.isArray(lineErrors) && lineErrors.length) {
         const byId: Record<string, StockEventCancelLineError> = {};
-        const lineErrorsById = new Map(lineErrors.map((item) => [item.stockEventLineItemId, item]));
+        const lineErrorsById = new Map(
+          lineErrors
+            .filter((item) => item?.stockEventLineItemId)
+            .map((item) => [item.stockEventLineItemId, item]),
+        );
         for (const row of rows) {
-          const rowError = lineErrorsById.get(row.line.stockEventLineItemId);
+          const lineId = row.line.stockEventLineItemId;
+          const rowError = lineId ? lineErrorsById.get(lineId) : undefined;
           if (rowError) byId[row.id] = rowError;
         }
         setErrors(byId);
-        setFailure(t('stock-event-reverse.line-errors'));
         const first = rows.find((row) => byId[row.id]);
         if (first) {
+          setFailure(t('stock-event-reverse.line-errors'));
           const invalidPage = Math.floor(rows.indexOf(first) / size) + 1;
           alertTarget.current = { id: `reverse-${first.id}`, page: invalidPage };
+          return;
         }
-      } else setFailure(serverMessage(error) ?? t('stock-event-reverse.failed-description'));
-      setSignatureOpen(false);
-      setConfirmOpen(false);
+        for (const lineError of lineErrors) {
+          if (
+            !(typeof lineError?.messageKey === 'string' && lineError.messageKey.trim()) &&
+            !(typeof lineError?.message === 'string' && lineError.message.trim())
+          )
+            continue;
+          const message = keyedApiErrorText(lineError.messageKey, lineError.message, t);
+          if (message) {
+            setFailure(message);
+            return;
+          }
+        }
+      }
+      setFailure(apiErrorText(error, 'error.description', t, { write: true }));
     } finally {
       posting.current = false;
     }
@@ -602,7 +625,12 @@ export function ReverseEditor({
             <AlertDialogMedia>
               <CircleAlertIcon className="text-destructive" />
             </AlertDialogMedia>
-            <AlertDialogTitle>{validationMessage || failure}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {validationMessage || t('stock-event-reverse.failed-title')}
+            </AlertDialogTitle>
+            {!validationMessage && failure && (
+              <AlertDialogDescription>{failure}</AlertDialogDescription>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('stock-event-reverse.close')}</AlertDialogCancel>
@@ -743,7 +771,7 @@ function ReverseCheckboxCell(props: CellProps) {
 
 function ReverseLineError(props: CellProps) {
   const { t, rowId, errors } = useReverseCell(props);
-  const error = errors[rowId] ? lineErrorMessage(errors[rowId]) : undefined;
+  const error = errors[rowId] ? lineErrorMessage(errors[rowId], t) : undefined;
   return error ? (
     <p
       id={`reverse-error-${rowId}`}
@@ -757,7 +785,7 @@ function ReverseLineError(props: CellProps) {
       <span className="shrink-0">
         <CircleAlertIcon />
       </span>
-      <span className="min-w-0">{'key' in error ? t(error.key) : error.message}</span>
+      <span className="min-w-0">{error}</span>
     </p>
   ) : null;
 }

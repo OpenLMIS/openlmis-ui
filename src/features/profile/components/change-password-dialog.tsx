@@ -4,7 +4,7 @@ import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOfflineSignOut } from '@/components/app-shell/offline-sign-out';
 import { PasswordRequirements } from '@/components/auth/password-requirements';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -21,9 +21,11 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { FieldGroup } from '@/components/ui/field';
 import { changePassword } from '@/features/profile/api/api';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
 import { newPasswordSchema } from '@/lib/password-form';
 import { passwordErrorKey } from '@/lib/password-rules';
+import { reportApiError } from '@/lib/report-error';
 import type { UserRecord } from '@/lib/user-types';
 
 const passwordKey = [...queryKeys.profile.all, 'password'] as const;
@@ -60,6 +62,7 @@ function ChangePasswordForm({
   const requirementsId = useId();
   const { confirm, dialog } = useOfflineSignOut();
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationKey: passwordKey,
     mutationFn: (password: string) => changePassword(user.username, password),
     onSuccess: onChanged,
@@ -84,10 +87,12 @@ function ChangePasswordForm({
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
-          {save.isError && (
+          {save.isError && !isSilentApiError(save.error) && (
             <ErrorAlert
               description={
-                errorKey ? t(errorKey) : (serverMessage(save.error) ?? t('users.form.save-error'))
+                errorKey
+                  ? t(errorKey)
+                  : apiErrorText(save.error, 'error.description', t, { write: true })
               }
               title={t('profile.password.error-title')}
             />

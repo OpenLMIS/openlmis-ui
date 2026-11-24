@@ -36,12 +36,7 @@ import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import type { useColumnVisibility } from '@/components/data-table/responsive-columns';
 import { CardActions, useInCards } from '@/components/display/card-actions';
-import {
-  ErrorAlert,
-  FieldSkeleton,
-  LookupBoundary,
-  serverMessage,
-} from '@/components/display/dialog-parts';
+import { ErrorAlert, FieldSkeleton, LookupBoundary } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
 import { useAppForm } from '@/components/form/form';
@@ -106,8 +101,10 @@ import { useCardView } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { tableValue } from '@/lib/empty-value';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import { type SearchChange, searchSort } from '@/lib/table-search';
 
 export const REQUISITION_GROUP_LOOKUPS = {
@@ -168,6 +165,7 @@ export function RequisitionGroupEditor({
   const leaving = useRef(false);
   const [initialValues] = useState(() => toFormValues(saved));
   const mutation = useSessionMutation({
+    onError: reportApiError,
     mutationFn: (values: RequisitionGroupFormValues) => {
       const body = toRequisitionGroupBody(values, saved);
       return saved ? updateRequisitionGroup(saved.id, body) : createRequisitionGroup(body);
@@ -206,9 +204,9 @@ export function RequisitionGroupEditor({
             {mutation.isError && (
               <ErrorAlert
                 title={t('requisition-groups.form.save-error-title')}
-                description={
-                  serverMessage(mutation.error) ?? t('requisition-groups.form.save-error')
-                }
+                description={apiErrorText(mutation.error, 'error.description', t, {
+                  write: true,
+                })}
               />
             )}
             <form
@@ -1149,6 +1147,7 @@ const addFacilitySchema = z.object({
 function useFacilityForm(onAdd: (row: MemberFacility) => void, queryClient: QueryClient) {
   const mutation = useSessionMutation({
     mutationKey: ADD_FACILITY_KEY,
+    onError: reportApiError,
     mutationFn: (id: string) => queryClient.fetchQuery(facilityOptions(id)),
     onSuccess: (facility) =>
       onAdd({
@@ -1183,9 +1182,9 @@ function AddFacilityForm({ rows, onAdd }: Pick<AddFacilityProps, 'rows' | 'onAdd
         {mutation.isError && (
           <ErrorAlert
             title={t('requisition-groups.form.facility-error-title')}
-            description={
-              serverMessage(mutation.error) ?? t('requisition-groups.form.facility-error')
-            }
+            description={apiErrorText(mutation.error, 'error.description', t, {
+              write: false,
+            })}
           />
         )}
         <FieldGroup>

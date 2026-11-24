@@ -1,10 +1,11 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
+import type { TFunction } from 'i18next';
 import { WifiOffIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import {
   FormDialog,
@@ -53,17 +54,27 @@ import {
 } from '@/features/stock-events/lib/physical-inventory-lots';
 import type {
   InventoryLine,
+  InventoryStockLine,
   PhysicalInventoryDraft,
 } from '@/features/stock-events/lib/physical-inventory-types';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import {
+  apiErrorText,
+  isApiTimeout,
+  isSilentApiError,
+  isWriteApiTimeout,
+  keyedApiErrorText,
+  serverMessage,
+  serverMessageKey,
+} from '@/lib/api-error';
 import { DraftConflictError } from '@/lib/draft-store';
-import { isOfflineError } from '@/lib/http';
+import { isAccessFallbackError, isOfflineError } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
 import { openReport } from '@/lib/open-report';
-import { reportCaughtError } from '@/lib/report-error';
+import { reportApiError, reportCaughtError } from '@/lib/report-error';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 
 class UnknownSubmit extends Error {}
@@ -75,6 +86,18 @@ class InventoryOrphaned extends Error {
 function reportUnlessConflict(error: unknown) {
   if (error instanceof DraftConflictError) throw error;
   reportCaughtError(error, {});
+}
+function inventoryKeepOpenText(error: unknown, t: TFunction) {
+  if (isWriteApiTimeout(error)) return t('physical-inventory.save-timeout-keep-open');
+  if (!isApiTimeout(error) && !isOfflineError(error) && !isAccessFallbackError(error)) {
+    const key = serverMessageKey(error);
+    const refusal = key && keyedApiErrorText(key, serverMessage(error), t)?.trimEnd();
+    if (refusal) {
+      const punctuation = /[.!?؟。！？]$/.test(refusal) ? '' : '.';
+      return `${refusal}${punctuation} ${t('physical-inventory.counts-only-on-page')}`;
+    }
+  }
+  return t('physical-inventory.save-error-keep-open');
 }
 type Action =
   | { type: 'save' }
@@ -95,11 +118,12 @@ type Props = {
   writeDisabled?: boolean;
   conflicted?: boolean;
   writeDisabledReason?: string;
-  flush: () => Promise<void>;
+  flush: () => Promise<boolean>;
   clearLocal: (draftId: string) => Promise<void>;
-  writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<unknown>;
+  writeLocal: (copy: Parameters<typeof writeInventoryLocal>[0]) => Promise<boolean>;
   onBusy: (busy: boolean) => void;
   onOrphaned?: () => void;
+  onDevicePickerProducts?: (products: InventoryStockLine[]) => void;
   onLots: (lines: InventoryLine[]) => void;
   onSaved: (lines: InventoryLine[], terminal: boolean, localSaved: boolean) => void;
   onDialogChange: (open: boolean) => void;
@@ -107,24 +131,24 @@ type Props = {
   onDeleted: () => void | Promise<void>;
   onSubmitted: () => void | Promise<void>;
 };
+type Attempt = { action: Action; countsOnDevice?: boolean };
 type Failure = { title: string; description: string; offline?: boolean };
 const ACTION_KEYS = {
   save: {
     errorTitle: 'physical-inventory.save-error-title',
-    errorDescription: 'physical-inventory.save-error-description',
     successTitle: 'physical-inventory.saved-title',
     successDescription: 'physical-inventory.saved-description',
   },
   delete: {
     errorTitle: 'physical-inventory.delete-error-title',
-    errorDescription: 'physical-inventory.delete-error-description',
+    errorDescription: 'error.description',
     successTitle: 'physical-inventory.deleted-title',
     successDescription: 'physical-inventory.deleted-description',
     localClearError: 'physical-inventory.delete-local-clear-error',
   },
   submit: {
     errorTitle: 'physical-inventory.submit-error-title',
-    errorDescription: 'physical-inventory.submit-error-description',
+    errorDescription: 'error.description',
     successTitle: 'physical-inventory.submitted-title',
     successDescription: 'physical-inventory.submitted-description',
     localClearError: 'physical-inventory.submit-local-clear-error',
@@ -136,7 +160,7 @@ export function InventoryActions(props: Props) {
   const online = useOnline();
   const offlineReason = !online ? t('offline.action-description') : undefined;
   const eligibleOptions = eligibleInventoryProductsOptions(props.draft, props.eligibleUpdatedAfter);
-  const eligibleFetching = useIsFetching({ queryKey: eligibleOptions.queryKey }) > 0;
+  const eligibleFetching = useIsFetching({ queryKey: eligibleOptions.queryKey, exact: true }) > 0;
   const [dialog, setDialog] = useState<'save' | 'delete' | 'submit' | 'print' | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [failureCopy, setFailureCopy] = useState(failure);
@@ -171,7 +195,8 @@ export function InventoryActions(props: Props) {
   const finished = useRef(false);
   const mutation = useSessionMutation({
     retry: false,
-    mutationFn: async (action: Action) => {
+    mutationFn: async (attempt: Attempt) => {
+      const { action } = attempt;
       const scope = getSessionScope();
       const check = () => {
         assertSessionScope(scope);
@@ -179,8 +204,9 @@ export function InventoryActions(props: Props) {
       };
       check();
       try {
-        await props.flush();
+        attempt.countsOnDevice = await props.flush();
       } catch (error) {
+        attempt.countsOnDevice = false;
         reportUnlessConflict(error);
       }
       assertSessionScope(scope);
@@ -203,7 +229,7 @@ export function InventoryActions(props: Props) {
       try {
         await reconcileInventoryCopies(props.draft, current?.id, requestedAt);
       } catch (error) {
-        reportCaughtError(error, {});
+        if (!(error instanceof DraftConflictError)) reportCaughtError(error, {});
       }
       check();
       if (current?.id !== props.draft.id) {
@@ -232,8 +258,11 @@ export function InventoryActions(props: Props) {
           assertSessionScope(scope);
           props.onLots(next);
           try {
-            await props.writeLocal(inventoryLocalCopy(props.draft, next, props.baseline));
+            attempt.countsOnDevice = await props.writeLocal(
+              inventoryLocalCopy(props.draft, next, props.baseline),
+            );
           } catch (error) {
+            attempt.countsOnDevice = false;
             reportUnlessConflict(error);
           }
           assertSessionScope(scope);
@@ -257,7 +286,8 @@ export function InventoryActions(props: Props) {
             inventorySubmitPayload(props.draft, prepared, action.occurredDate, action.signature),
           );
         } catch (error) {
-          if (isAxiosError(error) && !error.response) throw new UnknownSubmit();
+          if (isAxiosError(error) && !error.response && !isSilentApiError(error))
+            throw new UnknownSubmit();
           throw error;
         }
       }
@@ -265,6 +295,26 @@ export function InventoryActions(props: Props) {
       return prepared;
     },
   });
+  const refreshLots = () => {
+    const updatePicker = props.onDevicePickerProducts;
+    void queryClient.invalidateQueries({
+      queryKey: eligibleOptions.queryKey,
+      exact: true,
+      refetchType: updatePicker ? 'none' : 'active',
+    });
+    if (!updatePicker || !isOnline()) return;
+    void queryClient
+      .fetchQuery({
+        ...eligibleOptions,
+        queryKey: [...eligibleOptions.queryKey, 'device-picker', props.draft.id],
+        staleTime: 0,
+        retry: false,
+      })
+      .then((products) => {
+        if (mutation.isCurrent()) updatePicker(products);
+      })
+      .catch(reportApiError);
+  };
   const print = usePrintReport({
     userId: props.userId,
     facilityId: props.draft.facilityId,
@@ -276,7 +326,7 @@ export function InventoryActions(props: Props) {
     successTitle: t('physical-inventory.printed-title'),
     successDescription: t('physical-inventory.printed-description'),
     errorTitle: t('physical-inventory.print-error-title'),
-    errorDescription: t('physical-inventory.print-error-description'),
+    errorDescription: t('error.description'),
     refusedDescription: t('physical-inventory.print-refused'),
   });
   const submit = () => {
@@ -300,12 +350,35 @@ export function InventoryActions(props: Props) {
     if (posting.current || finished.current || (action.type === 'submit' && unknown)) return;
     posting.current = true;
     props.onBusy(true);
+    const attempt: Attempt = { action };
     let next: InventoryLine[];
     try {
-      next = await mutation.mutateAsync(action);
+      next = await mutation.mutateAsync(attempt);
     } catch (error) {
       if (!mutation.isCurrent()) return;
-      if (!(error instanceof UnknownSubmit) && (isOfflineError(error) || !isOnline())) {
+      const cause = error instanceof InventoryLotError ? error.cause : error;
+      if (isSilentApiError(cause)) {
+        setDialog(null);
+        props.onBusy(false);
+        posting.current = false;
+        return;
+      }
+      if (
+        !(
+          cause instanceof DraftConflictError ||
+          cause instanceof InventoryOrphaned ||
+          cause instanceof UnknownSubmit
+        )
+      )
+        reportApiError(cause);
+      const keepOpen = action.type === 'save' && attempt.countsOnDevice === false;
+      if (
+        !keepOpen &&
+        !(error instanceof UnknownSubmit) &&
+        !(error instanceof InventoryLotError && error.reason === 'duplicate') &&
+        !isApiTimeout(cause) &&
+        (isOfflineError(error) || !isOnline())
+      ) {
         if (action.type === 'submit') showOffline();
         else
           toast.error(t(ACTION_KEYS[action.type].errorTitle), {
@@ -316,14 +389,19 @@ export function InventoryActions(props: Props) {
         posting.current = false;
         return;
       }
-      let description = serverMessage(error) ?? t(ACTION_KEYS[action.type].errorDescription);
+      const fallback =
+        action.type === 'save'
+          ? 'physical-inventory.save-error-description'
+          : ACTION_KEYS[action.type].errorDescription;
+      let description: string | null;
       if (error instanceof InventoryOrphaned)
         description = t(
           error.keptCounts
             ? 'physical-inventory.orphaned-action'
             : 'physical-inventory.no-draft-description',
         );
-      if (error instanceof InventoryLotError)
+      else if (error instanceof InventoryLotError) {
+        if (error.reason === 'duplicate' || isWriteApiTimeout(cause)) refreshLots();
         description =
           error.reason === 'duplicate'
             ? t('physical-inventory.lot-duplicate-error', { codes: error.codes.join(', ') })
@@ -331,20 +409,37 @@ export function InventoryActions(props: Props) {
               ? t('physical-inventory.lot-trade-item-error', { codes: error.codes.join(', ') })
               : t('physical-inventory.lot-error', {
                   codes: error.codes.join(', '),
-                  message: serverMessage(error.cause) ?? description,
+                  message: isWriteApiTimeout(cause)
+                    ? t(
+                        attempt.countsOnDevice === false
+                          ? 'physical-inventory.lot-timeout-keep-open'
+                          : 'physical-inventory.lot-timeout',
+                      )
+                    : keepOpen
+                      ? inventoryKeepOpenText(cause, t)
+                      : apiErrorText(cause, fallback, t),
                 });
+      } else if (keepOpen) description = inventoryKeepOpenText(cause, t);
+      else if (
+        action.type === 'delete' &&
+        attempt.countsOnDevice === false &&
+        isWriteApiTimeout(cause)
+      )
+        description = t('physical-inventory.action-timeout-keep-open');
+      else description = apiErrorText(error, fallback, t);
       if (error instanceof UnknownSubmit) {
         setUnknown(true);
         description = t('physical-inventory.unknown-outcome-description');
       }
-      showFailure({
-        title: t(
-          error instanceof UnknownSubmit
-            ? 'stock-events.unknown-outcome-title'
-            : ACTION_KEYS[action.type].errorTitle,
-        ),
-        description,
-      });
+      if (description !== null)
+        showFailure({
+          title: t(
+            error instanceof UnknownSubmit
+              ? 'stock-events.unknown-outcome-title'
+              : ACTION_KEYS[action.type].errorTitle,
+          ),
+          description,
+        });
       setDialog(null);
       props.onBusy(false);
       posting.current = false;
@@ -355,11 +450,11 @@ export function InventoryActions(props: Props) {
     let localSaved = true;
     try {
       if (action.type === 'save')
-        await props.writeLocal(inventoryLocalCopy(props.draft, next, next, false));
+        localSaved = await props.writeLocal(inventoryLocalCopy(props.draft, next, next, false));
       else await props.clearLocal(props.draft.id);
     } catch (error) {
       localSaved = false;
-      reportCaughtError(error, {});
+      if (!(error instanceof DraftConflictError)) reportCaughtError(error, {});
       if (mutation.isCurrent() && action.type !== 'save')
         toast.error(t('physical-inventory.local-clear-error-title'), {
           description: t(ACTION_KEYS[action.type].localClearError),

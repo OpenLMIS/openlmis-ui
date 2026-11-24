@@ -5,12 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { PasswordRequirements } from '@/components/auth/password-requirements';
-import {
-  DialogLoadError,
-  ErrorAlert,
-  SkeletonLine,
-  serverMessage,
-} from '@/components/display/dialog-parts';
+import { DialogLoadError, ErrorAlert, SkeletonLine } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ChoiceCard } from '@/components/form/form-fields';
 import {
@@ -36,8 +31,10 @@ import {
   resetEmail,
 } from '@/features/users/lib/password-form';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
 import { passwordErrorKey } from '@/lib/password-rules';
+import { reportApiError } from '@/lib/report-error';
 
 /** The user whose password is set, and whether they were just created and have none yet. */
 export type PasswordDialogTarget = {
@@ -96,6 +93,7 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
 
   const save = useSessionMutation({
     mutationKey: passwordKey(id),
+    onError: reportApiError,
     mutationFn: async ({ method, password }: PasswordFormValues) => {
       if (method === 'email' && email) await sendPasswordResetEmail(email);
       else await setUserPassword(username, password);
@@ -121,8 +119,9 @@ function PasswordForm({ target, title, onDone }: PasswordFormProps) {
   });
 
   const serverError = (error: unknown) => {
+    if (isSilentApiError(error)) return null;
     const key = passwordErrorKey(error);
-    return key ? t(key) : (serverMessage(error) ?? t('users.form.save-error'));
+    return key ? t(key) : apiErrorText(error, 'error.description', t, { write: true });
   };
 
   const description = target.created

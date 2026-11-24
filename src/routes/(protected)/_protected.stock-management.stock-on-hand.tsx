@@ -620,7 +620,7 @@ function StockOnHandPrintButton({
       program: label(program),
     }),
     errorTitle: t('stock-on-hand.print-error-title'),
-    errorDescription: t('stock-on-hand.print-error'),
+    errorDescription: t('error.description'),
     refusedDescription: t('stock-on-hand.print-refused'),
   });
   const offline = print.offline;

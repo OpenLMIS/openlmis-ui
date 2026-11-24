@@ -3,7 +3,7 @@ import { useIsMutating, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -22,14 +22,16 @@ import { createProduct } from '@/features/products/api/api';
 import { ProductFormFields } from '@/features/products/components/product-form-fields';
 import {
   EMPTY_PRODUCT_FORM,
-  isDuplicateCode,
+  PRODUCT_FIELD_ERRORS,
   type ProductFormValues,
   productFormSchema,
   toCreateProductBody,
 } from '@/features/products/lib/product-form';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const SAVE_KEY = [...queryKeys.orderables.all, 'create'] as const;
 
@@ -68,10 +70,12 @@ function AddProductForm({ onCreated }: Pick<AddProductDialogProps, 'onCreated'>)
       void queryClient.invalidateQueries({ queryKey: queryKeys.orderables.all });
     },
     onError: (error, values) => {
-      if (isDuplicateCode(error)) setRefusedCodes((codes) => [...codes, values.productCode]);
+      reportApiError(error);
+      if (fieldErrorFor(error, PRODUCT_FIELD_ERRORS))
+        setRefusedCodes((codes) => [...codes, values.productCode]);
     },
   });
-  const codeRefused = isDuplicateCode(save.error);
+  const codeRefused = fieldErrorFor(save.error, PRODUCT_FIELD_ERRORS);
 
   const form = useAppForm({
     defaultValues: EMPTY_PRODUCT_FORM,
@@ -97,7 +101,7 @@ function AddProductForm({ onCreated }: Pick<AddProductDialogProps, 'onCreated'>)
         <FieldGroup>
           {save.isError && !codeRefused && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('products.form.save-error')}
+              description={apiErrorText(save.error, 'error.description', t, { write: true })}
               title={t('products.form.save-error-title')}
             />
           )}

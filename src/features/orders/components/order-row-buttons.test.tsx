@@ -59,7 +59,10 @@ it.each(['false', 'true', 'rejected'] as const)(
       response.reject(
         new AxiosError('Denied', undefined, undefined, undefined, {
           status: 400,
-          data: { message: 'Cannot transfer this order' },
+          data: {
+            messageKey: 'fulfillment.error.orderRetry.invalidStatus',
+            message: 'Cannot transfer this order',
+          },
         } as never),
       );
     else response.resolve({ result: outcome === 'true' });
@@ -68,7 +71,7 @@ it.each(['false', 'true', 'rejected'] as const)(
         ? 'Cannot transfer this order'
         : outcome === 'true'
           ? 'orders.retry-success-description'
-          : 'orders.retry-error-description',
+          : 'error.description',
     );
     await waitFor(() => expect(description).toBeVisible());
     expect(description.closest('[data-sonner-toast]')).toHaveTextContent(

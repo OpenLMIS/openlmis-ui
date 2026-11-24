@@ -2,10 +2,19 @@ import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import { isHomeFacilityRole } from '@/features/users/lib/role-assignments';
 import type { AuthUser, UserDetails } from '@/features/users/lib/types';
+import { EMAIL_FIELD_ERRORS } from '@/lib/user-contact-errors';
 import type { UserContactDetails, UserRecord } from '@/lib/user-types';
 
 // Messages are translation keys so they follow a language switch, resolved at render.
 const errorKey = (key: ParseKeys) => key;
+
+export const USER_FIELD_ERRORS = {
+  'referenceData.error.user.username.duplicated': {
+    field: 'username',
+    key: 'api-error.referenceData.error.user.username.duplicated',
+  },
+  ...EMAIL_FIELD_ERRORS,
+} as const;
 
 const requiredText = (key: ParseKeys) => z.string().trim().min(1, errorKey(key));
 

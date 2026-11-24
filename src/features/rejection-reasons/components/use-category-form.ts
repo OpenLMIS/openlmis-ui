@@ -12,6 +12,7 @@ import {
 } from '@/features/rejection-reasons/lib/category-form';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 export const categorySaveKey = [...queryKeys.rejectionReasonCategories.all, 'save'] as const;
 
@@ -26,6 +27,7 @@ export function useCategoryForm({
 }) {
   const queryClient = useQueryClient();
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationKey: categorySaveKey,
     mutationFn: (values: CategoryFormValues) =>
       saveRejectionReasonCategory(toCategoryBody(values, saved)),

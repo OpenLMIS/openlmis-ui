@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { Block } from '@/components/app-shell/skeleton-block';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -57,8 +57,10 @@ import { useRoleDraft } from '@/features/users/lib/use-role-draft';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import { fullName } from '@/lib/text';
 import { invalidateUserQueries } from '@/lib/user-queries';
 import type { RoleAssignment } from '@/lib/user-types';
@@ -127,6 +129,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
   );
 
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationFn: (sent: RoleAssignment[]) => updateUserRoles(user.id, sent),
     onSuccess: (saved, sent) => {
       queryClient.setQueryData(userDetailsOptions(user.id).queryKey, (previous) =>
@@ -207,7 +210,7 @@ function RolesEditor({ details }: { details: UserDetails }) {
           <div className="flex flex-col gap-4 lg:gap-6">
             {save.isError && (
               <ErrorAlert
-                description={serverMessage(save.error) ?? t('users.roles.save-error')}
+                description={apiErrorText(save.error, 'error.description', t, { write: true })}
                 title={t('users.roles.save-error-title')}
               />
             )}

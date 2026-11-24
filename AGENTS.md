@@ -298,7 +298,7 @@ edits, which have no prop for TypeScript to detect:
 | `button.tsx` | Preserve `align="between"` for labels with end-aligned values |
 | `alert.tsx` | Preserve `actionLayout="flow"` for actions below the text and `actionLayout="inline"` for an end-aligned action beside the text in wider workspaces and below it on narrow screens |
 | `badge.tsx` | Preserve `wrap="normal"` for wrapping badge labels |
-| `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes |
+| `sonner.tsx` | Use `useResolvedAppearance()` from `src/lib/appearance.ts`; no next-themes. Keep status descriptions in the toast tone and default descriptions muted |
 | `chart.tsx` | Lay out SVG LTR so Arabic labels fit their gutter; localize tooltip numbers |
 | `avatar.tsx` | Overlap `AvatarGroup` with logical `-ms-2`, not `-space-x-2` |
 | `sidebar.tsx` | Keep both menu button variants free of `aria-disabled:pointer-events-none` so connection-dependent entries remain clickable offline |
@@ -313,6 +313,10 @@ edits, which have no prop for TypeScript to detect:
 
 `src/integrations/` owns Axios, TanStack Query/Router and i18next singletons. Dev requests to
 `/api` and `/localeSettings` use the Vite proxy (`localhost:8080` unless configured).
+
+Resolve write and action failure text with `apiErrorText` and omit the alert or toast when it
+returns `null`. Call `reportApiError` at the failure boundary, outside render, and map field
+refusals with `fieldErrorFor`.
 
 ### UI components
 

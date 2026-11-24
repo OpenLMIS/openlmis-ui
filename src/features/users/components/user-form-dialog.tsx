@@ -1,7 +1,7 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -12,7 +12,6 @@ import {
   FieldSkeleton,
   RetryButton,
   SkeletonLine,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { ChoiceCard, ComboboxField, SwitchField } from '@/components/form/form-fields';
@@ -43,12 +42,15 @@ import {
   toAuthUser,
   toContactDetails,
   toUserFormValues,
+  USER_FIELD_ERRORS,
   type UserFormValues,
   userFormSchema,
 } from '@/features/users/lib/user-form';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { useAppName } from '@/lib/app-configuration';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import { invalidateUserQueries } from '@/lib/user-queries';
 
 type DialogTarget = NonNullable<UsersSearch['user']>;
@@ -124,8 +126,23 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
   const emailVerified = details?.contact?.emailDetails?.emailVerified ?? false;
   const savedEmail = details?.contact?.emailDetails?.email ?? '';
   const mismatch = details && statusMismatch(details);
+  const [showSaveError, setShowSaveError] = useState(false);
 
   const save = useSessionMutation({
+    onError: (error, submitted) => {
+      reportApiError(error);
+      const fieldError = fieldErrorFor(error, USER_FIELD_ERRORS);
+      const applies =
+        fieldError && form.getFieldValue(fieldError.field) === submitted[fieldError.field];
+      setShowSaveError(!applies);
+      if (applies) {
+        form.setFieldMeta(fieldError.field, (meta) => ({
+          ...meta,
+          isTouched: true,
+          errorMap: { ...meta.errorMap, onServer: fieldError.key },
+        }));
+      }
+    },
     mutationKey: saveKey(details?.user.id ?? 'new'),
     mutationFn: async (values: UserFormValues) => {
       if (details) {
@@ -168,6 +185,14 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
         .catch(() => undefined),
   });
 
+  const clearServerError = (name: 'username' | 'email') => {
+    if (!form.getFieldMeta(name)?.errorMap.onServer) return;
+    form.setFieldMeta(name, (meta) => ({
+      ...meta,
+      errorMap: { ...meta.errorMap, onServer: undefined },
+    }));
+  };
+
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
       <FormDialogHeader>
@@ -182,14 +207,17 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
-          {save.isError && (
+          {save.isError && showSaveError && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('users.form.save-error')}
+              description={apiErrorText(save.error, 'error.description', t)}
               title={t('users.form.save-error-title')}
             />
           )}
 
-          <form.AppField name="username">
+          <form.AppField
+            name="username"
+            listeners={{ onChange: () => clearServerError('username') }}
+          >
             {(field) => (
               <field.TextField autoComplete="off" dir="ltr" label={t('users.username')} required />
             )}
@@ -208,7 +236,7 @@ function UserForm({ details, onDone, onCreated }: UserFormProps) {
             </form.AppField>
           </FieldRow>
 
-          <form.AppField name="email">
+          <form.AppField name="email" listeners={{ onChange: () => clearServerError('email') }}>
             {(field) => (
               <field.TextField
                 autoComplete="off"

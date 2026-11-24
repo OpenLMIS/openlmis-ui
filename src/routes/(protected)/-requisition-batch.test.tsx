@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
 import { toast } from 'sonner';
@@ -30,6 +30,7 @@ import * as savedBatches from '@/features/requisitions/lib/offline-batch';
 import * as copies from '@/features/requisitions/lib/offline-copies';
 import { getLocalDb } from '@/integrations/local-db';
 import { IsolatingICU } from '@/lib/isolate-values';
+import * as requisitionAccess from '@/routes/-requisition-access';
 import { Route } from '@/routes/(protected)/_protected.requisitions.approve_.batch';
 import { generateBatch } from '@/test-utils/batch-fixtures';
 import en from '../../../public/locales/en.json';
@@ -42,6 +43,8 @@ await labels.use(IsolatingICU).init({
   resources: {
     en: {
       translation: {
+        'requisitions.batch.group': en['requisitions.batch.group'],
+        'requisitions.batch.review-refreshed': en['requisitions.batch.review-refreshed'],
         'requisitions.batch.errors': en['requisitions.batch.errors'],
         'requisitions.batch.quantity-label': en['requisitions.batch.quantity-label'],
         'requisitions.batch.failure-line': en['requisitions.batch.failure-line'],
@@ -345,8 +348,13 @@ it('orders columns by ids and names refused and missing records above the grid',
   await screen.findByText('Permission refused');
   expect(await screen.findAllByText('requisitions.requisition-label')).toHaveLength(2);
   const headers = await screen.findAllByRole('columnheader');
-  const groupLabels = headers.filter((h) => h.textContent?.includes('requisitions.batch.group'));
-  expect(groupLabels).toHaveLength(2);
+  for (const record of records) {
+    expect(
+      headers.some((header) =>
+        header.textContent?.includes(`${record.facilityName} - ${record.periodName}`),
+      ),
+    ).toBe(true);
+  }
   const inputs = screen.getAllByRole('textbox');
   expect(inputs[0]).toHaveAccessibleName(/Feb2017/);
   expect(inputs[1]).toHaveAccessibleName(/Jan2017/);
@@ -412,7 +420,7 @@ it('renders phone cards and updates costs and totals while typing', async () => 
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.getAllByText('$51.00').length).toBeGreaterThan(1);
 });
-it('keeps every record after an exception-style approval 400 and shows the reason', async () => {
+it('keeps every record after an unkeyed approval 400 and shows the general message', async () => {
   vi.mocked(approveBatchRequisitions).mockRejectedValue(
     new AxiosError('400', '400', undefined, undefined, {
       status: 400,
@@ -424,9 +432,45 @@ it('keeps every record after an exception-style approval 400 and shows the reaso
   await waitFor(() => expect(approve).toBeEnabled());
   await userEvent.click(approve);
   await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
-  await screen.findAllByText(/The period has not ended/);
+  await screen.findAllByText(/error.description/);
+  expect(screen.queryByText(/The period has not ended/)).not.toBeInTheDocument();
   expect(screen.queryByText('Approval List')).not.toBeInTheDocument();
   expect(approveBatchRequisitions).toHaveBeenCalledOnce();
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  for (const record of records) {
+    expect(screen.getByText(`${record.facilityName} - ${record.periodName}`)).toBeVisible();
+  }
+});
+it('asks for another review when refreshing access finds a changed batch', async () => {
+  vi.spyOn(requisitionAccess, 'freshRequisitionAccess').mockResolvedValue({
+    permissions: { rights: new Set(), grants: [] },
+    user: {
+      id: 'approver',
+      username: 'approver',
+      firstName: 'Batch',
+      lastName: 'Approver',
+      active: true,
+      roleAssignments: [],
+    },
+    roles: [],
+  });
+  vi.spyOn(copies, 'readCopy').mockResolvedValue(undefined);
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  act(() => useLoginData.setState({ accessToken: 'renewed' }));
+  vi.mocked(fetchBatchRequisitions).mockResolvedValueOnce({
+    requisitionDtos: [{ ...records[0], modifiedDate: '2017-02-27T03:50:31Z' }, records[1]],
+  });
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  expect(await screen.findByText(en['requisitions.batch.review-refreshed'])).toBeVisible();
+  expect(saveBatchRequisitions).not.toHaveBeenCalled();
+  expect(approveBatchRequisitions).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
+  for (const record of records) {
+    expect(screen.getByText(`${record.facilityName} - ${record.periodName}`)).toBeVisible();
+  }
 });
 it('Sync sends an empty cell as zero and holds back a record above the Java limit', async () => {
   renderRoute();
@@ -537,13 +581,14 @@ it('refreshes after a failed Sync and names only affected records for review', a
   await waitFor(() => expect(inputs[0]).toBeEnabled());
   await userEvent.type(inputs[1], '2147483648');
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
-  await screen.findByText('Lost save');
+  await screen.findByText('error.description');
+  expect(screen.queryByText('Lost save')).not.toBeInTheDocument();
   expect(screen.getAllByRole('textbox', { hidden: true })[0]).toHaveAccessibleName(
     /Refreshed facility/,
   );
   await userEvent.click(screen.getByRole('button', { name: 'dialog.close' }));
   await userEvent.click(screen.getByRole('button', { name: 'requisitions.batch.sync' }));
-  await screen.findAllByText(/requisitions.batch.review-refreshed/);
+  await screen.findAllByText((text) => text.includes(en['requisitions.batch.review-refreshed']));
   const description = screen.getByRole('alertdialog').textContent ?? '';
   expect(description).toContain(records[0].periodName);
   expect(description).not.toContain(records[1].periodName);
@@ -1112,7 +1157,9 @@ it('accepts an old saved approval flag after fresh access and membership checks'
   await waitFor(() => expect(sync).toBeEnabled());
   await userEvent.click(sync);
   await waitFor(() => expect(saveBatchRequisitions).toHaveBeenCalledOnce());
-  expect(screen.queryByText('requisitions.batch.review-refreshed')).not.toBeInTheDocument();
+  expect(
+    screen.queryByText((text) => text.includes(en['requisitions.batch.review-refreshed'])),
+  ).not.toBeInTheDocument();
   queryClient.clear();
 });
 
@@ -1183,6 +1230,26 @@ it('does not offer Update for a draft no longer awaiting approval', async () => 
   expect(
     screen.queryByRole('button', { name: 'requisitions.edit.update' }),
   ).not.toBeInTheDocument();
+  queryClient.clear();
+});
+
+it('shows synchronization guidance when pending device edits cannot flush', async () => {
+  const hooks = await import('@/features/requisitions/hooks/use-batch-drafts');
+  const useDrafts = hooks.useBatchDrafts;
+  const error = new Error('Local write failed');
+  const flush = vi.fn().mockRejectedValue(error);
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(hooks, 'useBatchDrafts').mockImplementation((records) => ({
+    ...useDrafts(records),
+    flush,
+  }));
+  const { queryClient } = renderRoute();
+  const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
+  await waitFor(() => expect(sync).toBeEnabled());
+  await userEvent.click(sync);
+  expect(await screen.findByText('requisitions.batch.save-failed')).toBeVisible();
+  expect(log).toHaveBeenCalledExactlyOnceWith(error);
+  expect(saveBatchRequisitions).not.toHaveBeenCalled();
   queryClient.clear();
 });
 
@@ -1304,7 +1371,10 @@ it('retrieves a trusted list opening before starting its offline membership scan
 
 it('settles a timed out membership read and allows retry without technical text', async () => {
   vi.mocked(fetchApprovalList).mockRejectedValueOnce(
-    new AxiosError('timeout of 60000ms exceeded', 'ECONNABORTED'),
+    new AxiosError('timeout of 60000ms exceeded', 'ECONNABORTED', {
+      method: 'put',
+      headers: new AxiosHeaders(),
+    }),
   );
   const { queryClient } = renderRoute();
   await screen.findByText('requisitions.batch.verification-failed');
@@ -1360,20 +1430,23 @@ it('translates a Sync timeout again when the page language changes', async () =>
   labels.addResource(
     'fr',
     'translation',
-    'requisitions.batch.verification-failed',
-    'Vérification impossible',
+    'api-error.timeout-write',
+    'Le serveur n’a pas répondu à temps.',
   );
   vi.mocked(saveBatchRequisitions).mockRejectedValueOnce(
-    new AxiosError('timeout of 60000ms exceeded', 'ECONNABORTED'),
+    new AxiosError('timeout of 60000ms exceeded', 'ECONNABORTED', {
+      method: 'put',
+      headers: new AxiosHeaders(),
+    }),
   );
   const { queryClient } = renderRoute();
   const sync = await screen.findByRole('button', { name: 'requisitions.batch.sync' });
   await waitFor(() => expect(sync).toBeEnabled());
   await userEvent.click(sync);
-  await screen.findByText('requisitions.batch.verification-failed');
+  await screen.findByText('api-error.timeout-write');
   try {
     await act(() => labels.changeLanguage('fr'));
-    expect(screen.getByText('Vérification impossible')).toBeVisible();
+    expect(screen.getByText('Le serveur n’a pas répondu à temps.')).toBeVisible();
   } finally {
     await act(() => labels.changeLanguage('en'));
     queryClient.clear();
@@ -1426,6 +1499,22 @@ it('starts retrieving the batch while device copy leases are pending', async () 
     await loaded;
     client.clear();
   }
+});
+
+it('shows a read timeout when approval membership verification fails', async () => {
+  for (const record of records) Reflect.deleteProperty(record, 'modifiedDate');
+  vi.mocked(fetchBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
+  vi.mocked(saveBatchRequisitions).mockResolvedValue({ requisitionDtos: records });
+  renderRoute();
+  const approve = await screen.findByRole('button', { name: 'requisitions.batch.approve' });
+  await waitFor(() => expect(approve).toBeEnabled());
+  vi.mocked(fetchApprovalList).mockRejectedValueOnce(
+    new AxiosError('Timeout', 'ETIMEDOUT', { method: 'get', headers: new AxiosHeaders() }),
+  );
+  await userEvent.click(approve);
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.batch.confirm' }));
+  expect(await screen.findByText('api-error.timeout-read')).toBeVisible();
+  expect(approveBatchRequisitions).not.toHaveBeenCalled();
 });
 
 it('retains membership verification when a record lacks timestamp protection', async () => {

@@ -27,7 +27,7 @@ import { QueryBoundary } from '@/components/app-shell/query-boundary';
 import { DataTableEmpty, DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableSearch } from '@/components/data-table/data-table-search';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { DraftStatus } from '@/components/display/draft-status';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
@@ -138,12 +138,14 @@ import { useFitColumnVisibility } from '@/hooks/use-fit-column-visibility';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
+import { apiErrorText, isApiTimeout, isSilentApiError } from '@/lib/api-error';
 import { useFlag } from '@/lib/feature-flags';
 import type { Gs1Result } from '@/lib/gs1/parse-gs1';
 import { isOfflineError, isRefused } from '@/lib/http';
 import { formatIsolatedList } from '@/lib/isolate-values';
 import type { DeviceSnapshot } from '@/lib/local-data';
 import { useOnline } from '@/lib/online';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import {
   acknowledgeScanExpiry,
@@ -587,12 +589,13 @@ export function EventEditor({
       await validateAndSubmit();
     } catch (error) {
       if (!mutation.isCurrent()) return;
-      setFailure({
-        title: config.copy.submitErrorTitle,
-        description: isOfflineError(error)
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
+      const description =
+        !isApiTimeout(error) && isOfflineError(error)
           ? t(config.contents.copy.refreshOffline)
-          : (serverMessage(error) ?? t(config.copy.submitErrorDescription)),
-      });
+          : apiErrorText(error, 'error.description', t, { write: false });
+      if (description !== null) setFailure({ title: config.copy.submitErrorTitle, description });
     } finally {
       setRefreshing(false);
     }

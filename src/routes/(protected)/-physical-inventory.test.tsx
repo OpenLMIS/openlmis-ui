@@ -34,10 +34,12 @@ import {
 import { deploymentTimeZoneOptions } from '@/features/reference-data/api/queries';
 import type { Facility } from '@/features/reference-data/lib/types';
 import {
+  createPhysicalInventoryLot,
   fetchEligibleInventoryProducts,
   fetchInventoryStockLines,
   fetchInventorySummaries,
   fetchPhysicalInventoryDraft,
+  savePhysicalInventory,
   startPhysicalInventory,
 } from '@/features/stock-events/api/physical-inventory-api';
 import {
@@ -49,6 +51,7 @@ import {
   inventoryLocalCopy,
 } from '@/features/stock-events/lib/physical-inventory-lines';
 import { inventoryReference } from '@/features/stock-events/lib/physical-inventory-local';
+import type { InventoryStockLine } from '@/features/stock-events/lib/physical-inventory-types';
 import { getLocalDb, LOCAL_TABLES } from '@/integrations/local-db';
 import { Route as ProtectedRoute } from '@/routes/(protected)/_protected';
 import { Route as PickerRoute } from '@/routes/(protected)/_protected.stock-management.physical-inventory';
@@ -79,10 +82,12 @@ vi.mock('@/features/reference-data/api/api', () => ({
 
 vi.mock('@/features/stock-events/api/physical-inventory-api', async (original) => ({
   ...(await original<typeof import('@/features/stock-events/api/physical-inventory-api')>()),
+  createPhysicalInventoryLot: vi.fn(),
   fetchInventoryStockLines: vi.fn(),
   fetchInventorySummaries: vi.fn().mockResolvedValue([]),
   fetchEligibleInventoryProducts: vi.fn(),
   fetchPhysicalInventoryDraft: vi.fn(),
+  savePhysicalInventory: vi.fn(),
   startPhysicalInventory: vi.fn(),
 }));
 
@@ -657,7 +662,7 @@ async function seedDeviceEditor(formatVersion = 1) {
     userId: USER,
     home: homeFacility,
     programs,
-    rights: [...grants, `STOCK_CARDS_VIEW|${HOME}|${FP}`],
+    rights: [...grants, `STOCK_CARDS_VIEW|${HOME}|${FP}`, 'LOTS_MANAGE'],
   });
   await getLocalDb().table(LOCAL_TABLES.offlineAccess).put(access);
   await getLocalDb().table(LOCAL_TABLES.physicalInventoryDrafts).clear();
@@ -668,6 +673,7 @@ async function seedDeviceEditor(formatVersion = 1) {
         productCode: 'P',
         fullProductName: 'Stored Product',
         description: null,
+        identifiers: { tradeItem: 'trade' },
       },
       lot: null,
       stockOnHand: 5,
@@ -721,6 +727,147 @@ it('opens unmodified device lines offline and keeps their counts and source on r
   expect(fetchEligibleInventoryProducts).not.toHaveBeenCalled();
   expect(fetchValidReasons).not.toHaveBeenCalled();
 });
+
+it.each(['succeeds', 'times out'])(
+  'keeps page-only counts after a duplicate lot in an offline-opened draft when the picker refresh %s',
+  async (outcome) => {
+    const copy = await seedDeviceEditor();
+    const local = await import('@/features/stock-events/lib/physical-inventory-local');
+    const reference = await local.requireInventoryReference(copy);
+    vi.spyOn(local, 'writeInventoryLocal').mockRejectedValue(new Error('Device write failed'));
+    vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValue({
+      id: copy.draftId,
+      facilityId: HOME,
+      programId: FP,
+      lineItems: [],
+    });
+    vi.mocked(createPhysicalInventoryLot).mockRejectedValueOnce(
+      new AxiosError('Duplicate lot', undefined, undefined, undefined, {
+        status: 400,
+        data: { messageKey: 'referenceData.error.lot.lotCode.mustBeUnique' },
+      } as never),
+    );
+    const refresh = Promise.withResolvers<InventoryStockLine[]>();
+    const refreshedProducts = [
+      ...reference.eligible,
+      {
+        ...reference.eligible[0],
+        lot: { id: 'lot', lotCode: 'New Batch', expirationDate: null, tradeItemId: 'trade' },
+        stockOnHand: null,
+        stockCardId: null,
+      },
+      {
+        ...reference.eligible[0],
+        orderable: {
+          id: 'new-product',
+          productCode: 'NEW',
+          fullProductName: 'Newly Eligible Product',
+          description: null,
+        },
+      },
+    ];
+    vi.mocked(fetchEligibleInventoryProducts)
+      .mockReset()
+      .mockResolvedValueOnce(reference.eligible)
+      .mockReturnValueOnce(refresh.promise);
+    onlineManager.setOnline(false);
+    const user = userEvent.setup();
+    renderRoute(`${PICKER}/${FP}`, (client) =>
+      client.setQueryData(deploymentTimeZoneOptions().queryKey, { zone: 'UTC', read: true }),
+    );
+    const count = await screen.findByRole('textbox', { name: 'stock-events.field-of' });
+    await user.clear(count);
+    await user.type(count, '12');
+    expect(fetchEligibleInventoryProducts).not.toHaveBeenCalled();
+    act(() => onlineManager.setOnline(true));
+
+    const openAddProducts = async () => {
+      await user.click(screen.getByRole('button', { name: 'physical-inventory.add-product' }));
+      return screen.findByRole('dialog', { name: 'physical-inventory.add-products-title' });
+    };
+    const add = await openAddProducts();
+    await user.type(
+      within(add).getByRole('textbox', { name: 'physical-inventory.new-lot-code' }),
+      'New Batch',
+    );
+    await user.click(within(add).getByRole('button', { name: 'stock-events.add' }));
+    await user.type(within(add).getByRole('textbox', { name: 'stock-events.field-of' }), '3');
+    await user.click(within(add).getByRole('button', { name: 'physical-inventory.add-items' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    const save = screen.getByRole('button', { name: 'physical-inventory.save' });
+    const submit = screen.getByRole('button', { name: 'stock-events.submit' });
+    await user.click(save);
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+    );
+    const alert = await screen.findByRole('alertdialog');
+    expect(alert).toHaveTextContent('physical-inventory.lot-duplicate-error');
+    await user.click(within(alert).getByRole('button', { name: 'dialog.close' }));
+
+    await waitFor(() => expect(fetchEligibleInventoryProducts).toHaveBeenCalledTimes(2));
+    expect(save).toBeEnabled();
+    expect(submit).toBeEnabled();
+    await act(async () => {
+      if (outcome === 'succeeds') refresh.resolve(refreshedProducts);
+      else refresh.reject(new AxiosError('Picker timed out', AxiosError.ECONNABORTED));
+    });
+
+    expect(screen.getAllByRole('textbox', { name: 'stock-events.field-of' })[0]).toBe(count);
+    expect(count).toHaveValue('12');
+    expect(screen.getAllByRole('textbox', { name: 'stock-events.field-of' })[1]).toHaveValue('3');
+    expect(save).toBeEnabled();
+    expect(submit).toBeEnabled();
+    expect(savePhysicalInventory).not.toHaveBeenCalled();
+    expect(await local.readInventoryLocal(copy.draftId)).toEqual(copy);
+    expect(await local.requireInventoryReference(copy)).toEqual(reference);
+
+    if (outcome === 'succeeds') {
+      const pendingLot = screen.getByRole('row', { name: /New Batch/ });
+      await user.click(
+        within(pendingLot).getAllByRole('button', { name: 'stock-events.field-of' })[1],
+      );
+    }
+    const picker = await openAddProducts();
+    await user.click(within(picker).getByRole('combobox', { name: 'stock-events.product' }));
+    const storedProduct = await screen.findByRole('option', { name: 'Stored Product' });
+    expect(
+      screen.queryByRole('option', { name: 'Newly Eligible Product' }),
+    ).not.toBeInTheDocument();
+    await user.click(storedProduct);
+    await user.click(within(picker).getByRole('combobox', { name: 'stock-events.lot-code' }));
+    expect(
+      screen.getByRole('option', { name: 'physical-inventory.add-new-lot' }),
+    ).toBeInTheDocument();
+    if (outcome === 'times out') {
+      expect(screen.queryByRole('option', { name: 'New Batch' })).not.toBeInTheDocument();
+      return;
+    }
+
+    await user.click(screen.getByRole('option', { name: 'New Batch' }));
+    await user.click(within(picker).getByRole('button', { name: 'stock-events.add' }));
+    await user.type(within(picker).getByRole('textbox', { name: 'stock-events.field-of' }), '4');
+    await user.click(within(picker).getByRole('button', { name: 'physical-inventory.add-items' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByDisplayValue('4')).toBeInTheDocument();
+
+    vi.mocked(fetchEligibleInventoryProducts).mockResolvedValue(refreshedProducts);
+    await user.click(save);
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+    );
+    await waitFor(() =>
+      expect(savePhysicalInventory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lineItems: expect.arrayContaining([
+            expect.objectContaining({ orderableId: 'p', lotId: 'lot', quantity: 4 }),
+          ]),
+        }),
+      ),
+    );
+  },
+);
+
 it.each(['absent', 'older format'])(
   'explains an %s copy inside the editor and reloads it on reconnect',
   async (kind) => {

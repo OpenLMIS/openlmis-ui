@@ -115,13 +115,14 @@ import { usePageStart } from '@/hooks/use-page-start';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { useStoredState } from '@/hooks/use-stored-state';
+import { apiErrorText, isApiTimeout, isSilentApiError, isWriteApiTimeout } from '@/lib/api-error';
 import { deviceDraftLeaveCopy } from '@/lib/device-draft-leave-copy';
 import { useFlag } from '@/lib/feature-flags';
 import { isOfflineError, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
-import { reportCaughtError } from '@/lib/report-error';
+import { reportApiError, reportCaughtError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, useTableSearchState } from '@/lib/table-search';
 
@@ -359,6 +360,7 @@ function InventoryDraftRows({
   const noticeOnline = useSnapshotNotice(true, false);
   const [wasOffline, setWasOffline] = useState(!online);
   if (!online && !wasOffline) setWasOffline(true);
+  const [refreshedPickerProducts, setRefreshedPickerProducts] = useState<InventoryStockLine[]>();
   const eligible = useQuery(
     deviceCopy
       ? inventoryDeviceOptions(deviceCopy).eligible
@@ -575,14 +577,18 @@ function InventoryDraftRows({
         description: t('physical-inventory.deactivated-description'),
       });
     },
-    onError: (error) =>
-      toast.error(t('physical-inventory.deactivate-error-title'), {
-        description: t(
-          isOfflineError(error)
-            ? 'offline.action-description'
-            : 'physical-inventory.deactivate-error-description',
-        ),
-      }),
+    onError: (error) => {
+      if (isSilentApiError(error)) return;
+      reportApiError(error);
+      const description =
+        (modified || dirty) && status === 'failed' && isWriteApiTimeout(error)
+          ? t('physical-inventory.action-timeout-keep-open')
+          : isOfflineError(error) && !isApiTimeout(error)
+            ? t('offline.action-description')
+            : apiErrorText(error, 'error.description', t);
+      if (description !== null)
+        toast.error(t('physical-inventory.deactivate-error-title'), { description });
+    },
   });
   const guard = useDiscardGuard(
     !submitted &&
@@ -595,8 +601,7 @@ function InventoryDraftRows({
       flushBeforeLeave: async () => {
         if (!modified && !form.state.isDirty) return true;
         try {
-          await autosave.flush();
-          return true;
+          return await autosave.flush();
         } catch {
           return false;
         }
@@ -902,6 +907,12 @@ function InventoryDraftRows({
         clearLocal={autosave.clear}
         onBusy={setBusy}
         onOrphaned={onOrphaned}
+        onDevicePickerProducts={
+          deviceCopy
+            ? (products) =>
+                setRefreshedPickerProducts(eligibleInventoryLines(products, eligible.data ?? []))
+            : undefined
+        }
         onLots={(next) =>
           form.setFieldValue('lines', Object.fromEntries(next.map((line) => [line.key, line])))
         }
@@ -955,7 +966,7 @@ function InventoryDraftRows({
       />
       {addOpen && (
         <InventoryAddProductsDialog
-          eligible={eligible.data}
+          eligible={refreshedPickerProducts ?? eligible.data}
           error={eligible.error}
           onRetry={() => {
             void eligible.refetch();

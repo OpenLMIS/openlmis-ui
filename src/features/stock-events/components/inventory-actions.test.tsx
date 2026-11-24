@@ -6,10 +6,14 @@ import {
 } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosHeaders } from 'axios';
+import { createInstance } from 'i18next';
+import ICU from 'i18next-icu';
 import type { ComponentProps } from 'react';
+import { I18nextProvider } from 'react-i18next';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
+import en from '@/../public/locales/en.json';
 import { quantityValue } from '@/components/form/quantity-value';
 import { WorkspaceSlots } from '@/components/workspace/workspace-tabs';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -35,6 +39,7 @@ import {
 } from '@/features/stock-events/lib/physical-inventory-local';
 import { addedInventoryLine } from '@/features/stock-events/lib/physical-inventory-products';
 import { DraftConflictError } from '@/lib/draft-store';
+import { httpError } from '@/test-utils/http-error';
 
 vi.mock('@/features/stock-events/api/physical-inventory-api', () => ({
   savePhysicalInventory: vi.fn(),
@@ -72,12 +77,15 @@ beforeEach(() => {
     .setLoginData({ referenceDataUserId: 'user', username: 'user', accessToken: 'token' });
   vi.mocked(readInventoryLocal).mockResolvedValue(undefined);
   vi.mocked(clearInventoryLocal).mockResolvedValue(undefined);
-  vi.mocked(writeInventoryLocal).mockResolvedValue(undefined);
+  vi.mocked(writeInventoryLocal).mockImplementation(async (copy) => copy);
   vi.mocked(savePhysicalInventory).mockResolvedValue(undefined);
   vi.mocked(deletePhysicalInventory).mockResolvedValue(undefined);
   vi.mocked(submitPhysicalInventory).mockResolvedValue(undefined);
 });
-function setup(overrides: Partial<ComponentProps<typeof InventoryActions>> = {}) {
+function setup(
+  overrides: Partial<ComponentProps<typeof InventoryActions>> = {},
+  i18n?: ReturnType<typeof createInstance>,
+) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: Infinity },
@@ -88,7 +96,7 @@ function setup(overrides: Partial<ComponentProps<typeof InventoryActions>> = {})
   const fetch = vi.spyOn(client, 'fetchQuery');
   const onSaved = vi.fn();
   const onDeleted = vi.fn();
-  render(
+  const actions = (
     <QueryClientProvider client={client}>
       <WorkspaceSlots>
         <InventoryActions
@@ -102,9 +110,9 @@ function setup(overrides: Partial<ComponentProps<typeof InventoryActions>> = {})
           username="user"
           showInDoses
           disabled={false}
-          flush={vi.fn()}
+          flush={vi.fn().mockResolvedValue(true)}
           clearLocal={clearInventoryLocal}
-          writeLocal={writeInventoryLocal}
+          writeLocal={async (copy) => Boolean(await writeInventoryLocal(copy))}
           onBusy={vi.fn()}
           onLots={vi.fn()}
           onSaved={onSaved}
@@ -115,8 +123,9 @@ function setup(overrides: Partial<ComponentProps<typeof InventoryActions>> = {})
           {...overrides}
         />
       </WorkspaceSlots>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  render(i18n ? <I18nextProvider i18n={i18n}>{actions}</I18nextProvider> : actions);
   return { fetch, onSaved, onDeleted, client };
 }
 it('checks the server once for Save and caches the accepted draft without another GET', async () => {
@@ -144,16 +153,19 @@ function confirmationDialog(action: 'save' | 'delete' | 'submit') {
   return screen.getByRole('dialog', { name });
 }
 
-async function confirmAction(action: 'save' | 'delete' | 'submit') {
+async function confirmAction(
+  action: 'save' | 'delete' | 'submit',
+  actionLabel = `physical-inventory.${action}`,
+) {
   const user = userEvent.setup();
   await user.click(
     screen.getByRole('button', {
-      name: action === 'submit' ? 'stock-events.submit' : `physical-inventory.${action}`,
+      name: action === 'submit' ? 'stock-events.submit' : actionLabel,
     }),
   );
   await user.click(
     within(confirmationDialog(action)).getByRole('button', {
-      name: action === 'submit' ? 'stock-events.confirm' : `physical-inventory.${action}`,
+      name: action === 'submit' ? 'stock-events.confirm' : actionLabel,
     }),
   );
 }
@@ -181,6 +193,7 @@ it.each(['delete', 'submit'] as const)(
 );
 it('uses inventory wording for an unknown submit outcome and prevents a retry', async () => {
   const user = userEvent.setup();
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.mocked(submitPhysicalInventory).mockRejectedValue(new AxiosError('Network'));
   setup();
   await user.click(screen.getByRole('button', { name: 'stock-events.submit' }));
@@ -189,6 +202,7 @@ it('uses inventory wording for an unknown submit outcome and prevents a retry', 
   );
   const alert = await screen.findByRole('alertdialog');
   expect(alert).toHaveTextContent('physical-inventory.unknown-outcome-description');
+  expect(log).not.toHaveBeenCalled();
   await user.click(within(alert).getByRole('button', { name: 'dialog.close' }));
   expect(screen.getByRole('button', { name: 'stock-events.submit' })).toBeDisabled();
   await waitFor(() =>
@@ -295,38 +309,319 @@ it('opens an inactive Submit alert and returns focus to Submit after Close', asy
   expect(onInvalid).not.toHaveBeenCalled();
   expect(toast.error).not.toHaveBeenCalled();
 });
-it.each(['save', 'delete', 'submit'] as const)(
-  'opens an alert for a %s server failure',
-  async (action) => {
+it.each([
+  ['save', 'physical-inventory.save-error-description'],
+  ['save', 'physical-inventory.save-error-keep-open'],
+  ['delete', 'error.description'],
+  ['submit', 'error.description'],
+] as const)('opens an alert for a %s server failure', async (type, description) => {
+  const user = userEvent.setup();
+  const request =
+    type === 'save'
+      ? savePhysicalInventory
+      : type === 'delete'
+        ? deletePhysicalInventory
+        : submitPhysicalInventory;
+  vi.mocked(request).mockRejectedValueOnce(new Error('Failed'));
+  setup(
+    description === 'physical-inventory.save-error-keep-open'
+      ? { flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')) }
+      : {},
+  );
+  await user.click(
+    screen.getByRole('button', {
+      name: type === 'submit' ? 'stock-events.submit' : `physical-inventory.${type}`,
+    }),
+  );
+  await user.click(
+    within(confirmationDialog(type)).getByRole('button', {
+      name: type === 'submit' ? 'stock-events.confirm' : `physical-inventory.${type}`,
+    }),
+  );
+  const alert = await screen.findByRole('alertdialog');
+  expect(alert).toHaveTextContent(description);
+  expect(toast.error).not.toHaveBeenCalled();
+  await user.click(within(alert).getByRole('button', { name: 'dialog.close' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toHaveFocus(),
+  );
+});
+
+it.each([
+  ['get', false, fetchPhysicalInventoryDraft, 'physical-inventory.save-error-keep-open'],
+  ['put', false, savePhysicalInventory, 'physical-inventory.save-timeout-keep-open'],
+  ['get', true, fetchPhysicalInventoryDraft, 'api-error.timeout-read'],
+  ['put', true, savePhysicalInventory, 'api-error.timeout-write'],
+] as const)(
+  'describes a %s timeout after a local flush (succeeded: %s)',
+  async (method, flushed, request, description) => {
     const user = userEvent.setup();
-    const type = action;
-    const request =
-      type === 'save'
-        ? savePhysicalInventory
-        : type === 'delete'
-          ? deletePhysicalInventory
-          : submitPhysicalInventory;
-    vi.mocked(request).mockRejectedValueOnce(new Error('Failed'));
-    setup();
-    await user.click(
-      screen.getByRole('button', {
-        name: type === 'submit' ? 'stock-events.submit' : `physical-inventory.${type}`,
-      }),
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(request).mockRejectedValueOnce(
+      new AxiosError('Timed out', AxiosError.ECONNABORTED, { method, headers: new AxiosHeaders() }),
     );
+    setup(flushed ? {} : { flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')) });
+
+    await user.click(screen.getByRole('button', { name: 'physical-inventory.save' }));
     await user.click(
-      within(confirmationDialog(type)).getByRole('button', {
-        name: type === 'submit' ? 'stock-events.confirm' : `physical-inventory.${type}`,
-      }),
+      within(confirmationDialog('save')).getByRole('button', { name: 'physical-inventory.save' }),
     );
+
     const alert = await screen.findByRole('alertdialog');
-    expect(alert).toHaveTextContent(`physical-inventory.${type}-error-description`);
-    expect(toast.error).not.toHaveBeenCalled();
-    await user.click(within(alert).getByRole('button', { name: 'dialog.close' }));
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'stock-events.submit' })).toHaveFocus(),
-    );
+    expect(alert).toHaveTextContent(description);
   },
 );
+
+it('keeps the page open after a Delete timeout when the device flush failed', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.mocked(deletePhysicalInventory).mockRejectedValueOnce(
+    new AxiosError('Timed out', AxiosError.ECONNABORTED, {
+      method: 'delete',
+      headers: new AxiosHeaders(),
+    }),
+  );
+  const { onDeleted } = setup({
+    flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')),
+  });
+
+  await confirmAction('delete');
+
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'physical-inventory.action-timeout-keep-open',
+  );
+  expect(onDeleted).not.toHaveBeenCalled();
+});
+
+async function englishTranslations() {
+  const i18n = createInstance().use(ICU);
+  await i18n.init({
+    lng: 'en',
+    keySeparator: false,
+    nsSeparator: false,
+    resources: { en: { translation: en } },
+  });
+  return i18n;
+}
+
+it.each([
+  [
+    'duplicate lot',
+    createPhysicalInventoryLot,
+    httpError(400, { messageKey: 'referenceData.error.lot.lotCode.mustBeUnique' }),
+    'Lot code must be unique: NEW.',
+  ],
+  [
+    'lot write timeout',
+    createPhysicalInventoryLot,
+    new AxiosError('Timed out', AxiosError.ECONNABORTED, {
+      method: 'post',
+      headers: new AxiosHeaders(),
+    }),
+    'Could not create lots: NEW. The server did not answer in time, so the lot may have been created. Keep this page open and try again. If the lot code is then reported as already used, pick that lot from the list instead of adding it.',
+  ],
+  [
+    'unkeyed lot failure',
+    createPhysicalInventoryLot,
+    httpError(500, { message: 'Internal error' }),
+    'Could not create lots: NEW. Keep this page open and try saving again.',
+  ],
+  [
+    'keyed lot refusal',
+    createPhysicalInventoryLot,
+    httpError(400, { messageKey: 'lot.refused', message: 'This trade item is inactive.' }),
+    'Could not create lots: NEW. This trade item is inactive. Your latest counts are only on this page, so keep it open.',
+  ],
+  [
+    'submitted inventory',
+    savePhysicalInventory,
+    httpError(400, { messageKey: 'stockmanagement.error.physicalInventory.isSubmitted' }),
+    'This physical inventory has already been submitted and cannot be changed. Your latest counts are only on this page, so keep it open.',
+  ],
+  [
+    'untranslated inventory refusal',
+    savePhysicalInventory,
+    httpError(400, { messageKey: 'inventory.refused', message: 'The server refused the counts' }),
+    'The server refused the counts. Your latest counts are only on this page, so keep it open.',
+  ],
+] as const)(
+  'shows safe Save feedback after a failed device flush (%s)',
+  async (_, request, error, description) => {
+    const i18n = await englishTranslations();
+    vi.mocked(request).mockRejectedValueOnce(error);
+    const pending =
+      request === createPhysicalInventoryLot
+        ? [
+            addedInventoryLine(stock, quantityValue('0'), {
+              clientId: 'new',
+              lotCode: 'NEW',
+              expirationDate: null,
+              tradeItemId: 'trade',
+            }),
+          ]
+        : lines;
+    setup(
+      {
+        displayed: pending,
+        getLines: () => pending,
+        flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')),
+      },
+      i18n,
+    );
+
+    await confirmAction('save', en['physical-inventory.save']);
+
+    const alert = await screen.findByRole('alertdialog');
+    expect(alert).toHaveTextContent(description);
+    expect(alert).not.toHaveTextContent(en['api-error.timeout-write']);
+    expect(alert).not.toHaveTextContent(en['physical-inventory.save-error-description']);
+  },
+);
+
+it('uses normal Save feedback once a later device write preserves the counts', async () => {
+  const pending = [
+    addedInventoryLine(stock, quantityValue('7'), {
+      clientId: 'new',
+      lotCode: 'NEW',
+      expirationDate: null,
+      tradeItemId: 'trade',
+    }),
+  ];
+  vi.mocked(createPhysicalInventoryLot).mockResolvedValueOnce({
+    id: 'created',
+    lotCode: 'NEW',
+    expirationDate: null,
+  });
+  vi.mocked(savePhysicalInventory).mockRejectedValueOnce(
+    httpError(400, { messageKey: 'stockmanagement.error.physicalInventory.isSubmitted' }),
+  );
+  setup(
+    {
+      displayed: pending,
+      getLines: () => pending,
+      flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')),
+    },
+    await englishTranslations(),
+  );
+
+  await confirmAction('save', en['physical-inventory.save']);
+
+  const alert = await screen.findByRole('alertdialog');
+  expect(alert).toHaveAccessibleDescription(
+    en['api-error.stockmanagement.error.physicalInventory.isSubmitted'],
+  );
+  expect(writeInventoryLocal).toHaveBeenCalledWith(
+    expect.objectContaining({
+      lines: [expect.objectContaining({ key: 'p|created', quantity: quantityValue('7') })],
+    }),
+  );
+});
+
+it('keeps the page open when a post-lot device write was skipped and the draft save failed', async () => {
+  const pending = addedInventoryLine(stock, quantityValue('7'), {
+    clientId: 'new',
+    lotCode: 'NEW',
+    expirationDate: null,
+    tradeItemId: 'trade',
+  });
+  vi.mocked(createPhysicalInventoryLot).mockResolvedValueOnce({
+    id: 'created',
+    lotCode: 'NEW',
+    expirationDate: null,
+  });
+  vi.mocked(savePhysicalInventory).mockRejectedValueOnce(httpError(500, {}));
+  const writeLocal = vi.fn().mockResolvedValue(false);
+  setup(
+    {
+      getLines: () => [pending],
+      flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')),
+      writeLocal,
+    },
+    await englishTranslations(),
+  );
+
+  await confirmAction('save', en['physical-inventory.save']);
+
+  const alert = await screen.findByRole('alertdialog');
+  expect(writeLocal).toHaveBeenCalledOnce();
+  expect(savePhysicalInventory).toHaveBeenCalledOnce();
+  expect(alert).toHaveAccessibleDescription(en['physical-inventory.save-error-keep-open']);
+  expect(alert).not.toHaveTextContent(en['physical-inventory.save-error-description']);
+});
+
+it('explains how to retry a lot POST timeout after a successful device flush', async () => {
+  const pending = addedInventoryLine(stock, quantityValue('7'), {
+    clientId: 'new',
+    lotCode: 'NEW',
+    expirationDate: null,
+    tradeItemId: 'trade',
+  });
+  vi.mocked(createPhysicalInventoryLot).mockRejectedValueOnce(
+    new AxiosError('Timed out', AxiosError.ECONNABORTED, {
+      method: 'post',
+      headers: new AxiosHeaders(),
+    }),
+  );
+  setup({ getLines: () => [pending] }, await englishTranslations());
+
+  await confirmAction('save', en['physical-inventory.save']);
+
+  const alert = await screen.findByRole('alertdialog');
+  expect(alert).toHaveAccessibleDescription(
+    'Could not create lots: NEW. The server did not answer in time, so the lot may have been created. Try again. If the lot code is then reported as already used, pick that lot from the list instead of adding it.',
+  );
+  expect(savePhysicalInventory).not.toHaveBeenCalled();
+});
+
+it('asks users to keep the page open after a lot POST timeout on Submit without a device write', async () => {
+  const pending = addedInventoryLine(stock, quantityValue('0'), {
+    clientId: 'new',
+    lotCode: 'NEW',
+    expirationDate: null,
+    tradeItemId: 'trade',
+  });
+  vi.mocked(createPhysicalInventoryLot).mockRejectedValueOnce(
+    new AxiosError('Timed out', AxiosError.ECONNABORTED, {
+      method: 'post',
+      headers: new AxiosHeaders(),
+    }),
+  );
+  setup(
+    { displayed: [pending], getLines: () => [pending], flush: vi.fn().mockResolvedValue(false) },
+    await englishTranslations(),
+  );
+
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: en['stock-events.submit'] }));
+  const dialog = screen.getByRole('dialog', { name: en['physical-inventory.occurred-title'] });
+  await user.click(within(dialog).getByRole('button', { name: en['stock-events.confirm'] }));
+
+  const alert = await screen.findByRole('alertdialog');
+  expect(alert).toHaveAccessibleDescription(
+    `Could not create lots: NEW. ${en['physical-inventory.lot-timeout-keep-open']}`,
+  );
+  expect(submitPhysicalInventory).not.toHaveBeenCalled();
+});
+
+it('explains an orphaned draft after a failed device flush with its earlier device counts', async () => {
+  vi.mocked(fetchPhysicalInventoryDraft).mockResolvedValueOnce(null);
+  vi.mocked(readInventoryLocal).mockResolvedValueOnce(undefined).mockResolvedValueOnce({
+    draftId: 'd',
+    facilityId: 'f',
+    programId: 'p',
+    lines,
+    modified: true,
+    orphaned: true,
+    savedAt: 1,
+  });
+  setup({ flush: vi.fn().mockRejectedValueOnce(new Error('Quota exceeded')) });
+
+  await confirmAction('save');
+
+  const alert = await screen.findByRole('alertdialog');
+  expect(alert).toHaveTextContent('physical-inventory.orphaned-action');
+  expect(alert).not.toHaveTextContent('physical-inventory.save-error-keep-open');
+  expect(savePhysicalInventory).not.toHaveBeenCalled();
+});
 
 it('saves with created lot ids even when their device write fails', async () => {
   const user = userEvent.setup();
@@ -370,6 +665,7 @@ it.each([
   ...(['save', 'delete'] as const).map((action) => [action, 'orphaned'] as const),
 ])('keeps counts and stops %s when the device copy is %s', async (action, cause) => {
   const user = userEvent.setup();
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   const flush =
     cause === 'conflicted'
       ? vi.fn().mockRejectedValue(new DraftConflictError(undefined))
@@ -402,6 +698,7 @@ it.each([
   expect(submitPhysicalInventory).not.toHaveBeenCalled();
   expect(clearInventoryLocal).not.toHaveBeenCalled();
   expect(flush).toHaveBeenCalledOnce();
+  expect(log).not.toHaveBeenCalled();
 });
 
 it.each(['save', 'delete', 'submit'] as const)(

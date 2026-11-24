@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  isDuplicateLotCode,
-  lotFormSchema,
-  toLotBody,
-  toLotFormValues,
-} from '@/features/lots/lib/lot-form';
+import { lotFormSchema, toLotBody, toLotFormValues } from '@/features/lots/lib/lot-form';
 import type { Lot } from '@/features/lots/lib/types';
-import { httpError } from '@/test-utils/http-error';
 
 const lot: Lot = {
   id: 'l1',
@@ -58,18 +52,5 @@ describe('toLotBody', () => {
       expirationDate: null,
       manufactureDate: '2017-02-01',
     });
-  });
-});
-
-describe('isDuplicateLotCode', () => {
-  const refusal = (messageKey: string) => httpError(400, { messageKey });
-
-  it('spots the server refusing a code another lot of the product has', () => {
-    expect(isDuplicateLotCode(refusal('referenceData.error.lot.lotCode.mustBeUnique'))).toBe(true);
-  });
-
-  it('ignores any other failure', () => {
-    expect(isDuplicateLotCode(refusal('referenceData.error.lot.lotCode.tooLong'))).toBe(false);
-    expect(isDuplicateLotCode(new Error('offline'))).toBe(false);
   });
 });

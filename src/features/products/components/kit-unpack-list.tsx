@@ -18,7 +18,7 @@ import {
   CardListItem,
   CardRows,
 } from '@/components/display/card-list';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,7 @@ import type { Product, ProductDetail } from '@/features/products/lib/types';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
+import { apiErrorText } from '@/lib/api-error';
 
 const FORM_ID = 'kit-unpack-list-form';
 
@@ -187,7 +188,7 @@ export function KitUnpackList({
         )}
         {save.isError && (
           <ErrorAlert
-            description={serverMessage(save.error) ?? t('products.form.save-error')}
+            description={apiErrorText(save.error, 'error.description', t, { write: true })}
             title={t('products.kit.save-error-title')}
           />
         )}

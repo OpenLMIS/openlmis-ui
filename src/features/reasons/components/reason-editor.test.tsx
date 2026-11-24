@@ -281,7 +281,10 @@ describe('ReasonEditor', () => {
 
   it('names the pairs that failed, keeps the draft, and retries only those on the same reason', async () => {
     vi.mocked(createValidReason).mockRejectedValueOnce(
-      httpError(400, { message: 'Program is no longer active.' }),
+      httpError(400, {
+        messageKey: 'stockmanagement.error.program.inactive',
+        message: 'Program is no longer active.',
+      }),
     );
     const { user, onSaved } = renderEditor();
 
@@ -292,7 +295,7 @@ describe('ReasonEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(await screen.findByText('Some Places Not Saved')).toBeVisible();
-    expect(screen.getByText(/these places are not: EPI, Health Center/)).toBeVisible();
+    expect(screen.getByText(/Assignments for EPI, Health Center are still pending/)).toBeVisible();
     expect(screen.getByText(/Program is no longer active\./)).toBeVisible();
     expect(onSaved).not.toHaveBeenCalled();
     expect(within(pairsTable()).getByText('EPI')).toBeVisible();
@@ -325,7 +328,12 @@ describe('ReasonEditor', () => {
   });
 
   it("shows the server's reason when the reason itself is refused", async () => {
-    vi.mocked(updateReason).mockRejectedValue(httpError(400, { message: 'Tags are invalid.' }));
+    vi.mocked(updateReason).mockRejectedValue(
+      httpError(400, {
+        messageKey: 'stockmanagement.error.reason.tags',
+        message: 'Tags are invalid.',
+      }),
+    );
     const { user } = renderEditor({ reason: damage, pairs: [] });
 
     await user.click(await screen.findByRole('button', { name: 'Save' }));

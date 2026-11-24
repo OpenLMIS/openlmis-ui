@@ -252,7 +252,7 @@ function StockEventActions({
     successTitle: t('stock-event.printed-title'),
     successDescription: t('stock-event.printed'),
     errorTitle: t('stock-event.print-error-title'),
-    errorDescription: t('stock-event.print-error'),
+    errorDescription: t('error.description'),
     refusedDescription: t('stock-event.print-refused'),
   });
   return (

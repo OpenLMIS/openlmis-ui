@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios';
-import { serverMessage, serverMessageKey } from '@/components/display/dialog-parts';
+import type { ParseKeys } from 'i18next';
+import { apiErrorText, isSilentApiError, serverMessage, serverMessageKey } from '@/lib/api-error';
 
 type TransferErrorText = {
   fallback: string;
@@ -12,14 +13,23 @@ type TransferErrorText = {
 export function transferErrorMessage(
   error: unknown,
   { fallback, emptyFile, tooLarge, emptyFileKeys = [] }: TransferErrorText,
-): string {
-  if (!isAxiosError(error)) return fallback;
-  const status = error.response?.status;
+  t: (key: ParseKeys) => string,
+  write: boolean,
+): string | null {
+  if (isSilentApiError(error)) return null;
+  const status = isAxiosError(error) ? error.response?.status : undefined;
   if (status === 413) return tooLarge;
-  if (!status || status < 400 || status >= 500) return fallback;
   const key = serverMessageKey(error)?.trim();
   const message = serverMessage(error)?.trim();
-  if (key && message && message !== key) return message;
   const code = key || message;
-  return code && emptyFileKeys.includes(code) ? emptyFile : fallback;
+  if (
+    status &&
+    status >= 400 &&
+    status < 500 &&
+    code &&
+    emptyFileKeys.includes(code) &&
+    (!key || !message || message === key)
+  )
+    return emptyFile;
+  return apiErrorText(error, () => fallback, t, { write });
 }

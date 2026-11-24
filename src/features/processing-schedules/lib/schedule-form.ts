@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import { z } from 'zod';
 import type { ProcessingScheduleBody } from '@/features/processing-schedules/lib/types';
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
@@ -46,13 +45,13 @@ export function toScheduleBody(values: ScheduleFormValues): ProcessingScheduleBo
   };
 }
 
-const DUPLICATE_KEYS: Record<string, 'code' | 'name'> = {
-  'referenceData.error.processingSchedule.code.duplicated': 'code',
-  'referenceData.error.processingSchedule.name.duplicated': 'name',
-};
-
-export function duplicateField(error: unknown) {
-  if (!isAxiosError<{ messageKey?: string }>(error)) return undefined;
-  const key = error.response?.data?.messageKey;
-  return key ? DUPLICATE_KEYS[key] : undefined;
-}
+export const SCHEDULE_FIELD_ERRORS = {
+  'referenceData.error.processingSchedule.code.duplicated': {
+    field: 'code',
+    key: 'processing-schedules.form.code-taken',
+  },
+  'referenceData.error.processingSchedule.name.duplicated': {
+    field: 'name',
+    key: 'processing-schedules.form.name-taken',
+  },
+} as const;

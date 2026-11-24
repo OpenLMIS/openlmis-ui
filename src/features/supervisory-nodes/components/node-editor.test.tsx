@@ -208,7 +208,12 @@ describe('supervisory node editor', () => {
   });
 
   it('keeps the draft and location when saving fails and shows the server message', async () => {
-    vi.mocked(client.put).mockRejectedValue(httpError(400, { message: 'Code already exists' }));
+    vi.mocked(client.put).mockRejectedValue(
+      httpError(400, {
+        messageKey: 'referenceData.error.supervisoryNode.code.mustBeUnique',
+        message: 'Code already exists',
+      }),
+    );
     const { user, router, onSaved } = renderEditor();
     const name = await screen.findByRole('textbox', { name: /^Supervisory Node Name/ });
     await user.clear(name);
@@ -241,6 +246,7 @@ describe('supervisory node editor', () => {
   });
 
   it('refuses a conflicting reread before PUT and offers Reload', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.mocked(client.get).mockResolvedValue({
       data: { ...saved, parentNode: { id: 'child' }, childNodes: [{ id: 'child' }] },
     });
@@ -250,5 +256,6 @@ describe('supervisory node editor', () => {
     expect(client.put).not.toHaveBeenCalled();
     await user.click(within(alert).getByRole('button', { name: 'Reload' }));
     expect(onReload).toHaveBeenCalledOnce();
+    expect(log).not.toHaveBeenCalled();
   });
 });

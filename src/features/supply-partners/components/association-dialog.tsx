@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { ListError } from '@/components/app-shell/list-error';
-import { DialogNotFound, ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { DialogNotFound, ErrorAlert } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { FieldAbout } from '@/components/form/form-fields';
 import {
@@ -79,8 +79,10 @@ import {
 import type { AssociationDraft } from '@/features/supply-partners/lib/types';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { isRefused } from '@/lib/http';
 import { formatIsolatedList } from '@/lib/isolate-values';
+import { reportApiError } from '@/lib/report-error';
 
 const EMPTY: AssociationDraft = {
   programId: '',
@@ -314,7 +316,10 @@ function AssociationForm({
       removalSucceeded.current = true;
       confirmation.close();
     },
-    onError: () => confirmation.close(),
+    onError: (error) => {
+      reportApiError(error);
+      confirmation.close();
+    },
   });
   const busy = removal.isPending;
   const dirty = snapshot(draft) !== snapshot(opening);
@@ -495,7 +500,9 @@ function AssociationForm({
             {removal.isError && (
               <ErrorAlert
                 title={t('supply-partners.lookup-error-title')}
-                description={serverMessage(removal.error) ?? t('supply-partners.prune-error')}
+                description={apiErrorText(removal.error, 'error.description', t, {
+                  write: true,
+                })}
               />
             )}
             <AssociationMembersTable

@@ -3,7 +3,7 @@ import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -20,6 +20,8 @@ import { deleteAssignments } from '@/components/valid-assignments/delete-assignm
 import type { Picked } from '@/components/valid-assignments/selection';
 import type { AssignmentsApi } from '@/components/valid-assignments/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
+import { reportApiError } from '@/lib/report-error';
 
 type DeleteAssignmentsDialogProps = {
   api: AssignmentsApi;
@@ -44,7 +46,9 @@ export function DeleteAssignmentsDialog({
 
   const remove = useSessionMutation({
     mutationFn: (ids: string[]) => deleteAssignments(api.remove, ids),
-    onSuccess: ({ deleted, failed }) => {
+    onError: reportApiError,
+    onSuccess: ({ deleted, failed, error }) => {
+      if (error) reportApiError(error);
       onDeleted(deleted);
       if (deleted.length === 0) return;
       close();
@@ -55,7 +59,7 @@ export function DeleteAssignmentsDialog({
             description: t('valid-assignments.deleted', { count: deleted.length }),
           },
         );
-      } else {
+      } else if (!isSilentApiError(error)) {
         toast.error(t('valid-assignments.partly-deleted-title'), {
           description: t('valid-assignments.partly-deleted', {
             deleted: deleted.length,
@@ -105,9 +109,7 @@ export function DeleteAssignmentsDialog({
         </AlertDialogHeader>
         {nothingDeleted && (
           <ErrorAlert
-            description={
-              serverMessage(remove.data?.error) ?? t('valid-assignments.delete-error-description')
-            }
+            description={apiErrorText(remove.data?.error, 'error.description', t, { write: true })}
             title={t('valid-assignments.delete-error-title')}
           />
         )}

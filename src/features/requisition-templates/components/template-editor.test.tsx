@@ -1,7 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError, AxiosHeaders } from 'axios';
+import { createInstance } from 'i18next';
 import { useState } from 'react';
+import { I18nextProvider } from 'react-i18next';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
@@ -17,7 +20,10 @@ import {
 } from '@/features/requisition-templates/components/template-editor';
 import { liveTemplates } from '@/features/requisition-templates/lib/test-templates';
 import { client } from '@/integrations/axios';
+import { IsolatingICU } from '@/lib/isolate-values';
+import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
+import en from '../../../../public/locales/en.json';
 
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -34,11 +40,17 @@ vi.mock('@/features/requisition-templates/api/api', async (original) => {
 
 const saved = liveTemplates[0];
 
-function Editor({ initialTab = 'columns' }: { initialTab?: TemplateTab }) {
+function Editor({
+  initialTab = 'columns',
+  template = saved,
+}: {
+  initialTab?: TemplateTab;
+  template?: typeof saved;
+}) {
   const [tab, setTab] = useState(initialTab);
   return (
     <TemplateEditor
-      saved={saved}
+      saved={template}
       programName="ARV"
       tab={tab}
       onTabChange={setTab}
@@ -130,6 +142,125 @@ describe('TemplateEditor', () => {
     );
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(saveRequisitionTemplate).not.toHaveBeenCalled();
+  });
+
+  it('opens Columns and labels the period input when the server rejects its value', async () => {
+    const i18n = createInstance();
+    await i18n.use(IsolatingICU).init({
+      lng: 'en',
+      keySeparator: false,
+      nsSeparator: false,
+      resources: { en: { translation: en } },
+    });
+    const user = userEvent.setup();
+    vi.mocked(client.put).mockRejectedValueOnce(
+      httpError(400, {
+        numberOfPeriodsToAverage: {
+          messageKey: 'requisition.error.validation.fieldMustBeGreaterOrEqual',
+          message: 'Server-language detail',
+        },
+      }),
+    );
+    renderPage(
+      <I18nextProvider i18n={i18n}>
+        <Editor initialTab="settings" />
+      </I18nextProvider>,
+      { queryClient: seededClient() },
+    );
+    const save = en['requisition-templates.configure.save'];
+    await user.click(await screen.findByRole('button', { name: save }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: save }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('tab', { name: en['requisition-templates.configure.columns'] }),
+      ).toHaveAttribute('aria-selected', 'true'),
+    );
+    const periods = await screen.findByRole('textbox', {
+      name: /Number Of Periods To Average/,
+    });
+    expect(periods).toHaveAttribute('aria-invalid', 'true');
+    expect(periods).toHaveAccessibleDescription(
+      en['requisition-templates.configure.validation.periods-minimum'],
+    );
+  });
+
+  it('shows a section alert for a period refusal when the template has no period input', async () => {
+    const template = {
+      ...saved,
+      columnsMap: Object.fromEntries(
+        Object.entries(saved.columnsMap).filter(
+          ([, column]) => column.columnDefinition.name !== 'averageConsumption',
+        ),
+      ),
+    };
+    vi.mocked(client.get).mockResolvedValueOnce({ data: template });
+    vi.mocked(client.put).mockRejectedValueOnce(
+      httpError(400, { numberOfPeriodsToAverage: { message: 'Invalid period count' } }),
+    );
+    const user = userEvent.setup();
+    renderPage(<Editor initialTab="settings" template={template} />, {
+      queryClient: seededClient(),
+    });
+    const save = 'requisition-templates.configure.save';
+    await user.click(await screen.findByRole('button', { name: save }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: save }),
+    );
+    expect(await screen.findByText('Invalid period count')).toBeVisible();
+  });
+
+  it('opens Settings for a duplicate name and clears the refusal on edit', async () => {
+    vi.mocked(client.put).mockRejectedValueOnce(
+      httpError(400, { messageKey: 'requisition.error.validation.templateNameDuplication' }),
+    );
+    const user = userEvent.setup();
+    renderPage(<Editor />, { queryClient: seededClient() });
+    const save = 'requisition-templates.configure.save';
+    await user.click(await screen.findByRole('button', { name: save }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: save }),
+    );
+    const name = await screen.findByRole('textbox', {
+      name: /requisition-templates.configure.name/,
+    });
+    expect(name).toHaveAccessibleDescription('requisition-templates.form.name-taken');
+    await user.type(name, ' updated');
+    expect(name).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it.each([
+    [
+      'read-timeout',
+      'get',
+      new AxiosError('Timeout', 'ECONNABORTED', {
+        method: 'get',
+        headers: new AxiosHeaders(),
+      }),
+      'api-error.timeout-read',
+    ],
+    [
+      'shared fallback',
+      'put',
+      httpError(500, { message: 'Internal exception' }),
+      'error.description',
+    ],
+  ] as const)('uses %s copy in the save failure toast', async (_, method, error, description) => {
+    vi.mocked(client[method]).mockRejectedValueOnce(error);
+    const user = userEvent.setup();
+    renderPage(<Editor />, { queryClient: seededClient() });
+    const save = 'requisition-templates.configure.save';
+    await user.click(await screen.findByRole('button', { name: save }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: save }),
+    );
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('requisition-templates.configure.save-error-title', {
+        description,
+      }),
+    );
+    if (method === 'get') expect(client.put).not.toHaveBeenCalled();
   });
 
   it('refuses a previous user draft after confirmation', async () => {

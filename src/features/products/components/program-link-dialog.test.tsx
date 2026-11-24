@@ -111,7 +111,12 @@ describe('ProgramLinkDialog', () => {
 
   it('edits a linked program in place and says why a save failed, keeping the values', async () => {
     const error = httpError(400);
-    Object.assign(error.response ?? {}, { data: { message: 'Refused by the server' } });
+    Object.assign(error.response ?? {}, {
+      data: {
+        messageKey: 'referenceData.error.orderable.programOrderable.duplicated',
+        message: 'Refused by the server',
+      },
+    });
     update.mockRejectedValueOnce(error);
     const { onClose } = renderDialog('fp');
     const user = userEvent.setup();
@@ -165,7 +170,12 @@ describe('RemoveProgramLinkDialog', () => {
 
 describe('RemoveProgramLinkDialog when the server refuses', () => {
   it('says why and stays open, so the user can try again', async () => {
-    update.mockRejectedValueOnce(httpError(400, { message: 'Refused by the server' }));
+    update.mockRejectedValueOnce(
+      httpError(400, {
+        messageKey: 'referenceData.error.orderable.programOrderable.duplicated',
+        message: 'Refused by the server',
+      }),
+    );
     const onClose = vi.fn();
     renderPage(<RemoveProgramLinkDialog onClose={onClose} product={product} programId="fp" />);
     const user = userEvent.setup();

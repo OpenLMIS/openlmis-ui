@@ -1,10 +1,10 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, LookupBoundary, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert, LookupBoundary } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { useFormatError } from '@/components/form/form-messages';
 import {
@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { FieldGroup } from '@/components/ui/field';
+import { FieldError, FieldGroup } from '@/components/ui/field';
 import { Separator } from '@/components/ui/separator';
 import { facilityTypesOptions, programsOptions } from '@/features/reference-data/api/queries';
 import { programName } from '@/features/reference-data/lib/programs';
@@ -43,13 +43,16 @@ import {
   type AddTemplateFormValues,
   addTemplateFormSchema,
   EMPTY_ADD_TEMPLATE_FORM,
-  isDuplicateName,
+  TEMPLATE_FIELD_ERRORS,
 } from '@/features/requisition-templates/lib/add-template-form';
 import { eligibleForNewTemplate } from '@/features/requisition-templates/lib/eligible-facility-types';
 import { buildNewTemplate } from '@/features/requisition-templates/lib/new-template';
+import { templateFieldErrors } from '@/features/requisition-templates/lib/server-errors';
 import { useDialogCardLayout } from '@/hooks/use-card-view';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const SAVE_KEY = [...queryKeys.requisitionTemplates.all, 'create'] as const;
 
@@ -77,13 +80,15 @@ function useTemplateForm() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [refused, setRefused] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<ReturnType<typeof templateFieldErrors>>();
   const [confirmation, setConfirmation] = useState<AddTemplateFormValues | null>(null);
   const schema = useMemo(() => addTemplateFormSchema(refused), [refused]);
   const save = useSessionMutation({
     mutationKey: SAVE_KEY,
+    onMutate: () => setFieldErrors(undefined),
     mutationFn: async (values: AddTemplateFormValues) => {
       const catalog = await queryClient.ensureQueryData(availableColumnsOptions());
-      if (!save.isCurrent()) throw new Error(t('requisition-templates.form.save-error'));
+      if (!save.isCurrent()) throw new Error(t('error.description'));
       return createRequisitionTemplate(buildNewTemplate(catalog, values));
     },
     onSuccess: () => {
@@ -93,7 +98,10 @@ function useTemplateForm() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.requisitionTemplates.all });
     },
     onError: (error, values) => {
-      if (isDuplicateName(error)) setRefused((names) => [...names, values.name.trim()]);
+      reportApiError(error);
+      if (fieldErrorFor(error, TEMPLATE_FIELD_ERRORS))
+        setRefused((names) => [...names, values.name.trim()]);
+      setFieldErrors(templateFieldErrors(error, t));
     },
   });
   const form = useAppForm({
@@ -124,18 +132,28 @@ function useTemplateForm() {
       })
       .catch(() => undefined);
   };
-  return { form, save, confirmation, setConfirmation, confirm };
+  const clearFieldError = (field: 'program' | 'facilityTypes') =>
+    setFieldErrors((errors) => errors && { ...errors, [field]: undefined });
+  return { form, save, fieldErrors, clearFieldError, confirmation, setConfirmation, confirm };
 }
 
 type TemplateForm = ReturnType<typeof useTemplateForm>['form'];
 
 function AddTemplateForm({ cards }: { cards: boolean }) {
   const { t } = useTranslation();
-  const { form, save, confirmation, setConfirmation, confirm } = useTemplateForm();
+  const { form, save, fieldErrors, clearFieldError, confirmation, setConfirmation, confirm } =
+    useTemplateForm();
   const queryClient = useQueryClient();
   const clearTypes = () => {
     form.setFieldValue('facilityTypeIds', []);
+    clearFieldError('facilityTypes');
   };
+  const generalError =
+    !save.isError || fieldErrorFor(save.error, TEMPLATE_FIELD_ERRORS)
+      ? null
+      : fieldErrors
+        ? [fieldErrors.general, fieldErrors.columns, fieldErrors.periods].filter(Boolean).join(' ')
+        : apiErrorText(save.error, 'error.description', t);
   const program = queryClient
     .getQueryData(programsOptions().queryKey)
     ?.find(({ id }) => id === confirmation?.programId);
@@ -150,12 +168,10 @@ function AddTemplateForm({ cards }: { cards: boolean }) {
         </FormDialogHeader>
         <FormDialogBody>
           <FieldGroup>
-            {save.isError && !isDuplicateName(save.error) && (
+            {generalError && (
               <ErrorAlert
                 title={t('requisition-templates.form.save-error-title')}
-                description={
-                  serverMessage(save.error) ?? t('requisition-templates.form.save-error')
-                }
+                description={generalError}
               />
             )}
             <form.AppField name="name">
@@ -174,7 +190,14 @@ function AddTemplateForm({ cards }: { cards: boolean }) {
               errorTitle={t('requisition-templates.form.lookup-error')}
               errorDescription={t('error.check-connection')}
             >
-              <ProgramField form={form} clearTypes={clearTypes} />
+              <ProgramField
+                form={form}
+                error={fieldErrors?.program}
+                clearTypes={() => {
+                  clearFieldError('program');
+                  clearTypes();
+                }}
+              />
             </LookupBoundary>
             <form.AppField name="requisitionReportOnly" listeners={{ onChange: clearTypes }}>
               {(field) => <field.SwitchField label={t('requisition-templates.report-only')} />}
@@ -185,7 +208,12 @@ function AddTemplateForm({ cards }: { cards: boolean }) {
               errorTitle={t('requisition-templates.form.lookup-error')}
               errorDescription={t('error.check-connection')}
             >
-              <AddFacilityTypes cards={cards} form={form} />
+              <AddFacilityTypes
+                cards={cards}
+                form={form}
+                serverError={fieldErrors?.facilityTypes}
+                clearServerError={() => clearFieldError('facilityTypes')}
+              />
             </LookupBoundary>
           </FieldGroup>
         </FormDialogBody>
@@ -223,26 +251,50 @@ function AddTemplateForm({ cards }: { cards: boolean }) {
   );
 }
 
-function ProgramField({ form, clearTypes }: { form: TemplateForm; clearTypes: () => void }) {
+function ProgramField({
+  form,
+  clearTypes,
+  error,
+}: {
+  form: TemplateForm;
+  clearTypes: () => void;
+  error: string | undefined;
+}) {
   const { t } = useTranslation();
   const { data: programs } = useSuspenseQuery(programsOptions());
+  const errorId = useId();
   return (
-    <form.AppField name="programId" listeners={{ onChange: clearTypes }}>
-      {(field) => (
-        <field.ComboboxField
-          clearLabel={t('requisition-templates.form.clear-program')}
-          emptyMessage={t('requisition-templates.no-programs')}
-          items={programs.map((program) => ({ value: program.id, label: programName(program) }))}
-          label={t('requisition-templates.form.program')}
-          placeholder={t('requisition-templates.form.pick-program')}
-          required
-        />
-      )}
-    </form.AppField>
+    <>
+      <form.AppField name="programId" listeners={{ onChange: clearTypes }}>
+        {(field) => (
+          <field.ComboboxField
+            invalid={Boolean(error)}
+            describedBy={error ? errorId : undefined}
+            clearLabel={t('requisition-templates.form.clear-program')}
+            emptyMessage={t('requisition-templates.no-programs')}
+            items={programs.map((program) => ({ value: program.id, label: programName(program) }))}
+            label={t('requisition-templates.form.program')}
+            placeholder={t('requisition-templates.form.pick-program')}
+            required
+          />
+        )}
+      </form.AppField>
+      {error && <FieldError id={errorId}>{error}</FieldError>}
+    </>
   );
 }
 
-function AddFacilityTypes({ cards, form }: { cards: boolean; form: TemplateForm }) {
+function AddFacilityTypes({
+  cards,
+  form,
+  serverError,
+  clearServerError,
+}: {
+  cards: boolean;
+  form: TemplateForm;
+  serverError: string | undefined;
+  clearServerError: () => void;
+}) {
   const { t } = useTranslation();
   const { data: types } = useSuspenseQuery(facilityTypesOptions({ active: true }));
   const { data: templates } = useSuspenseQuery(requisitionTemplatesOptions());
@@ -267,6 +319,7 @@ function AddFacilityTypes({ cards, form }: { cards: boolean; form: TemplateForm 
           types={types}
           selected={values.facilityTypeIds}
           onChange={(ids) => {
+            clearServerError();
             field.handleChange(ids);
             field.handleBlur();
           }}
@@ -275,13 +328,14 @@ function AddFacilityTypes({ cards, form }: { cards: boolean; form: TemplateForm 
             !values.programId ? t('requisition-templates.form.select-program-first') : undefined
           }
           error={
-            field.state.meta.isTouched && field.state.meta.errors.length
+            serverError ??
+            (field.state.meta.isTouched && field.state.meta.errors.length
               ? field.state.meta.errors
                   .map((error) =>
                     formatError(typeof error === 'string' ? error : (error?.message ?? '')),
                   )
                   .join(' ')
-              : undefined
+              : undefined)
           }
           emptyTitle={t('requisition-templates.form.no-types')}
           emptyDescription={t('requisition-templates.form.no-types-description')}

@@ -9,6 +9,7 @@ import { userDetailsOptions } from '@/features/users/api/queries';
 import { UserFormDialog } from '@/features/users/components/user-form-dialog';
 import { client } from '@/integrations/axios';
 import type { UserRecord } from '@/lib/user-types';
+import { httpError } from '@/test-utils/http-error';
 
 it('completes an Edit User save while the notification refresh is still pending', async () => {
   const editedUser: UserRecord = {
@@ -69,5 +70,59 @@ it('completes an Edit User save while the notification refresh is still pending'
     await act(async () => pending.resolve({ data: { content: [], totalPages: 0 } }));
     cache.clear();
     useLoginData.getState().clearLoginData();
+  }
+});
+
+it('shows a banner when a duplicate username refusal arrives after the value changed', async () => {
+  const cache = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+  });
+  cache.setQueryData(minimalFacilitiesOptions().queryKey, []);
+  const duplicate = httpError(400, {
+    messageKey: 'referenceData.error.user.username.duplicated',
+    message: 'Server-language detail',
+  });
+  const put = vi.spyOn(client, 'put').mockRejectedValueOnce(duplicate);
+  const dialog = render(
+    <QueryClientProvider client={cache}>
+      <UserFormDialog onClose={vi.fn()} onCreated={vi.fn()} target="new" />
+    </QueryClientProvider>,
+  );
+  try {
+    const user = userEvent.setup();
+    const username = await screen.findByRole('textbox', { name: /users.username/ });
+    await user.type(username, 'ada');
+    await user.type(screen.getByRole('textbox', { name: /users.form.first-name/ }), 'Ada');
+    await user.type(screen.getByRole('textbox', { name: /users.form.last-name/ }), 'Lovelace');
+    await user.click(screen.getByRole('button', { name: 'users.form.create' }));
+
+    await screen.findByText('api-error.referenceData.error.user.username.duplicated');
+    expect(username).toHaveAccessibleDescription(
+      'api-error.referenceData.error.user.username.duplicated',
+    );
+    expect(screen.queryByText('users.form.save-error-title')).not.toBeInTheDocument();
+
+    await user.type(username, '2');
+    expect(username).not.toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.queryByText('api-error.referenceData.error.user.username.duplicated'),
+    ).not.toBeInTheDocument();
+
+    const pending = Promise.withResolvers<never>();
+    put.mockReturnValueOnce(pending.promise);
+    await user.click(screen.getByRole('button', { name: 'users.form.create' }));
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+    await user.type(username, '3');
+    await act(async () => pending.reject(duplicate));
+    await waitFor(() =>
+      expect(cache.getMutationCache().getAll().at(-1)?.state.error).toBe(duplicate),
+    );
+    expect(await screen.findByText('users.form.save-error-title')).toBeVisible();
+    expect(username).toHaveValue('ada23');
+    expect(username).not.toHaveAttribute('aria-invalid', 'true');
+  } finally {
+    dialog.unmount();
+    put.mockRestore();
+    cache.clear();
   }
 });

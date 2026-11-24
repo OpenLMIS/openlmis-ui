@@ -241,7 +241,7 @@ describe('InventoryItemView', () => {
 
       await waitFor(() => expect(onClose).toHaveBeenCalled());
       expect(onAction).not.toHaveBeenCalled();
-      expect(screen.queryByText('cce-inventory.form.save-error')).toBeNull();
+      expect(screen.queryByText('error.description')).toBeNull();
       expect(updateInventoryItem).toHaveBeenCalledTimes(1);
     },
   );

@@ -1,10 +1,11 @@
 import { Loader2Icon, RefreshCwIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useOfflineFailure } from '@/components/app-shell/offline-notice';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { WorkspaceFooterPortal } from '@/components/workspace/workspace-tabs';
+import { apiErrorText } from '@/lib/api-error';
 
 type SaveFeedbackProps = {
   conflict: boolean;
@@ -40,7 +41,9 @@ export function SaveFeedback({ conflict, error, reloadError, onReload }: SaveFee
   if (!error) return null;
   return (
     <ErrorAlert
-      description={serverMessage(error) ?? t('system-settings.save-error-description')}
+      description={apiErrorText(error, 'error.description', t, {
+        write: true,
+      })}
       title={t('system-settings.save-error-title')}
     />
   );

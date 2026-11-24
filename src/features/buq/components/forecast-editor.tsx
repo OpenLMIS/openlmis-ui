@@ -5,7 +5,6 @@ import { Loader2Icon } from 'lucide-react';
 import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
@@ -82,8 +81,10 @@ import type { CurrencySettings } from '@/features/reference-data/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { decimalMark } from '@/lib/decimal';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { type SearchChange, toPaginationState } from '@/lib/table-search';
 
@@ -151,21 +152,13 @@ const DONE: Record<ForecastAction, Message> = {
   reject: { title: 'buq.approve.rejected-title', description: 'buq.approve.rejected' },
 };
 
-const SEND_FAILED: Message = {
-  title: 'buq.forecast.send-error-title',
-  description: 'buq.forecast.send-error',
-};
-
-const FAILED: Record<WriteAction, Message> = {
-  save: SEND_FAILED,
-  submit: SEND_FAILED,
-  authorize: SEND_FAILED,
-  submitAndAuthorize: SEND_FAILED,
-  approve: { title: 'buq.approve.approve-error-title', description: 'buq.approve.approve-error' },
-  finalApprove: {
-    title: 'buq.national.approve-error-title',
-    description: 'buq.national.approve-one-error',
-  },
+const FAILURE_TITLES: Record<WriteAction, ParseKeys> = {
+  save: 'buq.forecast.send-error-title',
+  submit: 'buq.forecast.send-error-title',
+  authorize: 'buq.forecast.send-error-title',
+  submitAndAuthorize: 'buq.forecast.send-error-title',
+  approve: 'buq.approve.approve-error-title',
+  finalApprove: 'buq.national.approve-error-title',
 };
 
 export function ForecastEditor({
@@ -367,14 +360,12 @@ export function ForecastForm({
     },
     onError: (error, { action }) => {
       setConfirming(null);
-      const failed = FAILED[action];
-      setFailure({
-        title: t(failed.title),
-        description:
-          error instanceof BuqMovedError
-            ? t('buq.forecast.moved')
-            : (serverMessage(error) ?? t(failed.description)),
-      });
+      if (!(error instanceof BuqMovedError)) reportApiError(error);
+      const description =
+        error instanceof BuqMovedError
+          ? t('buq.forecast.moved')
+          : apiErrorText(error, 'error.description', t);
+      if (description !== null) setFailure({ title: t(FAILURE_TITLES[action]), description });
       refreshForecast();
     },
     onSettled: () => {

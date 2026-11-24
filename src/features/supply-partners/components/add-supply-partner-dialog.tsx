@@ -4,7 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -22,7 +22,9 @@ import { FieldGroup } from '@/components/ui/field';
 import { createSupplyPartner } from '@/features/supply-partners/api/api';
 import type { SupplyPartnersSearch } from '@/features/supply-partners/lib/search';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import { getSessionScope } from '@/lib/session-scope';
 
 const SAVE_KEY = [...queryKeys.supplyPartners.all, 'create'];
@@ -52,6 +54,7 @@ function AddPartnerForm({ search, onDone }: { search: SupplyPartnersSearch; onDo
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const mutation = useSessionMutation({
+    onError: reportApiError,
     mutationKey: SAVE_KEY,
     mutationFn: createSupplyPartner,
     onSuccess: (saved) => {
@@ -95,7 +98,9 @@ function AddPartnerForm({ search, onDone }: { search: SupplyPartnersSearch; onDo
           {mutation.isError && (
             <ErrorAlert
               title={t('supply-partners.save-error-title')}
-              description={serverMessage(mutation.error) ?? t('supply-partners.save-error')}
+              description={apiErrorText(mutation.error, 'error.description', t, {
+                write: true,
+              })}
             />
           )}
           <form.AppField name="code">

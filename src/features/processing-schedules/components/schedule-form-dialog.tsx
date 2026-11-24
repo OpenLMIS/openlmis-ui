@@ -3,7 +3,7 @@ import { useIsMutating, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
   FormDialog,
@@ -20,8 +20,8 @@ import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { FieldGroup } from '@/components/ui/field';
 import { createProcessingSchedule } from '@/features/processing-schedules/api/api';
 import {
-  duplicateField,
   EMPTY_SCHEDULE_FORM,
+  SCHEDULE_FIELD_ERRORS,
   type ScheduleFormValues,
   scheduleFormSchema,
   type TakenSchedule,
@@ -30,7 +30,9 @@ import {
 import { processingSchedulesOptions } from '@/features/reference-data/api/queries';
 import type { ProcessingSchedule } from '@/features/reference-data/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 const NO_SCHEDULES: ProcessingSchedule[] = [];
 const SAVE_KEY = [...queryKeys.processingSchedules.all, 'save', 'new'] as const;
@@ -69,7 +71,8 @@ function ScheduleForm({ onDone }: { onDone: () => void }) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.processingPeriods.all });
     },
     onError: (error, values) => {
-      const field = duplicateField(error);
+      reportApiError(error);
+      const field = fieldErrorFor(error, SCHEDULE_FIELD_ERRORS)?.field;
       if (!field) return;
       setRefused((taken) => [
         ...taken,
@@ -80,7 +83,7 @@ function ScheduleForm({ onDone }: { onDone: () => void }) {
       ]);
     },
   });
-  const refusedField = duplicateField(save.error);
+  const refusedField = fieldErrorFor(save.error, SCHEDULE_FIELD_ERRORS)?.field;
   const form = useAppForm({
     defaultValues: EMPTY_SCHEDULE_FORM,
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
@@ -104,7 +107,9 @@ function ScheduleForm({ onDone }: { onDone: () => void }) {
         <FieldGroup>
           {save.isError && !refusedField && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('processing-schedules.save-error')}
+              description={apiErrorText(save.error, 'error.description', t, {
+                write: true,
+              })}
               title={t('processing-schedules.form.save-error-title')}
             />
           )}

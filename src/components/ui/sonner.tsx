@@ -62,23 +62,31 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
           "--error-bg": error.bg,
           "--error-border": error.border,
           "--error-text": error.text,
+          "--error-description-text": theme === "dark"
+            ? "var(--error-text)"
+            : "color-mix(in oklab, var(--error-text) 88%, var(--popover-foreground))",
           "--warning-bg": warning.bg,
           "--warning-border": warning.border,
           "--warning-text": warning.text,
           "--info-bg": info.bg,
           "--info-border": info.border,
-          "--info-text": info.text,
+          "--info-text": theme === "dark" ? info.text : "var(--primary)",
         } as React.CSSProperties
       }
       toastOptions={{
         ...toastOptions,
         // A short title over a description of at most two lines, and a plain X at the end edge.
         classNames: {
-          toast:
+          toast: [
             "cn-toast pe-10! items-start! shadow-none! focus-visible:ring-3 focus-visible:ring-ring/50",
+            "data-[type=error]:[--toast-description:color-mix(in_oklab,var(--error-description-text)_90%,transparent)]",
+            "data-[type=warning]:[--toast-description:var(--warning-text)]",
+            "data-[type=success]:[--toast-description:var(--success-text)]",
+            "data-[type=info]:[--toast-description:var(--info-text)]",
+          ].join(" "),
           icon: "mt-0.5!",
           title: "font-medium",
-          description: "line-clamp-2 text-muted-foreground!",
+          description: "line-clamp-2 text-[color:var(--toast-description,var(--muted-foreground))]!",
           closeButton:
             "start-auto! end-2! top-2! transform-none! size-6! rounded-md! border-0! bg-transparent! text-muted-foreground! hover:bg-muted! hover:text-foreground!",
           ...toastOptions?.classNames,

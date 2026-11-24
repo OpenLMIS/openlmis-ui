@@ -13,7 +13,7 @@ import {
   programsOptions,
   supervisoryNodesByIdsOptions,
 } from '@/features/reference-data/api/queries';
-import { saveSupplyPartner } from '@/features/supply-partners/api/api';
+import { SupplyPartnerConflictError, saveSupplyPartner } from '@/features/supply-partners/api/api';
 import { SupplyPartnerEditor } from '@/features/supply-partners/components/supply-partner-editor';
 import type { SupplyPartnerEditSearch } from '@/features/supply-partners/lib/search';
 import type { SupplyPartner } from '@/features/supply-partners/lib/types';
@@ -78,7 +78,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000);
 });
 
-it('removes the chosen association on the last page and keeps every remaining draft change after a failed save', async () => {
+function supplyPartnerQueries() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -110,7 +110,27 @@ it('removes the chosen association on the last page and keeps every remaining dr
   queryClient.setQueryData(orderablesByIdsOptions(['o']).queryKey, [
     { id: 'o', fullProductName: 'Product', productCode: 'O', description: null },
   ]);
-  vi.mocked(saveSupplyPartner).mockRejectedValueOnce(new Error('Rejected save'));
+  return queryClient;
+}
+
+it('offers to reload a conflicting supply partner without reporting an error', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.mocked(saveSupplyPartner).mockRejectedValueOnce(new SupplyPartnerConflictError());
+  const user = userEvent.setup();
+  renderPage(<Harness />, { queryClient: supplyPartnerQueries() });
+
+  await user.click(await screen.findByRole('button', { name: 'Update Supply Partner' }));
+
+  const alert = await screen.findByRole('alertdialog', { name: 'Supply Partner Changed' });
+  expect(within(alert).getByRole('button', { name: 'Reload' })).toBeInTheDocument();
+  expect(log).not.toHaveBeenCalled();
+});
+
+it('removes the chosen association on the last page and keeps every remaining draft change after a failed save', async () => {
+  const queryClient = supplyPartnerQueries();
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const error = new Error('Rejected save');
+  vi.mocked(saveSupplyPartner).mockRejectedValueOnce(error);
   const user = userEvent.setup();
   renderPage(<Harness />, { queryClient });
   await user.clear(await screen.findByRole('textbox', { name: 'Name' }));
@@ -126,6 +146,7 @@ it('removes the chosen association on the last page and keeps every remaining dr
   await screen.findByRole('group', { name: 'Actions for Program, Node 10' });
   await user.click(screen.getByRole('button', { name: 'Update Supply Partner' }));
   await screen.findByRole('alertdialog', { name: 'Could Not Save Supply Partner' });
+  expect(log).toHaveBeenCalledWith(error);
   expect(saveSupplyPartner).toHaveBeenCalledWith(saved, {
     name: 'Edited Supplier',
     associations: saved.associations.slice(0, 11).map((item) => ({

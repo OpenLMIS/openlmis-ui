@@ -5,7 +5,6 @@ import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useDeviceWork } from '@/components/app-shell/device-work';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import {
@@ -54,9 +53,11 @@ import type { OrderableFulfills } from '@/features/reference-data/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { orEmpty } from '@/lib/empty-value';
 import { queryKeys } from '@/lib/key-factory';
 import { openReport } from '@/lib/open-report';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { getSessionUserId } from '@/lib/session-scope';
 import { homeStockRefreshKey } from '@/lib/stock-programs';
@@ -150,10 +151,13 @@ export function PodEditor({
     },
     onError: (error, { confirming }) => {
       setConfirm(false);
-      setFailure({
-        title: confirming ? 'orders.pod.confirm-failed' : 'orders.pod.save-failed',
-        description: serverMessage(error) ?? t('error.description'),
-      });
+      reportApiError(error);
+      const description = apiErrorText(error, 'error.description', t, { write: true });
+      if (description !== null)
+        setFailure({
+          title: confirming ? 'orders.pod.confirm-failed' : 'orders.pod.save-failed',
+          description,
+        });
     },
   });
   const validate = (mode: 'save' | 'confirm') => {
@@ -206,7 +210,7 @@ export function PodEditor({
     successTitle: t('orders.print-success-title'),
     successDescription: t('orders.print-success-description'),
     errorTitle: t('orders.print-error-title'),
-    errorDescription: t('orders.print-error-description'),
+    errorDescription: t('error.description'),
     refusedDescription: t('orders.print-refused-description'),
   });
   const pending = mutation.isPending || print.isPending;

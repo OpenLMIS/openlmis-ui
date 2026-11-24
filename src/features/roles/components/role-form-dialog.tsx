@@ -11,7 +11,6 @@ import {
   FieldSkeleton,
   RetryButton,
   SkeletonLine,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import { useFieldContext } from '@/components/form/form-context';
@@ -59,8 +58,10 @@ import {
 } from '@/features/roles/lib/role-form';
 import { withSavedRole } from '@/features/roles/lib/roles-list';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import { isNotFound, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 
 /** One key per role, so a save still running for one never locks another's dialog. */
 const saveKey = (role: string) => [...queryKeys.roles.all, 'save', role] as const;
@@ -156,6 +157,7 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
   const rightLabel = useRightLabel();
 
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationKey: saveKey(role?.id ?? 'new'),
     mutationFn: async (values: RoleFormValues) => {
       const rights = await queryClient.ensureQueryData(rightsByTypeOptions(values.type));
@@ -221,7 +223,9 @@ function RoleForm({ role, onDone, onSaved }: RoleFormProps) {
               <FieldGroup>
                 {save.isError && (
                   <ErrorAlert
-                    description={serverMessage(save.error) ?? t('roles.form.save-error')}
+                    description={apiErrorText(save.error, 'error.description', t, {
+                      write: true,
+                    })}
                     title={t('roles.form.save-error-title')}
                   />
                 )}

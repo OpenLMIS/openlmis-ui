@@ -10,7 +10,6 @@ import {
   ErrorAlert,
   FieldSkeleton,
   SwitchSkeleton,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import {
@@ -36,6 +35,7 @@ import {
 import { useDialogDiscardGuard } from '@/features/rejection-reasons/components/use-dialog-discard-guard';
 import { useDialogOpeningKey } from '@/features/rejection-reasons/components/use-dialog-opening-key';
 import { useOpening } from '@/hooks/use-opening';
+import { apiErrorText } from '@/lib/api-error';
 import { isNotFound } from '@/lib/http';
 
 export function CategoryFormDialog({
@@ -123,9 +123,7 @@ function CategoryForm({
               {save.isError && (
                 <ErrorAlert
                   title={t('rejection-reason-categories.form.save-error-title')}
-                  description={
-                    serverMessage(save.error) ?? t('rejection-reason-categories.form.save-error')
-                  }
+                  description={apiErrorText(save.error, 'error.description', t, { write: true })}
                 />
               )}
               <CategoryFields form={form} disabled={disabled} />

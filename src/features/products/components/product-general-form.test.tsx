@@ -9,6 +9,7 @@ import { saveProductChange } from '@/features/products/api/api';
 import { productDetailOptions } from '@/features/products/api/queries';
 import { ProductGeneralForm } from '@/features/products/components/product-general-form';
 import type { ProductDetail } from '@/features/products/lib/types';
+import { SessionEndedError } from '@/lib/session-scope';
 import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
 
@@ -68,7 +69,7 @@ describe('ProductGeneralForm', () => {
     useLoginData
       .getState()
       .setLoginData({ referenceDataUserId: 'ada', username: 'ada', accessToken: 'token' });
-    renderForm();
+    const { queryClient } = renderForm();
     await screen.findByLabelText(/products.form.name/);
     act(() =>
       useLoginData
@@ -76,7 +77,12 @@ describe('ProductGeneralForm', () => {
         .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' }),
     );
     await rename('Old user draft');
-    expect(await screen.findByText('products.form.save-error-title')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(queryClient.getMutationCache().getAll()[0]?.state.error).toBeInstanceOf(
+        SessionEndedError,
+      ),
+    );
+    expect(screen.queryByText('products.form.save-error-title')).not.toBeInTheDocument();
     expect(saveProductChange).not.toHaveBeenCalled();
   });
 

@@ -3,7 +3,7 @@ import { Loader2Icon, TruckIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { FieldSkeleton, serverMessage } from '@/components/display/dialog-parts';
+import { FieldSkeleton } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -50,6 +50,8 @@ import {
 import type { SupplyPartner, SupplyPartnerDraft } from '@/features/supply-partners/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
+import { reportApiError } from '@/lib/report-error';
 import type { SearchChange } from '@/lib/table-search';
 
 const FORM_ID = 'supply-partner-form';
@@ -124,6 +126,8 @@ export function SupplyPartnerEditor({
       return onSaved(record);
     },
     onError: (error) => {
+      if (isSilentApiError(error)) return;
+      if (!(error instanceof SupplyPartnerConflictError)) reportApiError(error);
       setFailure(error);
       setAlert(true);
     },
@@ -300,7 +304,7 @@ export function SupplyPartnerEditor({
             <AlertDialogDescription>
               {failure instanceof SupplyPartnerConflictError
                 ? t('supply-partners.conflict-description')
-                : (serverMessage(failure) ?? t('supply-partners.save-error'))}
+                : apiErrorText(failure, 'error.description', t, { write: true })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -316,6 +320,11 @@ export function SupplyPartnerEditor({
                     setAlert(false);
                   } catch (error) {
                     if (!mutation.isCurrent()) return;
+                    if (isSilentApiError(error)) {
+                      setAlert(false);
+                      return;
+                    }
+                    reportApiError(error);
                     setFailure(error);
                   } finally {
                     if (mutation.isCurrent()) setReloading(false);

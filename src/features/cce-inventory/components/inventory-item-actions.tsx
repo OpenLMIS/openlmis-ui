@@ -4,7 +4,7 @@ import { HistoryIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ErrorAlert, RetryButton, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert, RetryButton } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { formatTimestamp } from '@/components/form/date-value';
 import { useAppForm } from '@/components/form/form';
@@ -48,6 +48,7 @@ import type { InventoryAlert, InventoryItemRecord } from '@/features/cce-invento
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import {
   EQUIPMENT_REASON_KEYS,
   EQUIPMENT_STATUS,
@@ -57,6 +58,7 @@ import { recordLabel } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
 import { openReport } from '@/lib/open-report';
 import type { ProgramGrant } from '@/lib/permissions';
+import { reportApiError } from '@/lib/report-error';
 import { RIGHTS } from '@/lib/rights';
 import { toWholeNumber } from '@/lib/whole-number';
 
@@ -81,6 +83,7 @@ export function useItemSave<TValues>(
   const queryClient = useQueryClient();
   const leaving = useRef(false);
   const mutation = useSessionMutation({
+    onError: reportApiError,
     mutationKey: SAVE_KEY,
     mutationFn: async (values: TValues) => {
       await save(values);
@@ -138,7 +141,7 @@ function ActionForm({
           </h3>
           {error !== null && (
             <ErrorAlert
-              description={serverMessage(error) ?? t('cce-inventory.form.save-error')}
+              description={apiErrorText(error, 'error.description', t, { write: true })}
               title={t('cce-inventory.form.save-error-title')}
             />
           )}
@@ -302,10 +305,12 @@ function useItemAlerts(item: InventoryItemRecord, userId: string) {
       historyButton.current?.focus();
       await queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all });
     },
-    onError: () =>
-      toast.error(t('cce-inventory.status.dismiss-error-title'), {
-        description: t('cce-inventory.status.dismiss-error'),
-      }),
+    onError: (error) => {
+      reportApiError(error);
+      const description = apiErrorText(error, 'error.description', t);
+      if (description !== null)
+        toast.error(t('cce-inventory.status.dismiss-error-title'), { description });
+    },
   });
   const history = usePrintReport({
     userId,
@@ -318,7 +323,7 @@ function useItemAlerts(item: InventoryItemRecord, userId: string) {
     successTitle: t('cce-inventory.status.history-title'),
     successDescription: t('cce-inventory.status.history-ready'),
     errorTitle: t('cce-inventory.status.history-error-title'),
-    errorDescription: t('cce-inventory.status.history-error'),
+    errorDescription: t('error.description'),
     refusedDescription: t('cce-inventory.status.history-refused'),
   });
   const legend = t('cce-inventory.alerts-title');

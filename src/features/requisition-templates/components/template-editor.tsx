@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -35,7 +36,8 @@ import {
 } from '@/features/requisition-templates/api/api';
 import { ColumnsTab } from '@/features/requisition-templates/components/columns-tab';
 import { SettingsTab } from '@/features/requisition-templates/components/settings-tab';
-import { templateServerMessages } from '@/features/requisition-templates/lib/server-errors';
+import { TEMPLATE_FIELD_ERRORS } from '@/features/requisition-templates/lib/add-template-form';
+import { templateFieldErrors } from '@/features/requisition-templates/lib/server-errors';
 import {
   draftFromTemplate,
   type TemplateDraft,
@@ -48,7 +50,9 @@ import type { RequisitionTemplate } from '@/features/requisition-templates/lib/t
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
 import { queryKeys } from '@/lib/key-factory';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 
 export type TemplateTab = 'columns' | 'settings';
@@ -102,12 +106,14 @@ export function TemplateEditor({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [initialValues] = useState(() => draftFromTemplate(saved));
+  const [fieldErrors, setFieldErrors] = useState<ReturnType<typeof templateFieldErrors>>();
   const [confirmation, setConfirmation] = useState<TemplateDraft | null>(null);
   const leaving = useRef(false);
   const editorRef = useRef<HTMLFormElement>(null);
   const [invalidTab, setInvalidTab] = useState<TemplateTab | null>(null);
   const { measure, cards } = useCardLayout<HTMLDivElement>();
   const save = useSessionMutation({
+    onMutate: () => setFieldErrors(undefined),
     mutationFn: (draft: TemplateDraft): Promise<RequisitionTemplate> =>
       saveRequisitionTemplate(saved.id, draft),
     onSuccess: async () => {
@@ -121,13 +127,41 @@ export function TemplateEditor({
       onSaved();
     },
     onError: (error) => {
-      toast.error(t('requisition-templates.configure.save-error-title'), {
-        description:
-          error instanceof ReplacedTemplateError
-            ? t('requisition-templates.configure.replaced')
-            : templateServerMessages(error).join(' ') ||
-              t('requisition-templates.configure.save-error'),
-      });
+      const replaced = error instanceof ReplacedTemplateError;
+      if (!replaced) reportApiError(error);
+      const nameError = fieldErrorFor(error, TEMPLATE_FIELD_ERRORS);
+      const fields = templateFieldErrors(error, t);
+      const description = replaced
+        ? t('requisition-templates.configure.replaced')
+        : nameError
+          ? null
+          : fields
+            ? fields.general
+            : apiErrorText(error, 'error.description', t);
+      if (description)
+        toast.error(t('requisition-templates.configure.save-error-title'), { description });
+      if (nameError) {
+        form.setFieldMeta(nameError.field, (meta) => ({
+          ...meta,
+          isTouched: true,
+          errorMap: { ...meta.errorMap, onServer: nameError.key },
+        }));
+        setInvalidTab('settings');
+        onTabChange('settings');
+      }
+      if (fields) {
+        setFieldErrors(fields);
+        if (fields.periods && hasPeriodInput) {
+          form.setFieldMeta('numberOfPeriodsToAverage', (meta) => ({
+            ...meta,
+            isTouched: true,
+            errorMap: { ...meta.errorMap, onServer: fields.periods },
+          }));
+        }
+        const nextTab = fields.columns || fields.periods ? 'columns' : 'settings';
+        setInvalidTab(nextTab);
+        onTabChange(nextTab);
+      }
       setConfirmation(null);
     },
   });
@@ -158,6 +192,12 @@ export function TemplateEditor({
     return () => cancelAnimationFrame(frame);
   }, [invalidTab, tab, cards]);
   const changed = useStore(form.store, (state) => !state.isDefaultValue);
+  const hasPeriodInput = Object.values(saved.columnsMap).some(
+    (column) => column.columnDefinition.name === 'averageConsumption',
+  );
+  const columnErrors = [fieldErrors?.columns, !hasPeriodInput && fieldErrors?.periods]
+    .filter(Boolean)
+    .join(' ');
   const guard = useDiscardGuard(changed, {
     pending: save.isPending,
     allowLeave: () => leaving.current,
@@ -206,10 +246,27 @@ export function TemplateEditor({
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent data-template-tab="columns" keepMounted value="columns">
+                  {columnErrors && (
+                    <ErrorAlert
+                      title={t('requisition-templates.configure.save-error-title')}
+                      description={columnErrors}
+                    />
+                  )}
                   <ColumnsTab cards={cards} form={form} saved={saved} />
                 </TabsContent>
                 <TabsContent data-template-tab="settings" keepMounted value="settings">
-                  <SettingsTab form={form} saved={saved} />
+                  <SettingsTab
+                    form={form}
+                    saved={saved}
+                    programError={fieldErrors?.program}
+                    programName={programName}
+                    facilityTypesError={fieldErrors?.facilityTypes}
+                    clearFacilityTypesError={() =>
+                      setFieldErrors((errors) =>
+                        errors?.facilityTypes ? { ...errors, facilityTypes: undefined } : errors,
+                      )
+                    }
+                  />
                 </TabsContent>
               </Tabs>
             </div>

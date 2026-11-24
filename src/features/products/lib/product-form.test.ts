@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   EMPTY_PRODUCT_FORM,
   hasProductChanges,
-  isDuplicateCode,
   needsDispensingUnit,
   type ProductFormValues,
   productFormSchema,
@@ -11,7 +10,6 @@ import {
   toProductUpdateBody,
 } from '@/features/products/lib/product-form';
 import type { ProductDetail } from '@/features/products/lib/types';
-import { httpError } from '@/test-utils/http-error';
 
 const valid: ProductFormValues = {
   ...EMPTY_PRODUCT_FORM,
@@ -115,23 +113,6 @@ describe('toCreateProductBody', () => {
       netContent: 10,
       roundToZero: true,
     });
-  });
-});
-
-describe('isDuplicateCode', () => {
-  it('recognises the server refusing a code already in use, and nothing else', () => {
-    const refusal = (messageKey: string) => {
-      const error = httpError(400);
-      Object.assign(error.response ?? {}, { data: { messageKey } });
-      return error;
-    };
-    expect(isDuplicateCode(refusal('referenceData.error.orderable.productCode.mustBeUnique'))).toBe(
-      true,
-    );
-    expect(isDuplicateCode(refusal('referenceData.error.orderable.netContent.required'))).toBe(
-      false,
-    );
-    expect(isDuplicateCode(new Error('offline'))).toBe(false);
   });
 });
 

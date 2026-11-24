@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  duplicateField,
   EMPTY_FACILITY_TYPE_FORM,
   type FacilityTypeFormValues,
   facilityTypeFormSchema,
@@ -8,7 +7,6 @@ import {
   toFacilityTypeFormValues,
 } from '@/features/facility-types/lib/facility-type-form';
 import type { FacilityType } from '@/features/reference-data/lib/types';
-import { httpError } from '@/test-utils/http-error';
 
 const healthCenter: FacilityType = {
   id: 'ft3',
@@ -151,29 +149,5 @@ describe('toFacilityTypeBody with a saved type', () => {
 
   it('reads a display order typed in Arabic digits', () => {
     expect(toFacilityTypeBody({ ...valid, displayOrder: '١٢' }).displayOrder).toBe(12);
-  });
-});
-
-describe('duplicateField', () => {
-  const refusal = (messageKey: string) => {
-    const error = httpError(400);
-    Object.assign(error.response ?? {}, { data: { messageKey, message: 'In use' } });
-    return error;
-  };
-
-  it('names the field the server found in use', () => {
-    expect(duplicateField(refusal('referenceData.error.facilityType.code.duplicated'))).toBe(
-      'code',
-    );
-    expect(duplicateField(refusal('referenceData.error.facilityType.name.duplicated'))).toBe(
-      'name',
-    );
-  });
-
-  it('names none for any other failure', () => {
-    expect(
-      duplicateField(refusal('referenceData.error.facilityType.saving.with.id')),
-    ).toBeUndefined();
-    expect(duplicateField(new Error('offline'))).toBeUndefined();
   });
 });

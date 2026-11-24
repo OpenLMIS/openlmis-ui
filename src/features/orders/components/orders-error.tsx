@@ -8,7 +8,7 @@ export function OrdersError({ error, reset }: { error: unknown; reset: () => voi
       error={error}
       reset={reset}
       title={t('orders.view.error-title')}
-      description={t('orders.view.error-description')}
+      description={t('error.description')}
     />
   );
 }

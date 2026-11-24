@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { toRequisitionFailure } from '@/features/requisitions/lib/failure';
+import { requisitionFailureText, toRequisitionFailure } from '@/features/requisitions/lib/failure';
 import { httpError } from '@/test-utils/http-error';
 
 it('treats the live versionMismatch message as a conflict, keeping the local copy', () => {
@@ -25,6 +25,20 @@ it('recognizes reused keys only by the exact server message key', () => {
   expect(toRequisitionFailure(httpError(409, { message: 'key already used' }))).toEqual({
     kind: 'conflict',
   });
+});
+
+it('keeps server text from both legacy field-map formats', () => {
+  const failure = toRequisitionFailure(
+    httpError(400, {
+      requestedQuantity: { message: 'Requested quantity is required.' },
+      stockOnHand: 'Stock on hand is required.',
+    }),
+  );
+  expect(failure.kind).toBe('request');
+  if (failure.kind !== 'request') return;
+  expect(requisitionFailureText(failure, 'error.description', (key) => key)).toBe(
+    'Requested quantity is required.\nStock on hand is required.',
+  );
 });
 
 it('gives Create Authorize its own reused-key recovery without an absent Update action', async () => {

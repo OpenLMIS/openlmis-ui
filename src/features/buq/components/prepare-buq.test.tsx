@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError, AxiosHeaders } from 'axios';
 import { toast } from 'sonner';
 import { beforeEach, expect, it, vi } from 'vitest';
 import {
@@ -313,17 +314,25 @@ it('deletes the forecast of the chosen row and moves focus to the list', async (
   });
 });
 
-it('refuses to delete a report that has moved on in the approval process', async () => {
+it.each([
+  [new BuqMovedError(), 'buq.prepare.delete-moved'],
+  [
+    new AxiosError('Timeout', 'ETIMEDOUT', { method: 'get', headers: new AxiosHeaders() }),
+    'api-error.timeout-read',
+  ],
+] as const)('explains preliminary delete failures with %s', async (error, description) => {
   const user = userEvent.setup();
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.mocked(fetchOpenBuqs).mockResolvedValue([prepared('p16', 2017)]);
-  vi.mocked(deleteBuq).mockRejectedValue(new BuqMovedError());
+  vi.mocked(deleteBuq).mockRejectedValue(error);
   renderPrepare();
 
   await user.click(await screen.findByRole('button', { name: 'buq.prepare.delete' }));
   const dialog = await screen.findByRole('alertdialog');
   await user.click(within(dialog).getByRole('button', { name: 'buq.prepare.delete' }));
 
-  expect(await within(dialog).findByText('buq.prepare.delete-moved')).toBeInTheDocument();
+  expect(await within(dialog).findByText(description)).toBeInTheDocument();
+  expect(log).not.toHaveBeenCalled();
 });
 
 it('locks the period input while a report is being prepared', async () => {

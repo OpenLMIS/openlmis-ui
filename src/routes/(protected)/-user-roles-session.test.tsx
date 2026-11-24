@@ -13,6 +13,7 @@ import { expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import { fetchUserDetails, updateUserRoles } from '@/features/users/api/api';
 import type { UserDetails } from '@/features/users/lib/types';
+import { SessionEndedError } from '@/lib/session-scope';
 import { Route } from '@/routes/(protected)/_protected.administration.users_.$id.roles';
 
 vi.mock('@/components/app-shell/app-breadcrumbs', () => ({ AppBreadcrumbs: () => null }));
@@ -90,6 +91,11 @@ it('refuses the previous signed-in user Edit User Roles draft', async () => {
       .setLoginData({ referenceDataUserId: 'alan', username: 'alan', accessToken: 'other' }),
   );
   await userEvent.setup().click(screen.getByRole('button', { name: /users.roles.save/ }));
-  expect(await screen.findByText('users.roles.save-error-title')).toBeInTheDocument();
+  await waitFor(() =>
+    expect(queryClient.getMutationCache().getAll()[0]?.state.error).toBeInstanceOf(
+      SessionEndedError,
+    ),
+  );
+  expect(screen.queryByText('users.roles.save-error-title')).not.toBeInTheDocument();
   expect(updateUserRoles).not.toHaveBeenCalled();
 });

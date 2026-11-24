@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { ErrorFallback } from '@/components/app-shell/error-fallback';
 import { DataTableEmpty } from '@/components/data-table/data-table';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { DraftStatus, DraftStatusSkeleton } from '@/components/display/draft-status';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
@@ -94,9 +93,12 @@ import {
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
+import { DraftConflictError } from '@/lib/draft-store';
 import { queryKeys } from '@/lib/key-factory';
 import { onlineOrDevice, requireOnline } from '@/lib/local-data';
 import { isOnline, useOnline } from '@/lib/online';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { RIGHTS } from '@/lib/rights';
 import { isSecureOrigin } from '@/lib/secure-context';
@@ -282,6 +284,17 @@ const actionCopy = {
   revert: ['requisitions.batch.revert', 'requisitions.batch.revert-confirm'],
 } as const;
 type Action = 'approve' | 'revert' | 'anyway' | 'update' | 'remove';
+class BatchActionError extends Error {
+  constructor(
+    readonly key:
+      | 'requisitions.batch.review-refreshed'
+      | 'requisitions.batch.save-failed'
+      | 'requisitions.offline.failed-description',
+  ) {
+    super(key);
+  }
+}
+
 function BatchPage() {
   const search = Route.useSearch();
   const loaded = Route.useLoaderData();
@@ -350,17 +363,18 @@ function BatchPage() {
   const [reasons, setReasons] = useState(new Map<string, BatchReason>());
   const [action, setAction] = useState<Action | null>(null);
   const [target, setTarget] = useState<string[]>([]);
-  const [dialog, setDialog] = useState<string | Map<string, string> | null>(() =>
-    loaded.removed.size
-      ? [...loaded.removed.values()]
-          .map((label) =>
-            t('requisitions.batch.failure-line', {
-              requisition: label,
-              reason: t('requisitions.batch.possibly-approved'),
-            }),
-          )
-          .join('\n')
-      : null,
+  const [dialog, setDialog] = useState<string | Map<string, string> | { error: unknown } | null>(
+    () =>
+      loaded.removed.size
+        ? [...loaded.removed.values()]
+            .map((label) =>
+              t('requisitions.batch.failure-line', {
+                requisition: label,
+                reason: t('requisitions.batch.possibly-approved'),
+              }),
+            )
+            .join('\n')
+        : null,
   );
   const [dialogCount, setDialogCount] = useState(loaded.removed.size || 1);
   const [invalid, setInvalid] = useState<string | null>(null);
@@ -450,7 +464,13 @@ function BatchPage() {
   const mutation = useSessionMutation({
     mutationFn: async (kind: 'sync' | Action | 'check') => {
       if (kind !== 'revert' && kind !== 'remove') requireOnline();
-      await drafts.flush();
+      try {
+        await drafts.flush();
+      } catch (error) {
+        if (isSilentApiError(error)) throw error;
+        if (!(error instanceof DraftConflictError)) reportApiError(error);
+        throw new BatchActionError('requisitions.batch.save-failed');
+      }
       if (kind !== 'revert' && kind !== 'remove' && accessEpoch.current !== uploadAccessEpoch()) {
         const epoch = uploadAccessEpoch();
         const access = await freshRequisitionAccess(queryClient);
@@ -459,7 +479,8 @@ function BatchPage() {
           const copy = await readCopy(record.id);
           assertSessionScope(scope);
           if (!copy) {
-            if (!loaded.accessEpoch) throw new Error(t('requisitions.offline.failed-description'));
+            if (!loaded.accessEpoch)
+              throw new BatchActionError('requisitions.offline.failed-description');
             continue;
           }
           const nodes = copy.summary.supervisoryNode
@@ -488,12 +509,12 @@ function BatchPage() {
             })
           ) {
             setResponse(fresh);
-            throw new Error(t('requisitions.batch.review-refreshed'));
+            throw new BatchActionError('requisitions.batch.review-refreshed');
           }
         }
         requireOnline();
         if (epoch !== uploadAccessEpoch())
-          throw new Error(t('requisitions.batch.review-refreshed'));
+          throw new BatchActionError('requisitions.batch.review-refreshed');
         accessEpoch.current = epoch;
       }
       if (kind === 'revert' || kind === 'update') {
@@ -744,12 +765,16 @@ function BatchPage() {
           }
         } catch (error) {
           assertSessionScope(scope);
+          if (isSilentApiError(error)) throw error;
+          if (!(error instanceof DraftConflictError)) reportApiError(error);
           const uncertain = !isAxiosError(error) || !error.response || error.response.status >= 500;
           if (!uncertain) {
             await drafts.mark(saved, false);
           }
-          for (const id of saved)
-            failures.set(id, uncertain ? 'requisitions.batch.uncertain' : errorMessage(error));
+          const message = uncertain
+            ? 'requisitions.batch.uncertain'
+            : apiErrorText(error, 'error.description', t, { write: true });
+          if (message !== null) for (const id of saved) failures.set(id, message);
           try {
             const latest = await refresh();
             await retireUnavailable(latest);
@@ -798,6 +823,9 @@ function BatchPage() {
       assertSessionScope(scope);
     },
     onError: (error, kind) => {
+      if (isSilentApiError(error)) return;
+      if (!(error instanceof BatchActionError || error instanceof DraftConflictError))
+        reportApiError(error);
       if (kind === 'approve' && leaving.current) {
         toast.warning(t('requisitions.offline.unavailable-label'), {
           description: t('requisitions.offline.unavailable-description'),
@@ -805,9 +833,7 @@ function BatchPage() {
         return;
       }
       setDialogCount(1);
-      setDialog(
-        ids.reduce((message, id) => message.replaceAll(id, recordLabel(id)), errorMessage(error)),
-      );
+      setDialog({ error });
     },
     onSettled: (_data, _error, kind) => {
       if (kind === 'approve' && leaving.current) return;
@@ -820,6 +846,12 @@ function BatchPage() {
     busy.current = true;
     mutation.mutate(kind);
   };
+  const requestFailure =
+    dialog && typeof dialog === 'object' && !(dialog instanceof Map)
+      ? dialog.error instanceof BatchActionError
+        ? t(dialog.error.key)
+        : apiErrorText(dialog.error, 'error.description', t)
+      : null;
   const pending = mutation.isPending;
   const recoveryRecords = pending ? [] : unresolved;
   const guard = useDiscardGuard(dirty, {
@@ -1109,7 +1141,13 @@ function BatchPage() {
                     });
                   })
                   .join('\n')
-              : dialog && batchReasonText(batchReason(dialog), t)}
+              : typeof dialog === 'string'
+                ? batchReasonText(batchReason(dialog), t)
+                : requestFailure &&
+                  ids.reduce(
+                    (message, id) => message.replaceAll(id, recordLabel(id)),
+                    requestFailure,
+                  )}
           </span>
         }
         closeLabel={t('dialog.close')}
@@ -1127,9 +1165,4 @@ function BatchPage() {
       />
     </RequisitionCopyContext>
   );
-}
-function errorMessage(error: unknown) {
-  if (isAxiosError(error) && error.code === 'ECONNABORTED')
-    return 'requisitions.batch.verification-failed';
-  return serverMessage(error) ?? (error instanceof Error ? error.message : String(error));
 }

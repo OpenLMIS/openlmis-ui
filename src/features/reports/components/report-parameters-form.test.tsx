@@ -19,7 +19,10 @@ vi.mock('@/features/reports/api/api', async (original) => ({
   fetchParameterOptions: vi.fn(),
   generateReport: vi.fn(),
 }));
-vi.mock('@/lib/report-error', () => ({ reportCaughtError: vi.fn() }));
+vi.mock('@/lib/report-error', async (original) => ({
+  ...(await original<typeof import('@/lib/report-error')>()),
+  reportCaughtError: vi.fn(),
+}));
 vi.mock('@/lib/download-file', () => ({ downloadFile: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
@@ -132,7 +135,9 @@ it('sends one exact request on a double Generate and keeps every value when it f
     expect.any(AbortSignal),
   );
   expect(window.open).toHaveBeenCalledOnce();
-  await act(async () => failure.reject(httpError(400, { message: 'Bad period' })));
+  await act(async () =>
+    failure.reject(httpError(400, { messageKey: 'report.error.period', message: 'Bad period' })),
+  );
   await waitFor(() =>
     expect(toast.error).toHaveBeenCalledWith('reports.generate.error-title', {
       description: 'Bad period',

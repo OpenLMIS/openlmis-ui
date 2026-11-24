@@ -20,7 +20,7 @@ import {
   CardRows,
   SkeletonBar,
 } from '@/components/display/card-list';
-import { ErrorAlert, serverMessage } from '@/components/display/dialog-parts';
+import { ErrorAlert } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,8 @@ import type { DigestConfiguration, DigestSubscription } from '@/features/profile
 import { useCardLayout } from '@/hooks/use-card-view';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 
 const FORM_ID = 'notification-settings-form';
@@ -118,6 +120,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
   );
 
   const save = useSessionMutation({
+    onError: reportApiError,
     mutationFn: (rows: DigestRow[]) => saveSubscriptions(userId, toSubscriptions(rows)),
     onSuccess: () => {
       toast.success(t('profile.notifications.saved-title'), {
@@ -307,7 +310,7 @@ function DigestForm({ userId, configurations, subscriptions }: DigestFormProps) 
         >
           {save.isError && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('users.form.save-error')}
+              description={apiErrorText(save.error, 'error.description', t, { write: true })}
               title={t('profile.notifications.save-error-title')}
             />
           )}

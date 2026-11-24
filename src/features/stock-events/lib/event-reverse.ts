@@ -1,3 +1,4 @@
+import type { ParseKeys } from 'i18next';
 import type {
   EventStockOnHand,
   StockEventCancel,
@@ -5,6 +6,7 @@ import type {
   StockEventLine,
   StockEventLineReason,
 } from '@/features/stock-events/lib/types';
+import { keyedApiErrorText } from '@/lib/api-error';
 
 type ReverseLineDraft = { reasonId: string; comments: string };
 export type ReverseDraft = { lines: Record<string, ReverseLineDraft> };
@@ -164,21 +166,9 @@ export function reversePayload(rows: readonly ReverseRow[], signature: string): 
   };
 }
 
-export function lineErrorMessage(error: Pick<StockEventCancelLineError, 'messageKey' | 'message'>):
-  | {
-      key:
-        | 'stock-event-reverse.reason-required'
-        | 'stock-event-reverse.reason-invalid'
-        | 'stock-event-reverse.failed-description';
-    }
-  | { message: string } {
-  if (error.messageKey === 'stockmanagement.error.event.cancellation.reason.required') {
-    return { key: 'stock-event-reverse.reason-required' };
-  }
-  if (error.messageKey === 'stockmanagement.error.event.cancellation.reason.invalid') {
-    return { key: 'stock-event-reverse.reason-invalid' };
-  }
-  return error.message
-    ? { message: error.message }
-    : { key: 'stock-event-reverse.failed-description' };
+export function lineErrorMessage(
+  error: Pick<StockEventCancelLineError, 'messageKey' | 'message'>,
+  t: (key: ParseKeys) => string,
+) {
+  return keyedApiErrorText(error.messageKey, error.message, t) ?? t('error.description');
 }

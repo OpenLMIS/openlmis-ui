@@ -3,7 +3,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { Loader2Icon, NetworkIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FieldSkeleton, LookupBoundary, serverMessage } from '@/components/display/dialog-parts';
+import { FieldSkeleton, LookupBoundary } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -52,6 +52,8 @@ import {
 import type { SupervisoryNode } from '@/features/supervisory-nodes/lib/types';
 import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
+import { reportApiError } from '@/lib/report-error';
 
 const FORM_ID = 'supervisory-node-form';
 
@@ -98,8 +100,11 @@ export function NodeEditor({
       return onSaved(node);
     },
     onError: (error) => {
+      if (isSilentApiError(error)) return;
+      const conflict = error instanceof SupervisoryNodeConflictError;
+      if (!conflict) reportApiError(error);
       setFailure(error);
-      setAlert(error instanceof SupervisoryNodeConflictError ? 'conflict' : 'failure');
+      setAlert(conflict ? 'conflict' : 'failure');
     },
   });
   const form = useNodeForm(
@@ -228,7 +233,7 @@ export function NodeEditor({
                 ? t('supervisory-nodes.form.invalid-description')
                 : alert === 'conflict'
                   ? t('supervisory-nodes.form.conflict-description')
-                  : (serverMessage(failure) ?? t('supervisory-nodes.form.save-error'))}
+                  : apiErrorText(failure, 'error.description', t, { write: true })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -244,6 +249,11 @@ export function NodeEditor({
                     setAlert(null);
                   } catch (error) {
                     if (!mutation.isCurrent()) return;
+                    if (isSilentApiError(error)) {
+                      setAlert(null);
+                      return;
+                    }
+                    reportApiError(error);
                     setFailure(error);
                     setAlert('failure');
                   } finally {

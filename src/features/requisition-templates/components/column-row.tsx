@@ -235,7 +235,19 @@ function useColumnFields({ form, column }: Props, cards: boolean) {
     ),
     sourceText: source ? t(SOURCE_KEYS[source]) : '',
     periodsField: definition.name === 'averageConsumption' && (
-      <form.AppField name="numberOfPeriodsToAverage">
+      <form.AppField
+        name="numberOfPeriodsToAverage"
+        listeners={{
+          onChange: ({ fieldApi }) => {
+            if (fieldApi.state.meta.errorMap.onServer) {
+              fieldApi.setMeta((meta) => ({
+                ...meta,
+                errorMap: { ...meta.errorMap, onServer: undefined },
+              }));
+            }
+          },
+        }}
+      >
         {(field) => (
           <field.NumberField
             layout="inline"

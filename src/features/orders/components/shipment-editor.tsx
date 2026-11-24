@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useDeviceWork } from '@/components/app-shell/device-work';
 import { LoadError } from '@/components/app-shell/load-error';
-import { serverMessage } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import { InvalidSubmitDialog } from '@/components/display/invalid-submit-dialog';
 import { QuantityUnitToggle } from '@/components/display/quantity-unit-toggle';
@@ -64,10 +63,12 @@ import { useDiscardGuard } from '@/hooks/use-discard-guard';
 import { usePrintReport } from '@/hooks/use-print-report';
 import { useQuantityUnit } from '@/hooks/use-quantity-unit';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText, isSilentApiError } from '@/lib/api-error';
 import { isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { openReport } from '@/lib/open-report';
 import { invalidateOrderLists } from '@/lib/order-queries';
+import { reportApiError } from '@/lib/report-error';
 import { revealField } from '@/lib/reveal-field';
 import { getSessionUserId } from '@/lib/session-scope';
 import { homeStockRefreshKey } from '@/lib/stock-programs';
@@ -167,6 +168,7 @@ function ShipmentData({
     vvm: vvm.data,
   });
   const create = useSessionMutation({
+    onError: reportApiError,
     mutationFn: () => createShipmentDraftOnce(shipmentCreateBody(order.id, lines)),
     onSuccess: async (draft) => {
       client.setQueryData(shipmentDraftOptions(order.id).queryKey, draft);
@@ -238,46 +240,49 @@ function ShipmentData({
   if (!editableStatus && record.isSuccess && !record.data)
     return notice(t('orders.shipment.cannot-fulfill'));
   const refused = isRefused(error);
-  const description = refused
-    ? (serverMessage(error) ?? t('orders.shipment.cannot-view'))
-    : t(
-        error instanceof ShipmentDraftExpiredError
-          ? 'orders.shipment.draft-gone-description'
-          : 'error.description',
-      );
-  const failure = error ? (
-    <>
-      <LoadError
-        title={t(
-          error instanceof ShipmentDraftExpiredError
-            ? 'orders.shipment.draft-gone'
-            : error === summaries.error
-              ? 'orders.shipment.stock-error'
-              : 'orders.shipment.load-error',
-        )}
-        description={description}
-        error={error}
-        reset={() => {
-          if (error instanceof ShipmentDraftExpiredError) {
-            window.location.reload();
-            return;
-          }
-          for (const read of [record, summaries, products, savedProducts, lots, vvm])
-            if (read.isError) void read.refetch();
-          create.reset();
-        }}
-      />
-      <InvalidSubmitDialog
-        open={refused && dismissedRefusal !== error}
-        onOpenChange={(open) => {
-          if (!open) setDismissedRefusal(error);
-        }}
-        title={t('orders.shipment.not-authorized')}
-        description={<bdi>{description}</bdi>}
-        closeLabel={t('dialog.close')}
-      />
-    </>
-  ) : null;
+  const fallback = refused ? 'orders.shipment.cannot-view' : 'error.description';
+  const description =
+    error instanceof ShipmentDraftExpiredError
+      ? t('orders.shipment.draft-gone-description')
+      : error && (error === create.error || refused)
+        ? apiErrorText(error, fallback, t, { write: error === create.error })
+        : isSilentApiError(error)
+          ? null
+          : t(fallback);
+  const failure =
+    error && description !== null ? (
+      <>
+        <LoadError
+          title={t(
+            error instanceof ShipmentDraftExpiredError
+              ? 'orders.shipment.draft-gone'
+              : error === summaries.error
+                ? 'orders.shipment.stock-error'
+                : 'orders.shipment.load-error',
+          )}
+          description={description}
+          error={error}
+          reset={() => {
+            if (error instanceof ShipmentDraftExpiredError) {
+              window.location.reload();
+              return;
+            }
+            for (const read of [record, summaries, products, savedProducts, lots, vvm])
+              if (read.isError) void read.refetch();
+            create.reset();
+          }}
+        />
+        <InvalidSubmitDialog
+          open={refused && dismissedRefusal !== error}
+          onOpenChange={(open) => {
+            if (!open) setDismissedRefusal(error);
+          }}
+          title={t('orders.shipment.not-authorized')}
+          description={<bdi>{description}</bdi>}
+          closeLabel={t('dialog.close')}
+        />
+      </>
+    ) : null;
   if (!opened)
     return (
       <ShipmentFrame order={order} cceStatus={cceStatus}>
@@ -374,11 +379,12 @@ function ShipmentEditor({
   const fail = (error: unknown, kind: ShipmentAction) => {
     setAction(null);
     if (error instanceof ShipmentDraftExpiredError) setGone(true);
-    else
-      setFailure({
-        title: t(`orders.shipment.${kind}-failed`),
-        description: serverMessage(error) ?? t('error.description'),
-      });
+    else {
+      reportApiError(error);
+      const description = apiErrorText(error, 'error.description', t, { write: true });
+      if (description !== null)
+        setFailure({ title: t(`orders.shipment.${kind}-failed`), description });
+    }
   };
   const save = useSessionMutation({
     mutationFn: async () => {

@@ -4,12 +4,7 @@ import type { ParseKeys } from 'i18next';
 import { type Ref, useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
-import {
-  DialogLoadError,
-  ErrorAlert,
-  FieldSkeleton,
-  serverMessage,
-} from '@/components/display/dialog-parts';
+import { DialogLoadError, ErrorAlert, FieldSkeleton } from '@/components/display/dialog-parts';
 import { DiscardChangesDialog } from '@/components/display/discard-changes-dialog';
 import {
   FormDialog,
@@ -48,6 +43,7 @@ import {
 } from '@/features/cce-inventory/lib/inventory-item-form';
 import type { CatalogItem, InventoryItemBody } from '@/features/cce-inventory/lib/types';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
+import { apiErrorText } from '@/lib/api-error';
 import type { EquipmentStatus } from '@/lib/cce-equipment-status';
 import {
   type CompleteSelection,
@@ -59,6 +55,7 @@ import {
 } from '@/lib/facility-program-selection';
 import { queryKeys } from '@/lib/key-factory';
 import type { ProgramGrant } from '@/lib/permissions';
+import { reportApiError } from '@/lib/report-error';
 
 const ADD_KEY = ['cce-inventory', 'add'];
 
@@ -194,6 +191,7 @@ function AddEquipmentForm({
   };
 
   const mutation = useSessionMutation({
+    onError: reportApiError,
     mutationKey: ADD_KEY,
     mutationFn: ({ body }: SaveRequest) => createInventoryItem(body),
     onSuccess: (_, { body, selection }) => {
@@ -250,9 +248,9 @@ function AddEquipmentForm({
               <>
                 {mutation.isError && (
                   <ErrorAlert
-                    description={
-                      serverMessage(mutation.error) ?? t('cce-inventory.form.save-error')
-                    }
+                    description={apiErrorText(mutation.error, 'error.description', t, {
+                      write: true,
+                    })}
                     title={t('cce-inventory.form.save-error-title')}
                   />
                 )}

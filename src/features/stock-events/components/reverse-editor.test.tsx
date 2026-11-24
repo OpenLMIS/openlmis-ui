@@ -339,7 +339,16 @@ it('clears every mark of a row when it is unticked', async () => {
 });
 it.each([
   new Error('No response'),
-  { isAxiosError: true, response: { status: 400, data: { message: 'Server refused reversal' } } },
+  {
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: {
+        messageKey: 'stockmanagement.error.event.cancellation.refused',
+        message: 'Server refused reversal',
+      },
+    },
+  },
   {
     isAxiosError: true,
     response: {
@@ -356,9 +365,10 @@ it.each([
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
   const dialog = await screen.findByRole('alertdialog');
-  expect(dialog).toHaveTextContent(
+  expect(dialog).toHaveAccessibleName('stock-event-reverse.failed-title');
+  expect(dialog).toHaveAccessibleDescription(
     error instanceof Error
-      ? 'stock-event-reverse.failed-description'
+      ? 'error.description'
       : 'message' in error.response.data
         ? 'Server refused reversal'
         : 'stock-event-reverse.line-errors',
@@ -373,6 +383,70 @@ it.each([
   );
   await pick('Other reason');
 });
+it('marks a matching row with fallback text when its refusal is malformed', async () => {
+  vi.mocked(cancelStockEvent).mockRejectedValueOnce({
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: { lineErrors: [{ stockEventLineItemId: 'line', messageKey: 123, message: {} }] },
+    },
+  });
+  editor();
+  await tick();
+  await pick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+
+  expect(await screen.findByRole('alertdialog')).toHaveAccessibleDescription(
+    'stock-event-reverse.line-errors',
+  );
+  await closeAlert();
+  expect(screen.getByRole('alert')).toHaveTextContent('error.description');
+  expect(screen.getByRole('button', { name: 'Page 1: Contains Invalid Rows' })).toBeInTheDocument();
+});
+
+it.each([
+  [
+    [
+      {
+        messageKey: 'stockmanagement.error.event.cancellation.reason.required',
+        message: 'Refused',
+      },
+    ],
+    'stock-event-reverse.reason-required',
+  ],
+  [[{ message: 'Line refused' }], 'Line refused'],
+  [[{ messageKey: 'stockmanagement.error.event.cancellation.refused' }], 'error.description'],
+  [[{ messageKey: 123, message: {} }, { message: 'Usable refusal' }], 'Usable refusal'],
+])('shows the refusal in the dialog when no row matches %j', async (lineErrors, description) => {
+  vi.mocked(cancelStockEvent).mockRejectedValueOnce({
+    isAxiosError: true,
+    response: {
+      status: 400,
+      data: {
+        lineErrors: lineErrors.map((lineError) => ({
+          stockEventLineItemId: 'unknown-line',
+          ...lineError,
+        })),
+      },
+    },
+  });
+  editor();
+  await tick();
+  await pick();
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.submit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+  await userEvent.click(screen.getByRole('button', { name: 'stock-events.confirm' }));
+
+  const dialog = await screen.findByRole('alertdialog');
+  expect(dialog).toHaveAccessibleDescription(description);
+  await closeAlert();
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'stock-events.submit' })).toHaveFocus(),
+  );
+});
+
 it('marks overlong comments without visible field text and focuses after Close', async () => {
   editor();
   await tick();

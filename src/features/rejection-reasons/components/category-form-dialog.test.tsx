@@ -51,7 +51,10 @@ it('keeps a rejected edit and server message, then sends the full record on retr
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   vi.spyOn(queryClient, 'invalidateQueries').mockRejectedValue(new Error('refresh offline'));
   vi.mocked(client.post).mockRejectedValueOnce(
-    httpError(400, { message: 'That code is already used.' }),
+    httpError(400, {
+      messageKey: 'requisition.error.rejectionReasonCategory.code.duplicated',
+      message: 'That code is already used.',
+    }),
   );
   vi.mocked(client.post).mockResolvedValueOnce({ data: { ...saved, name: ' Updated ' } });
   renderPage(

@@ -204,6 +204,7 @@ describe('PeriodsDialog', () => {
     const user = userEvent.setup();
     vi.mocked(createProcessingPeriod).mockRejectedValue(
       httpError(400, {
+        messageKey: 'referenceData.error.processingPeriod.gap.between.lastEndDate.and.startDate',
         message: 'Start date should be one day after last added end date',
       }),
     );

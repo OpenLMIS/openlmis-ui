@@ -167,7 +167,9 @@ describe('usePrintReport', () => {
   });
 
   it.each([403, 500])('handles a report refusal or server error: %i', async (status) => {
-    request.mockRejectedValue(httpError(status, { message: 'Server details' }));
+    request.mockRejectedValue(
+      httpError(status, { messageKey: 'report.unknown', message: 'Server details' }),
+    );
     renderButton();
     await userEvent.click(screen.getByRole('button', { name: 'Print' }));
     await waitFor(() =>

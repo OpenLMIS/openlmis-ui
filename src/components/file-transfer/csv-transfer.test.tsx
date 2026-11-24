@@ -175,12 +175,8 @@ it.each([
     'Selected file is empty',
   ],
   [httpError(413, '<html>too large</html>'), en['file-transfer.file-too-large']],
-  [
-    httpError(500, { messageKey: 'referenceData.internal', message: 'Technical exception' }),
-    copy.uploadError,
-  ],
-  [httpError(400, { message: 'Framework exception' }), copy.uploadError],
-  [networkError(), copy.uploadError],
+  [httpError(500, { message: 'Technical exception' }), copy.uploadError],
+  [networkError(), en['error.check-connection']],
 ])(
   'shows a safe upload error and clears it when removing the retained file (%#)',
   async (error, message) => {

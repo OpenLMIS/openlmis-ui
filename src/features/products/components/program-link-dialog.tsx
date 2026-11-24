@@ -11,7 +11,6 @@ import {
   FieldSkeleton,
   SkeletonLine,
   SwitchSkeleton,
-  serverMessage,
 } from '@/components/display/dialog-parts';
 import { useAppForm } from '@/components/form/form';
 import {
@@ -42,6 +41,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { productName } from '@/features/reference-data/lib/product-name';
 import { programName } from '@/features/reference-data/lib/programs';
+import { apiErrorText } from '@/lib/api-error';
 import { decimalMark } from '@/lib/decimal';
 
 type ProgramLinkDialogProps = {
@@ -185,7 +185,7 @@ function ProgramLinkForm({ product, link, readOnly, onDone }: ProgramLinkFormPro
         <FieldGroup>
           {save.isError && (
             <ErrorAlert
-              description={serverMessage(save.error) ?? t('products.form.save-error')}
+              description={apiErrorText(save.error, 'error.description', t, { write: true })}
               title={t('products.programs.form.save-error-title')}
             />
           )}

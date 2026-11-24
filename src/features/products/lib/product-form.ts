@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
 import type { CreateProductBody, ProductDetail } from '@/features/products/lib/types';
@@ -118,9 +117,9 @@ export function hasProductChanges(values: ProductFormValues, saved: ProductDetai
   );
 }
 
-export function isDuplicateCode(error: unknown) {
-  return (
-    isAxiosError<{ messageKey?: string }>(error) &&
-    error.response?.data?.messageKey === 'referenceData.error.orderable.productCode.mustBeUnique'
-  );
-}
+export const PRODUCT_FIELD_ERRORS = {
+  'referenceData.error.orderable.productCode.mustBeUnique': {
+    field: 'productCode',
+    key: 'products.form.code-taken',
+  },
+} as const;

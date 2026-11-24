@@ -24,10 +24,12 @@ import {
 import { searchRequisitions } from '@/features/requisitions/api/api';
 import {
   type RequisitionCopy,
+  RequisitionCopyRemovedError,
   readCopies,
   removalDecision,
 } from '@/features/requisitions/lib/offline-copies';
 import { localRequisitions } from '@/features/requisitions/lib/offline-search';
+import { LocalDataUnavailableError } from '@/lib/local-data';
 import { Route } from '@/routes/(protected)/_protected.requisitions.view';
 import { httpError } from '@/test-utils/http-error';
 
@@ -498,6 +500,32 @@ it('keeps View one click away on every row and adds removal beside it once copie
   );
   await user.click(screen.getByRole('button', { name: 'dialog.cancel' }));
   await waitFor(() => expect(remove).toHaveFocus());
+  queryClient.clear();
+});
+
+it.each([
+  [new LocalDataUnavailableError(), false],
+  [new RequisitionCopyRemovedError(undefined), false],
+  [new Error('IndexedDB unavailable'), true],
+] as const)('shows stale-copy guidance when removal cannot start: %s', async (error, reported) => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.mocked(readCopies).mockResolvedValue([savedCopy()]);
+  vi.mocked(searchRequisitions).mockResolvedValue({
+    content: onlineRows,
+    number: 0,
+    size: 10,
+    totalElements: 2,
+    totalPages: 1,
+  });
+  vi.mocked(removalDecision).mockRejectedValueOnce(error);
+  const { queryClient } = renderRoute('/requisitions/view?facility=f');
+
+  await userEvent.click(await screen.findByRole('button', { name: 'requisitions.offline.remove' }));
+
+  const dialog = await screen.findByRole('alertdialog');
+  expect(dialog).toHaveAccessibleDescription('requisitions.offline.stale');
+  if (reported) expect(log).toHaveBeenCalledExactlyOnceWith(error);
+  else expect(log).not.toHaveBeenCalled();
   queryClient.clear();
 });
 
