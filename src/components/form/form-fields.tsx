@@ -24,6 +24,7 @@ import {
   useState,
 } from 'react';
 import {
+  advanceDateText,
   FIRST_DATE_YEAR,
   formatDateText,
   lastDateYear,
@@ -1774,6 +1775,9 @@ export function DatePicker({
   const withinControl = useRef(false);
   const moveFocusToCalendar = useRef(false);
   const focusInputOnClose = useRef(false);
+  const advancedText = useRef<string | undefined>(undefined);
+  const compositionBase = useRef<string | undefined>(undefined);
+  const lateComposition = useRef<{ base: string; text: string; result: string }>(undefined);
   const [openedFor, setOpenedFor] = useState<number>();
   const open = openedFor === calendarDismissKey;
   const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
@@ -1934,6 +1938,17 @@ export function DatePicker({
     change(next);
   };
 
+  const advanceText = (previous: string, text: string) => {
+    const afterAdded = activeEdit !== undefined && advancedText.current === previous;
+    const advanced = advanceDateText(previous, text, editingFormat ?? dateFormat, afterAdded);
+    const addedSeparator = advanced.length > text.length && /[/ .-]$/.test(advanced);
+    advancedText.current = addedSeparator ? advanced : undefined;
+    return advanced;
+  };
+
+  const advanceComposed = (base: string, text: string) =>
+    text.length === base.length + 1 && text.startsWith(base) ? advanceText(base, text) : text;
+
   const focusOpenCalendar = () => {
     if (!open) openCalendar();
     if (popup.current && calendarOpen) focusCalendar(popup.current);
@@ -2031,7 +2046,7 @@ export function DatePicker({
             <span className="sr-only" id={calendarLabelId}>
               {calendarLabel}
             </span>
-            <CalendarIcon data-icon="inline-start" />
+            <CalendarIcon />
           </InputGroupButton>
         </InputGroupAddon>
         <InputGroupInput
@@ -2045,11 +2060,50 @@ export function DatePicker({
           disabled={disabled}
           id={id}
           onBlur={() => {
+            compositionBase.current = undefined;
+            lateComposition.current = undefined;
+            advancedText.current = undefined;
             setEdit(undefined);
             setEditingFormat(undefined);
             onBlur?.();
           }}
-          onChange={(event) => changeText(event.target.value)}
+          onChange={(event) => {
+            const { value: text, selectionStart } = event.currentTarget;
+            const nativeEvent = event.nativeEvent as InputEvent;
+            const typedAtEnd =
+              nativeEvent.inputType === 'insertText' &&
+              !nativeEvent.isComposing &&
+              selectionStart === text.length;
+            const composing = nativeEvent.isComposing || /Composition/.test(nativeEvent.inputType);
+            const late = composing ? lateComposition.current : undefined;
+            lateComposition.current = undefined;
+            if (late && !nativeEvent.isComposing) {
+              if (text === late.text) changeText(late.result);
+              else
+                changeText(
+                  selectionStart === text.length ? advanceComposed(late.base, text) : text,
+                );
+              return;
+            }
+            if (!typedAtEnd && !composing) advancedText.current = undefined;
+            changeText(typedAtEnd ? advanceText(shown, text) : text);
+          }}
+          onCompositionEnd={(event) => {
+            const base = compositionBase.current;
+            compositionBase.current = undefined;
+            if (base === undefined) return;
+            const { value: text, selectionStart } = event.currentTarget;
+            const result = selectionStart === text.length ? advanceComposed(base, text) : text;
+            lateComposition.current = { base, text, result };
+            if (result !== text) changeText(result);
+          }}
+          onCompositionStart={(event) => {
+            const { value, selectionStart, selectionEnd } = event.currentTarget;
+            const atEnd = selectionStart === selectionEnd && selectionEnd === value.length;
+            compositionBase.current = atEnd ? shown : undefined;
+            lateComposition.current = undefined;
+            if (!atEnd) advancedText.current = undefined;
+          }}
           onFocus={() => {
             setEditingFormat((format) => format ?? dateFormat);
             if (tabKey) openCalendar();
@@ -2074,7 +2128,7 @@ export function DatePicker({
         {showClear && (
           <InputGroupAddon align="inline-end">
             <InputGroupButton aria-label={clearLabel} onClick={() => pick('')} size="icon-xs">
-              <XIcon data-icon="inline-start" />
+              <XIcon />
             </InputGroupButton>
           </InputGroupAddon>
         )}

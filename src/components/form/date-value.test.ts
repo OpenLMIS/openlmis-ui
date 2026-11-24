@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  advanceDateText,
   formatDateText,
   formatDateValue,
   formatTimestamp,
@@ -7,6 +8,45 @@ import {
   parseDateValue,
   toDateValue,
 } from '@/components/form/date-value';
+
+describe('advanceDateText', () => {
+  it.each([
+    ['two-digit day', '0', '05', 'dd/MM/yyyy', '05/'],
+    ['two-digit month', '05/0', '05/01', 'dd/MM/yyyy', '05/01/'],
+    ['final year', '05/05/202', '05/05/2026', 'dd/MM/yyyy', '05/05/2026'],
+    ['month-first padding', '', '3', 'MM/dd/yyyy', '03/'],
+    ['day padding', '', '5', 'dd/MM/yyyy', '05/'],
+    ['day can still start with 3', '', '3', 'dd/MM/yyyy', '3'],
+    ['month can still start with 1', '05/', '05/1', 'dd/MM/yyyy', '05/1'],
+    ['separator from its position', '1/0', '1/05', 'd/MM yyyy', '1/05 '],
+    ['year-first format', '202', '2026', 'yyyy-MM-dd', '2026-'],
+    ['single year digit', '', '5', 'yyyy-MM-dd', '5'],
+    ['final day pads without a separator', '2026-05-', '2026-05-5', 'yyyy-MM-dd', '2026-05-05'],
+    ['Arabic day padding', '', '٥', 'dd/MM/yyyy', '٠٥/'],
+    ['Persian month padding', '٠٥/', '٠٥/۳', 'dd/MM/yyyy', '٠٥/۰۳/'],
+    ['separator typed by hand', '1/', '1//', 'dd/MM/yyyy', '1//'],
+    ['space', '12', '12 ', 'dd/MM/yyyy', '12 '],
+    ['space after a short part', '12/7', '12/7 ', 'dd/MM/yyyy', '12/7 '],
+    ['removal', '05/05', '05/5', 'dd/MM/yyyy', '05/5'],
+    ['middle edit', '1/2', '15/2', 'dd/MM/yyyy', '15/2'],
+    ['past the format', '05/05/2026', '05/05/20261', 'dd/MM/yyyy', '05/05/20261'],
+    ['unexpected separator', '05-0', '05-05', 'dd/MM/yyyy', '05-05'],
+    ['fallback format', '0', '05', 'unsupported', '05/'],
+  ])('%s', (_name, previous, next, format, expected) => {
+    expect(advanceDateText(previous, next, format)).toBe(expected);
+  });
+
+  it.each([
+    ['same separator', '05/', '05//', 'dd/MM/yyyy', '05/'],
+    ['another separator', '05/', '05/-', 'dd/MM/yyyy', '05/'],
+    ['after a year', '2026-', '2026--', 'yyyy-MM-dd', '2026-'],
+  ])(
+    'swallows one separator typed right after an added one: %s',
+    (_name, previous, next, format, expected) => {
+      expect(advanceDateText(previous, next, format, true)).toBe(expected);
+    },
+  );
+});
 
 describe('parseDateValue', () => {
   it('reads a yyyy-MM-dd date as that day, at midnight where the user is', () => {

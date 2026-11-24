@@ -579,13 +579,15 @@ describe('date field', () => {
     const onSubmit = vi.fn();
     render(<DateForm onSubmit={onSubmit} />);
     const input = screen.getByRole('textbox', { name: /^Started/ });
-    await user.type(input, '9999-01-01{Enter}');
+    await user.click(input);
+    await user.paste('9999-01-01');
+    await user.keyboard('{Enter}');
     expect(input).toHaveValue('9999-01-01');
     expect(input).toHaveAccessibleDescription('form.date-invalid');
     expect(onSubmit).not.toHaveBeenCalled();
     await user.clear(input);
     await user.type(input, '1/2/2024');
-    expect(input).toHaveValue('1/2/2024');
+    expect(input).toHaveValue('1/02/2024');
     expect(await screen.findByRole('grid')).toHaveAttribute('aria-label', 'February 2024');
     await user.keyboard('{Escape}');
     expect(input).toHaveFocus();
@@ -596,6 +598,61 @@ describe('date field', () => {
     await user.tab();
     expect(input).toHaveValue('01/02/2024');
     expect(screen.getByRole('button', { name: 'Save' })).toHaveFocus();
+  });
+  it('advances through the date only when typing at the end', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<DateForm onSubmit={onSubmit} />);
+    const input = screen.getByRole<HTMLInputElement>('textbox', { name: /^Started/ });
+
+    await user.type(input, '5');
+    expect(input).toHaveValue('05/');
+    await user.keyboard('{Backspace}');
+    expect(input).toHaveValue('05');
+    await user.keyboard('/05/2026{Enter}');
+    expect(input).toHaveValue('05/05/2026');
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ started: '2026-05-05' }));
+
+    await user.clear(input);
+    await user.paste('5');
+    expect(input).toHaveValue('5');
+    input.setSelectionRange(0, 0);
+    await user.keyboard('5');
+    expect(input).toHaveValue('55');
+    input.setSelectionRange(1, 2);
+    await user.keyboard('8');
+    expect(input).toHaveValue('58');
+  });
+  it('advances IME input after composition ends, whichever event the browser sends last', async () => {
+    const user = userEvent.setup();
+    render(<DateForm onSubmit={vi.fn()} />);
+    const input = screen.getByRole<HTMLInputElement>('textbox', { name: /^Started/ });
+    input.focus();
+    const compose = (text: string, inputBeforeEnd: boolean) => {
+      fireEvent.compositionStart(input);
+      const commit = { target: { value: text }, inputType: 'insertCompositionText' };
+      if (inputBeforeEnd) fireEvent.input(input, { ...commit, isComposing: true });
+      fireEvent.compositionEnd(input);
+      if (!inputBeforeEnd) fireEvent.input(input, { ...commit, isComposing: false });
+    };
+
+    compose('٥', true);
+    expect(input).toHaveValue('٠٥/');
+    compose('٠٥/٠', true);
+    compose('٠٥/٠٣', false);
+    expect(input).toHaveValue('٠٥/٠٣/');
+    const separator = { target: { value: '٠٥/٠٣//' }, inputType: 'insertCompositionText' };
+    fireEvent.compositionStart(input);
+    fireEvent.input(input, { ...separator, isComposing: true });
+    fireEvent.compositionEnd(input);
+    fireEvent.input(input, { ...separator, isComposing: false });
+    expect(input).toHaveValue('٠٥/٠٣/');
+
+    input.setSelectionRange(0, input.value.length);
+    compose('5', true);
+    expect(input).toHaveValue('5');
+    await user.paste('8');
+    expect(input).toHaveValue('58');
   });
   it('replaces the focused spelling when an external form reset restores the same canonical value', async () => {
     const user = userEvent.setup();
