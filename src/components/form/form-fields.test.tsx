@@ -485,6 +485,9 @@ it('hides the error tooltip while the date calendar is open', async () => {
   await user.tab();
   expect(await screen.findByRole('grid')).toBeInTheDocument();
   await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
+  expect(screen.getByRole('textbox', { name: /Received/ })).toHaveAccessibleDescription(
+    'Date not allowed',
+  );
 
   await user.keyboard('{Escape}');
   expect(await screen.findByRole('tooltip')).toHaveTextContent('Date not allowed');

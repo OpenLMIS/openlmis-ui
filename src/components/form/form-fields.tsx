@@ -21,6 +21,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1806,7 +1807,7 @@ export function DatePicker({
   const calendarOpen = open && loaded !== null && !disabled;
   const reportPopup = useContext(FieldPopupContext);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     reportPopup?.(calendarOpen);
     return () => reportPopup?.(false);
   }, [reportPopup, calendarOpen]);
