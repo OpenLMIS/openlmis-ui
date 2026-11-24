@@ -13,11 +13,13 @@ import {
 } from 'lucide-react';
 import {
   type ComponentProps,
+  createContext,
   type FocusEvent,
   Fragment,
   type KeyboardEvent,
   type ReactNode,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -205,6 +207,8 @@ function RowExtras({
   );
 }
 
+const FieldPopupContext = createContext<((open: boolean) => void) | null>(null);
+
 /** Label, control, description and error, laid out as the field's `layout` asks. */
 function FieldFrame({
   layout = 'stacked',
@@ -222,6 +226,7 @@ function FieldFrame({
 }: FieldFrameProps) {
   const field = useFieldContext<unknown>();
   const [errorOpen, setErrorOpen] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(false);
   const labelText = <FieldLabelText label={label} required={required} />;
   const descriptionNode = description && (
     <FieldDescription id={descriptionId}>{description}</FieldDescription>
@@ -246,7 +251,7 @@ function FieldFrame({
       <Tooltip
         disabled={!isInvalid || externalError}
         triggerId={`${field.name}-error-trigger`}
-        open={!externalError && isInvalid && errorOpen}
+        open={!externalError && isInvalid && errorOpen && !popupOpen}
         onOpenChange={(open, { event, trigger }) => {
           if (!open || !(event?.target instanceof Node) || trigger?.contains(event.target))
             setErrorOpen(open);
@@ -263,7 +268,7 @@ function FieldFrame({
             if (!event.currentTarget.contains(event.relatedTarget)) setErrorOpen(false);
           }}
         >
-          {children}
+          <FieldPopupContext value={setPopupOpen}>{children}</FieldPopupContext>
         </TooltipTrigger>
         <TooltipContent id={`${field.name}-error-tooltip`} role="tooltip">
           {errors
@@ -1799,6 +1804,12 @@ export function DatePicker({
   const last = useMemo(() => (latest ? parseDateValue(latest) : undefined), [latest]);
   const calendarRequest = useRef(0);
   const calendarOpen = open && loaded !== null && !disabled;
+  const reportPopup = useContext(FieldPopupContext);
+
+  useEffect(() => {
+    reportPopup?.(calendarOpen);
+    return () => reportPopup?.(false);
+  }, [reportPopup, calendarOpen]);
 
   const loadCalendar = useCallback(() => {
     const request = ++calendarRequest.current;
