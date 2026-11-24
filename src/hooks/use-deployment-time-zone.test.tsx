@@ -167,9 +167,9 @@ it('renders the stored deployment format in Portuguese, keeps it offline and fin
   });
   await act(() => queryClient.invalidateQueries({ queryKey: currencySettingsOptions().queryKey }));
   expect(localStorage.getItem('openlmis-ui.date-format')).toBe('yyyy.MM.dd');
-  expect(date).toHaveValue('2/');
+  expect(date).toHaveValue('02/');
   await user.type(date, '3/2024');
-  expect(date).toHaveValue('2/3/2024');
+  expect(date).toHaveValue('02/3/2024');
   await user.click(screen.getByRole('button', { name: 'Next' }));
   expect(date).toHaveValue('2024.02.03');
 });

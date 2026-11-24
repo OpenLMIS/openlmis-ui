@@ -1775,6 +1775,8 @@ export function DatePicker({
   const withinControl = useRef(false);
   const moveFocusToCalendar = useRef(false);
   const focusInputOnClose = useRef(false);
+  const advancedText = useRef<string | undefined>(undefined);
+  const compositionBase = useRef<string | undefined>(undefined);
   const [openedFor, setOpenedFor] = useState<number>();
   const open = openedFor === calendarDismissKey;
   const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
@@ -1935,6 +1937,13 @@ export function DatePicker({
     change(next);
   };
 
+  const advanceText = (previous: string, text: string) => {
+    const afterAdded = advancedText.current === previous;
+    const advanced = advanceDateText(previous, text, editingFormat ?? dateFormat, afterAdded);
+    advancedText.current = advanced.length > text.length ? advanced : undefined;
+    return advanced;
+  };
+
   const focusOpenCalendar = () => {
     if (!open) openCalendar();
     if (popup.current && calendarOpen) focusCalendar(popup.current);
@@ -2053,13 +2062,23 @@ export function DatePicker({
           onChange={(event) => {
             const { value: text, selectionStart } = event.currentTarget;
             const nativeEvent = event.nativeEvent as InputEvent;
-            const appendedAtEnd =
+            const typedAtEnd =
               nativeEvent.inputType === 'insertText' &&
               !nativeEvent.isComposing &&
               selectionStart === text.length;
-            changeText(
-              appendedAtEnd ? advanceDateText(shown, text, editingFormat ?? dateFormat) : text,
-            );
+            if (!typedAtEnd) advancedText.current = undefined;
+            changeText(typedAtEnd ? advanceText(shown, text) : text);
+          }}
+          onCompositionEnd={(event) => {
+            const { value: text, selectionStart } = event.currentTarget;
+            const base = compositionBase.current;
+            compositionBase.current = undefined;
+            if (base === undefined || selectionStart !== text.length) return;
+            const advanced = advanceText(base, text);
+            if (advanced !== text) changeText(advanced);
+          }}
+          onCompositionStart={() => {
+            compositionBase.current = shown;
           }}
           onFocus={() => {
             setEditingFormat((format) => format ?? dateFormat);

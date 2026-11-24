@@ -94,8 +94,17 @@ function normalizeDateDigits(text: string) {
     .replace(/[٠-٩۰-۹]/g, (digit) => String(ARABIC_DATE_DIGITS.indexOf(digit) % 10));
 }
 
-export function advanceDateText(previous: string, next: string, format: string): string {
+const partWidth = (token?: string) => (token === 'yyyy' ? 4 : 2);
+
+export function advanceDateText(
+  previous: string,
+  next: string,
+  format: string,
+  afterAddedSeparator = false,
+): string {
   if (next.length !== previous.length + 1 || !next.startsWith(previous)) return next;
+  const inserted = next.slice(-1);
+  if (afterAddedSeparator && /[/ .-]/.test(inserted)) return previous;
 
   const pattern = supportedDateFormat(format) ? format : DEFAULT_DATE_FORMAT;
   const tokens = pattern.match(DATE_PARTS) ?? [];
@@ -104,37 +113,19 @@ export function advanceDateText(previous: string, next: string, format: string):
   if (usedSeparators.some((separator, index) => separator !== separators[index])) return next;
 
   const parts = previous.split(DATE_SEPARATORS);
-  const currentIndex = parts.length - 1;
-  const completed = parts.slice(0, currentIndex).map(normalizeDateDigits);
-  if (
-    completed.some((digits, index) =>
-      tokens[index] === 'yyyy' ? !/^\d{4}$/.test(digits) : !/^\d{1,2}$/.test(digits),
-    )
-  )
-    return next;
+  const index = parts.length - 1;
+  const token = tokens[index];
+  const completed = parts.slice(0, index).map(normalizeDateDigits);
+  const partDigits = (part: number) => (tokens[part] === 'yyyy' ? /^\d{4}$/ : /^\d{1,2}$/);
+  if (!token || completed.some((digits, part) => !partDigits(part).test(digits))) return next;
 
-  const current = parts[currentIndex];
-  const inserted = next.slice(-1);
-  const previousWidth = tokens[currentIndex - 1] === 'yyyy' ? 4 : 2;
-  if (
-    current === '' &&
-    inserted === usedSeparators.at(-1) &&
-    completed.at(-1)?.length === previousWidth
-  )
-    return previous;
-
-  const separator = separators[currentIndex];
-  if (!separator || !/^\d$/.test(normalizeDateDigits(inserted))) return next;
-
-  const digits = normalizeDateDigits(current + inserted);
-  const token = tokens[currentIndex];
+  const digits = normalizeDateDigits(parts[index] + inserted);
   if (!/^\d+$/.test(digits)) return next;
-  if (digits.length === (token === 'yyyy' ? 4 : 2)) return next + separator;
-  if (token === 'yyyy' || digits.length !== 1 || Number(digits) <= (token[0] === 'd' ? 3 : 1))
-    return next;
-
-  const digitIndex = ARABIC_DATE_DIGITS.indexOf(inserted);
-  const zero = digitIndex < 0 ? '0' : ARABIC_DATE_DIGITS[digitIndex - (digitIndex % 10)];
+  const separator = separators[index] ?? '';
+  if (digits.length === partWidth(token)) return next + separator;
+  const maxLead = token[0] === 'd' ? 3 : 1;
+  if (token === 'yyyy' || digits.length !== 1 || Number(digits) <= maxLead) return next;
+  const zero = String.fromCodePoint((inserted.codePointAt(0) ?? 48) - Number(digits));
   return previous + zero + inserted + separator;
 }
 

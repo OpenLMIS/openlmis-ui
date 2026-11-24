@@ -795,7 +795,9 @@ Compose dialogs from `src/components/form-dialog/`: `FormDialog`, `FormDialogFor
   `parseEditableDate`. Input uses the deployment's numeric format from `/localeSettings` through
   `FormMessagesProvider`, with `dd/MM/yyyy` as fallback. Only date controls and their layout and filter
   helpers subscribe to the settings query. Keep the active format and spelling through edits, and
-  display valid values in the deployment format after blur. Typed and picked days share
+  display valid values in the deployment format after blur. Typing at the end advances through the
+  format with `advanceDateText`: full parts add the next separator and impossible lead digits pad
+  (day 4-9, month 2-9); paste and middle edits stay as typed. Typed and picked days share
   the calendar's 1900 to current year plus 100 range.
 - Lazy-load the calendar and language (`loadDateLocale` through `FormMessagesProvider`) on mount
   and retry failed loads on open. Pointer and Tab focus open the calendar and keep typing in the
