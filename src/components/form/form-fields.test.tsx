@@ -624,26 +624,29 @@ describe('date field', () => {
     expect(input).toHaveValue('58');
   });
   it('advances IME input after composition ends, whichever event the browser sends last', async () => {
+    const user = userEvent.setup();
     render(<DateForm onSubmit={vi.fn()} />);
     const input = screen.getByRole<HTMLInputElement>('textbox', { name: /^Started/ });
     input.focus();
     const compose = (text: string, inputBeforeEnd: boolean) => {
       fireEvent.compositionStart(input);
-      if (inputBeforeEnd) fireEvent.change(input, { target: { value: text } });
+      const commit = { target: { value: text }, inputType: 'insertCompositionText' };
+      if (inputBeforeEnd) fireEvent.input(input, { ...commit, isComposing: true });
       fireEvent.compositionEnd(input);
-      if (!inputBeforeEnd) fireEvent.change(input, { target: { value: text } });
+      if (!inputBeforeEnd) fireEvent.input(input, { ...commit, isComposing: false });
     };
 
     compose('٥', true);
-    await waitFor(() => expect(input).toHaveValue('٠٥/'));
+    expect(input).toHaveValue('٠٥/');
     compose('٠٥/٠', true);
     compose('٠٥/٠٣', false);
-    await waitFor(() => expect(input).toHaveValue('٠٥/٠٣/'));
+    expect(input).toHaveValue('٠٥/٠٣/');
 
     input.setSelectionRange(0, input.value.length);
     compose('5', true);
-    await act(() => new Promise((resolve) => setTimeout(resolve)));
     expect(input).toHaveValue('5');
+    await user.paste('8');
+    expect(input).toHaveValue('58');
   });
   it('replaces the focused spelling when an external form reset restores the same canonical value', async () => {
     const user = userEvent.setup();
