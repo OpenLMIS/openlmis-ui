@@ -165,8 +165,8 @@ export const INVENTORY_PAGE_SIZE = 20;
 export const inventoryLotCode = (line: InventoryLine) => line.lot?.lotCode ?? line.newLot?.lotCode;
 export const inventoryExpiry = (line: InventoryLine) =>
   line.lot?.expirationDate ?? line.newLot?.expirationDate;
-export function eligibleInventoryLines(
-  lines: readonly InventoryLine[],
+export function eligibleInventoryLines<Line extends InventoryStockLine>(
+  lines: readonly Line[],
   eligible?: readonly InventoryStockLine[],
 ) {
   if (!eligible) return [...lines];

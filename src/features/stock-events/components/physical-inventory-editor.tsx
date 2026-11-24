@@ -907,7 +907,12 @@ function InventoryDraftRows({
         clearLocal={autosave.clear}
         onBusy={setBusy}
         onOrphaned={onOrphaned}
-        onDevicePickerProducts={deviceCopy ? setRefreshedPickerProducts : undefined}
+        onDevicePickerProducts={
+          deviceCopy
+            ? (products) =>
+                setRefreshedPickerProducts(eligibleInventoryLines(products, eligible.data ?? []))
+            : undefined
+        }
         onLots={(next) =>
           form.setFieldValue('lines', Object.fromEntries(next.map((line) => [line.key, line])))
         }

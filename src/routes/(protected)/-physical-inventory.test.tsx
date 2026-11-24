@@ -748,6 +748,24 @@ it.each(['succeeds', 'times out'])(
       } as never),
     );
     const refresh = Promise.withResolvers<InventoryStockLine[]>();
+    const refreshedProducts = [
+      ...reference.eligible,
+      {
+        ...reference.eligible[0],
+        lot: { id: 'lot', lotCode: 'New Batch', expirationDate: null, tradeItemId: 'trade' },
+        stockOnHand: null,
+        stockCardId: null,
+      },
+      {
+        ...reference.eligible[0],
+        orderable: {
+          id: 'new-product',
+          productCode: 'NEW',
+          fullProductName: 'Newly Eligible Product',
+          description: null,
+        },
+      },
+    ];
     vi.mocked(fetchEligibleInventoryProducts)
       .mockReset()
       .mockResolvedValueOnce(reference.eligible)
@@ -791,15 +809,8 @@ it.each(['succeeds', 'times out'])(
     expect(save).toBeEnabled();
     expect(submit).toBeEnabled();
     await act(async () => {
-      if (outcome === 'succeeds') {
-        refresh.resolve([
-          ...reference.eligible,
-          {
-            ...reference.eligible[0],
-            lot: { id: 'lot', lotCode: 'New Batch', expirationDate: null, tradeItemId: 'trade' },
-          },
-        ]);
-      } else refresh.reject(new AxiosError('Picker timed out', AxiosError.ECONNABORTED));
+      if (outcome === 'succeeds') refresh.resolve(refreshedProducts);
+      else refresh.reject(new AxiosError('Picker timed out', AxiosError.ECONNABORTED));
     });
 
     expect(screen.getAllByRole('textbox', { name: 'stock-events.field-of' })[0]).toBe(count);
@@ -811,14 +822,49 @@ it.each(['succeeds', 'times out'])(
     expect(await local.readInventoryLocal(copy.draftId)).toEqual(copy);
     expect(await local.requireInventoryReference(copy)).toEqual(reference);
 
+    if (outcome === 'succeeds') {
+      const pendingLot = screen.getByRole('row', { name: /New Batch/ });
+      await user.click(
+        within(pendingLot).getAllByRole('button', { name: 'stock-events.field-of' })[1],
+      );
+    }
     const picker = await openAddProducts();
+    await user.click(within(picker).getByRole('combobox', { name: 'stock-events.product' }));
+    const storedProduct = await screen.findByRole('option', { name: 'Stored Product' });
+    expect(
+      screen.queryByRole('option', { name: 'Newly Eligible Product' }),
+    ).not.toBeInTheDocument();
+    await user.click(storedProduct);
     await user.click(within(picker).getByRole('combobox', { name: 'stock-events.lot-code' }));
     expect(
       screen.getByRole('option', { name: 'physical-inventory.add-new-lot' }),
     ).toBeInTheDocument();
-    if (outcome === 'succeeds')
-      expect(screen.getByRole('option', { name: 'New Batch' })).toBeInTheDocument();
-    else expect(screen.queryByRole('option', { name: 'New Batch' })).not.toBeInTheDocument();
+    if (outcome === 'times out') {
+      expect(screen.queryByRole('option', { name: 'New Batch' })).not.toBeInTheDocument();
+      return;
+    }
+
+    await user.click(screen.getByRole('option', { name: 'New Batch' }));
+    await user.click(within(picker).getByRole('button', { name: 'stock-events.add' }));
+    await user.type(within(picker).getByRole('textbox', { name: 'stock-events.field-of' }), '4');
+    await user.click(within(picker).getByRole('button', { name: 'physical-inventory.add-items' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByDisplayValue('4')).toBeInTheDocument();
+
+    vi.mocked(fetchEligibleInventoryProducts).mockResolvedValue(refreshedProducts);
+    await user.click(save);
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'physical-inventory.save' }),
+    );
+    await waitFor(() =>
+      expect(savePhysicalInventory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lineItems: expect.arrayContaining([
+            expect.objectContaining({ orderableId: 'p', lotId: 'lot', quantity: 4 }),
+          ]),
+        }),
+      ),
+    );
   },
 );
 
