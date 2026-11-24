@@ -47,7 +47,7 @@ describe('date field calendar loading', () => {
     await user.clear(input);
     await user.type(input, '1/3/2027');
     expect(input).toHaveFocus();
-    expect(input).toHaveValue('1/3/2027');
+    expect(input).toHaveValue('1/03/2027');
     expect(screen.queryByRole('grid')).not.toBeInTheDocument();
     resolveLocale(enUS);
     expect(await screen.findByRole('grid')).toHaveAttribute('aria-label', 'March 2027');

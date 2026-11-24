@@ -24,6 +24,7 @@ import {
   useState,
 } from 'react';
 import {
+  advanceDateText,
   FIRST_DATE_YEAR,
   formatDateText,
   lastDateYear,
@@ -2031,7 +2032,7 @@ export function DatePicker({
             <span className="sr-only" id={calendarLabelId}>
               {calendarLabel}
             </span>
-            <CalendarIcon data-icon="inline-start" />
+            <CalendarIcon />
           </InputGroupButton>
         </InputGroupAddon>
         <InputGroupInput
@@ -2049,7 +2050,17 @@ export function DatePicker({
             setEditingFormat(undefined);
             onBlur?.();
           }}
-          onChange={(event) => changeText(event.target.value)}
+          onChange={(event) => {
+            const { value: text, selectionStart } = event.currentTarget;
+            const nativeEvent = event.nativeEvent as InputEvent;
+            const appendedAtEnd =
+              nativeEvent.inputType === 'insertText' &&
+              !nativeEvent.isComposing &&
+              selectionStart === text.length;
+            changeText(
+              appendedAtEnd ? advanceDateText(shown, text, editingFormat ?? dateFormat) : text,
+            );
+          }}
           onFocus={() => {
             setEditingFormat((format) => format ?? dateFormat);
             if (tabKey) openCalendar();
@@ -2074,7 +2085,7 @@ export function DatePicker({
         {showClear && (
           <InputGroupAddon align="inline-end">
             <InputGroupButton aria-label={clearLabel} onClick={() => pick('')} size="icon-xs">
-              <XIcon data-icon="inline-start" />
+              <XIcon />
             </InputGroupButton>
           </InputGroupAddon>
         )}

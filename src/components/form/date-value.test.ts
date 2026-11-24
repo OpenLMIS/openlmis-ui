@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  advanceDateText,
   formatDateText,
   formatDateValue,
   formatTimestamp,
@@ -7,6 +8,38 @@ import {
   parseDateValue,
   toDateValue,
 } from '@/components/form/date-value';
+
+describe('advanceDateText', () => {
+  it.each([
+    ['two-digit day', '0', '05', 'dd/MM/yyyy', '05/'],
+    ['two-digit month', '05/0', '05/01', 'dd/MM/yyyy', '05/01/'],
+    ['final year', '05/05/202', '05/05/2026', 'dd/MM/yyyy', '05/05/2026'],
+    ['month-first padding', '', '3', 'MM/dd/yyyy', '03/'],
+    ['day padding', '', '5', 'dd/MM/yyyy', '05/'],
+    ['day can still start with 3', '', '3', 'dd/MM/yyyy', '3'],
+    ['month can still start with 1', '05/', '05/1', 'dd/MM/yyyy', '05/1'],
+    ['hyphen separator', '2', '24', 'dd-MM-yyyy', '24-'],
+    ['dot separator', '1', '19', 'dd.MM.yyyy', '19.'],
+    ['mixed separators', '1/0', '1/05', 'd/MM yyyy', '1/05 '],
+    ['single-letter tokens', '0', '05', 'd/M/yyyy', '05/'],
+    ['year-first format', '202', '2026', 'yyyy-MM-dd', '2026-'],
+    ['single year digit', '', '5', 'yyyy-MM-dd', '5'],
+    ['final day', '2026-05-', '2026-05-5', 'yyyy-MM-dd', '2026-05-5'],
+    ['Arabic day padding', '', '٥', 'dd/MM/yyyy', '٠٥/'],
+    ['Persian month padding', '٠٥/', '٠٥/۳', 'dd/MM/yyyy', '٠٥/۰۳/'],
+    ['Arabic two-digit month', '٠٥/٠', '٠٥/٠٣', 'dd/MM/yyyy', '٠٥/٠٣/'],
+    ['manual separator', '1', '1/', 'dd/MM/yyyy', '1/'],
+    ['repeated separator', '05/', '05//', 'dd/MM/yyyy', '05/'],
+    ['backspace', '05/', '05', 'dd/MM/yyyy', '05'],
+    ['delete', '05/05', '05/5', 'dd/MM/yyyy', '05/5'],
+    ['middle edit', '1/2', '15/2', 'dd/MM/yyyy', '15/2'],
+    ['multiple characters', '', '05052026', 'dd/MM/yyyy', '05052026'],
+    ['unexpected separator', '05-0', '05-05', 'dd/MM/yyyy', '05-05'],
+    ['fallback format', '0', '05', 'unsupported', '05/'],
+  ])('%s', (_name, previous, next, format, expected) => {
+    expect(advanceDateText(previous, next, format)).toBe(expected);
+  });
+});
 
 describe('parseDateValue', () => {
   it('reads a yyyy-MM-dd date as that day, at midnight where the user is', () => {

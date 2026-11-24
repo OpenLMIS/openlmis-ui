@@ -69,6 +69,7 @@ export const lastDateYear = () => new Date().getFullYear() + 100;
 
 const DATE_FORMAT = /^(?:dd?|MM?|yyyy)(?:[/ .-](?:dd?|MM?|yyyy)){2}$/;
 const DATE_PARTS = /dd?|MM?|yyyy/g;
+const DATE_SEPARATORS = /[/ .-]/g;
 const INVALID_DATE_PREFIX = '\u0000';
 const ARABIC_DATE_DIGITS = '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹';
 
@@ -91,6 +92,50 @@ function normalizeDateDigits(text: string) {
   return text
     .trim()
     .replace(/[٠-٩۰-۹]/g, (digit) => String(ARABIC_DATE_DIGITS.indexOf(digit) % 10));
+}
+
+export function advanceDateText(previous: string, next: string, format: string): string {
+  if (next.length !== previous.length + 1 || !next.startsWith(previous)) return next;
+
+  const pattern = supportedDateFormat(format) ? format : DEFAULT_DATE_FORMAT;
+  const tokens = pattern.match(DATE_PARTS) ?? [];
+  const separators = pattern.match(DATE_SEPARATORS) ?? [];
+  const usedSeparators = previous.match(DATE_SEPARATORS) ?? [];
+  if (usedSeparators.some((separator, index) => separator !== separators[index])) return next;
+
+  const parts = previous.split(DATE_SEPARATORS);
+  const currentIndex = parts.length - 1;
+  const completed = parts.slice(0, currentIndex).map(normalizeDateDigits);
+  if (
+    completed.some((digits, index) =>
+      tokens[index] === 'yyyy' ? !/^\d{4}$/.test(digits) : !/^\d{1,2}$/.test(digits),
+    )
+  )
+    return next;
+
+  const current = parts[currentIndex];
+  const inserted = next.slice(-1);
+  const previousWidth = tokens[currentIndex - 1] === 'yyyy' ? 4 : 2;
+  if (
+    current === '' &&
+    inserted === usedSeparators.at(-1) &&
+    completed.at(-1)?.length === previousWidth
+  )
+    return previous;
+
+  const separator = separators[currentIndex];
+  if (!separator || !/^\d$/.test(normalizeDateDigits(inserted))) return next;
+
+  const digits = normalizeDateDigits(current + inserted);
+  const token = tokens[currentIndex];
+  if (!/^\d+$/.test(digits)) return next;
+  if (digits.length === (token === 'yyyy' ? 4 : 2)) return next + separator;
+  if (token === 'yyyy' || digits.length !== 1 || Number(digits) <= (token[0] === 'd' ? 3 : 1))
+    return next;
+
+  const digitIndex = ARABIC_DATE_DIGITS.indexOf(inserted);
+  const zero = digitIndex < 0 ? '0' : ARABIC_DATE_DIGITS[digitIndex - (digitIndex % 10)];
+  return previous + zero + inserted + separator;
 }
 
 export function parseDateText(text: string, format = DEFAULT_DATE_FORMAT): string | undefined {
