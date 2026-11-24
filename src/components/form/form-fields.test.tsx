@@ -462,6 +462,8 @@ it('keeps the error tooltip closed while the field list is open', async () => {
     await user.hover(option);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   }
+  await user.keyboard('{Escape}');
+  expect(await screen.findByRole('tooltip')).toHaveTextContent('Reason not allowed');
 });
 
 describe('field layouts', () => {
