@@ -31,6 +31,7 @@ export function SystemNotifications() {
   const popupRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const emptyId = useId();
   const { data, isError, isFetching, refetch } = useQuery({
     ...systemNotificationsOptions(),
     enabled: authenticated && online,
@@ -73,6 +74,7 @@ export function SystemNotifications() {
       </Tooltip>
       <PopoverContent
         align="end"
+        aria-describedby={data && data.length === 0 ? emptyId : undefined}
         initialFocus={(openType) =>
           openType === 'keyboard' ? (listRef.current ?? popupRef.current) : popupRef.current
         }
@@ -88,7 +90,7 @@ export function SystemNotifications() {
           <NotificationList labelledBy={titleId} notifications={data} ref={listRef} />
         ) : data ? (
           <Empty>
-            <EmptyHeader>
+            <EmptyHeader id={emptyId}>
               <EmptyMedia variant="icon">
                 <BellOffIcon aria-hidden />
               </EmptyMedia>
