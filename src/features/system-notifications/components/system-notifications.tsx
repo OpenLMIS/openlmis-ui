@@ -1,11 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { BellIcon, MegaphoneIcon } from 'lucide-react';
+import { BellIcon, BellOffIcon, MegaphoneIcon } from 'lucide-react';
 import { type Ref, useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatTimestamp } from '@/components/form/date-value';
 import { LocalizedCount } from '@/components/i18n/localized-count';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -24,6 +31,7 @@ export function SystemNotifications() {
   const popupRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const emptyId = useId();
   const { data, isError, isFetching, refetch } = useQuery({
     ...systemNotificationsOptions(),
     enabled: authenticated && online,
@@ -66,6 +74,7 @@ export function SystemNotifications() {
       </Tooltip>
       <PopoverContent
         align="end"
+        aria-describedby={data && data.length === 0 ? emptyId : undefined}
         initialFocus={(openType) =>
           openType === 'keyboard' ? (listRef.current ?? popupRef.current) : popupRef.current
         }
@@ -79,11 +88,30 @@ export function SystemNotifications() {
         <Separator />
         {data?.length ? (
           <NotificationList labelledBy={titleId} notifications={data} ref={listRef} />
+        ) : data ? (
+          <ScrollArea
+            height="fill"
+            viewportProps={{
+              'aria-labelledby': titleId,
+              role: 'region',
+              style: { overscrollBehavior: 'contain' },
+            }}
+          >
+            <Empty>
+              <EmptyHeader id={emptyId}>
+                <EmptyMedia variant="icon">
+                  <BellOffIcon aria-hidden />
+                </EmptyMedia>
+                <EmptyTitle>
+                  <h3>{t('system-notifications.empty')}</h3>
+                </EmptyTitle>
+                <EmptyDescription>{t('system-notifications.empty-description')}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </ScrollArea>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-muted-foreground">
-            {data ? (
-              <p>{t('system-notifications.empty')}</p>
-            ) : isError && !isFetching ? (
+            {isError && !isFetching ? (
               <>
                 <p>{t('system-notifications.error')}</p>
                 <Button

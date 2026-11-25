@@ -3537,6 +3537,7 @@
   "supply-partners.view-products": "المنتجات المرتبطة",
   "system-notifications.count": "{count, plural, one {إشعار النظام (#)} two {إشعارا النظام (#)} few {إشعارات النظام (#)} many {إشعارات النظام (#)} other {إشعارات النظام (#)}}",
   "system-notifications.empty": "لا توجد إشعارات للنظام",
+  "system-notifications.empty-description": "ستظهر هنا الرسائل الواردة من المسؤولين.",
   "system-notifications.error": "تعذر تحميل الإشعارات.",
   "system-notifications.loading": "جارٍ تحميل الإشعارات…",
   "system-settings.branding.errors.logo-too-large": "اختر صورة لا يزيد حجمها عن 512 كيلوبايت.",

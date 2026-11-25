@@ -3537,6 +3537,7 @@
   "supply-partners.view-products": "Associated Products",
   "system-notifications.count": "{count, plural, one {System Notification (#)} other {System Notifications (#)}}",
   "system-notifications.empty": "No System Notifications",
+  "system-notifications.empty-description": "Messages from administrators will appear here.",
   "system-notifications.error": "Could not load notifications.",
   "system-notifications.loading": "Loading Notifications…",
   "system-settings.branding.errors.logo-too-large": "Choose an image of at most 512 KB.",
