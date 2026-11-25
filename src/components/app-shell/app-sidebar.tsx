@@ -189,18 +189,18 @@ function SidebarNavigation({
               <SidebarGroupLabel>
                 {t(group.labelKey)}
                 {!isCollapsed && sections.length > 0 && (
-                  <div className="ms-auto flex shrink-0 items-center gap-1">
+                  <div className="-me-0.5 ms-auto flex shrink-0 items-center gap-1">
                     <ActionTooltip reason={t('sidebar.expand-all')}>
                       <Button
                         aria-label={t('sidebar.expand-all')}
                         disabled={sections.every((section) => openSections.includes(section))}
                         focusableWhenDisabled
                         onClick={() => setOpenSections(sections)}
-                        size="icon-xs"
+                        size="icon-2xs"
                         tone="sidebar"
                         variant="ghost"
                       >
-                        <ChevronsUpDownIcon aria-hidden />
+                        <ChevronsUpDownIcon aria-hidden strokeWidth={2.5} />
                       </Button>
                     </ActionTooltip>
                     <ActionTooltip reason={t('sidebar.collapse-all')}>
@@ -209,11 +209,11 @@ function SidebarNavigation({
                         disabled={!sections.some((section) => openSections.includes(section))}
                         focusableWhenDisabled
                         onClick={() => setOpenSections([])}
-                        size="icon-xs"
+                        size="icon-2xs"
                         tone="sidebar"
                         variant="ghost"
                       >
-                        <ChevronsDownUpIcon aria-hidden />
+                        <ChevronsDownUpIcon aria-hidden strokeWidth={2.5} />
                       </Button>
                     </ActionTooltip>
                   </div>
