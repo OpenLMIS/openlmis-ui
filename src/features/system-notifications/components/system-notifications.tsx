@@ -1,11 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { BellIcon, MegaphoneIcon } from 'lucide-react';
+import { BellIcon, BellOffIcon, MegaphoneIcon } from 'lucide-react';
 import { type Ref, useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatTimestamp } from '@/components/form/date-value';
 import { LocalizedCount } from '@/components/i18n/localized-count';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -79,11 +86,19 @@ export function SystemNotifications() {
         <Separator />
         {data?.length ? (
           <NotificationList labelledBy={titleId} notifications={data} ref={listRef} />
+        ) : data ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <BellOffIcon aria-hidden />
+              </EmptyMedia>
+              <EmptyTitle>{t('system-notifications.empty')}</EmptyTitle>
+              <EmptyDescription>{t('system-notifications.empty-description')}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-muted-foreground">
-            {data ? (
-              <p>{t('system-notifications.empty')}</p>
-            ) : isError && !isFetching ? (
+            {isError && !isFetching ? (
               <>
                 <p>{t('system-notifications.error')}</p>
                 <Button
