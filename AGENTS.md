@@ -617,7 +617,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
 - `DataTableFilters` badges the count of its own active filters and offers Clear Filters for
   them only, as a `destructive` Button. Fields apply live, without an Apply button. Pending
   toolbars render it disabled. Text typed in a Filters popover field still waiting to apply is
-  applied when the popover closes; page-level search drops unsent typing on navigation.
+  applied when the popover closes; Clear Filters discards it. Page-level search drops unsent typing
+  on navigation.
 - Short fixed lists use `DataTableSelectFilter`, with `allLabel` when legacy offers All.
   Long lists use searchable `DataTableComboboxFilter`; optional `description` follows labels
   in muted text.

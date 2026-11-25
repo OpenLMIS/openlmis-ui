@@ -70,13 +70,17 @@ describe('debounced text in Filters', () => {
     render(<Filters onValueChange={onValueChange} onClear={onClear} />);
     fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
     const input = screen.getByRole('textbox', { name: 'Product Code' });
+    act(() => input.focus());
     fireEvent.change(input, { target: { value: 'ABC' } });
+    const clear = screen.getByRole('button', { name: 'Clear Filters' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear Filters' }));
+    expect(fireEvent.mouseDown(clear)).toBe(false);
+    fireEvent.click(clear);
     act(() => vi.runAllTimers());
 
     expect(onClear).toHaveBeenCalledOnce();
     expect(onValueChange).not.toHaveBeenCalled();
     expect(input).toHaveValue('');
+    expect(clear).toHaveAttribute('aria-disabled', 'true');
   });
 });

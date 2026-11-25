@@ -1860,6 +1860,7 @@ function RequisitionPending() {
             <RequisitionTabsPending
               record={record}
               tab={search.tab}
+              search={{ product: search.product, skipped: search.skipped }}
               showNonFullSupply={pending?.showNonFullSupply}
               editing={pending?.editing}
               supplyingStock={pending?.supplyingStock}
