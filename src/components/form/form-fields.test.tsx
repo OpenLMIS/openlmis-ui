@@ -451,6 +451,8 @@ function TooltipSelectForm() {
   );
 }
 
+const openTooltip = () => document.querySelector('[role="tooltip"][data-open]');
+
 it('keeps the error tooltip closed while the field list is open', async () => {
   const user = userEvent.setup();
   render(<TooltipSelectForm />);
@@ -484,13 +486,13 @@ it('hides the error tooltip while the date calendar is open', async () => {
   await user.click(screen.getByRole('button', { name: 'Before' }));
   await user.tab();
   expect(await screen.findByRole('grid')).toBeInTheDocument();
-  await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
+  await waitFor(() => expect(openTooltip()).toBeNull());
   expect(screen.getByRole('textbox', { name: /Received/ })).toHaveAccessibleDescription(
     'Date not allowed',
   );
 
   await user.keyboard('{Escape}');
-  expect(await screen.findByRole('tooltip')).toHaveTextContent('Date not allowed');
+  await waitFor(() => expect(openTooltip()).toHaveTextContent('Date not allowed'));
 });
 
 describe('field layouts', () => {
