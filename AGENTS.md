@@ -606,6 +606,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   and Code goes inside. Selects, comboboxes, dates, switches and secondary text such as Lot Code
   go inside too. No search means the button stands alone; no other filters means no button.
   Physical Inventory puts Keywords inside Filters because its progress bar leads the toolbar.
+  Requisition Full Supply leads with a visible Show Skipped Items checkbox, as legacy, then Filters
+  holding the product search, then one Skip menu (All, This Page, None).
   Fulfill Orders keeps its Recently Ordered / Oldest Orders sort select beside Filters as an
   approved shortcut for Date Created sorting. Wrap toolbars in `DataTableToolbar` (`align="end"` for unit/View rows).
 - Page-level controls (header actions, toolbars, pickers and Add buttons above child tables)

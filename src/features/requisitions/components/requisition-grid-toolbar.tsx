@@ -46,41 +46,40 @@ export function RequisitionGridToolbar({
   const id = useId();
   return (
     <DataTableToolbar>
-      {showSearch && (
-        <div className="w-full @2xl/main:w-72">
-          <DataTableSearch
-            disabled={disabled}
-            size="lg"
-            placeholder={t('requisitions.requisition.search-products')}
-            value={search.product ?? ''}
-            onValueChange={(product) =>
-              onSearchChange({ product: product || undefined, detailPage: undefined }, true)
-            }
-          />
+      {showSkipFilter && (
+        <div className="flex h-9 w-full items-center rounded-md border border-border bg-background px-3 dark:border-input dark:bg-input/30 @2xl/main:w-auto">
+          <Field orientation="horizontal">
+            <Checkbox
+              disabled={disabled}
+              id={id}
+              checked={search.skipped !== false}
+              onCheckedChange={(checked) =>
+                onSearchChange({
+                  skipped: checked ? undefined : false,
+                  detailPage: undefined,
+                })
+              }
+            />
+            <FieldLabel htmlFor={id}>{t('requisitions.requisition.show-skipped')}</FieldLabel>
+          </Field>
         </div>
       )}
-      {showSkipFilter && (
+      {showSearch && (
         <div className="flex-1 @2xl/main:flex-none">
           <DataTableFilters
             size="lg"
             disabled={disabled}
-            activeCount={search.skipped === false ? 1 : 0}
-            onClear={() => onSearchChange({ skipped: undefined, detailPage: undefined }, true)}
+            activeCount={search.product ? 1 : 0}
+            onClear={() => onSearchChange({ product: undefined, detailPage: undefined }, true)}
           >
-            <Field orientation="horizontal">
-              <Checkbox
-                disabled={disabled}
-                id={id}
-                checked={search.skipped !== false}
-                onCheckedChange={(checked) =>
-                  onSearchChange({
-                    skipped: checked ? undefined : false,
-                    detailPage: undefined,
-                  })
-                }
-              />
-              <FieldLabel htmlFor={id}>{t('requisitions.requisition.show-skipped')}</FieldLabel>
-            </Field>
+            <DataTableSearch
+              disabled={disabled}
+              placeholder={t('requisitions.requisition.search-products')}
+              value={search.product ?? ''}
+              onValueChange={(product) =>
+                onSearchChange({ product: product || undefined, detailPage: undefined }, true)
+              }
+            />
           </DataTableFilters>
         </div>
       )}
