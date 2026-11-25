@@ -89,15 +89,19 @@ export function SystemNotifications() {
         {data?.length ? (
           <NotificationList labelledBy={titleId} notifications={data} ref={listRef} />
         ) : data ? (
-          <Empty>
-            <EmptyHeader id={emptyId}>
-              <EmptyMedia variant="icon">
-                <BellOffIcon aria-hidden />
-              </EmptyMedia>
-              <EmptyTitle>{t('system-notifications.empty')}</EmptyTitle>
-              <EmptyDescription>{t('system-notifications.empty-description')}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <ScrollArea height="fill">
+            <Empty>
+              <EmptyHeader id={emptyId}>
+                <EmptyMedia variant="icon">
+                  <BellOffIcon aria-hidden />
+                </EmptyMedia>
+                <EmptyTitle>
+                  <h3>{t('system-notifications.empty')}</h3>
+                </EmptyTitle>
+                <EmptyDescription>{t('system-notifications.empty-description')}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </ScrollArea>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-muted-foreground">
             {isError && !isFetching ? (
