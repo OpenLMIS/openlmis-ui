@@ -431,6 +431,70 @@ it.each(['row', 'inline'] as const)(
   },
 );
 
+function TooltipSelectForm() {
+  const form = useAppForm({ defaultValues: { reason: 'r1' } });
+  return (
+    <form.AppField name="reason" validators={{ onMount: () => 'Reason not allowed' }}>
+      {(field) => (
+        <field.SelectField
+          hideErrors
+          items={[
+            { value: 'r1', label: 'Damage' },
+            { value: 'r2', label: 'Expired' },
+            { value: 'r3', label: 'Lost' },
+          ]}
+          label="Reason"
+          layout="inline"
+        />
+      )}
+    </form.AppField>
+  );
+}
+
+const openTooltip = () => document.querySelector('[role="tooltip"][data-open]');
+
+it('keeps the error tooltip closed while the field list is open', async () => {
+  const user = userEvent.setup();
+  render(<TooltipSelectForm />);
+  await user.click(screen.getByRole('combobox', { name: 'Reason' }));
+  const options = await screen.findAllByRole('option');
+  await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
+
+  for (const option of options) {
+    await user.hover(option);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  }
+  await user.keyboard('{Escape}');
+  expect(await screen.findByRole('tooltip')).toHaveTextContent('Reason not allowed');
+});
+
+function TooltipDateForm() {
+  const form = useAppForm({ defaultValues: { received: '2026-10-01' } });
+  return (
+    <>
+      <button type="button">Before</button>
+      <form.AppField name="received" validators={{ onMount: () => 'Date not allowed' }}>
+        {(field) => <field.DateField hideErrors label="Received" layout="inline" />}
+      </form.AppField>
+    </>
+  );
+}
+
+it('hides the error tooltip while the date calendar is open', async () => {
+  const user = userEvent.setup();
+  render(<TooltipDateForm />);
+  await user.click(screen.getByRole('button', { name: 'Before' }));
+  await user.tab();
+  expect(await screen.findByRole('grid')).toBeInTheDocument();
+  await waitFor(() => expect(openTooltip()).toBeNull());
+  expect(screen.getByRole('textbox', { name: /Received/ })).toHaveAccessibleDescription(
+    'Date not allowed',
+  );
+
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(openTooltip()).toHaveTextContent('Date not allowed'));
+});
+
 describe('field layouts', () => {
   it('reads a row badge out with its field', () => {
     render(<LayoutForm />);
