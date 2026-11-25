@@ -89,7 +89,14 @@ export function SystemNotifications() {
         {data?.length ? (
           <NotificationList labelledBy={titleId} notifications={data} ref={listRef} />
         ) : data ? (
-          <ScrollArea height="fill">
+          <ScrollArea
+            height="fill"
+            viewportProps={{
+              'aria-labelledby': titleId,
+              role: 'region',
+              style: { overscrollBehavior: 'contain' },
+            }}
+          >
             <Empty>
               <EmptyHeader id={emptyId}>
                 <EmptyMedia variant="icon">
