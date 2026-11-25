@@ -186,6 +186,12 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+
+async function chooseSkip(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-lines' }));
+  await user.click(screen.getByRole('menuitem', { name: `requisitions.edit.${name}` }));
+}
+
 it.each([1000, 390])(
   'keeps category headings on later pages and totals across all products at width %s',
   async (width) => {
@@ -272,6 +278,7 @@ it('keeps a newly skipped line visible when a filter change on page 2 resets the
     />,
   );
   await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 9 (P9)' }));
+  await user.click(screen.getByRole('button', { name: 'Filters' }));
   await user.type(screen.getByRole('textbox'), 'Medicine 9');
   await waitFor(() => expect(screen.getByRole('button', { name: 'Previous Page' })).toBeDisabled());
   expect(screen.getByText('Medicine 9')).toBeInTheDocument();
@@ -293,7 +300,6 @@ it('keeps template-hidden lines hidden and newly skipped lines visible until a r
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
   await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' }));
   expect(screen.getByText('Medicine 1')).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Filters' }));
   const show = screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' });
   expect(show).toBeChecked();
   await user.click(show);
@@ -301,7 +307,6 @@ it('keeps template-hidden lines hidden and newly skipped lines visible until a r
   await user.click(show);
   expect(screen.getByText('Medicine 1')).toBeInTheDocument();
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
-  await user.keyboard('{Escape}');
   await user.click(screen.getByRole('button', { name: 'Next Page' }));
   await user.click(screen.getByRole('button', { name: 'Previous Page' }));
   expect(screen.queryByText('Medicine 1')).not.toBeInTheDocument();
@@ -312,7 +317,7 @@ it('keeps template-hidden lines hidden and newly skipped lines visible until a r
     );
   });
   expect(screen.queryByText('Medicine 2')).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-none' }));
+  await chooseSkip(user, 'skip-none');
   expect(screen.queryByText('Medicine 2')).not.toBeInTheDocument();
   expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
 });
@@ -330,7 +335,7 @@ it.each([
         initial={{ product: 'absent' }}
       />,
     );
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Filters/ })).not.toBeInTheDocument();
     expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
   },
 );
@@ -362,7 +367,9 @@ it.each([false, true])(
       />,
     );
     expect(screen.queryByText(/^Medicine 0/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('checkbox', { name: 'requisitions.requisition.show-skipped' }),
+    ).not.toBeInTheDocument();
   },
 );
 it('shows only the access banner when supplying stock access is denied', () => {
@@ -534,12 +541,12 @@ it('skips only empty lines and unskips populated lines with None or their checkb
       }}
     />,
   );
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-all' }));
+  await chooseSkip(user, 'skip-all');
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0 (P0)' })).toBeChecked();
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).not.toBeChecked();
   await user.click(screen.getByRole('checkbox', { name: 'skipped: Medicine 2 (P2)' }));
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 2 (P2)' })).not.toBeChecked();
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-none' }));
+  await chooseSkip(user, 'skip-none');
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 3 (P3)' })).not.toBeChecked();
 });
 it.each([1000, 390])('removes saved non-full supply lines instantly at width %s', async (width) => {
@@ -579,11 +586,11 @@ it('limits This Page to the current page while All includes later pages', async 
       }}
     />,
   );
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-page' }));
+  await chooseSkip(user, 'skip-page');
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 0 (P0)' })).toBeChecked();
   await user.click(screen.getByRole('button', { name: 'Next Page' }));
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).not.toBeChecked();
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-all' }));
+  await chooseSkip(user, 'skip-all');
   expect(screen.getByRole('checkbox', { name: 'skipped: Medicine 1 (P1)' })).toBeChecked();
 });
 
@@ -619,8 +626,7 @@ it.each([1000, 390])(
       'aria-disabled',
       'true',
     );
-    for (const name of ['skip-all', 'skip-page', 'skip-none'])
-      expect(screen.getByRole('button', { name: `requisitions.edit.${name}` })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'requisitions.edit.skip-lines' })).toBeDisabled();
   },
 );
 
@@ -668,7 +674,7 @@ it.each([1000, 390])(
 );
 
 it.each([true, false])(
-  'hides skipped lines through Filters and clears the choice, editable=%s',
+  'hides and shows skipped lines from the toolbar, editable=%s',
   async (editable) => {
     const user = userEvent.setup();
     const value = {
@@ -686,12 +692,11 @@ it.each([true, false])(
     };
     render(<Harness value={value} editable={editable} skippedFilter />);
     expect(screen.getByText('Medicine 0')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Filters' }));
     const skipped = screen.getByRole('checkbox', { name: 'requisitions.requisition.show-skipped' });
     expect(skipped).toBeChecked();
     await user.click(skipped);
     expect(screen.queryByText('Medicine 0')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
+    await user.click(skipped);
     expect(screen.getByText('Medicine 0')).toBeInTheDocument();
   },
 );

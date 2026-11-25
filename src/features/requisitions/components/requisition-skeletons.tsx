@@ -39,7 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSkipWidth } from '@/features/requisitions/components/patients-grid';
 import { DraftComment } from '@/features/requisitions/components/requisition-comment-field';
 import { cardControlWidth } from '@/features/requisitions/components/requisition-edit-cards';
-import type { GridEditing } from '@/features/requisitions/components/requisition-grid';
+import type { GridEditing, GridSearch } from '@/features/requisitions/components/requisition-grid';
 import { RequisitionGridHeader } from '@/features/requisitions/components/requisition-grid-header';
 import { RequisitionGridToolbar } from '@/features/requisitions/components/requisition-grid-toolbar';
 import { RequisitionTotalsSkeleton } from '@/features/requisitions/components/requisition-totals';
@@ -258,9 +258,11 @@ function RequisitionGridPending({
   unit = 'DOSES',
   editing,
   supplyingStock = false,
+  search = {},
 }: {
   canSwitch?: boolean;
   record?: RequisitionRecord;
+  search?: Pick<GridSearch, 'product' | 'skipped'>;
   tab?: RequisitionTab;
   unit?: QuantityUnit;
   editing?: PendingEditing;
@@ -340,7 +342,7 @@ function RequisitionGridPending({
         disabled
         columns={columns}
         view={view}
-        search={{}}
+        search={search}
         onSearchChange={noop}
         showSearch={!!editing?.productFilter && activeTab === 'fullSupply'}
         showSkipFilter={!!editing?.skippedFilter && activeTab === 'fullSupply'}

@@ -1,6 +1,12 @@
+import { ChevronDownIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { LabelledButtonGroup } from '@/features/requisitions/components/labelled-button-group';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { GridEditing, GridModel } from '@/features/requisitions/components/requisition-grid';
 
 export function SkipControls({
@@ -38,16 +44,27 @@ export function SkipButtons({
 }) {
   const { t } = useTranslation();
   return (
-    <LabelledButtonGroup label={t('requisitions.edit.skip')}>
-      <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('all', true)}>
-        {t('requisitions.edit.skip-all')}
-      </Button>
-      <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('page', true)}>
-        {t('requisitions.edit.skip-page')}
-      </Button>
-      <Button disabled={disabled} size="lg" variant="outline" onClick={() => onSet('all', false)}>
-        {t('requisitions.edit.skip-none')}
-      </Button>
-    </LabelledButtonGroup>
+    <div className="flex-1 @2xl/main:flex-none">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          disabled={disabled}
+          render={<Button size="lg" variant="outline" width="full" />}
+        >
+          {t('requisitions.edit.skip-lines')}
+          <ChevronDownIcon data-icon="inline-end" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" width="content">
+          <DropdownMenuItem onClick={() => onSet('all', true)}>
+            {t('requisitions.edit.skip-all')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onSet('page', true)}>
+            {t('requisitions.edit.skip-page')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onSet('all', false)}>
+            {t('requisitions.edit.skip-none')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

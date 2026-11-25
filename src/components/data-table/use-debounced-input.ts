@@ -4,11 +4,15 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
 } from 'react';
-import { DataTableFilterFlushContext } from './data-table-filters-popover';
+import {
+  DataTableFilterFlushContext,
+  DataTableFilterResetContext,
+} from './data-table-filters-popover';
 
 export function useDebouncedInput(
   value: string,
@@ -16,6 +20,8 @@ export function useDebouncedInput(
   { delay = 300, resetKey }: { delay?: number; resetKey?: string | number } = {},
 ) {
   const flushers = useContext(DataTableFilterFlushContext);
+  const reset = useContext(DataTableFilterResetContext);
+  const id = useId();
   const [draft, setDraft] = useState(value);
   const [synced, setSynced] = useState({ value, resetKey });
   const emittedValue = useRef<string | undefined>(undefined);
@@ -36,22 +42,28 @@ export function useDebouncedInput(
     if (synced.value.trim() !== emittedValue.current?.trim()) {
       clearTimeout(timer.current);
       pending.current = undefined;
+      reset?.setPending(id, false);
     }
     emittedValue.current = undefined;
-  }, [synced]);
+  }, [synced, reset, id]);
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  const emit = useCallback((next: string) => {
-    clearTimeout(timer.current);
-    pending.current = undefined;
-    emittedValue.current = next;
-    latestOnValueChange.current(next);
-  }, []);
+  const emit = useCallback(
+    (next: string) => {
+      clearTimeout(timer.current);
+      pending.current = undefined;
+      reset?.setPending(id, false);
+      emittedValue.current = next;
+      latestOnValueChange.current(next);
+    },
+    [reset, id],
+  );
 
   const change = (next: string) => {
     setDraft(next);
     pending.current = next;
+    reset?.setPending(id, true);
     clearTimeout(timer.current);
     timer.current = setTimeout(() => emit(next), delay);
   };
@@ -71,6 +83,21 @@ export function useDebouncedInput(
       flushers?.delete(flush);
     };
   }, [flushers, flush]);
+
+  useLayoutEffect(() => {
+    if (!reset) return;
+    const discard = () => {
+      clearTimeout(timer.current);
+      pending.current = undefined;
+      reset.setPending(id, false);
+      setDraft('');
+    };
+    reset.resetters.add(discard);
+    return () => {
+      reset.resetters.delete(discard);
+      reset.setPending(id, false);
+    };
+  }, [reset, id]);
 
   const inputProps = {
     value: draft,
