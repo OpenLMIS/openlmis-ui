@@ -188,7 +188,7 @@ afterEach(() => {
 });
 
 async function chooseSkip(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip' }));
+  await user.click(screen.getByRole('button', { name: 'requisitions.edit.skip-lines' }));
   await user.click(screen.getByRole('menuitem', { name: `requisitions.edit.${name}` }));
 }
 
@@ -335,7 +335,7 @@ it.each([
         initial={{ product: 'absent' }}
       />,
     );
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Filters/ })).not.toBeInTheDocument();
     expect(screen.getByText(/^Medicine 0/)).toBeInTheDocument();
   },
 );
@@ -626,7 +626,7 @@ it.each([1000, 390])(
       'aria-disabled',
       'true',
     );
-    expect(screen.getByRole('button', { name: 'requisitions.edit.skip' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'requisitions.edit.skip-lines' })).toBeDisabled();
   },
 );
 

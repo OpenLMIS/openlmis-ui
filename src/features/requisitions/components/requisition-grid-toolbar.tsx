@@ -47,8 +47,8 @@ export function RequisitionGridToolbar({
   return (
     <DataTableToolbar>
       {showSkipFilter && (
-        <div className="flex h-9 w-full items-center rounded-md border border-border bg-background px-3 dark:border-input dark:bg-input/30 @2xl/main:w-auto">
-          <Field orientation="horizontal">
+        <div className="flex h-9 w-full items-center rounded-lg border border-border bg-background px-3 dark:border-input dark:bg-input/30 @2xl/main:w-auto">
+          <Field orientation="horizontal" data-disabled={disabled}>
             <Checkbox
               disabled={disabled}
               id={id}

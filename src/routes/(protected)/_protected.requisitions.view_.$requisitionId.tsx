@@ -392,6 +392,7 @@ function RequisitionReadShell({
               <RequisitionTabsPending
                 record={record}
                 tab={search.tab}
+                search={{ product: search.product, skipped: search.skipped }}
                 showNonFullSupply={pending.showNonFullSupply}
                 editing={pending.editing}
                 supplyingStock={pending.supplyingStock}
@@ -1325,6 +1326,7 @@ function RequisitionBody({
                 <RequisitionTabsPending
                   record={record}
                   tab={search.tab}
+                  search={{ product: search.product, skipped: search.skipped }}
                   showNonFullSupply={!!program.showNonFullSupplyTab}
                   editing={{ ...policy, deviceAvailable: editor.device.deviceAvailable }}
                   supplyingStock={

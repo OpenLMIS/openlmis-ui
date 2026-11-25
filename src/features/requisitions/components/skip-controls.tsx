@@ -50,8 +50,8 @@ export function SkipButtons({
           disabled={disabled}
           render={<Button size="lg" variant="outline" width="full" />}
         >
-          {t('requisitions.edit.skip')}
-          <ChevronDownIcon />
+          {t('requisitions.edit.skip-lines')}
+          <ChevronDownIcon data-icon="inline-end" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" width="content">
           <DropdownMenuItem onClick={() => onSet('all', true)}>

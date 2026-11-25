@@ -2,9 +2,15 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { DataTableFilters } from './data-table-filters-popover';
 import { DataTableSearch } from './data-table-search';
 
-function Filters({ onValueChange }: { onValueChange: (value: string) => void }) {
+function Filters({
+  onValueChange,
+  onClear = vi.fn(),
+}: {
+  onValueChange: (value: string) => void;
+  onClear?: () => void;
+}) {
   return (
-    <DataTableFilters activeCount={0} onClear={vi.fn()}>
+    <DataTableFilters activeCount={0} onClear={onClear}>
       <DataTableSearch label="Product Code" onValueChange={onValueChange} value="" />
     </DataTableFilters>
   );
@@ -56,5 +62,21 @@ describe('debounced text in Filters', () => {
     act(() => vi.runAllTimers());
 
     expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it('discards text still waiting to apply when Clear Filters is clicked', () => {
+    const onValueChange = vi.fn();
+    const onClear = vi.fn();
+    render(<Filters onValueChange={onValueChange} onClear={onClear} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    const input = screen.getByRole('textbox', { name: 'Product Code' });
+    fireEvent.change(input, { target: { value: 'ABC' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear Filters' }));
+    act(() => vi.runAllTimers());
+
+    expect(onClear).toHaveBeenCalledOnce();
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(input).toHaveValue('');
   });
 });

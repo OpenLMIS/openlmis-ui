@@ -69,7 +69,7 @@ export function DataTableFilters({
             <DataTableFilterResetContext value={reset}>{children}</DataTableFilterResetContext>
           </DataTableFilterFlushContext>
           <Button
-            disabled={activeCount === 0 && !hasPending}
+            disabled={disabled || (activeCount === 0 && !hasPending)}
             focusableWhenDisabled
             onClick={() => {
               for (const discard of reset.resetters) discard();
