@@ -36,7 +36,7 @@ import type { ReportCategory } from '@/features/report-categories/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
-import { isNotFound } from '@/lib/http';
+import { isNotFound, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { reportApiError } from '@/lib/report-error';
 
@@ -71,6 +71,7 @@ export function CategoryFormDialog({
     >
       {shown && (
         <CategoryDialogContent
+          isSaving={isSaving}
           key={shown}
           onDone={() => {
             saved.current = true;
@@ -84,31 +85,47 @@ export function CategoryFormDialog({
 }
 
 type CategoryFormProps = {
+  isSaving: boolean;
   title: string;
   submit: string;
   onDone: () => void;
 };
 
-function CategoryDialogContent({ target, onDone }: { target: string; onDone: () => void }) {
+function CategoryDialogContent({
+  target,
+  onDone,
+  isSaving,
+}: Pick<CategoryFormProps, 'onDone' | 'isSaving'> & { target: string }) {
   const { t } = useTranslation();
   const opening = useOpening();
   const isNew = target === 'new';
   const title = t(isNew ? 'report-categories.form.add-title' : 'report-categories.form.edit-title');
   const submit = t(isNew ? 'report-categories.form.add' : 'report-categories.form.save');
-  if (isNew) return <CategoryForm onDone={onDone} submit={submit} title={title} />;
+  const formProps = { isSaving, onDone, submit, title };
+  if (isNew) return <CategoryForm {...formProps} />;
 
   return (
     <QueryBoundary
       errorComponent={({ error, reset }) =>
         isNotFound(error) ? (
           <DialogNotFound
-            description={t('report-categories.form.not-found-description')}
-            title={t('report-categories.form.not-found-title')}
+            description={t('api-error.report.error.reportCategory.notFound')}
+            title={t('report-categories.not-found-title')}
           />
+        ) : isRefused(error) ? (
+          <>
+            <FormDialogHeader>
+              <FormDialogTitle>{title}</FormDialogTitle>
+            </FormDialogHeader>
+            <ErrorAlert description={t('no-access.description')} title={t('no-access.title')} />
+            <FormDialogFooter>
+              <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
+            </FormDialogFooter>
+          </>
         ) : (
           <DialogLoadError
             error={error}
-            errorTitle={t('report-categories.form.load-error-title')}
+            errorTitle={t('report-categories.load-error-title')}
             onRetry={reset}
             title={title}
           />
@@ -117,13 +134,7 @@ function CategoryDialogContent({ target, onDone }: { target: string; onDone: () 
       pendingFallback={<CategoryFormSkeleton submit={submit} title={title} />}
       resetKey={opening}
     >
-      <ExistingCategory
-        onDone={onDone}
-        opening={opening}
-        submit={submit}
-        target={target}
-        title={title}
-      />
+      <ExistingCategory {...formProps} opening={opening} target={target} />
     </QueryBoundary>
   );
 }
@@ -139,6 +150,7 @@ function ExistingCategory({
 
 function CategoryForm({
   category,
+  isSaving,
   onDone,
   submit,
   title,
@@ -185,9 +197,13 @@ function CategoryForm({
     defaultValues: { name: category?.name ?? '' },
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: categoryFormSchema },
-    onSubmit: ({ value }) =>
-      save.mutateAsync(value.name.trim(), { onSuccess: onDone }).catch(() => undefined),
+    onSubmit: ({ value }) => {
+      if (queryClient.isMutating({ mutationKey: saveKey(category?.id ?? 'new') })) return;
+      return save.mutateAsync(value.name.trim(), { onSuccess: onDone }).catch(() => undefined);
+    },
   });
+
+  const pending = isSaving || save.isPending;
 
   return (
     <FormDialogForm onSubmit={form.handleSubmit}>
@@ -217,7 +233,7 @@ function CategoryForm({
             {(field) => (
               <field.TextField
                 autoComplete="off"
-                disabled={save.isPending}
+                disabled={pending}
                 label={t('report-categories.name')}
                 required
               />
@@ -226,8 +242,8 @@ function CategoryForm({
         </FieldGroup>
       </FormDialogBody>
       <FormDialogFooter>
-        <FormDialogCancel disabled={save.isPending}>{t('dialog.cancel')}</FormDialogCancel>
-        <FormDialogSubmit pending={save.isPending}>{submit}</FormDialogSubmit>
+        <FormDialogCancel disabled={pending}>{t('dialog.cancel')}</FormDialogCancel>
+        <FormDialogSubmit pending={pending}>{submit}</FormDialogSubmit>
       </FormDialogFooter>
     </FormDialogForm>
   );

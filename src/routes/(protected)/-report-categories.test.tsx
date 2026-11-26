@@ -31,8 +31,15 @@ const detailUrl = `${listUrl}/${stock.id}`;
 const inUseKey = 'api-error.report.error.reportCategory.already.assigned';
 const deleteLabel = 'report-categories.delete';
 const deleteTitle = 'report-categories.delete.title';
+const deleteDescription = 'report-categories.delete.description';
 
 beforeEach(() => {
+  getI18n().addResource(
+    'en',
+    'translation',
+    deleteDescription,
+    en[deleteDescription].replace('{name}', '{{name}}'),
+  );
   useLoginData.getState().setLoginData({
     referenceDataUserId: 'admin',
     username: 'ada',
@@ -164,6 +171,26 @@ it('keeps an in-use category and toasts the translated refusal', async () => {
   expect(screen.getByRole('cell', { name: 'Stock', hidden: true })).toBeInTheDocument();
 });
 
+it('reads the current name when Forward reopens a canceled row Delete', async () => {
+  const user = userEvent.setup();
+  const fresh = { ...stock, name: 'Warehouse' };
+  const get = mockList(() => [stock], Promise.resolve({ data: fresh }));
+  const router = renderCategoriesPage('');
+
+  await user.click(await screen.findByRole('button', { name: deleteLabel }));
+  const dialog = within(await screen.findByRole('alertdialog', { name: deleteTitle }));
+  expect(dialog.getByText(/Stock/)).toBeVisible();
+  expect(get).not.toHaveBeenCalledWith(detailUrl, expect.anything());
+  await user.click(dialog.getByRole('button', { name: 'dialog.cancel' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+
+  await act(async () => router.history.forward());
+
+  const reopened = within(await screen.findByRole('alertdialog', { name: deleteTitle }));
+  expect(await reopened.findByText(/Warehouse/)).toBeVisible();
+  expect(get).toHaveBeenCalledWith(detailUrl, expect.anything());
+});
+
 it('closes Delete and replaces the page after deleting its only row', async () => {
   const user = userEvent.setup();
   let rows = [finance, orders, stock];
@@ -198,7 +225,7 @@ it('waits for a direct Delete link to load and shows when the category is missin
   expect(get).toHaveBeenCalledWith(detailUrl, expect.anything());
   await act(async () => detail.reject({ isAxiosError: true, response: { status: 404 } }));
 
-  expect(await dialog.findByText('report-categories.delete.not-found-description')).toBeVisible();
+  expect(await dialog.findByText('api-error.report.error.reportCategory.notFound')).toBeVisible();
   expect(dialog.getByRole('button', { name: 'dialog.close' })).toBeEnabled();
   expect(dialog.queryByRole('button', { name: deleteLabel })).not.toBeInTheDocument();
 });
@@ -208,6 +235,6 @@ it('enables Delete once a direct link has loaded the category', async () => {
   renderCategoriesPage(`?delete=${stock.id}`);
 
   const dialog = within(await screen.findByRole('alertdialog', { name: deleteTitle }));
-  expect(await dialog.findByText('report-categories.delete.description')).toBeVisible();
+  expect(await dialog.findByText(/Stock/)).toBeVisible();
   expect(dialog.getByRole('button', { name: deleteLabel })).toBeEnabled();
 });

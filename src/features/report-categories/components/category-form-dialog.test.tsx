@@ -35,17 +35,19 @@ function renderCategoryDialog(target = 'new') {
   queryClient.setQueryData(dashboards, [{ id: 'dashboard', category }]);
   queryClient.setQueryData(templates, [{ id: 'template', category }]);
   const onClose = vi.fn();
-  render(
+  const dialog = (target: string | undefined) => (
     <QueryClientProvider client={queryClient}>
       <CategoryFormDialog onClose={onClose} target={target} />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const { rerender } = render(dialog(target));
   return {
     listInvalidations: () =>
       [reportsLookup, dashboards, templates].map(
         (key) => queryClient.getQueryState(key)?.isInvalidated,
       ),
     onClose,
+    setTarget: (target: string | undefined) => rerender(dialog(target)),
   };
 }
 
@@ -111,4 +113,32 @@ it('refreshes the Reports category lookup and embedded names after a rename', as
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(put).toHaveBeenCalledWith(detailUrl, { id: category.id, name });
   expect(listInvalidations()).toEqual([true, true, true]);
+});
+
+it('locks the reopened Edit form until the previous rename finishes', async () => {
+  const user = userEvent.setup();
+  vi.spyOn(client, 'get').mockResolvedValue({ data: category });
+  const request = Promise.withResolvers<{ data: typeof category }>();
+  const put = vi.spyOn(client, 'put').mockReturnValue(request.promise);
+  const { setTarget } = renderCategoryDialog(category.id);
+
+  const input = () => screen.findByRole('textbox', { name: /report-categories.name/ });
+  const save = () => screen.getByRole('button', { name: 'report-categories.form.save' });
+  await user.type(await input(), ' renamed');
+  await user.click(save());
+  await waitFor(() => expect(put).toHaveBeenCalledOnce());
+
+  setTarget(undefined);
+  await waitFor(() =>
+    expect(screen.queryByRole('dialog', { hidden: true })).not.toBeInTheDocument(),
+  );
+  setTarget(category.id);
+
+  expect(await input()).toBeDisabled();
+  expect(save()).toHaveAttribute('aria-disabled', 'true');
+  request.resolve({ data: { ...category, name: 'Stock renamed' } });
+  const reopenedInput = await input();
+  await waitFor(() => expect(reopenedInput).toBeEnabled());
+  expect(save()).not.toHaveAttribute('aria-disabled', 'true');
+  expect(put).toHaveBeenCalledOnce();
 });

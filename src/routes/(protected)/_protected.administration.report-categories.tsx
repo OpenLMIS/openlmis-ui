@@ -156,6 +156,7 @@ function ReportCategoriesPage() {
               addButton={addButton}
               hint={deleteHint}
               onClose={closeDialog}
+              onCloseComplete={() => setDeleteHint(undefined)}
               opener={deleteOpener}
               target={deleting}
             />

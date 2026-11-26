@@ -26,13 +26,14 @@ import type { ReportCategory } from '@/features/report-categories/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { apiErrorText } from '@/lib/api-error';
-import { isNotFound } from '@/lib/http';
+import { isNotFound, isOfflineError, isRefused } from '@/lib/http';
 import { reportApiError } from '@/lib/report-error';
 
 type DeleteCategoryDialogProps = {
   target: string | undefined;
   hint?: ReportCategory;
   onClose: () => void;
+  onCloseComplete: () => void;
   opener: RefObject<HTMLButtonElement | null>;
   addButton: RefObject<HTMLButtonElement | null>;
 };
@@ -41,6 +42,7 @@ export function DeleteCategoryDialog({
   target,
   hint,
   onClose,
+  onCloseComplete,
   opener,
   addButton,
 }: DeleteCategoryDialogProps) {
@@ -60,6 +62,7 @@ export function DeleteCategoryDialog({
     },
     onError: async (error) => {
       reportApiError(error);
+      if (isOfflineError(error)) return;
       const description = apiErrorText(error, 'error.description', t, { write: true });
       if (description !== null) {
         toast.error(t('report-categories.delete.error-title'), { description });
@@ -74,7 +77,10 @@ export function DeleteCategoryDialog({
       {...props}
       onOpenChangeComplete={(next) => {
         props.onOpenChangeComplete(next);
-        if (!next) remove.reset();
+        if (!next) {
+          remove.reset();
+          onCloseComplete();
+        }
       }}
     >
       <AlertDialogContent
@@ -100,7 +106,10 @@ export function DeleteCategoryDialog({
                   removed.current = true;
                   close();
                 },
-                onError: () => close(),
+                onError: (error) => {
+                  removed.current = isNotFound(error);
+                  close();
+                },
               })
             }
             pending={remove.isPending}
@@ -140,7 +149,21 @@ function DeleteCategoryContent({
         : 'failed';
   const failed = state === 'failed';
   const missing = state === 'missing';
-  const offline = useOfflineFailure(failed ? detail.error : null, () => void detail.refetch());
+  const refused = failed && isRefused(detail.error);
+  const offline = useOfflineFailure(
+    failed && !refused ? detail.error : null,
+    () => void detail.refetch(),
+  );
+  const failureTitle = refused
+    ? 'no-access.title'
+    : offline
+      ? 'offline.notice-title'
+      : 'report-categories.load-error-title';
+  const failureDescription = refused
+    ? 'no-access.description'
+    : offline
+      ? 'offline.notice-description'
+      : 'error.check-connection';
 
   return (
     <>
@@ -153,11 +176,9 @@ function DeleteCategoryContent({
             state === 'found'
               ? 'report-categories.delete.title'
               : missing
-                ? 'report-categories.delete.not-found-title'
+                ? 'report-categories.not-found-title'
                 : failed
-                  ? offline
-                    ? 'offline.notice-title'
-                    : 'report-categories.delete.load-error-title'
+                  ? failureTitle
                   : 'report-categories.delete.pending-title',
           )}
         </AlertDialogTitle>
@@ -165,15 +186,11 @@ function DeleteCategoryContent({
           <SkeletonLine width="medium" />
         ) : (
           <AlertDialogDescription>
-            <span className="wrap-anywhere">
+            <span className="line-clamp-4 wrap-anywhere">
               {category
                 ? t('report-categories.delete.description', { name: category.name })
                 : t(
-                    missing
-                      ? 'report-categories.delete.not-found-description'
-                      : offline
-                        ? 'offline.notice-description'
-                        : 'error.check-connection',
+                    missing ? 'api-error.report.error.reportCategory.notFound' : failureDescription,
                   )}
             </span>
           </AlertDialogDescription>
@@ -183,7 +200,7 @@ function DeleteCategoryContent({
         <AlertDialogCancel disabled={pending} ref={cancel}>
           {t(missing || failed ? 'dialog.close' : 'dialog.cancel')}
         </AlertDialogCancel>
-        {failed && <RetryButton onClick={() => void detail.refetch()} />}
+        {failed && !refused && <RetryButton onClick={() => void detail.refetch()} />}
         {!missing && !failed && (
           <Button
             disabled={pending || !category || !!deleted}
