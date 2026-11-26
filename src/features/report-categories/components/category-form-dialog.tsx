@@ -1,5 +1,5 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useMutationState, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { type RefObject, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -40,7 +40,8 @@ import { isNotFound, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { reportApiError } from '@/lib/report-error';
 
-const saveKey = (target: string) => [...queryKeys.reportCategories.all, 'save', target] as const;
+const savesKey = [...queryKeys.reportCategories.all, 'save'] as const;
+const saveKey = (target: string) => [...savesKey, target] as const;
 
 export function CategoryFormDialog({
   target,
@@ -55,7 +56,11 @@ export function CategoryFormDialog({
 }) {
   const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const opening = useOpening(target);
-  const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
+  const pendingSaves = useMutationState({
+    filters: { mutationKey: savesKey, status: 'pending' },
+    select: (mutation) => mutation.options.mutationKey?.at(-1),
+  });
+  const isSaving = pendingSaves.includes(shown ?? 'new');
   const saved = useRef(false);
 
   return (

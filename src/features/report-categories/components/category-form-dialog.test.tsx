@@ -118,9 +118,11 @@ it('refreshes the Reports category lookup and embedded names after a rename', as
 it('locks the reopened Edit form until it has reread the server name', async () => {
   const user = userEvent.setup();
   const reread = Promise.withResolvers<{ data: typeof category }>();
+  const other = { id: '0d6f6f43-2b0e-4b5a-9d4f-3c1e8a7b9f10', name: 'Orders' };
   const get = vi
     .spyOn(client, 'get')
     .mockResolvedValueOnce({ data: category })
+    .mockResolvedValueOnce({ data: other })
     .mockResolvedValueOnce({ data: category })
     .mockReturnValueOnce(reread.promise);
   const request = Promise.withResolvers<{ data: typeof category }>();
@@ -137,14 +139,23 @@ it('locks the reopened Edit form until it has reread the server name', async () 
   await waitFor(() =>
     expect(screen.queryByRole('dialog', { hidden: true })).not.toBeInTheDocument(),
   );
+  setTarget(other.id);
+  expect(await input()).toHaveValue(other.name);
+  expect(await input()).toBeEnabled();
+  setTarget(undefined);
+  await waitFor(() =>
+    expect(screen.queryByRole('dialog', { hidden: true })).not.toBeInTheDocument(),
+  );
   setTarget(category.id);
 
   expect(await input()).toBeDisabled();
   expect(await input()).toHaveValue(category.name);
   expect(save()).toHaveAttribute('aria-disabled', 'true');
   request.resolve({ data: { ...category, name: 'Stock renamed' } });
-  await waitFor(() => expect(get).toHaveBeenCalledTimes(3));
-  expect(screen.queryByRole('textbox', { name: /report-categories.name/ })).toBeNull();
+  await waitFor(() => expect(get).toHaveBeenCalledTimes(4));
+  await waitFor(() =>
+    expect(screen.queryByRole('textbox', { name: /report-categories.name/ })).toBeNull(),
+  );
   reread.resolve({ data: { ...category, name: 'Supplies' } });
   await waitFor(() => {
     const reopenedInput = screen.getByRole('textbox', { name: /report-categories.name/ });
