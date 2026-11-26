@@ -11,6 +11,7 @@ import {
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { getI18n } from 'react-i18next';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { ReportCategoriesQuery, ReportCategory } from '@/features/report-categories/lib/types';
@@ -131,7 +132,7 @@ it('pages and sorts the category list on the server', async () => {
   );
 });
 
-it('keeps an in-use category and shows the translated refusal in the dialog', async () => {
+it('keeps an in-use category and toasts the translated refusal', async () => {
   const user = userEvent.setup();
   const get = mockList(() => [stock]);
   getI18n().addResource('en', 'translation', inUseKey, en[inUseKey]);
@@ -145,13 +146,19 @@ it('keeps an in-use category and shows the translated refusal in the dialog', as
       },
     },
   });
+  const toastError = vi.spyOn(toast, 'error');
   renderCategoriesPage('');
 
   await user.click(await screen.findByRole('button', { name: deleteLabel }));
   const dialog = await screen.findByRole('alertdialog', { name: deleteTitle });
   await user.click(within(dialog).getByRole('button', { name: deleteLabel }));
 
-  expect(await within(dialog).findByText(en[inUseKey])).toBeVisible();
+  await waitFor(() =>
+    expect(toastError).toHaveBeenCalledWith('report-categories.delete.error-title', {
+      description: en[inUseKey],
+    }),
+  );
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   expect(remove).toHaveBeenCalledWith(detailUrl);
   expect(get).not.toHaveBeenCalledWith(detailUrl, expect.anything());
   expect(screen.getByRole('cell', { name: 'Stock', hidden: true })).toBeInTheDocument();

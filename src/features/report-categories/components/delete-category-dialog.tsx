@@ -4,7 +4,7 @@ import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useOfflineFailure } from '@/components/app-shell/offline-notice';
-import { ErrorAlert, RetryButton, SkeletonLine } from '@/components/display/dialog-parts';
+import { RetryButton, SkeletonLine } from '@/components/display/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
   AlertDialog,
@@ -60,6 +60,10 @@ export function DeleteCategoryDialog({
     },
     onError: async (error) => {
       reportApiError(error);
+      const description = apiErrorText(error, 'error.description', t, { write: true });
+      if (description !== null) {
+        toast.error(t('report-categories.delete.error-title'), { description });
+      }
       if (isNotFound(error)) await refreshReportCategories(queryClient, remove.isCurrent);
     },
   });
@@ -88,7 +92,6 @@ export function DeleteCategoryDialog({
           <DeleteCategoryContent
             cancel={cancel}
             deleted={remove.isSuccess ? remove.variables : undefined}
-            error={remove.error}
             hint={hint?.id === shown ? hint : undefined}
             key={shown}
             onDelete={(category) =>
@@ -97,6 +100,7 @@ export function DeleteCategoryDialog({
                   removed.current = true;
                   close();
                 },
+                onError: () => close(),
               })
             }
             pending={remove.isPending}
@@ -111,7 +115,6 @@ export function DeleteCategoryDialog({
 function DeleteCategoryContent({
   cancel,
   deleted,
-  error,
   hint,
   onDelete,
   pending,
@@ -119,7 +122,6 @@ function DeleteCategoryContent({
 }: {
   cancel: RefObject<HTMLButtonElement | null>;
   deleted?: ReportCategory;
-  error: Error | null;
   hint?: ReportCategory;
   onDelete: (category: ReportCategory) => void;
   pending: boolean;
@@ -177,12 +179,6 @@ function DeleteCategoryContent({
           </AlertDialogDescription>
         )}
       </AlertDialogHeader>
-      {error && (
-        <ErrorAlert
-          description={apiErrorText(error, 'error.description', t, { write: true })}
-          title={t('report-categories.delete.error-title')}
-        />
-      )}
       <AlertDialogFooter>
         <AlertDialogCancel disabled={pending} ref={cancel}>
           {t(missing || failed ? 'dialog.close' : 'dialog.cancel')}
