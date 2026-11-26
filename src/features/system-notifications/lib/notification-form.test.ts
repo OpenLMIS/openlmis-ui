@@ -79,7 +79,7 @@ describe('notification form', () => {
   });
 
   it('echoes the saved bounds, author and created date, and includes the PUT id', () => {
-    expect(toPayload(toFormValues(saved, utc), utc, authorId, saved)).toEqual({
+    expect(toPayload(toFormValues(saved, utc), utc, 'signed-in-admin', saved)).toEqual({
       ...saved,
       author: { id: authorId },
     });
