@@ -54,6 +54,7 @@ afterEach(() => {
 });
 
 const notice: SystemNotification = {
+  active: true,
   id: 'notice',
   title: 'Service Update',
   message: 'Maintenance tonight',
@@ -64,7 +65,7 @@ const notice: SystemNotification = {
 describe('SystemNotifications', () => {
   it('shows a count and opens the messages with legacy creation details', async () => {
     const user = userEvent.setup();
-    show([notice, { id: 'second', title: null, message: 'Another notice' }]);
+    show([notice, { id: 'second', title: null, active: true, message: 'Another notice' }]);
     const button = screen.getByRole('button', { name: 'system-notifications.count' });
     expect(button).toHaveTextContent('2');
     expect(screen.queryByText('Maintenance tonight')).not.toBeInTheDocument();
