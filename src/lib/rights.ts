@@ -1,4 +1,5 @@
 export const RIGHTS = {
+  reportCategoriesManage: 'REPORT_CATEGORIES_MANAGE',
   reportsView: 'REPORTS_VIEW',
   orderCreate: 'ORDER_CREATE',
   requisitionGroupsManage: 'REQUISITION_GROUPS_MANAGE',
