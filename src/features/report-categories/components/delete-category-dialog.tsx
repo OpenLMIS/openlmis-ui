@@ -3,6 +3,7 @@ import { Loader2Icon, Trash2Icon } from 'lucide-react';
 import { type RefObject, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { ErrorAlert, RetryButton, SkeletonLine } from '@/components/display/dialog-parts';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import {
@@ -137,6 +138,7 @@ function DeleteCategoryContent({
         : 'failed';
   const failed = state === 'failed';
   const missing = state === 'missing';
+  const offline = useOfflineFailure(failed ? detail.error : null, () => void detail.refetch());
 
   return (
     <>
@@ -151,7 +153,9 @@ function DeleteCategoryContent({
               : missing
                 ? 'report-categories.delete.not-found-title'
                 : failed
-                  ? 'report-categories.delete.load-error-title'
+                  ? offline
+                    ? 'offline.notice-title'
+                    : 'report-categories.delete.load-error-title'
                   : 'report-categories.delete.pending-title',
           )}
         </AlertDialogTitle>
@@ -165,7 +169,9 @@ function DeleteCategoryContent({
                 : t(
                     missing
                       ? 'report-categories.delete.not-found-description'
-                      : 'error.check-connection',
+                      : offline
+                        ? 'offline.notice-description'
+                        : 'error.check-connection',
                   )}
             </span>
           </AlertDialogDescription>

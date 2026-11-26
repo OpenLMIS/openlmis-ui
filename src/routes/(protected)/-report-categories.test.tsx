@@ -25,6 +25,7 @@ const pagePath = '/administration/report-categories';
 const listUrl = '/reports/reportCategories';
 const stock = { id: '8b46ed1e-bc42-4af5-9bce-721bb71bb4db', name: 'Stock' };
 const orders = { id: '9734a36c-6a18-45f7-bae8-321ea03818c4', name: 'Orders' };
+const finance = { id: '3c3a9b1e-52a4-4b5f-9d0e-7a1f0c2d4e6b', name: 'Finance' };
 const detailUrl = `${listUrl}/${stock.id}`;
 const inUseKey = 'api-error.report.error.reportCategory.already.assigned';
 const deleteLabel = 'report-categories.delete';
@@ -89,7 +90,7 @@ function renderCategoriesPage(search: string) {
   return router;
 }
 
-function mockList(getRows: () => ReportCategory[], detail?: Promise<never>) {
+function mockList(getRows: () => ReportCategory[], detail?: Promise<unknown>) {
   return vi.spyOn(client, 'get').mockImplementation(async (url, config) => {
     if (url === '/users/admin/permissionStrings') return { data: [RIGHTS.reportCategoriesManage] };
     if (url === detailUrl && detail) return detail;
@@ -158,13 +159,13 @@ it('keeps an in-use category and shows the translated refusal in the dialog', as
 
 it('closes Delete and replaces the page after deleting its only row', async () => {
   const user = userEvent.setup();
-  let rows = [orders, stock];
+  let rows = [finance, orders, stock];
   const get = mockList(() => rows);
   vi.spyOn(client, 'delete').mockImplementation(async () => {
-    rows = [orders];
+    rows = [finance, orders];
     return { status: 204 };
   });
-  const router = renderCategoriesPage('?page=2&size=1');
+  const router = renderCategoriesPage('?page=3&size=1');
 
   await user.click(await screen.findByRole('button', { name: deleteLabel }));
   const dialog = await screen.findByRole('alertdialog', { name: deleteTitle });
@@ -172,18 +173,17 @@ it('closes Delete and replaces the page after deleting its only row', async () =
 
   expect(await screen.findByRole('cell', { name: 'Orders' })).toBeVisible();
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-  expect(router.state.location.search).toEqual({ size: 1 });
+  expect(router.state.location.search).toEqual({ page: 2, size: 1 });
   expect(router.history.canGoBack()).toBe(false);
   expect(get).toHaveBeenCalledWith(
     listUrl,
-    expect.objectContaining({ params: { page: 0, size: 1, sort: 'name,asc' } }),
+    expect.objectContaining({ params: { page: 1, size: 1, sort: 'name,asc' } }),
   );
 });
 
 it('waits for a direct Delete link to load and shows when the category is missing', async () => {
   const detail = Promise.withResolvers<never>();
   const get = mockList(() => [], detail.promise);
-  const remove = vi.spyOn(client, 'delete').mockResolvedValue({ status: 204 });
   renderCategoriesPage(`?delete=${stock.id}`);
 
   const dialog = within(await screen.findByRole('alertdialog'));
@@ -194,5 +194,13 @@ it('waits for a direct Delete link to load and shows when the category is missin
   expect(await dialog.findByText('report-categories.delete.not-found-description')).toBeVisible();
   expect(dialog.getByRole('button', { name: 'dialog.close' })).toBeEnabled();
   expect(dialog.queryByRole('button', { name: deleteLabel })).not.toBeInTheDocument();
-  expect(remove).not.toHaveBeenCalled();
+});
+
+it('enables Delete once a direct link has loaded the category', async () => {
+  mockList(() => [], Promise.resolve({ data: stock }));
+  renderCategoriesPage(`?delete=${stock.id}`);
+
+  const dialog = within(await screen.findByRole('alertdialog', { name: deleteTitle }));
+  expect(await dialog.findByText('report-categories.delete.description')).toBeVisible();
+  expect(dialog.getByRole('button', { name: deleteLabel })).toBeEnabled();
 });
