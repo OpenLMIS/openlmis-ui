@@ -37,7 +37,6 @@ export async function refreshReportCategories(
   await Promise.all(cancelKeys.map((queryKey) => client.cancelQueries({ queryKey })));
   if (!isCurrent()) return;
 
-  if (detailKey) client.setQueriesData({ queryKey: detailKey }, renamed);
-
   for (const queryKey of keys) void client.invalidateQueries({ queryKey });
+  if (detailKey) await client.refetchQueries({ queryKey: detailKey, type: 'active' });
 }

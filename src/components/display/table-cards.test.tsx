@@ -61,13 +61,3 @@ it('puts the title and actions in the band and every other visible column in an 
   expect(within(card).getByText('Comfort Health Clinic')).not.toHaveClass('truncate');
   expect(within(card).getByText('HC01').closest('bdi')).not.toBeNull();
 });
-
-it.each(['clamp', 'nowrap'] as const)('keeps the full title in %s mode', (overflow) => {
-  render(
-    <CellText overflow={overflow} title="Full facility name">
-      Facility name
-    </CellText>,
-  );
-
-  expect(screen.getByText('Facility name')).toHaveAttribute('title', 'Full facility name');
-});

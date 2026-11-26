@@ -115,7 +115,7 @@ it('refreshes the Reports category lookup and embedded names after a rename', as
   expect(listInvalidations()).toEqual([true, true, true]);
 });
 
-it('locks the reopened Edit form until it can show the saved name', async () => {
+it('locks the reopened Edit form until it has reread the server name', async () => {
   const user = userEvent.setup();
   let storedCategory = category;
   vi.spyOn(client, 'get').mockImplementation(async () => ({ data: storedCategory }));
@@ -138,8 +138,8 @@ it('locks the reopened Edit form until it can show the saved name', async () => 
   expect(await input()).toBeDisabled();
   expect(await input()).toHaveValue(category.name);
   expect(save()).toHaveAttribute('aria-disabled', 'true');
-  storedCategory = { ...category, name: 'Stock renamed' };
-  request.resolve({ data: storedCategory });
+  storedCategory = { ...category, name: 'Supplies' };
+  request.resolve({ data: { ...category, name: 'Stock renamed' } });
   await waitFor(() => {
     const reopenedInput = screen.getByRole('textbox', { name: /report-categories.name/ });
     expect(reopenedInput).toBeEnabled();

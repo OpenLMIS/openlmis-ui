@@ -745,7 +745,9 @@ prompt from inheriting a covered ancestor portal's `aria-hidden`. Preserve calle
   `preload: false` to prevent hover-cache reuse.
 - Dialogs fetch fresh on each opening: add a per-opening number from `useOpening()`
   (`src/hooks/use-opening.ts`) to the detail key, and do not prefetch it in the loader.
-  Programs and Facility Types do this; Roles and Users retain one cached detail.
+  Programs and Facility Types do this; Roles and Users retain one cached detail. Dialogs that
+  stay mounted across openings pass the target, `useOpening(target)`, so a reopen during the
+  close animation still reads fresh, as Report Categories does.
 - Whole-record tabbed editors, such as Product Edit, use `fetchQuery` with `staleTime: 0`
   on loader `cause: 'enter'`, cached data on `stay` (tab switches), and `preload: false`.
   Each save rereads the record and applies only its own change (`saveProductChange`).
