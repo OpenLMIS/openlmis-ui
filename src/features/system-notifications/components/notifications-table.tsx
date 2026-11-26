@@ -91,7 +91,7 @@ function createColumns(
 
   return columnHelper.columns([
     columnHelper.accessor('title', {
-      ...labeled(t('system-notifications.admin.title'), 'w-36'),
+      ...labeled(t('system-notifications.admin.title'), 'w-60'),
       cell: ({ row }) => <NotificationTitle notice={row.original} />,
     }),
     columnHelper.accessor((notice) => (notice.author ? fullName(notice.author) : ''), {
@@ -104,7 +104,7 @@ function createColumns(
       cell: ({ getValue }) => formatTimestamp(getValue(), language, { timeZone }),
     }),
     columnHelper.accessor('active', {
-      ...labeled(t('system-notifications.admin.active'), 'w-28'),
+      ...labeled(t('system-notifications.admin.active'), 'w-24'),
       cell: ({ getValue }) => (
         <FlagBadge
           falseLabel={t('system-notifications.admin.no')}
@@ -114,7 +114,7 @@ function createColumns(
       ),
     }),
     columnHelper.display({
-      ...labeled(t('system-notifications.admin.is-displayed'), 'w-40'),
+      ...labeled(t('system-notifications.admin.is-displayed'), 'w-32'),
       id: 'displayed',
       cell: ({ row }) => (
         <FlagBadge
