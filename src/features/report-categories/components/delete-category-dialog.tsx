@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2Icon, Trash2Icon } from 'lucide-react';
-import { type RefObject, useRef } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useOfflineFailure } from '@/components/app-shell/offline-notice';
@@ -33,7 +33,6 @@ type DeleteCategoryDialogProps = {
   target: string | undefined;
   hint?: ReportCategory;
   onClose: () => void;
-  onCloseComplete: () => void;
   opener: RefObject<HTMLButtonElement | null>;
   addButton: RefObject<HTMLButtonElement | null>;
 };
@@ -42,18 +41,19 @@ export function DeleteCategoryDialog({
   target,
   hint,
   onClose,
-  onCloseComplete,
   opener,
   addButton,
 }: DeleteCategoryDialogProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { shown, close, dialogProps } = useDialogTarget(target, onClose);
+  const opening = useOpening(target);
   const cancel = useRef<HTMLButtonElement>(null);
   const removed = useRef(false);
   const remove = useSessionMutation({
-    mutationFn: (category: ReportCategory) => deleteReportCategory(category.id),
-    onSuccess: async (_, category) => {
+    mutationFn: ({ category }: { category: ReportCategory; opening: number }) =>
+      deleteReportCategory(category.id),
+    onSuccess: async (_, { category }) => {
       await refreshReportCategories(queryClient, remove.isCurrent);
       if (!remove.isCurrent()) return;
       toast.success(t('report-categories.toast.deleted'), {
@@ -77,10 +77,7 @@ export function DeleteCategoryDialog({
       {...props}
       onOpenChangeComplete={(next) => {
         props.onOpenChangeComplete(next);
-        if (!next) {
-          remove.reset();
-          onCloseComplete();
-        }
+        if (!next) remove.reset();
       }}
     >
       <AlertDialogContent
@@ -97,20 +94,28 @@ export function DeleteCategoryDialog({
         {shown && (
           <DeleteCategoryContent
             cancel={cancel}
-            deleted={remove.isSuccess ? remove.variables : undefined}
+            deleted={
+              remove.isSuccess && remove.variables.opening === opening
+                ? remove.variables.category
+                : undefined
+            }
             hint={hint?.id === shown ? hint : undefined}
-            key={shown}
+            key={opening}
+            opening={opening}
             onDelete={(category) =>
-              remove.mutate(category, {
-                onSuccess: () => {
-                  removed.current = true;
-                  close();
+              remove.mutate(
+                { category, opening },
+                {
+                  onSuccess: () => {
+                    removed.current = true;
+                    close();
+                  },
+                  onError: (error) => {
+                    removed.current = isNotFound(error);
+                    close();
+                  },
                 },
-                onError: (error) => {
-                  removed.current = isNotFound(error);
-                  close();
-                },
-              })
+              )
             }
             pending={remove.isPending}
             target={shown}
@@ -125,6 +130,7 @@ function DeleteCategoryContent({
   cancel,
   deleted,
   hint,
+  opening,
   onDelete,
   pending,
   target,
@@ -132,14 +138,18 @@ function DeleteCategoryContent({
   cancel: RefObject<HTMLButtonElement | null>;
   deleted?: ReportCategory;
   hint?: ReportCategory;
+  opening: number;
   onDelete: (category: ReportCategory) => void;
   pending: boolean;
   target: string;
 }) {
   const { t } = useTranslation();
-  const opening = useOpening();
-  const detail = useQuery({ ...reportCategoryDetailOptions(target, opening), enabled: !hint });
-  const category = deleted ?? hint ?? detail.data;
+  const [initialHint] = useState(hint);
+  const detail = useQuery({
+    ...reportCategoryDetailOptions(target, 'delete', opening),
+    enabled: !initialHint,
+  });
+  const category = deleted ?? initialHint ?? detail.data;
   const state = category
     ? 'found'
     : detail.isPending
@@ -155,12 +165,12 @@ function DeleteCategoryContent({
     () => void detail.refetch(),
   );
   const failureTitle = refused
-    ? 'no-access.title'
+    ? 'report-categories.form.no-access-title'
     : offline
       ? 'offline.notice-title'
       : 'report-categories.load-error-title';
   const failureDescription = refused
-    ? 'no-access.description'
+    ? 'report-categories.form.no-access'
     : offline
       ? 'offline.notice-description'
       : 'error.check-connection';
@@ -186,13 +196,13 @@ function DeleteCategoryContent({
           <SkeletonLine width="medium" />
         ) : (
           <AlertDialogDescription>
-            <span className="line-clamp-4 wrap-anywhere">
-              {category
-                ? t('report-categories.delete.description', { name: category.name })
-                : t(
-                    missing ? 'api-error.report.error.reportCategory.notFound' : failureDescription,
-                  )}
-            </span>
+            {category ? (
+              <span className="line-clamp-4 wrap-anywhere">
+                {t('report-categories.delete.description', { name: category.name })}
+              </span>
+            ) : (
+              t(missing ? 'api-error.report.error.reportCategory.notFound' : failureDescription)
+            )}
           </AlertDialogDescription>
         )}
       </AlertDialogHeader>

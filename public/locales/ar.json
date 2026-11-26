@@ -2027,6 +2027,8 @@
   "report-categories.form.edit-title": "تعديل الفئة",
   "report-categories.form.name-required": "أدخل اسمًا.",
   "report-categories.form.name-taken": "توجد فئة بهذا الاسم بالفعل.",
+  "report-categories.form.no-access": "تتطلب إدارة فئات التقارير صلاحية «إدارة فئات التقارير». اطلبها من المسؤول إذا احتجت إليها.",
+  "report-categories.form.no-access-title": "لا يوجد وصول",
   "report-categories.form.save": "حفظ التغييرات",
   "report-categories.form.save-error-title": "تعذّر حفظ الفئة",
   "report-categories.load-error-title": "تعذّر تحميل الفئة",

@@ -78,6 +78,11 @@ function ReportCategoriesPage() {
   const formOpener = useRef<HTMLButtonElement | null>(null);
   const deleteOpener = useRef<HTMLButtonElement | null>(null);
   const [deleteHint, setDeleteHint] = useState<ReportCategory>();
+  const [previousDelete, setPreviousDelete] = useState(deleting);
+  if (deleting !== previousDelete) {
+    setPreviousDelete(deleting);
+    if (deleting !== deleteHint?.id) setDeleteHint(undefined);
+  }
   const [formMounted, setFormMounted] = useState(target !== undefined);
   const [deleteMounted, setDeleteMounted] = useState(deleting !== undefined);
   if (target !== undefined && !formMounted) setFormMounted(true);
@@ -156,7 +161,6 @@ function ReportCategoriesPage() {
               addButton={addButton}
               hint={deleteHint}
               onClose={closeDialog}
-              onCloseComplete={() => setDeleteHint(undefined)}
               opener={deleteOpener}
               target={deleting}
             />

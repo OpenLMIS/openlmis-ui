@@ -54,6 +54,7 @@ export function CategoryFormDialog({
   addButton?: RefObject<HTMLButtonElement | null>;
 }) {
   const { shown, close, dialogProps } = useDialogTarget(target, onClose);
+  const opening = useOpening(target);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
   const saved = useRef(false);
 
@@ -72,7 +73,8 @@ export function CategoryFormDialog({
       {shown && (
         <CategoryDialogContent
           isSaving={isSaving}
-          key={shown}
+          key={opening}
+          opening={opening}
           onDone={() => {
             saved.current = true;
             close();
@@ -93,11 +95,11 @@ type CategoryFormProps = {
 
 function CategoryDialogContent({
   target,
+  opening,
   onDone,
   isSaving,
-}: Pick<CategoryFormProps, 'onDone' | 'isSaving'> & { target: string }) {
+}: Pick<CategoryFormProps, 'onDone' | 'isSaving'> & { opening: number; target: string }) {
   const { t } = useTranslation();
-  const opening = useOpening();
   const isNew = target === 'new';
   const title = t(isNew ? 'report-categories.form.add-title' : 'report-categories.form.edit-title');
   const submit = t(isNew ? 'report-categories.form.add' : 'report-categories.form.save');
@@ -117,7 +119,10 @@ function CategoryDialogContent({
             <FormDialogHeader>
               <FormDialogTitle>{title}</FormDialogTitle>
             </FormDialogHeader>
-            <ErrorAlert description={t('no-access.description')} title={t('no-access.title')} />
+            <ErrorAlert
+              description={t('report-categories.form.no-access')}
+              title={t('report-categories.form.no-access-title')}
+            />
             <FormDialogFooter>
               <FormDialogCancel>{t('dialog.close')}</FormDialogCancel>
             </FormDialogFooter>
@@ -144,7 +149,7 @@ function ExistingCategory({
   target,
   ...props
 }: CategoryFormProps & { opening: number; target: string }) {
-  const { data } = useSuspenseQuery(reportCategoryDetailOptions(target, opening));
+  const { data } = useSuspenseQuery(reportCategoryDetailOptions(target, 'edit', opening));
   return <CategoryForm {...props} category={data} />;
 }
 
@@ -165,7 +170,7 @@ function CategoryForm({
       await refreshReportCategories(
         queryClient,
         save.isCurrent,
-        category !== undefined && category.name !== saved.name,
+        category && category.name !== saved.name ? saved : undefined,
       );
       if (!save.isCurrent()) return;
       toast.success(

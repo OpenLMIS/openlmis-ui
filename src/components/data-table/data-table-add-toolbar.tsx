@@ -24,7 +24,7 @@ export function DataTableAddToolbar({
           <div className="flex-1">{children}</div>
         </>
       ) : (
-        <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">{children}</div>
+        <div className="ms-auto">{children}</div>
       )}
     </DataTableToolbar>
   );

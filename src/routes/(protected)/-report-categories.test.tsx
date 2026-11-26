@@ -171,24 +171,36 @@ it('keeps an in-use category and toasts the translated refusal', async () => {
   expect(screen.getByRole('cell', { name: 'Stock', hidden: true })).toBeInTheDocument();
 });
 
-it('reads the current name when Forward reopens a canceled row Delete', async () => {
+it('reads the current name when Forward interrupts a row Delete closing animation', async () => {
   const user = userEvent.setup();
+  const closing = Promise.withResolvers<Animation>();
+  const animation = { finished: closing.promise } as Animation;
+  const closingAnimation = vi.fn(() => [animation]);
+  vi.spyOn(HTMLElement.prototype, 'getAnimations').mockImplementation(function (this: HTMLElement) {
+    return this.matches('[data-slot="alert-dialog-content"][data-closed]')
+      ? closingAnimation()
+      : [];
+  });
   const fresh = { ...stock, name: 'Warehouse' };
   const get = mockList(() => [stock], Promise.resolve({ data: fresh }));
   const router = renderCategoriesPage('');
 
   await user.click(await screen.findByRole('button', { name: deleteLabel }));
-  const dialog = within(await screen.findByRole('alertdialog', { name: deleteTitle }));
+  const popup = await screen.findByRole('alertdialog', { name: deleteTitle });
+  const dialog = within(popup);
   expect(dialog.getByText(/Stock/)).toBeVisible();
   expect(get).not.toHaveBeenCalledWith(detailUrl, expect.anything());
   await user.click(dialog.getByRole('button', { name: 'dialog.cancel' }));
-  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  await waitFor(() => expect(closingAnimation).toHaveBeenCalled());
+  expect(router.state.location.search).toEqual({});
+  expect(dialog.getByText(/Stock/)).toBeInTheDocument();
 
   await act(async () => router.history.forward());
 
+  await waitFor(() => expect(get).toHaveBeenCalledWith(detailUrl, expect.anything()));
   const reopened = within(await screen.findByRole('alertdialog', { name: deleteTitle }));
   expect(await reopened.findByText(/Warehouse/)).toBeVisible();
-  expect(get).toHaveBeenCalledWith(detailUrl, expect.anything());
+  await act(async () => closing.resolve(animation));
 });
 
 it('closes Delete and replaces the page after deleting its only row', async () => {
@@ -237,4 +249,21 @@ it('enables Delete once a direct link has loaded the category', async () => {
   const dialog = within(await screen.findByRole('alertdialog', { name: deleteTitle }));
   expect(await dialog.findByText(/Stock/)).toBeVisible();
   expect(dialog.getByRole('button', { name: deleteLabel })).toBeEnabled();
+});
+
+it('names a refused Delete dialog No Access and explains the required right', async () => {
+  const title = 'report-categories.form.no-access-title';
+  const description = 'report-categories.form.no-access';
+  const detail = Promise.withResolvers<never>();
+  getI18n().addResource('en', 'translation', title, en[title]);
+  getI18n().addResource('en', 'translation', description, en[description]);
+  mockList(() => [], detail.promise);
+  renderCategoriesPage(`?delete=${stock.id}`);
+
+  await screen.findByRole('alertdialog');
+  await act(async () => detail.reject({ isAxiosError: true, response: { status: 403 } }));
+
+  const dialog = await screen.findByRole('alertdialog', { name: 'No Access' });
+  expect(dialog).toHaveAccessibleDescription(en[description]);
+  expect(within(dialog).getByText(en[description]).closest('.line-clamp-4')).toBeNull();
 });

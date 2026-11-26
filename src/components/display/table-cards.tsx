@@ -248,6 +248,7 @@ export function CellText({
       <span
         className={cn('line-clamp-2 break-words whitespace-normal', strong && 'font-medium')}
         dir={dir}
+        title={title}
       >
         {children}
       </span>
@@ -255,7 +256,7 @@ export function CellText({
   }
   if (overflow === 'nowrap') {
     return (
-      <span className={cn('whitespace-nowrap', strong && 'font-medium')} dir={dir}>
+      <span className={cn('whitespace-nowrap', strong && 'font-medium')} dir={dir} title={title}>
         {children}
       </span>
     );

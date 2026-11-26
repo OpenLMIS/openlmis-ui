@@ -2027,6 +2027,8 @@
   "report-categories.form.edit-title": "Modifier la catégorie",
   "report-categories.form.name-required": "Saisissez un nom.",
   "report-categories.form.name-taken": "Une catégorie portant ce nom existe déjà.",
+  "report-categories.form.no-access": "La gestion des catégories de rapports nécessite le droit « Gérer les catégories de rapports ». Contactez un administrateur si vous en avez besoin.",
+  "report-categories.form.no-access-title": "Accès non autorisé",
   "report-categories.form.save": "Enregistrer les modifications",
   "report-categories.form.save-error-title": "Impossible d’enregistrer la catégorie",
   "report-categories.load-error-title": "Impossible de charger la catégorie",

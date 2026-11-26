@@ -2027,6 +2027,8 @@
   "report-categories.form.edit-title": "Edit Category",
   "report-categories.form.name-required": "Enter a name.",
   "report-categories.form.name-taken": "A category with this name already exists.",
+  "report-categories.form.no-access": "Managing report categories requires the Manage Report Categories right. Ask an administrator if you need it.",
+  "report-categories.form.no-access-title": "No Access",
   "report-categories.form.save": "Save Changes",
   "report-categories.form.save-error-title": "Could Not Save Category",
   "report-categories.load-error-title": "Could Not Load Category",
