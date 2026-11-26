@@ -144,7 +144,7 @@ function CategoryDialogContent({
           />
         )
       }
-      pendingFallback={<CategoryFormSkeleton submit={submit} title={title} />}
+      pendingFallback={<CategoryFormSkeleton isSaving={isSaving} submit={submit} title={title} />}
       resetKey={`${opening}-${reread}`}
     >
       <ExistingCategory {...formProps} opening={opening} reread={reread} target={target} />
@@ -264,7 +264,11 @@ function CategoryForm({
   );
 }
 
-function CategoryFormSkeleton({ title, submit }: Pick<CategoryFormProps, 'title' | 'submit'>) {
+function CategoryFormSkeleton({
+  isSaving,
+  title,
+  submit,
+}: Pick<CategoryFormProps, 'isSaving' | 'title' | 'submit'>) {
   const { t } = useTranslation();
   return (
     <>
@@ -275,7 +279,7 @@ function CategoryFormSkeleton({ title, submit }: Pick<CategoryFormProps, 'title'
         <FieldSkeleton label={t('report-categories.name')} required />
       </FormDialogBody>
       <FormDialogFooter>
-        <FormDialogCancel>{t('dialog.cancel')}</FormDialogCancel>
+        <FormDialogCancel disabled={isSaving}>{t('dialog.cancel')}</FormDialogCancel>
         <FormDialogSubmit disabled>{submit}</FormDialogSubmit>
       </FormDialogFooter>
     </>

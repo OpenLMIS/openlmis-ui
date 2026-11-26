@@ -9,12 +9,14 @@ import {
 
 export const DEFAULT_REPORT_CATEGORIES_SORT: DefaultSort = { id: 'name', desc: false };
 
+const idSchema = z.guid().transform((id) => id.toLowerCase());
+
 export const reportCategoriesSearchSchema = tableSearchSchema(['name']).extend({
   category: z
-    .union([z.literal('new'), z.guid()])
+    .union([z.literal('new'), idSchema])
     .optional()
     .catch(undefined),
-  delete: z.guid().optional().catch(undefined),
+  delete: idSchema.optional().catch(undefined),
 });
 
 export type ReportCategoriesSearch = z.infer<typeof reportCategoriesSearchSchema>;
