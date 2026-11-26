@@ -47,7 +47,10 @@ function createColumns(t: TFunction, onEdit: CategoryAction, onDelete: CategoryA
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('report-categories.name')} />
       ),
-      cell: ({ getValue }) => <CellText>{getValue()}</CellText>,
+      cell: ({ getValue }) => {
+        const name = getValue();
+        return <CellText title={name}>{name}</CellText>;
+      },
       meta: { label: t('report-categories.name') },
     }),
     columnHelper.display({

@@ -233,11 +233,13 @@ export function CellText({
   children,
   dir = 'auto',
   strong = false,
+  title,
   overflow = 'truncate',
 }: {
   children: ReactNode;
   dir?: 'auto' | 'ltr';
   strong?: boolean;
+  title?: string;
   overflow?: 'truncate' | 'nowrap' | 'clamp';
 }) {
   if (use(InCardContext)) return <span dir={dir}>{children}</span>;
@@ -260,7 +262,7 @@ export function CellText({
   }
   return (
     <span className="flex">
-      <span className={cn('min-w-0 truncate', strong && 'font-medium')} dir={dir}>
+      <span className={cn('min-w-0 truncate', strong && 'font-medium')} dir={dir} title={title}>
         {children}
       </span>
     </span>
