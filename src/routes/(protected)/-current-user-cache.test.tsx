@@ -237,7 +237,7 @@ it('shows the changed server name when Home is refreshed', async () => {
 
 it('refreshes notice authors and cached user search after a Profile name save', async () => {
   let serverUser = { ...userRecord, lastName: 'Byron' };
-  const notification = { id: 'notice', title: 'Published', message: 'Maintenance' };
+  const notification = { id: 'notice', title: 'Published', active: true, message: 'Maintenance' };
   const pending = Promise.withResolvers<void>();
   const get = vi.mocked(client.get).getMockImplementation();
   vi.mocked(client.get).mockImplementation(async (url, config) => {

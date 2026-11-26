@@ -48,6 +48,17 @@ describe('advanceDateText', () => {
   );
 });
 
+it('round-trips typed civil dates that the browser might have skipped', () => {
+  vi.stubEnv('TZ', 'Pacific/Apia');
+  try {
+    expect(parseDateText('30/12/2011')).toBeUndefined();
+    expect(parseDateText('30/12/2011', 'dd/MM/yyyy', 'civil')).toBe('2011-12-30');
+    expect(formatDateText('2011-12-30', 'dd/MM/yyyy', 'civil')).toBe('30/12/2011');
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
 describe('parseDateValue', () => {
   it('reads a yyyy-MM-dd date as that day, at midnight where the user is', () => {
     const date = parseDateValue('2026-03-01');
@@ -116,8 +127,9 @@ describe('formatTimestamp', () => {
   });
 
   it('falls back to the browser time zone for an unknown one', () => {
-    expect(formatTimestamp('2026-10-08T12:00:00Z', 'en-US', { timeZone: 'Mars/Base' })).toBe(
-      'Oct 8, 2026',
+    const instant = '2026-10-08T12:00:00Z';
+    expect(formatTimestamp(instant, 'en-US', { timeZone: 'Mars/Base' })).toBe(
+      formatTimestamp(instant, 'en-US'),
     );
   });
 });

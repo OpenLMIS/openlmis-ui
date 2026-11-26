@@ -37,7 +37,7 @@ describe('fetchSystemNotifications', () => {
     });
     const cache = new QueryClient();
     const options = systemNotificationsOptions();
-    const cached = [{ id: 'cached', title: null, message: 'Last complete notice' }];
+    const cached = [{ id: 'cached', title: null, active: true, message: 'Last complete notice' }];
     cache.setQueryData(options.queryKey, cached, { updatedAt: 1 });
     try {
       const refresh = cache.fetchQuery(options).catch((error: unknown) => error);
@@ -59,7 +59,7 @@ describe('fetchSystemNotifications', () => {
       defaultOptions: { queries: { networkMode: 'always', retry: 1, retryDelay: 1000 } },
     });
     const options = systemNotificationsOptions();
-    const cached = [{ id: 'cached', title: null, message: 'Last complete notice' }];
+    const cached = [{ id: 'cached', title: null, active: true, message: 'Last complete notice' }];
     cache.setQueryData(options.queryKey, cached, { updatedAt: 1 });
     get.mockReset().mockRejectedValue(new Error('Unavailable'));
     try {

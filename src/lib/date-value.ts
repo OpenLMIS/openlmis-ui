@@ -1,12 +1,14 @@
 import { z } from 'zod';
-import { parseEditableDate } from '@/components/form/date-value';
+import { type DateValueMode, isEditableDateValue } from '@/components/form/date-value';
 
 export function dateValue({
   optional = false,
+  mode = 'local',
   required = 'form.date-invalid',
   invalid = 'form.date-invalid',
 }: {
   optional?: boolean;
+  mode?: DateValueMode;
   required?: string;
   invalid?: string;
 } = {}) {
@@ -16,7 +18,7 @@ export function dateValue({
         ? optional
           ? undefined
           : required
-        : !parseEditableDate(value)
+        : !isEditableDateValue(value, mode)
           ? invalid
           : undefined;
     if (message) context.addIssue({ code: 'custom', message });

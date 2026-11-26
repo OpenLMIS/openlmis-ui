@@ -81,6 +81,32 @@ export function supportedDateFormat(format: unknown): format is string {
   );
 }
 
+export type DateValueMode = 'local' | 'civil';
+
+function dateParts(value: string, mode: DateValueMode) {
+  if (mode === 'local') {
+    const date = parseDateValue(value);
+    return date && { y: date.getFullYear(), M: date.getMonth() + 1, d: date.getDate() };
+  }
+  const match = DATE_VALUE.exec(value);
+  if (!match) return undefined;
+  const date = new Date(`${value}T00:00:00Z`);
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  return date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+    ? { y: year, M: month, d: day }
+    : undefined;
+}
+
+export function isEditableDateValue(value: string, mode: DateValueMode = 'local') {
+  if (mode === 'local') return Boolean(parseEditableDate(value));
+  const date = dateParts(value, mode);
+  return Boolean(date && date.y >= FIRST_DATE_YEAR && date.y <= lastDateYear());
+}
+
 export function parseEditableDate(value: string): Date | undefined {
   const date = parseDateValue(value);
   if (!date) return undefined;
@@ -131,7 +157,11 @@ export function advanceDateText(
   return previous + zero + inserted + separator;
 }
 
-export function parseDateText(text: string, format = DEFAULT_DATE_FORMAT): string | undefined {
+export function parseDateText(
+  text: string,
+  format = DEFAULT_DATE_FORMAT,
+  mode: DateValueMode = 'local',
+): string | undefined {
   const digits = normalizeDateDigits(text);
   const pattern = supportedDateFormat(format) ? format : DEFAULT_DATE_FORMAT;
   const tokens = pattern.match(DATE_PARTS) ?? [];
@@ -139,24 +169,27 @@ export function parseDateText(text: string, format = DEFAULT_DATE_FORMAT): strin
     .replaceAll('.', '\\.')
     .replace(DATE_PARTS, (token) => (token === 'yyyy' ? '(\\d{4})' : '(\\d{1,2})'));
   const match = new RegExp(`^${expression}$`).exec(digits);
-  if (!match) return parseEditableDate(digits) ? digits : undefined;
+  if (!match) return isEditableDateValue(digits, mode) ? digits : undefined;
   const parts = Object.fromEntries(tokens.map((token, index) => [token[0], match[index + 1]]));
   const value = `${parts.y}-${parts.M.padStart(2, '0')}-${parts.d.padStart(2, '0')}`;
-  return parseEditableDate(value) ? value : undefined;
+  return isEditableDateValue(value, mode) ? value : undefined;
 }
 
-export function unparsedDateValue(text: string): string {
-  return text.startsWith(INVALID_DATE_PREFIX) || parseDateValue(text)
+export function unparsedDateValue(text: string, mode: DateValueMode = 'local'): string {
+  return text.startsWith(INVALID_DATE_PREFIX) || dateParts(text, mode)
     ? INVALID_DATE_PREFIX + text
     : text;
 }
 
-export function formatDateText(value: string, format = DEFAULT_DATE_FORMAT): string {
+export function formatDateText(
+  value: string,
+  format = DEFAULT_DATE_FORMAT,
+  mode: DateValueMode = 'local',
+): string {
   if (value.startsWith(INVALID_DATE_PREFIX)) return value.slice(INVALID_DATE_PREFIX.length);
-  const date = parseDateValue(value);
-  if (!date) return value;
+  const parts = dateParts(value, mode);
+  if (!parts) return value;
   const pattern = supportedDateFormat(format) ? format : DEFAULT_DATE_FORMAT;
-  const parts = { d: date.getDate(), M: date.getMonth() + 1, y: date.getFullYear() };
   return pattern.replace(DATE_PARTS, (token) =>
     String(parts[token[0] as keyof typeof parts]).padStart(token.length, '0'),
   );

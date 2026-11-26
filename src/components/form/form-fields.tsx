@@ -28,6 +28,7 @@ import {
 } from 'react';
 import {
   advanceDateText,
+  type DateValueMode,
   FIRST_DATE_YEAR,
   formatDateText,
   lastDateYear,
@@ -1628,6 +1629,7 @@ export function TagsField({
 }
 
 type DateFieldProps = FieldProps & {
+  dateMode?: DateValueMode;
   calendarDismissKey?: number | undefined;
   size?: 'sm' | 'default' | 'lg';
   clearLabel?: string;
@@ -1645,6 +1647,7 @@ type LoadedCalendar = {
 const FIRST_MONTH = new Date(FIRST_DATE_YEAR, 0);
 
 export function DateField({
+  dateMode,
   calendarDismissKey,
   label,
   size,
@@ -1672,6 +1675,7 @@ export function DateField({
     >
       <DatePicker
         calendarDismissKey={calendarDismissKey}
+        dateMode={dateMode}
         size={size ?? (layout === 'inline' ? 'sm' : 'default')}
         clearLabel={clearLabel}
         earliest={earliest}
@@ -1691,6 +1695,7 @@ export function DateField({
 }
 
 type DatePickerProps = {
+  dateMode?: DateValueMode | undefined;
   size?: 'sm' | 'default' | 'lg';
   id: string;
   value: string;
@@ -1751,6 +1756,7 @@ if (typeof document !== 'undefined') {
 }
 
 export function DatePicker({
+  dateMode,
   size = 'default',
   id,
   value,
@@ -1798,7 +1804,7 @@ export function DatePicker({
   const activeEdit = edit?.value === value && edit.resetKey === resetKey ? edit : undefined;
   const calendarValue = activeEdit?.calendarValue ?? value;
   const selected = useMemo(() => parseEditableDate(calendarValue), [calendarValue]);
-  const shown = activeEdit?.text ?? formatDateText(value, editingFormat ?? dateFormat);
+  const shown = activeEdit?.text ?? formatDateText(value, editingFormat ?? dateFormat, dateMode);
   const clearable = Boolean(clearLabel && !required);
   const showClear = clearable && Boolean(value) && !disabled;
   const first = useMemo(() => (earliest ? parseDateValue(earliest) : undefined), [earliest]);
@@ -1934,8 +1940,8 @@ export function DatePicker({
   }, [loaded, dateLanguage, month, selected, first, last, direction, pick, clearable]);
 
   const changeText = (text: string) => {
-    const parsed = parseDateText(text, editingFormat ?? dateFormat);
-    const next = parsed ?? unparsedDateValue(text);
+    const parsed = parseDateText(text, editingFormat ?? dateFormat, dateMode);
+    const next = parsed ?? unparsedDateValue(text, dateMode);
     if (!open) openCalendar();
     setEdit({
       text,
