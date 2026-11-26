@@ -38,6 +38,7 @@ import { Route as protectedProtectedAdministrationServiceAccountsRouteImport } f
 import { Route as protectedProtectedAdministrationSupervisoryNodesRouteImport } from './routes/(protected)/_protected.administration.supervisory-nodes'
 import { Route as protectedProtectedAdministrationSupplyLinesRouteImport } from './routes/(protected)/_protected.administration.supply-lines'
 import { Route as protectedProtectedAdministrationSupplyPartnersRouteImport } from './routes/(protected)/_protected.administration.supply-partners'
+import { Route as protectedProtectedAdministrationSystemNotificationsRouteImport } from './routes/(protected)/_protected.administration.system-notifications'
 import { Route as protectedProtectedAdministrationUsersRouteImport } from './routes/(protected)/_protected.administration.users'
 import { Route as protectedProtectedAdministrationValidDestinationsRouteImport } from './routes/(protected)/_protected.administration.valid-destinations'
 import { Route as protectedProtectedAdministrationValidSourcesRouteImport } from './routes/(protected)/_protected.administration.valid-sources'
@@ -270,6 +271,12 @@ const protectedProtectedAdministrationSupplyPartnersRoute =
   protectedProtectedAdministrationSupplyPartnersRouteImport.update({
     id: '/administration/supply-partners',
     path: '/administration/supply-partners',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationSystemNotificationsRoute =
+  protectedProtectedAdministrationSystemNotificationsRouteImport.update({
+    id: '/administration/system-notifications',
+    path: '/administration/system-notifications',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationUsersRoute =
@@ -704,6 +711,7 @@ export interface FileRoutesByFullPath {
   '/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
   '/administration/supply-lines': typeof protectedProtectedAdministrationSupplyLinesRoute
   '/administration/supply-partners': typeof protectedProtectedAdministrationSupplyPartnersRoute
+  '/administration/system-notifications': typeof protectedProtectedAdministrationSystemNotificationsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
@@ -798,6 +806,7 @@ export interface FileRoutesByTo {
   '/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
   '/administration/supply-lines': typeof protectedProtectedAdministrationSupplyLinesRoute
   '/administration/supply-partners': typeof protectedProtectedAdministrationSupplyPartnersRoute
+  '/administration/system-notifications': typeof protectedProtectedAdministrationSystemNotificationsRoute
   '/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
@@ -895,6 +904,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/supervisory-nodes': typeof protectedProtectedAdministrationSupervisoryNodesRoute
   '/(protected)/_protected/administration/supply-lines': typeof protectedProtectedAdministrationSupplyLinesRoute
   '/(protected)/_protected/administration/supply-partners': typeof protectedProtectedAdministrationSupplyPartnersRoute
+  '/(protected)/_protected/administration/system-notifications': typeof protectedProtectedAdministrationSystemNotificationsRoute
   '/(protected)/_protected/administration/users': typeof protectedProtectedAdministrationUsersRoute
   '/(protected)/_protected/administration/valid-destinations': typeof protectedProtectedAdministrationValidDestinationsRoute
   '/(protected)/_protected/administration/valid-sources': typeof protectedProtectedAdministrationValidSourcesRoute
@@ -993,6 +1003,7 @@ export interface FileRouteTypes {
     | '/administration/supervisory-nodes'
     | '/administration/supply-lines'
     | '/administration/supply-partners'
+    | '/administration/system-notifications'
     | '/administration/users'
     | '/administration/valid-destinations'
     | '/administration/valid-sources'
@@ -1087,6 +1098,7 @@ export interface FileRouteTypes {
     | '/administration/supervisory-nodes'
     | '/administration/supply-lines'
     | '/administration/supply-partners'
+    | '/administration/system-notifications'
     | '/administration/users'
     | '/administration/valid-destinations'
     | '/administration/valid-sources'
@@ -1183,6 +1195,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/supervisory-nodes'
     | '/(protected)/_protected/administration/supply-lines'
     | '/(protected)/_protected/administration/supply-partners'
+    | '/(protected)/_protected/administration/system-notifications'
     | '/(protected)/_protected/administration/users'
     | '/(protected)/_protected/administration/valid-destinations'
     | '/(protected)/_protected/administration/valid-sources'
@@ -1462,6 +1475,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/supply-partners'
       fullPath: '/administration/supply-partners'
       preLoaderRoute: typeof protectedProtectedAdministrationSupplyPartnersRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/system-notifications': {
+      id: '/(protected)/_protected/administration/system-notifications'
+      path: '/administration/system-notifications'
+      fullPath: '/administration/system-notifications'
+      preLoaderRoute: typeof protectedProtectedAdministrationSystemNotificationsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/users': {
@@ -2019,6 +2039,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationSupervisoryNodesRoute: typeof protectedProtectedAdministrationSupervisoryNodesRoute
   protectedProtectedAdministrationSupplyLinesRoute: typeof protectedProtectedAdministrationSupplyLinesRoute
   protectedProtectedAdministrationSupplyPartnersRoute: typeof protectedProtectedAdministrationSupplyPartnersRoute
+  protectedProtectedAdministrationSystemNotificationsRoute: typeof protectedProtectedAdministrationSystemNotificationsRoute
   protectedProtectedAdministrationUsersRoute: typeof protectedProtectedAdministrationUsersRoute
   protectedProtectedAdministrationValidDestinationsRoute: typeof protectedProtectedAdministrationValidDestinationsRoute
   protectedProtectedAdministrationValidSourcesRoute: typeof protectedProtectedAdministrationValidSourcesRoute
@@ -2120,6 +2141,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationSupplyLinesRoute,
   protectedProtectedAdministrationSupplyPartnersRoute:
     protectedProtectedAdministrationSupplyPartnersRoute,
+  protectedProtectedAdministrationSystemNotificationsRoute:
+    protectedProtectedAdministrationSystemNotificationsRoute,
   protectedProtectedAdministrationUsersRoute:
     protectedProtectedAdministrationUsersRoute,
   protectedProtectedAdministrationValidDestinationsRoute:

@@ -204,6 +204,7 @@ it.each([
   ],
   ['/administration/valid-sources', [RIGHTS.stockSourcesManage], RIGHTS.stockDestinationsManage],
   ['/administration/reasons', [RIGHTS.stockCardLineItemReasonsManage], RIGHTS.stockAdjust],
+  ['/administration/system-notifications', [RIGHTS.systemNotificationsManage], RIGHTS.usersManage],
   ['/administration/lots', [RIGHTS.lotsManage], RIGHTS.orderablesManage],
   ['/reports', [RIGHTS.reportsView], RIGHTS.usersManage],
   ['/stock-management/adjustments', [RIGHTS.stockAdjust], RIGHTS.stockCardsView],

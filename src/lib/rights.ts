@@ -32,6 +32,7 @@ export const RIGHTS = {
   supplyPartnersManage: 'SUPPLY_PARTNERS_MANAGE',
   programsManage: 'PROGRAMS_MANAGE',
   processingSchedulesManage: 'PROCESSING_SCHEDULES_MANAGE',
+  systemNotificationsManage: 'SYSTEM_NOTIFICATIONS_MANAGE',
   usersManage: 'USERS_MANAGE',
   userRolesManage: 'USER_ROLES_MANAGE',
   rightsView: 'RIGHTS_VIEW',
