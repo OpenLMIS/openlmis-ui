@@ -6,9 +6,16 @@ import {
   fetchNotificationsPage,
   fetchSystemNotifications,
 } from '@/features/system-notifications/api/api';
-import type { NotificationsQuery } from '@/features/system-notifications/lib/types';
+import type {
+  NotificationsQuery,
+  SystemNotification,
+} from '@/features/system-notifications/lib/types';
 import { verifiedStoredTimeZone } from '@/lib/deployment-time-zone';
 import { queryKeys } from '@/lib/key-factory';
+import { fullName } from '@/lib/text';
+import type { Page } from '@/lib/types';
+
+export const notificationListsKey = [...queryKeys.systemNotifications.all, 'list'] as const;
 
 export const SYSTEM_NOTIFICATIONS_STALE_TIME = 30_000;
 
@@ -30,8 +37,22 @@ export const notificationsPageOptions = ({ expand, isDisplayed, ...params }: Not
 
 export const notificationAuthorOptions = (authorId: string) =>
   queryOptions({
-    queryKey: queryKeys.systemNotifications.list({ authors: true, authorId }),
-    queryFn: ({ signal }) => fetchNotificationAuthor(authorId, signal),
+    queryKey: [...queryKeys.systemNotifications.all, 'author', authorId],
+    queryFn: async ({ client, signal }) => {
+      const lists = client.getQueriesData<Page<SystemNotification>>({
+        queryKey: notificationListsKey,
+        predicate: ({ queryKey }) =>
+          Boolean((queryKey[2] as { admin?: unknown } | undefined)?.admin),
+      });
+      for (const [, page] of lists) {
+        const author = page?.content.find(
+          (notice) => notice.author?.id === authorId && fullName(notice.author),
+        )?.author;
+        if (author) return fullName(author);
+      }
+      const author = await fetchNotificationAuthor(authorId, signal);
+      return author ? fullName(author) : '';
+    },
   });
 
 export const notificationDetailOptions = (id: string, opening: number) =>

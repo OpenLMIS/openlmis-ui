@@ -2,15 +2,15 @@ import { z } from 'zod';
 import type { NotificationsQuery } from '@/features/system-notifications/lib/types';
 import { tableSearchSchema, toPaginationState } from '@/lib/table-search';
 
-const idSchema = z.guid().optional().catch(undefined);
+const idSchema = z.guid().transform((id) => id.toLowerCase());
 
 export const notificationsSearchSchema = tableSearchSchema(['title'])
   .omit({ sort: true, dir: true })
   .extend({
-    authorId: idSchema,
+    authorId: idSchema.optional().catch(undefined),
     displayed: z.literal(true).optional().catch(undefined),
     notification: z
-      .union([z.literal('new'), z.guid()])
+      .union([z.literal('new'), idSchema])
       .optional()
       .catch(undefined),
   });

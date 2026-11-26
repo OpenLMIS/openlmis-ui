@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { BellIcon } from 'lucide-react';
-import { type ComponentProps, lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { type ComponentProps, lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -74,6 +74,7 @@ function SystemNotificationsPage() {
   const { updateSearch, openDialog, closeDialog } =
     useSearchNavigation<NotificationsSearch>(CLOSED_DIALOGS);
   const edit = useCallback((id: string) => openDialog({ notification: id }), [openDialog]);
+  const addButton = useRef<HTMLButtonElement>(null);
   const [dialogMounted, setDialogMounted] = useState(target !== undefined);
   if (target !== undefined && !dialogMounted) setDialogMounted(true);
 
@@ -83,6 +84,7 @@ function SystemNotificationsPage() {
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
           <NotificationsPageToolbar
+            addRef={addButton}
             canFilterAuthors={canFilterAuthors}
             columnView={columnView}
             layout={layout}
@@ -119,7 +121,11 @@ function SystemNotificationsPage() {
         </div>
         {dialogMounted && (
           <Suspense fallback={null}>
-            <NotificationFormDialog onClose={closeDialog} target={target} />
+            <NotificationFormDialog
+              focusAfterSave={addButton}
+              onClose={closeDialog}
+              target={target}
+            />
           </Suspense>
         )}
       </WorkspaceContent>
@@ -143,7 +149,7 @@ function NotificationsPageToolbar({
   const options = useMemo(
     () =>
       (authors.data ?? []).map((user) => ({
-        value: user.id,
+        value: user.id.toLowerCase(),
         label: fullName(user) || user.username,
         description: user.username,
       })),
@@ -160,16 +166,16 @@ function NotificationsPageToolbar({
                 { value: search.authorId, label: t('system-notifications.admin.unknown-author') },
               ]
             : options,
-        emptyMessage: authors.isError
-          ? t('system-notifications.admin.authors-error')
-          : authors.isPending
-            ? t('system-notifications.admin.authors-loading')
-            : t('data-table.no-matches'),
-        status: authors.data
-          ? t('system-notifications.admin.author-status', { count: options.length })
-          : undefined,
+        emptyMessage:
+          authors.isError && !authors.isFetching
+            ? t('system-notifications.admin.authors-error')
+            : authors.isPending || authors.isFetching
+              ? t('system-notifications.admin.authors-loading')
+              : t('data-table.no-matches'),
         onOpenChange: (open: boolean) => {
-          if (open) setOpenedAuthors(true);
+          if (!open) return;
+          setOpenedAuthors(true);
+          if (authors.isError && !authors.isFetching) void authors.refetch();
         },
       }
     : undefined;

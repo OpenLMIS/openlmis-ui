@@ -26,3 +26,13 @@ it('maps URL filters and one-based paging to the notification API', () => {
     size: 10,
   });
 });
+
+it('normalizes UUIDs in both linked filters and dialog targets', () => {
+  const id = '64218385-610e-455a-85af-7cfc88808355';
+  expect(
+    notificationsSearchSchema.parse({ authorId: id.toUpperCase(), notification: id.toUpperCase() }),
+  ).toEqual({
+    authorId: id,
+    notification: id,
+  });
+});

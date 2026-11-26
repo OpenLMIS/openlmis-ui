@@ -11,7 +11,7 @@ import { fromZonedParts, toZonedParts } from '@/lib/zoned-time';
 
 const errorKey = (key: ParseKeys) => key;
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-const optionalDate = dateValue({ optional: true });
+const optionalDate = dateValue({ optional: true, mode: 'civil' });
 
 export const TITLE_MAX = 255;
 export const NONEXISTENT_TIME = 'system-notifications.admin.nonexistent-time';
@@ -100,7 +100,7 @@ export function notificationFormSchema(zone: string, saved?: SavedNotification) 
   return formFields.superRefine((values, context) => {
     const validate = (bound: Bound) => {
       const date = values[`${bound}Date`];
-      if (!date || !isEditableDateValue(date)) return null;
+      if (!date || !isEditableDateValue(date, 'civil')) return null;
       const timeField = `${bound}Time` as const;
       if (!TIME.test(values[timeField])) {
         context.addIssue({

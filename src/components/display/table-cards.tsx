@@ -238,17 +238,9 @@ export function CellText({
   children: ReactNode;
   dir?: 'auto' | 'ltr';
   strong?: boolean;
-  overflow?: 'truncate' | 'nowrap' | 'clamp' | 'wrap';
+  overflow?: 'truncate' | 'nowrap' | 'clamp';
 }) {
-  const inCards = use(InCardContext);
-  if (overflow === 'wrap') {
-    return (
-      <span className="whitespace-pre-wrap wrap-anywhere" dir={dir}>
-        {children}
-      </span>
-    );
-  }
-  if (inCards) return <span dir={dir}>{children}</span>;
+  if (use(InCardContext)) return <span dir={dir}>{children}</span>;
   if (overflow === 'clamp') {
     return (
       <span

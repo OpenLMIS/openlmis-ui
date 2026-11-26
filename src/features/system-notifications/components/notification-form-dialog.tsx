@@ -1,12 +1,6 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
-import {
-  type QueryClient,
-  useIsMutating,
-  useQueryClient,
-  useSuspenseQueries,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useIsMutating, useQuery, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import { type RefObject, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -41,6 +35,7 @@ import {
   DeploymentTimeZoneUnavailable,
   notificationAuthorOptions,
   notificationDetailOptions,
+  notificationListsKey,
   notificationTimeZoneOptions,
 } from '@/features/system-notifications/api/queries';
 import {
@@ -53,10 +48,7 @@ import {
   toFormValues,
   toPayload,
 } from '@/features/system-notifications/lib/notification-form';
-import type {
-  SavedNotification,
-  SystemNotification,
-} from '@/features/system-notifications/lib/types';
+import type { SavedNotification } from '@/features/system-notifications/lib/types';
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
@@ -66,7 +58,6 @@ import { queryKeys } from '@/lib/key-factory';
 import { reportApiError } from '@/lib/report-error';
 import { getSessionUserId, SessionEndedError } from '@/lib/session-scope';
 import { fullName } from '@/lib/text';
-import type { Page } from '@/lib/types';
 
 const saveKey = (target: string) => [...queryKeys.systemNotifications.all, 'save', target] as const;
 
@@ -90,16 +81,36 @@ const DATE_FIELDS = [
 export function NotificationFormDialog({
   target,
   onClose,
+  focusAfterSave,
 }: {
   target: string | undefined;
   onClose: () => void;
+  focusAfterSave?: RefObject<HTMLButtonElement | null>;
 }) {
   const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const isSaving = useIsMutating({ mutationKey: saveKey(shown ?? 'new') }) > 0;
 
+  const saved = useRef(false);
+
   return (
-    <FormDialog {...dialogProps(isSaving)}>
-      {shown && <NotificationDialogContent key={shown} onDone={close} target={shown} />}
+    <FormDialog
+      {...dialogProps(isSaving)}
+      finalFocus={() => {
+        const focusTarget = saved.current ? focusAfterSave?.current : null;
+        saved.current = false;
+        return focusTarget ?? true;
+      }}
+    >
+      {shown && (
+        <NotificationDialogContent
+          key={shown}
+          onDone={() => {
+            saved.current = true;
+            close();
+          }}
+          target={shown}
+        />
+      )}
     </FormDialog>
   );
 }
@@ -169,44 +180,26 @@ function NewNotification({ opening, ...props }: FormLoadProps) {
   );
 }
 
-function cachedAuthorName(queryClient: QueryClient, saved: SavedNotification) {
-  const lists = queryClient.getQueriesData<Page<SystemNotification>>({
-    queryKey: [...queryKeys.systemNotifications.all, 'list'],
-    predicate: ({ queryKey }) => Boolean((queryKey[2] as { admin?: unknown } | undefined)?.admin),
-  });
-  for (const [, page] of lists) {
-    const author = page?.content.find((notice) => notice.id === saved.id)?.author;
-    if (author?.id === saved.author.id) {
-      const name = fullName(author);
-      if (name) return name;
-    }
-  }
-}
-
 function ExistingNotification({ opening, target, ...props }: FormLoadProps & { target: string }) {
-  const queryClient = useQueryClient();
   const [{ data: zone }, { data: saved }] = useSuspenseQueries({
     queries: [notificationTimeZoneOptions(opening), notificationDetailOptions(target, opening)],
   });
-  const [authorName] = useState(() => cachedAuthorName(queryClient, saved));
-  const formProps = { ...props, authorId: saved.author.id, saved, zone };
-  return authorName ? (
-    <NotificationForm {...formProps} authorName={authorName} />
-  ) : (
-    <NotificationWithAuthor {...formProps} />
-  );
+  return <NotificationForm {...props} authorId={saved.author.id} saved={saved} zone={zone} />;
 }
 
-function NotificationWithAuthor(props: Omit<NotificationFormProps, 'authorName'>) {
-  const { data: author } = useSuspenseQuery(notificationAuthorOptions(props.authorId));
-  return <NotificationForm {...props} authorName={author ? fullName(author) : ''} />;
+function NotificationAuthor({ authorId }: { authorId: string }) {
+  const { t } = useTranslation();
+  const author = useQuery(notificationAuthorOptions(authorId));
+  if (author.isPending) return <SkeletonLine width="short" />;
+  if (author.isError) return t('system-notifications.admin.author-error');
+  return <bdi>{author.data || EMPTY_VALUE}</bdi>;
 }
 
 type NotificationFormProps = {
   title: string;
   submit: string;
   authorId: string;
-  authorName: string;
+  authorName?: string;
   zone: string;
   saved?: SavedNotification;
   onDone: () => void;
@@ -243,10 +236,7 @@ function NotificationForm({
         ? updateNotification(toPayload(values, zone, authorId, saved))
         : createNotification(toPayload(values, zone, authorId)),
     onSuccess: async () => {
-      const lists = {
-        queryKey: queryKeys.systemNotifications.all,
-        predicate: ({ queryKey }: { queryKey: readonly unknown[] }) => queryKey[1] !== 'detail',
-      };
+      const lists = { queryKey: notificationListsKey };
       await queryClient.cancelQueries(lists);
       if (!save.isCurrent()) return;
       void queryClient.invalidateQueries(lists);
@@ -272,8 +262,6 @@ function NotificationForm({
           errorMap: { ...meta.errorMap, onServer: fieldError.key },
         }));
       }
-      const description = apiErrorText(error, 'error.description', t, { write: true });
-      if (description) toast.error(errorTitle, { description });
     },
   });
   const form = useAppForm({
@@ -321,7 +309,11 @@ function NotificationForm({
             )}
             <div>
               <SettingsItem label={t('system-notifications.admin.author')}>
-                <bdi>{authorName || EMPTY_VALUE}</bdi>
+                {saved ? (
+                  <NotificationAuthor authorId={authorId} />
+                ) : (
+                  <bdi>{authorName || EMPTY_VALUE}</bdi>
+                )}
               </SettingsItem>
               {saved && (
                 <SettingsItem label={t('system-notifications.admin.created-date')}>
@@ -335,6 +327,7 @@ function NotificationForm({
             <form.AppField name="message" listeners={{ onChange: () => clearRefusal('message') }}>
               {(field) => (
                 <field.TextareaField
+                  disabled={save.isPending}
                   dir="auto"
                   label={t('system-notifications.admin.message')}
                   required
@@ -343,6 +336,7 @@ function NotificationForm({
             </form.AppField>
             <NotificationDateFields
               clearExpiryRefusal={() => clearRefusal('expiryDate')}
+              disabled={save.isPending}
               form={form}
             />
             <form.AppField name="title">
@@ -352,13 +346,19 @@ function NotificationForm({
                   description={t('system-notifications.admin.characters-left', {
                     count: TITLE_MAX - field.state.value.length,
                   })}
+                  disabled={save.isPending}
                   label={t('system-notifications.admin.title')}
                   maxLength={TITLE_MAX}
                 />
               )}
             </form.AppField>
             <form.AppField name="active">
-              {(field) => <field.SwitchField label={t('system-notifications.admin.active')} />}
+              {(field) => (
+                <field.SwitchField
+                  disabled={save.isPending}
+                  label={t('system-notifications.admin.active')}
+                />
+              )}
             </form.AppField>
           </FieldGroup>
         </FormErrorMessagesProvider>
@@ -373,13 +373,13 @@ function NotificationForm({
 
 const NotificationDateFields = withForm({
   defaultValues: EMPTY_NOTIFICATION_FORM,
-  props: { clearExpiryRefusal: () => {} },
-  render: function NotificationDateFields({ form, clearExpiryRefusal }) {
+  props: { clearExpiryRefusal: () => {}, disabled: false },
+  render: function NotificationDateFields({ form, clearExpiryRefusal, disabled }) {
     const { t } = useTranslation();
     const startDate = useStore(form.store, (state) => state.values.startDate);
     const expiryDate = useStore(form.store, (state) => state.values.expiryDate);
-    const validStart = isEditableDateValue(startDate) ? startDate : undefined;
-    const validExpiry = isEditableDateValue(expiryDate) ? expiryDate : undefined;
+    const validStart = isEditableDateValue(startDate, 'civil') ? startDate : undefined;
+    const validExpiry = isEditableDateValue(expiryDate, 'civil') ? expiryDate : undefined;
 
     return (
       <>
@@ -395,7 +395,7 @@ const NotificationDateFields = withForm({
                   onChange: ({ value }) => {
                     clearExpiryRefusal();
                     if (!value) form.setFieldValue(time, '');
-                    else if (isEditableDateValue(value) && !form.getFieldValue(time)) {
+                    else if (isEditableDateValue(value, 'civil') && !form.getFieldValue(time)) {
                       form.setFieldValue(time, defaultTime);
                     }
                   },
@@ -404,6 +404,8 @@ const NotificationDateFields = withForm({
                 {(field) => (
                   <field.DateField
                     clearLabel={t('data-table.clear-filter', { label })}
+                    dateMode="civil"
+                    disabled={disabled}
                     earliest={isStart ? undefined : validStart}
                     label={label}
                     latest={isStart ? validExpiry : undefined}
@@ -413,7 +415,7 @@ const NotificationDateFields = withForm({
               <form.AppField name={time} listeners={{ onChange: () => clearExpiryRefusal() }}>
                 {(field) => (
                   <field.TextField
-                    disabled={!hasDate}
+                    disabled={disabled || !hasDate}
                     label={t(timeLabel)}
                     required={hasDate}
                     type="time"

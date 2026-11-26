@@ -49,8 +49,14 @@ describe('advanceDateText', () => {
 });
 
 it('round-trips typed civil dates that the browser might have skipped', () => {
-  expect(parseDateText('30/12/2011')).toBe('2011-12-30');
-  expect(formatDateText('2011-12-30')).toBe('30/12/2011');
+  vi.stubEnv('TZ', 'Pacific/Apia');
+  try {
+    expect(parseDateText('30/12/2011')).toBeUndefined();
+    expect(parseDateText('30/12/2011', 'dd/MM/yyyy', 'civil')).toBe('2011-12-30');
+    expect(formatDateText('2011-12-30', 'dd/MM/yyyy', 'civil')).toBe('30/12/2011');
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });
 
 describe('parseDateValue', () => {

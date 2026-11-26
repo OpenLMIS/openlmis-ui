@@ -43,7 +43,11 @@ function notificationLabel({ title, message }: SystemNotification) {
 
 function NotificationTitle({ notice }: { notice: SystemNotification }) {
   const inCards = useInCards();
-  return <CellText strong>{inCards ? notificationLabel(notice) : notice.title}</CellText>;
+  return (
+    <span className="wrap-anywhere whitespace-normal font-medium" dir="auto">
+      {inCards ? notificationLabel(notice) : notice.title}
+    </span>
+  );
 }
 
 function createColumns(
@@ -51,6 +55,7 @@ function createColumns(
   language: string,
   timeZone: string,
   onEdit: (id: string) => void,
+  onlyDisplayed: boolean,
 ) {
   const labeled = (label: string, className?: string) => ({
     header: () => <DataTableHeaderLabel>{label}</DataTableHeaderLabel>,
@@ -89,13 +94,17 @@ function createColumns(
         <FlagBadge
           falseLabel={t('system-notifications.admin.not-displayed')}
           trueLabel={t('system-notifications.admin.displayed')}
-          value={isDisplayed(row.original, Date.now())}
+          value={onlyDisplayed || isDisplayed(row.original, Date.now())}
         />
       ),
     }),
     columnHelper.accessor('message', {
       ...labeled(t('system-notifications.admin.message'), 'w-48'),
-      cell: ({ getValue }) => <CellText overflow="wrap">{getValue()}</CellText>,
+      cell: ({ getValue }) => (
+        <span className="wrap-anywhere whitespace-pre-wrap" dir="auto">
+          {getValue()}
+        </span>
+      ),
     }),
     columnHelper.display({
       id: 'actions',
@@ -145,9 +154,10 @@ function useNotificationsTable({
   timeZone: string;
 }) {
   const { t, i18n } = useTranslation();
+  const onlyDisplayed = search.displayed === true;
   const columns = useMemo(
-    () => createColumns(t, i18n.language, timeZone, onEdit),
-    [t, i18n.language, timeZone, onEdit],
+    () => createColumns(t, i18n.language, timeZone, onEdit, onlyDisplayed),
+    [t, i18n.language, timeZone, onEdit, onlyDisplayed],
   );
   const { pageStart, searchState } = usePagedTableSearch({
     search,

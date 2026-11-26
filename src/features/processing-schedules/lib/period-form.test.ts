@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import {
   isReportOnly,
   landingPage,
@@ -62,4 +62,21 @@ it.each([
   [11, 4, 3],
 ])('lands %i periods with size %i on ascending page %i', (total, size, page) => {
   expect(landingPage({ total, size })).toBe(page);
+});
+
+it('refuses a reversed range with a start date skipped in Pacific/Apia', () => {
+  vi.stubEnv('TZ', 'Pacific/Apia');
+  try {
+    expect(new Date(2011, 11, 30).getDate()).toBe(31);
+    const result = periodFormSchema.safeParse({
+      ...valid,
+      startDate: '2011-12-30',
+      endDate: '2011-12-29',
+    });
+    expect(result.error?.issues).toMatchObject([
+      { path: ['startDate'], message: 'processing-schedules.period-form.start-invalid' },
+    ]);
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

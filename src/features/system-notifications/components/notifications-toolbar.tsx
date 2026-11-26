@@ -1,5 +1,5 @@
 import { PlusIcon } from 'lucide-react';
-import { type ComponentProps, useId } from 'react';
+import { type ComponentProps, type Ref, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableToolbar } from '@/components/data-table/data-table';
 import { DataTableComboboxFilter } from '@/components/data-table/data-table-filters';
@@ -18,10 +18,13 @@ import {
 
 type AuthorFilterProps = Pick<
   ComponentProps<typeof DataTableComboboxFilter>,
-  'options' | 'onOpenChange' | 'emptyMessage' | 'status'
+  'options' | 'onOpenChange' | 'emptyMessage'
 >;
 
+const AUTHOR_OPTION_LIMIT = 50;
+
 type NotificationsToolbarProps = {
+  addRef?: Ref<HTMLButtonElement>;
   search: NotificationsSearch;
   onFilterChange: (patch: Partial<NotificationsSearch>) => void;
   columnView: ReturnType<typeof useColumnVisibility>;
@@ -32,6 +35,7 @@ type NotificationsToolbarProps = {
 };
 
 export function NotificationsToolbar({
+  addRef,
   search,
   onFilterChange,
   columnView,
@@ -60,11 +64,16 @@ export function NotificationsToolbar({
                 contains(option.label, query) || contains(option.description ?? '', query)
               }
               label={t('system-notifications.admin.author')}
+              limit={AUTHOR_OPTION_LIMIT}
               onValueChange={(authorId) =>
                 onFilterChange({ authorId: authorId || undefined, page: undefined })
               }
+              status={
+                authorFilter.options.length > AUTHOR_OPTION_LIMIT
+                  ? t('system-notifications.admin.author-search-hint')
+                  : undefined
+              }
               value={search.authorId ?? ''}
-              virtualized
             />
           )}
           <Label htmlFor={displayedId}>
@@ -95,7 +104,7 @@ export function NotificationsToolbar({
           />
         </div>
         <div className="min-w-0 flex-1 @2xl/main:flex-none">
-          <Button disabled={disabled} onClick={onAdd} size="lg" width="full">
+          <Button disabled={disabled} onClick={onAdd} ref={addRef} size="lg" width="full">
             <PlusIcon data-icon="inline-start" />
             {t('system-notifications.admin.add-title')}
           </Button>

@@ -81,7 +81,13 @@ export function supportedDateFormat(format: unknown): format is string {
   );
 }
 
-function civilDateParts(value: string) {
+export type DateValueMode = 'local' | 'civil';
+
+function dateParts(value: string, mode: DateValueMode) {
+  if (mode === 'local') {
+    const date = parseDateValue(value);
+    return date && { y: date.getFullYear(), M: date.getMonth() + 1, d: date.getDate() };
+  }
   const match = DATE_VALUE.exec(value);
   if (!match) return undefined;
   const date = new Date(`${value}T00:00:00Z`);
@@ -95,8 +101,9 @@ function civilDateParts(value: string) {
     : undefined;
 }
 
-export function isEditableDateValue(value: string) {
-  const date = civilDateParts(value);
+export function isEditableDateValue(value: string, mode: DateValueMode = 'local') {
+  if (mode === 'local') return Boolean(parseEditableDate(value));
+  const date = dateParts(value, mode);
   return Boolean(date && date.y >= FIRST_DATE_YEAR && date.y <= lastDateYear());
 }
 
@@ -150,7 +157,11 @@ export function advanceDateText(
   return previous + zero + inserted + separator;
 }
 
-export function parseDateText(text: string, format = DEFAULT_DATE_FORMAT): string | undefined {
+export function parseDateText(
+  text: string,
+  format = DEFAULT_DATE_FORMAT,
+  mode: DateValueMode = 'local',
+): string | undefined {
   const digits = normalizeDateDigits(text);
   const pattern = supportedDateFormat(format) ? format : DEFAULT_DATE_FORMAT;
   const tokens = pattern.match(DATE_PARTS) ?? [];
@@ -158,21 +169,25 @@ export function parseDateText(text: string, format = DEFAULT_DATE_FORMAT): strin
     .replaceAll('.', '\\.')
     .replace(DATE_PARTS, (token) => (token === 'yyyy' ? '(\\d{4})' : '(\\d{1,2})'));
   const match = new RegExp(`^${expression}$`).exec(digits);
-  if (!match) return isEditableDateValue(digits) ? digits : undefined;
+  if (!match) return isEditableDateValue(digits, mode) ? digits : undefined;
   const parts = Object.fromEntries(tokens.map((token, index) => [token[0], match[index + 1]]));
   const value = `${parts.y}-${parts.M.padStart(2, '0')}-${parts.d.padStart(2, '0')}`;
-  return isEditableDateValue(value) ? value : undefined;
+  return isEditableDateValue(value, mode) ? value : undefined;
 }
 
-export function unparsedDateValue(text: string): string {
-  return text.startsWith(INVALID_DATE_PREFIX) || civilDateParts(text)
+export function unparsedDateValue(text: string, mode: DateValueMode = 'local'): string {
+  return text.startsWith(INVALID_DATE_PREFIX) || dateParts(text, mode)
     ? INVALID_DATE_PREFIX + text
     : text;
 }
 
-export function formatDateText(value: string, format = DEFAULT_DATE_FORMAT): string {
+export function formatDateText(
+  value: string,
+  format = DEFAULT_DATE_FORMAT,
+  mode: DateValueMode = 'local',
+): string {
   if (value.startsWith(INVALID_DATE_PREFIX)) return value.slice(INVALID_DATE_PREFIX.length);
-  const parts = civilDateParts(value);
+  const parts = dateParts(value, mode);
   if (!parts) return value;
   const pattern = supportedDateFormat(format) ? format : DEFAULT_DATE_FORMAT;
   return pattern.replace(DATE_PARTS, (token) =>
