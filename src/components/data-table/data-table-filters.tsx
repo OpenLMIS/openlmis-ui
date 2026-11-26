@@ -107,6 +107,7 @@ type DataTableComboboxFilterProps = {
   onValueChange: (value: string) => void;
   options: DataTableComboboxFilterOption[];
   limit?: number;
+  filter?: (option: DataTableComboboxFilterOption, query: string) => boolean;
   /** Searches the server with what the user types; the options are then listed as given. */
   onSearch?: (text: string) => void;
   /** Shown when there is nothing to list; "No Matches" by default. */
@@ -122,6 +123,7 @@ export function DataTableComboboxFilter({
   onValueChange,
   options,
   limit = 50,
+  filter,
   onSearch,
   emptyMessage,
   onOpenChange,
@@ -132,7 +134,7 @@ export function DataTableComboboxFilter({
 
   return (
     <Combobox
-      filter={onSearch ? null : undefined}
+      filter={onSearch ? null : filter}
       isItemEqualToValue={(item, picked) => item.value === picked.value}
       itemToStringLabel={(item) => item.label}
       items={options}
@@ -157,7 +159,7 @@ export function DataTableComboboxFilter({
         width="full"
       />
       <ComboboxContent>
-        {onSearch && <ComboboxStatus>{options.length > 0 && status}</ComboboxStatus>}
+        {status && <ComboboxStatus>{options.length > 0 && status}</ComboboxStatus>}
         <ComboboxEmpty>{emptyMessage ?? labels.noMatches}</ComboboxEmpty>
         <ComboboxList>
           {(option: DataTableComboboxFilterOption) => (
